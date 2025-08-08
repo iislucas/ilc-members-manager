@@ -1,0 +1,93 @@
+@if (firebaseService.user(); as user) {
+<div class="nav-bar">
+  <div class="who">Logged in as: {{ user.displayName }}</div>
+  <button (click)="logout()">Logout</button>
+</div>
+@if (logoutError(); as message) {
+<div class="error">
+  <span>{{ message }}</span>
+</div>
+}
+<main class="main">
+  <app-calendar-view></app-calendar-view>
+</main>
+} @else {
+<main class="main">
+  <h1>ILC Members Manager</h1>
+  <div class="login-options">
+    <div class="card email-login">
+      <div>
+        Email:
+        <input
+          #email
+          type="email"
+          name="email"
+          ngModel
+          required
+          placeholder="Email"
+        />
+      </div>
+      <div>
+        Password:
+        <input
+          #password
+          type="password"
+          name="password"
+          ngModel
+          required
+          placeholder="Password"
+        />
+      </div>
+      <div class="buttons">
+        <button
+          (click)="loginWithEmail(email.value, password.value)"
+          [disabled]="!email.value || !password.value"
+        >
+          Login
+        </button>
+        <button
+          (click)="signupWithEmail(email.value, password.value)"
+          [disabled]="!email.value || !password.value"
+        >
+          Signup
+        </button>
+      </div>
+
+      @if (signupError(); as message) {
+      <div class="error">
+        <span>{{ message }}</span>
+      </div>
+      } @if (loginWithEmailError(); as message) {
+      <div class="error">
+        <span>{{ message }}</span>
+      </div>
+      } @if (invalidLoginCredentials()) {
+      <p>
+        Your password is invalid. Do you want to
+        <button (click)="resetPassword(email.value)">reset your password</button
+        >?
+      </p>
+      } @if (resetPasswordSuccess(); as message) {
+      <div class="success">
+        <span>{{ message }}</span>
+      </div>
+      } @if (resetPasswordError(); as message) {
+      <div class="error">
+        <span>{{ message }}</span>
+      </div>
+      }
+    </div>
+
+    <div class="card google-login">
+      <button (click)="loginWithGoogle()">Login with Google</button>
+      @if (loginWithGoogleError(); as message) {
+      <div class="error">
+        <span>{{ message }}</span>
+      </div>
+      }
+    </div>
+  </div>
+</main>
+}
+
+<router-outlet />

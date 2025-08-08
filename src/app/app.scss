@@ -1,0 +1,36 @@
+@use "../scss_variables" as *;
+
+.email-login {
+}
+
+.login-options {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  // justify-content: space-between;
+  align-items: start;
+  gap: 1em;
+  width: 100%;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+}
+
+.nav-bar {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1em;
+
+  background-color: $theme-bg-color;
+  border-bottom: 2px solid $theme-border-color;
+  padding: 0.5em 1em;
+}
+
+main {
+  margin: 1em;
+}

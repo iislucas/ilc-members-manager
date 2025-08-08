@@ -1,0 +1,74 @@
+/* You can add global styles to this file, and also import other style files */
+
+/*
+  Improved Button Styling:
+  - A simple, clean button style inspired by Material Design.
+  - Uses SCSS variables for a customizable and maintainable color palette.
+  - Provides visual feedback on hover and press for a better user experience.
+*/
+
+// Use the modern `@use` rule to import SCSS modules.
+// `as *` makes the variables available globally in this file without a namespace.
+@use "scss_variables" as *;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0px;
+  padding: 0px;
+}
+
+button {
+  // Inherit font styles for consistency
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: 500; // Slightly bolder for emphasis
+  line-height: 1.5;
+
+  // Sizing and spacing
+  border-radius: 0.3em;
+
+  // Colors and borders
+  color: $button-text-color;
+  background-color: $button-bg-color;
+  border: 1px solid $button-border-color;
+
+  // Interaction
+  cursor: pointer;
+  // A subtle shadow for a "raised" Material Design effect.
+  box-shadow: 0 2px 4px $shadow-color;
+  // Smooth transitions for hover and active states.
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  // On hover, slightly darken the background and increase the shadow for a "lift" effect.
+  background-color: $button-hover-bg-color;
+  box-shadow: 0 4px 8px $shadow-color-hover;
+}
+
+button:active {
+  // When pressed, simulate a "push" effect by moving the button down slightly.
+  transform: translateY(1px);
+  background-color: $button-active-bg-color;
+  box-shadow: 0 1px 2px $shadow-color-active;
+}
+
+button:disabled {
+  // Style for disabled buttons to provide clear visual feedback.
+  cursor: not-allowed;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+.card {
+  background-color: $theme-bg-color;
+  border-radius: 0.5em;
+  padding: 1em;
+  border: 1px solid $theme-border-color;
+  // box-shadow: 0 0 0.5em #955;
+  min-width: 10em;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 0.3em;
+}
