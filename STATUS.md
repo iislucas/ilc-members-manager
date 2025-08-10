@@ -19,7 +19,7 @@ Longer description of the milestone, and then TODOs within it.
 * List/Longer description of what needs to be done. 
 ```
 
-Where `STATUS` is one of: `Completed`, `In Progress (name of person doing it)`,
+Where `STATUS` is one of: `Completed`, `In Progress (github ID of person doing it)`,
 or To Do; and `PRIORITY` is one of `P0` (current target, key features), `P1`
 (next target, good to have), `P2` (one day dreams)
 
