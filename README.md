@@ -16,6 +16,11 @@ The application should eventually support being a PWA (Progressive Web
 Application) so it can be downloaded and saved on mobile devices, and used to
 send notifications.
 
+## Status
+
+See the [STATUS.md](./STATUS.md) file for the latest status of the project, and
+the TODOs. 
+
 ## Libraries used in this project
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.0.5.
@@ -28,7 +33,6 @@ cd functions
 npm install
 cd ..
 ```
-
 
 ## Development server
 

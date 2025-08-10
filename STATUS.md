@@ -19,9 +19,10 @@ Longer description of the milestone, and then TODOs within it.
 * List/Longer description of what needs to be done. 
 ```
 
-Where `STATUS` is one of: `Completed`, `In Progress (github ID of person doing it)`,
-or To Do; and `PRIORITY` is one of `P0` (current target, key features), `P1`
-(next target, good to have), `P2` (one day dreams)
+Where `STATUS` is one of: `Completed (github ID of person responsible for it)`,
+`In Progress (github ID of person doing it)`, or `To Do`; and `PRIORITY` is one
+of `P0` (current target, key features), `P1` (next target, good to have next),
+`P2` (dreams for stuff after the others).
 
 ---
 
@@ -30,12 +31,13 @@ or To Do; and `PRIORITY` is one of `P0` (current target, key features), `P1`
 ### \[P0\]: Basic Membership Management
 
 The goal of this milestone is to support basic member management by ILC HQ, so
-they can manage instructors and members that don't pay on the SquareSpace site.
+they can manage instructors and members, e.g for those who may not pay on the
+SquareSpace site, and therefore need other means of managing their information.
 
 #### \[To Do\]: Basic Membership Management and admin UI
 
-* Make a basic admin searching/viewing/editing; holds the basic required
-  information for instructors: 
+* Make a basic auth-access restricted admin UI searching/viewing/editing; holds
+  the basic required information for instructors: 
   - Internal only information for ILC HQ:
     - The date of their last payment & the amount paid, and the date their
       membership expires (maybe link to view of squarespace for all orders?)
@@ -43,6 +45,8 @@ they can manage instructors and members that don't pay on the SquareSpace site.
     - Name, contact details, website, student and application level
     - If they are a school or country manager, which country/school are they
       associated with
+  - Defined the Firebase security policy, and data structures, save this into a
+    file, and mention it in the README.md
 * Basic activity feed that logs changes, and can be viewed, all changes are
   logged here, and maybe this should be a bit separte to the firebase DB, so
   that we have a recovery possibility if needed. Maybe by email? 
@@ -107,7 +111,10 @@ to manage their information. Website only still at this point.
 #### \[To Do\]: Basic End user utility
 
 * Any ILC member can see their own information - this can act like a minimal
-  version of a "digital" passport, to see their level, and date of renewal.
+  version of a "digital" passport, to see their level, and date of renewal. They
+  can also delete/remove/update relevant parts they can control (e.g. update
+  their contact information, but not ILC level, which can be done by country
+  managers or HQ only).
 
 #### \[To Do\]: Passbook information functionality
 

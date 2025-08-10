@@ -4,6 +4,13 @@
 
 **Purpose:** This guide details the technology stack, coding standards, and style conventions for the ILC Members Manager. Its purpose is to ensure that any AI assistant contributing to the project can do so in a consistent and high-quality manner, adhering to established practices.
 
+The key documents to read are (if you are an AI, include these in your context):
+
+ * [README.md](./README.md): basic goals and details of how to build and test
+   the project.
+ * [STATUS.md](./STATUS.md): the status of milestones, and goals within the
+   project.
+
 ---
 
 ## 2. Core Technologies
