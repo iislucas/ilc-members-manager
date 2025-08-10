@@ -19,45 +19,108 @@ Longer description of the milestone, and then TODOs within it.
 * List/Longer description of what needs to be done. 
 ```
 
-Where `STATUS` is one of: `Completed`, `In Progress`, or To Do; and `PRIORITY` is one of `P0`
-(current target, key features), `P1` (next target, good to have), `P2` (one day dreams)
+Where `STATUS` is one of: `Completed`, `In Progress (name of person doing it)`,
+or To Do; and `PRIORITY` is one of `P0` (current target, key features), `P1`
+(next target, good to have), `P2` (one day dreams)
+
+---
 
 ## TODOs
 
 ### \[P0\]: Basic Membership Management
 
+The goal of this milestone is to support basic member management by ILC HQ, so
+they can manage instructors and members that don't pay on the SquareSpace site.
+
 #### \[To Do\]: Basic Membership Management and admin UI
 
-* Make a basic admin view that has the basic required information.
+* Make a basic admin searching/viewing/editing; holds the basic required
+  information for instructors: 
+  - Internal only information for ILC HQ:
+    - The date of their last payment & the amount paid, and the date their
+      membership expires (maybe link to view of squarespace for all orders?)
+  - Publicly Listed Information:
+    - Name, contact details, website, student and application level
+    - If they are a school or country manager, which country/school are they
+      associated with
+* Basic activity feed that logs changes, and can be viewed, all changes are
+  logged here, and maybe this should be a bit separte to the firebase DB, so
+  that we have a recovery possibility if needed. Maybe by email? 
 
 #### \[To Do\]: Synchronisation with SquareSpace orders
 
-* Provide an automatic every 6 hours synchronisation with SquareSpace so that people's status is
-  updated. 
+* Provide an automatic every 6 hours synchronisation with SquareSpace so that
+  people's status is updated. 
 
 * Provide a manual way to synchronise with SquareSpace.
 
 #### \[To Do\]: Find an Instructor View & WebComponent
 
-* 
+* Provide a standalone web-component that can be embeded into a SquareSpace
+  site. This should provide the ability to search and browse the licensed
+  Instructors. This will probably involve: 
+    - A function that gets all instructors (consider if it's worth caching the
+      query to be efficient)
+    - A world-map view, maybe a google map, with all instructors shown.
+    - There are likely not that many instructors, so probably all search can be
+      client side. 
+    - It might make sense for this to be in a separte repo, like:
+      https://github.com/iislucas/google-cal-events-viewer
 
-#### \[To Do\]: Support Country Managers
+#### \[To Do\]: Backup to sheets/CSV just in case
 
-* 
+* Provide a way to backup the data to a google-sheet or download a CSV of the
+  current state. Also save monthly backups to a cloud bucket.
 
-#### \[To Do\]: Support Country
+---
 
-* 
+### \[P1\]: General Membership Management for ILC
 
-#### \[To Do\]: Implement the calendar viewer for events and workshops
+Make the application into something that schools/country managers can also use
+to manage their information. Website only still at this point. 
 
-* See the github: [iislucas/](github.com/iislucas/google-cal-events-viewer), and pull in this code
-  into this project, and adapt it.
+#### \[To Do\]: Support Country Managers manage their country & activity feed
 
-#### \[To Do\]: Make into a progressive webapp
+* Allow country managers to manage all people in their country. All changes
+  should populate an activity feed that ILC HQ can see. (ILC HQ changes should
+  also be recorded here). Maybe back this up to bigquery or end emails.
 
-* Ensure that it can be downloaded and installed on Android and iOS devices.
+---
 
-#### \[To Do\]: 
+### \[P2\]: End-user Progressive WebApp & other nice stuff
 
-* 
+#### \[To Do\]: Support people viewing and updating their public information
+
+* Non-country managers should be able to update their own information.
+
+#### \[To Do\]: Make the WebApp into a Progressive WebApp
+
+* Ensure that it can be downloaded and installed on Android and iOS devices, and
+  provide all functionality above.
+
+#### \[To Do\]: Implement a calendar viewer for events and workshops
+
+* See the github: [iislucas/](github.com/iislucas/google-cal-events-viewer), and
+  pull in this code into this project, and adapt it so that within the members
+  app, people can get notifiations about events they are interested in.
+
+#### \[To Do\]: Basic End user utility
+
+* Any ILC member can see their own information - this can act like a minimal
+  version of a "digital" passport, to see their level, and date of renewal.
+
+#### \[To Do\]: Passbook information functionality
+
+* Support having a photo (viewable by the participant, and the ILC HQ).
+
+* Support recording of attending a workshop/retreat & get a digital signature
+
+* Optionally Supprt, per country/school preference, recording of attending
+  classes. See: 
+
+#### \[To Do\]: Fun social / other stuff
+
+ * (optionally) Allow people to be listed as a ILC practioner publicly. So that
+   people can find others in an area more easily.
+
+ * Allow registration for workshops in the app.
