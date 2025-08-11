@@ -18,9 +18,12 @@
 }
 
 .member-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 20px;
+  margin-left: 1em;
+  margin-right: 1em;
 }
 
 .member-card {
@@ -28,12 +31,21 @@
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
   transition: box-shadow 0.3s ease;
+  width: 100%;
+  max-width: 800px;
 
   &:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
+
+  h3 {
+    margin-top: 0;
+  }
+}
+
+.selectable-member-card {
+  cursor: pointer;
 
   h3 {
     margin-top: 0;

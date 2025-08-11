@@ -48,8 +48,9 @@ export class MembersService {
       this.membersCollection,
       (snapshot) => {
         const members = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as Member)
+          (doc) => ({ ...doc.data(), id: doc.id } as Member)
         );
+        console.log(members);
         this.state.update((state) => ({ ...state, members, loading: false }));
       },
       (error) => {

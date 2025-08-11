@@ -1,0 +1,52 @@
+h3 {
+  margin-top: 0;
+}
+
+.form-section {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-gap: 1rem;
+  align-items: center;
+  margin-bottom: 1em;
+}
+
+label {
+  justify-self: end;
+  text-align: right;
+}
+
+input {
+  justify-self: start;
+
+  &.long {
+    width: 15em;
+  }
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1em;
+  align-items: center;
+}
+
+.delete-button {
+  margin-left: auto;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+
+  &:hover {
+    background-color: #d32f2f;
+  }
+
+  app-icon {
+    fill: white;
+  }
+}

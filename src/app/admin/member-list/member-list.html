@@ -3,8 +3,8 @@
 } @else if (error()) {
 <p class="error">Error: {{ error() }}</p>
 } @else {
-<h2>Members</h2>
 <div class="member-list-header">
+  <label>Search by name or email</label>
   <input
     type="text"
     placeholder="Search by name or email"
@@ -13,9 +13,20 @@
 </div>
 <div class="member-cards">
   @for (member of members(); track member.id) {
-  <div class="member-card" (click)="selectMember.emit(member)">
-    <h3>{{ member.public.name }}</h3>
-    <p>{{ member.public.email }}</p>
+  <div class="member-card" (click)="selectedMember.set(member)">
+    @if(selectedMember() === member) {
+    <app-member-edit
+      [member]="member"
+      (close)="selectedMember.set(null)"
+      (save)="saveMember($event)"
+      (delete)="deleteMember($event)"
+    ></app-member-edit>
+    } @else {
+    <div class="selectable-member-card">
+      <h3>{{ member.public.name }}</h3>
+      <p>{{ member.public.email }}</p>
+    </div>
+    }
   </div>
   }
 </div>

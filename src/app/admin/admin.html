@@ -1,15 +1,4 @@
 <h1>Admin - Member Management</h1>
 
-@let serviceError = membersService.error; @if (serviceError()) {
-<p class="error">Error: {{ serviceError() }}</p>
-} @if (selectedMember()) {
-<app-member-edit
-  [member]="selectedMember()!"
-  (save)="onSaveMember($event)"
-  (close)="onClose()"
->
-</app-member-edit>
-} @else {
 <button (click)="onNewMember()">New Member</button>
-<app-member-list (selectMember)="onSelectMember($event)"></app-member-list>
-}
+<app-member-list></app-member-list>

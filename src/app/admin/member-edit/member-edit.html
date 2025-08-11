@@ -1,145 +1,214 @@
 <div class="edit-form">
-  <h2>Edit Member</h2>
-  <form #memberForm="ngForm" (ngSubmit)="save.emit(member())">
-    <div class="form-group">
-      <label for="isAdmin">Is Admin</label>
-      <input
-        type="checkbox"
-        id="isAdmin"
-        name="isAdmin"
-        [(ngModel)]="member().isAdmin"
-      />
-    </div>
+  <form #memberForm="ngForm" (ngSubmit)="save.emit(editableMember)">
     <h3>Public Information</h3>
-    <div class="form-group">
+    <div class="form-section">
       <label for="name">Name</label>
       <input
+        class="long"
         type="text"
         id="name"
         name="name"
-        [(ngModel)]="member().public.name"
+        [(ngModel)]="editableMember.public.name"
       />
-    </div>
-    <div class="form-group">
+
       <label for="email">Email</label>
       <input
+        class="long"
         type="email"
         id="email"
         name="email"
-        [(ngModel)]="member().public.email"
+        [(ngModel)]="editableMember.public.email"
       />
-    </div>
-    <div class="form-group">
+
       <label for="website">Website</label>
       <input
+        class="long"
         type="text"
         id="website"
         name="website"
-        [(ngModel)]="member().public.website"
+        [(ngModel)]="editableMember.public.website"
       />
-    </div>
-    <div class="form-group">
-      <label for="studentLevel">Student Level</label>
+
+      <label for="address">Address</label>
+      <textarea
+        class="long"
+        id="address"
+        name="address"
+        [(ngModel)]="editableMember.public.address"
+      ></textarea>
+
+      <label for="phone">Phone</label>
       <input
         type="text"
-        id="studentLevel"
-        name="studentLevel"
-        [(ngModel)]="member().public.studentLevel"
+        id="phone"
+        name="phone"
+        [(ngModel)]="editableMember.public.phone"
       />
-    </div>
-    <div class="form-group">
-      <label for="applicationLevel">Application Level</label>
-      <input
-        type="text"
-        id="applicationLevel"
-        name="applicationLevel"
-        [(ngModel)]="member().public.applicationLevel"
-      />
-    </div>
-    <div class="form-group">
-      <label for="isSchoolManager">School Manager</label>
-      <input
-        type="checkbox"
-        id="isSchoolManager"
-        name="isSchoolManager"
-        [(ngModel)]="member().public.isSchoolManager"
-      />
-    </div>
-    <div class="form-group">
-      <label for="schoolName">School Name</label>
-      <input
-        type="text"
-        id="schoolName"
-        name="schoolName"
-        [(ngModel)]="member().public.schoolName"
-      />
-    </div>
-    <div class="form-group">
-      <label for="isCountryManager">Country Manager</label>
-      <input
-        type="checkbox"
-        id="isCountryManager"
-        name="isCountryManager"
-        [(ngModel)]="member().public.isCountryManager"
-      />
-    </div>
-    <div class="form-group">
+
       <label for="country">Country</label>
       <input
         type="text"
         id="country"
         name="country"
-        [(ngModel)]="member().public.country"
+        [(ngModel)]="editableMember.public.country"
       />
+
+      <label for="studentLevel">Student Level</label>
+      <input
+        type="text"
+        id="studentLevel"
+        name="studentLevel"
+        [(ngModel)]="editableMember.public.studentLevel"
+      />
+
+      <label for="applicationLevel">Application Level</label>
+      <input
+        type="text"
+        id="applicationLevel"
+        name="applicationLevel"
+        [(ngModel)]="editableMember.public.applicationLevel"
+      />
+
+      <label for="isSchoolManager">School Manager</label>
+      <input
+        type="checkbox"
+        id="isSchoolManager"
+        name="isSchoolManager"
+        [(ngModel)]="editableMember.public.isSchoolManager"
+      />
+
+      @if(editableMember.public.isSchoolManager) {
+      <label for="schoolName">School Name</label>
+      <input
+        class="long"
+        type="text"
+        id="schoolName"
+        name="schoolName"
+        [(ngModel)]="editableMember.public.schoolName"
+      />
+      }
+
+      <label for="isCountryManager">Country Manager</label>
+      <input
+        type="checkbox"
+        id="isCountryManager"
+        name="isCountryManager"
+        [(ngModel)]="editableMember.public.isCountryManager"
+      />
+
+      @if(editableMember.public.isCountryManager) {
+      <label for="country">Country Managed</label>
+      <input
+        class="long"
+        type="text"
+        id="country"
+        name="country"
+        [(ngModel)]="editableMember.public.countryManaged"
+      />
+      }
     </div>
 
     <h3>Internal Information</h3>
-    <div class="form-group">
+
+    <div class="form-section">
       <label for="lastPaymentDate">Last Payment Date</label>
       <input
         type="date"
         id="lastPaymentDate"
         name="lastPaymentDate"
-        [ngModel]="
-          member().internal.lastPaymentDate.toDate() | date : 'yyyy-MM-dd'
-        "
-        (ngModelChange)="member().internal.lastPaymentDate = $event"
+        [ngModel]="editableMember.internal.lastPaymentDate"
+        (ngModelChange)="editableMember.internal.lastPaymentDate = $event"
       />
-    </div>
-    <div class="form-group">
+
       <label for="lastPaymentAmount">Last Payment Amount</label>
       <input
         type="number"
         id="lastPaymentAmount"
         name="lastPaymentAmount"
-        [(ngModel)]="member().internal.lastPaymentAmount"
+        [(ngModel)]="editableMember.internal.lastPaymentAmount"
       />
-    </div>
-    <div class="form-group">
+
       <label for="lastPaymentId">Last Payment ID</label>
       <input
         type="number"
         id="lastPaymentId"
         name="lastPaymentId"
-        [(ngModel)]="member().internal.lastPaymentId"
+        [(ngModel)]="editableMember.internal.lastPaymentId"
       />
-    </div>
-    <div class="form-group">
+
       <label for="membershipExpires">Membership Expires</label>
       <input
         type="date"
         id="membershipExpires"
         name="membershipExpires"
-        [ngModel]="
-          member().internal.membershipExpires.toDate() | date : 'yyyy-MM-dd'
-        "
-        (ngModelChange)="member().internal.membershipExpires = $event"
+        [ngModel]="editableMember.internal.membershipExpires"
+        (ngModelChange)="editableMember.internal.membershipExpires = $event"
       />
+
+      <label for="memberId">Member ID</label>
+      <input
+        type="text"
+        id="memberId"
+        name="memberId"
+        [(ngModel)]="editableMember.internal.memberId"
+      />
+
+      <label for="isInstructor">Is Instructor</label>
+      <input
+        type="checkbox"
+        id="isInstructor"
+        name="isInstructor"
+        [(ngModel)]="editableMember.internal.isInstructor"
+      />
+
+      @if(editableMember.internal.isInstructor) {
+      <label for="instructorLicenseExpires">Instructor License Expires</label>
+      <input
+        type="date"
+        id="instructorLicenseExpires"
+        name="instructorLicenseExpires"
+        [ngModel]="editableMember.internal.instructorLicenseExpires"
+        (ngModelChange)="
+          editableMember.internal.instructorLicenseExpires = $event
+        "
+      />
+      }
+
+      <label for="sifuName">Sifu Name</label>
+      <input
+        type="text"
+        id="sifuName"
+        name="sifuName"
+        [(ngModel)]="editableMember.internal.sifuName"
+      />
+
+      <label for="sifuMemberId">Sifu Member ID</label>
+      <input
+        type="text"
+        id="sifuMemberId"
+        name="sifuMemberId"
+        [(ngModel)]="editableMember.internal.sifuMemberId"
+      />
+
+      <label for="isAdmin">Is Admin</label>
+      <div>
+        <input
+          type="checkbox"
+          id="isAdmin"
+          name="isAdmin"
+          [(ngModel)]="editableMember.isAdmin"
+        />
+        (can edit all members)
+      </div>
     </div>
 
     <div class="form-actions">
       <button type="submit">Save</button>
-      <button type="button" (click)="close.emit()">Close</button>
+      <button type="button" (click)="cancel($event)">Cancel</button>
+      <button class="delete-button" (click)="deleteMember($event)">
+        <app-icon name="trash" fill="white" />
+        Delete
+      </button>
     </div>
   </form>
 </div>
