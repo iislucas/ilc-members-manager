@@ -1,0 +1,22 @@
+@if (loading()) {
+<div class="spinner"></div>
+} @else if (error()) {
+<p class="error">Error: {{ error() }}</p>
+} @else {
+<h2>Members</h2>
+<div class="member-list-header">
+  <input
+    type="text"
+    placeholder="Search by name or email"
+    (input)="onSearch($event)"
+  />
+</div>
+<div class="member-cards">
+  @for (member of members(); track member.id) {
+  <div class="member-card" (click)="selectMember.emit(member)">
+    <h3>{{ member.public.name }}</h3>
+    <p>{{ member.public.email }}</p>
+  </div>
+  }
+</div>
+}

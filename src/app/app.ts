@@ -1,13 +1,20 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import { FirebaseStateService } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
-import { CalendarView } from './calendar-view/calendar-view';
+import { AdminComponent } from './admin/admin';
+import { CommonModule } from '@angular/common';
+import { UnauthorizedComponent } from './unauthorized/unauthorized';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, FormsModule, ReactiveFormsModule, CalendarView],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    AdminComponent,
+    UnauthorizedComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -28,7 +35,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.loginWithGoogle();
     if (!result.success) {
-      this.loginWithGoogleError.set(result.errorMessage);
+      this.loginWithGoogleError.set(result.errorCode);
     }
   }
 
@@ -36,8 +43,8 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.loginWithEmail(pass, email);
     if (!result.success) {
-      this.loginWithEmailError.set(result.errorMessage);
-      if (result.errorMessage === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
+      this.loginWithEmailError.set(result.errorCode);
+      if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
         this.invalidLoginCredentials.set(true);
       }
     }
@@ -47,7 +54,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.signupWithEmail(pass, email);
     if (!result.success) {
-      this.signupError.set(result.errorMessage);
+      this.signupError.set(result.errorCode);
     }
   }
 
@@ -73,7 +80,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.logout();
     if (!result.success) {
-      this.logoutError.set(result.errorMessage);
+      this.logoutError.set(result.errorCode);
     }
   }
 

@@ -148,3 +148,5 @@ export const getCalendarEvents = onCall(
     }
   }
 );
+
+export { addAdmin, removeAdmin } from './admin';

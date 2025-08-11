@@ -17,11 +17,13 @@ The key documents to read are (if you are an AI, include these in your context):
 
 This project is built on a specific set of technologies. Adherence to these versions and libraries is crucial.
 
-- **Framework:** **Angular `^20.0.0`**. All components, services, and modules should follow Angular best practices.
+- **Framework:** **Angular `^20.0.0`**. All components, services, and modules
+  should follow Angular best practices, but do NOT use the angular router.
 - **Language:** **TypeScript `~5.8.2`**. All code must be written in TypeScript.
 - **Reactivity:** **Angular Signals** are the primary and preferred mechanism for managing state and reactivity within components, avoid Observables wherever you reasonably can do so.
 - **Asynchronous Operations:** **Async/await and Signals** whenever possible. use RxJS. only when needed.
 - **Server:** **Firebase `^11.10.0`**. Use standard firebase libraries, not derived ones (e.g. do not use @angular/fire).
+
 
 ---
 

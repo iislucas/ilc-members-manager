@@ -34,3 +34,11 @@
 main {
   margin: 1em;
 }
+
+.email {
+  font-size: small;
+  background-color: $theme-chip-bg-color;
+  border-radius: 5px;
+  padding: 0.2em;
+  border: 1px solid $theme-chip-border-color;
+}

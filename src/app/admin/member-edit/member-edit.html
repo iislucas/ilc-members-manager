@@ -1,0 +1,145 @@
+<div class="edit-form">
+  <h2>Edit Member</h2>
+  <form #memberForm="ngForm" (ngSubmit)="save.emit(member())">
+    <div class="form-group">
+      <label for="isAdmin">Is Admin</label>
+      <input
+        type="checkbox"
+        id="isAdmin"
+        name="isAdmin"
+        [(ngModel)]="member().isAdmin"
+      />
+    </div>
+    <h3>Public Information</h3>
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        [(ngModel)]="member().public.name"
+      />
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        [(ngModel)]="member().public.email"
+      />
+    </div>
+    <div class="form-group">
+      <label for="website">Website</label>
+      <input
+        type="text"
+        id="website"
+        name="website"
+        [(ngModel)]="member().public.website"
+      />
+    </div>
+    <div class="form-group">
+      <label for="studentLevel">Student Level</label>
+      <input
+        type="text"
+        id="studentLevel"
+        name="studentLevel"
+        [(ngModel)]="member().public.studentLevel"
+      />
+    </div>
+    <div class="form-group">
+      <label for="applicationLevel">Application Level</label>
+      <input
+        type="text"
+        id="applicationLevel"
+        name="applicationLevel"
+        [(ngModel)]="member().public.applicationLevel"
+      />
+    </div>
+    <div class="form-group">
+      <label for="isSchoolManager">School Manager</label>
+      <input
+        type="checkbox"
+        id="isSchoolManager"
+        name="isSchoolManager"
+        [(ngModel)]="member().public.isSchoolManager"
+      />
+    </div>
+    <div class="form-group">
+      <label for="schoolName">School Name</label>
+      <input
+        type="text"
+        id="schoolName"
+        name="schoolName"
+        [(ngModel)]="member().public.schoolName"
+      />
+    </div>
+    <div class="form-group">
+      <label for="isCountryManager">Country Manager</label>
+      <input
+        type="checkbox"
+        id="isCountryManager"
+        name="isCountryManager"
+        [(ngModel)]="member().public.isCountryManager"
+      />
+    </div>
+    <div class="form-group">
+      <label for="country">Country</label>
+      <input
+        type="text"
+        id="country"
+        name="country"
+        [(ngModel)]="member().public.country"
+      />
+    </div>
+
+    <h3>Internal Information</h3>
+    <div class="form-group">
+      <label for="lastPaymentDate">Last Payment Date</label>
+      <input
+        type="date"
+        id="lastPaymentDate"
+        name="lastPaymentDate"
+        [ngModel]="
+          member().internal.lastPaymentDate.toDate() | date : 'yyyy-MM-dd'
+        "
+        (ngModelChange)="member().internal.lastPaymentDate = $event"
+      />
+    </div>
+    <div class="form-group">
+      <label for="lastPaymentAmount">Last Payment Amount</label>
+      <input
+        type="number"
+        id="lastPaymentAmount"
+        name="lastPaymentAmount"
+        [(ngModel)]="member().internal.lastPaymentAmount"
+      />
+    </div>
+    <div class="form-group">
+      <label for="lastPaymentId">Last Payment ID</label>
+      <input
+        type="number"
+        id="lastPaymentId"
+        name="lastPaymentId"
+        [(ngModel)]="member().internal.lastPaymentId"
+      />
+    </div>
+    <div class="form-group">
+      <label for="membershipExpires">Membership Expires</label>
+      <input
+        type="date"
+        id="membershipExpires"
+        name="membershipExpires"
+        [ngModel]="
+          member().internal.membershipExpires.toDate() | date : 'yyyy-MM-dd'
+        "
+        (ngModelChange)="member().internal.membershipExpires = $event"
+      />
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Save</button>
+      <button type="button" (click)="close.emit()">Close</button>
+    </div>
+  </form>
+</div>

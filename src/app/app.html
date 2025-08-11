@@ -1,6 +1,9 @@
 @if (firebaseService.user(); as user) {
 <div class="nav-bar">
-  <div class="who">Logged in as: {{ user.displayName }}</div>
+  <div class="who">
+    Logged in as: {{ user.displayName }}
+    <span class="email">{{ user.email }} </span>
+  </div>
   <button (click)="logout()">Logout</button>
 </div>
 @if (logoutError(); as message) {
@@ -9,7 +12,11 @@
 </div>
 }
 <main class="main">
-  <app-calendar-view></app-calendar-view>
+  @let claims=firebaseService.claims(); @if (claims && claims['admin']) {
+  <app-admin></app-admin>
+  } @else {
+  <app-unauthorized></app-unauthorized>
+  }
 </main>
 } @else {
 <main class="main">
@@ -89,5 +96,3 @@
   </div>
 </main>
 }
-
-<router-outlet />

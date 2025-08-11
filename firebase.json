@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist/ilc-members-manager/browser",
+    "public": "dist/",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -8,10 +8,6 @@
       "functions/scripts/**"
     ],
     "rewrites": [
-      {
-        "source": "/api/getCalendarEvents",
-        "function": "getCalendarEvents"
-      },
       {
         "source": "**",
         "destination": "/index.html"
@@ -21,5 +17,10 @@
   "functions": {
     "source": "functions",
     "runtime": "nodejs22"
+  },
+  "firestore": {
+    "database": "(default)",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

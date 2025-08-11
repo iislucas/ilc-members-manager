@@ -34,7 +34,7 @@ The goal of this milestone is to support basic member management by ILC HQ, so
 they can manage instructors and members, e.g for those who may not pay on the
 SquareSpace site, and therefore need other means of managing their information.
 
-#### \[To Do\]: Basic Membership Management and admin UI
+#### \[In Progress(iislucas)\]: Basic Membership Management and admin UI
 
 * Make a basic auth-access restricted admin UI searching/viewing/editing; holds
   the basic required information for instructors: 

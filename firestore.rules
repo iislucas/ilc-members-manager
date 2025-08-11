@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /members/{userId} {
+      // Allow admins to read and write all member data
+      allow read, write: if request.auth.token.admin == true;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
