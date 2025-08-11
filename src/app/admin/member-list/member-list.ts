@@ -53,47 +53,4 @@ export class MemberListComponent {
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
   }
-
-  async saveMember(member: Member) {
-    console.log(`saving `, member);
-    if (member.id) {
-      const originalMember = await this.membersService.getMember(member.id);
-      if (originalMember && originalMember.isAdmin !== member.isAdmin) {
-        if (member.isAdmin) {
-          await this.firebaseStateService.addAdmin(
-            member.id,
-            member.public.email
-          );
-        } else {
-          await this.firebaseStateService.removeAdmin(
-            member.id,
-            member.public.email
-          );
-        }
-      }
-      this.membersService.updateMember(member.id, member);
-    } else {
-      console.log(`saving a new member`, member);
-
-      const newMember = await this.membersService.addMember(member);
-      if (member.isAdmin) {
-        await this.firebaseStateService.addAdmin(
-          newMember.id,
-          member.public.email
-        );
-      }
-    }
-    this.selectedMember.set(null);
-  }
-
-  async deleteMember(member: Member) {
-    await this.membersService.deleteMember(member.id);
-    if (member.isAdmin) {
-      await this.firebaseStateService.removeAdmin(
-        member.id,
-        member.public.email
-      );
-    }
-    this.selectedMember.set(null);
-  }
 }

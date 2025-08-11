@@ -1,5 +1,5 @@
 <div class="edit-form">
-  <form #memberForm="ngForm" (ngSubmit)="save.emit(editableMember)">
+  <form #memberForm="ngForm" (ngSubmit)="saveMember()">
     <h3>Public Information</h3>
     <div class="form-section">
       <label for="name">Name</label>
@@ -18,7 +18,11 @@
         id="email"
         name="email"
         [(ngModel)]="editableMember.public.email"
+        (ngModelChange)="isDupEmail()"
       />
+      @if (emailExists) {
+      <div class="error">This email address is already in use.</div>
+      }
 
       <label for="website">Website</label>
       <input
@@ -203,7 +207,7 @@
     </div>
 
     <div class="form-actions">
-      <button type="submit">Save</button>
+      <button type="submit" [disabled]="emailExists">Save</button>
       <button type="button" (click)="cancel($event)">Cancel</button>
       <button class="delete-button" (click)="deleteMember($event)">
         <app-icon name="trash" fill="white" />

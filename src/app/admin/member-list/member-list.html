@@ -17,9 +17,8 @@
     @if(selectedMember() === member) {
     <app-member-edit
       [member]="member"
+      [allMembers]="members()"
       (close)="selectedMember.set(null)"
-      (save)="saveMember($event)"
-      (delete)="deleteMember($event)"
     ></app-member-edit>
     } @else {
     <div class="selectable-member-card">
