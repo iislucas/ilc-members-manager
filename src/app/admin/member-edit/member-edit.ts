@@ -102,8 +102,9 @@ export class MemberEditComponent {
         this.editableMember.id
       );
       if (
-        originalMember &&
-        originalMember.isAdmin !== this.editableMember.isAdmin
+        originalMember
+        // &&
+        // originalMember.isAdmin !== this.editableMember.isAdmin
       ) {
         if (this.editableMember.isAdmin) {
           await this.firebaseStateService.addAdmin(

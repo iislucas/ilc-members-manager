@@ -27,6 +27,7 @@ export const addAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   const data = request.data as AdminData;
   logger.info('addAdmin data', data);
   // Set the admin claim on the target user
+  // TODO: catch errors, and make sure that failure here resultsi the UI having a message that tells the user that the user trying to be added as admin does not exit, and then make sure to also set the isAdmin boolean gets set to false.
   await admin.auth().setCustomUserClaims(data.uid, { admin: true });
 
   return { message: `Success! ${data.email} is now an admin.` };
