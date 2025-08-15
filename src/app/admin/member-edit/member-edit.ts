@@ -102,20 +102,35 @@ export class MemberEditComponent {
         this.editableMember.id
       );
       if (
-        originalMember
-        // &&
-        // originalMember.isAdmin !== this.editableMember.isAdmin
+        originalMember &&
+        originalMember.isAdmin !== this.editableMember.isAdmin
       ) {
         if (this.editableMember.isAdmin) {
-          await this.firebaseStateService.addAdmin(
-            this.editableMember.id,
-            this.editableMember.public.email
-          );
+          try {
+            await this.firebaseStateService.addAdmin(
+              this.editableMember.id,
+              this.editableMember.public.email
+            );
+          } catch (e: any) {
+            this.errorMessage.set(e.message);
+            this.editableMember.isAdmin = false;
+            return;
+          }
         } else {
-          await this.firebaseStateService.removeAdmin(
-            this.editableMember.id,
-            this.editableMember.public.email
-          );
+          try {
+            await this.firebaseStateService.removeAdmin(
+              this.editableMember.id,
+              this.editableMember.public.email
+            );
+          } catch (e: unknown) {
+            if (e instanceof Error) {
+              this.errorMessage.set(e.message);
+            } else {
+              this.errorMessage.set('An unknown error occurred.');
+            }
+            this.editableMember.isAdmin = true;
+            return;
+          }
         }
       }
       await this.membersService.updateMember(

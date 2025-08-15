@@ -27,10 +27,32 @@ export const addAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   const data = request.data as AdminData;
   logger.info('addAdmin data', data);
   // Set the admin claim on the target user
-  // TODO: catch errors, and make sure that failure here resultsi the UI having a message that tells the user that the user trying to be added as admin does not exit, and then make sure to also set the isAdmin boolean gets set to false.
-  await admin.auth().setCustomUserClaims(data.uid, { admin: true });
-
-  return { message: `Success! ${data.email} is now an admin.` };
+  try {
+    // First, check if the user exists.
+    await admin.auth().getUser(data.uid);
+    // If the user exists, set the custom claim.
+    await admin.auth().setCustomUserClaims(data.uid, { admin: true });
+    return { message: `Success! ${data.email} is now an admin.` };
+  } catch (error: unknown) {
+    logger.error('Error in addAdmin:', error);
+    // Check for a specific error code indicating the user was not found.
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'auth/user-not-found'
+    ) {
+      throw new HttpsError(
+        'not-found',
+        `The user with email ${data.email} does not exist, she needs to signin before you can make her an admin; unsetting the admin field so you can try and save again.`
+      );
+    }
+    // For any other errors, throw a generic error.
+    throw new HttpsError(
+      'internal',
+      'An unexpected error occurred while making the user an admin.'
+    );
+  }
 });
 
 export const removeAdmin = onCall({ cors: allowedOrigins }, async (request) => {
@@ -59,7 +81,27 @@ export const removeAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   }
 
   // Remove the admin claim on the target user
-  await admin.auth().setCustomUserClaims(data.uid, { admin: false });
-
-  return { message: `Success! ${data.email} is no longer an admin.` };
+  try {
+    await admin.auth().setCustomUserClaims(data.uid, { admin: false });
+    return { message: `Success! ${data.email} is no longer an admin.` };
+  } catch (error: unknown) {
+    logger.error('Error in removeAdmin:', error);
+    // If the user doesn't exist, that's fine. The end state is the same.
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'auth/user-not-found'
+    ) {
+      logger.info(`User ${data.email} not found, but they are not an admin.`);
+      return {
+        message: `User ${data.email} not found, but they are not an admin.`,
+      };
+    }
+    // For any other errors, throw a generic error.
+    throw new HttpsError(
+      'internal',
+      'An unexpected error occurred while removing admin privileges.'
+    );
+  }
 });

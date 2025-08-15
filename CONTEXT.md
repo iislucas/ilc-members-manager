@@ -86,6 +86,14 @@ The project enforces a high level of type safety and modern Angular practices.
   }
   ```
 - **Strict Mode:** `strict: true` is enabled. Avoid using the `any` type. All variables and function returns must have explicit types.
+- **Error Handling:** Use `unknown` for the type of the error in `catch` blocks to ensure type safety.
+  ```typescript
+  try {
+    // ...
+  } catch (error: unknown) {
+    // ...
+  }
+  ```
 - **Key Compiler Flags to Respect:**
     - `noImplicitReturns`: Ensure all code paths in a function return a value if the function is declared to do so.
     - `strictTemplates`: In Angular templates, adhere to strict type checking. Ensure all bindings are type-compatible.
