@@ -16,6 +16,7 @@ import { MembersService } from '../members.service';
 export class MemberEditComponent {
   member = input.required<Member>();
   allMembers = input.required<Member[]>();
+  canDelete = input<boolean>(true);
   close = output();
 
   editableMember!: Member;

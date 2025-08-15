@@ -209,10 +209,12 @@
     <div class="form-actions">
       <button type="submit" [disabled]="emailExists">Save</button>
       <button type="button" (click)="cancel($event)">Cancel</button>
+      @if(canDelete()) {
       <button class="delete-button" (click)="deleteMember($event)">
         <app-icon name="trash" fill="white" />
         Delete
       </button>
+      }
     </div>
   </form>
 </div>

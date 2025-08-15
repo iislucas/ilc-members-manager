@@ -15,9 +15,19 @@
   <button (click)="onNewMember()">New Member</button>
 </div>
 <div class="member-cards">
-  @for (member of members(); track member.id) {
+  @let curSelected = selectedMember(); @if(curSelected && curSelected.id === '')
+  {
+  <div class="member-card">
+    <app-member-edit
+      [member]="curSelected"
+      [allMembers]="members()"
+      (close)="selectedMember.set(null)"
+      [canDelete]="false"
+    ></app-member-edit>
+  </div>
+  } @for (member of members(); track member.id) {
   <div class="member-card" (click)="selectedMember.set(member)">
-    @if(selectedMember() === member) {
+    @if(curSelected === member) {
     <app-member-edit
       [member]="member"
       [allMembers]="members()"
