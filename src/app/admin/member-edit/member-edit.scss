@@ -50,3 +50,30 @@ input {
     fill: white;
   }
 }
+
+.error {
+  color: #f44336;
+  grid-column: 2;
+}
+
+.error-container {
+  margin-bottom: 1em;
+}
+
+.error-message {
+  background-color: #fdd;
+  border: 1px solid #f44336;
+  padding: 1em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}

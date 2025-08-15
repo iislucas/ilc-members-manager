@@ -21,12 +21,14 @@ export class MemberEditComponent {
 
   editableMember!: Member;
   emailExists = false;
+  errorMessage = '';
   private membersService = inject(MembersService);
   private firebaseStateService = inject(FirebaseStateService);
 
   constructor() {
     effect(() => {
       this.editableMember = JSON.parse(JSON.stringify(this.member()));
+      this.validateForm();
     });
   }
 
@@ -53,6 +55,21 @@ export class MemberEditComponent {
   }
 
   async saveMember() {
+    if (this.isDupEmail()) {
+      this.errorMessage = 'This email address is already in use.';
+      return;
+    } else if (this.editableMember.public.name === '') {
+      this.errorMessage = 'Name cannot be empty.';
+      return;
+    } else if (
+      !this.editableMember.id &&
+      this.editableMember.internal.memberId === ''
+    ) {
+      this.errorMessage = 'Member ID cannot be empty for a new member.';
+      return;
+    }
+    this.errorMessage = '';
+
     if (this.editableMember.id) {
       const originalMember = await this.membersService.getMember(
         this.editableMember.id
@@ -109,6 +126,23 @@ export class MemberEditComponent {
         }
       }
       this.close.emit();
+    }
+  }
+
+  closeError() {
+    this.errorMessage = '';
+  }
+
+  validateForm() {
+    if (this.editableMember.public.name === '') {
+      this.errorMessage = 'Name cannot be empty.';
+    } else if (
+      !this.editableMember.id &&
+      this.editableMember.internal.memberId === ''
+    ) {
+      this.errorMessage = 'Member ID cannot be empty for a new member.';
+    } else {
+      this.errorMessage = '';
     }
   }
 }

@@ -9,7 +9,12 @@
         id="name"
         name="name"
         [(ngModel)]="editableMember.public.name"
+        #name="ngModel"
+        required
       />
+      @if(name.invalid && (name.dirty || name.touched)) {
+      <div class="error">Name is required.</div>
+      }
 
       <label for="email">Email</label>
       <input
@@ -19,9 +24,14 @@
         name="email"
         [(ngModel)]="editableMember.public.email"
         (ngModelChange)="isDupEmail()"
+        #email="ngModel"
+        required
+        email
       />
       @if (emailExists) {
       <div class="error">This email address is already in use.</div>
+      } @else if (email.invalid && (email.dirty || email.touched)) {
+      <div class="error">Please enter a valid email address.</div>
       }
 
       <label for="website">Website</label>
@@ -155,7 +165,12 @@
         id="memberId"
         name="memberId"
         [(ngModel)]="editableMember.internal.memberId"
+        #memberId="ngModel"
+        [required]="!editableMember.id"
       />
+      @if(memberId.invalid && (memberId.dirty || memberId.touched)) {
+      <div class="error">Member ID is required.</div>
+      }
 
       <label for="isInstructor">Is Instructor</label>
       <input
@@ -206,8 +221,20 @@
       </div>
     </div>
 
+    @if (errorMessage) {
+    <div class="error-container">
+      <div class="error-message">
+        {{ errorMessage }}
+        <button class="close-button" (click)="closeError()">
+          <app-icon name="close" />
+        </button>
+      </div>
+    </div>
+    }
     <div class="form-actions">
-      <button type="submit" [disabled]="emailExists">Save</button>
+      <button type="submit" [disabled]="emailExists || memberForm.invalid">
+        Save
+      </button>
       <button type="button" (click)="cancel($event)">Cancel</button>
       @if(canDelete()) {
       <button class="delete-button" (click)="deleteMember($event)">

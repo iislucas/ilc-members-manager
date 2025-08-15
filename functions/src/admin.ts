@@ -1,14 +1,20 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { environment } from './environment/environment';
 
 admin.initializeApp();
+
+const allowedOrigins = environment.domains;
+if (process.env.GCLOUD_PROJECT) {
+  allowedOrigins.push(`https://${process.env.GCLOUD_PROJECT}.web.app`);
+}
 
 interface AdminData {
   uid: string;
   email: string;
 }
 
-export const addAdmin = onCall(async (request) => {
+export const addAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   // Check if the user making the request is already an admin
   if (request.auth?.token.admin !== true) {
     throw new HttpsError(
@@ -24,7 +30,7 @@ export const addAdmin = onCall(async (request) => {
   return { message: `Success! ${data.email} is now an admin.` };
 });
 
-export const removeAdmin = onCall(async (request) => {
+export const removeAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   // Check if the user making the request is already an admin
   if (request.auth?.token.admin !== true) {
     throw new HttpsError(
