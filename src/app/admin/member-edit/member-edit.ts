@@ -12,11 +12,12 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../icons/icon.component';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { MembersService } from '../members.service';
+import { SpinnerComponent } from '../../spinner/spinner.component';
 
 @Component({
   selector: 'app-member-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
   templateUrl: './member-edit.html',
   styleUrl: './member-edit.scss',
 })
@@ -30,6 +31,7 @@ export class MemberEditComponent {
   emailExists = false;
   memberIdExists = false;
   errorMessage = signal('');
+  isSaving = signal(false);
   private membersService = inject(MembersService);
   private firebaseStateService = inject(FirebaseStateService);
 
@@ -79,20 +81,25 @@ export class MemberEditComponent {
   }
 
   async saveMember() {
+    this.isSaving.set(true);
     if (this.isDupEmail()) {
       this.errorMessage.set('This email address is already in use.');
+      this.isSaving.set(false);
       return;
     } else if (this.isDupMemberId()) {
       this.errorMessage.set('This member ID is already in use.');
+      this.isSaving.set(false);
       return;
     } else if (this.editableMember.public.name === '') {
       this.errorMessage.set('Name cannot be empty.');
+      this.isSaving.set(false);
       return;
     } else if (
       !this.editableMember.id &&
       this.editableMember.internal.memberId === ''
     ) {
       this.errorMessage.set('Member ID cannot be empty for a new member.');
+      this.isSaving.set(false);
       return;
     }
     this.errorMessage.set('');
@@ -114,6 +121,7 @@ export class MemberEditComponent {
           } catch (e: any) {
             this.errorMessage.set(e.message);
             this.editableMember.isAdmin = false;
+            this.isSaving.set(false);
             return;
           }
         } else {
@@ -129,6 +137,7 @@ export class MemberEditComponent {
               this.errorMessage.set('An unknown error occurred.');
             }
             this.editableMember.isAdmin = true;
+            this.isSaving.set(false);
             return;
           }
         }
@@ -149,6 +158,7 @@ export class MemberEditComponent {
       }
     }
     this.close.emit();
+    this.isSaving.set(false);
   }
 
   async deleteMember($event: Event) {

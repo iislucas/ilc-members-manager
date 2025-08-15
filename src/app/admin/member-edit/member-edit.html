@@ -235,19 +235,23 @@
     </div>
     }
     <div class="form-actions">
+      @if(isSaving()) {
+      <app-spinner></app-spinner>
+      } @else {
       <button
         type="submit"
         [disabled]="emailExists || memberIdExists || memberForm.invalid"
       >
         Save
       </button>
+
       <button type="button" (click)="cancel($event)">Cancel</button>
       @if(canDelete()) {
       <button class="delete-button" (click)="deleteMember($event)">
         <app-icon name="trash" fill="white" />
         Delete
       </button>
-      }
+      } }
     </div>
   </form>
 </div>

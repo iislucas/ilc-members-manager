@@ -13,11 +13,12 @@ import { MemberEditComponent } from '../member-edit/member-edit';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { Timestamp } from 'firebase/firestore';
 import { IconComponent } from '../../icons/icon.component';
+import { SpinnerComponent } from '../../spinner/spinner.component';
 
 @Component({
   selector: 'app-member-list',
   standalone: true,
-  imports: [CommonModule, MemberEditComponent, IconComponent],
+  imports: [CommonModule, MemberEditComponent, IconComponent, SpinnerComponent],
   templateUrl: './member-list.html',
   styleUrl: './member-list.scss',
 })

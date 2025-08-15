@@ -24,9 +24,11 @@ export type CalendarEntriesState =
   | { status: 'error'; error: string }
   | { status: 'loaded'; data: GoogleCalendarEventItem[] };
 
+import { SpinnerComponent } from '../spinner/spinner.component';
+
 @Component({
   selector: 'app-calendar-view',
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent],
   templateUrl: './calendar-view.html',
   styleUrl: './calendar-view.scss',
 })

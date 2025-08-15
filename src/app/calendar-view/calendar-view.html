@@ -19,7 +19,7 @@
     <h2>Next Classes</h2>
     @let forthcoming = forthcomingClasses(); @if (forthcoming.status ===
     'loading') {
-    <div class="spinner"></div>
+    <app-spinner></app-spinner>
     } @else if (forthcoming.status === 'error') {
     <p class="error-message">{{ forthcoming.error }}</p>
     } @else {
@@ -54,7 +54,7 @@
   <div class="class-section">
     <h2>Previous Classes</h2>
     @let previous = previousClasses(); @if (previous.status === 'loading') {
-    <div class="spinner"></div>
+    <app-spinner></app-spinner>
     } @else if (previous.status === 'error') {
     <p class="error-message">{{ previous.error }}</p>
     } @else {
