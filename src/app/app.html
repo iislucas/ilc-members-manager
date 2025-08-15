@@ -1,10 +1,11 @@
 @if (firebaseService.user(); as user) {
 <div class="nav-bar">
+  <div class="title">ILC Member Manager</div>
   <div class="who">
-    Logged in as: {{ user.displayName }}
+    <span>Logged in as: {{ user.displayName }}</span>
     <span class="email">{{ user.email }} </span>
+    <button (click)="logout()">Logout</button>
   </div>
-  <button (click)="logout()">Logout</button>
 </div>
 @if (logoutError(); as message) {
 <div class="error">
@@ -13,7 +14,7 @@
 }
 <main class="main">
   @let claims=firebaseService.claims(); @if (claims && claims['admin']) {
-  <app-admin></app-admin>
+  <app-member-list></app-member-list>
   } @else {
   <app-unauthorized></app-unauthorized>
   }

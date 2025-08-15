@@ -2,9 +2,9 @@ import { Component, inject, signal } from '@angular/core';
 import { FirebaseStateService } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
-import { AdminComponent } from './admin/admin';
 import { CommonModule } from '@angular/common';
 import { UnauthorizedComponent } from './unauthorized/unauthorized';
+import { MemberListComponent } from './admin/member-list/member-list';
 
 @Component({
   selector: 'app-root',
@@ -12,7 +12,7 @@ import { UnauthorizedComponent } from './unauthorized/unauthorized';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    AdminComponent,
+    MemberListComponent,
     UnauthorizedComponent,
   ],
   templateUrl: './app.html',

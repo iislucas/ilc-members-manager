@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface Member {
-  id: string; // Document ID
+  id: string; // Document ID, UNIQUE
   isAdmin: boolean;
   // Internal ILC HQ Information
   internal: {
@@ -9,7 +9,7 @@ export interface Member {
     lastPaymentAmount: number; // Amount of last payment
     lastPaymentId: number; // Squarespace ID for last patyent
     membershipExpires: Timestamp; // Date membership expires
-    memberId: string; // ILC Member Id
+    memberId: string; // ILC Member Id: UNIQUE
     isInstructor?: boolean; // Is the member a certified instructor?
     instructorLicenseExpires?: Timestamp; // Date instructor license expires
     sifuName?: string; // Name of the member's Sifu
@@ -19,7 +19,7 @@ export interface Member {
   // Publicly Listed Information
   public: {
     name: string; // Full name
-    email: string; // Contact email
+    email: string; // Contact email, UNIQUE
     website?: string; // Optional website URL
     address?: string; // Mailing address
     phone?: string; // Phone number

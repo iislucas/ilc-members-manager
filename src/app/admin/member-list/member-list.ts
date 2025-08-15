@@ -11,11 +11,13 @@ import { MembersService } from '../members.service';
 import { Member } from '../member.model';
 import { MemberEditComponent } from '../member-edit/member-edit';
 import { FirebaseStateService } from '../../firebase-state.service';
+import { Timestamp } from 'firebase/firestore';
+import { IconComponent } from '../../icons/icon.component';
 
 @Component({
   selector: 'app-member-list',
   standalone: true,
-  imports: [CommonModule, MemberEditComponent],
+  imports: [CommonModule, MemberEditComponent, IconComponent],
   templateUrl: './member-list.html',
   styleUrl: './member-list.scss',
 })
@@ -52,5 +54,30 @@ export class MemberListComponent {
 
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
+  }
+
+  onNewMember() {
+    const member: Member = {
+      id: '',
+      isAdmin: false,
+      internal: {
+        lastPaymentDate: Timestamp.now(),
+        lastPaymentAmount: 0,
+        lastPaymentId: 0,
+        membershipExpires: Timestamp.now(),
+        memberId: '',
+        isInstructor: false,
+      },
+      public: {
+        name: '',
+        email: '',
+        country: '',
+        studentLevel: '',
+        applicationLevel: '',
+        isSchoolManager: false,
+        isCountryManager: false,
+      },
+    };
+    this.selectedMember.set(member);
   }
 }

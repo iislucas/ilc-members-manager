@@ -4,12 +4,15 @@
 <p class="error">Error: {{ error() }}</p>
 } @else {
 <div class="member-list-header">
-  <label>Search by name or email</label>
-  <input
-    type="text"
-    placeholder="Search by name or email"
-    (input)="onSearch($event)"
-  />
+  <div class="search-box">
+    <app-icon class="search-icon" name="search"></app-icon>
+    <input
+      type="text"
+      placeholder="Search by name or email"
+      (input)="onSearch($event)"
+    />
+  </div>
+  <button (click)="onNewMember()">New Member</button>
 </div>
 <div class="member-cards">
   @for (member of members(); track member.id) {
