@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { environment } from './environment/environment';
 
@@ -24,6 +25,7 @@ export const addAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   }
 
   const data = request.data as AdminData;
+  logger.info('addAdmin data', data);
   // Set the admin claim on the target user
   await admin.auth().setCustomUserClaims(data.uid, { admin: true });
 
@@ -41,6 +43,7 @@ export const removeAdmin = onCall({ cors: allowedOrigins }, async (request) => {
 
   const data = request.data as AdminData;
 
+  logger.info('removeAdmin data', data);
   // Check if this is the last admin
   const admins = await admin
     .firestore()

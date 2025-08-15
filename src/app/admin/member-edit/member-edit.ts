@@ -1,4 +1,11 @@
-import { Component, input, output, effect, inject } from '@angular/core';
+import {
+  Component,
+  input,
+  output,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Member } from '../member.model';
 import { FormsModule } from '@angular/forms';
@@ -21,7 +28,8 @@ export class MemberEditComponent {
 
   editableMember!: Member;
   emailExists = false;
-  errorMessage = '';
+  memberIdExists = false;
+  errorMessage = signal('');
   private membersService = inject(MembersService);
   private firebaseStateService = inject(FirebaseStateService);
 
@@ -46,29 +54,48 @@ export class MemberEditComponent {
     }
     this.emailExists = this.allMembers().some((member) => {
       return (
-        member.public.email.toLowerCase() ===
-          self.editableMember.public.email.toLowerCase() &&
+        member.public.email?.toLowerCase() ===
+          self.editableMember.public.email?.toLowerCase() &&
         member.id !== self.editableMember.id
       );
     });
     return this.emailExists;
   }
 
+  isDupMemberId() {
+    const self = this;
+    if (!this.allMembers || !this.editableMember) {
+      this.memberIdExists = false;
+      return false;
+    }
+    this.memberIdExists = this.allMembers().some((member) => {
+      return (
+        member.internal.memberId?.toLowerCase() ===
+          self.editableMember.internal.memberId?.toLowerCase() &&
+        member.id !== self.editableMember.id
+      );
+    });
+    return this.memberIdExists;
+  }
+
   async saveMember() {
     if (this.isDupEmail()) {
-      this.errorMessage = 'This email address is already in use.';
+      this.errorMessage.set('This email address is already in use.');
+      return;
+    } else if (this.isDupMemberId()) {
+      this.errorMessage.set('This member ID is already in use.');
       return;
     } else if (this.editableMember.public.name === '') {
-      this.errorMessage = 'Name cannot be empty.';
+      this.errorMessage.set('Name cannot be empty.');
       return;
     } else if (
       !this.editableMember.id &&
       this.editableMember.internal.memberId === ''
     ) {
-      this.errorMessage = 'Member ID cannot be empty for a new member.';
+      this.errorMessage.set('Member ID cannot be empty for a new member.');
       return;
     }
-    this.errorMessage = '';
+    this.errorMessage.set('');
 
     if (this.editableMember.id) {
       const originalMember = await this.membersService.getMember(
@@ -130,19 +157,19 @@ export class MemberEditComponent {
   }
 
   closeError() {
-    this.errorMessage = '';
+    this.errorMessage.set('');
   }
 
   validateForm() {
     if (this.editableMember.public.name === '') {
-      this.errorMessage = 'Name cannot be empty.';
+      this.errorMessage.set('Name cannot be empty.');
     } else if (
       !this.editableMember.id &&
       this.editableMember.internal.memberId === ''
     ) {
-      this.errorMessage = 'Member ID cannot be empty for a new member.';
+      this.errorMessage.set('Member ID cannot be empty for a new member.');
     } else {
-      this.errorMessage = '';
+      this.errorMessage.set('');
     }
   }
 }

@@ -12,7 +12,7 @@
         #name="ngModel"
         required
       />
-      @if(name.invalid && (name.dirty || name.touched)) {
+      @if(name.invalid) {
       <div class="error">Name is required.</div>
       }
 
@@ -30,7 +30,7 @@
       />
       @if (emailExists) {
       <div class="error">This email address is already in use.</div>
-      } @else if (email.invalid && (email.dirty || email.touched)) {
+      } @else if (email.invalid) {
       <div class="error">Please enter a valid email address.</div>
       }
 
@@ -165,11 +165,14 @@
         id="memberId"
         name="memberId"
         [(ngModel)]="editableMember.internal.memberId"
+        (ngModelChange)="isDupMemberId()"
         #memberId="ngModel"
-        [required]="!editableMember.id"
+        [required]="editableMember.id !== ''"
       />
-      @if(memberId.invalid && (memberId.dirty || memberId.touched)) {
+      @if(memberId.invalid) {
       <div class="error">Member ID is required.</div>
+      } @else if(memberIdExists) {
+      <div class="error">This member ID is already in use.</div>
       }
 
       <label for="isInstructor">Is Instructor</label>
@@ -221,10 +224,10 @@
       </div>
     </div>
 
-    @if (errorMessage) {
+    @if (errorMessage()) {
     <div class="error-container">
       <div class="error-message">
-        {{ errorMessage }}
+        {{ errorMessage() }}
         <button class="close-button" (click)="closeError()">
           <app-icon name="close" />
         </button>
@@ -232,7 +235,10 @@
     </div>
     }
     <div class="form-actions">
-      <button type="submit" [disabled]="emailExists || memberForm.invalid">
+      <button
+        type="submit"
+        [disabled]="emailExists || memberIdExists || memberForm.invalid"
+      >
         Save
       </button>
       <button type="button" (click)="cancel($event)">Cancel</button>
