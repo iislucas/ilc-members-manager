@@ -29,9 +29,9 @@ export const addAdmin = onCall({ cors: allowedOrigins }, async (request) => {
   // Set the admin claim on the target user
   try {
     // First, check if the user exists.
-    await admin.auth().getUser(data.uid);
+    const userRecord = await admin.auth().getUserByEmail(data.email);
     // If the user exists, set the custom claim.
-    await admin.auth().setCustomUserClaims(data.uid, { admin: true });
+    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true });
     return { message: `Success! ${data.email} is now an admin.` };
   } catch (error: unknown) {
     logger.error('Error in addAdmin:', error);
@@ -82,7 +82,8 @@ export const removeAdmin = onCall({ cors: allowedOrigins }, async (request) => {
 
   // Remove the admin claim on the target user
   try {
-    await admin.auth().setCustomUserClaims(data.uid, { admin: false });
+    const userRecord = await admin.auth().getUserByEmail(data.email);
+    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: false });
     return { message: `Success! ${data.email} is no longer an admin.` };
   } catch (error: unknown) {
     logger.error('Error in removeAdmin:', error);

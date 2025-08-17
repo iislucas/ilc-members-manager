@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist/",
+    "public": "dist/ilc-members-manager/browser",
     "ignore": [
       "firebase.json",
       "**/.*",
