@@ -10,6 +10,9 @@ import { Component } from '@angular/core';
   `,
   styles: [
     `
+      :host {
+        flex-grow: 1;
+      }
       .spinner-container {
         display: flex;
         justify-content: center;

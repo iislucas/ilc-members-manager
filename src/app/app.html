@@ -43,8 +43,10 @@
   </div>
   }
   <main class="main">
-    @if (firebaseService.userIsAdmin()) { @switch (currentView()) { @case
-    ('main') {
+    @if (firebaseService.loggingIn()) {
+    <app-spinner></app-spinner>
+    } @else { @if (firebaseService.userIsAdmin()) { @switch (currentView()) {
+    @case ('main') {
     <app-member-list></app-member-list>
     } @case ('import-export') {
     <app-member-import-export></app-member-import-export>
@@ -52,7 +54,7 @@
     <app-member-view [member]="member"></app-member-view>
     } @else {
     <app-unauthorized></app-unauthorized>
-    } }
+    } } }
   </main>
   } @else {
   <h1>ILC Members Manager</h1>

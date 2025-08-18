@@ -9,6 +9,7 @@ import { FooterComponent } from './footer/footer';
 import { MemberViewComponent } from './member-view/member-view';
 import { IconComponent } from './icons/icon.component';
 import { MemberImportExportComponent } from './member-import-export/member-import-export';
+import { SpinnerComponent } from './spinner/spinner.component';
 
 @Component({
   selector: 'app-root',
@@ -22,6 +23,7 @@ import { MemberImportExportComponent } from './member-import-export/member-impor
     MemberViewComponent,
     IconComponent,
     MemberImportExportComponent,
+    SpinnerComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
