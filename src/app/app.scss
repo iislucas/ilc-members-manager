@@ -84,17 +84,31 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
+  line-height: unset;
 }
 
 .menu {
   position: absolute;
-  top: 3.5em;
+  top: 2em;
   left: 1em;
   background-color: white;
   border: 1px solid #ccc;
   border-radius: 5px;
-  padding: 0.5em;
+  padding: 0.25em;
   z-index: 100;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0.5em;
+}
+
+.menu-item:hover {
+  background-color: $menu-item-hover-color;
 }
 
 .email {

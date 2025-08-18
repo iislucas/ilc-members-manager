@@ -14,9 +14,14 @@
       </button>
       @if(menuOpen()) {
       <div class="menu">
-        <a (click)="currentView.set('import-export'); menuOpen.set(false)"
-          >Import/Export</a
-        >
+        <div class="menu-item">
+          <a (click)="currentView.set('main'); menuOpen.set(false)">Home</a>
+        </div>
+        <div class="menu-item">
+          <a (click)="currentView.set('import-export'); menuOpen.set(false)"
+            >Import/Export</a
+          >
+        </div>
       </div>
       } }
       <div class="title">ILC Member Manager</div>
