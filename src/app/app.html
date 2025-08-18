@@ -1,99 +1,118 @@
-@if (firebaseService.user(); as user) {
-<div class="nav-bar">
-  <div class="title">ILC Member Manager</div>
-  <div class="who">
-    <span>Logged in as: {{ user.displayName }}</span>
-    <span class="email">{{ user.email }} </span>
-    <button (click)="logout()">Logout</button>
+@let user = firebaseService.user(); @if(firebaseService.loggingIn()) { Logging
+in... } @else if (user) {
+<div class="app-container">
+  <div class="nav-bar">
+    <div class="title">ILC Member Manager</div>
+    <div class="who">
+      <span
+        >Logged in as: {{ user.displayName }} @if
+        (firebaseService.userIsAdmin()) {
+        <app-icon name="admin"></app-icon>
+        }</span
+      >
+      <span class="email">{{ user.email }} </span>
+      <button (click)="logout()">Logout</button>
+    </div>
   </div>
-</div>
-@if (logoutError(); as message) {
-<div class="error">
-  <span>{{ message }}</span>
-</div>
-}
-<main class="main">
-  @let claims=firebaseService.claims(); @if (claims && claims['admin']) {
-  <app-member-list></app-member-list>
-  } @else {
-  <app-unauthorized></app-unauthorized>
+  @if (logoutError(); as message) {
+  <div class="error">
+    <span>{{ message }}</span>
+  </div>
   }
-</main>
+  <main class="main">
+    @if (firebaseService.userIsAdmin()) {
+    <app-member-list></app-member-list>
+    } @else { @if (firebaseService.userAsMember(); as member) {
+    <app-member-view [member]="member"></app-member-view>
+    } @else {
+    {{ firebaseService.userAsMember() | json }}
+    <app-unauthorized></app-unauthorized>
+    } }
+  </main>
+  <div class="spacer"></div>
+  <app-footer></app-footer>
+</div>
 } @else {
-<main class="main">
-  <h1>ILC Members Manager</h1>
-  <div class="login-options">
-    <div class="card email-login">
-      <div>
-        Email:
-        <input
-          #email
-          type="email"
-          name="email"
-          ngModel
-          required
-          placeholder="Email"
-        />
-      </div>
-      <div>
-        Password:
-        <input
-          #password
-          type="password"
-          name="password"
-          ngModel
-          required
-          placeholder="Password"
-        />
-      </div>
-      <div class="buttons">
-        <button
-          (click)="loginWithEmail(email.value, password.value)"
-          [disabled]="!email.value || !password.value"
-        >
-          Login
-        </button>
-        <button
-          (click)="signupWithEmail(email.value, password.value)"
-          [disabled]="!email.value || !password.value"
-        >
-          Signup
-        </button>
+<div class="app-container">
+  <main class="main">
+    <h1>ILC Members Manager</h1>
+    <div class="login-options">
+      <div class="card email-login">
+        <div>
+          Email:
+          <input
+            #email
+            type="email"
+            name="email"
+            ngModel
+            required
+            placeholder="Email"
+          />
+        </div>
+        <div>
+          Password:
+          <input
+            #password
+            type="password"
+            name="password"
+            ngModel
+            required
+            placeholder="Password"
+          />
+        </div>
+        <div class="buttons">
+          <button
+            (click)="loginWithEmail(email.value, password.value)"
+            [disabled]="!email.value || !password.value"
+          >
+            Login
+          </button>
+          <button
+            (click)="signupWithEmail(email.value, password.value)"
+            [disabled]="!email.value || !password.value"
+          >
+            Signup
+          </button>
+        </div>
+
+        @if (signupError(); as message) {
+        <div class="error">
+          <span>{{ message }}</span>
+        </div>
+        } @if (loginWithEmailError(); as message) {
+        <div class="error">
+          <span>{{ message }}</span>
+        </div>
+        } @if (invalidLoginCredentials()) {
+        <p>
+          Your password is invalid. Do you want to
+          <button (click)="resetPassword(email.value)">
+            reset your password
+          </button>
+          ?
+        </p>
+        } @if (resetPasswordSuccess(); as message) {
+        <div class="success">
+          <span>{{ message }}</span>
+        </div>
+        } @if (resetPasswordError(); as message) {
+        <div class="error">
+          <span>{{ message }}</span>
+        </div>
+        }
       </div>
 
-      @if (signupError(); as message) {
-      <div class="error">
-        <span>{{ message }}</span>
+      <div class="card google-login">
+        <button (click)="loginWithGoogle()">Login with Google</button>
+        @if (loginWithGoogleError(); as message) {
+        <div class="error">
+          <span>{{ message }}</span>
+        </div>
+        }
       </div>
-      } @if (loginWithEmailError(); as message) {
-      <div class="error">
-        <span>{{ message }}</span>
-      </div>
-      } @if (invalidLoginCredentials()) {
-      <p>
-        Your password is invalid. Do you want to
-        <button (click)="resetPassword(email.value)">reset your password</button
-        >?
-      </p>
-      } @if (resetPasswordSuccess(); as message) {
-      <div class="success">
-        <span>{{ message }}</span>
-      </div>
-      } @if (resetPasswordError(); as message) {
-      <div class="error">
-        <span>{{ message }}</span>
-      </div>
-      }
     </div>
-
-    <div class="card google-login">
-      <button (click)="loginWithGoogle()">Login with Google</button>
-      @if (loginWithGoogleError(); as message) {
-      <div class="error">
-        <span>{{ message }}</span>
-      </div>
-      }
-    </div>
-  </div>
-</main>
+  </main>
+  <div class="spacer"></div>
+  <app-footer></app-footer>
+</div>
 }

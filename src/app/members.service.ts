@@ -9,8 +9,8 @@ import {
   getFirestore,
   onSnapshot,
 } from 'firebase/firestore';
-import { Member } from './member.model';
-import { FirebaseStateService } from '../firebase-state.service';
+import { Member, initMember } from './member.model';
+import { FirebaseStateService } from './firebase-state.service';
 
 /** The state of the members collection. */
 export interface MembersState {
@@ -48,7 +48,7 @@ export class MembersService {
       this.membersCollection,
       (snapshot) => {
         const members = snapshot.docs.map(
-          (doc) => ({ ...doc.data(), id: doc.id } as Member)
+          (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
         );
         console.log(members);
         this.state.update((state) => ({ ...state, members, loading: false }));

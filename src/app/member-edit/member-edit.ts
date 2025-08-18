@@ -9,10 +9,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { Member } from '../member.model';
 import { FormsModule } from '@angular/forms';
-import { IconComponent } from '../../icons/icon.component';
-import { FirebaseStateService } from '../../firebase-state.service';
+import { IconComponent } from '../icons/icon.component';
+import { FirebaseStateService } from '../firebase-state.service';
 import { MembersService } from '../members.service';
-import { SpinnerComponent } from '../../spinner/spinner.component';
+import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-member-edit',
@@ -33,7 +33,6 @@ export class MemberEditComponent {
   errorMessage = signal('');
   isSaving = signal(false);
   private membersService = inject(MembersService);
-  private firebaseStateService = inject(FirebaseStateService);
 
   constructor() {
     effect(() => {
@@ -56,8 +55,8 @@ export class MemberEditComponent {
     }
     this.emailExists = this.allMembers().some((member) => {
       return (
-        member.public.email?.toLowerCase() ===
-          self.editableMember.public.email?.toLowerCase() &&
+        member.email?.toLowerCase() ===
+          self.editableMember.email?.toLowerCase() &&
         member.id !== self.editableMember.id
       );
     });
@@ -72,8 +71,8 @@ export class MemberEditComponent {
     }
     this.memberIdExists = this.allMembers().some((member) => {
       return (
-        member.internal.memberId?.toLowerCase() ===
-          self.editableMember.internal.memberId?.toLowerCase() &&
+        member.memberId?.toLowerCase() ===
+          self.editableMember.memberId?.toLowerCase() &&
         member.id !== self.editableMember.id
       );
     });
@@ -90,14 +89,11 @@ export class MemberEditComponent {
       this.errorMessage.set('This member ID is already in use.');
       this.isSaving.set(false);
       return;
-    } else if (this.editableMember.public.name === '') {
+    } else if (this.editableMember.name === '') {
       this.errorMessage.set('Name cannot be empty.');
       this.isSaving.set(false);
       return;
-    } else if (
-      !this.editableMember.id &&
-      this.editableMember.internal.memberId === ''
-    ) {
+    } else if (!this.editableMember.id && this.editableMember.memberId === '') {
       this.errorMessage.set('Member ID cannot be empty for a new member.');
       this.isSaving.set(false);
       return;
@@ -105,57 +101,12 @@ export class MemberEditComponent {
     this.errorMessage.set('');
 
     if (this.editableMember.id) {
-      const originalMember = await this.membersService.getMember(
-        this.editableMember.id
-      );
-      if (
-        originalMember &&
-        originalMember.isAdmin !== this.editableMember.isAdmin
-      ) {
-        if (this.editableMember.isAdmin) {
-          try {
-            await this.firebaseStateService.addAdmin(
-              this.editableMember.id,
-              this.editableMember.public.email
-            );
-          } catch (e: any) {
-            this.errorMessage.set(e.message);
-            this.editableMember.isAdmin = false;
-            this.isSaving.set(false);
-            return;
-          }
-        } else {
-          try {
-            await this.firebaseStateService.removeAdmin(
-              this.editableMember.id,
-              this.editableMember.public.email
-            );
-          } catch (e: unknown) {
-            if (e instanceof Error) {
-              this.errorMessage.set(e.message);
-            } else {
-              this.errorMessage.set('An unknown error occurred.');
-            }
-            this.editableMember.isAdmin = true;
-            this.isSaving.set(false);
-            return;
-          }
-        }
-      }
       await this.membersService.updateMember(
         this.editableMember.id,
         this.editableMember
       );
     } else {
-      const newMemberRef = await this.membersService.addMember(
-        this.editableMember
-      );
-      if (this.editableMember.isAdmin) {
-        await this.firebaseStateService.addAdmin(
-          newMemberRef.id,
-          this.editableMember.public.email
-        );
-      }
+      await this.membersService.addMember(this.editableMember);
     }
     this.close.emit();
     this.isSaving.set(false);
@@ -165,18 +116,10 @@ export class MemberEditComponent {
     $event.preventDefault();
     $event.stopPropagation();
     if (
-      confirm(
-        `Are you sure you want to delete ${this.editableMember.public.name}?`
-      )
+      confirm(`Are you sure you want to delete ${this.editableMember.name}?`)
     ) {
       if (this.editableMember.id) {
         await this.membersService.deleteMember(this.editableMember.id);
-        if (this.editableMember.isAdmin) {
-          await this.firebaseStateService.removeAdmin(
-            this.editableMember.id,
-            this.editableMember.public.email
-          );
-        }
       }
       this.close.emit();
     }
@@ -187,12 +130,9 @@ export class MemberEditComponent {
   }
 
   validateForm() {
-    if (this.editableMember.public.name === '') {
+    if (this.editableMember.name === '') {
       this.errorMessage.set('Name cannot be empty.');
-    } else if (
-      !this.editableMember.id &&
-      this.editableMember.internal.memberId === ''
-    ) {
+    } else if (!this.editableMember.id && this.editableMember.memberId === '') {
       this.errorMessage.set('Member ID cannot be empty for a new member.');
     } else {
       this.errorMessage.set('');

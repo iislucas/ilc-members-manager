@@ -8,12 +8,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MembersService } from '../members.service';
-import { Member } from '../member.model';
+import { initMember, Member } from '../member.model';
 import { MemberEditComponent } from '../member-edit/member-edit';
-import { FirebaseStateService } from '../../firebase-state.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { Timestamp } from 'firebase/firestore';
-import { IconComponent } from '../../icons/icon.component';
-import { SpinnerComponent } from '../../spinner/spinner.component';
+import { IconComponent } from '../icons/icon.component';
+import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-member-list',
@@ -44,8 +44,8 @@ export class MemberListComponent {
       .members()
       .filter(
         (member) =>
-          member.public.name.toLowerCase().includes(term) ||
-          member.public.email.toLowerCase().includes(term)
+          member.name.toLowerCase().includes(term) ||
+          member.email.toLowerCase().includes(term)
       );
   });
   loading = this.membersService.loading;
@@ -58,27 +58,6 @@ export class MemberListComponent {
   }
 
   onNewMember() {
-    const member: Member = {
-      id: '',
-      isAdmin: false,
-      internal: {
-        lastPaymentDate: Timestamp.now(),
-        lastPaymentAmount: 0,
-        lastPaymentId: 0,
-        membershipExpires: Timestamp.now(),
-        memberId: '',
-        isInstructor: false,
-      },
-      public: {
-        name: '',
-        email: '',
-        country: '',
-        studentLevel: '',
-        applicationLevel: '',
-        isSchoolManager: false,
-        isCountryManager: false,
-      },
-    };
-    this.selectedMember.set(member);
+    this.selectedMember.set(initMember());
   }
 }

@@ -1,4 +1,10 @@
-import { Injectable, Signal, signal, WritableSignal } from '@angular/core';
+import {
+  computed,
+  Injectable,
+  Signal,
+  signal,
+  WritableSignal,
+} from '@angular/core';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import {
   Auth,
@@ -13,25 +19,13 @@ import {
   UserCredential,
   sendPasswordResetEmail,
   AuthErrorCodes,
-  getIdTokenResult,
-  ParsedToken,
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
 import { Analytics, getAnalytics } from 'firebase/analytics';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Functions, getFunctions } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
-// import {
-//   collection,
-//   Firestore,
-//   getDocs,
-//   getFirestore,
-// } from 'firebase/firestore';
-// import {
-//   getFirestore,
-//   collection,
-//   getDocs,
-//   Firestore,
-// } from 'firebase/firestore/lite';
+import { doc, Firestore, getFirestore, onSnapshot } from 'firebase/firestore';
+import { Member } from './member.model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -73,17 +67,20 @@ export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 export class FirebaseStateService {
   public app: FirebaseApp;
   public analytics: Analytics;
+  public functions: Functions;
   private auth: Auth;
-  private functions;
   public readonly user = signal<User | null>(null);
-  public readonly claims = signal<ParsedToken | null>(null);
-  public loggedIn: WritableSignal<Promise<{ user: User; claims: ParsedToken }>>;
-  private loggedInResolverFn: (value: {
-    user: User;
-    claims: ParsedToken;
-  }) => void = () => {};
+  public readonly userAsMember = signal<Member | null>(null);
+  public loggingIn = signal(false);
+  public loggedIn: WritableSignal<Promise<{ user: User; member: Member }>>;
+  private loggedInResolverFn: (value: { user: User; member: Member }) => void =
+    () => {};
   public readonly user$ = toObservable(this.user);
-  public readonly claims$ = toObservable(this.claims);
+  public readonly userAsMember$ = toObservable(this.userAsMember);
+  public readonly userIsAdmin = computed(
+    () => this.userAsMember()?.isAdmin ?? false
+  );
+  private db: Firestore;
 
   constructor() {
     console.log('environment.firebase', environment.firebase);
@@ -91,47 +88,44 @@ export class FirebaseStateService {
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
     this.analytics = getAnalytics(this.app);
+    this.db = getFirestore(this.app);
 
     this.loggedIn = signal(
-      new Promise<{ user: User; claims: ParsedToken }>((resolve, reject) => {
+      new Promise<{ user: User; member: Member }>((resolve, reject) => {
         this.loggedInResolverFn = resolve;
       })
     );
 
     onAuthStateChanged(this.auth, async (user) => {
-      if (user) {
-        const tokenResult = await getIdTokenResult(user);
-        this.claims.set(tokenResult.claims);
-        this.loggedInResolverFn({ user, claims: tokenResult.claims });
+      if (user && user.email) {
+        this.loggingIn.set(true);
+        onSnapshot(doc(this.db, 'members', user.email), (docSnap) => {
+          if (docSnap.exists()) {
+            const member = docSnap.data() as Member;
+            this.userAsMember.set(member);
+            this.loggedInResolverFn({ user, member });
+          } else {
+            // TODO: When the user has no member document, what do we do?
+            // For now, we will just not log them in fully.
+            console.log('No member document for user', user.uid);
+          }
+          this.loggingIn.set(false);
+        });
       } else {
+        // logging out
+        this.userAsMember.set(null);
         this.loggedIn.set(
-          new Promise<{ user: User; claims: ParsedToken }>(
-            (resolve, reject) => {
-              this.loggedInResolverFn = resolve;
-            }
-          )
+          new Promise<{ user: User; member: Member }>((resolve, reject) => {
+            this.loggedInResolverFn = resolve;
+          })
         );
       }
       this.user.set(user);
-
-      // const db = getFirestore(this.app);
-      // const membersCol = collection(db, 'members');
-      // const members = await getDocs(membersCol);
-      // console.log(members.docs.map((doc) => doc.data()));
     });
   }
 
-  addAdmin(uid: string, email: string) {
-    const addAdminRole = httpsCallable(this.functions, 'addAdmin');
-    return addAdminRole({ uid, email });
-  }
-
-  removeAdmin(uid: string, email: string) {
-    const removeAdminRole = httpsCallable(this.functions, 'removeAdmin');
-    return removeAdminRole({ uid, email });
-  }
-
   public async loginWithGoogle(): Promise<AuthOperationResult> {
+    this.loggingIn.set(true);
     try {
       const userCredential = await signInWithPopup(
         this.auth,
@@ -144,6 +138,7 @@ export class FirebaseStateService {
       console.error(error);
       // console.error(error.name);
       // console.error(error.message);
+      this.loggingIn.set(false);
       return {
         success: false,
         errorCode: error.code,
@@ -155,6 +150,7 @@ export class FirebaseStateService {
     pass: string,
     email: string
   ): Promise<AuthOperationResult> {
+    this.loggingIn.set(true);
     try {
       const userCredential = await signInWithEmailAndPassword(
         this.auth,
@@ -170,6 +166,7 @@ export class FirebaseStateService {
       // console.log(error.message);
       // console.log((error as any).code);
       // console.log(JSON.stringify(error));
+      this.loggingIn.set(false);
       return {
         success: false,
         errorCode: error.code,
@@ -181,6 +178,7 @@ export class FirebaseStateService {
     pass: string,
     email: string
   ): Promise<AuthOperationResult> {
+    this.loggingIn.set(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         this.auth,
@@ -194,6 +192,7 @@ export class FirebaseStateService {
       console.error(error);
       console.error(error.name);
       console.error(error.message);
+      this.loggingIn.set(false);
       return {
         success: false,
         errorCode: error.code,

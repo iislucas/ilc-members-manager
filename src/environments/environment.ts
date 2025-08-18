@@ -13,4 +13,5 @@ export const environment = {
   googleCalendar: {
     calendarId: 'DUMMY_GOOGLE_CALENDAR_ID',
   },
+  adminEmail: 'PUT_ADMIN_EMAIL_HERE',
 };

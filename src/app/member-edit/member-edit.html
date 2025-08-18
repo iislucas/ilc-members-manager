@@ -8,7 +8,7 @@
         type="text"
         id="name"
         name="name"
-        [(ngModel)]="editableMember.public.name"
+        [(ngModel)]="editableMember.name"
         #name="ngModel"
         required
       />
@@ -22,7 +22,7 @@
         type="email"
         id="email"
         name="email"
-        [(ngModel)]="editableMember.public.email"
+        [(ngModel)]="editableMember.email"
         (ngModelChange)="isDupEmail()"
         #email="ngModel"
         required
@@ -40,7 +40,7 @@
         type="text"
         id="website"
         name="website"
-        [(ngModel)]="editableMember.public.website"
+        [(ngModel)]="editableMember.website"
       />
 
       <label for="address">Address</label>
@@ -48,7 +48,7 @@
         class="long"
         id="address"
         name="address"
-        [(ngModel)]="editableMember.public.address"
+        [(ngModel)]="editableMember.address"
       ></textarea>
 
       <label for="phone">Phone</label>
@@ -56,7 +56,7 @@
         type="text"
         id="phone"
         name="phone"
-        [(ngModel)]="editableMember.public.phone"
+        [(ngModel)]="editableMember.phone"
       />
 
       <label for="country">Country</label>
@@ -64,7 +64,7 @@
         type="text"
         id="country"
         name="country"
-        [(ngModel)]="editableMember.public.country"
+        [(ngModel)]="editableMember.country"
       />
 
       <label for="studentLevel">Student Level</label>
@@ -72,7 +72,7 @@
         type="text"
         id="studentLevel"
         name="studentLevel"
-        [(ngModel)]="editableMember.public.studentLevel"
+        [(ngModel)]="editableMember.studentLevel"
       />
 
       <label for="applicationLevel">Application Level</label>
@@ -80,7 +80,7 @@
         type="text"
         id="applicationLevel"
         name="applicationLevel"
-        [(ngModel)]="editableMember.public.applicationLevel"
+        [(ngModel)]="editableMember.applicationLevel"
       />
 
       <label for="isSchoolManager">School Manager</label>
@@ -88,17 +88,17 @@
         type="checkbox"
         id="isSchoolManager"
         name="isSchoolManager"
-        [(ngModel)]="editableMember.public.isSchoolManager"
+        [(ngModel)]="editableMember.isSchoolManager"
       />
 
-      @if(editableMember.public.isSchoolManager) {
+      @if(editableMember.isSchoolManager) {
       <label for="schoolName">School Name</label>
       <input
         class="long"
         type="text"
         id="schoolName"
         name="schoolName"
-        [(ngModel)]="editableMember.public.schoolName"
+        [(ngModel)]="editableMember.schoolName"
       />
       }
 
@@ -107,17 +107,17 @@
         type="checkbox"
         id="isCountryManager"
         name="isCountryManager"
-        [(ngModel)]="editableMember.public.isCountryManager"
+        [(ngModel)]="editableMember.isCountryManager"
       />
 
-      @if(editableMember.public.isCountryManager) {
+      @if(editableMember.isCountryManager) {
       <label for="country">Country Managed</label>
       <input
         class="long"
         type="text"
         id="country"
         name="country"
-        [(ngModel)]="editableMember.public.countryManaged"
+        [(ngModel)]="editableMember.countryManaged"
       />
       }
     </div>
@@ -130,8 +130,8 @@
         type="date"
         id="lastPaymentDate"
         name="lastPaymentDate"
-        [ngModel]="editableMember.internal.lastPaymentDate"
-        (ngModelChange)="editableMember.internal.lastPaymentDate = $event"
+        [ngModel]="editableMember.lastPaymentDate"
+        (ngModelChange)="editableMember.lastPaymentDate = $event"
       />
 
       <label for="lastPaymentAmount">Last Payment Amount</label>
@@ -139,7 +139,7 @@
         type="number"
         id="lastPaymentAmount"
         name="lastPaymentAmount"
-        [(ngModel)]="editableMember.internal.lastPaymentAmount"
+        [(ngModel)]="editableMember.lastPaymentAmount"
       />
 
       <label for="lastPaymentId">Last Payment ID</label>
@@ -147,7 +147,7 @@
         type="number"
         id="lastPaymentId"
         name="lastPaymentId"
-        [(ngModel)]="editableMember.internal.lastPaymentId"
+        [(ngModel)]="editableMember.lastPaymentId"
       />
 
       <label for="membershipExpires">Membership Expires</label>
@@ -155,8 +155,8 @@
         type="date"
         id="membershipExpires"
         name="membershipExpires"
-        [ngModel]="editableMember.internal.membershipExpires"
-        (ngModelChange)="editableMember.internal.membershipExpires = $event"
+        [ngModel]="editableMember.membershipExpires"
+        (ngModelChange)="editableMember.membershipExpires = $event"
       />
 
       <label for="memberId">Member ID</label>
@@ -164,7 +164,7 @@
         type="text"
         id="memberId"
         name="memberId"
-        [(ngModel)]="editableMember.internal.memberId"
+        [(ngModel)]="editableMember.memberId"
         (ngModelChange)="isDupMemberId()"
         #memberId="ngModel"
         [required]="editableMember.id !== ''"
@@ -180,19 +180,17 @@
         type="checkbox"
         id="isInstructor"
         name="isInstructor"
-        [(ngModel)]="editableMember.internal.isInstructor"
+        [(ngModel)]="editableMember.isInstructor"
       />
 
-      @if(editableMember.internal.isInstructor) {
+      @if(editableMember.isInstructor) {
       <label for="instructorLicenseExpires">Instructor License Expires</label>
       <input
         type="date"
         id="instructorLicenseExpires"
         name="instructorLicenseExpires"
-        [ngModel]="editableMember.internal.instructorLicenseExpires"
-        (ngModelChange)="
-          editableMember.internal.instructorLicenseExpires = $event
-        "
+        [ngModel]="editableMember.instructorLicenseExpires"
+        (ngModelChange)="editableMember.instructorLicenseExpires = $event"
       />
       }
 
@@ -201,7 +199,7 @@
         type="text"
         id="sifuName"
         name="sifuName"
-        [(ngModel)]="editableMember.internal.sifuName"
+        [(ngModel)]="editableMember.sifuName"
       />
 
       <label for="sifuMemberId">Sifu Member ID</label>
@@ -209,7 +207,7 @@
         type="text"
         id="sifuMemberId"
         name="sifuMemberId"
-        [(ngModel)]="editableMember.internal.sifuMemberId"
+        [(ngModel)]="editableMember.sifuMemberId"
       />
 
       <label for="isAdmin">Is Admin</label>

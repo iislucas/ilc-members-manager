@@ -6,6 +6,9 @@
  *
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
+import * as admin from 'firebase-admin';
+
+admin.initializeApp();
 
 export { getCalendarEvents } from './calendar';
-export { addAdmin, removeAdmin } from './admin';
+export { deleteUser } from './delete-user';

@@ -11,15 +11,10 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
 import { defineSecret } from 'firebase-functions/params';
-import { environment } from './environment/environment';
 import { CalendarRequest, GoogleCalendarResponse } from './calendar.types';
+import { allowedOrigins } from './common';
 
 const calendarApiKey = defineSecret('GOOGLE_CALENDAR_API_KEY');
-
-const allowedOrigins = environment.domains;
-if (process.env.GCLOUD_PROJECT) {
-  allowedOrigins.push(`https://${process.env.GCLOUD_PROJECT}.web.app`);
-}
 
 /**
  * Fetches events from a public Google Calendar.

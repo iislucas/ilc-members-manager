@@ -4,7 +4,10 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
 import { UnauthorizedComponent } from './unauthorized/unauthorized';
-import { MemberListComponent } from './admin/member-list/member-list';
+import { MemberListComponent } from './member-list/member-list';
+import { FooterComponent } from './footer/footer';
+import { MemberViewComponent } from './member-view/member-view';
+import { IconComponent } from './icons/icon.component';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +17,9 @@ import { MemberListComponent } from './admin/member-list/member-list';
     ReactiveFormsModule,
     MemberListComponent,
     UnauthorizedComponent,
+    FooterComponent,
+    MemberViewComponent,
+    IconComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

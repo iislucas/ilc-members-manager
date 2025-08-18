@@ -1,0 +1,10 @@
+@use "../../scss_variables" as *;
+
+footer {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background-color: $theme-bg-color;
+  gap: 20px;
+  border-top: 2px solid $theme-border-color;
+}

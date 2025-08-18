@@ -35,8 +35,9 @@
     ></app-member-edit>
     } @else {
     <div class="selectable-member-card">
-      <h3>{{ member.public.name }}</h3>
-      <p>{{ member.public.email }}</p>
+      <div class="member-name">{{ member.name }}</div>
+      <div class="member-id">{{ member.memberId }}</div>
+      <div class="email">{{ member.email }}</div>
     </div>
     }
   </div>

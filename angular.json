@@ -24,7 +24,9 @@
               {
                 "glob": "**/*",
                 "input": "public"
-              }
+              },
+              "src/tos.html",
+              "src/privacy.html"
             ],
             "styles": [
               "src/styles.scss"
