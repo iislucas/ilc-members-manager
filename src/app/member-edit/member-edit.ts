@@ -100,9 +100,9 @@ export class MemberEditComponent {
     }
     this.errorMessage.set('');
 
-    if (this.editableMember.id) {
+    if (this.editableMember.email) {
       await this.membersService.updateMember(
-        this.editableMember.id,
+        this.editableMember.email,
         this.editableMember
       );
     } else {

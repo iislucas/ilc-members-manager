@@ -1,5 +1,29 @@
 @use "../scss_variables" as *;
 
+.app-container {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: stretch;
+  min-height: 100vh;
+  min-width: 100vw;
+}
+
+h1 {
+  margin: 1em;
+}
+
+main {
+  margin-left: 1em;
+  margin-right: 1em;
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+  align-items: start;
+  flex-grow: 1;
+}
+
 .email-login {
 }
 
@@ -25,6 +49,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1em;
+  flex-grow: 0;
 
   background-color: $theme-bg-color;
   border-bottom: 2px solid $theme-border-color;
@@ -44,8 +69,32 @@
   }
 }
 
-main {
-  margin: 1em;
+.title-and-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1em;
+}
+
+.menu-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu {
+  position: absolute;
+  top: 3.5em;
+  left: 1em;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 0.5em;
+  z-index: 100;
 }
 
 .email {
@@ -54,19 +103,4 @@ main {
   border-radius: 5px;
   padding: 0.2em;
   border: 1px solid $theme-chip-border-color;
-}
-
-.app-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.spacer {
-  flex-grow: 1;
-}
-
-.app-container {
-  display: flex;
-  flex-direction: column;
 }

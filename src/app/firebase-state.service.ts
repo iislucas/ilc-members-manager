@@ -107,7 +107,7 @@ export class FirebaseStateService {
           } else {
             // TODO: When the user has no member document, what do we do?
             // For now, we will just not log them in fully.
-            console.log('No member document for user', user.uid);
+            console.log('No member document for user', user.email);
           }
           this.loggingIn.set(false);
         });

@@ -1,29 +1,22 @@
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border-left-color: #09f;
-  animation: spin 1s ease infinite;
-  margin: 20px auto;
+@use "../../scss_variables.scss" as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: stretch;
+  flex-grow: 1;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.member-list-header {
+.search-header {
   display: flex;
   flex-direction: row;
   gap: 1em;
   align-items: center;
   justify-content: center;
   margin-bottom: 1em;
+  flex-grow: 0;
 
   .search-box {
     position: relative;
@@ -56,10 +49,10 @@
 .member-cards {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  justify-content: start;
+  align-items: stretch;
   gap: 20px;
-  margin-left: 1em;
-  margin-right: 1em;
+  flex-grow: 1;
 }
 
 .member-card {
@@ -68,8 +61,7 @@
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s ease;
-  width: 100%;
-  max-width: 800px;
+  flex-grow: 0;
 
   &:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);

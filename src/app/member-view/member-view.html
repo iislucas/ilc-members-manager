@@ -44,7 +44,7 @@
   <div class="form-section">
     <label>Last Payment Date</label>
     <div class="value">
-      {{ m.lastPaymentDate?.toDate() | date : "medium" }}
+      {{ m.lastPaymentDate.toDate() | date : "medium" }}
     </div>
 
     <label>Last Payment Amount</label>
@@ -52,7 +52,7 @@
 
     <label>Membership Expires</label>
     <div class="value">
-      {{ m.membershipExpires?.toDate() | date : "medium" }}
+      {{ m.membershipExpires.toDate() | date : "medium" }}
     </div>
 
     <label>Member ID</label>

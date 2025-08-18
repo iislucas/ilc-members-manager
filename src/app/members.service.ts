@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import {
   collection,
   doc,
@@ -11,6 +11,8 @@ import {
 } from 'firebase/firestore';
 import { Member, initMember } from './member.model';
 import { FirebaseStateService } from './firebase-state.service';
+import * as Papa from 'papaparse';
+import { User } from 'firebase/auth';
 
 /** The state of the members collection. */
 export interface MembersState {
@@ -29,6 +31,7 @@ export class MembersService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
   private membersCollection = collection(this.db, 'members');
+  private unsubscribeSnapshots: () => void = () => {};
 
   // A signal to hold the state of the members list.
   private state = signal<MembersState>({
@@ -43,44 +46,94 @@ export class MembersService {
   error = computed(() => this.state().error);
 
   constructor() {
-    // Subscribe to collection changes and update the state signal.
-    onSnapshot(
-      this.membersCollection,
-      (snapshot) => {
-        const members = snapshot.docs.map(
-          (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
-        );
-        console.log(members);
-        this.state.update((state) => ({ ...state, members, loading: false }));
-      },
-      (error) => {
-        this.state.update((state) => ({
-          ...state,
-          error: error.message,
-          loading: false,
-        }));
-      }
-    );
+    effect(() => {
+      const loginState = this.firebaseService.loggedIn();
+      this.unsubscribeSnapshots();
+      this.updateMembersSync(loginState);
+    });
   }
 
-  async getMember(id: string): Promise<Member | undefined> {
-    const docRef = doc(this.db, 'members', id);
+  async updateMembersSync(
+    statePromise: Promise<{ user: User; member: Member }>
+  ) {
+    const initState = await statePromise;
+    if (initState.member.isAdmin) {
+      // Admins subscribe all memberships; and get the collection of changes and
+      // update the state signal accordingly.
+      this.unsubscribeSnapshots = onSnapshot(
+        this.membersCollection,
+        (snapshot) => {
+          const members = snapshot.docs.map(
+            (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
+          );
+          this.state.update((state) => ({ ...state, members, loading: false }));
+        },
+        (error) => {
+          this.state.update((state) => ({
+            ...state,
+            error: error.message,
+            loading: false,
+          }));
+        }
+      );
+    } else {
+      // TODO: Subscribe to just this user's doc
+      this.state.update((state) => ({
+        ...state,
+        members: [initState.member],
+        loading: false,
+      }));
+    }
+  }
+
+  async getMember(emailId: string): Promise<Member | undefined> {
+    const docRef = doc(this.db, 'members', emailId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists()
-      ? ({ id: docSnap.id, ...docSnap.data() } as Member)
+      ? ({ ...docSnap.data(), id: emailId } as Member)
       : undefined;
   }
 
   async addMember(member: Partial<Member>): Promise<DocumentReference> {
-    const newDocRef = doc(this.membersCollection);
+    const newDocRef = doc(this.membersCollection, member.email);
     return setDoc(newDocRef, member).then(() => newDocRef);
   }
 
-  async updateMember(id: string, member: Partial<Member>): Promise<void> {
-    return setDoc(doc(this.db, 'members', id), member, { merge: true });
+  async updateMember(emailId: string, member: Partial<Member>): Promise<void> {
+    return setDoc(doc(this.db, 'members', emailId), member, { merge: true });
   }
 
-  async deleteMember(id: string): Promise<void> {
-    return deleteDoc(doc(this.db, 'members', id));
+  async deleteMember(emailId: string): Promise<void> {
+    return deleteDoc(doc(this.db, 'members', emailId));
+  }
+
+  downloadCsv() {
+    const members = this.state().members;
+    const csv = Papa.unparse(members);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'members.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  downloadJsonL() {
+    const members = this.state().members;
+    const jsonl = members.map((member) => JSON.stringify(member)).join('\n');
+    const blob = new Blob([jsonl], {
+      type: 'application/jsonl;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'members.jsonl');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }

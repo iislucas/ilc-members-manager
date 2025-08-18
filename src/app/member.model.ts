@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface Member {
-  id: string; // Document ID, UNIQUE
+  id: string; // Document ID, UNIQUE, same as email.
   isAdmin: boolean;
   // Internal ILC HQ Information
   lastPaymentDate: Timestamp; // Date of last payment

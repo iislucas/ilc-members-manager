@@ -8,6 +8,7 @@ import { MemberListComponent } from './member-list/member-list';
 import { FooterComponent } from './footer/footer';
 import { MemberViewComponent } from './member-view/member-view';
 import { IconComponent } from './icons/icon.component';
+import { MemberImportExportComponent } from './member-import-export/member-import-export';
 
 @Component({
   selector: 'app-root',
@@ -20,6 +21,7 @@ import { IconComponent } from './icons/icon.component';
     FooterComponent,
     MemberViewComponent,
     IconComponent,
+    MemberImportExportComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -27,6 +29,8 @@ import { IconComponent } from './icons/icon.component';
 export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
+  public menuOpen = signal(false);
+  public currentView = signal<'main' | 'import-export'>('main');
 
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);

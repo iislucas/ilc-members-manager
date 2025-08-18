@@ -1,0 +1,28 @@
+.mapping-table {
+  margin-top: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 0.5em;
+  text-align: left;
+}
+
+th {
+  background-color: #f4f4f4;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 1em;
+  margin-top: 1em;
+}

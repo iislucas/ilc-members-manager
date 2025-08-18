@@ -12,6 +12,7 @@
     "test:once": "ng test --no-watch --browsers=ChromeHeadless",
     "test": "npm run test:once",
     "deploy": "npm run build:all && firebase deploy",
+    "deploy:firestore-rules": "firebase deploy --only firestore:rules",
     "deploy:functions": "npm run build:functions && firebase deploy --only functions",
     "deploy:hosting": "npm run build && firebase deploy --only hosting"
   },
@@ -33,7 +34,9 @@
     "@angular/forms": "^20.0.0",
     "@angular/platform-browser": "^20.0.0",
     "@angular/router": "^20.0.0",
+    "@types/papaparse": "^5.3.16",
     "firebase": "^12.1.0",
+    "papaparse": "^5.5.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

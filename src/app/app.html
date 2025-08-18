@@ -1,8 +1,26 @@
-@let user = firebaseService.user(); @if(firebaseService.loggingIn()) { Logging
-in... } @else if (user) {
 <div class="app-container">
+  @let user = firebaseService.user();
+
+  <!-- @if(firebaseService.loggingIn()) { Logging
+  in... } @else 
+   -->
+  @if (user) {
+
   <div class="nav-bar">
-    <div class="title">ILC Member Manager</div>
+    <div class="title-and-menu">
+      @if (firebaseService.userIsAdmin()) {
+      <button class="menu-button" (click)="menuOpen.set(!menuOpen())">
+        <app-icon name="menu"></app-icon>
+      </button>
+      @if(menuOpen()) {
+      <div class="menu">
+        <a (click)="currentView.set('import-export'); menuOpen.set(false)"
+          >Import/Export</a
+        >
+      </div>
+      } }
+      <div class="title">ILC Member Manager</div>
+    </div>
     <div class="who">
       <span
         >Logged in as: {{ user.displayName }} @if
@@ -20,22 +38,20 @@ in... } @else if (user) {
   </div>
   }
   <main class="main">
-    @if (firebaseService.userIsAdmin()) {
+    @if (firebaseService.userIsAdmin()) { @switch (currentView()) { @case
+    ('main') {
     <app-member-list></app-member-list>
-    } @else { @if (firebaseService.userAsMember(); as member) {
+    } @case ('import-export') {
+    <app-member-import-export></app-member-import-export>
+    } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>
     } @else {
-    {{ firebaseService.userAsMember() | json }}
     <app-unauthorized></app-unauthorized>
     } }
   </main>
-  <div class="spacer"></div>
-  <app-footer></app-footer>
-</div>
-} @else {
-<div class="app-container">
+  } @else {
+  <h1>ILC Members Manager</h1>
   <main class="main">
-    <h1>ILC Members Manager</h1>
     <div class="login-options">
       <div class="card email-login">
         <div>
@@ -112,7 +128,6 @@ in... } @else if (user) {
       </div>
     </div>
   </main>
-  <div class="spacer"></div>
+  }
   <app-footer></app-footer>
 </div>
-}

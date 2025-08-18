@@ -50,6 +50,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  menu: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   refresh: {
     viewbox: '0 -960 960 960',
     fill: '#5f6368',
