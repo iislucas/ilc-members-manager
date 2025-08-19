@@ -1,3 +1,5 @@
+@use "../member-details-layout.scss";
+
 :host {
   display: block;
   border: 1px solid #ccc;
@@ -20,8 +22,6 @@ h3 {
 }
 
 .edit-form {
-  @import "../member-details-layout.scss";
-
   .edit-form-header {
     display: flex;
     align-items: center;
