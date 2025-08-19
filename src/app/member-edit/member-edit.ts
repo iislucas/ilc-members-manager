@@ -6,12 +6,12 @@ import {
   inject,
   signal,
   HostBinding,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Member } from '../member.model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
-import { FirebaseStateService } from '../firebase-state.service';
 import { MembersService } from '../members.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
@@ -26,37 +26,50 @@ export class MemberEditComponent {
   member = input.required<Member>();
   allMembers = input.required<Member[]>();
   canDelete = input<boolean>(true);
-  close = output();
-
   editableMember!: Member;
   emailExists = false;
   memberIdExists = false;
   errorMessage = signal('');
   isSaving = signal(false);
   collapsed = signal(true);
+  isDirty = signal(false);
   private membersService = inject(MembersService);
+  private elementRef = inject(ElementRef);
 
   @HostBinding('class.is-open')
   get isOpen() {
     return !this.collapsed();
   }
 
+  @HostBinding('class.is-dirty')
+  get isDirtyClass() {
+    return this.isDirty();
+  }
+
   constructor() {
     effect(() => {
       this.editableMember = JSON.parse(JSON.stringify(this.member()));
       this.validateForm();
+      this.isDirty.set(false);
     });
   }
 
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    this.close.emit();
+    this.collapsed.set(true);
   }
 
   toggle($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    if (this.isDirty() && !this.collapsed()) {
+      this.elementRef.nativeElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+      return;
+    }
     this.collapsed.set(!this.collapsed());
   }
 
@@ -121,8 +134,8 @@ export class MemberEditComponent {
     } else {
       await this.membersService.addMember(this.editableMember);
     }
-    this.close.emit();
     this.isSaving.set(false);
+    this.collapsed.set(true);
   }
 
   async deleteMember($event: Event) {
@@ -134,7 +147,6 @@ export class MemberEditComponent {
       if (this.editableMember.id) {
         await this.membersService.deleteMember(this.editableMember.id);
       }
-      this.close.emit();
     }
   }
 
@@ -150,5 +162,8 @@ export class MemberEditComponent {
     } else {
       this.errorMessage.set('');
     }
+    this.isDirty.set(
+      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember)
+    );
   }
 }

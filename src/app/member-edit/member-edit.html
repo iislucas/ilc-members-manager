@@ -7,7 +7,9 @@
       <span>-{{ editableMember.instructorId }}</span>
       }
     </div>
-    <div class="name">{{ editableMember.name }}</div>
+    <div class="name">
+      {{ editableMember.name }}@if(isDirty()){<span>*</span>}
+    </div>
     <div class="level">
       @if (editableMember.studentLevel) {
       <span>S:{{ editableMember.studentLevel }}</span>
@@ -33,6 +35,7 @@
           id="name"
           name="name"
           [(ngModel)]="editableMember.name"
+          (ngModelChange)="validateForm()"
           #name="ngModel"
           required
         />
@@ -49,7 +52,7 @@
           id="email"
           name="email"
           [(ngModel)]="editableMember.email"
-          (ngModelChange)="isDupEmail()"
+          (ngModelChange)="isDupEmail(); validateForm()"
           #email="ngModel"
           required
           email
@@ -67,6 +70,7 @@
         id="address"
         name="address"
         [(ngModel)]="editableMember.address"
+        (ngModelChange)="validateForm()"
       ></textarea>
 
       <label for="city">City</label>
@@ -75,6 +79,7 @@
         id="city"
         name="city"
         [(ngModel)]="editableMember.city"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="zipCode">Zip Code</label>
@@ -83,6 +88,7 @@
         id="zipCode"
         name="zipCode"
         [(ngModel)]="editableMember.zipCode"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="country">Country</label>
@@ -91,6 +97,7 @@
         id="country"
         name="country"
         [(ngModel)]="editableMember.country"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="phone">Phone</label>
@@ -99,6 +106,7 @@
         id="phone"
         name="phone"
         [(ngModel)]="editableMember.phone"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>Member</h3>
@@ -109,7 +117,7 @@
           id="memberId"
           name="memberId"
           [(ngModel)]="editableMember.memberId"
-          (ngModelChange)="isDupMemberId()"
+          (ngModelChange)="isDupMemberId(); validateForm()"
           #memberId="ngModel"
           [required]="editableMember.id !== ''"
         />
@@ -126,6 +134,7 @@
         id="membershipType"
         name="membershipType"
         [(ngModel)]="editableMember.membershipType"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="membershipExpires">Membership Expires</label>
@@ -136,7 +145,9 @@
         name="membershipExpires"
         placeholder="YYYY-MM-DD"
         [ngModel]="editableMember.membershipExpires"
-        (ngModelChange)="editableMember.membershipExpires = $event"
+        (ngModelChange)="
+          editableMember.membershipExpires = $event; validateForm()
+        "
       />
 
       <label for="sifuMemberId">Sifu Member ID</label>
@@ -145,6 +156,7 @@
         id="sifuMemberId"
         name="sifuMemberId"
         [(ngModel)]="editableMember.sifuMemberId"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>Level</h3>
@@ -154,6 +166,7 @@
         id="studentLevel"
         name="studentLevel"
         [(ngModel)]="editableMember.studentLevel"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="applicationLevel">Application Level</label>
@@ -162,6 +175,7 @@
         id="applicationLevel"
         name="applicationLevel"
         [(ngModel)]="editableMember.applicationLevel"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="mastersLevels">Masters Levels</label>
@@ -170,6 +184,7 @@
         id="mastersLevels"
         name="mastersLevels"
         [(ngModel)]="editableMember.mastersLevels"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>Instructor</h3>
@@ -179,6 +194,7 @@
         id="instructorId"
         name="instructorId"
         [(ngModel)]="editableMember.instructorId"
+        (ngModelChange)="validateForm()"
       />
 
       <label for="instructorLicenseExpires">Instructor License Expires</label>
@@ -189,7 +205,9 @@
         name="instructorLicenseExpires"
         placeholder="YYYY-MM-DD"
         [ngModel]="editableMember.instructorLicenseExpires"
-        (ngModelChange)="editableMember.instructorLicenseExpires = $event"
+        (ngModelChange)="
+          editableMember.instructorLicenseExpires = $event; validateForm()
+        "
       />
 
       <label for="instructorWebsite">Instructor Website</label>
@@ -199,14 +217,16 @@
         id="instructorWebsite"
         name="instructorWebsite"
         [(ngModel)]="editableMember.instructorWebsite"
+        (ngModelChange)="validateForm()"
       />
 
-      <label for="instructorSchoolId">Instructor School ID</label>
+      <label for="instructorSchoolId">Within in School ID</label>
       <input
         type="text"
         id="instructorSchoolId"
         name="instructorSchoolId"
         [(ngModel)]="editableMember.instructorSchoolId"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>School</h3>
@@ -217,6 +237,7 @@
         id="schoolIdManaged"
         name="schoolIdManaged"
         [(ngModel)]="editableMember.schoolIdManaged"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>Country Manager</h3>
@@ -227,6 +248,7 @@
         id="countryManaged"
         name="countryManaged"
         [(ngModel)]="editableMember.countryManaged"
+        (ngModelChange)="validateForm()"
       />
 
       <h3>Admin</h3>
@@ -237,6 +259,7 @@
           id="isAdmin"
           name="isAdmin"
           [(ngModel)]="editableMember.isAdmin"
+          (ngModelChange)="validateForm()"
         />
         (can edit all members)
       </div>
@@ -256,14 +279,17 @@
       <div class="left-actions">
         @if(isSaving()) {
         <app-spinner></app-spinner>
-        } @else {
+        } @else { @if(isDirty()){
         <button
           type="submit"
           [disabled]="emailExists || memberIdExists || memberForm.invalid"
         >
           Save
         </button>
-        <button type="button" (click)="cancel($event)">Cancel</button>
+        }
+        <button type="button" (click)="cancel($event)">
+          @if(isDirty()){Cancel} @else {Close}
+        </button>
         }
       </div>
       <div class="right-actions">
