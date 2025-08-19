@@ -1,0 +1,22 @@
+.form-section {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 20px;
+  align-items: center;
+  margin-bottom: 20px;
+
+  h3 {
+    grid-column: 1 / -1;
+    margin-bottom: 10px;
+  }
+
+  label {
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .align-top {
+    align-self: start;
+    padding-top: 8px;
+  }
+}

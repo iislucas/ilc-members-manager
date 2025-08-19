@@ -1,4 +1,27 @@
 <div class="edit-form">
+  <div class="edit-form-header" (click)="toggle($event)">
+    <div class="identifier">
+      @if (editableMember.memberId) {
+      <span>{{ editableMember.memberId }}</span>
+      } @if (editableMember.instructorId) {
+      <span>-{{ editableMember.instructorId }}</span>
+      }
+    </div>
+    <div class="name">{{ editableMember.name }}</div>
+    <div class="level">
+      @if (editableMember.studentLevel) {
+      <span>S:{{ editableMember.studentLevel }}</span>
+      } @if (editableMember.applicationLevel) {
+      <span>A:{{ editableMember.applicationLevel }}</span>
+      }
+    </div>
+    <div class="country">{{ editableMember.country }}</div>
+    <div class="unfold-button">
+      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+    </div>
+  </div>
+
+  @if (!collapsed()) {
   <form #memberForm="ngForm" (ngSubmit)="saveMember()">
     <div class="form-section">
       <h3>Contact Information</h3>
@@ -230,23 +253,28 @@
     </div>
     }
     <div class="form-actions">
-      @if(isSaving()) {
-      <app-spinner></app-spinner>
-      } @else {
-      <button
-        type="submit"
-        [disabled]="emailExists || memberIdExists || memberForm.invalid"
-      >
-        Save
-      </button>
-
-      <button type="button" (click)="cancel($event)">Cancel</button>
-      @if(canDelete()) {
-      <button class="delete-button" (click)="deleteMember($event)">
-        <app-icon name="trash" fill="white" />
-        Delete
-      </button>
-      } }
+      <div class="left-actions">
+        @if(isSaving()) {
+        <app-spinner></app-spinner>
+        } @else {
+        <button
+          type="submit"
+          [disabled]="emailExists || memberIdExists || memberForm.invalid"
+        >
+          Save
+        </button>
+        <button type="button" (click)="cancel($event)">Cancel</button>
+        }
+      </div>
+      <div class="right-actions">
+        @if(canDelete()) {
+        <button class="delete-button" (click)="deleteMember($event)">
+          <app-icon name="trash" fill="white" />
+          Delete
+        </button>
+        }
+      </div>
     </div>
   </form>
+  }
 </div>

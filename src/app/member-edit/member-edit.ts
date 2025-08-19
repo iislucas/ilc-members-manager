@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   signal,
+  HostBinding,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Member } from '../member.model';
@@ -32,7 +33,13 @@ export class MemberEditComponent {
   memberIdExists = false;
   errorMessage = signal('');
   isSaving = signal(false);
+  collapsed = signal(true);
   private membersService = inject(MembersService);
+
+  @HostBinding('class.is-open')
+  get isOpen() {
+    return !this.collapsed();
+  }
 
   constructor() {
     effect(() => {
@@ -45,6 +52,12 @@ export class MemberEditComponent {
     $event.preventDefault();
     $event.stopPropagation();
     this.close.emit();
+  }
+
+  toggle($event: Event) {
+    $event.preventDefault();
+    $event.stopPropagation();
+    this.collapsed.set(!this.collapsed());
   }
 
   isDupEmail() {

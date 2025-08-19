@@ -26,16 +26,8 @@ export class MemberListComponent {
   private firebaseStateService = inject(FirebaseStateService);
   private membersService = inject(MembersService);
   private searchTerm = signal('');
-  selectedMember = signal<Member | null>(null);
-
-  constructor() {
-    effect(() => {
-      const member = this.selectedMember();
-      if (member) {
-        this.selectMember.emit(member);
-      }
-    });
-  }
+  isAddingMember = signal(false);
+  newMember = signal<Member>(initMember());
 
   // Expose signals from the service to the template
   members = computed(() => {
@@ -51,13 +43,16 @@ export class MemberListComponent {
   loading = this.membersService.loading;
   error = this.membersService.error;
 
-  selectMember = output<Member>();
-
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
   }
 
   onNewMember() {
-    this.selectedMember.set(initMember());
+    this.newMember.set(initMember());
+    this.isAddingMember.set(true);
+  }
+
+  onNewMemberClose() {
+    this.isAddingMember.set(false);
   }
 }

@@ -1,7 +1,7 @@
 @if (loading()) {
 <app-spinner></app-spinner>
 } @else if (error()) {
-<p class="error">Error: {{ error() }}</p>
+<p class="error">{{ error() }}</p>
 } @else {
 <div class="search-header">
   <div class="search-box">
@@ -15,31 +15,22 @@
   <button (click)="onNewMember()">New Member</button>
 </div>
 <div class="member-cards">
-  @let curSelected = selectedMember(); @if(curSelected && curSelected.id === '')
-  {
+  @if(isAddingMember()) {
   <div class="member-card">
     <app-member-edit
-      [member]="curSelected"
+      [member]="newMember()"
       [allMembers]="members()"
-      (close)="selectedMember.set(null)"
+      (close)="onNewMemberClose()"
       [canDelete]="false"
     ></app-member-edit>
   </div>
   } @for (member of members(); track member.id) {
-  <div class="member-card" (click)="selectedMember.set(member)">
-    @if(curSelected === member) {
+  <div class="member-card">
     <app-member-edit
       [member]="member"
       [allMembers]="members()"
-      (close)="selectedMember.set(null)"
+      (close)="($event)"
     ></app-member-edit>
-    } @else {
-    <div class="selectable-member-card">
-      <div class="member-name">{{ member.name }}</div>
-      <div class="member-id">{{ member.memberId }}</div>
-      <div class="email">{{ member.email }}</div>
-    </div>
-    }
   </div>
   }
 </div>

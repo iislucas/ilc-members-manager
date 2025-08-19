@@ -1,7 +1,57 @@
+:host {
+  display: block;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
 .edit-form {
   @import "../member-details-layout.scss";
 
+  .edit-form-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 1em;
+
+    .identifier {
+      // Make sure that text beyond 3em is turned into ellipsis
+      // The text was being cut off because this element is likely a flex item that
+      // was not being allowed to shrink. Setting min-width to 0 allows it to shrink
+      // and the ellipsis to be applied correctly.
+      width: 6em;
+      // min-width: 0; // Allow the element to shrink smaller than its content
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .name {
+      font-weight: bold;
+    }
+
+    .level {
+      display: flex;
+      gap: 0.5em;
+    }
+
+    .unfold-button {
+      margin-left: auto;
+    }
+  }
+
   .form-section {
+    margin-top: 1em;
+    padding-top: 1em;
+    border-top: 1px solid transparent;
+    transition: border-color 0.3s ease-in-out;
+
     input[type="text"],
     input[type="email"],
     textarea {
@@ -53,4 +103,20 @@
       gap: 10px;
     }
   }
+
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1em;
+
+    .left-actions {
+      display: flex;
+      gap: 1em;
+    }
+  }
+}
+
+:host(.is-open) .form-section {
+  border-top-color: #ccc;
 }
