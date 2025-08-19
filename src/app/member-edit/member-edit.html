@@ -1,49 +1,44 @@
 <div class="edit-form">
   <form #memberForm="ngForm" (ngSubmit)="saveMember()">
-    <h3>Public Information</h3>
     <div class="form-section">
+      <h3>Contact Information</h3>
       <label for="name">Name</label>
-      <input
-        class="long"
-        type="text"
-        id="name"
-        name="name"
-        [(ngModel)]="editableMember.name"
-        #name="ngModel"
-        required
-      />
-      @if(name.invalid) {
-      <div class="error">Name is required.</div>
-      }
+      <div>
+        <input
+          class="long"
+          type="text"
+          id="name"
+          name="name"
+          [(ngModel)]="editableMember.name"
+          #name="ngModel"
+          required
+        />
+        @if(name.invalid) {
+        <div class="error">Name is required.</div>
+        }
+      </div>
 
       <label for="email">Email</label>
-      <input
-        class="long"
-        type="email"
-        id="email"
-        name="email"
-        [(ngModel)]="editableMember.email"
-        (ngModelChange)="isDupEmail()"
-        #email="ngModel"
-        required
-        email
-      />
-      @if (emailExists) {
-      <div class="error">This email address is already in use.</div>
-      } @else if (email.invalid) {
-      <div class="error">Please enter a valid email address.</div>
-      }
+      <div>
+        <input
+          class="long"
+          type="email"
+          id="email"
+          name="email"
+          [(ngModel)]="editableMember.email"
+          (ngModelChange)="isDupEmail()"
+          #email="ngModel"
+          required
+          email
+        />
+        @if (emailExists) {
+        <div class="error">This email address is already in use.</div>
+        } @else if (email.invalid) {
+        <div class="error">Please enter a valid email address.</div>
+        }
+      </div>
 
-      <label for="website">Website</label>
-      <input
-        class="long"
-        type="text"
-        id="website"
-        name="website"
-        [(ngModel)]="editableMember.website"
-      />
-
-      <label for="address">Address</label>
+      <label for="address" class="align-top">Address</label>
       <textarea
         class="long"
         id="address"
@@ -51,12 +46,20 @@
         [(ngModel)]="editableMember.address"
       ></textarea>
 
-      <label for="phone">Phone</label>
+      <label for="city">City</label>
       <input
         type="text"
-        id="phone"
-        name="phone"
-        [(ngModel)]="editableMember.phone"
+        id="city"
+        name="city"
+        [(ngModel)]="editableMember.city"
+      />
+
+      <label for="zipCode">Zip Code</label>
+      <input
+        type="text"
+        id="zipCode"
+        name="zipCode"
+        [(ngModel)]="editableMember.zipCode"
       />
 
       <label for="country">Country</label>
@@ -67,6 +70,61 @@
         [(ngModel)]="editableMember.country"
       />
 
+      <label for="phone">Phone</label>
+      <input
+        type="text"
+        id="phone"
+        name="phone"
+        [(ngModel)]="editableMember.phone"
+      />
+
+      <h3>ILC Member Information</h3>
+      <label for="memberId">Member ID</label>
+      <div>
+        <input
+          type="text"
+          id="memberId"
+          name="memberId"
+          [(ngModel)]="editableMember.memberId"
+          (ngModelChange)="isDupMemberId()"
+          #memberId="ngModel"
+          [required]="editableMember.id !== ''"
+        />
+        @if(memberId.invalid) {
+        <div class="error">Member ID is required.</div>
+        } @else if(memberIdExists) {
+        <div class="error">This member ID is already in use.</div>
+        }
+      </div>
+
+      <label for="membershipType">Membership Type</label>
+      <input
+        type="text"
+        id="membershipType"
+        name="membershipType"
+        [(ngModel)]="editableMember.membershipType"
+      />
+
+      <label for="membershipExpires">Membership Expires</label>
+      <input
+        class="date"
+        type="date"
+        id="membershipExpires"
+        name="membershipExpires"
+        placeholder="YYYY-MM-DD"
+        [ngModel]="editableMember.membershipExpires"
+        (ngModelChange)="editableMember.membershipExpires = $event"
+      />
+
+      <label for="sifuMemberId">Sifu Member ID</label>
+      <input
+        type="text"
+        id="sifuMemberId"
+        name="sifuMemberId"
+        [(ngModel)]="editableMember.sifuMemberId"
+      />
+
+      <h3>Level Information</h3>
       <label for="studentLevel">Student Level</label>
       <input
         type="text"
@@ -83,135 +141,74 @@
         [(ngModel)]="editableMember.applicationLevel"
       />
 
-      <label for="isSchoolManager">School Manager</label>
-      <input
-        type="checkbox"
-        id="isSchoolManager"
-        name="isSchoolManager"
-        [(ngModel)]="editableMember.isSchoolManager"
-      />
-
-      @if(editableMember.isSchoolManager) {
-      <label for="schoolName">School Name</label>
-      <input
-        class="long"
-        type="text"
-        id="schoolName"
-        name="schoolName"
-        [(ngModel)]="editableMember.schoolName"
-      />
-      }
-
-      <label for="isCountryManager">Country Manager</label>
-      <input
-        type="checkbox"
-        id="isCountryManager"
-        name="isCountryManager"
-        [(ngModel)]="editableMember.isCountryManager"
-      />
-
-      @if(editableMember.isCountryManager) {
-      <label for="country">Country Managed</label>
-      <input
-        class="long"
-        type="text"
-        id="country"
-        name="country"
-        [(ngModel)]="editableMember.countryManaged"
-      />
-      }
-    </div>
-
-    <h3>Internal Information</h3>
-
-    <div class="form-section">
-      <label for="lastPaymentDate">Last Payment Date</label>
-      <input
-        type="date"
-        id="lastPaymentDate"
-        name="lastPaymentDate"
-        [ngModel]="editableMember.lastPaymentDate"
-        (ngModelChange)="editableMember.lastPaymentDate = $event"
-      />
-
-      <label for="lastPaymentAmount">Last Payment Amount</label>
-      <input
-        type="number"
-        id="lastPaymentAmount"
-        name="lastPaymentAmount"
-        [(ngModel)]="editableMember.lastPaymentAmount"
-      />
-
-      <label for="lastPaymentId">Last Payment ID</label>
-      <input
-        type="number"
-        id="lastPaymentId"
-        name="lastPaymentId"
-        [(ngModel)]="editableMember.lastPaymentId"
-      />
-
-      <label for="membershipExpires">Membership Expires</label>
-      <input
-        type="date"
-        id="membershipExpires"
-        name="membershipExpires"
-        [ngModel]="editableMember.membershipExpires"
-        (ngModelChange)="editableMember.membershipExpires = $event"
-      />
-
-      <label for="memberId">Member ID</label>
+      <label for="mastersLevels">Masters Levels</label>
       <input
         type="text"
-        id="memberId"
-        name="memberId"
-        [(ngModel)]="editableMember.memberId"
-        (ngModelChange)="isDupMemberId()"
-        #memberId="ngModel"
-        [required]="editableMember.id !== ''"
+        id="mastersLevels"
+        name="mastersLevels"
+        [(ngModel)]="editableMember.mastersLevels"
       />
-      @if(memberId.invalid) {
-      <div class="error">Member ID is required.</div>
-      } @else if(memberIdExists) {
-      <div class="error">This member ID is already in use.</div>
-      }
 
-      <label for="isInstructor">Is Instructor</label>
+      <h3>Instructor Information</h3>
+      <label for="instructorId">Instructor ID</label>
       <input
-        type="checkbox"
-        id="isInstructor"
-        name="isInstructor"
-        [(ngModel)]="editableMember.isInstructor"
+        type="text"
+        id="instructorId"
+        name="instructorId"
+        [(ngModel)]="editableMember.instructorId"
       />
 
-      @if(editableMember.isInstructor) {
       <label for="instructorLicenseExpires">Instructor License Expires</label>
       <input
+        class="date"
         type="date"
         id="instructorLicenseExpires"
         name="instructorLicenseExpires"
+        placeholder="YYYY-MM-DD"
         [ngModel]="editableMember.instructorLicenseExpires"
         (ngModelChange)="editableMember.instructorLicenseExpires = $event"
       />
-      }
 
-      <label for="sifuName">Sifu Name</label>
+      <label for="instructorWebsite">Instructor Website</label>
       <input
+        class="long"
         type="text"
-        id="sifuName"
-        name="sifuName"
-        [(ngModel)]="editableMember.sifuName"
+        id="instructorWebsite"
+        name="instructorWebsite"
+        [(ngModel)]="editableMember.instructorWebsite"
       />
 
-      <label for="sifuMemberId">Sifu Member ID</label>
+      <label for="instructorSchoolId">Instructor School ID</label>
       <input
         type="text"
-        id="sifuMemberId"
-        name="sifuMemberId"
-        [(ngModel)]="editableMember.sifuMemberId"
+        id="instructorSchoolId"
+        name="instructorSchoolId"
+        [(ngModel)]="editableMember.instructorSchoolId"
       />
 
+      <h3>School Information</h3>
+      <label for="schoolIdManaged">School ID Managed</label>
+      <input
+        class="long"
+        type="text"
+        id="schoolIdManaged"
+        name="schoolIdManaged"
+        [(ngModel)]="editableMember.schoolIdManaged"
+      />
+
+      <h3>Country Manager</h3>
+      <label for="countryManaged">Country Managed</label>
+      <input
+        class="long"
+        type="text"
+        id="countryManaged"
+        name="countryManaged"
+        [(ngModel)]="editableMember.countryManaged"
+      />
+
+      <h3>Admin</h3>
       <label for="isAdmin">Is Admin</label>
-      <div>
+      <div class="admin-section">
         <input
           type="checkbox"
           id="isAdmin"

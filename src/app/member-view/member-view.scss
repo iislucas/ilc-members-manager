@@ -1,20 +1,7 @@
-h3 {
-  margin-top: 0;
-}
+@import "../member-details-layout.scss";
 
-.form-section {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-gap: 1rem;
-  align-items: center;
-  margin-bottom: 1em;
-}
-
-label {
-  justify-self: end;
-  text-align: right;
-}
-
-.value {
-  justify-self: start;
+.view-form {
+  .value {
+    font-weight: normal;
+  }
 }

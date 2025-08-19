@@ -1,77 +1,74 @@
 @let m = member();
 
 <div class="view-form">
-  <h3>Public Information</h3>
   <div class="form-section">
+    <h3>Contact Information</h3>
     <label>Name</label>
     <div class="value">{{ m.name }}</div>
 
     <label>Email</label>
     <div class="value">{{ m.email }}</div>
 
-    <label>Website</label>
-    <div class="value">{{ m.website }}</div>
-
-    <label>Address</label>
+    <label class="align-top">Address</label>
     <div class="value">{{ m.address }}</div>
 
-    <label>Phone</label>
-    <div class="value">{{ m.phone }}</div>
+    <label>City</label>
+    <div class="value">{{ m.city }}</div>
+
+    <label>Zip Code</label>
+    <div class="value">{{ m.zipCode }}</div>
 
     <label>Country</label>
     <div class="value">{{ m.country }}</div>
 
+    <label>Phone</label>
+    <div class="value">{{ m.phone }}</div>
+
+    <h3>ILC Member Information</h3>
+    <label>Member ID</label>
+    <div class="value">{{ m.memberId }}</div>
+
+    <label>Membership Type</label>
+    <div class="value">{{ m.membershipType }}</div>
+
+    <label>Membership Expires</label>
+    <div class="value">{{ m.membershipExpires }}</div>
+
+    <label>Sifu Member ID</label>
+    <div class="value">{{ m.sifuMemberId }}</div>
+
+    <h3>Level Information</h3>
     <label>Student Level</label>
     <div class="value">{{ m.studentLevel }}</div>
 
     <label>Application Level</label>
     <div class="value">{{ m.applicationLevel }}</div>
 
-    <label>School Manager</label>
-    <div class="value">{{ m.isSchoolManager ? "Yes" : "No" }}</div>
+    <label>Masters Levels</label>
+    <div class="value">{{ m.mastersLevels }}</div>
 
-    <label>School Name</label>
-    <div class="value">{{ m.schoolName }}</div>
-
-    <label>Country Manager</label>
-    <div class="value">{{ m.isCountryManager ? "Yes" : "No" }}</div>
-
-    <label>Country Managed</label>
-    <div class="value">{{ m.countryManaged }}</div>
-  </div>
-
-  <h3>Internal Information</h3>
-  <div class="form-section">
-    <label>Last Payment Date</label>
-    <div class="value">
-      {{ m.lastPaymentDate.toDate() | date : "medium" }}
-    </div>
-
-    <label>Last Payment Amount</label>
-    <div class="value">{{ m.lastPaymentAmount | currency }}</div>
-
-    <label>Membership Expires</label>
-    <div class="value">
-      {{ m.membershipExpires.toDate() | date : "medium" }}
-    </div>
-
-    <label>Member ID</label>
-    <div class="value">{{ m.memberId }}</div>
-
-    <label>Is Instructor</label>
-    <div class="value">{{ m.isInstructor ? "Yes" : "No" }}</div>
+    <h3>Instructor Information</h3>
+    <label>Instructor ID</label>
+    <div class="value">{{ m.instructorId }}</div>
 
     <label>Instructor License Expires</label>
-    <div class="value">
-      {{ m.instructorLicenseExpires?.toDate() | date : "medium" }}
-    </div>
+    <div class="value">{{ m.instructorLicenseExpires }}</div>
 
-    <label>Sifu Name</label>
-    <div class="value">{{ m.sifuName }}</div>
+    <label>Instructor Website</label>
+    <div class="value">{{ m.instructorWebsite }}</div>
 
-    <label>Sifu Member ID</label>
-    <div class="value">{{ m.sifuMemberId }}</div>
+    <label>Instructor School ID</label>
+    <div class="value">{{ m.instructorSchoolId }}</div>
 
+    <h3>School Information</h3>
+    <label>School ID Managed</label>
+    <div class="value">{{ m.schoolIdManaged }}</div>
+
+    <h3>Country Manager</h3>
+    <label>Country Managed</label>
+    <div class="value">{{ m.countryManaged }}</div>
+
+    <h3>Admin</h3>
     <label>Is Admin</label>
     <div class="value">{{ m.isAdmin ? "Yes" : "No" }}</div>
   </div>

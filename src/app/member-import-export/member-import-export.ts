@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Member, initMember } from '../member.model';
+import { Member, MembershipType, initMember } from '../member.model';
 import { MembersService } from '../members.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';
@@ -96,23 +96,12 @@ export class MemberImportExportComponent {
         if (value === undefined || value === null || value === '') continue;
 
         switch (key) {
-          case 'lastPaymentAmount':
-          case 'lastPaymentId':
-            member[key] = Number(value);
-            break;
           case 'isAdmin':
-          case 'isInstructor':
-          case 'isSchoolManager':
-          case 'isCountryManager':
             member[key] = ['true', '1', 'yes'].includes(value.toLowerCase());
             break;
-          case 'lastPaymentDate':
-          case 'membershipExpires':
-          case 'instructorLicenseExpires':
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) {
-              member[key] = Timestamp.fromDate(date);
-            }
+          case 'membershipType':
+            // TODO: Add type validation for MembershipType
+            member[key] = value as MembershipType;
             break;
           default:
             member[key] = value;

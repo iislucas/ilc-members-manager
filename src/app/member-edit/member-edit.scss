@@ -1,79 +1,56 @@
-h3 {
-  margin-top: 0;
-}
+.edit-form {
+  @import "../member-details-layout.scss";
 
-.form-section {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-gap: 1rem;
-  align-items: center;
-  margin-bottom: 1em;
-}
+  .form-section {
+    input[type="text"],
+    input[type="email"],
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box; /* Ensures padding doesn't affect width */
+    }
 
-label {
-  justify-self: end;
-  text-align: right;
-}
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
 
-input {
-  justify-self: start;
+    .long {
+      grid-column: 2 / 3;
+    }
 
-  &.long {
-    width: 15em;
+    input[type="date"] {
+      width: auto;
+      min-width: 120px;
+      max-width: 150px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+
+      &::placeholder {
+        color: #999;
+      }
+    }
+
+    div {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .error {
+      color: red;
+      font-size: 0.9em;
+    }
+
+    /* Special case for checkbox */
+    .admin-section {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+    }
   }
-}
-
-.form-actions {
-  display: flex;
-  flex-direction: row;
-  gap: 1em;
-  align-items: center;
-}
-
-.delete-button {
-  margin-left: auto;
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-
-  &:hover {
-    background-color: #d32f2f;
-  }
-
-  app-icon {
-    fill: white;
-  }
-}
-
-.error {
-  color: #f44336;
-  grid-column: 2;
-}
-
-.error-container {
-  margin-bottom: 1em;
-}
-
-.error-message {
-  background-color: #fdd;
-  border: 1px solid #f44336;
-  padding: 1em;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
 }
