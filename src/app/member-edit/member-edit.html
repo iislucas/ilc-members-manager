@@ -24,7 +24,7 @@
   @if (!collapsed()) {
   <form #memberForm="ngForm" (ngSubmit)="saveMember()">
     <div class="form-section">
-      <h3>Contact Information</h3>
+      <h3>Contact</h3>
       <label for="name">Name</label>
       <div>
         <input
@@ -101,7 +101,7 @@
         [(ngModel)]="editableMember.phone"
       />
 
-      <h3>ILC Member Information</h3>
+      <h3>Member</h3>
       <label for="memberId">Member ID</label>
       <div>
         <input
@@ -147,7 +147,7 @@
         [(ngModel)]="editableMember.sifuMemberId"
       />
 
-      <h3>Level Information</h3>
+      <h3>Level</h3>
       <label for="studentLevel">Student Level</label>
       <input
         type="text"
@@ -172,7 +172,7 @@
         [(ngModel)]="editableMember.mastersLevels"
       />
 
-      <h3>Instructor Information</h3>
+      <h3>Instructor</h3>
       <label for="instructorId">Instructor ID</label>
       <input
         type="text"
@@ -209,7 +209,7 @@
         [(ngModel)]="editableMember.instructorSchoolId"
       />
 
-      <h3>School Information</h3>
+      <h3>School</h3>
       <label for="schoolIdManaged">School ID Managed</label>
       <input
         class="long"
@@ -269,7 +269,7 @@
       <div class="right-actions">
         @if(canDelete()) {
         <button class="delete-button" (click)="deleteMember($event)">
-          <app-icon name="trash" fill="white" />
+          <app-icon name="trash" fill="#000" />
           Delete
         </button>
         }
