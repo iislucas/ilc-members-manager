@@ -26,6 +26,8 @@ export class MemberEditComponent {
   member = input.required<Member>();
   allMembers = input.required<Member[]>();
   canDelete = input<boolean>(true);
+  collapse = input<boolean | null>(null);
+  close = output();
   editableMember!: Member;
   emailExists = false;
   memberIdExists = false;
@@ -48,6 +50,12 @@ export class MemberEditComponent {
 
   constructor() {
     effect(() => {
+      const collapse = this.collapse();
+      if (collapse !== null) {
+        this.collapsed.set(collapse);
+      }
+    });
+    effect(() => {
       this.editableMember = JSON.parse(JSON.stringify(this.member()));
       this.validateForm();
       this.isDirty.set(false);
@@ -58,6 +66,7 @@ export class MemberEditComponent {
     $event.preventDefault();
     $event.stopPropagation();
     this.collapsed.set(true);
+    this.close.emit();
   }
 
   toggle($event: Event) {
@@ -136,6 +145,7 @@ export class MemberEditComponent {
     }
     this.isSaving.set(false);
     this.collapsed.set(true);
+    this.close.emit();
   }
 
   async deleteMember($event: Event) {

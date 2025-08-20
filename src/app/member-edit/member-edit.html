@@ -8,6 +8,7 @@
       }
     </div>
     <div class="name">
+      @if(editableMember.name.trim() === '') { [Name needs to be entered] }
       {{ editableMember.name }}@if(isDirty()){<span>*</span>}
     </div>
     @if(editableMember.isAdmin) {
@@ -43,7 +44,7 @@
           required
         />
         @if(name.invalid) {
-        <div class="error">Name is required.</div>
+        <div class="error-message">Name is required.</div>
         }
       </div>
 
@@ -61,9 +62,9 @@
           email
         />
         @if (emailExists) {
-        <div class="error">This email address is already in use.</div>
+        <div class="error-message">This email address is already in use.</div>
         } @else if (email.invalid) {
-        <div class="error">Please enter a valid email address.</div>
+        <div class="error-message">Please enter a valid email address.</div>
         }
       </div>
 
@@ -125,9 +126,9 @@
           [required]="editableMember.id !== ''"
         />
         @if(memberId.invalid) {
-        <div class="error">Member ID is required.</div>
+        <div class="error-message">Member ID is required.</div>
         } @else if(memberIdExists) {
-        <div class="error">This member ID is already in use.</div>
+        <div class="error-message">This member ID is already in use.</div>
         }
       </div>
 
@@ -272,10 +273,10 @@
     <div class="error-container">
       <div class="error-message">
         {{ errorMessage() }}
-        <button class="close-button" (click)="closeError()">
-          <app-icon name="close" />
-        </button>
       </div>
+      <button class="icon-only-button" (click)="closeError()">
+        <app-icon name="close" />
+      </button>
     </div>
     }
     <div class="form-actions">

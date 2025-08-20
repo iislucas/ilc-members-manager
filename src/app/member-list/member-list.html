@@ -20,6 +20,7 @@
     <app-member-edit
       [member]="newMember()"
       [allMembers]="members()"
+      [collapse]="!isAddingMember()"
       (close)="onNewMemberClose()"
       [canDelete]="false"
     ></app-member-edit>

@@ -22,7 +22,6 @@ button {
   font-family: inherit;
   font-size: 100%;
   font-weight: 500; // Slightly bolder for emphasis
-  line-height: 1.5;
 
   // Sizing and spacing
   border-radius: 0.3em;
@@ -38,6 +37,18 @@ button {
   box-shadow: 0 2px 4px $shadow-color;
   // Smooth transitions for hover and active states.
   transition: all 0.2s ease-in-out;
+
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 0.3em;
+  padding-left: 0.4em;
+  padding-right: 0.4em;
+}
+
+.round-button {
+  border-radius: 100%;
+  padding: 0.2em;
 }
 
 button:hover {
@@ -48,7 +59,7 @@ button:hover {
 
 button:active {
   // When pressed, simulate a "push" effect by moving the button down slightly.
-  transform: translateY(1px);
+  transform: translateY(2px);
   background-color: $button-active-bg-color;
   box-shadow: 0 1px 2px $shadow-color-active;
 }
@@ -58,6 +69,29 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
   box-shadow: none;
+}
+
+.icon-only-button {
+  // Sizing and spacing
+  border-radius: unset;
+  // Colors and borders
+  background-color: unset;
+  border: unset;
+  // A subtle shadow for a "raised" Material Design effect.
+  box-shadow: unset;
+
+  &:hover {
+    background-color: unset;
+    box-shadow: unset;
+  }
+
+  &:active {
+    background-color: unset;
+    box-shadow: unset;
+  }
+  &:disabled {
+    opacity: 0.7;
+  }
 }
 
 .card {

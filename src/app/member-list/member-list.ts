@@ -10,8 +10,6 @@ import { CommonModule } from '@angular/common';
 import { MembersService } from '../members.service';
 import { initMember, Member } from '../member.model';
 import { MemberEditComponent } from '../member-edit/member-edit';
-import { FirebaseStateService } from '../firebase-state.service';
-import { Timestamp } from 'firebase/firestore';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
@@ -23,7 +21,6 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   styleUrl: './member-list.scss',
 })
 export class MemberListComponent {
-  private firebaseStateService = inject(FirebaseStateService);
   private membersService = inject(MembersService);
   private searchTerm = signal('');
   isAddingMember = signal(false);
