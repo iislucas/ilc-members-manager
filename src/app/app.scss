@@ -97,7 +97,7 @@ main {
   border-radius: 5px;
   padding: 0.25em;
   z-index: 100;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1);
 }
 
 .menu-item {
@@ -117,4 +117,8 @@ main {
   border-radius: 5px;
   padding: 0.2em;
   border: 1px solid $theme-chip-border-color;
+}
+
+.menu-item {
+  cursor: pointer;
 }
