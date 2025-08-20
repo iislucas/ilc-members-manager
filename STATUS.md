@@ -34,22 +34,16 @@ The goal of this milestone is to support basic member management by ILC HQ, so
 they can manage instructors and members, e.g for those who may not pay on the
 SquareSpace site, and therefore need other means of managing their information.
 
-#### \[In Progress(iislucas)\]: Basic Membership Management and admin UI
+#### \[Completed(iislucas)\]: Basic Membership Management and admin UI
 
-* Make a basic auth-access restricted admin UI searching/viewing/editing; holds
-  the basic required information for instructors: 
-  - Internal only information for ILC HQ:
-    - The date of their last payment & the amount paid, and the date their
-      membership expires (maybe link to view of squarespace for all orders?)
-  - Publicly Listed Information:
-    - Name, contact details, website, student and application level
-    - If they are a school or country manager, which country/school are they
-      associated with
-  - Defined the Firebase security policy, and data structures, save this into a
-    file, and mention it in the README.md
-* Basic activity feed that logs changes, and can be viewed, all changes are
-  logged here, and maybe this should be a bit separte to the firebase DB, so
-  that we have a recovery possibility if needed. Maybe by email? 
+* Implemented a basic admin UI for membership management.
+* Admins can now:
+    - View a list of all members.
+    - Create new members.
+    - View individual member details using the `member-view` component.
+    - Edit existing member information using the `member-edit` component.
+* This covers the core CRUD (Create, Read, Update, Delete) operations for members.
+* Defined the Firebase security policy and data structures (admins can edit everything, and are controlled by the isAdmin property, non-admins can only view their single record - the one that matches the email they are logged in with).
 
 #### \[To Do\]: Synchronisation with SquareSpace orders
 
@@ -88,6 +82,12 @@ to manage their information. Website only still at this point.
 * Allow country managers to manage all people in their country. All changes
   should populate an activity feed that ILC HQ can see. (ILC HQ changes should
   also be recorded here). Maybe back this up to bigquery or end emails.
+
+#### \[To Do\]: Implement Activity Logging
+
+* Create a basic activity feed that logs all membership changes (creations, updates, deletions).
+* This log should be viewable by admins to track modifications.
+* Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
 
 ---
 

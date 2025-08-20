@@ -104,6 +104,12 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 
+## AI-assisted Development
+
+This project can be worked on with AI assistants, like Gemini. To provide the
+AI with the necessary context, point it to the `.gemini/GEMINI.md` file, which
+contains the project's tech stack, coding style, and other relevant information.
+
 ## Deployment
 
 ### Setup Cloud and Firebase project and auth
