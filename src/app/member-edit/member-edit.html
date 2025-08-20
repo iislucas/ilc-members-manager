@@ -56,7 +56,7 @@
           id="email"
           name="email"
           [(ngModel)]="editableMember.email"
-          (ngModelChange)="isDupEmail(); validateForm()"
+          (ngModelChange)="validateForm()"
           #email="ngModel"
           required
           email
@@ -123,7 +123,7 @@
           [(ngModel)]="editableMember.memberId"
           (ngModelChange)="isDupMemberId(); validateForm()"
           #memberId="ngModel"
-          [required]="editableMember.id !== ''"
+          [required]="editableMember.id === ''"
         />
         @if(memberId.invalid) {
         <div class="error-message">Member ID is required.</div>
@@ -269,12 +269,16 @@
       </div>
     </div>
 
-    @if (errorMessage()) {
+    @if (errorMessage().length > 0) {
     <div class="error-container">
       <div class="error-message">
-        {{ errorMessage() }}
+        <ul>
+          @for(error of errorMessage(); track error) {
+          <li>{{ error }}</li>
+          }
+        </ul>
       </div>
-      <button class="icon-only-button" (click)="closeError()">
+      <button type="button" class="icon-only-button" (click)="closeErrors()">
         <app-icon name="close" />
       </button>
     </div>

@@ -31,7 +31,7 @@ export class MemberEditComponent {
   editableMember!: Member;
   emailExists = false;
   memberIdExists = false;
-  errorMessage = signal('');
+  errorMessage = signal<string[]>([]);
   isSaving = signal(false);
   collapsed = signal(true);
   isDirty = signal(false);
@@ -116,24 +116,6 @@ export class MemberEditComponent {
 
   async saveMember() {
     this.isSaving.set(true);
-    if (this.isDupEmail()) {
-      this.errorMessage.set('This email address is already in use.');
-      this.isSaving.set(false);
-      return;
-    } else if (this.isDupMemberId()) {
-      this.errorMessage.set('This member ID is already in use.');
-      this.isSaving.set(false);
-      return;
-    } else if (this.editableMember.name === '') {
-      this.errorMessage.set('Name cannot be empty.');
-      this.isSaving.set(false);
-      return;
-    } else if (!this.editableMember.id && this.editableMember.memberId === '') {
-      this.errorMessage.set('Member ID cannot be empty for a new member.');
-      this.isSaving.set(false);
-      return;
-    }
-    this.errorMessage.set('');
 
     if (this.editableMember.email) {
       await this.membersService.updateMember(
@@ -160,20 +142,38 @@ export class MemberEditComponent {
     }
   }
 
-  closeError() {
-    this.errorMessage.set('');
+  closeErrors() {
+    this.errorMessage.set([]);
   }
 
   validateForm() {
-    if (this.editableMember.name === '') {
-      this.errorMessage.set('Name cannot be empty.');
-    } else if (!this.editableMember.id && this.editableMember.memberId === '') {
-      this.errorMessage.set('Member ID cannot be empty for a new member.');
-    } else {
-      this.errorMessage.set('');
-    }
     this.isDirty.set(
       JSON.stringify(this.member()) !== JSON.stringify(this.editableMember)
     );
+
+    const errors: string[] = [];
+    if (this.isDupEmail()) {
+      errors.push('This email address is already in use.');
+    }
+    if (this.editableMember.email.trim() === '') {
+      errors.push('An email must be provided.');
+    }
+    if (this.isDupMemberId()) {
+      errors.push('This member ID is already in use.');
+    }
+    if (this.editableMember.name.trim() === '') {
+      errors.push('Name cannot be empty.');
+    }
+    if (!this.editableMember.id && this.editableMember.memberId.trim() === '') {
+      errors.push('Member ID cannot be empty for a new member.');
+    }
+
+    if (errors.length > 0) {
+      this.errorMessage.set(errors);
+      this.isSaving.set(false);
+      return;
+    }
+
+    this.errorMessage.set([]);
   }
 }
