@@ -1,6 +1,10 @@
 @use "../member-details-layout.scss";
 
 .view-form {
+  .view-form-header {
+    @extend .form-header;
+  }
+
   .value {
     font-weight: normal;
   }

@@ -1,9 +1,41 @@
+h3 {
+  text-align: center;
+  font-weight: bold;
+  padding-bottom: 0.2em;
+  color: #722;
+}
+
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+
+  .identifier {
+    width: 6em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .name {
+    font-weight: bold;
+  }
+
+  .level {
+    display: flex;
+    gap: 0.5em;
+  }
+}
+
 .form-section {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px 20px;
   align-items: center;
   margin-bottom: 20px;
+  margin-top: 1em;
+  padding-top: 0.5em;
+  border-top: 1px solid #ccc;
 
   h3 {
     grid-column: 1 / -1;

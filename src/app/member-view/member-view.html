@@ -1,8 +1,32 @@
 @let m = member();
 
 <div class="view-form">
+  <div class="view-form-header">
+    <div class="identifier">
+      @if (m.memberId) {
+      <span>{{ m.memberId }}</span>
+      } @if (m.instructorId) {
+      <span>-{{ m.instructorId }}</span>
+      }
+    </div>
+    <div class="name">
+      {{ m.name }}
+    </div>
+    @if(m.isAdmin) {
+    <app-icon name="admin"></app-icon>
+    }
+    <div class="level">
+      @if (m.studentLevel) {
+      <span>S:{{ m.studentLevel }}</span>
+      } @if (m.applicationLevel) {
+      <span>A:{{ m.applicationLevel }}</span>
+      }
+    </div>
+    <div class="country">{{ m.country }}</div>
+  </div>
+
   <div class="form-section">
-    <h3>Contact Information</h3>
+    <h3>Contact</h3>
     <label>Name</label>
     <div class="value">{{ m.name }}</div>
 
@@ -24,7 +48,7 @@
     <label>Phone</label>
     <div class="value">{{ m.phone }}</div>
 
-    <h3>ILC Member Information</h3>
+    <h3>Member</h3>
     <label>Member ID</label>
     <div class="value">{{ m.memberId }}</div>
 
@@ -37,7 +61,7 @@
     <label>Sifu Member ID</label>
     <div class="value">{{ m.sifuMemberId }}</div>
 
-    <h3>Level Information</h3>
+    <h3>Level</h3>
     <label>Student Level</label>
     <div class="value">{{ m.studentLevel }}</div>
 
@@ -47,7 +71,7 @@
     <label>Masters Levels</label>
     <div class="value">{{ m.mastersLevels }}</div>
 
-    <h3>Instructor Information</h3>
+    <h3>Instructor</h3>
     <label>Instructor ID</label>
     <div class="value">{{ m.instructorId }}</div>
 
@@ -60,7 +84,7 @@
     <label>Instructor School ID</label>
     <div class="value">{{ m.instructorSchoolId }}</div>
 
-    <h3>School Information</h3>
+    <h3>School</h3>
     <label>School ID Managed</label>
     <div class="value">{{ m.schoolIdManaged }}</div>
 
