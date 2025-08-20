@@ -66,7 +66,7 @@ export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 })
 export class FirebaseStateService {
   public app: FirebaseApp;
-  public analytics: Analytics;
+  public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
   public readonly user = signal<User | null>(null);
@@ -87,7 +87,9 @@ export class FirebaseStateService {
     this.app = initializeApp(environment.firebase);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
-    this.analytics = getAnalytics(this.app);
+    if (environment.production) {
+      this.analytics = getAnalytics(this.app);
+    }
     this.db = getFirestore(this.app);
 
     this.loggedIn = signal(

@@ -5,6 +5,8 @@ import {
   FirebaseStateService,
   createFirebaseStateServiceMock,
 } from './firebase-state.service';
+import { ROUTING_CONFIG } from './routing.config';
+import { Views } from './app.config';
 
 describe('App', () => {
   let firebaseStateServiceMock: Partial<FirebaseStateService>;
@@ -17,6 +19,14 @@ describe('App', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
+        {
+          provide: ROUTING_CONFIG,
+          useValue: {
+            pathParams: { view: Views.Members },
+            urlParams: { memberId: '' },
+            paths: [':view'],
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -31,6 +41,8 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Welcome');
+    expect(compiled.querySelector('h1')?.textContent).toContain(
+      'ILC Members Manager'
+    );
   });
 });

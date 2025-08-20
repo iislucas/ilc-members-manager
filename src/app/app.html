@@ -15,10 +15,12 @@
       @if(menuOpen()) {
       <div class="menu">
         <div class="menu-item">
-          <a (click)="currentView.set('main'); menuOpen.set(false)">Home</a>
+          <a (click)="currentView.set(Views.Members); menuOpen.set(false)"
+            >Home</a
+          >
         </div>
         <div class="menu-item">
-          <a (click)="currentView.set('import-export'); menuOpen.set(false)"
+          <a (click)="currentView.set(Views.ImportExport); menuOpen.set(false)"
             >Import/Export</a
           >
         </div>
@@ -46,9 +48,9 @@
     @if (firebaseService.loggingIn()) {
     <app-spinner></app-spinner>
     } @else { @if (firebaseService.userIsAdmin()) { @switch (currentView()) {
-    @case ('main') {
+    @case (Views.Members) {
     <app-member-list></app-member-list>
-    } @case ('import-export') {
+    } @case (Views.ImportExport) {
     <app-member-import-export></app-member-import-export>
     } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>

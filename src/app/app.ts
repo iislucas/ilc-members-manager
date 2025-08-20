@@ -10,6 +10,8 @@ import { MemberViewComponent } from './member-view/member-view';
 import { IconComponent } from './icons/icon.component';
 import { MemberImportExportComponent } from './member-import-export/member-import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
+import { RoutingService } from './routing.service';
+import { Views } from './app.config';
 
 @Component({
   selector: 'app-root',
@@ -31,8 +33,10 @@ import { SpinnerComponent } from './spinner/spinner.component';
 export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
+  public routingService = inject(RoutingService);
   public menuOpen = signal(false);
-  public currentView = signal<'main' | 'import-export'>('main');
+  public currentView = this.routingService.signals['view'];
+  public Views = Views;
 
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);

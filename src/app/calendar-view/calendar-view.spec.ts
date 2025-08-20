@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 import { CalendarView } from './calendar-view';
 
@@ -8,9 +9,9 @@ describe('CalendarView', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CalendarView]
-    })
-    .compileComponents();
+      imports: [CalendarView],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(CalendarView);
     component = fixture.componentInstance;
