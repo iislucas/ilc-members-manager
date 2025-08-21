@@ -6,6 +6,7 @@ export interface RoutingConfig {
   paths: string[];
 }
 
+// Defines the injection tag (global namespace)
 export const ROUTING_CONFIG = new InjectionToken<RoutingConfig>(
   'routing.config'
 );

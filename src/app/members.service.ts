@@ -8,6 +8,9 @@ import {
   DocumentReference,
   getFirestore,
   onSnapshot,
+  query,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { Member, initMember } from './member.model';
 import { FirebaseStateService } from './firebase-state.service';
@@ -105,6 +108,32 @@ export class MembersService {
 
   async deleteMember(emailId: string): Promise<void> {
     return deleteDoc(doc(this.db, 'members', emailId));
+  }
+
+  async getCountries(): Promise<string[]> {
+    const members = this.members();
+    const countries = new Set<string>();
+    for (const member of members) {
+      if (member.country) {
+        countries.add(member.country);
+      }
+    }
+    return Array.from(countries).sort();
+  }
+
+  async findInstructors(country?: string): Promise<Member[]> {
+    const constraints = [
+      where('instructorId', '>', ''),
+      where('membership', '==', 'active'),
+    ];
+    if (country) {
+      constraints.push(where('country', '==', country));
+    }
+    const q = query(this.membersCollection, ...constraints);
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(
+      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
+    );
   }
 
   downloadCsv() {

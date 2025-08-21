@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/instructors.wc.ts", "src/**/*.d.ts"]
+}
