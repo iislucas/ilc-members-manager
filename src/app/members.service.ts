@@ -124,7 +124,7 @@ export class MembersService {
   async findInstructors(country?: string): Promise<Member[]> {
     const constraints = [
       where('instructorId', '>', ''),
-      where('membership', '==', 'active'),
+      where('membershipExpires', '>', new Date().toISOString()),
     ];
     if (country) {
       constraints.push(where('country', '==', country));

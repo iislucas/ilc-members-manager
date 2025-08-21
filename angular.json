@@ -102,7 +102,7 @@
         }
       }
     },
-    "instructor-wc": {
+    "find-an-instructor-wc": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {

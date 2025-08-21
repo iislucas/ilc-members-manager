@@ -12,6 +12,7 @@ import { MemberImportExportComponent } from './member-import-export/member-impor
 import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
 import { Views } from './app.config';
+import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 
 @Component({
   selector: 'app-root',
@@ -26,6 +27,7 @@ import { Views } from './app.config';
     IconComponent,
     MemberImportExportComponent,
     SpinnerComponent,
+    FindAnInstructorComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

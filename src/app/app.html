@@ -26,6 +26,12 @@
         >
           Import/Export
         </div>
+        <div
+          class="menu-item"
+          (click)="currentView.set(Views.FindAnInstructor); menuOpen.set(false)"
+        >
+          Find an Instructor
+        </div>
       </div>
       } }
       <div class="title">ILC Member Manager</div>
@@ -54,6 +60,8 @@
     <app-member-list></app-member-list>
     } @case (Views.ImportExport) {
     <app-member-import-export></app-member-import-export>
+    } @case (Views.FindAnInstructor) {
+    <app-find-an-instructor></app-find-an-instructor>
     } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>
     } @else {

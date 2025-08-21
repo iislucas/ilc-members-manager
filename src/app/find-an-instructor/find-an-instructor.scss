@@ -1,0 +1,72 @@
+@use "../../scss_variables.scss" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: stretch;
+  flex-grow: 1;
+}
+
+.instructor-search-container {
+  padding: 20px;
+  flex-grow: 1;
+
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    margin-bottom: 20px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: #888;
+  }
+
+  input[type="text"] {
+    padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    flex-grow: 1;
+    width: 100%;
+
+    &:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+      outline: none;
+    }
+  }
+
+  .results-container {
+    .instructor-card {
+      background-color: v.$theme-chip-bg-color;
+      border: 1px solid v.$theme-chip-border-color;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 10px;
+
+      h3 {
+        margin: 0 0 5px 0;
+      }
+
+      p {
+        margin: 0;
+        color: #555;
+      }
+    }
+
+    p {
+      text-align: center;
+    }
+  }
+}

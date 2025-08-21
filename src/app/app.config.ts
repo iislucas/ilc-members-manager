@@ -9,6 +9,7 @@ import { ROUTING_CONFIG } from './routing.config';
 export enum Views {
   Members = 'members',
   ImportExport = 'import-export',
+  FindAnInstructor = 'find-an-instructor',
 }
 
 export type PathParamValues = {
