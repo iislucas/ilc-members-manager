@@ -5,7 +5,6 @@
   display: block;
   border: 1px solid #ccc;
   border-radius: 8px;
-  padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 
@@ -15,7 +14,14 @@
 }
 
 .edit-form {
+  padding-right: $card-padding;
+  padding-bottom: unset;
+  padding-left: $card-padding;
+  padding-top: unset;
+
   .edit-form-header {
+    padding-top: $card-padding;
+    padding-bottom: $card-padding;
     @extend .form-header;
     cursor: pointer;
 
@@ -25,6 +31,7 @@
   }
 
   .form-section {
+    margin-top: 0px;
     border-top: 1px solid transparent;
     transition: border-color 0.3s ease-in-out;
 
@@ -77,6 +84,7 @@
 
   .form-actions {
     border-top: 1px dashed #bbb;
+    padding-bottom: $card-padding;
     padding-top: 1em;
     display: flex;
     justify-content: space-between;
