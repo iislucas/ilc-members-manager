@@ -18,22 +18,20 @@ export function dateToString(date: Date | null | undefined): string {
  * @param dateString The string to convert.
  * @returns The Date object, or null if the string is empty or invalid.
  */
-export function stringToDate(
-  dateString: string | null | undefined
-): Date | null {
+export function stringToDate(dateString: string | null | undefined): Date {
   if (!dateString || typeof dateString !== 'string') {
-    return null;
+    return new Date();
   }
   const parts = dateString.split('-');
   if (parts.length !== 3) {
-    return null;
+    return new Date();
   }
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const day = parseInt(parts[2], 10);
   const date = new Date(year, month, day);
   if (isNaN(date.getTime())) {
-    return null;
+    return new Date();
   }
   return date;
 }

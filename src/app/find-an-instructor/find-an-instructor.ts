@@ -13,6 +13,7 @@ import { CommonModule } from '@angular/common';
 import MiniSearch from 'minisearch';
 import { IconComponent } from '../icons/icon.component';
 import { InstructorCardComponent } from '../instructor-card/instructor-card';
+import { stringToDate } from '../date.utils';
 
 @Component({
   selector: 'app-find-an-instructor',
@@ -32,7 +33,9 @@ export class FindAnInstructorComponent {
   instructors = computed(() => {
     return this.membersService.members().filter((member) => {
       const isInstructor = member.instructorId.trim() !== '';
-      const isActive = new Date(member.membershipExpires) > new Date();
+      const isActive =
+        member.instructorLicenseExpires.trim() !== '' &&
+        stringToDate(member.instructorLicenseExpires) > new Date();
       return isInstructor && isActive;
     });
   });
