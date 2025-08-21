@@ -2,12 +2,12 @@ import { Timestamp } from 'firebase/firestore';
 
 // 'annual' | 'life' | 'senior' | 'student' | 'deceased' | 'inactive'
 export enum MembershipType {
-  Annual = 'annual',
-  Life = 'life',
-  Senior = 'senior',
-  Student = 'student',
-  Deceased = 'deceased',
-  Inactive = 'inactive',
+  Annual = 'Annual',
+  Life = 'Life',
+  Senior = 'Senior',
+  Student = 'Student',
+  Deceased = 'Deceased',
+  Inactive = 'Inactive',
 }
 
 export interface School {

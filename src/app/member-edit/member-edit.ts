@@ -9,7 +9,7 @@ import {
   ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member } from '../member.model';
+import { Member, MembershipType } from '../member.model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';
@@ -28,6 +28,7 @@ export class MemberEditComponent {
   canDelete = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
+  membershipTypes = Object.values(MembershipType);
   editableMember!: Member;
   emailExists = false;
   memberIdExists = false;

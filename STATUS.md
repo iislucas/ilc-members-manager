@@ -95,6 +95,12 @@ to manage their information. Website only still at this point.
   (mostly their address, and links to websites; they can't change/choose their
   level)
 
+#### \[To Do\]: Provide a way to communicate with all instructors
+
+- Maybe this is via having a google group that all instructors are part of?
+- Maybe this is via push notifications?
+- Maybe instructors should be able to specify how they'd like to be contacted?
+
 ---
 
 ### \[P2\]: End-user Progressive WebApp & other nice stuff

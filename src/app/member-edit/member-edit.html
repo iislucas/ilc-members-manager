@@ -133,13 +133,17 @@
       </div>
 
       <label for="membershipType">Membership Type</label>
-      <input
-        type="text"
+      <select
         id="membershipType"
         name="membershipType"
         [(ngModel)]="editableMember.membershipType"
         (ngModelChange)="validateForm()"
-      />
+        required
+      >
+        @for (type of membershipTypes; track type) {
+        <option [value]="type">{{ type }}</option>
+        }
+      </select>
 
       <label for="membershipExpires">Membership Expires</label>
       <input

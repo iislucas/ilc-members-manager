@@ -39,6 +39,15 @@ export class App {
   public menuOpen = signal(false);
   public currentView = this.routingService.signals['view'];
   public Views = Views;
+  public viewTitles: { [key: string]: string } = {
+    [Views.Members]: 'Members',
+    [Views.ImportExport]: 'Import/Export',
+    [Views.FindAnInstructor]: 'Find an Instructor',
+  };
+
+  public currentViewTitle() {
+    return this.viewTitles[this.currentView()];
+  }
 
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);
