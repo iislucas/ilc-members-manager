@@ -1,0 +1,25 @@
+@let i = instructor();
+
+<div class="instructor-card-header">
+  <div class="identifier">
+    <span>{{ i.memberId }}</span>
+    <span>-{{ i.instructorId }}</span>
+  </div>
+  <div class="name">
+    {{ i.name }}
+  </div>
+  <div class="level">
+    @if (i.studentLevel) {
+    <span>Student level:{{ i.studentLevel }}</span>
+    } @if (i.applicationLevel) {
+    <span>Applications level:{{ i.applicationLevel }}</span>
+    }
+  </div>
+  <div class="city">{{ i.city }}</div>
+  <div class="country">{{ i.country }}</div>
+  @if (i.instructorWebsite) {
+  <div class="website">
+    <a [href]="i.instructorWebsite" target="_blank">Website</a>
+  </div>
+  }
+</div>

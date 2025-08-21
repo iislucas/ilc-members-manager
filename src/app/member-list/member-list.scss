@@ -1,4 +1,4 @@
-@use "../../scss_variables.scss" as *;
+@use "../../scss_variables.scss" as v;
 
 :host {
   display: flex;
@@ -51,6 +51,6 @@
   flex-direction: column;
   justify-content: start;
   align-items: stretch;
-  gap: 0.75em;
+  gap: v.$card-sep;
   flex-grow: 1;
 }

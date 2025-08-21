@@ -9,17 +9,11 @@
   </div>
 
   <div class="results-container">
-    <div *ngIf="filteredInstructors().length > 0; else noResults">
-      <div
-        *ngFor="let instructor of filteredInstructors()"
-        class="instructor-card"
-      >
-        <h3>{{ instructor.name }}</h3>
-        <p>{{ instructor.city }}, {{ instructor.country }}</p>
-      </div>
-    </div>
-    <ng-template #noResults>
-      <p>No instructors found.</p>
-    </ng-template>
+    @if (filteredInstructors().length > 0) { @for (instructor of
+    filteredInstructors(); track instructor.id) {
+    <app-instructor-card [instructor]="instructor"> </app-instructor-card>
+    } } @else {
+    <p>No instructors found.</p>
+    }
   </div>
 </div>

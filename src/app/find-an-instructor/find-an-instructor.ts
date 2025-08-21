@@ -12,11 +12,12 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import MiniSearch from 'minisearch';
 import { IconComponent } from '../icons/icon.component';
+import { InstructorCardComponent } from '../instructor-card/instructor-card';
 
 @Component({
   selector: 'app-find-an-instructor',
   standalone: true,
-  imports: [FormsModule, CommonModule, IconComponent],
+  imports: [FormsModule, CommonModule, IconComponent, InstructorCardComponent],
   templateUrl: './find-an-instructor.html',
   styleUrl: './find-an-instructor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
