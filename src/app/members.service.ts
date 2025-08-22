@@ -17,6 +17,7 @@ import { Member, initMember, School, initSchool } from './member.model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
 import { User } from 'firebase/auth';
+import MiniSearch from 'minisearch';
 
 /** The state of the members collection. */
 export interface MembersState {
@@ -69,12 +70,42 @@ export class MembersService {
   loadingSchools = computed(() => this.schoolsState().loading);
   errorSchools = computed(() => this.schoolsState().error);
 
+  private allMembersMiniSearch = new MiniSearch<Member>({
+    fields: ['name', 'email', 'memberId'],
+    storeFields: ['id'],
+    idField: 'id',
+  });
+
+  private instructorsMiniSearch = new MiniSearch<Member>({
+    fields: ['name', 'email', 'memberId', 'city', 'country'],
+    storeFields: ['id'],
+    idField: 'id',
+  });
+
+  private memberMap = computed(() => {
+    const map = new Map<string, Member>();
+    for (const member of this.members()) {
+      map.set(member.id, member);
+    }
+    return map;
+  });
+
   constructor() {
     effect(() => {
       const loginState = this.firebaseService.loggedIn();
       this.unsubscribeSnapshots();
       this.updateMembersSync(loginState);
       this.updateSchoolsSync(loginState);
+    });
+
+    effect(() => {
+      const members = this.members();
+      this.allMembersMiniSearch.removeAll();
+      this.allMembersMiniSearch.addAll(members);
+
+      const instructors = members.filter((m) => m.instructorId);
+      this.instructorsMiniSearch.removeAll();
+      this.instructorsMiniSearch.addAll(instructors);
     });
   }
 
@@ -220,6 +251,33 @@ export class MembersService {
       }
     }
     return Array.from(countries).sort();
+  }
+
+  searchMembers(term: string): Member[] {
+    if (!term) {
+      return [];
+    }
+    const results = this.allMembersMiniSearch.search(term, { fuzzy: 0.2 });
+    return results.map((result) => this.memberMap().get(result.id)!);
+  }
+
+  searchInstructors(term: string, country?: string): Member[] {
+    if (!term && !country) {
+      return this.members().filter((m) => m.instructorId);
+    }
+
+    if (country && !term) {
+      return this.members().filter(
+        (m) => m.instructorId && m.country === country
+      );
+    }
+
+    const results = this.instructorsMiniSearch.search(term, { fuzzy: 0.2 });
+    let members = results.map((result) => this.memberMap().get(result.id)!);
+    if (country) {
+      members = members.filter((m) => m.country === country);
+    }
+    return members;
   }
 
   async findInstructors(country?: string): Promise<Member[]> {

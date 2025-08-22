@@ -1,0 +1,19 @@
+<div class="search-container">
+  <input
+    type="text"
+    [value]="searchTerm()"
+    (input)="onSearchTermChange($event)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+    placeholder="Search for a member"
+  />
+  @if (showResults()) {
+  <ul class="results-list">
+    @for (member of filteredMembers(); track member.id) {
+    <li (mousedown)="selectMember(member)">
+      {{ member.name }} ({{ member.email }}) - {{ member.memberId }}
+    </li>
+    }
+  </ul>
+  }
+</div>

@@ -103,24 +103,46 @@
 
       <h3>Management</h3>
       <label for="owner">Owner</label>
-      <input
-        type="text"
-        id="owner"
-        name="owner"
-        [(ngModel)]="editableSchool.owner"
-        (ngModelChange)="validateForm()"
-      />
+      <div class="member-search-with-details">
+        <app-member-search
+          [searchTerm]="editableSchool.owner"
+          (searchTermChange)="
+            editableSchool.owner = $event;
+            validateForm();
+            updateOwnerAndManagers()
+          "
+          (memberSelected)="owner.set($event)"
+        ></app-member-search>
+        @if (owner(); as o) {
+        <div class="member-details">{{ o.name }} ({{ o.memberId }})</div>
+        }
+      </div>
 
       <label for="managers" class="align-top">Managers</label>
-      <textarea
-        class="long"
-        id="managers"
-        name="managers"
-        [ngModel]="editableSchool.managers.join('\n')"
-        (ngModelChange)="
-          editableSchool.managers = $event.split('\n'); validateForm()
-        "
-      ></textarea>
+      <div>
+        @for(manager of editableSchool.managers; track manager; let i = $index)
+        {
+        <div class="member-search-with-details">
+          <app-member-search
+            [searchTerm]="manager"
+            (searchTermChange)="
+              editableSchool.managers[i] = $event;
+              validateForm();
+              updateOwnerAndManagers()
+            "
+            (memberSelected)="updateManager(i, $event)"
+          ></app-member-search>
+        </div>
+        @if (managers()[i]; as m) {
+        <div class="member-details">{{ m.name }} ({{ m.memberId }})</div>
+        } }
+        <button
+          type="button"
+          (click)="editableSchool.managers.push(''); validateForm()"
+        >
+          Add Manager
+        </button>
+      </div>
     </div>
 
     @if (errorMessage().length > 0) {

@@ -1,0 +1,20 @@
+.search-container {
+  position: relative;
+}
+.results-list {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ccc;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  z-index: 1000;
+}
+.results-list li {
+  padding: 8px;
+  cursor: pointer;
+}
+.results-list li:hover {
+  background-color: #f0f0f0;
+}

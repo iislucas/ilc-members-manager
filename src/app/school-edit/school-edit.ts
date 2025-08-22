@@ -9,16 +9,23 @@ import {
   ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { School } from '../member.model';
+import { School, Member } from '../member.model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { MemberSearchComponent } from '../member-search/member-search';
 
 @Component({
   selector: 'app-school-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconComponent,
+    SpinnerComponent,
+    MemberSearchComponent,
+  ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
 })
@@ -36,6 +43,8 @@ export class SchoolEditComponent {
   isDirty = signal(false);
   private membersService = inject(MembersService);
   private elementRef = inject(ElementRef);
+  owner = signal<Member | null>(null);
+  managers = signal<(Member | null)[]>([]);
 
   @HostBinding('class.is-open')
   get isOpen() {
@@ -58,7 +67,32 @@ export class SchoolEditComponent {
       this.editableSchool = JSON.parse(JSON.stringify(this.school()));
       this.validateForm();
       this.isDirty.set(false);
+      this.updateOwnerAndManagers();
     });
+  }
+
+  updateOwnerAndManagers() {
+    const ownerEmail = this.editableSchool.owner;
+    const owner = this.membersService
+      .members()
+      .find((m) => m.email === ownerEmail);
+    this.owner.set(owner || null);
+
+    const managerEmails = this.editableSchool.managers;
+    const managers = managerEmails.map(
+      (email) =>
+        this.membersService.members().find((m) => m.email === email) || null
+    );
+    this.managers.set(managers);
+  }
+
+  updateManager(index: number, member: Member) {
+    const currentManagers = this.managers();
+    const newManagers = [...currentManagers];
+    newManagers[index] = member;
+    this.managers.set(newManagers);
+    this.editableSchool.managers[index] = member.email;
+    this.validateForm();
   }
 
   cancel($event: Event) {

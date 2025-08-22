@@ -28,14 +28,7 @@ export class MemberListComponent {
 
   // Expose signals from the service to the template
   members = computed(() => {
-    const term = this.searchTerm().toLowerCase();
-    return this.membersService
-      .members()
-      .filter(
-        (member) =>
-          member.name.toLowerCase().includes(term) ||
-          member.email.toLowerCase().includes(term)
-      );
+    return this.membersService.searchMembers(this.searchTerm());
   });
   loading = this.membersService.loading;
   error = this.membersService.error;
