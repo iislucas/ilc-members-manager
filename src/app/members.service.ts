@@ -153,7 +153,46 @@ export class MembersService {
   }
 
   async updateMember(emailId: string, member: Partial<Member>): Promise<void> {
+    if (member.email && member.email !== emailId) {
+      return this.updateMemberEmail(emailId, member);
+    }
     return setDoc(doc(this.db, 'members', emailId), member, { merge: true });
+  }
+
+  private async updateMemberEmail(
+    oldEmail: string,
+    member: Partial<Member>
+  ): Promise<void> {
+    if (!member.email) {
+      throw new Error('New email not provided');
+    }
+    const newEmail = member.email;
+    // 1. create a new entry in the members with all the same data and the new email
+    await this.addMember(member);
+
+    // 2. update any email entries in the managers or owners of Schools
+    const schools = await getDocs(this.schoolsCollection);
+    for (const school of schools.docs) {
+      const schoolData = school.data() as School;
+      const managers = schoolData.managers ?? [];
+      let updated = false;
+      if (schoolData.owner === oldEmail) {
+        schoolData.owner = newEmail;
+        updated = true;
+      }
+      if (managers.includes(oldEmail)) {
+        schoolData.managers = managers.map((manager: string) =>
+          manager === oldEmail ? newEmail : manager
+        );
+        updated = true;
+      }
+      if (updated) {
+        await this.updateSchool(school.id, schoolData);
+      }
+    }
+
+    // 3. delete the old members entry
+    await this.deleteMember(oldEmail);
   }
 
   async deleteMember(emailId: string): Promise<void> {
