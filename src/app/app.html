@@ -22,9 +22,15 @@
         </div>
         <div
           class="menu-item"
+          (click)="currentView.set(Views.Schools); menuOpen.set(false)"
+        >
+          Schools
+        </div>
+        <div
+          class="menu-item"
           (click)="currentView.set(Views.ImportExport); menuOpen.set(false)"
         >
-          Import/Export
+          Import/Export Members
         </div>
         <div
           class="menu-item"
@@ -53,6 +59,8 @@
     <app-member-import-export></app-member-import-export>
     } @case (Views.FindAnInstructor) {
     <app-find-an-instructor></app-find-an-instructor>
+    } @case (Views.Schools) {
+    <app-school-list></app-school-list>
     } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>
     } @else {

@@ -1,0 +1,56 @@
+@use "../../scss_variables.scss" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: stretch;
+  flex-grow: 1;
+}
+
+.search-header {
+  display: flex;
+  flex-direction: row;
+  gap: 1em;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1em;
+  flex-grow: 0;
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: #888;
+  }
+
+  input[type="text"] {
+    padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    flex-grow: 1;
+
+    &:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+      outline: none;
+    }
+  }
+}
+
+.member-cards {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: stretch;
+  gap: v.$card-sep;
+  flex-grow: 1;
+}

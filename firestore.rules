@@ -12,5 +12,13 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin();
       allow write: if isAdmin();
     }
+
+    match /schools/{schoolId} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
+      }
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
   }
 }

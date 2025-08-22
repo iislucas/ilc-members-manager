@@ -118,18 +118,22 @@ export class MemberEditComponent {
 
   async saveMember() {
     this.isSaving.set(true);
-
-    if (this.editableMember.email) {
-      await this.membersService.updateMember(
-        this.editableMember.email,
-        this.editableMember
-      );
-    } else {
-      await this.membersService.addMember(this.editableMember);
+    try {
+      if (this.editableMember.email) {
+        await this.membersService.updateMember(
+          this.editableMember.email,
+          this.editableMember
+        );
+      } else {
+        await this.membersService.addMember(this.editableMember);
+      }
+      this.isSaving.set(false);
+      this.collapsed.set(true);
+      this.close.emit();
+    } catch (e: any) {
+      this.errorMessage.set([e.message]);
+      this.isSaving.set(false);
     }
-    this.isSaving.set(false);
-    this.collapsed.set(true);
-    this.close.emit();
   }
 
   async deleteMember($event: Event) {
@@ -139,7 +143,11 @@ export class MemberEditComponent {
       confirm(`Are you sure you want to delete ${this.editableMember.name}?`)
     ) {
       if (this.editableMember.id) {
-        await this.membersService.deleteMember(this.editableMember.id);
+        try {
+          await this.membersService.deleteMember(this.editableMember.id);
+        } catch (e: any) {
+          this.errorMessage.set([e.message]);
+        }
       }
     }
   }

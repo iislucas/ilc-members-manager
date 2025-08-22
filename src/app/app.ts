@@ -14,6 +14,7 @@ import { RoutingService } from './routing.service';
 import { Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
+import { SchoolListComponent } from './school-list/school-list';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,7 @@ import { ProfileMenuComponent } from './profile-menu/profile-menu';
     SpinnerComponent,
     FindAnInstructorComponent,
     ProfileMenuComponent,
+    SchoolListComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -45,6 +47,7 @@ export class App {
     [Views.Members]: 'Members',
     [Views.ImportExport]: 'Import/Export',
     [Views.FindAnInstructor]: 'Find an Instructor',
+    [Views.Schools]: 'Schools',
   };
 
   public currentViewTitle() {

@@ -10,6 +10,7 @@ export enum Views {
   Members = 'members',
   ImportExport = 'import-export',
   FindAnInstructor = 'find-an-instructor',
+  Schools = 'schools',
 }
 
 export type PathParamValues = {

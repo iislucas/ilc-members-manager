@@ -1,0 +1,124 @@
+@use "../../scss_variables" as *;
+@use "../member-details-layout.scss" as *;
+
+:host {
+  display: block;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.edit-form {
+  padding-right: $card-padding;
+  padding-bottom: unset;
+  padding-left: $card-padding;
+  padding-top: unset;
+
+  .edit-form-header {
+    padding-top: $card-padding;
+    padding-bottom: $card-padding;
+    @extend .form-header;
+    cursor: pointer;
+
+    .unfold-button {
+      margin-left: auto;
+    }
+  }
+
+  .form-section {
+    margin-top: 0px;
+    border-top: 1px solid transparent;
+    transition: border-color 0.3s ease-in-out;
+
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box; /* Ensures padding doesn't affect width */
+    }
+
+    input[type="checkbox"] {
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .long {
+      grid-column: 2 / 3;
+    }
+
+    input[type="date"] {
+      width: auto;
+      min-width: 120px;
+      max-width: 150px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+
+      &::placeholder {
+        color: #999;
+      }
+    }
+
+    /* Special case for checkbox */
+    .admin-section {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+    }
+  }
+
+  .form-actions {
+    border-top: 1px dashed #bbb;
+    padding-bottom: $card-padding;
+    padding-top: 1em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1em;
+
+    .left-actions {
+      display: flex;
+      gap: 1em;
+    }
+  }
+}
+
+.error-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  border: 1px solid $theme-error-border-color;
+  background-color: $theme-error-bg-color;
+  border-radius: 4px;
+  padding: 0.4em;
+}
+
+.error-message {
+  color: red;
+  font-size: 0.9em;
+  flex: 1;
+}
+
+:host(.is-open) .form-section {
+  border-top-color: #ccc;
+}
+
+.checkbox-group {
+}
+
+.masterLevel {
+}

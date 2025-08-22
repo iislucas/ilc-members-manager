@@ -11,8 +11,9 @@ import {
   query,
   where,
   getDocs,
+  addDoc,
 } from 'firebase/firestore';
-import { Member, initMember } from './member.model';
+import { Member, initMember, School, initSchool } from './member.model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
 import { User } from 'firebase/auth';
@@ -27,6 +28,16 @@ export interface MembersState {
   error: string | null;
 }
 
+/** The state of the schools collection. */
+export interface SchoolsState {
+  /** The list of schools. */
+  schools: School[];
+  /** Whether the schools are currently being loaded. */
+  loading: boolean;
+  /** Any error that occurred while loading the schools. */
+  error: string | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -34,6 +45,7 @@ export class MembersService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
   private membersCollection = collection(this.db, 'members');
+  private schoolsCollection = collection(this.db, 'schools');
   private unsubscribeSnapshots: () => void = () => {};
 
   // A signal to hold the state of the members list.
@@ -43,16 +55,26 @@ export class MembersService {
     error: null,
   });
 
+  private schoolsState = signal<SchoolsState>({
+    schools: [],
+    loading: true,
+    error: null,
+  });
+
   // Expose computed signals for easy access in components.
   members = computed(() => this.state().members);
   loading = computed(() => this.state().loading);
   error = computed(() => this.state().error);
+  schools = computed(() => this.schoolsState().schools);
+  loadingSchools = computed(() => this.schoolsState().loading);
+  errorSchools = computed(() => this.schoolsState().error);
 
   constructor() {
     effect(() => {
       const loginState = this.firebaseService.loggedIn();
       this.unsubscribeSnapshots();
       this.updateMembersSync(loginState);
+      this.updateSchoolsSync(loginState);
     });
   }
 
@@ -89,6 +111,34 @@ export class MembersService {
     }
   }
 
+  async updateSchoolsSync(
+    statePromise: Promise<{ user: User; member: Member }>
+  ) {
+    const initState = await statePromise;
+    if (initState.member.isAdmin) {
+      this.unsubscribeSnapshots = onSnapshot(
+        this.schoolsCollection,
+        (snapshot) => {
+          const schools = snapshot.docs.map(
+            (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id } as School)
+          );
+          this.schoolsState.update((state) => ({
+            ...state,
+            schools,
+            loading: false,
+          }));
+        },
+        (error) => {
+          this.schoolsState.update((state) => ({
+            ...state,
+            error: error.message,
+            loading: false,
+          }));
+        }
+      );
+    }
+  }
+
   async getMember(emailId: string): Promise<Member | undefined> {
     const docRef = doc(this.db, 'members', emailId);
     const docSnap = await getDoc(docRef);
@@ -108,6 +158,18 @@ export class MembersService {
 
   async deleteMember(emailId: string): Promise<void> {
     return deleteDoc(doc(this.db, 'members', emailId));
+  }
+
+  async addSchool(school: Partial<School>): Promise<DocumentReference> {
+    return addDoc(this.schoolsCollection, school);
+  }
+
+  async updateSchool(id: string, school: Partial<School>): Promise<void> {
+    return setDoc(doc(this.db, 'schools', id), school, { merge: true });
+  }
+
+  async deleteSchool(id: string): Promise<void> {
+    return deleteDoc(doc(this.db, 'schools', id));
   }
 
   async getCountries(): Promise<string[]> {

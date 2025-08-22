@@ -3,13 +3,13 @@
 The goal of this project is to provide a simple Angular web application to
 manage the status of ILC memberships. There are 3 kinds of users:
 
-* **ILC Admins**: Can make arbitrary changes to anyone's status, as well as add
+- **ILC Admins**: Can make arbitrary changes to anyone's status, as well as add
   country managers.
 
-* **ILC Country Managers**: Can manage the status of all students within their
+- **ILC Country Managers**: Can manage the status of all students within their
   country (but not themselves).
 
-* **ILC practitioners**: should be able to use their registerd email address to
+- **ILC practitioners**: should be able to use their registerd email address to
   see the status of their data, and request deletion.
 
 The application should eventually support being a PWA (Progressive Web
@@ -19,7 +19,7 @@ send notifications.
 ## Status
 
 See the [STATUS.md](./STATUS.md) file for the latest status of the project, and
-the TODOs. 
+the TODOs.
 
 ## Libraries used in this project
 
@@ -29,7 +29,7 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 
 ```bash
 npm install
-cd functions 
+cd functions
 npm install
 cd ..
 ```
@@ -151,4 +151,10 @@ Deploy just functions
 
 ```sh
 npm run deploy:functions
+```
+
+Deploy just firebase rules
+
+```sh
+npm run deploy:firestore-rules
 ```

@@ -41,38 +41,38 @@ export enum MasterLevel {
   Compassion = 'Compassion Hands',
 }
 
-export interface School {
+export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
 
-  schoolId: ''; // ILC HQ issued School Id
-  schoolName: ''; // School name
-  schoolAddress: ''; // Address line of the school
-  schoolCity: ''; // City address line of the school
-  schoolZipCode: ''; // Zip or postcode of the school
-  schoolCountry: ''; // Country the School is in
-  schoolWebsite: ''; // Optional website URL
+  schoolId: string; // ILC HQ issued School Id
+  schoolName: string; // School name
+  schoolAddress: string; // Address line of the school
+  schoolCity: string; // City address line of the school
+  schoolZipCode: string; // Zip or postcode of the school
+  schoolCountry: string; // Country the School is in
+  schoolWebsite: string; // Optional website URL
 
   // The name of the owner of this school; can set the managers, and change
   // anything in the school.
-  owner: '';
+  owner: string;
   // The emails of people allowed to manage people within this school.
-  managers: [];
-}
+  managers: string[];
+};
 
 // This is used to represent a country that has delegated management.
-export interface CountryManagement {
+export type CountryManagement = {
   id: string; // Document ID, UNIQUE, firebase managed.
 
-  countryName: ''; // The name of the country.
+  countryName: string; // The name of the country.
 
   // The name of the owner for this country; they can set the managers, and
   // change anything in the country.
-  owner: '';
+  owner: string;
   // The emails of people allowed to manage members within this country.
-  managers: [];
-}
+  managers: string[];
+};
 
-export interface Member {
+export type Member = {
   id: string; // Document ID, UNIQUE, should be the same as email.
   isAdmin: boolean;
 
@@ -109,7 +109,7 @@ export interface Member {
 
   // Notes only for ILC HQ.
   notes: string;
-}
+};
 
 export function initMember(): Member {
   return {
@@ -148,5 +148,20 @@ export function initMember(): Member {
 
     // Notes - information only for ILC HQ management.
     notes: '',
+  };
+}
+
+export function initSchool(): School {
+  return {
+    id: '',
+    schoolId: '',
+    schoolName: '',
+    schoolAddress: '',
+    schoolCity: '',
+    schoolZipCode: '',
+    schoolCountry: '',
+    schoolWebsite: '',
+    owner: '',
+    managers: [],
   };
 }

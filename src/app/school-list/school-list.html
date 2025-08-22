@@ -1,0 +1,38 @@
+@if (loading()) {
+<app-spinner></app-spinner>
+} @else if (error()) {
+<p class="error">{{ error() }}</p>
+} @else {
+<div class="search-header">
+  <div class="search-box">
+    <app-icon class="search-icon" name="search"></app-icon>
+    <input
+      type="text"
+      placeholder="Search by name"
+      (input)="onSearch($event)"
+    />
+  </div>
+  <button (click)="onNewSchool()">New School</button>
+</div>
+<div class="member-cards">
+  @if(isAddingSchool()) {
+  <div class="member-card">
+    <app-school-edit
+      [school]="newSchool()"
+      [allSchools]="schools()"
+      [collapse]="!isAddingSchool()"
+      (close)="onNewSchoolClose()"
+      [canDelete]="false"
+    ></app-school-edit>
+  </div>
+  } @for (school of schools(); track school.id) {
+  <div class="member-card">
+    <app-school-edit
+      [school]="school"
+      [allSchools]="schools()"
+      (close)="($event)"
+    ></app-school-edit>
+  </div>
+  }
+</div>
+}

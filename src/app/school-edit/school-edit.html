@@ -1,0 +1,165 @@
+<div class="edit-form">
+  <div class="edit-form-header" (click)="toggle($event)">
+    <div class="identifier">
+      @if (editableSchool.schoolId) {
+      <span>{{ editableSchool.schoolId }}</span>
+      }
+    </div>
+    <div class="name">
+      @if(editableSchool.schoolName.trim() === '') { [Name needs to be entered]
+      }
+      {{ editableSchool.schoolName }}@if(isDirty()){<span>*</span>}
+    </div>
+    <div class="country">{{ editableSchool.schoolCountry }}</div>
+    <div class="unfold-button">
+      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+    </div>
+  </div>
+
+  @if (!collapsed()) {
+  <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
+    <div class="form-section">
+      <h3>School Details</h3>
+      <label for="schoolName">School Name</label>
+      <div>
+        <input
+          class="long"
+          type="text"
+          id="schoolName"
+          name="schoolName"
+          [(ngModel)]="editableSchool.schoolName"
+          (ngModelChange)="validateForm()"
+          #schoolName="ngModel"
+          required
+        />
+        @if(schoolName.invalid) {
+        <div class="error-message">School Name is required.</div>
+        }
+      </div>
+
+      <label for="schoolId">School ID</label>
+      <div>
+        <input
+          type="text"
+          id="schoolId"
+          name="schoolId"
+          [(ngModel)]="editableSchool.schoolId"
+          (ngModelChange)="isDupSchoolId(); validateForm()"
+          #schoolId="ngModel"
+          [required]="editableSchool.id === ''"
+        />
+        @if(schoolId.invalid) {
+        <div class="error-message">School ID is required.</div>
+        } @else if(schoolIdExists) {
+        <div class="error-message">This school ID is already in use.</div>
+        }
+      </div>
+
+      <label for="schoolAddress" class="align-top">Address</label>
+      <textarea
+        class="long"
+        id="schoolAddress"
+        name="schoolAddress"
+        [(ngModel)]="editableSchool.schoolAddress"
+        (ngModelChange)="validateForm()"
+      ></textarea>
+
+      <label for="schoolCity">City</label>
+      <input
+        type="text"
+        id="schoolCity"
+        name="schoolCity"
+        [(ngModel)]="editableSchool.schoolCity"
+        (ngModelChange)="validateForm()"
+      />
+
+      <label for="schoolZipCode">Zip Code</label>
+      <input
+        type="text"
+        id="schoolZipCode"
+        name="schoolZipCode"
+        [(ngModel)]="editableSchool.schoolZipCode"
+        (ngModelChange)="validateForm()"
+      />
+
+      <label for="schoolCountry">Country</label>
+      <input
+        type="text"
+        id="schoolCountry"
+        name="schoolCountry"
+        [(ngModel)]="editableSchool.schoolCountry"
+        (ngModelChange)="validateForm()"
+      />
+
+      <label for="schoolWebsite">Website</label>
+      <input
+        class="long"
+        type="text"
+        id="schoolWebsite"
+        name="schoolWebsite"
+        [(ngModel)]="editableSchool.schoolWebsite"
+        (ngModelChange)="validateForm()"
+      />
+
+      <h3>Management</h3>
+      <label for="owner">Owner</label>
+      <input
+        type="text"
+        id="owner"
+        name="owner"
+        [(ngModel)]="editableSchool.owner"
+        (ngModelChange)="validateForm()"
+      />
+
+      <label for="managers" class="align-top">Managers</label>
+      <textarea
+        class="long"
+        id="managers"
+        name="managers"
+        [ngModel]="editableSchool.managers.join('\n')"
+        (ngModelChange)="
+          editableSchool.managers = $event.split('\n'); validateForm()
+        "
+      ></textarea>
+    </div>
+
+    @if (errorMessage().length > 0) {
+    <div class="error-container">
+      <div class="error-message">
+        <ul>
+          @for(error of errorMessage(); track error) {
+          <li>{{ error }}</li>
+          }
+        </ul>
+      </div>
+      <button type="button" class="icon-only-button" (click)="closeErrors()">
+        <app-icon name="close" />
+      </button>
+    </div>
+    }
+    <div class="form-actions">
+      <div class="left-actions">
+        @if(isSaving()) {
+        <app-spinner></app-spinner>
+        } @else { @if(isDirty()){
+        <button type="submit" [disabled]="schoolIdExists || schoolForm.invalid">
+          Save
+        </button>
+        }
+        <button type="button" (click)="cancel($event)">
+          @if(isDirty()){Cancel} @else {Close}
+        </button>
+        }
+      </div>
+      <div class="right-actions">
+        @if(canDelete()) {
+        <button class="delete-button" (click)="deleteSchool($event)">
+          <app-icon name="trash" fill="#000" />
+          Delete
+        </button>
+        }
+      </div>
+    </div>
+  </form>
+  }
+</div>
