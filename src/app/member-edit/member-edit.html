@@ -132,7 +132,7 @@
         }
       </div>
 
-      <label for="membershipType">Membership Type</label>
+      <label for="membershipType">Type</label>
       <select
         id="membershipType"
         name="membershipType"
@@ -145,7 +145,7 @@
         }
       </select>
 
-      <label for="membershipExpires">Membership Expires</label>
+      <label for="membershipExpires">Expires</label>
       <input
         class="date"
         type="date"
@@ -168,7 +168,7 @@
       />
 
       <h3>Level</h3>
-      <label for="studentLevel">Student Level</label>
+      <label for="studentLevel">Student</label>
       <input
         type="text"
         id="studentLevel"
@@ -177,7 +177,7 @@
         (ngModelChange)="validateForm()"
       />
 
-      <label for="applicationLevel">Application Level</label>
+      <label for="applicationLevel">Application</label>
       <input
         type="text"
         id="applicationLevel"
@@ -186,17 +186,17 @@
         (ngModelChange)="validateForm()"
       />
 
-      <label for="mastersLevels">Masters Levels</label>
-      <div class="checkbox-group">
+      <label for="mastersLevels">Masters</label>
+      <div>
         @for (level of masterLevels; track level) {
-        <label>
+        <div class="masterLevel">
           <input
             type="checkbox"
             [checked]="editableMember.mastersLevels.includes(level)"
             (change)="onMasterLevelChange(level, $event.target.checked)"
           />
           {{ level }}
-        </label>
+        </div>
         }
       </div>
 
@@ -210,7 +210,7 @@
         (ngModelChange)="validateForm()"
       />
 
-      <label for="instructorLicenseExpires">Instructor License Expires</label>
+      <label for="instructorLicenseExpires">License Expires</label>
       <input
         class="date"
         type="date"
@@ -223,22 +223,13 @@
         "
       />
 
-      <label for="instructorWebsite">Instructor Website</label>
+      <label for="instructorWebsite">Website</label>
       <input
         class="long"
         type="text"
         id="instructorWebsite"
         name="instructorWebsite"
         [(ngModel)]="editableMember.instructorWebsite"
-        (ngModelChange)="validateForm()"
-      />
-
-      <label for="instructorSchoolId">Within in School ID</label>
-      <input
-        type="text"
-        id="instructorSchoolId"
-        name="instructorSchoolId"
-        [(ngModel)]="editableMember.instructorSchoolId"
         (ngModelChange)="validateForm()"
       />
 

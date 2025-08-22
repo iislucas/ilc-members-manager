@@ -6,10 +6,10 @@
   position: relative;
 }
 
-.profile-menu-container {
-  position: relative;
-  display: inline-block;
-}
+// .profile-menu-container {
+//   position: relative;
+//   display: inline-block;
+// }
 
 .avatar-button {
   background: none;
@@ -48,9 +48,10 @@
   position: absolute;
   top: calc(100% + 5px); /* Position below the button with a 5px gap */
   right: 0;
+  padding: 0.6em;
 
   .user-info {
-    padding: 10px;
+    padding-bottom: 10px;
     text-align: center;
 
     .display-name {

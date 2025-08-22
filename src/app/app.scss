@@ -54,19 +54,11 @@ main {
 
   background-color: $theme-bg-color;
   border-bottom: 2px solid $theme-border-color;
-  padding: 0.5em 1em;
+  padding: 0.5em 0.5em;
 
   .title {
     font-size: large;
     font-weight: bold;
-  }
-
-  .who {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 1em;
   }
 }
 

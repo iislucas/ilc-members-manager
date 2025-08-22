@@ -46,6 +46,9 @@
       box-sizing: border-box; /* Ensures padding doesn't affect width */
     }
 
+    input[type="checkbox"] {
+    }
+
     textarea {
       resize: vertical;
       min-height: 80px;
@@ -67,11 +70,6 @@
       &::placeholder {
         color: #999;
       }
-    }
-
-    div {
-      display: flex;
-      flex-direction: column;
     }
 
     /* Special case for checkbox */
@@ -117,4 +115,10 @@
 
 :host(.is-open) .form-section {
   border-top-color: #ccc;
+}
+
+.checkbox-group {
+}
+
+.masterLevel {
 }

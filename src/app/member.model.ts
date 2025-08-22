@@ -100,14 +100,12 @@ export interface Member {
   // Instructor information.
   //
   // ILC HQ issued a unique instructor ID, empty = not instructor.
-  // TODO: why not make this the same as member Id?
   instructorId: string;
   // Date instructor license expires; string version of Date, YYYY-MM-DD; We
   // use strings not Timestmp because this allows a null value of empty
   // string.
-  instructorLicenseExpires: string; // Date instructor license expires
+  instructorLicenseExpires: string; // YYYY-MM-DD, or empty if none.
   instructorWebsite: string; // Optional website URL
-  instructorSchoolId: string; // is an instructor in this school ID
 
   // Notes only for ILC HQ.
   notes: string;
@@ -139,9 +137,8 @@ export function initMember(): Member {
     // Date instructor license expires; string version of Date, YYYY-MM-DD; We
     // use strings not Timestmp because this allows a null value of empty
     // string.
-    instructorLicenseExpires: '',
+    instructorLicenseExpires: '', // YYYY-MM-DD, or empty if none.
     instructorWebsite: '', // Optional website URL
-    instructorSchoolId: '',
 
     // Level information
     // empty string indicates none graded yet.
