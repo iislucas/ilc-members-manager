@@ -69,7 +69,7 @@
     <div class="value">{{ m.applicationLevel }}</div>
 
     <label>Masters Levels</label>
-    <div class="value">{{ m.mastersLevels }}</div>
+    <div class="value">{{ m.mastersLevels.join(", ") }}</div>
 
     <h3>Instructor</h3>
     <label>Instructor ID</label>
@@ -83,14 +83,6 @@
 
     <label>Instructor School ID</label>
     <div class="value">{{ m.instructorSchoolId }}</div>
-
-    <h3>School</h3>
-    <label>School ID Managed</label>
-    <div class="value">{{ m.schoolIdManaged }}</div>
-
-    <h3>Country Manager</h3>
-    <label>Country Managed</label>
-    <div class="value">{{ m.countryManaged }}</div>
 
     <h3>Admin</h3>
     <label>Is Admin</label>

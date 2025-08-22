@@ -137,7 +137,10 @@ export class MembersService {
   }
 
   downloadCsv() {
-    const members = this.state().members;
+    const members = this.state().members.map((m) => ({
+      ...m,
+      mastersLevels: m.mastersLevels.join(','),
+    }));
     const csv = Papa.unparse(members);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

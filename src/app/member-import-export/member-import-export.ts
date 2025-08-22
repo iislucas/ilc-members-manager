@@ -1,5 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
-import { Member, MembershipType, initMember } from '../member.model';
+import {
+  Member,
+  MembershipType,
+  initMember,
+  MasterLevel,
+} from '../member.model';
 import { MembersService } from '../members.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';
@@ -103,8 +108,13 @@ export class MemberImportExportComponent {
             // TODO: Add type validation for MembershipType
             member[key] = value as MembershipType;
             break;
+          case 'mastersLevels':
+            member[key] = value
+              .split(',')
+              .map((s) => s.trim()) as MasterLevel[];
+            break;
           default:
-            member[key] = value;
+            (member as any)[key] = value;
             break;
         }
       }

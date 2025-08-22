@@ -1,26 +1,75 @@
-import { Timestamp } from 'firebase/firestore';
-
 // 'annual' | 'life' | 'senior' | 'student' | 'deceased' | 'inactive'
 export enum MembershipType {
   Annual = 'Annual',
-  Life = 'Life',
+  Life = 'Life', // includes from spouse of a Life member.
   Senior = 'Senior',
   Student = 'Student',
   Deceased = 'Deceased',
   Inactive = 'Inactive',
 }
 
+export enum StudentLevel {
+  None = 'None',
+  Entry = 'Entry',
+  Level1 = '1',
+  Level2 = '2',
+  Level3 = '3',
+  Level4 = '4',
+  Level5 = '5',
+  Level6 = '6',
+  Level7 = '7',
+  Level8 = '8',
+  Level9 = '9',
+  Level10 = '10',
+  Level11 = '11',
+}
+
+export enum ApplicationLevel {
+  None = 'None',
+  Level1 = '1',
+  Level2 = '2',
+  Level3 = '3',
+  Level4 = '4',
+  Level5 = '5',
+  Level6 = '6',
+}
+
+export enum MasterLevel {
+  Good = 'Good Hands',
+  Wonder = 'Wonder Hands',
+  Mystery = 'Mystery Hands',
+  Compassion = 'Compassion Hands',
+}
+
 export interface School {
   id: string; // Document ID, UNIQUE, firebase managed.
 
-  schoolId: ''; // ILC HQ issued Schhol Id
+  schoolId: ''; // ILC HQ issued School Id
   schoolName: ''; // School name
   schoolAddress: ''; // Address line of the school
   schoolCity: ''; // City address line of the school
   schoolZipCode: ''; // Zip or postcode of the school
   schoolCountry: ''; // Country the School is in
-
   schoolWebsite: ''; // Optional website URL
+
+  // The name of the owner of this school; can set the managers, and change
+  // anything in the school.
+  owner: '';
+  // The emails of people allowed to manage people within this school.
+  managers: [];
+}
+
+// This is used to represent a country that has delegated management.
+export interface CountryManagement {
+  id: string; // Document ID, UNIQUE, firebase managed.
+
+  countryName: ''; // The name of the country.
+
+  // The name of the owner for this country; they can set the managers, and
+  // change anything in the country.
+  owner: '';
+  // The emails of people allowed to manage members within this country.
+  managers: [];
 }
 
 export interface Member {
@@ -43,13 +92,14 @@ export interface Member {
   email: string; // Contact email, UNIQUE
 
   // Level information
-  studentLevel: string; // e.g., 'Certified Instructor', 'Student Teacher'
-  applicationLevel: string; // e.g., 'Level 1', 'Level 2'
-  mastersLevels: string; // Unclear how to annotate this...? string[]?
+  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
+  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Saved as a string list to allow search within these.
+  mastersLevels: MasterLevel[];
 
   // Instructor information.
   //
-  // ILC HQ issued unique instructor ID, empty = not instructor.
+  // ILC HQ issued a unique instructor ID, empty = not instructor.
   // TODO: why not make this the same as member Id?
   instructorId: string;
   // Date instructor license expires; string version of Date, YYYY-MM-DD; We
@@ -59,19 +109,8 @@ export interface Member {
   instructorWebsite: string; // Optional website URL
   instructorSchoolId: string; // is an instructor in this school ID
 
-  // School information.
-  //
-  // The Id of the school being managed. Multiple people may be managers for the
-  // same school.
-  // Assumes: a person can only be a school manager for ONE school.
-  schoolIdManaged: string; // ILC HQ issued unique school ID
-
-  // Country manager
-  //
-  // The Id of the country this person is a manager for. Multiple people may be
-  // managers for the same country.
-  // Assumes: a person can only be a country manager for ONE country.
-  countryManaged: string; // ILC HQ issued country Id
+  // Notes only for ILC HQ.
+  notes: string;
 }
 
 export function initMember(): Member {
@@ -106,14 +145,11 @@ export function initMember(): Member {
 
     // Level information
     // empty string indicates none graded yet.
-    studentLevel: '', // e.g., 'Certified Instructor', 'Student Teacher'
-    applicationLevel: '', // e.g., 'Level 1', 'Level 2'
-    mastersLevels: '', //
+    studentLevel: StudentLevel.None, // e.g., 'Certified Instructor', 'Student Teacher'
+    applicationLevel: ApplicationLevel.None, // e.g., 'Level 1', 'Level 2'
+    mastersLevels: [], // a set of masters levels the person has.
 
-    // School information.
-    schoolIdManaged: '', // ILC HQ issued unique school ID
-
-    // Country information
-    countryManaged: '', // Associated country, if applicable
+    // Notes - information only for ILC HQ management.
+    notes: '',
   };
 }

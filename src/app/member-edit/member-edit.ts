@@ -9,7 +9,7 @@ import {
   ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member, MembershipType } from '../member.model';
+import { Member, MembershipType, MasterLevel } from '../member.model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';
@@ -29,6 +29,7 @@ export class MemberEditComponent {
   collapse = input<boolean | null>(null);
   close = output();
   membershipTypes = Object.values(MembershipType);
+  masterLevels = Object.values(MasterLevel);
   editableMember!: Member;
   emailExists = false;
   memberIdExists = false;
@@ -141,6 +142,18 @@ export class MemberEditComponent {
         await this.membersService.deleteMember(this.editableMember.id);
       }
     }
+  }
+
+  onMasterLevelChange(level: MasterLevel, isChecked: boolean) {
+    if (isChecked) {
+      this.editableMember.mastersLevels.push(level);
+    } else {
+      const index = this.editableMember.mastersLevels.indexOf(level);
+      if (index > -1) {
+        this.editableMember.mastersLevels.splice(index, 1);
+      }
+    }
+    this.validateForm();
   }
 
   closeErrors() {

@@ -187,13 +187,18 @@
       />
 
       <label for="mastersLevels">Masters Levels</label>
-      <input
-        type="text"
-        id="mastersLevels"
-        name="mastersLevels"
-        [(ngModel)]="editableMember.mastersLevels"
-        (ngModelChange)="validateForm()"
-      />
+      <div class="checkbox-group">
+        @for (level of masterLevels; track level) {
+        <label>
+          <input
+            type="checkbox"
+            [checked]="editableMember.mastersLevels.includes(level)"
+            (change)="onMasterLevelChange(level, $event.target.checked)"
+          />
+          {{ level }}
+        </label>
+        }
+      </div>
 
       <h3>Instructor</h3>
       <label for="instructorId">Instructor ID</label>
@@ -237,28 +242,6 @@
         (ngModelChange)="validateForm()"
       />
 
-      <h3>School</h3>
-      <label for="schoolIdManaged">School ID Managed</label>
-      <input
-        class="long"
-        type="text"
-        id="schoolIdManaged"
-        name="schoolIdManaged"
-        [(ngModel)]="editableMember.schoolIdManaged"
-        (ngModelChange)="validateForm()"
-      />
-
-      <h3>Country Manager</h3>
-      <label for="countryManaged">Country Managed</label>
-      <input
-        class="long"
-        type="text"
-        id="countryManaged"
-        name="countryManaged"
-        [(ngModel)]="editableMember.countryManaged"
-        (ngModelChange)="validateForm()"
-      />
-
       <h3>Admin</h3>
       <label for="isAdmin">Is Admin</label>
       <div class="admin-section">
@@ -271,6 +254,15 @@
         />
         (can edit all members)
       </div>
+
+      <label for="notes" class="align-top">Notes</label>
+      <textarea
+        class="long"
+        id="notes"
+        name="notes"
+        [(ngModel)]="editableMember.notes"
+        (ngModelChange)="validateForm()"
+      ></textarea>
     </div>
 
     @if (errorMessage().length > 0) {
