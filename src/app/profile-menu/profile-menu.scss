@@ -1,0 +1,69 @@
+@use "../../scss_variables.scss" as *;
+@use "../../styles.scss" as *;
+
+:host {
+  display: block;
+  position: relative;
+}
+
+.profile-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .avatar-initial {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+    font-weight: bold;
+  }
+}
+
+.menu-dropdown {
+  @extend .menu-style;
+  align-items: center;
+  position: absolute;
+  top: calc(100% + 5px); /* Position below the button with a 5px gap */
+  right: 0;
+
+  .user-info {
+    padding: 10px;
+    text-align: center;
+
+    .display-name {
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .email {
+      font-size: small;
+      background-color: $theme-chip-bg-color;
+      border-radius: 5px;
+      padding: 0.2em;
+      border: 1px solid $theme-chip-border-color;
+    }
+  }
+}

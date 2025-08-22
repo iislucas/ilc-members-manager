@@ -33,7 +33,8 @@ versions and libraries is crucial.
   derived ones (e.g. do not use @angular/fire).
 - **HTML Styling:** **SCSS**. Make sure to consult and use colors where
   appropriate from [styles.scss](/src/styles.scss) and
-  [scss_variables.scss](/src/scss_variables.scss).
+  [scss_variables.scss](/src/scss_variables.scss). Make sure to import using the
+  `@use` syntax, not the old deprecated `import` one.
 
 ---
 

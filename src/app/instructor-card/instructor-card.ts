@@ -6,7 +6,7 @@ import { IconComponent } from '../icons/icon.component';
 @Component({
   selector: 'app-instructor-card',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule],
   templateUrl: './instructor-card.html',
   styleUrl: './instructor-card.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

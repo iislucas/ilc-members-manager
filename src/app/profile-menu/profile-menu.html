@@ -1,0 +1,26 @@
+@if (user(); as user) {
+<div class="profile-menu-container">
+  <button class="avatar-button" (click)="toggleMenu()">
+    @if (userPhotoURL) {
+    <img [src]="userPhotoURL" alt="User Avatar" class="avatar-image" />
+    } @else {
+    <div class="avatar-initial" [style.backgroundColor]="avatarColor">
+      {{ userInitial }}
+    </div>
+    }
+  </button>
+
+  @if (menuOpen()) {
+  <div class="menu-dropdown">
+    <div class="user-info">
+      <div class="display-name">{{ userDisplayName }}</div>
+      <div class="email">{{ userEmail }}</div>
+    </div>
+    <button (click)="logout()">
+      <app-icon name="logout"></app-icon>
+      Logout
+    </button>
+  </div>
+  }
+</div>
+}

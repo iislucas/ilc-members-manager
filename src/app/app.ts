@@ -13,6 +13,7 @@ import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
 import { Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
+import { ProfileMenuComponent } from './profile-menu/profile-menu';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,7 @@ import { FindAnInstructorComponent } from './find-an-instructor/find-an-instruct
     MemberImportExportComponent,
     SpinnerComponent,
     FindAnInstructorComponent,
+    ProfileMenuComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

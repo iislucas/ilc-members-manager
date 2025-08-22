@@ -9,7 +9,7 @@
   <div class="nav-bar">
     <div class="title-and-menu">
       @if (firebaseService.userIsAdmin()) {
-      <button class="menu-button" (click)="menuOpen.set(!menuOpen())">
+      <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
         <app-icon name="menu"></app-icon>
       </button>
       @if(menuOpen()) {
@@ -37,14 +37,7 @@
       <div class="title">{{ currentViewTitle() }}</div>
     </div>
     <div class="who">
-      <span
-        >Logged in as: {{ user.displayName }} @if
-        (firebaseService.userIsAdmin()) {
-        <app-icon name="admin"></app-icon>
-        }</span
-      >
-      <span class="email">{{ user.email }} </span>
-      <button (click)="logout()">Logout</button>
+      <app-profile-menu></app-profile-menu>
     </div>
   </div>
   @if (logoutError(); as message) {
