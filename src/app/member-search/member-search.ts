@@ -6,7 +6,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { Member } from '../data-model';
 import { CommonModule } from '@angular/common';
 
@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
 })
 export class MemberSearchComponent {
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
 
   searchTerm = input.required<string>();
   allMembers = input<boolean>();

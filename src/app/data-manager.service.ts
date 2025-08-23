@@ -42,7 +42,7 @@ export interface SchoolsState {
 @Injectable({
   providedIn: 'root',
 })
-export class MembersService {
+export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
   private membersCollection = collection(this.db, 'members');

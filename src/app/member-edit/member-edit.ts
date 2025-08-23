@@ -13,7 +13,7 @@ import { CommonModule } from '@angular/common';
 import { Member, MembershipType, MasterLevel, School } from '../data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
 import { SchoolSearchComponent } from '../school-search/school-search';
@@ -58,7 +58,7 @@ export class MemberEditComponent {
     const member = this.editableMember();
     return member.inSchoolId;
   });
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
   private elementRef = inject(ElementRef);
   asyncError = signal<Error | null>(null);
   sifuName = computed(() => {

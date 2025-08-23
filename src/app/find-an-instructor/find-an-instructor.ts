@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
@@ -21,7 +21,7 @@ import { InstructorCardComponent } from '../instructor-card/instructor-card';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FindAnInstructorComponent {
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
   searchTerm = signal('');
 
   filteredInstructors = computed(() => {

@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { initMember, Member } from '../data-model';
 import { MemberEditComponent } from '../member-edit/member-edit';
 import { IconComponent } from '../icons/icon.component';
@@ -21,7 +21,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   styleUrl: './member-list.scss',
 })
 export class MemberListComponent {
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
   private searchTerm = signal('');
   isAddingMember = signal(false);
   newMember = signal<Member>(initMember());

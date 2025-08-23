@@ -83,7 +83,6 @@ export class FirebaseStateService {
   private db: Firestore;
 
   constructor() {
-    console.log('environment.firebase', environment.firebase);
     this.app = initializeApp(environment.firebase);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);

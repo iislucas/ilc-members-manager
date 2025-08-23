@@ -14,7 +14,7 @@ import { CommonModule } from '@angular/common';
 import { School, Member } from '../data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
 
@@ -51,7 +51,7 @@ export class SchoolEditComponent {
     () =>
       JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool())
   );
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
     const owner = this.membersService

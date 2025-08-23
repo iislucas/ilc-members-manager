@@ -6,7 +6,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { School } from '../data-model';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
@@ -19,7 +19,7 @@ import { IconComponent } from '../icons/icon.component';
   imports: [CommonModule, IconComponent],
 })
 export class SchoolSearchComponent {
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
 
   searchTerm = input.required<string>();
   searchTermChange = output<string>();

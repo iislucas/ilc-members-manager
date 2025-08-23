@@ -1,4 +1,3 @@
-// 'annual' | 'life' | 'senior' | 'student' | 'deceased' | 'inactive'
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life', // includes from spouse of a Life member.

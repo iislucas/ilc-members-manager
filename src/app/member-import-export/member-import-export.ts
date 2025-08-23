@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { Member, MembershipType, initMember, MasterLevel } from '../data-model';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';
 import { Timestamp } from 'firebase/firestore';
@@ -15,7 +15,7 @@ type ParsedRow = Record<string, string>;
   styleUrl: './member-import-export.scss',
 })
 export class MemberImportExportComponent {
-  public membersService = inject(MembersService);
+  public membersService = inject(DataManagerService);
   public parsedData = signal<ParsedRow[]>([]);
   public headers = signal<string[]>([]);
   public mapping = signal<Record<string, string>>({}); // { memberField: csvHeader }

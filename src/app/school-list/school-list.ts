@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MembersService } from '../members.service';
+import { DataManagerService } from '../data-manager.service';
 import { initSchool, School } from '../data-model';
 import { SchoolEditComponent } from '../school-edit/school-edit';
 import { IconComponent } from '../icons/icon.component';
@@ -14,7 +14,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   styleUrls: ['./school-list.scss'],
 })
 export class SchoolListComponent {
-  private membersService = inject(MembersService);
+  private membersService = inject(DataManagerService);
   private searchTerm = signal('');
   isAddingSchool = signal(false);
   newSchool = signal<School>(initSchool());
