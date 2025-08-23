@@ -2,7 +2,6 @@ import {
   Component,
   input,
   output,
-  effect,
   inject,
   signal,
   HostBinding,
@@ -11,12 +10,13 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member, MembershipType, MasterLevel } from '../member.model';
+import { Member, MembershipType, MasterLevel, School } from '../member.model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
+import { SchoolSearchComponent } from '../school-search/school-search';
 
 @Component({
   selector: 'app-member-edit',
@@ -27,6 +27,7 @@ import { MemberSearchComponent } from '../member-search/member-search';
     IconComponent,
     SpinnerComponent,
     MemberSearchComponent,
+    SchoolSearchComponent,
   ],
   templateUrl: './member-edit.html',
   styleUrl: './member-edit.scss',
@@ -53,6 +54,10 @@ export class MemberEditComponent {
     const member = this.editableMember();
     return member.sifuMemberId;
   });
+  schoolSearch = linkedSignal<string>(() => {
+    const member = this.editableMember();
+    return member.inSchoolId;
+  });
   private membersService = inject(MembersService);
   private elementRef = inject(ElementRef);
   asyncError = signal<Error | null>(null);
@@ -61,6 +66,16 @@ export class MemberEditComponent {
     if (sifuMemId) {
       const sifu = this.allMembers().find((m) => m.memberId === sifuMemId);
       return sifu?.name ?? '';
+    }
+    return '';
+  });
+  schoolName = computed(() => {
+    const schoolId = this.schoolSearch();
+    if (schoolId) {
+      const school = this.membersService
+        .schools()
+        .find((s) => s.schoolId === schoolId);
+      return school?.schoolName ?? '';
     }
     return '';
   });
@@ -80,6 +95,13 @@ export class MemberEditComponent {
   sifuSelected(sifu: Member) {
     this.editableMember.update((m) => {
       m.sifuMemberId = sifu.memberId;
+      return { ...m };
+    });
+  }
+
+  schoolSelected(school: School) {
+    this.editableMember.update((m) => {
+      m.inSchoolId = school.schoolId;
       return { ...m };
     });
   }

@@ -110,6 +110,24 @@ export class MembersService {
     return map;
   });
 
+  private schoolMap = computed(() => {
+    const map = new Map<string, School>();
+    for (const school of this.schools()) {
+      map.set(school.id, school);
+    }
+    return map;
+  });
+
+  private schoolsMiniSearch = computed(() => {
+    const miniSearch = new MiniSearch<School>({
+      fields: ['schoolName', 'schoolId', 'schoolCity', 'schoolCountry'],
+      storeFields: ['id'],
+      idField: 'id',
+    });
+    miniSearch.addAll(this.schools());
+    return miniSearch;
+  });
+
   constructor() {
     effect(() => {
       const loginState = this.firebaseService.loggedIn();
@@ -283,6 +301,14 @@ export class MembersService {
       members = members.filter((m) => m.country === country);
     }
     return members;
+  }
+
+  searchSchools(term: string): School[] {
+    if (!term) {
+      return this.schools();
+    }
+    const results = this.schoolsMiniSearch().search(term, { fuzzy: 0.2 });
+    return results.map((result) => this.schoolMap().get(result.id)!);
   }
 
   async findInstructors(country?: string): Promise<Member[]> {

@@ -170,6 +170,18 @@
         }
       </div>
 
+      <label for="inSchoolId">Managed by school</label>
+      <div class="school-search">
+        <app-school-search
+          [searchTerm]="schoolSearch()"
+          (searchTermChange)="schoolSearch.set($event)"
+          (schoolSelected)="schoolSelected($event)"
+        ></app-school-search>
+        @if(schoolName()) {
+        <div class="school-name">{{ schoolName() }}</div>
+        }
+      </div>
+
       <h3>Level</h3>
       <label for="studentLevel">Student</label>
       <input

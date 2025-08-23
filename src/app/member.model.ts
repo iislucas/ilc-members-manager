@@ -81,6 +81,10 @@ export type Member = {
   membershipExpires: string; // Date membership expires
   memberId: string; // ILC Member Id: UNIQUE
   sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
+  // Optional ID of school this member is in; this allows any manager or owner
+  // of that school to update the member's details. Empty means not part of any
+  // school. Managed by Sifu or HQ.
+  inSchoolId: string;
 
   // Contact information
   name: string; // Full name
@@ -131,6 +135,7 @@ export function initMember(): Member {
     membershipExpires: '',
     memberId: '',
     sifuMemberId: '', // ILC Member Number of the member's Sifu
+    inSchoolId: '',
 
     // Instructor details
     instructorId: '', // must not be empty is isInstructor is true.

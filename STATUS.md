@@ -45,6 +45,13 @@ SquareSpace site, and therefore need other means of managing their information.
 - This covers the core CRUD (Create, Read, Update, Delete) operations for members.
 - Defined the Firebase security policy and data structures (admins can edit everything, and are controlled by the isAdmin property, non-admins can only view their single record - the one that matches the email they are logged in with).
 
+#### \[In Prohress(iislucas)\]: Basic support for managing schools and their owners and managers.
+
+- Done: Manage schools, edit basic values, select/set the owner and other managers who
+  can manage the school.
+- TODO: Each member can optionally belong to a school. When a member belongs to a
+  school, they can be managed by any manger or owner of the school.
+
 #### \[To Do\]: Synchronisation with SquareSpace orders
 
 - Provide an automatic every 6 hours synchronisation with SquareSpace so that
