@@ -51,23 +51,15 @@ export class MemberEditComponent {
   );
   sifuSearch = linkedSignal<string>(() => {
     const member = this.editableMember();
-    if (member.sifuMemberId) {
-      const sifu = this.allMembers().find(
-        (m) => m.memberId === member.sifuMemberId
-      );
-      return sifu?.sifuMemberId ?? '';
-    }
-    return '';
+    return member.sifuMemberId;
   });
   private membersService = inject(MembersService);
   private elementRef = inject(ElementRef);
   asyncError = signal<Error | null>(null);
   sifuName = computed(() => {
-    const member = this.editableMember();
-    if (member.sifuMemberId) {
-      const sifu = this.allMembers().find(
-        (m) => m.memberId === member.sifuMemberId
-      );
+    const sifuMemId = this.sifuSearch();
+    if (sifuMemId) {
+      const sifu = this.allMembers().find((m) => m.memberId === sifuMemId);
       return sifu?.name ?? '';
     }
     return '';

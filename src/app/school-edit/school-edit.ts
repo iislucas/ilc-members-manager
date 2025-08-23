@@ -53,10 +53,10 @@ export class SchoolEditComponent {
   );
   private membersService = inject(MembersService);
   owner = computed(() => {
-    const ownerEmail = this.editableSchool().owner;
+    const ownerMemId = this.editableSchool().owner;
     const owner = this.membersService
       .instructors()
-      .find((m) => m.email === ownerEmail);
+      .find((m) => m.memberId === ownerMemId);
     return owner || null;
   });
   managers = computed(() => {
@@ -102,7 +102,7 @@ export class SchoolEditComponent {
 
   updateOwner(member: Member) {
     this.editableSchool.update((school) => {
-      school!.owner = member.email;
+      school!.owner = member.memberId;
       return { ...school! };
     });
   }
