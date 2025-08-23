@@ -135,3 +135,57 @@ button:disabled {
 .menu-item:hover {
   background-color: $menu-item-hover-color;
 }
+
+input[type="text"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+input[type="date"] {
+  width: auto;
+  min-width: 120px;
+  max-width: 150px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: #999;
+  }
+}
+
+.email-chip {
+  font-size: small;
+  font-family: monospace;
+  background-color: $theme-chip-bg-color;
+  border-radius: 5px;
+  padding: 0.2em;
+  border: 1px solid $theme-chip-border-color;
+}
+
+.small-email {
+  font-size: smaller;
+  font-family: monospace;
+  padding: 0.2em;
+}
+
+.identifier-chip {
+  background-color: $theme-chip-bg-color;
+  border-radius: 5px;
+  font-size: small;
+  font-family: monospace;
+  border: 1px solid $theme-chip-border-color;
+  padding: 0.2em;
+}

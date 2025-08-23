@@ -31,6 +31,9 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "papaparse"
             ]
           },
           "configurations": {
@@ -123,6 +126,9 @@
             "assets": [],
             "styles": [
               "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "papaparse"
             ]
           },
           "configurations": {

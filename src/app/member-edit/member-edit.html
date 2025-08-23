@@ -1,27 +1,29 @@
+@let e = editableMember();
+
 <div class="edit-form">
   <div class="edit-form-header" (click)="toggle($event)">
     <div class="identifier">
-      @if (editableMember.memberId) {
-      <span>{{ editableMember.memberId }}</span>
-      } @if (editableMember.instructorId) {
-      <span>-{{ editableMember.instructorId }}</span>
+      @if (e.memberId) {
+      <span>{{ e.memberId }}</span>
+      } @if (e.instructorId) {
+      <span>-{{ e.instructorId }}</span>
       }
     </div>
     <div class="name">
-      @if(editableMember.name.trim() === '') { [Name needs to be entered] }
-      {{ editableMember.name }}@if(isDirty()){<span>*</span>}
+      @if(e.name.trim() === '') { [Name needs to be entered] }
+      {{ e.name }}@if(isDirty()){<span>*</span>}
     </div>
-    @if(editableMember.isAdmin) {
+    @if(e.isAdmin) {
     <app-icon name="admin"></app-icon>
     }
     <div class="level">
-      @if (editableMember.studentLevel) {
-      <span>S:{{ editableMember.studentLevel }}</span>
-      } @if (editableMember.applicationLevel) {
-      <span>A:{{ editableMember.applicationLevel }}</span>
+      @if (e.studentLevel) {
+      <span>S:{{ e.studentLevel }}</span>
+      } @if (e.applicationLevel) {
+      <span>A:{{ e.applicationLevel }}</span>
       }
     </div>
-    <div class="country">{{ editableMember.country }}</div>
+    <div class="country">{{ e.country }}</div>
     <div class="unfold-button">
       <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
     </div>
@@ -38,8 +40,8 @@
           type="text"
           id="name"
           name="name"
-          [(ngModel)]="editableMember.name"
-          (ngModelChange)="validateForm()"
+          [(ngModel)]="e.name"
+          (ngModelChange)="updateMember()"
           #name="ngModel"
           required
         />
@@ -55,13 +57,13 @@
           type="email"
           id="email"
           name="email"
-          [(ngModel)]="editableMember.email"
-          (ngModelChange)="validateForm()"
+          [(ngModel)]="e.email"
+          (ngModelChange)="updateMember()"
           #email="ngModel"
           required
           email
         />
-        @if (emailExists) {
+        @if (isDupEmail()) {
         <div class="error-message">This email address is already in use.</div>
         } @else if (email.invalid) {
         <div class="error-message">Please enter a valid email address.</div>
@@ -73,8 +75,8 @@
         class="long"
         id="address"
         name="address"
-        [(ngModel)]="editableMember.address"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.address"
+        (ngModelChange)="updateMember()"
       ></textarea>
 
       <label for="city">City</label>
@@ -82,8 +84,8 @@
         type="text"
         id="city"
         name="city"
-        [(ngModel)]="editableMember.city"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.city"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="zipCode">Zip Code</label>
@@ -91,8 +93,8 @@
         type="text"
         id="zipCode"
         name="zipCode"
-        [(ngModel)]="editableMember.zipCode"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.zipCode"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="country">Country</label>
@@ -100,8 +102,8 @@
         type="text"
         id="country"
         name="country"
-        [(ngModel)]="editableMember.country"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.country"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="phone">Phone</label>
@@ -109,8 +111,8 @@
         type="text"
         id="phone"
         name="phone"
-        [(ngModel)]="editableMember.phone"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.phone"
+        (ngModelChange)="updateMember()"
       />
 
       <h3>Member</h3>
@@ -120,14 +122,14 @@
           type="text"
           id="memberId"
           name="memberId"
-          [(ngModel)]="editableMember.memberId"
-          (ngModelChange)="isDupMemberId(); validateForm()"
+          [(ngModel)]="e.memberId"
+          (ngModelChange)="updateMember()"
           #memberId="ngModel"
-          [required]="editableMember.id === ''"
+          [required]="e.id === ''"
         />
         @if(memberId.invalid) {
         <div class="error-message">Member ID is required.</div>
-        } @else if(memberIdExists) {
+        } @else if(isDupMemberId()) {
         <div class="error-message">This member ID is already in use.</div>
         }
       </div>
@@ -136,8 +138,8 @@
       <select
         id="membershipType"
         name="membershipType"
-        [(ngModel)]="editableMember.membershipType"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.membershipType"
+        (ngModelChange)="updateMember()"
         required
       >
         @for (type of membershipTypes; track type) {
@@ -152,20 +154,21 @@
         id="membershipExpires"
         name="membershipExpires"
         placeholder="YYYY-MM-DD"
-        [ngModel]="editableMember.membershipExpires"
-        (ngModelChange)="
-          editableMember.membershipExpires = $event; validateForm()
-        "
+        [ngModel]="e.membershipExpires"
+        (ngModelChange)="updateMember()"
       />
 
-      <label for="sifuMemberId">Sifu Member ID</label>
-      <input
-        type="text"
-        id="sifuMemberId"
-        name="sifuMemberId"
-        [(ngModel)]="editableMember.sifuMemberId"
-        (ngModelChange)="validateForm()"
-      />
+      <label for="sifuMemberId">Sifu</label>
+      <div class="sifu-search">
+        <app-member-search
+          [searchTerm]="sifuSearch()"
+          (searchTermChange)="sifuSearch.set($event)"
+          (memberSelected)="sifuSelected($event)"
+        ></app-member-search>
+        @if(sifuName()) {
+        <div class="sifu-name">{{ sifuName() }}</div>
+        }
+      </div>
 
       <h3>Level</h3>
       <label for="studentLevel">Student</label>
@@ -173,8 +176,8 @@
         type="text"
         id="studentLevel"
         name="studentLevel"
-        [(ngModel)]="editableMember.studentLevel"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.studentLevel"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="applicationLevel">Application</label>
@@ -182,8 +185,8 @@
         type="text"
         id="applicationLevel"
         name="applicationLevel"
-        [(ngModel)]="editableMember.applicationLevel"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.applicationLevel"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="mastersLevels">Masters</label>
@@ -192,7 +195,7 @@
         <div class="masterLevel">
           <input
             type="checkbox"
-            [checked]="editableMember.mastersLevels.includes(level)"
+            [checked]="e.mastersLevels.includes(level)"
             (change)="onMasterLevelChange(level, $event.target.checked)"
           />
           {{ level }}
@@ -206,8 +209,8 @@
         type="text"
         id="instructorId"
         name="instructorId"
-        [(ngModel)]="editableMember.instructorId"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.instructorId"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="instructorLicenseExpires">License Expires</label>
@@ -217,10 +220,8 @@
         id="instructorLicenseExpires"
         name="instructorLicenseExpires"
         placeholder="YYYY-MM-DD"
-        [ngModel]="editableMember.instructorLicenseExpires"
-        (ngModelChange)="
-          editableMember.instructorLicenseExpires = $event; validateForm()
-        "
+        [ngModel]="e.instructorLicenseExpires"
+        (ngModelChange)="updateMember()"
       />
 
       <label for="instructorWebsite">Website</label>
@@ -229,8 +230,8 @@
         type="text"
         id="instructorWebsite"
         name="instructorWebsite"
-        [(ngModel)]="editableMember.instructorWebsite"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.instructorWebsite"
+        (ngModelChange)="updateMember()"
       />
 
       <h3>Admin</h3>
@@ -240,8 +241,8 @@
           type="checkbox"
           id="isAdmin"
           name="isAdmin"
-          [(ngModel)]="editableMember.isAdmin"
-          (ngModelChange)="validateForm()"
+          [(ngModel)]="e.isAdmin"
+          (ngModelChange)="updateMember()"
         />
         (can edit all members)
       </div>
@@ -251,8 +252,8 @@
         class="long"
         id="notes"
         name="notes"
-        [(ngModel)]="editableMember.notes"
-        (ngModelChange)="validateForm()"
+        [(ngModel)]="e.notes"
+        (ngModelChange)="updateMember()"
       ></textarea>
     </div>
 
@@ -277,7 +278,7 @@
         } @else { @if(isDirty()){
         <button
           type="submit"
-          [disabled]="emailExists || memberIdExists || memberForm.invalid"
+          [disabled]="isDupEmail() || isDupMemberId() || memberForm.invalid"
         >
           Save
         </button>

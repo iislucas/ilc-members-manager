@@ -41,7 +41,7 @@ export class MemberSearchComponent {
 
   selectMember(member: Member) {
     this.memberSelected.emit(member);
-    this.searchTermChange.emit(member.email);
+    this.searchTermChange.emit(member.memberId);
     this.showResults.set(false);
   }
 

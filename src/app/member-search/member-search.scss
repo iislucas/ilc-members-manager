@@ -1,10 +1,11 @@
+@use "../../styles.scss" as *;
+
 .search-container {
   position: relative;
 }
 .results-list {
+  @extend .menu-style;
   position: absolute;
-  background-color: white;
-  border: 1px solid #ccc;
   list-style-type: none;
   margin: 0;
   padding: 0;

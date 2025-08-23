@@ -7,6 +7,8 @@ import {
   signal,
   HostBinding,
   ElementRef,
+  computed,
+  linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Member, MembershipType, MasterLevel } from '../member.model';
@@ -14,11 +16,18 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { MemberSearchComponent } from '../member-search/member-search';
 
 @Component({
   selector: 'app-member-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconComponent,
+    SpinnerComponent,
+    MemberSearchComponent,
+  ],
   templateUrl: './member-edit.html',
   styleUrl: './member-edit.scss',
 })
@@ -30,15 +39,39 @@ export class MemberEditComponent {
   close = output();
   membershipTypes = Object.values(MembershipType);
   masterLevels = Object.values(MasterLevel);
-  editableMember!: Member;
-  emailExists = false;
-  memberIdExists = false;
-  errorMessage = signal<string[]>([]);
+  editableMember = linkedSignal<Member>(() => {
+    const m = this.member();
+    return JSON.parse(JSON.stringify(m));
+  });
   isSaving = signal(false);
   collapsed = signal(true);
-  isDirty = signal(false);
+  isDirty = computed(
+    () =>
+      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember())
+  );
+  sifuSearch = linkedSignal<string>(() => {
+    const member = this.editableMember();
+    if (member.sifuMemberId) {
+      const sifu = this.allMembers().find(
+        (m) => m.memberId === member.sifuMemberId
+      );
+      return sifu?.sifuMemberId ?? '';
+    }
+    return '';
+  });
   private membersService = inject(MembersService);
   private elementRef = inject(ElementRef);
+  asyncError = signal<Error | null>(null);
+  sifuName = computed(() => {
+    const member = this.editableMember();
+    if (member.sifuMemberId) {
+      const sifu = this.allMembers().find(
+        (m) => m.memberId === member.sifuMemberId
+      );
+      return sifu?.name ?? '';
+    }
+    return '';
+  });
 
   @HostBinding('class.is-open')
   get isOpen() {
@@ -50,23 +83,23 @@ export class MemberEditComponent {
     return this.isDirty();
   }
 
-  constructor() {
-    effect(() => {
-      const collapse = this.collapse();
-      if (collapse !== null) {
-        this.collapsed.set(collapse);
-      }
+  constructor() {}
+
+  sifuSelected(sifu: Member) {
+    this.editableMember.update((m) => {
+      m.sifuMemberId = sifu.memberId;
+      return { ...m };
     });
-    effect(() => {
-      this.editableMember = JSON.parse(JSON.stringify(this.member()));
-      this.validateForm();
-      this.isDirty.set(false);
-    });
+  }
+
+  updateMember() {
+    this.editableMember.set({ ...this.editableMember() });
   }
 
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    this.editableMember.set({ ...this.member() });
     this.collapsed.set(true);
     this.close.emit();
   }
@@ -84,54 +117,45 @@ export class MemberEditComponent {
     this.collapsed.set(!this.collapsed());
   }
 
-  isDupEmail() {
-    const self = this;
-    if (!this.allMembers || !this.editableMember) {
-      this.emailExists = false;
+  isDupEmail = computed(() => {
+    const member = this.editableMember();
+    if (!this.allMembers || !member) {
       return false;
     }
-    this.emailExists = this.allMembers().some((member) => {
-      return (
-        member.email?.toLowerCase() ===
-          self.editableMember.email?.toLowerCase() &&
-        member.id !== self.editableMember.id
-      );
-    });
-    return this.emailExists;
-  }
+    return this.allMembers().some(
+      (m) =>
+        m.email?.toLowerCase() === member.email?.toLowerCase() &&
+        m.id !== member.id
+    );
+  });
 
-  isDupMemberId() {
-    const self = this;
-    if (!this.allMembers || !this.editableMember) {
-      this.memberIdExists = false;
+  isDupMemberId = computed(() => {
+    const member = this.editableMember();
+    if (!this.allMembers || !member) {
       return false;
     }
-    this.memberIdExists = this.allMembers().some((member) => {
-      return (
-        member.memberId?.toLowerCase() ===
-          self.editableMember.memberId?.toLowerCase() &&
-        member.id !== self.editableMember.id
-      );
-    });
-    return this.memberIdExists;
-  }
+    return this.allMembers().some(
+      (m) =>
+        m.memberId.toLowerCase() === member.memberId.toLowerCase() &&
+        m.id !== member.id
+    );
+  });
 
   async saveMember() {
     this.isSaving.set(true);
+    this.asyncError.set(null);
     try {
-      if (this.editableMember.email) {
-        await this.membersService.updateMember(
-          this.editableMember.email,
-          this.editableMember
-        );
+      const member = this.editableMember();
+      if (member.email) {
+        await this.membersService.updateMember(member.email, member);
       } else {
-        await this.membersService.addMember(this.editableMember);
+        await this.membersService.addMember(member);
       }
       this.isSaving.set(false);
       this.collapsed.set(true);
       this.close.emit();
-    } catch (e: any) {
-      this.errorMessage.set([e.message]);
+    } catch (e: unknown) {
+      this.asyncError.set(e as Error);
       this.isSaving.set(false);
     }
   }
@@ -139,63 +163,59 @@ export class MemberEditComponent {
   async deleteMember($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    if (
-      confirm(`Are you sure you want to delete ${this.editableMember.name}?`)
-    ) {
-      if (this.editableMember.id) {
+    const member = this.editableMember();
+    if (confirm(`Are you sure you want to delete ${member.name}?`)) {
+      this.asyncError.set(null);
+      if (member.id) {
         try {
-          await this.membersService.deleteMember(this.editableMember.id);
-        } catch (e: any) {
-          this.errorMessage.set([e.message]);
+          await this.membersService.deleteMember(member.id);
+        } catch (e: unknown) {
+          this.asyncError.set(e as Error);
         }
       }
     }
   }
 
   onMasterLevelChange(level: MasterLevel, isChecked: boolean) {
-    if (isChecked) {
-      this.editableMember.mastersLevels.push(level);
-    } else {
-      const index = this.editableMember.mastersLevels.indexOf(level);
-      if (index > -1) {
-        this.editableMember.mastersLevels.splice(index, 1);
+    this.editableMember.update((m) => {
+      if (isChecked) {
+        m.mastersLevels.push(level);
+      } else {
+        const index = m.mastersLevels.indexOf(level);
+        if (index > -1) {
+          m.mastersLevels.splice(index, 1);
+        }
       }
-    }
-    this.validateForm();
+      return { ...m };
+    });
   }
 
   closeErrors() {
-    this.errorMessage.set([]);
+    this.asyncError.set(null);
   }
 
-  validateForm() {
-    this.isDirty.set(
-      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember)
-    );
-
+  errorMessage = computed(() => {
     const errors: string[] = [];
+    const member = this.editableMember();
     if (this.isDupEmail()) {
       errors.push('This email address is already in use.');
     }
-    if (this.editableMember.email.trim() === '') {
+    if (member.email.trim() === '') {
       errors.push('An email must be provided.');
     }
     if (this.isDupMemberId()) {
       errors.push('This member ID is already in use.');
     }
-    if (this.editableMember.name.trim() === '') {
+    if (member.name.trim() === '') {
       errors.push('Name cannot be empty.');
     }
-    if (!this.editableMember.id && this.editableMember.memberId.trim() === '') {
+    if (!member.id && member.memberId.trim() === '') {
       errors.push('Member ID cannot be empty for a new member.');
     }
-
-    if (errors.length > 0) {
-      this.errorMessage.set(errors);
-      this.isSaving.set(false);
-      return;
+    const asyncError = this.asyncError();
+    if (asyncError) {
+      errors.push(asyncError.message);
     }
-
-    this.errorMessage.set([]);
-  }
+    return errors;
+  });
 }

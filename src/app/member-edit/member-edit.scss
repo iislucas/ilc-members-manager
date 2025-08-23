@@ -35,41 +35,8 @@
     border-top: 1px solid transparent;
     transition: border-color 0.3s ease-in-out;
 
-    input[type="text"],
-    input[type="email"],
-    select,
-    textarea {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box; /* Ensures padding doesn't affect width */
-    }
-
-    input[type="checkbox"] {
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-
     .long {
       grid-column: 2 / 3;
-    }
-
-    input[type="date"] {
-      width: auto;
-      min-width: 120px;
-      max-width: 150px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-
-      &::placeholder {
-        color: #999;
-      }
     }
 
     /* Special case for checkbox */
