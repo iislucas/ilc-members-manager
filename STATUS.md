@@ -47,10 +47,11 @@ SquareSpace site, and therefore need other means of managing their information.
 
 #### \[In Prohress(iislucas)\]: Basic support for managing schools and their owners and managers.
 
-- Done: Manage schools, edit basic values, select/set the owner and other managers who
+- Manage schools, edit basic values, select/set the owner and other managers who
   can manage the school.
-- TODO: Each member can optionally belong to a school. When a member belongs to a
+- Each member can optionally belong to a school. When a member belongs to a
   school, they can be managed by any manger or owner of the school.
+- TODO: School owner permission actually work.
 
 #### \[To Do\]: Synchronisation with SquareSpace orders
 
