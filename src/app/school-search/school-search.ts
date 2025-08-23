@@ -9,14 +9,13 @@ import {
 import { DataManagerService } from '../data-manager.service';
 import { School } from '../data-model';
 import { CommonModule } from '@angular/common';
-import { IconComponent } from '../icons/icon.component';
 
 @Component({
   selector: 'app-school-search',
   templateUrl: './school-search.html',
   styleUrls: ['./school-search.scss'],
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule],
 })
 export class SchoolSearchComponent {
   private membersService = inject(DataManagerService);
