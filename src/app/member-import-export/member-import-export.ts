@@ -1,10 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import {
-  Member,
-  MembershipType,
-  initMember,
-  MasterLevel,
-} from '../member.model';
+import { Member, MembershipType, initMember, MasterLevel } from '../data-model';
 import { MembersService } from '../members.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';

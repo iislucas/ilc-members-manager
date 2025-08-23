@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { Member } from '../member.model';
+import { Member } from '../data-model';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 

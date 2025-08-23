@@ -25,7 +25,7 @@ import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { doc, Firestore, getFirestore, onSnapshot } from 'firebase/firestore';
-import { Member } from './member.model';
+import { Member } from './data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 

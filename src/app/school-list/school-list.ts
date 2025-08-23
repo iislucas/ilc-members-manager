@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MembersService } from '../members.service';
-import { initSchool, School } from '../member.model';
+import { initSchool, School } from '../data-model';
 import { SchoolEditComponent } from '../school-edit/school-edit';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';

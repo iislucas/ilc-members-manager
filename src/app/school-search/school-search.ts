@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { MembersService } from '../members.service';
-import { School } from '../member.model';
+import { School } from '../data-model';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 

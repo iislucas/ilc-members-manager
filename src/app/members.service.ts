@@ -13,7 +13,7 @@ import {
   getDocs,
   addDoc,
 } from 'firebase/firestore';
-import { Member, initMember, School, initSchool } from './member.model';
+import { Member, initMember, School, initSchool } from './data-model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
 import { User } from 'firebase/auth';

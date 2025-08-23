@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { MembersService } from '../members.service';
-import { Member } from '../member.model';
+import { Member } from '../data-model';
 import { CommonModule } from '@angular/common';
 
 @Component({

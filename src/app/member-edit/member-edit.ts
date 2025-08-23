@@ -10,7 +10,7 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member, MembershipType, MasterLevel, School } from '../member.model';
+import { Member, MembershipType, MasterLevel, School } from '../data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { MembersService } from '../members.service';

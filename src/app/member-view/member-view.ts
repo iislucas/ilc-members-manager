@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member } from '../member.model';
+import { Member } from '../data-model';
 import { environment } from '../../environments/environment';
 import { IconComponent } from '../icons/icon.component';
 

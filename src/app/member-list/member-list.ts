@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MembersService } from '../members.service';
-import { initMember, Member } from '../member.model';
+import { initMember, Member } from '../data-model';
 import { MemberEditComponent } from '../member-edit/member-edit';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
