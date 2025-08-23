@@ -56,7 +56,7 @@ export class MemberEditComponent {
   });
   schoolSearch = linkedSignal<string>(() => {
     const member = this.editableMember();
-    return member.inSchoolId;
+    return member.managingOrgId;
   });
   private membersService = inject(DataManagerService);
   private elementRef = inject(ElementRef);
@@ -101,7 +101,7 @@ export class MemberEditComponent {
 
   schoolSelected(school: School) {
     this.editableMember.update((m) => {
-      m.inSchoolId = school.schoolId;
+      m.managingOrgId = school.schoolId;
       return { ...m };
     });
   }

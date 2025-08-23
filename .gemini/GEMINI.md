@@ -23,6 +23,7 @@ versions and libraries is crucial.
 
 - **Framework:** **Angular `^20.0.0`**. All components, services, and modules
   should follow Angular best practices, but do NOT use the angular router.
+  Always use the Angular CLI for cretaing components `npx ng generate component school-members --project=ilc-members-manager`
 - **Language:** **TypeScript `~5.8.2`**. All code must be written in TypeScript.
 - **Reactivity:** **Angular Signals** are the primary and preferred mechanism
   for managing state and reactivity within components, avoid Observables

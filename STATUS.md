@@ -45,22 +45,13 @@ SquareSpace site, and therefore need other means of managing their information.
 - This covers the core CRUD (Create, Read, Update, Delete) operations for members.
 - Defined the Firebase security policy and data structures (admins can edit everything, and are controlled by the isAdmin property, non-admins can only view their single record - the one that matches the email they are logged in with).
 
-#### \[In Prohress(iislucas)\]: Basic support for managing schools and their owners and managers.
-
-- Manage schools, edit basic values, select/set the owner and other managers who
-  can manage the school.
-- Each member can optionally belong to a school. When a member belongs to a
-  school, they can be managed by any manger or owner of the school.
-- TODO: School owner permission actually work.
-
 #### \[To Do\]: Synchronisation with SquareSpace orders
 
 - Provide an automatic every 6 hours synchronisation with SquareSpace so that
   people's status is updated.
-
 - Provide a manual way to synchronise with SquareSpace.
 
-#### \[In Progress()(iislucas)\]: Find an Instructor View & WebComponent
+#### \[In Progress(iislucas)\]: Find an Instructor View & WebComponent
 
 - Provide a standalone web-component that can be embeded into a SquareSpace
   site. This should provide the ability to search and browse the licensed
@@ -73,17 +64,26 @@ SquareSpace site, and therefore need other means of managing their information.
   - It might make sense for this to be in a separte repo, like:
     https://github.com/iislucas/google-cal-events-viewer
 
-#### \[In Progress()(iislucas)\]: Backup to sheets/CSV just in case
+#### \[In Progress(iislucas)\]: Backup to sheets/CSV just in case
 
 - Provide a way to backup the data to a google-sheet or download a CSV of the
   current state. Also save monthly backups to a cloud bucket.
 
 ---
 
-### \[P1\]: General Membership Management for ILC
+#### \[In Progress(iislucas)\]: General schools/Membership management.
 
 Make the application into something that schools/country managers can also use
 to manage their information. Website only still at this point.
+
+- Manage schools, edit basic values, select/set the owner and other managers who
+  can manage the school.
+- Each member can optionally belong to a school. When a member belongs to a
+  school, they can be managed by any manger or owner of the school.
+- TODO: School owner permission actually work.
+- TODO: Admins can use school-ID to search members also. School IDs will always begin
+  with "SC-" so we don't make peopel enter that bit, and ensure that data is
+  consistent.
 
 #### \[To Do\]: Support Country Managers manage their country & activity feed
 

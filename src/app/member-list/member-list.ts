@@ -1,14 +1,8 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  output,
-  signal,
-} from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
 import { initMember, Member } from '../data-model';
+import { SearchableMemberSet } from '../searchable-member-set.service';
 import { MemberEditComponent } from '../member-edit/member-edit';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -21,17 +15,17 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   styleUrl: './member-list.scss',
 })
 export class MemberListComponent {
-  private membersService = inject(DataManagerService);
+  memberSet = input.required<SearchableMemberSet>();
   private searchTerm = signal('');
   isAddingMember = signal(false);
   newMember = signal<Member>(initMember());
 
   // Expose signals from the service to the template
   members = computed(() => {
-    return this.membersService.searchMembers(this.searchTerm());
+    return this.memberSet().searchMembers(this.searchTerm());
   });
-  loading = this.membersService.loading;
-  error = this.membersService.error;
+  loading = computed(() => this.memberSet().loading());
+  error = computed(() => this.memberSet().error());
 
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);

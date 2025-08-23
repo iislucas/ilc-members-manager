@@ -24,7 +24,17 @@ import { environment } from '../environments/environment';
 import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { doc, Firestore, getFirestore, onSnapshot } from 'firebase/firestore';
+import {
+  collectionGroup,
+  doc,
+  Firestore,
+  getDocs,
+  getFirestore,
+  limit,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
 import { Member } from './data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
@@ -100,18 +110,24 @@ export class FirebaseStateService {
     onAuthStateChanged(this.auth, async (user) => {
       if (user && user.email) {
         this.loggingIn.set(true);
-        onSnapshot(doc(this.db, 'members', user.email), (docSnap) => {
-          if (docSnap.exists()) {
-            const member = docSnap.data() as Member;
-            this.userAsMember.set(member);
-            this.loggedInResolverFn({ user, member });
-          } else {
-            // TODO: When the user has no member document, what do we do?
-            // For now, we will just not log them in fully.
-            console.log('No member document for user', user.email);
-          }
-          this.loggingIn.set(false);
-        });
+        const q = query(
+          collectionGroup(this.db, 'members'),
+          where('email', '==', user.email),
+          limit(1)
+        );
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const member = docSnap.data() as Member;
+          this.userAsMember.set(member);
+          this.loggedInResolverFn({ user, member });
+        } else {
+          // TODO: When the user has no member document, what do we do? For now,
+          // we will just not log them in fully. Best is to provide some error
+          // feedback somewhere for login failures like this.
+          console.warn('No member document for user', user.email);
+        }
+        this.loggingIn.set(false);
       } else {
         // logging out
         this.userAsMember.set(null);

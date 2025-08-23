@@ -19,11 +19,11 @@ export function validatePaths(
   }
 }
 
-export function parseUrl(hash: string): {
-  url: string;
+export function parseUrlParams(hash: string): {
+  preParamUrl: string;
   urlParams: { [key: string]: string };
 } {
-  const [url, urlParamsString] = hash.split('?');
+  const [preParamUrl, urlParamsString] = hash.split('?');
   const urlParams: { [key: string]: string } = {};
   if (urlParamsString) {
     const params = new URLSearchParams(urlParamsString);
@@ -31,45 +31,78 @@ export function parseUrl(hash: string): {
       urlParams[key] = value;
     });
   }
-  return { url, urlParams };
+  return { preParamUrl, urlParams };
 }
 
-export function updateSignalsFromUrl(
-  url: string,
-  paths: string[],
-  signals: { [key: string]: WritableSignal<string> },
-  urlParams: { [key: string]: string }
+// Returns a set of substitutions for path pattern variables. e.g.
+// matchUrlPartsToPathParts(['view', 'a', 'member', 'b'], ['view', ':viewId',
+// 'member', ':memberId']) ==> {'viewId': 'a', 'memberId': 'b'} and
+// matchUrlPartsToPathParts(['view', 'a', 'member', 'b'], ['func']) ==> null
+export function matchUrlPartsToPathParts(
+  urlParts: string[],
+  pathParts: string[]
 ): { [key: string]: string } | null {
-  const urlParts = url.split('/');
+  if (pathParts.length !== urlParts.length) {
+    return null;
+  }
 
-  for (const path of paths) {
-    const pathParts = path.split('/');
-    if (pathParts.length !== urlParts.length) {
-      continue;
+  const params: { [key: string]: string } = {};
+  for (let i = 0; i < pathParts.length; i++) {
+    if (pathParts[i].startsWith(':')) {
+      const paramName = pathParts[i].substring(1);
+      params[paramName] = urlParts[i];
+    } else if (pathParts[i] !== urlParts[i]) {
+      return null;
     }
+  }
+  return params;
+}
 
-    const pathParams: { [key: string]: string } = {};
-    let match = true;
-    for (let i = 0; i < pathParts.length; i++) {
-      if (pathParts[i].startsWith(':')) {
-        const paramName = pathParts[i].substring(1);
-        pathParams[paramName] = urlParts[i];
-      } else if (pathParts[i] !== urlParts[i]) {
-        match = false;
-        break;
-      }
-    }
+export function mergeSubsts(
+  mergedSubsts: { [key: string]: string },
+  substs: { [key: string]: string }
+): { [key: string]: string } {
+  for (const key in substs) {
+    mergedSubsts[key] = substs[key];
+  }
+  return mergedSubsts;
+}
 
-    if (match) {
-      for (const key in signals) {
-        if (pathParams[key]) {
-          signals[key].set(pathParams[key]);
-        } else if (urlParams[key]) {
-          signals[key].set(urlParams[key]);
-        }
-      }
-      return pathParams;
+// Given a URL and a set of valid paths, return the first matching
+// substitutions (variables in URLs and params from the URL)
+export function substsFromUrl(
+  url: string,
+  validPathPatterns: string[]
+): {
+  pathParams: { [key: string]: string };
+  urlParams: { [key: string]: string };
+} | null {
+  const { preParamUrl, urlParams } = parseUrlParams(url);
+  const urlParts = preParamUrl.split('/');
+  for (const pathPattern of validPathPatterns) {
+    const subsitutions: { [key: string]: string } = {};
+    const pathParts = pathPattern.split('/');
+    const pathParams = matchUrlPartsToPathParts(urlParts, pathParts);
+    if (pathParams) {
+      return { pathParams, urlParams };
     }
   }
   return null;
+}
+
+// Returns any remaining invalid substitutions.
+export function updateSignalsFromSubsts(
+  substs: { [key: string]: string },
+  signals: { [key: string]: WritableSignal<string> }
+): { [key: string]: string } {
+  for (const key of Object.keys(signals)) {
+    if (substs[key]) {
+      signals[key].set(substs[key]);
+    } else {
+      signals[key].set('');
+    }
+    delete substs[key];
+  }
+  // The remaining invalid substitutions
+  return substs;
 }

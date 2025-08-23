@@ -1,5 +1,12 @@
 import { signal, WritableSignal } from '@angular/core';
-import { validatePaths, parseUrl, updateSignalsFromUrl } from './routing.utils';
+import {
+  validatePaths,
+  parseUrlParams,
+  matchUrlPartsToPathParts,
+  mergeSubsts,
+  substsFromUrl,
+  updateSignalsFromSubsts,
+} from './routing.utils';
 
 describe('Routing Utils', () => {
   describe('validatePaths', () => {
@@ -23,68 +30,106 @@ describe('Routing Utils', () => {
     });
   });
 
-  describe('parseUrl', () => {
+  describe('parseUrlParams', () => {
     it('should parse a URL with no query parameters', () => {
-      const { url, urlParams } = parseUrl('members/123/edit');
-      expect(url).toBe('members/123/edit');
+      const { preParamUrl, urlParams } = parseUrlParams('members/123/edit');
+      expect(preParamUrl).toBe('members/123/edit');
       expect(urlParams).toEqual({});
     });
 
     it('should parse a URL with query parameters', () => {
-      const { url, urlParams } = parseUrl('members/123/edit?foo=bar&baz=qux');
-      expect(url).toBe('members/123/edit');
+      const { preParamUrl, urlParams } = parseUrlParams(
+        'members/123/edit?foo=bar&baz=qux'
+      );
+      expect(preParamUrl).toBe('members/123/edit');
       expect(urlParams).toEqual({ foo: 'bar', baz: 'qux' });
     });
   });
 
-  describe('updateSignalsFromUrl', () => {
+  describe('matchUrlPartsToPathParts', () => {
+    it('should return substitutions when parts match', () => {
+      const urlParts = ['view', 'a', 'member', 'b'];
+      const pathParts = ['view', ':viewId', 'member', ':memberId'];
+      const result = matchUrlPartsToPathParts(urlParts, pathParts);
+      expect(result).toEqual({ viewId: 'a', memberId: 'b' });
+    });
+
+    it('should return null when lengths do not match', () => {
+      const urlParts = ['view', 'a', 'member', 'b'];
+      const pathParts = ['view', ':viewId', 'member'];
+      const result = matchUrlPartsToPathParts(urlParts, pathParts);
+      expect(result).toBeNull();
+    });
+
+    it('should return null when static parts do not match', () => {
+      const urlParts = ['view', 'a', 'member', 'b'];
+      const pathParts = ['view', ':viewId', 'somethingelse', ':memberId'];
+      const result = matchUrlPartsToPathParts(urlParts, pathParts);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('mergeSubsts', () => {
+    it('should merge two sets of substitutions', () => {
+      const merged = { a: '1', b: '2' };
+      const subs = { b: '3', c: '4' };
+      const result = mergeSubsts(merged, subs);
+      expect(result).toEqual({ a: '1', b: '3', c: '4' });
+    });
+  });
+
+  describe('substsFromUrl', () => {
+    it('should return path and url params for a matching url', () => {
+      const url = 'members/123/edit?foo=bar';
+      const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
+      const result = substsFromUrl(url, paths);
+      expect(result).toEqual({
+        pathParams: { memberId: '123', view: 'edit' },
+        urlParams: { foo: 'bar' },
+      });
+    });
+
+    it('should return null for a non-matching url', () => {
+      const url = 'non-existent/path';
+      const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
+      const result = substsFromUrl(url, paths);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateSignalsFromSubsts', () => {
     let signals: { [key: string]: WritableSignal<string> };
-    let paths: string[];
 
     beforeEach(() => {
       signals = {
         memberId: signal(''),
         view: signal(''),
+        foo: signal(''),
       };
-      paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
     });
 
-    it('should update signals from path parameters', () => {
-      const url = 'members/123/edit';
-      const urlParams = {};
-      updateSignalsFromUrl(url, paths, signals, urlParams);
+    it('should update signals from substitutions', () => {
+      const substs = { memberId: '123', view: 'edit' };
+      updateSignalsFromSubsts(substs, signals);
       expect(signals['memberId']()).toBe('123');
       expect(signals['view']()).toBe('edit');
     });
 
-    it('should update signals from URL parameters', () => {
-      const url = 'members';
-      const urlParams = { memberId: '456', view: 'list' };
-      updateSignalsFromUrl(url, paths, signals, urlParams);
-      expect(signals['memberId']()).toBe('456');
-      expect(signals['view']()).toBe('list');
+    it('should clear signals that are not in substitutions', () => {
+      signals['foo'].set('bar');
+      const substs = { memberId: '123', view: 'edit' };
+      updateSignalsFromSubsts(substs, signals);
+      expect(signals['foo']()).toBe('');
     });
 
-    it('should prioritize path parameters over URL parameters', () => {
-      const url = 'members/123/edit';
-      const urlParams = { memberId: '456', view: 'list' };
-      updateSignalsFromUrl(url, paths, signals, urlParams);
-      expect(signals['memberId']()).toBe('123');
-      expect(signals['view']()).toBe('edit');
-    });
-
-    it('should return the path parameters', () => {
-      const url = 'members/123/edit';
-      const urlParams = {};
-      const pathParams = updateSignalsFromUrl(url, paths, signals, urlParams);
-      expect(pathParams).toEqual({ memberId: '123', view: 'edit' });
-    });
-
-    it('should return null if no path matches', () => {
-      const url = 'non-existent-path';
-      const urlParams = {};
-      const pathParams = updateSignalsFromUrl(url, paths, signals, urlParams);
-      expect(pathParams).toBeNull();
+    it('should return remaining invalid substitutions', () => {
+      const substs = {
+        memberId: '123',
+        view: 'edit',
+        invalid: 'param',
+      };
+      const remaining = updateSignalsFromSubsts(substs, signals);
+      expect(remaining).toEqual({ invalid: 'param' });
     });
   });
 });

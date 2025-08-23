@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FirebaseStateService } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
@@ -11,10 +11,13 @@ import { IconComponent } from './icons/icon.component';
 import { MemberImportExportComponent } from './member-import-export/member-import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
-import { Views } from './app.config';
+import { PathParamValues, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
+import { AllMembersComponent } from './all-members/all-members';
+import { SchoolMembersComponent } from './school-members/school-members';
+import { DataManagerService } from './data-manager.service';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +35,8 @@ import { SchoolListComponent } from './school-list/school-list';
     FindAnInstructorComponent,
     ProfileMenuComponent,
     SchoolListComponent,
+    AllMembersComponent,
+    SchoolMembersComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -39,15 +44,26 @@ import { SchoolListComponent } from './school-list/school-list';
 export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
-  public routingService = inject(RoutingService);
+  public dataManagerService = inject(DataManagerService);
+  public routingService: RoutingService<PathParamValues> =
+    inject(RoutingService);
   public menuOpen = signal(false);
-  public currentView = this.routingService.signals['view'];
+  public currentView = this.routingService.pathParamSignals['view'];
   public Views = Views;
+  public schoolInUrlPath = computed(() => {
+    const schoolId = this.routingService.pathParamSignals.schoolId();
+    if (schoolId) {
+      return this.dataManagerService.schools().find((s) => s.id === schoolId);
+    }
+    return null;
+  });
+  // TODO: refactor title management into the router & its config.
   public viewTitles: { [key: string]: string } = {
-    [Views.Members]: 'Members',
+    [Views.AllMembers]: 'Members',
     [Views.ImportExport]: 'Import/Export',
     [Views.FindAnInstructor]: 'Find an Instructor',
     [Views.Schools]: 'Schools',
+    [Views.SchoolMembers]: 'School Members',
   };
 
   public currentViewTitle() {

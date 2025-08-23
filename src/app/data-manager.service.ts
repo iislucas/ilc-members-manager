@@ -1,6 +1,7 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   setDoc,
@@ -45,7 +46,6 @@ export interface SchoolsState {
 export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
-  private membersCollection = collection(this.db, 'members');
   private schoolsCollection = collection(this.db, 'schools');
   private unsubscribeSnapshots: () => void = () => {};
 
@@ -132,42 +132,30 @@ export class DataManagerService {
     effect(() => {
       const loginState = this.firebaseService.loggedIn();
       this.unsubscribeSnapshots();
-      this.updateMembersSync(loginState);
       this.updateSchoolsSync(loginState);
     });
   }
 
-  async updateMembersSync(
-    statePromise: Promise<{ user: User; member: Member }>
-  ) {
-    const initState = await statePromise;
-    if (initState.member.isAdmin) {
-      // Admins subscribe all memberships; and get the collection of changes and
-      // update the state signal accordingly.
-      this.unsubscribeSnapshots = onSnapshot(
-        this.membersCollection,
-        (snapshot) => {
-          const members = snapshot.docs.map(
-            (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
-          );
-          this.state.update((state) => ({ ...state, members, loading: false }));
-        },
-        (error) => {
-          this.state.update((state) => ({
-            ...state,
-            error: error.message,
-            loading: false,
-          }));
-        }
-      );
-    } else {
-      // TODO: Subscribe to just this user's doc
-      this.state.update((state) => ({
-        ...state,
-        members: [initState.member],
-        loading: false,
-      }));
-    }
+  // Should only be called by admin users (others should not have permissions,
+  // per firebase security rules).
+  async getAllMembers(): Promise<Member[]> {
+    const snapshot = await getDocs(query(collectionGroup(this.db, 'members')));
+    return snapshot.docs.map(
+      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
+    );
+  }
+
+  async getSchoolMembers(schoolId: string): Promise<Member[]> {
+    const membersCollection = collection(
+      this.db,
+      'schools',
+      schoolId,
+      'members'
+    );
+    const snapshot = await getDocs(membersCollection);
+    return snapshot.docs.map(
+      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
+    );
   }
 
   async updateSchoolsSync(
@@ -199,6 +187,9 @@ export class DataManagerService {
   }
 
   async getMember(emailId: string): Promise<Member | undefined> {
+    // This is not correct with the new data structure, we need to know the
+    // schoolId.
+    // TODO: fix this.
     const docRef = doc(this.db, 'members', emailId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists()
@@ -207,7 +198,19 @@ export class DataManagerService {
   }
 
   async addMember(member: Partial<Member>): Promise<DocumentReference> {
-    const newDocRef = doc(this.membersCollection, member.email);
+    if (!member.managingOrgId) {
+      throw new Error('managingOrgId is required to add a member');
+    }
+    if (!member.email) {
+      throw new Error('email is required to add a member');
+    }
+    const collectionRef = collection(
+      this.db,
+      'schools',
+      member.managingOrgId,
+      'members'
+    );
+    const newDocRef = doc(collectionRef, member.email);
     return setDoc(newDocRef, member).then(() => newDocRef);
   }
 
@@ -215,7 +218,17 @@ export class DataManagerService {
     if (member.email && member.email !== emailId) {
       return this.updateMemberEmail(emailId, member);
     }
-    return setDoc(doc(this.db, 'members', emailId), member, { merge: true });
+    if (!member.managingOrgId) {
+      throw new Error('managingOrgId is required to update a member');
+    }
+    const docRef = doc(
+      this.db,
+      'schools',
+      member.managingOrgId,
+      'members',
+      emailId
+    );
+    return setDoc(docRef, member, { merge: true });
   }
 
   private async updateMemberEmail(
@@ -255,7 +268,20 @@ export class DataManagerService {
   }
 
   async deleteMember(emailId: string): Promise<void> {
-    return deleteDoc(doc(this.db, 'members', emailId));
+    const member = await this.getMember(emailId);
+    if (!member || !member.managingOrgId) {
+      throw new Error(
+        'Could not delete member as managingOrgId is not known for this member'
+      );
+    }
+    const docRef = doc(
+      this.db,
+      'schools',
+      member.managingOrgId,
+      'members',
+      emailId
+    );
+    return deleteDoc(docRef);
   }
 
   async addSchool(school: Partial<School>): Promise<DocumentReference> {
@@ -311,6 +337,8 @@ export class DataManagerService {
     return results.map((result) => this.schoolMap().get(result.id)!);
   }
 
+  // TODO: Create a firebase function to find/return all instructors, and use
+  // that here instead. We don't need to be watching snapshot changes here.
   async findInstructors(country?: string): Promise<Member[]> {
     const constraints = [
       where('instructorId', '>', ''),
@@ -319,7 +347,7 @@ export class DataManagerService {
     if (country) {
       constraints.push(where('country', '==', country));
     }
-    const q = query(this.membersCollection, ...constraints);
+    const q = query(collectionGroup(this.db, 'members'), ...constraints);
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(
       (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)

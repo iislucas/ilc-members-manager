@@ -4,22 +4,47 @@ import {
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { ROUTING_CONFIG } from './routing.config';
+import { PathPatterns, ROUTING_CONFIG } from './routing.config';
 
 export enum Views {
-  Members = 'members',
+  AllMembers = 'all-members',
   ImportExport = 'import-export',
   FindAnInstructor = 'find-an-instructor',
-  Schools = 'schools',
+  Schools = 'school',
+  SchoolMembers = 'school-members',
 }
 
-export type PathParamValues = {
-  view: Views;
-};
-
-export const routerInitValues: PathParamValues = {
-  view: Views.Members,
-};
+export function initPathPatterns() {
+  return {
+    allMembers: {
+      varMap: {},
+      pathPattern: ['all-members'],
+      urlParamKeys: ['memberId'],
+    },
+    importExport: {
+      varMap: {},
+      pathPattern: ['import-export'],
+      urlParamKeys: [],
+    },
+    findAnInstructor: {
+      varMap: {},
+      pathPattern: ['find-an-instructor'],
+      urlParamKeys: [],
+    },
+    schoolsView: {
+      varMap: {},
+      pathPattern: ['school'],
+      urlParamKeys: [],
+    },
+    schoolMembersView: {
+      varMap: {
+        schoolId: '' as string,
+      },
+      pathPattern: ['school', ':schoolId', 'members'],
+      urlParamKeys: ['memberId'],
+    },
+  };
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -28,15 +53,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     {
       provide: ROUTING_CONFIG,
-      useValue: {
-        pathParams: {
-          view: Views.Members,
-        },
-        urlParams: {
-          memberId: '',
-        },
-        paths: ['/:view'],
-      },
+      useValue: initPathPatterns(),
     },
   ],
 };

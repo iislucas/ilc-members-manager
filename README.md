@@ -6,6 +6,9 @@ manage the status of ILC memberships. There are 3 kinds of users:
 - **ILC Admins**: Can make arbitrary changes to anyone's status, as well as add
   country managers.
 
+- **ILC School Managers**: Can manage the status of all students within their
+  school (but not themselves).
+
 - **ILC Country Managers**: Can manage the status of all students within their
   country (but not themselves).
 

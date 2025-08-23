@@ -16,9 +16,9 @@
       <div class="menu">
         <div
           class="menu-item"
-          (click)="currentView.set(Views.Members); menuOpen.set(false)"
+          (click)="currentView.set(Views.AllMembers); menuOpen.set(false)"
         >
-          Members
+          All Members
         </div>
         <div
           class="menu-item"
@@ -53,15 +53,20 @@
     @if (firebaseService.loggingIn()) {
     <app-spinner></app-spinner>
     } @else { @if (firebaseService.userIsAdmin()) { @switch (currentView()) {
-    @case (Views.Members) {
-    <app-member-list></app-member-list>
+    @case (Views.AllMembers) {
+    <app-all-members></app-all-members>
     } @case (Views.ImportExport) {
     <app-member-import-export></app-member-import-export>
     } @case (Views.FindAnInstructor) {
     <app-find-an-instructor></app-find-an-instructor>
     } @case (Views.Schools) {
     <app-school-list></app-school-list>
-    } } } @else { @if (firebaseService.userAsMember(); as member) {
+    } @case (Views.SchoolMembers) { @let school = schoolInUrlPath(); @if(school)
+    {
+    <app-school-members [school]="school"></app-school-members>
+    } @else {
+    <p>No such school: {{ routingService.pathParamSignals.schoolId() }}</p>
+    } } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>
     } @else {
     <app-unauthorized></app-unauthorized>

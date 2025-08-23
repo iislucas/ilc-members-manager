@@ -40,6 +40,8 @@ export enum MasterLevel {
   Compassion = 'Compassion Hands',
 }
 
+export const ILC_HQ_MANAGER_ID = 'M-ILC-HQ';
+
 export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
 
@@ -80,10 +82,11 @@ export type Member = {
   membershipExpires: string; // Date membership expires
   memberId: string; // ILC Member Id: UNIQUE
   sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
-  // Optional ID of school this member is in; this allows any manager or owner
-  // of that school to update the member's details. Empty means not part of any
-  // school. Managed by Sifu or HQ.
-  inSchoolId: string;
+  // The ID of the school/org this member belongs to. This will be part of the
+  // document path, but is included here for convenience. This must always be
+  // set. For members not in a specific school, we use value of
+  // `ILC_HQ_MANAGER_ID`
+  managingOrgId: string;
 
   // Contact information
   name: string; // Full name
@@ -134,7 +137,7 @@ export function initMember(): Member {
     membershipExpires: '',
     memberId: '',
     sifuMemberId: '', // ILC Member Number of the member's Sifu
-    inSchoolId: '',
+    managingOrgId: ILC_HQ_MANAGER_ID, // Default to HQ
 
     // Instructor details
     instructorId: '', // must not be empty is isInstructor is true.
