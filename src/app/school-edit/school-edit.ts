@@ -25,6 +25,7 @@ import { MemberSearchComponent } from '../member-search/member-search';
     IconComponent,
     SpinnerComponent,
     MemberSearchComponent,
+    IconComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -74,16 +75,25 @@ export class SchoolEditComponent {
   updateOwnerAndManagers() {
     const ownerEmail = this.editableSchool.owner;
     const owner = this.membersService
-      .members()
+      .instructors()
       .find((m) => m.email === ownerEmail);
     this.owner.set(owner || null);
 
     const managerEmails = this.editableSchool.managers;
     const managers = managerEmails.map(
       (email) =>
-        this.membersService.members().find((m) => m.email === email) || null
+        this.membersService.instructors().find((m) => m.email === email) || null
     );
     this.managers.set(managers);
+  }
+
+  removeManager(index: number) {
+    const currentManagers = this.managers();
+    const newManagers = [...currentManagers];
+    newManagers.splice(index, 1);
+    this.managers.set(newManagers);
+    this.editableSchool.managers.splice(index, 1);
+    this.validateForm();
   }
 
   updateManager(index: number, member: Member) {

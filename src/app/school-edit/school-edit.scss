@@ -117,8 +117,9 @@
   border-top-color: #ccc;
 }
 
-.checkbox-group {
-}
-
-.masterLevel {
+.member-search-with-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
 }

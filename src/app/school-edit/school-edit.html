@@ -103,16 +103,18 @@
 
       <h3>Management</h3>
       <label for="owner">Owner</label>
-      <div class="member-search-with-details">
-        <app-member-search
-          [searchTerm]="editableSchool.owner"
-          (searchTermChange)="
-            editableSchool.owner = $event;
-            validateForm();
-            updateOwnerAndManagers()
-          "
-          (memberSelected)="owner.set($event)"
-        ></app-member-search>
+      <div>
+        <div class="member-search-with-details">
+          <app-member-search
+            [searchTerm]="editableSchool.owner"
+            (searchTermChange)="
+              editableSchool.owner = $event;
+              validateForm();
+              updateOwnerAndManagers()
+            "
+            (memberSelected)="owner.set($event)"
+          ></app-member-search>
+        </div>
         @if (owner(); as o) {
         <div class="member-details">{{ o.name }} ({{ o.memberId }})</div>
         }
@@ -132,6 +134,13 @@
             "
             (memberSelected)="updateManager(i, $event)"
           ></app-member-search>
+          <button
+            class="icon-only-button"
+            type="button"
+            (click)="removeManager(i)"
+          >
+            <app-icon name="close" />
+          </button>
         </div>
         @if (managers()[i]; as m) {
         <div class="member-details">{{ m.name }} ({{ m.memberId }})</div>

@@ -70,16 +70,36 @@ export class MembersService {
   loadingSchools = computed(() => this.schoolsState().loading);
   errorSchools = computed(() => this.schoolsState().error);
 
-  private allMembersMiniSearch = new MiniSearch<Member>({
-    fields: ['name', 'email', 'memberId'],
-    storeFields: ['id'],
-    idField: 'id',
+  private allMembersMiniSearch = computed(() => {
+    const miniSearch = new MiniSearch<Member>({
+      fields: [
+        'memberId',
+        'instructorId',
+        'name',
+        'email',
+        'memberId',
+        'city',
+        'country',
+      ],
+      storeFields: ['id'],
+      idField: 'id',
+    });
+    miniSearch.addAll(this.members());
+    return miniSearch;
   });
 
-  private instructorsMiniSearch = new MiniSearch<Member>({
-    fields: ['name', 'email', 'memberId', 'city', 'country'],
-    storeFields: ['id'],
-    idField: 'id',
+  public instructors = computed(() =>
+    this.members().filter((m) => m.instructorId)
+  );
+
+  private instructorsMiniSearch = computed(() => {
+    const miniSearch = new MiniSearch<Member>({
+      fields: ['name', 'email', 'memberId', 'instructorId', 'city', 'country'],
+      storeFields: ['id'],
+      idField: 'id',
+    });
+    miniSearch.addAll(this.instructors());
+    return miniSearch;
   });
 
   private memberMap = computed(() => {
@@ -96,16 +116,6 @@ export class MembersService {
       this.unsubscribeSnapshots();
       this.updateMembersSync(loginState);
       this.updateSchoolsSync(loginState);
-    });
-
-    effect(() => {
-      const members = this.members();
-      this.allMembersMiniSearch.removeAll();
-      this.allMembersMiniSearch.addAll(members);
-
-      const instructors = members.filter((m) => m.instructorId);
-      this.instructorsMiniSearch.removeAll();
-      this.instructorsMiniSearch.addAll(instructors);
     });
   }
 
@@ -255,25 +265,20 @@ export class MembersService {
 
   searchMembers(term: string): Member[] {
     if (!term) {
-      return [];
+      return this.members();
     }
-    const results = this.allMembersMiniSearch.search(term, { fuzzy: 0.2 });
+    const results = this.allMembersMiniSearch().search(term, { fuzzy: 0.2 });
     return results.map((result) => this.memberMap().get(result.id)!);
   }
 
   searchInstructors(term: string, country?: string): Member[] {
-    if (!term && !country) {
-      return this.members().filter((m) => m.instructorId);
+    let members: Member[];
+    if (!term) {
+      members = this.instructors();
+    } else {
+      const results = this.instructorsMiniSearch().search(term, { fuzzy: 0.2 });
+      members = results.map((result) => this.memberMap().get(result.id)!);
     }
-
-    if (country && !term) {
-      return this.members().filter(
-        (m) => m.instructorId && m.country === country
-      );
-    }
-
-    const results = this.instructorsMiniSearch.search(term, { fuzzy: 0.2 });
-    let members = results.map((result) => this.memberMap().get(result.id)!);
     if (country) {
       members = members.filter((m) => m.country === country);
     }

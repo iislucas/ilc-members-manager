@@ -21,13 +21,18 @@ export class MemberSearchComponent {
   private membersService = inject(MembersService);
 
   searchTerm = input.required<string>();
+  allMembers = input<boolean>();
   searchTermChange = output<string>();
   memberSelected = output<Member>();
 
   showResults = signal(false);
 
   filteredMembers = computed(() => {
-    return this.membersService.searchMembers(this.searchTerm());
+    if (this.allMembers()) {
+      return this.membersService.searchMembers(this.searchTerm());
+    } else {
+      return this.membersService.searchInstructors(this.searchTerm());
+    }
   });
 
   onSearchTermChange(event: Event) {
