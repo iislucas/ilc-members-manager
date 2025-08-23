@@ -7,6 +7,8 @@ import {
   signal,
   HostBinding,
   ElementRef,
+  computed,
+  linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { School, Member } from '../member.model';
@@ -31,21 +33,39 @@ import { MemberSearchComponent } from '../member-search/member-search';
   styleUrl: './school-edit.scss',
 })
 export class SchoolEditComponent {
+  // this component's element ref to support scrolling into view?
+  private elementRef = inject(ElementRef);
+
   school = input.required<School>();
   allSchools = input.required<School[]>();
   canDelete = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
-  editableSchool!: School;
-  schoolIdExists = false;
-  errorMessage = signal<string[]>([]);
+  editableSchool = linkedSignal<School>(() => {
+    const s = this.school();
+    return JSON.parse(JSON.stringify(s));
+  });
   isSaving = signal(false);
   collapsed = signal(true);
-  isDirty = signal(false);
+  isDirty = computed(
+    () =>
+      JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool())
+  );
   private membersService = inject(MembersService);
-  private elementRef = inject(ElementRef);
-  owner = signal<Member | null>(null);
-  managers = signal<(Member | null)[]>([]);
+  owner = computed(() => {
+    const ownerEmail = this.editableSchool().owner;
+    const owner = this.membersService
+      .instructors()
+      .find((m) => m.email === ownerEmail);
+    return owner || null;
+  });
+  managers = computed(() => {
+    const managerEmails = this.editableSchool().managers;
+    return managerEmails.map(
+      (email) =>
+        this.membersService.instructors().find((m) => m.email === email) || null
+    );
+  });
 
   @HostBinding('class.is-open')
   get isOpen() {
@@ -57,55 +77,38 @@ export class SchoolEditComponent {
     return this.isDirty();
   }
 
-  constructor() {
-    effect(() => {
-      const collapse = this.collapse();
-      if (collapse !== null) {
-        this.collapsed.set(collapse);
-      }
-    });
-    effect(() => {
-      this.editableSchool = JSON.parse(JSON.stringify(this.school()));
-      this.validateForm();
-      this.isDirty.set(false);
-      this.updateOwnerAndManagers();
-    });
-  }
+  constructor() {}
 
-  updateOwnerAndManagers() {
-    const ownerEmail = this.editableSchool.owner;
-    const owner = this.membersService
-      .instructors()
-      .find((m) => m.email === ownerEmail);
-    this.owner.set(owner || null);
-
-    const managerEmails = this.editableSchool.managers;
-    const managers = managerEmails.map(
-      (email) =>
-        this.membersService.instructors().find((m) => m.email === email) || null
-    );
-    this.managers.set(managers);
+  updateSchool() {
+    this.editableSchool.set({ ...this.editableSchool() });
   }
 
   removeManager(index: number) {
     const currentManagers = this.managers();
     const newManagers = [...currentManagers];
     newManagers.splice(index, 1);
-    this.managers.set(newManagers);
-    this.editableSchool.managers.splice(index, 1);
-    this.validateForm();
+    this.editableSchool.update((school) => {
+      school!.managers.splice(index, 1);
+      return { ...school! };
+    });
   }
 
   updateManager(index: number, member: Member) {
-    const currentManagers = this.managers();
-    const newManagers = [...currentManagers];
-    newManagers[index] = member;
-    this.managers.set(newManagers);
-    this.editableSchool.managers[index] = member.email;
-    this.validateForm();
+    this.editableSchool.update((school) => {
+      school.managers[index] = member.email;
+      return { ...school };
+    });
+  }
+
+  updateOwner(member: Member) {
+    this.editableSchool.update((school) => {
+      school!.owner = member.email;
+      return { ...school! };
+    });
   }
 
   cancel($event: Event) {
+    this.editableSchool.set({ ...this.school() });
     $event.preventDefault();
     $event.stopPropagation();
     this.collapsed.set(true);
@@ -125,38 +128,33 @@ export class SchoolEditComponent {
     this.collapsed.set(!this.collapsed());
   }
 
-  isDupSchoolId() {
-    const self = this;
-    if (!this.allSchools || !this.editableSchool) {
-      this.schoolIdExists = false;
+  isDupSchoolId = computed(() => {
+    const school = this.editableSchool();
+    if (!this.allSchools || !school) {
       return false;
     }
-    this.schoolIdExists = this.allSchools().some((school) => {
-      return (
-        school.schoolId?.toLowerCase() ===
-          self.editableSchool.schoolId?.toLowerCase() &&
-        school.id !== self.editableSchool.id
-      );
-    });
-    return this.schoolIdExists;
-  }
+    return this.allSchools().some(
+      (s) =>
+        s.schoolId?.toLowerCase() === school.schoolId?.toLowerCase() &&
+        s.id !== school.id
+    );
+  });
 
   async saveSchool() {
     this.isSaving.set(true);
+    this.asyncError.set(null);
     try {
-      if (this.editableSchool.id) {
-        await this.membersService.updateSchool(
-          this.editableSchool.id,
-          this.editableSchool
-        );
+      const school = this.editableSchool()!;
+      if (school.id) {
+        await this.membersService.updateSchool(school.id, school);
       } else {
-        await this.membersService.addSchool(this.editableSchool);
+        await this.membersService.addSchool(school);
       }
       this.isSaving.set(false);
       this.collapsed.set(true);
       this.close.emit();
-    } catch (e: any) {
-      this.errorMessage.set([e.message]);
+    } catch (e: unknown) {
+      this.asyncError.set(e as Error);
       this.isSaving.set(false);
     }
   }
@@ -164,47 +162,46 @@ export class SchoolEditComponent {
   async deleteSchool($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
+    this.asyncError.set(null);
     if (
       confirm(
-        `Are you sure you want to delete ${this.editableSchool.schoolName}?`
+        `Are you sure you want to delete ${this.editableSchool()!.schoolName}?`
       )
     ) {
-      if (this.editableSchool.id) {
+      if (this.editableSchool()!.id) {
         try {
-          await this.membersService.deleteSchool(this.editableSchool.id);
-        } catch (e: any) {
-          this.errorMessage.set([e.message]);
+          await this.membersService.deleteSchool(this.editableSchool()!.id!);
+        } catch (e: unknown) {
+          this.asyncError.set(e as Error);
         }
       }
     }
   }
 
   closeErrors() {
-    this.errorMessage.set([]);
+    this.asyncError.set(null);
   }
 
-  validateForm() {
-    this.isDirty.set(
-      JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool)
-    );
-
+  asyncError = signal<Error | null>(null);
+  errorMessage = computed(() => {
     const errors: string[] = [];
+    const school = this.editableSchool();
+    if (!school) {
+      return [];
+    }
     if (this.isDupSchoolId()) {
       errors.push('This school ID is already in use.');
     }
-    if (this.editableSchool.schoolName.trim() === '') {
+    if (school.schoolName.trim() === '') {
       errors.push('School Name cannot be empty.');
     }
-    if (!this.editableSchool.id && this.editableSchool.schoolId.trim() === '') {
+    if (!school.id && school.schoolId.trim() === '') {
       errors.push('School ID cannot be empty for a new school.');
     }
-
-    if (errors.length > 0) {
-      this.errorMessage.set(errors);
-      this.isSaving.set(false);
-      return;
+    const asyncError = this.asyncError();
+    if (asyncError) {
+      errors.push(asyncError.message);
     }
-
-    this.errorMessage.set([]);
-  }
+    return errors;
+  });
 }
