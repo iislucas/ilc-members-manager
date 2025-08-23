@@ -60,10 +60,12 @@ export class SchoolEditComponent {
     return owner || null;
   });
   managers = computed(() => {
-    const managerEmails = this.editableSchool().managers;
-    return managerEmails.map(
-      (email) =>
-        this.membersService.instructors().find((m) => m.email === email) || null
+    const managerMemIds = this.editableSchool().managers;
+    return managerMemIds.map(
+      (memberId) =>
+        this.membersService
+          .instructors()
+          .find((m) => m.memberId === memberId) || null
     );
   });
 

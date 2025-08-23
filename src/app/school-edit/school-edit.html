@@ -136,7 +136,7 @@
           </button>
         </div>
         @if (managers()[i]; as m) {
-        <div class="member-details">{{ m.name }} ({{ m.memberId }})</div>
+        <div class="member-details">{{ m.name }}</div>
         } }
         <button type="button" (click)="s.managers.push(''); updateSchool()">
           Add Manager
