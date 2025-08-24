@@ -40,8 +40,7 @@ export enum MasterLevel {
   Compassion = 'Compassion Hands',
 }
 
-export const ILC_HQ_MANAGER_ID = 'M-ILC-HQ';
-
+// Firestore path: /school/{doc-id}
 export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
 
@@ -53,13 +52,16 @@ export type School = {
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
 
-  // The member ID of the owner of this school; can set the managers, and change
-  // anything in the school.
+  // The `memberId` of the owner of this school; can set the managers, and
+  // change anything in the school.
   owner: string;
-  // The member IDs of people allowed to manage people within this school.
+  // The `memberId`s of people allowed to manage people within this school.
   managers: string[];
 };
 
+// TODO: have this represented in firestore, cloud functions, and special menu
+// for managing country?
+//
 // This is used to represent a country that has delegated management.
 export type CountryManagement = {
   id: string; // Document ID, UNIQUE, firebase managed.
@@ -73,6 +75,7 @@ export type CountryManagement = {
   managers: string[];
 };
 
+// Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   id: string; // Document ID, UNIQUE, should be the same as email.
   isAdmin: boolean;
@@ -137,7 +140,7 @@ export function initMember(): Member {
     membershipExpires: '',
     memberId: '',
     sifuMemberId: '', // ILC Member Number of the member's Sifu
-    managingOrgId: ILC_HQ_MANAGER_ID, // Default to HQ
+    managingOrgId: '', // Default to HQ
 
     // Instructor details
     instructorId: '', // must not be empty is isInstructor is true.
@@ -172,3 +175,8 @@ export function initSchool(): School {
     managers: [],
   };
 }
+
+// The type returned by get-members function call.
+export type GetMembersResult = {
+  members: Member[];
+};

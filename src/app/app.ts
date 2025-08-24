@@ -15,8 +15,6 @@ import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
-import { AllMembersComponent } from './all-members/all-members';
-import { SchoolMembersComponent } from './school-members/school-members';
 import { DataManagerService } from './data-manager.service';
 
 @Component({
@@ -34,8 +32,6 @@ import { DataManagerService } from './data-manager.service';
     FindAnInstructorComponent,
     ProfileMenuComponent,
     SchoolListComponent,
-    AllMembersComponent,
-    SchoolMembersComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { MemberListComponent } from '../member-list/member-list';
 import { DataManagerService } from '../data-manager.service';
-import { SearchableMemberSet } from '../searchable-member-set.service';
+import { SearchableMemberSet } from '../searchable-member-set';
 
 @Component({
   selector: 'app-all-members',
@@ -15,8 +15,12 @@ export class AllMembersComponent {
   memberSet = new SearchableMemberSet();
 
   constructor() {
-    this.dataManager
+    effect(async () => {
+      const state = await this.dataManager.memberSet();
+      if(!state.loading) {
+        this.memberSet.setMembers(state.members)
+      }
       .getAllMembers()
-      .then((members) => this.memberSet.setMembers(members));
+      .then((members) => );
   }
 }

@@ -24,17 +24,7 @@ import { environment } from '../environments/environment';
 import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
-import {
-  collectionGroup,
-  doc,
-  Firestore,
-  getDocs,
-  getFirestore,
-  limit,
-  onSnapshot,
-  query,
-  where,
-} from 'firebase/firestore';
+import { doc, Firestore, getDoc, getFirestore } from 'firebase/firestore';
 import { Member } from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
@@ -110,21 +100,14 @@ export class FirebaseStateService {
     onAuthStateChanged(this.auth, async (user) => {
       if (user && user.email) {
         this.loggingIn.set(true);
-        const q = query(
-          collectionGroup(this.db, 'members'),
-          where('email', '==', user.email),
-          limit(1)
-        );
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          const member = docSnap.data() as Member;
+        const memberDocRef = doc(this.db, 'members', user.email);
+        const memberDoc = await getDoc(memberDocRef);
+
+        if (memberDoc.exists()) {
+          const member = memberDoc.data() as Member;
           this.userAsMember.set(member);
           this.loggedInResolverFn({ user, member });
         } else {
-          // TODO: When the user has no member document, what do we do? For now,
-          // we will just not log them in fully. Best is to provide some error
-          // feedback somewhere for login failures like this.
           console.warn('No member document for user', user.email);
         }
         this.loggingIn.set(false);

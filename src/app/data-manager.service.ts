@@ -1,7 +1,6 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import {
   collection,
-  collectionGroup,
   doc,
   getDoc,
   setDoc,
@@ -19,21 +18,13 @@ import {
   initMember,
   School,
   initSchool,
+  GetMembersResult,
 } from '../../functions/src/data-model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
 import { User } from 'firebase/auth';
-import MiniSearch from 'minisearch';
-
-/** The state of the members collection. */
-export interface MembersState {
-  /** The list of members. */
-  members: Member[];
-  /** Whether the members are currently being loaded. */
-  loading: boolean;
-  /** Any error that occurred while loading the members. */
-  error: string | null;
-}
+import { httpsCallable } from 'firebase/functions';
+import { SearchableSet } from './searchable-set';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -55,151 +46,67 @@ export class DataManagerService {
   private unsubscribeSnapshots: () => void = () => {};
 
   // A signal to hold the state of the members list.
-  private state = signal<MembersState>({
-    members: [],
-    loading: true,
-    error: null,
-  });
-
-  private schoolsState = signal<SchoolsState>({
-    schools: [],
-    loading: true,
-    error: null,
-  });
-
-  // Expose computed signals for easy access in components.
-  members = computed(() => this.state().members);
-  loading = computed(() => this.state().loading);
-  error = computed(() => this.state().error);
-  schools = computed(() => this.schoolsState().schools);
-  loadingSchools = computed(() => this.schoolsState().loading);
-  errorSchools = computed(() => this.schoolsState().error);
-
-  private allMembersMiniSearch = computed(() => {
-    const miniSearch = new MiniSearch<Member>({
-      fields: [
-        'memberId',
-        'instructorId',
-        'name',
-        'email',
-        'memberId',
-        'city',
-        'country',
-      ],
-      storeFields: ['id'],
-      idField: 'id',
-    });
-    miniSearch.addAll(this.members());
-    return miniSearch;
-  });
-
-  public instructors = computed(() =>
-    this.members().filter((m) => m.instructorId)
-  );
-
-  private instructorsMiniSearch = computed(() => {
-    const miniSearch = new MiniSearch<Member>({
-      fields: ['name', 'email', 'memberId', 'instructorId', 'city', 'country'],
-      storeFields: ['id'],
-      idField: 'id',
-    });
-    miniSearch.addAll(this.instructors());
-    return miniSearch;
-  });
-
-  private memberMap = computed(() => {
-    const map = new Map<string, Member>();
-    for (const member of this.members()) {
-      map.set(member.id, member);
-    }
-    return map;
-  });
-
-  private schoolMap = computed(() => {
-    const map = new Map<string, School>();
-    for (const school of this.schools()) {
-      map.set(school.id, school);
-    }
-    return map;
-  });
-
-  private schoolsMiniSearch = computed(() => {
-    const miniSearch = new MiniSearch<School>({
-      fields: ['schoolName', 'schoolId', 'schoolCity', 'schoolCountry'],
-      storeFields: ['id'],
-      idField: 'id',
-    });
-    miniSearch.addAll(this.schools());
-    return miniSearch;
-  });
+  public members = new SearchableSet<Member>([
+    'memberId',
+    'instructorId',
+    'name',
+    'email',
+    'memberId',
+    'city',
+    'country',
+  ]);
+  public instructors = new SearchableSet<Member>([
+    'memberId',
+    'instructorId',
+    'name',
+    'email',
+    'memberId',
+    'city',
+    'country',
+  ]);
+  public schools = new SearchableSet<School>([
+    'schoolName',
+    'schoolId',
+    'schoolCity',
+    'schoolCountry',
+  ]);
 
   constructor() {
-    effect(() => {
-      const loginState = this.firebaseService.loggedIn();
+    effect(async () => {
       this.unsubscribeSnapshots();
-      this.updateSchoolsSync(loginState);
+      await this.firebaseService.loggedIn();
+      this.updateMembersSync();
+      this.updateSchoolsSync();
     });
+    effect(() => this.members.entries().filter((m) => m.instructorId));
   }
 
-  // Should only be called by admin users (others should not have permissions,
-  // per firebase security rules).
-  async getAllMembers(): Promise<Member[]> {
-    const snapshot = await getDocs(query(collectionGroup(this.db, 'members')));
-    return snapshot.docs.map(
-      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
+  async updateMembersSync() {
+    const getMembers = httpsCallable(
+      this.firebaseService.functions,
+      'getMembers'
     );
-  }
-
-  async getSchoolMembers(schoolId: string): Promise<Member[]> {
-    const membersCollection = collection(
-      this.db,
-      'schools',
-      schoolId,
-      'members'
-    );
-    const snapshot = await getDocs(membersCollection);
-    return snapshot.docs.map(
-      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
-    );
-  }
-
-  async updateSchoolsSync(
-    statePromise: Promise<{ user: User; member: Member }>
-  ) {
-    const initState = await statePromise;
-    if (initState.member.isAdmin) {
-      this.unsubscribeSnapshots = onSnapshot(
-        this.schoolsCollection,
-        (snapshot) => {
-          const schools = snapshot.docs.map(
-            (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id } as School)
-          );
-          this.schoolsState.update((state) => ({
-            ...state,
-            schools,
-            loading: false,
-          }));
-        },
-        (error) => {
-          this.schoolsState.update((state) => ({
-            ...state,
-            error: error.message,
-            loading: false,
-          }));
-        }
-      );
+    try {
+      const result = await getMembers();
+      this.members.setEntries((result.data as GetMembersResult).members);
+    } catch (error) {
+      this.members.setError((error as Error).message);
     }
   }
 
-  async getMember(emailId: string): Promise<Member | undefined> {
-    // This is not correct with the new data structure, we need to know the
-    // schoolId.
-    // TODO: fix this.
-    const docRef = doc(this.db, 'members', emailId);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists()
-      ? ({ ...docSnap.data(), id: emailId } as Member)
-      : undefined;
+  async updateSchoolsSync() {
+    this.unsubscribeSnapshots = onSnapshot(
+      this.schoolsCollection,
+      (snapshot) => {
+        const schools = snapshot.docs.map(
+          (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id } as School)
+        );
+        this.schools.setEntries(schools);
+      },
+      (error) => {
+        this.schools.setError(error.message);
+      }
+    );
   }
 
   async addMember(member: Partial<Member>): Promise<DocumentReference> {
@@ -236,6 +143,7 @@ export class DataManagerService {
     return setDoc(docRef, member, { merge: true });
   }
 
+  // TOOD: move this to functions, we don't want to depend on admin user.
   private async updateMemberEmail(
     oldEmail: string,
     member: Partial<Member>
@@ -273,19 +181,7 @@ export class DataManagerService {
   }
 
   async deleteMember(emailId: string): Promise<void> {
-    const member = await this.getMember(emailId);
-    if (!member || !member.managingOrgId) {
-      throw new Error(
-        'Could not delete member as managingOrgId is not known for this member'
-      );
-    }
-    const docRef = doc(
-      this.db,
-      'schools',
-      member.managingOrgId,
-      'members',
-      emailId
-    );
+    const docRef = doc(this.db, 'members', emailId);
     return deleteDoc(docRef);
   }
 
@@ -301,50 +197,9 @@ export class DataManagerService {
     return deleteDoc(doc(this.db, 'schools', id));
   }
 
-  async getCountries(): Promise<string[]> {
-    const members = this.members();
-    const countries = new Set<string>();
-    for (const member of members) {
-      if (member.country) {
-        countries.add(member.country);
-      }
-    }
-    return Array.from(countries).sort();
-  }
-
-  searchMembers(term: string): Member[] {
-    if (!term) {
-      return this.members();
-    }
-    const results = this.allMembersMiniSearch().search(term, { fuzzy: 0.2 });
-    return results.map((result) => this.memberMap().get(result.id)!);
-  }
-
-  searchInstructors(term: string, country?: string): Member[] {
-    let members: Member[];
-    if (!term) {
-      members = this.instructors();
-    } else {
-      const results = this.instructorsMiniSearch().search(term, { fuzzy: 0.2 });
-      members = results.map((result) => this.memberMap().get(result.id)!);
-    }
-    if (country) {
-      members = members.filter((m) => m.country === country);
-    }
-    return members;
-  }
-
-  searchSchools(term: string): School[] {
-    if (!term) {
-      return this.schools();
-    }
-    const results = this.schoolsMiniSearch().search(term, { fuzzy: 0.2 });
-    return results.map((result) => this.schoolMap().get(result.id)!);
-  }
-
   // TODO: Create a firebase function to find/return all instructors, and use
   // that here instead. We don't need to be watching snapshot changes here.
-  async findInstructors(country?: string): Promise<Member[]> {
+  async fetchActiveInstructors(country?: string): Promise<Member[]> {
     const constraints = [
       where('instructorId', '>', ''),
       where('membershipExpires', '>', new Date().toISOString()),
@@ -352,7 +207,7 @@ export class DataManagerService {
     if (country) {
       constraints.push(where('country', '==', country));
     }
-    const q = query(collectionGroup(this.db, 'members'), ...constraints);
+    const q = query(collection(this.db, 'members'), ...constraints);
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(
       (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
@@ -360,7 +215,7 @@ export class DataManagerService {
   }
 
   downloadCsv() {
-    const members = this.state().members.map((m) => ({
+    const members = this.members.entries().map((m) => ({
       ...m,
       mastersLevels: m.mastersLevels.join(','),
     }));
@@ -377,7 +232,7 @@ export class DataManagerService {
   }
 
   downloadJsonL() {
-    const members = this.state().members;
+    const members = this.members.entries();
     const jsonl = members.map((member) => JSON.stringify(member)).join('\n');
     const blob = new Blob([jsonl], {
       type: 'application/jsonl;charset=utf-8;',

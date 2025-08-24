@@ -78,8 +78,8 @@ export class MemberEditComponent {
     const schoolId = this.schoolSearch();
     if (schoolId) {
       const school = this.membersService
-        .schools()
-        .find((s) => s.schoolId === schoolId);
+        .schoolsState()
+        .schools.find((s) => s.schoolId === schoolId);
       return school?.schoolName ?? '';
     }
     return '';
