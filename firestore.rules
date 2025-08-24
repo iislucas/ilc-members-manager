@@ -20,5 +20,17 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
+
+    match /schools/{schoolId}/members/{memberId} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
+      }
+      function isSchoolManager() {
+        let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
+        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
+        return member.memberId == school.owner || member.memberId in school.managers;
+      }
+      allow read, write: if isAdmin() || isSchoolManager();
+    }
   }
 }

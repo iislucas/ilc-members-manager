@@ -53,10 +53,10 @@ export type School = {
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
 
-  // The name of the owner of this school; can set the managers, and change
+  // The member ID of the owner of this school; can set the managers, and change
   // anything in the school.
   owner: string;
-  // The emails of people allowed to manage people within this school.
+  // The member IDs of people allowed to manage people within this school.
   managers: string[];
 };
 

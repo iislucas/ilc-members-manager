@@ -12,3 +12,5 @@ admin.initializeApp();
 
 export { getCalendarEvents } from './calendar';
 export { deleteUser } from './delete-user';
+
+export { getMembers } from './get-members';

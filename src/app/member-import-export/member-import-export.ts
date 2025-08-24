@@ -1,5 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
-import { Member, MembershipType, initMember, MasterLevel } from '../data-model';
+import {
+  Member,
+  MembershipType,
+  initMember,
+  MasterLevel,
+} from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';

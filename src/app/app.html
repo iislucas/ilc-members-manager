@@ -65,7 +65,10 @@
     {
     <app-school-members [school]="school"></app-school-members>
     } @else {
-    <p>No such school: {{ routingService.pathParamSignals.schoolId() }}</p>
+    <p>
+      No such school:
+      {{ routingService.signals[Views.SchoolMembers].pathVars.schoolId() }}
+    </p>
     } } } } @else { @if (firebaseService.userAsMember(); as member) {
     <app-member-view [member]="member"></app-member-view>
     } @else {

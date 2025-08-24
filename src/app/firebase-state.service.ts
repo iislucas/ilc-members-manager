@@ -35,7 +35,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { Member } from './data-model';
+import { Member } from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 

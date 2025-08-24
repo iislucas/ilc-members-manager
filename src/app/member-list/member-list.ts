@@ -1,7 +1,7 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
-import { initMember, Member } from '../data-model';
+import { initMember, Member } from '../../../functions/src/data-model';
 import { SearchableMemberSet } from '../searchable-member-set.service';
 import { MemberEditComponent } from '../member-edit/member-edit';
 import { IconComponent } from '../icons/icon.component';

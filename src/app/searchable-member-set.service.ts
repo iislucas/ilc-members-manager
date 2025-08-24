@@ -1,5 +1,5 @@
 import { computed, signal } from '@angular/core';
-import { Member } from './data-model';
+import { Member } from '../../functions/src/data-model';
 import MiniSearch from 'minisearch';
 
 export class SearchableMemberSet {

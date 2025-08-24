@@ -10,7 +10,12 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member, MembershipType, MasterLevel, School } from '../data-model';
+import {
+  Member,
+  MembershipType,
+  MasterLevel,
+  School,
+} from '../../../functions/src/data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';

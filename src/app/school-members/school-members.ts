@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { DataManagerService } from '../data-manager.service';
 import { MemberListComponent } from '../member-list/member-list';
-import { School } from '../data-model';
+import { School } from '../../../functions/src/data-model';
 import { SearchableMemberSet } from '../searchable-member-set.service';
 
 @Component({

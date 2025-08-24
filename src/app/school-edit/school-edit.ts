@@ -11,7 +11,7 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { School, Member } from '../data-model';
+import { School, Member } from '../../../functions/src/data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
