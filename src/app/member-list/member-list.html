@@ -27,7 +27,7 @@
       [canDelete]="false"
     ></app-member-edit>
   </div>
-  } @for (member of members(); track member.id) {
+  } @for (member of members(); track member.email) {
   <div class="member-card">
     <app-member-edit
       [member]="member"
