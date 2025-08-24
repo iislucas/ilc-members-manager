@@ -1,16 +1,8 @@
-import {
-  onCall,
-  HttpsError,
-  CallableRequest,
-} from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import {
-  FetchMembersResult,
-  FetchUserDetailsResult,
-  Member,
-} from './data-model';
+import { FetchMembersResult, Member } from './data-model';
 import { getUserDetailsHelper } from './get-user-details';
 
 export const getMembers = onCall<unknown, Promise<FetchMembersResult>>(
