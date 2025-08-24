@@ -20,7 +20,16 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   const db = admin.firestore();
 
   try {
-    const memberDoc = await db.collection('members').doc(uid).get();
+    // TOOD: Get email from uid...
+    const user = await admin.auth().getUser(uid);
+    if (!user.email) {
+      throw new HttpsError(
+        'permission-denied',
+        'This service only works for users with an email address.'
+      );
+    }
+
+    const memberDoc = await db.collection('members').doc(user.email).get();
     if (!memberDoc.exists) {
       throw new HttpsError(
         'permission-denied',

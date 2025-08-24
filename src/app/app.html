@@ -130,12 +130,7 @@
           </button>
         </div>
 
-        @if(firebaseService.loginError()) {
-        <div class="error-container">
-          Login error:
-          <span class="error-message">{{ firebaseService.loginError() }}</span>
-        </div>
-        } @if (signupError(); as message) {
+        @if (signupError(); as message) {
         <div class="error-container">
           Signup error: <span class="error-message">{{ message }}</span>
         </div>
@@ -172,6 +167,13 @@
         </div>
         }
       </div>
+
+      @if(firebaseService.loginError()) {
+      <div class="error-container">
+        Login error:
+        <span class="error-message">{{ firebaseService.loginError() }}</span>
+      </div>
+      }
     </div>
   </main>
   }
