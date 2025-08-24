@@ -7,50 +7,48 @@ import {
   effect,
 } from '@angular/core';
 import {
-  validatePaths,
-  mergeSubsts,
-  substsFromUrl,
+  matchUrl,
   updateSignalsFromSubsts,
-} from './routing.utils';
-import {
-  pathParamsOfPathPatterns,
   PathPatterns,
-  ROUTING_CONFIG,
-  RoutingConfig,
-  urlParamsOfPathPatterns,
-} from './routing.config';
+  PatternSignals,
+} from './routing.utils';
+import { ROUTING_CONFIG, RoutingConfig } from './routing.config';
 
 export type StringSignalStruct<T extends PathPatterns> = {
-  [Key in keyof T]: WritableSignal<T[Key]['varMap']>;
+  [Key in keyof T]: WritableSignal<T[Key]['pathVars']>;
 };
 
+// This Service manages two way binding between the URL and a set of siganls
+// derived from a PathPatterns routing configuration. You can call navigate, or
+// you can update the current signals; either way around the URL and the signals
+// will be sychronized.
 @Injectable({
   providedIn: 'root',
 })
 export class RoutingService<T extends PathPatterns> {
   private urlHashPath: WritableSignal<string>;
-  public pathParamSignals = {} as StringSignalStruct<T>;
-  public urlParamSignals = {} as StringSignalStruct<T>;
+  private urlHashParams: WritableSignal<string>;
+  public matchedPatternId: WritableSignal<string | null> = signal(null);
+  public signals: { [pathId in keyof T]: PatternSignals<T[pathId]> };
+  substs = computed(() => {
+    const patternId = this.matchedPatternId();
+    if (!patternId) {
+      return { pathVars: {}, urlParams: {} };
+    }
+    return this.signals[patternId];
+  });
 
   constructor(@Inject(ROUTING_CONFIG) private config: RoutingConfig<T>) {
     this.urlHashPath = signal('');
+    this.urlHashParams = signal('');
 
-    const initUrlParams = urlParamsOfPathPatterns(
-      this.config.validPathPatterns
-    );
-    const initPathParams = pathParamsOfPathPatterns(
-      this.config.validPathPatterns
-    );
+    this.signals = {} as { [pathId in keyof T]: PatternSignals<T[pathId]> };
 
-    for (const patternId of Object.keys(initUrlParams)) {
-      this.urlParamSignals[patternId as keyof T] = signal(
-        initUrlParams[patternId]
+    for (const patternId of Object.keys(this.config.validPathPatterns)) {
+      const s = new PatternSignals<T[keyof T]>(
+        this.config.validPathPatterns[patternId] as T[keyof T]
       );
-    }
-    for (const patternId in Object.keys(initPathParams)) {
-      this.pathParamSignals[patternId as keyof T] = signal(
-        initPathParams[patternId]
-      );
+      this.signals[patternId as keyof T] = s;
     }
 
     // TODO: consider doing some checking so that varMap matches exactly the
@@ -64,43 +62,72 @@ export class RoutingService<T extends PathPatterns> {
     this.handleUrlChange();
 
     effect(() => {
-      //
-      // const path = this.constructPath();
-      // const query = this.constructQuery();
-      const newHash = this.urlHashPath();
+      const path = this.constructPath();
+      const query = this.constructQuery();
+      const newHash = `${path}${query}`;
       if (window.location.hash.substring(1) !== newHash) {
         window.location.hash = newHash;
       }
     });
   }
 
-  // private constructPath(): string {
-  //   let path = this.paths[0]; // Assume the first path is the one we want to build
-  //   for (const key in this.pathParamSignals) {
-  //     path = path.replace(`:${key}`, this.pathParamSignals[key]());
-  //   }
-  //   return path;
-  // }
+  private constructPath(): string {
+    const patternId = this.matchedPatternId();
+    if (!patternId) {
+      return this.urlHashPath();
+    }
+    const parts = this.config.validPathPatterns[patternId].pathParts;
+    const substParts = parts.map((part) => {
+      if (part.startsWith(':')) {
+        const paramName = part.substring(1);
+        return this.signals[patternId].pathVars[
+          paramName as keyof T[keyof T]['pathVars']
+        ]();
+      } else {
+        return part;
+      }
+    });
+    return substParts.join('/');
+  }
 
-  // private constructQuery(): string {
-  //   const params = new URLSearchParams();
-  //   for (const key in this.urlParamSignals) {
-  //     const value = this.urlParamSignals[key]();
-  //     if (value) {
-  //       params.set(key, value);
-  //     }
-  //   }
-  //   const queryString = params.toString();
-  //   return queryString ? `?${queryString}` : '';
-  // }
+  private constructQuery(): string {
+    const patternId = this.matchedPatternId();
+    if (!patternId) {
+      return this.urlHashParams();
+    }
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries<WritableSignal<string>>(
+      this.signals[patternId].urlParams
+    )) {
+      params.set(key, value());
+    }
+    const queryString = params.toString();
+    return queryString ? `?${queryString}` : '';
+  }
 
   private handleUrlChange() {
     const hashlessUrlPart = window.location.hash.substring(1);
-    const substs = substsFromUrl(hashlessUrlPart, this.paths);
-    if (substs) {
-      updateSignalsFromSubsts(substs.pathParams, this.pathParamSignals);
-      updateSignalsFromSubsts(substs.urlParams, this.urlParamSignals);
+    const match = matchUrl(hashlessUrlPart, this.config.validPathPatterns);
+    if (match) {
+      this.matchedPatternId.set(match.patternId);
+      updateSignalsFromSubsts(
+        match.pathParams,
+        this.signals[match.patternId].pathVars
+      );
+      updateSignalsFromSubsts(
+        match.urlParams,
+        this.signals[match.patternId].urlParams
+      );
     } else {
+      this.matchedPatternId.set(null);
     }
+  }
+
+  navigateTo(pathAndParams: string) {
+    window.location.hash = `#${pathAndParams}`;
+  }
+
+  navigateToParts(parts: string[]) {
+    this.navigateTo(parts.join('/'));
   }
 }

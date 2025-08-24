@@ -1,34 +1,33 @@
 import { signal, WritableSignal } from '@angular/core';
 import {
-  validatePaths,
   parseUrlParams,
   matchUrlPartsToPathParts,
   mergeSubsts,
-  substsFromUrl,
+  matchUrl,
   updateSignalsFromSubsts,
 } from './routing.utils';
 
 describe('Routing Utils', () => {
-  describe('validatePaths', () => {
-    it('should not throw an error if all path parameters have corresponding signals', () => {
-      const signals = {
-        memberId: signal(''),
-        view: signal(''),
-      };
-      const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
-      expect(() => validatePaths(paths, signals as any)).not.toThrow();
-    });
+  // describe('validatePaths', () => {
+  //   it('should not throw an error if all path parameters have corresponding signals', () => {
+  //     const signals = {
+  //       memberId: signal(''),
+  //       view: signal(''),
+  //     };
+  //     const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
+  //     expect(() => validatePaths(paths, signals as any)).not.toThrow();
+  //   });
 
-    it('should throw an error if a path parameter does not have a corresponding signal', () => {
-      const signals = {
-        memberId: signal(''),
-      };
-      const paths = ['members/:memberId/:view'];
-      expect(() => validatePaths(paths, signals as any)).toThrow(
-        new Error('Path parameter "view" does not have a corresponding signal.')
-      );
-    });
-  });
+  //   it('should throw an error if a path parameter does not have a corresponding signal', () => {
+  //     const signals = {
+  //       memberId: signal(''),
+  //     };
+  //     const paths = ['members/:memberId/:view'];
+  //     expect(() => validatePaths(paths, signals as any)).toThrow(
+  //       new Error('Path parameter "view" does not have a corresponding signal.')
+  //     );
+  //   });
+  // });
 
   describe('parseUrlParams', () => {
     it('should parse a URL with no query parameters', () => {
@@ -81,9 +80,26 @@ describe('Routing Utils', () => {
   describe('substsFromUrl', () => {
     it('should return path and url params for a matching url', () => {
       const url = 'members/123/edit?foo=bar';
-      const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
-      const result = substsFromUrl(url, paths);
+      const pathPatterns = {
+        memberEditId: {
+          pathVars: { memberId: '' as string },
+          pathParts: ['members', ':memberId', 'edit'],
+          urlParams: { foo: '' as string },
+        },
+        memberView: {
+          pathVars: { memberId: '' as string },
+          pathParts: ['members', ':memberId'],
+          urlParams: {},
+        },
+        allMembers: {
+          pathVars: {},
+          pathParts: ['members'],
+          urlParams: {},
+        },
+      };
+      const result = matchUrl(url, pathPatterns);
       expect(result).toEqual({
+        patternId: 'memberEditId',
         pathParams: { memberId: '123', view: 'edit' },
         urlParams: { foo: 'bar' },
       });
@@ -91,8 +107,24 @@ describe('Routing Utils', () => {
 
     it('should return null for a non-matching url', () => {
       const url = 'non-existent/path';
-      const paths = ['members/:memberId/:view', 'members/:memberId', 'members'];
-      const result = substsFromUrl(url, paths);
+      const pathPatterns = {
+        memberEditId: {
+          pathVars: { memberId: '' as string },
+          pathParts: ['members', ':memberId', 'edit'],
+          urlParams: { foo: '' as string },
+        },
+        memberView: {
+          pathVars: { memberId: '' as string },
+          pathParts: ['members', ':memberId'],
+          urlParams: {},
+        },
+        allMembers: {
+          pathVars: {},
+          pathParts: ['members'],
+          urlParams: {},
+        },
+      };
+      const result = matchUrl(url, pathPatterns);
       expect(result).toBeNull();
     });
   });

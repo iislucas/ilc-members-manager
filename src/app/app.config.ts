@@ -4,45 +4,33 @@ import {
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { PathPatterns, ROUTING_CONFIG } from './routing.config';
+import { ROUTING_CONFIG } from './routing.config';
+import { addUrlParams, pathPattern, PathPatterns, pv } from './routing.utils';
 
-export enum Views {
-  AllMembers = 'all-members',
-  ImportExport = 'import-export',
-  FindAnInstructor = 'find-an-instructor',
-  Schools = 'school',
-  SchoolMembers = 'school-members',
-}
+// export enum Views {
+//   AllMembers = 'all-members',
+//   ImportExport = 'import-export',
+//   FindAnInstructor = 'find-an-instructor',
+//   Schools = 'school',
+//   SchoolMembers = 'school-members',
+// }
+
+// TODO: using inspiration from ts-llmt, make a string literal magic for path
+// parts that also builds up the variables in the template.
+
+const foo = addUrlParams(pathPattern`all-members`, ['memberId']);
 
 export function initPathPatterns() {
   return {
-    allMembers: {
-      varMap: {},
-      pathPattern: ['all-members'],
-      urlParamKeys: ['memberId'],
-    },
-    importExport: {
-      varMap: {},
-      pathPattern: ['import-export'],
-      urlParamKeys: [],
-    },
-    findAnInstructor: {
-      varMap: {},
-      pathPattern: ['find-an-instructor'],
-      urlParamKeys: [],
-    },
-    schoolsView: {
-      varMap: {},
-      pathPattern: ['school'],
-      urlParamKeys: [],
-    },
-    schoolMembersView: {
-      varMap: {
-        schoolId: '' as string,
-      },
-      pathPattern: ['school', ':schoolId', 'members'],
-      urlParamKeys: ['memberId'],
-    },
+    allMembers: addUrlParams(pathPattern`all-members`, ['memberId']),
+    importExport: pathPattern`import-export`,
+    findAnInstructor: pathPattern`find-an-instructor`,
+    homeView: pathPattern``,
+    schoolsView: pathPattern`schools`,
+    schoolMembersView: addUrlParams(
+      pathPattern`school/${pv('schoolId')}/members`,
+      ['memberId']
+    ),
   };
 }
 
@@ -53,7 +41,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     {
       provide: ROUTING_CONFIG,
-      useValue: initPathPatterns(),
+      useValue: { validPathPatterns: initPathPatterns() as PathPatterns },
     },
   ],
 };
