@@ -1,38 +1,41 @@
 import {
   ApplicationConfig,
+  InjectionToken,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { ROUTING_CONFIG } from './routing.config';
-import { addUrlParams, pathPattern, PathPatterns, pv } from './routing.utils';
+import { addUrlParams, pathPattern, pv } from './routing.utils';
+import { RoutingConfig } from './routing.service';
 
-// export enum Views {
-//   AllMembers = 'all-members',
-//   ImportExport = 'import-export',
-//   FindAnInstructor = 'find-an-instructor',
-//   Schools = 'school',
-//   SchoolMembers = 'school-members',
-// }
-
-// TODO: using inspiration from ts-llmt, make a string literal magic for path
-// parts that also builds up the variables in the template.
-
-const foo = addUrlParams(pathPattern`all-members`, ['memberId']);
-
-export function initPathPatterns() {
-  return {
-    allMembers: addUrlParams(pathPattern`all-members`, ['memberId']),
-    importExport: pathPattern`import-export`,
-    findAnInstructor: pathPattern`find-an-instructor`,
-    homeView: pathPattern``,
-    schoolsView: pathPattern`schools`,
-    schoolMembersView: addUrlParams(
-      pathPattern`school/${pv('schoolId')}/members`,
-      ['memberId']
-    ),
-  };
+export enum Views {
+  AllMembers = 'allMembers',
+  ImportExport = 'importExport',
+  FindAnInstructor = 'findAnInstructor',
+  Schools = 'schools',
+  SchoolMembers = 'schoolMembers',
+  Home = 'home',
 }
+
+export const initPathPatterns = {
+  [Views.ImportExport]: pathPattern`import-export`,
+  [Views.AllMembers]: addUrlParams(pathPattern`all-members`, ['memberId']),
+  [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
+  [Views.Home]: pathPattern``,
+  [Views.Schools]: pathPattern`schools`,
+  [Views.SchoolMembers]: addUrlParams(
+    pathPattern`school/${pv('schoolId')}/members`,
+    ['memberId']
+  ),
+};
+
+export type AppPathPatterns = typeof initPathPatterns;
+export type PathPatternsIds = keyof typeof initPathPatterns;
+
+// Defines the injection tag (global namespace)
+export const ROUTING_CONFIG = new InjectionToken<
+  RoutingConfig<AppPathPatterns>
+>('routing.config');
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -41,7 +44,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     {
       provide: ROUTING_CONFIG,
-      useValue: { validPathPatterns: initPathPatterns() as PathPatterns },
+      useValue: { validPathPatterns: initPathPatterns },
     },
   ],
 };

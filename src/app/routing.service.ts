@@ -12,10 +12,14 @@ import {
   PathPatterns,
   PatternSignals,
 } from './routing.utils';
-import { ROUTING_CONFIG, RoutingConfig } from './routing.config';
+import { ROUTING_CONFIG } from './app.config';
 
-export type StringSignalStruct<T extends PathPatterns> = {
-  [Key in keyof T]: WritableSignal<T[Key]['pathVars']>;
+// We use this type in the router, and this type check will ensure we didn't
+// mess up the type: if it says never, then initPathPatterns is badly typed, and
+// you should try adding the type constraint PathPatterns to the
+// initPathPatterns above, to debug.
+export type RoutingConfig<P extends PathPatterns> = {
+  validPathPatterns: P;
 };
 
 // This Service manages two way binding between the URL and a set of siganls

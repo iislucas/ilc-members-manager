@@ -11,7 +11,7 @@ import { IconComponent } from './icons/icon.component';
 import { MemberImportExportComponent } from './member-import-export/member-import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
-import { PathParamValues, Views } from './app.config';
+import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
@@ -25,7 +25,6 @@ import { DataManagerService } from './data-manager.service';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    MemberListComponent,
     UnauthorizedComponent,
     FooterComponent,
     MemberViewComponent,
@@ -45,13 +44,14 @@ export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
   public dataManagerService = inject(DataManagerService);
-  public routingService: RoutingService<PathParamValues> =
+  public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public menuOpen = signal(false);
-  public currentView = this.routingService.pathParamSignals['view'];
+  public currentView = this.routingService.matchedPatternId;
   public Views = Views;
   public schoolInUrlPath = computed(() => {
-    const schoolId = this.routingService.pathParamSignals.schoolId();
+    const schoolId =
+      this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
     if (schoolId) {
       return this.dataManagerService.schools().find((s) => s.id === schoolId);
     }
@@ -66,9 +66,26 @@ export class App {
     [Views.SchoolMembers]: 'School Members',
   };
 
-  public currentViewTitle() {
-    return this.viewTitles[this.currentView()];
-  }
+  currentViewTitle = computed(() => {
+    const viewId = this.routingService.matchedPatternId();
+    if (viewId === Views.AllMembers) {
+      return 'Members';
+    } else if (viewId === Views.FindAnInstructor) {
+      return 'Find an Instructor';
+    } else if (viewId === Views.Schools) {
+      return 'Schools';
+    } else if (viewId === Views.SchoolMembers) {
+      const schoolId =
+        this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
+      return `School ${schoolId} Members`;
+    } else if (viewId === Views.ImportExport) {
+      return 'Import/Export';
+    } else {
+      return 'Unknown view';
+    }
+  });
+
+  constructor() {}
 
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);
