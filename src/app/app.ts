@@ -16,6 +16,10 @@ import { FindAnInstructorComponent } from './find-an-instructor/find-an-instruct
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
 import { DataManagerService } from './data-manager.service';
+import { MemberEditComponent } from './member-edit/member-edit';
+import { FilteredMembersComponent } from './filtered-members/filtered-members';
+
+function getRouterMemberId(router: RoutingService<AppPathPatterns>) {}
 
 @Component({
   selector: 'app-root',
@@ -32,6 +36,9 @@ import { DataManagerService } from './data-manager.service';
     FindAnInstructorComponent,
     ProfileMenuComponent,
     SchoolListComponent,
+    MemberEditComponent,
+    MemberListComponent,
+    FilteredMembersComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -39,7 +46,7 @@ import { DataManagerService } from './data-manager.service';
 export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
-  public dataManagerService = inject(DataManagerService);
+  public dataService = inject(DataManagerService);
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public menuOpen = signal(false);
@@ -49,35 +56,42 @@ export class App {
     const schoolId =
       this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
     if (schoolId) {
-      return this.dataManagerService.schools().find((s) => s.id === schoolId);
+      return this.dataService.schools.entries().find((s) => s.id === schoolId);
     }
     return null;
   });
-  // TODO: refactor title management into the router & its config.
-  public viewTitles: { [key: string]: string } = {
-    [Views.AllMembers]: 'Members',
-    [Views.ImportExport]: 'Import/Export',
-    [Views.FindAnInstructor]: 'Find an Instructor',
-    [Views.Schools]: 'Schools',
-    [Views.SchoolMembers]: 'School Members',
-  };
+  public jumpToMemberInUrlParams = computed(() => {
+    const patternId = this.routingService.matchedPatternId();
+    if (
+      patternId === Views.SchoolMembers ||
+      patternId === Views.ManageMembers
+    ) {
+      return this.routingService.signals[patternId].urlParams.memberId();
+    }
+    return '';
+  });
 
   currentViewTitle = computed(() => {
-    const viewId = this.routingService.matchedPatternId();
-    if (viewId === Views.AllMembers) {
-      return 'Members';
-    } else if (viewId === Views.FindAnInstructor) {
-      return 'Find an Instructor';
-    } else if (viewId === Views.Schools) {
-      return 'Schools';
-    } else if (viewId === Views.SchoolMembers) {
-      const schoolId =
-        this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
-      return `School ${schoolId} Members`;
-    } else if (viewId === Views.ImportExport) {
-      return 'Import/Export';
-    } else {
-      return 'Unknown view';
+    const viewId = this.routingService.matchedPatternId() as Views | '';
+    switch (viewId) {
+      case Views.ManageMembers:
+        return 'Members';
+      case Views.FindAnInstructor:
+        return 'Find an Instructor';
+      case Views.Schools:
+        return 'Schools';
+      case Views.SchoolMembers:
+        const schoolId =
+          this.routingService.signals[viewId].pathVars.schoolId();
+        return `School ${schoolId} Members`;
+      case Views.ImportExport:
+        return 'Import/Export';
+      case Views.Home:
+        return 'My Data in ILC';
+      case Views.MyData:
+        return 'My Data in ILC';
+      default:
+        return 'Unknown view';
     }
   });
 

@@ -63,6 +63,9 @@ SquareSpace site, and therefore need other means of managing their information.
     client side.
   - It might make sense for this to be in a separte repo, like:
     https://github.com/iislucas/google-cal-events-viewer
+- TODO: Create a dedicated firebse function for getting instructors that also
+  only returns the relevant to be public parts. Also make a dedicated
+  mini-service for finding instructors.
 
 #### \[In Progress(iislucas)\]: Backup to sheets/CSV just in case
 
@@ -71,7 +74,9 @@ SquareSpace site, and therefore need other means of managing their information.
 
 ---
 
-#### \[In Progress(iislucas)\]: General schools/Membership management.
+### \[P1\]: General schools/Membership management
+
+#### \[In Progress(iislucas)\]: School Managers
 
 Make the application into something that schools/country managers can also use
 to manage their information. Website only still at this point.

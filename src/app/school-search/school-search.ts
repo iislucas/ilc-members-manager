@@ -27,7 +27,7 @@ export class SchoolSearchComponent {
   showResults = signal(false);
 
   filteredSchools = computed(() => {
-    return this.membersService.searchSchools(this.searchTerm());
+    return this.membersService.schools.search(this.searchTerm());
   });
 
   onSearchTermChange(event: Event) {

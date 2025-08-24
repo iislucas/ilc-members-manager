@@ -12,7 +12,9 @@
       (input)="onSearch($event)"
     />
   </div>
+  @if(canMakeNewMembers()) {
   <button (click)="onNewMember()">New Member</button>
+  }
 </div>
 <div class="member-cards">
   @if(isAddingMember()) {

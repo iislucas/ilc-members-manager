@@ -8,7 +8,7 @@
 
   <div class="nav-bar">
     <div class="title-and-menu">
-      @if (firebaseService.userIsAdmin()) {
+      @if (user.isAdmin) {
       <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
         <app-icon name="menu"></app-icon>
       </button>
@@ -16,22 +16,32 @@
       <div class="menu">
         <div
           class="menu-item"
-          (click)="currentView.set(Views.AllMembers); menuOpen.set(false)"
+          (click)="currentView.set(Views.MyData); menuOpen.set(false)"
         >
-          All Members
+          My Data
         </div>
+        @if (user.isAdmin || user.schoolsManaged.length > 0) {
+        <div
+          class="menu-item"
+          (click)="currentView.set(Views.ManageMembers); menuOpen.set(false)"
+        >
+          Manage Members
+        </div>
+        }
         <div
           class="menu-item"
           (click)="currentView.set(Views.Schools); menuOpen.set(false)"
         >
           Schools
         </div>
+        @if (user.isAdmin) {
         <div
           class="menu-item"
           (click)="currentView.set(Views.ImportExport); menuOpen.set(false)"
         >
           Import/Export Members
         </div>
+        }
         <div
           class="menu-item"
           (click)="currentView.set(Views.FindAnInstructor); menuOpen.set(false)"
@@ -45,16 +55,19 @@
     <app-profile-menu></app-profile-menu>
   </div>
   @if (logoutError(); as message) {
-  <div class="error">
-    <span>{{ message }}</span>
+  <div class="error-container">
+    Logout error: <span>{{ message }}</span>
   </div>
   }
   <main class="main">
     @if (firebaseService.loggingIn()) {
     <app-spinner></app-spinner>
-    } @else { @if (firebaseService.userIsAdmin()) { @switch (currentView()) {
-    @case (Views.AllMembers) {
-    <app-all-members></app-all-members>
+    } @else { @switch (currentView()) { @case (Views.Home) {
+    <app-member-view [member]="user.member"></app-member-view>
+    } @case (Views.MyData) {
+    <app-member-view [member]="user.member"></app-member-view>
+    } @case (Views.ManageMembers) {
+    <app-member-list [memberSet]="dataService.members"></app-member-list>
     } @case (Views.ImportExport) {
     <app-member-import-export></app-member-import-export>
     } @case (Views.FindAnInstructor) {
@@ -63,17 +76,17 @@
     <app-school-list></app-school-list>
     } @case (Views.SchoolMembers) { @let school = schoolInUrlPath(); @if(school)
     {
-    <app-school-members [school]="school"></app-school-members>
+    <app-filtered-members
+      [memberSet]="dataService.members"
+      [schoolId]="school.schoolId"
+      [jumpToMember]="jumpToMemberInUrlParams()"
+    ></app-filtered-members>
     } @else {
     <p>
       No such school:
       {{ routingService.signals[Views.SchoolMembers].pathVars.schoolId() }}
     </p>
-    } } } } @else { @if (firebaseService.userAsMember(); as member) {
-    <app-member-view [member]="member"></app-member-view>
-    } @else {
-    <app-unauthorized></app-unauthorized>
-    } } }
+    } } } }
   </main>
   } @else {
   <h1>ILC Members Manager</h1>
@@ -117,13 +130,19 @@
           </button>
         </div>
 
-        @if (signupError(); as message) {
-        <div class="error">
-          <span>{{ message }}</span>
+        @if(firebaseService.loginError()) {
+        <div class="error-container">
+          Login error:
+          <span class="error-message">{{ firebaseService.loginError() }}</span>
+        </div>
+        } @if (signupError(); as message) {
+        <div class="error-container">
+          Signup error: <span class="error-message">{{ message }}</span>
         </div>
         } @if (loginWithEmailError(); as message) {
-        <div class="error">
-          <span>{{ message }}</span>
+        <div class="error-container">
+          Login with email error:
+          <span class="error-message">{{ message }}</span>
         </div>
         } @if (invalidLoginCredentials()) {
         <p>
@@ -138,8 +157,8 @@
           <span>{{ message }}</span>
         </div>
         } @if (resetPasswordError(); as message) {
-        <div class="error">
-          <span>{{ message }}</span>
+        <div class="error-container">
+          Reset password error: <span class="error-message">{{ message }}</span>
         </div>
         }
       </div>
@@ -148,7 +167,8 @@
         <button (click)="loginWithGoogle()">Login with Google</button>
         @if (loginWithGoogleError(); as message) {
         <div class="error">
-          <span>{{ message }}</span>
+          Login with Google Error:
+          <span class="error-message">{{ message }}</span>
         </div>
         }
       </div>

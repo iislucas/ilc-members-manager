@@ -77,9 +77,9 @@ export class MemberEditComponent {
   schoolName = computed(() => {
     const schoolId = this.schoolSearch();
     if (schoolId) {
-      const school = this.membersService
-        .schoolsState()
-        .schools.find((s) => s.schoolId === schoolId);
+      const school = this.membersService.schools
+        .entries()
+        .find((s) => s.schoolId === schoolId);
       return school?.schoolName ?? '';
     }
     return '';

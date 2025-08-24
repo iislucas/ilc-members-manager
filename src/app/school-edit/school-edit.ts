@@ -54,8 +54,8 @@ export class SchoolEditComponent {
   private membersService = inject(DataManagerService);
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
-    const owner = this.membersService
-      .instructors()
+    const owner = this.membersService.instructors
+      .entries()
       .find((m) => m.memberId === ownerMemId);
     return owner || null;
   });
@@ -63,8 +63,8 @@ export class SchoolEditComponent {
     const managerMemIds = this.editableSchool().managers;
     return managerMemIds.map(
       (memberId) =>
-        this.membersService
-          .instructors()
+        this.membersService.instructors
+          .entries()
           .find((m) => m.memberId === memberId) || null
     );
   });

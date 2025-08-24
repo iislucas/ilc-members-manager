@@ -17,32 +17,32 @@ export class ProfileMenuComponent {
 
   get userInitial(): string {
     const user = this.user();
-    if (user && user.displayName) {
-      return user.displayName.charAt(0).toUpperCase();
+    if (user && user.firebaseUser.displayName) {
+      return user.firebaseUser.displayName.charAt(0).toUpperCase();
     }
-    if (user && user.email) {
-      return user.email.charAt(0).toUpperCase();
+    if (user && user.firebaseUser.email) {
+      return user.firebaseUser.email.charAt(0).toUpperCase();
     }
     return '';
   }
 
   get userDisplayName(): string {
     const user = this.user();
-    if (user && user.displayName) {
-      return user.displayName;
+    if (user && user.firebaseUser.displayName) {
+      return user.firebaseUser.displayName;
     }
-    if (user && user.email) {
-      return user.email;
+    if (user && user.firebaseUser.email) {
+      return user.firebaseUser.email;
     }
     return '';
   }
 
   get userEmail(): string {
-    return this.user()?.email ?? '';
+    return this.user()?.firebaseUser.email ?? '';
   }
 
   get userPhotoURL(): string | null {
-    return this.user()?.photoURL ?? null;
+    return this.user()?.firebaseUser.photoURL ?? null;
   }
 
   stringToColor(str: string): string {

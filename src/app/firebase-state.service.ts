@@ -22,10 +22,10 @@ import {
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
 import { Analytics, getAnalytics } from 'firebase/analytics';
-import { Functions, getFunctions } from 'firebase/functions';
+import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { doc, Firestore, getDoc, getFirestore } from 'firebase/firestore';
-import { Member } from '../../functions/src/data-model';
+import { FetchUserDetailsResult, Member } from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -60,6 +60,12 @@ export type ResetPasswordResult =
 export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 
 // ----------------------------------------------------------------------------
+export type UserDetails = {
+  member: Member;
+  isAdmin: boolean;
+  schoolsManaged: string[];
+  firebaseUser: User;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -69,17 +75,17 @@ export class FirebaseStateService {
   public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
-  public readonly user = signal<User | null>(null);
-  public readonly userAsMember = signal<Member | null>(null);
   public loggingIn = signal(false);
-  public loggedIn: WritableSignal<Promise<{ user: User; member: Member }>>;
-  private loggedInResolverFn: (value: { user: User; member: Member }) => void =
-    () => {};
-  public readonly user$ = toObservable(this.user);
-  public readonly userAsMember$ = toObservable(this.userAsMember);
-  public readonly userIsAdmin = computed(
-    () => this.userAsMember()?.isAdmin ?? false
-  );
+  public loggedIn: WritableSignal<Promise<UserDetails>>;
+  private loggedInResolverFn: (value: UserDetails) => void = () => {};
+  public loginError = signal<string | null>(null);
+
+  // public readonly user$ = toObservable(this.user);
+  // public readonly userAsMember$ = toObservable(this.userAsMember);
+  // public readonly userIsAdmin = computed(
+  //   () => this.userAsMember()?.isAdmin ?? false
+  // );
+  public user = signal<UserDetails | null>(null);
   private db: Firestore;
 
   constructor() {
@@ -92,35 +98,45 @@ export class FirebaseStateService {
     this.db = getFirestore(this.app);
 
     this.loggedIn = signal(
-      new Promise<{ user: User; member: Member }>((resolve, reject) => {
+      new Promise<UserDetails>((resolve, reject) => {
         this.loggedInResolverFn = resolve;
       })
     );
 
     onAuthStateChanged(this.auth, async (user) => {
       if (user && user.email) {
+        let userDetailsResult: FetchUserDetailsResult;
         this.loggingIn.set(true);
-        const memberDocRef = doc(this.db, 'members', user.email);
-        const memberDoc = await getDoc(memberDocRef);
-
-        if (memberDoc.exists()) {
-          const member = memberDoc.data() as Member;
-          this.userAsMember.set(member);
-          this.loggedInResolverFn({ user, member });
-        } else {
-          console.warn('No member document for user', user.email);
+        try {
+          const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
+            this.functions,
+            'getUserDetails'
+          );
+          userDetailsResult = (await getUserDetails()).data;
+        } catch (error: unknown) {
+          console.warn(error);
+          this.loggingIn.set(false);
+          this.loginError.set((error as Error).message);
+          return;
         }
+        const userDetails: UserDetails = {
+          firebaseUser: user,
+          member: userDetailsResult.userMemberData,
+          isAdmin: userDetailsResult.isAdmin,
+          schoolsManaged: userDetailsResult.schoolsManaged,
+        };
+        this.user.set(userDetails);
+        this.loggedInResolverFn(userDetails);
         this.loggingIn.set(false);
       } else {
         // logging out
-        this.userAsMember.set(null);
+        this.user.set(null);
         this.loggedIn.set(
-          new Promise<{ user: User; member: Member }>((resolve, reject) => {
+          new Promise<UserDetails>((resolve, reject) => {
             this.loggedInResolverFn = resolve;
           })
         );
       }
-      this.user.set(user);
     });
   }
 

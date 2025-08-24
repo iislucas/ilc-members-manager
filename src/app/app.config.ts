@@ -9,7 +9,8 @@ import { addUrlParams, pathPattern, pv } from './routing.utils';
 import { RoutingConfig } from './routing.service';
 
 export enum Views {
-  AllMembers = 'allMembers',
+  MyData = 'myData',
+  ManageMembers = 'manageMembers',
   ImportExport = 'importExport',
   FindAnInstructor = 'findAnInstructor',
   Schools = 'schools',
@@ -18,16 +19,25 @@ export enum Views {
 }
 
 export const initPathPatterns = {
-  [Views.ImportExport]: pathPattern`import-export`,
-  [Views.AllMembers]: addUrlParams(pathPattern`all-members`, ['memberId']),
-  [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
   [Views.Home]: pathPattern``,
-  [Views.Schools]: pathPattern`schools`,
+  [Views.MyData]: pathPattern`my-data`,
+  [Views.ImportExport]: pathPattern`import-export`,
+  [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
+  [Views.Schools]: addUrlParams(pathPattern`schools`, ['schoolId']),
+  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['memberId']),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,
     ['memberId']
   ),
 };
+
+// Santiy check for type correctness...
+addUrlParams(pathPattern`school/${pv('schoolId')}/members`, []).pathVars
+  .schoolId;
+addUrlParams(pathPattern`school/${pv('schoolId')}/members`, ['memberId'])
+  .urlParams.memberId;
+addUrlParams(pathPattern`school/${pv('schoolId')}/members`, ['memberId'])
+  .pathVars.schoolId;
 
 export type AppPathPatterns = typeof initPathPatterns;
 export type PathPatternsIds = keyof typeof initPathPatterns;

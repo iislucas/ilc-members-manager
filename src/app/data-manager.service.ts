@@ -18,7 +18,7 @@ import {
   initMember,
   School,
   initSchool,
-  GetMembersResult,
+  FetchMembersResult,
 } from '../../functions/src/data-model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
@@ -88,7 +88,7 @@ export class DataManagerService {
     );
     try {
       const result = await getMembers();
-      this.members.setEntries((result.data as GetMembersResult).members);
+      this.members.setEntries((result.data as FetchMembersResult).members);
     } catch (error) {
       this.members.setError((error as Error).message);
     }

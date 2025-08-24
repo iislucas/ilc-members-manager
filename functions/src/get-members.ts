@@ -1,75 +1,58 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import { GetMembersResult, Member } from './data-model';
+import {
+  FetchMembersResult,
+  FetchUserDetailsResult,
+  Member,
+} from './data-model';
+import { getUserDetailsHelper } from './get-user-details';
 
-export const getMembers = onCall<unknown, Promise<GetMembersResult>>(
+export const getMembers = onCall<unknown, Promise<FetchMembersResult>>(
   { cors: allowedOrigins },
   async (request) => {
     logger.info('getMembers called', { auth: request.auth });
 
-    if (!request.auth) {
-      throw new HttpsError(
-        'unauthenticated',
-        'The function must be called while authenticated.'
-      );
-    }
-
-    const uid = request.auth.uid;
     const db = admin.firestore();
+    const userDetails = await getUserDetailsHelper(request);
 
     try {
-      const memberDoc = await db.collection('members').doc(uid).get();
-      if (!memberDoc.exists) {
-        throw new HttpsError(
-          'permission-denied',
-          'You do not have permission to perform this action as you are not a member.'
-        );
-      }
-      const memberData = memberDoc.data() as Member;
-
       // Admin: Return all members
-      if (memberData.isAdmin) {
+      if (userDetails.isAdmin) {
         const membersSnapshot = await db.collection('members').get();
         const members = membersSnapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Member)
         );
-        return { members };
+        return {
+          members,
+          schoolsManaged: userDetails.schoolsManaged,
+          isAdmin: true,
+        };
       }
 
-      // School manager/owner query
-      const schoolsOwnedQuery = db
-        .collection('schools')
-        .where('owner', '==', uid)
-        .get();
-      const schoolsManagedQuery = db
-        .collection('schools')
-        .where('managers', 'array-contains', uid)
-        .get();
-
-      const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
-        schoolsOwnedQuery,
-        schoolsManagedQuery,
-      ]);
-
-      const schoolIds = new Set<string>();
-      schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
-      schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
-
-      if (schoolIds.size > 0) {
+      if (userDetails.schoolsManaged.length > 0) {
         const membersSnapshot = await db
           .collection('members')
-          .where('managingOrgId', 'in', Array.from(schoolIds))
+          .where('managingOrgId', 'in', Array.from(userDetails.schoolsManaged))
           .get();
         const members = membersSnapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Member)
         );
-        return { members };
+        return {
+          members,
+          schoolsManaged: userDetails.schoolsManaged,
+          isAdmin: false,
+        };
       }
 
-      // If not admin or manager, return self
-      return { members: [{ ...memberData, id: memberDoc.id }] };
+      // If not admin or manager of others. TODO: consider Sifu's having manager
+      // access over their students?
+      return { members: [], schoolsManaged: [], isAdmin: false };
     } catch (error: unknown) {
       logger.error('Error getting members:', error);
       if (error instanceof HttpsError) {

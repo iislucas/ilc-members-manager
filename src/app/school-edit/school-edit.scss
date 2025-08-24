@@ -97,22 +97,6 @@
   }
 }
 
-.error-container {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  border: 1px solid $theme-error-border-color;
-  background-color: $theme-error-bg-color;
-  border-radius: 4px;
-  padding: 0.4em;
-}
-
-.error-message {
-  color: red;
-  font-size: 0.9em;
-  flex: 1;
-}
-
 :host(.is-open) .form-section {
   border-top-color: #ccc;
 }

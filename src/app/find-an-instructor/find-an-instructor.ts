@@ -25,6 +25,6 @@ export class FindAnInstructorComponent {
   searchTerm = signal('');
 
   filteredInstructors = computed(() => {
-    return this.membersService.searchInstructors(this.searchTerm());
+    return this.membersService.instructors.search(this.searchTerm());
   });
 }

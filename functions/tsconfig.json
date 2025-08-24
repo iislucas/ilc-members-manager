@@ -5,7 +5,7 @@
     "esModuleInterop": true,
     "moduleResolution": "nodenext",
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    // "noUnusedLocals": true,
     "rootDir": "./src",
     "outDir": "./dist",
     "sourceMap": true,

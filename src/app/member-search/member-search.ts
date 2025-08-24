@@ -29,9 +29,9 @@ export class MemberSearchComponent {
 
   filteredMembers = computed(() => {
     if (this.allMembers()) {
-      return this.membersService.searchMembers(this.searchTerm());
+      return this.membersService.members.search(this.searchTerm());
     } else {
-      return this.membersService.searchInstructors(this.searchTerm());
+      return this.membersService.instructors.search(this.searchTerm());
     }
   });
 

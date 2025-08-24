@@ -176,7 +176,14 @@ export function initSchool(): School {
   };
 }
 
+// Used for login to know what kind of user this is.
+export type FetchUserDetailsResult = {
+  userMemberData: Member;
+  isAdmin: boolean;
+  schoolsManaged: string[];
+};
+
 // The type returned by get-members function call.
-export type GetMembersResult = {
+export type FetchMembersResult = {
   members: Member[];
 };

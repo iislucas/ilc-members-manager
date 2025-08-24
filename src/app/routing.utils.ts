@@ -1,16 +1,5 @@
 import { signal, WritableSignal } from '@angular/core';
 
-export type JustPathPattern<T extends string> = {
-  // The path pattern; of the form: ['view', ':viewId', 'member',
-  // ':memberId'] Where anything starting with ":" is a variable.
-  pathParts: string[];
-
-  // Used for managing the names of pathPatterns and their possible types.
-  pathVars: {
-    [key in T]: string;
-  };
-};
-
 export type PathPattern<T1 extends string, T2 extends string> = {
   // The path pattern; of the form: ['view', ':viewId', 'member',
   // ':memberId'] Where anything starting with ":" is a variable.
@@ -23,7 +12,7 @@ export type PathPattern<T1 extends string, T2 extends string> = {
 
   // Possible URL parameter keys. The stuff of the form:
   // url?key=value&key2=value2 etc (this is just the keys)
-  urlParams?: {
+  urlParams: {
     [key in T2]: string;
   };
 };
@@ -55,11 +44,22 @@ export function makeUrlParams<T extends string>(
 
 // Add URL params to a PathPattern that doesn't have them.
 // const foo = makeUrlParams(['a', 'b']); ==> foo: { a: string; b: string; }
-export function addUrlParams<T1 extends string, T2 extends string>(
-  pathPattern: JustPathPattern<T1>,
-  urlParamNames: T2[]
-): PathPattern<T1, T2> {
-  return { ...pathPattern, urlParams: makeUrlParams(urlParamNames) };
+export function addUrlParams<
+  P1 extends string,
+  U1 extends string,
+  U2 extends string
+>(
+  pathPattern: PathPattern<P1, U1>,
+  urlParamNames: U2[]
+): PathPattern<P1, U1 | U2> {
+  const newPathPattern: PathPattern<P1, U1 | U2> = {
+    ...(pathPattern as PathPattern<P1, U1 | U2>),
+  };
+  newPathPattern.urlParams = { ...newPathPattern.urlParams };
+  for (const n of urlParamNames) {
+    newPathPattern.urlParams[n] = '';
+  }
+  return newPathPattern;
 }
 
 // type UrlParamsPatternMakerFn<T1 extends string, T2 extends string> = (
@@ -86,7 +86,7 @@ export function pathPattern<Args extends NamedVar<any>[]>(
   strings: TemplateStringsArray,
   ...args: Args
 ): // : UrlParamsPatternMakerFn<TemplateArgName<(typeof args)[number]>, T2>
-JustPathPattern<TemplateArgName<(typeof args)[number]>> {
+PathPattern<TemplateArgName<(typeof args)[number]>, never> {
   const varSet = new Set<TemplateArgName<(typeof args)[number]>>();
   args.forEach((a) => {
     varSet.add(a.literal as TemplateArgName<(typeof args)[number]>);
@@ -121,7 +121,7 @@ JustPathPattern<TemplateArgName<(typeof args)[number]>> {
   //   };
   // }
   // return pathPatternFromUrlParamNamesFn;
-  return { pathParts, pathVars };
+  return { pathParts, pathVars, urlParams: {} };
 }
 
 // // All URL params for each PathPattern.
@@ -173,41 +173,40 @@ export function updateSignalsFromSubsts(
   return substs;
 }
 
-export type PathVarSignals<
-  T1 extends string,
-  T2 extends string,
-  T extends PathPattern<T1, T2>
-> = {
-  [key in keyof T['pathVars']]: WritableSignal<T['pathVars'][key]>;
+export type PathVarSignals<T extends PathPattern<string, string>> = {
+  [key in keyof T['pathVars']]: WritableSignal<string>;
 };
 
-export type UrlParamSignals<
-  T1 extends string,
-  T2 extends string,
-  T extends PathPattern<T1, T2>
-> = {
-  [key in keyof T['urlParams']]: WritableSignal<T['urlParams'][key]>;
+export type UrlParamSignals<T extends PathPattern<string, string>> = {
+  [key in keyof T['urlParams']]: WritableSignal<string>;
 };
 
-export class PatternSignals<T extends PathPattern<string, string>> {
-  pathVars: { [key in keyof T['pathVars']]: WritableSignal<string> };
-  urlParams: { [key in keyof T['urlParams']]: WritableSignal<string> };
+export type PathVarNames<T extends PathPattern<string, string>> =
+  keyof T['pathVars'] & string;
 
-  constructor(pattern: T) {
+export type UrlParamNames<T extends PathPattern<string, string>> =
+  keyof T['urlParams'] & string;
+
+export class PatternSignals<PathVars extends string, UrlParams extends string> {
+  pathVars: { [key in PathVars]: WritableSignal<string> };
+  urlParams: { [key in UrlParams]: WritableSignal<string> };
+
+  constructor(pattern: PathPattern<PathVars, UrlParams>) {
     this.pathVars = {} as {
-      [key in keyof T['pathVars']]: WritableSignal<string>;
-    };
-    this.urlParams = {} as {
-      [key in keyof T['urlParams']]: WritableSignal<string>;
+      [key in PathVars]: WritableSignal<string>;
     };
     for (const key of Object.keys(pattern.pathVars)) {
-      const typedKey = key as keyof T['pathVars'];
-      this.pathVars[typedKey] = signal(pattern.pathVars[key]);
+      const typedKey = key as PathVars;
+      this.pathVars[typedKey] = signal(pattern.pathVars[typedKey]);
     }
-    pattern.urlParams ??= {};
+
+    pattern.urlParams ??= {} as { [key in UrlParams]: string };
+    this.urlParams = {} as {
+      [key in UrlParams]: WritableSignal<string>;
+    };
     for (const key of Object.keys(pattern.urlParams)) {
-      const typedKey = key as keyof T['urlParams'];
-      this.urlParams[typedKey] = signal(pattern.urlParams[key]);
+      const typedKey = key as UrlParams;
+      this.urlParams[typedKey] = signal(pattern.urlParams[typedKey]);
     }
   }
 }

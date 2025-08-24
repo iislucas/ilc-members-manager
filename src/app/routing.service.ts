@@ -11,6 +11,10 @@ import {
   updateSignalsFromSubsts,
   PathPatterns,
   PatternSignals,
+  PathVarSignals,
+  UrlParamSignals,
+  UrlParamNames,
+  PathVarNames,
 } from './routing.utils';
 import { ROUTING_CONFIG } from './app.config';
 
@@ -33,7 +37,12 @@ export class RoutingService<T extends PathPatterns> {
   private urlHashPath: WritableSignal<string>;
   private urlHashParams: WritableSignal<string>;
   public matchedPatternId: WritableSignal<string | null> = signal(null);
-  public signals: { [pathId in keyof T]: PatternSignals<T[pathId]> };
+  public signals: {
+    [pathId in keyof T]: PatternSignals<
+      PathVarNames<T[pathId]>,
+      UrlParamNames<T[pathId]>
+    >;
+  };
   substs = computed(() => {
     const patternId = this.matchedPatternId();
     if (!patternId) {
@@ -46,12 +55,18 @@ export class RoutingService<T extends PathPatterns> {
     this.urlHashPath = signal('');
     this.urlHashParams = signal('');
 
-    this.signals = {} as { [pathId in keyof T]: PatternSignals<T[pathId]> };
+    this.signals = {} as {
+      [pathId in keyof T]: PatternSignals<
+        PathVarNames<T[pathId]>,
+        UrlParamNames<T[pathId]>
+      >;
+    };
 
     for (const patternId of Object.keys(this.config.validPathPatterns)) {
-      const s = new PatternSignals<T[keyof T]>(
-        this.config.validPathPatterns[patternId] as T[keyof T]
-      );
+      const s = new PatternSignals<
+        PathVarNames<T[typeof patternId]>,
+        UrlParamNames<T[typeof patternId]>
+      >(this.config.validPathPatterns[patternId] as T[keyof T]);
       this.signals[patternId as keyof T] = s;
     }
 
@@ -85,7 +100,7 @@ export class RoutingService<T extends PathPatterns> {
       if (part.startsWith(':')) {
         const paramName = part.substring(1);
         return this.signals[patternId].pathVars[
-          paramName as keyof T[keyof T]['pathVars']
+          paramName as keyof T[keyof T]['pathVars'] & string
         ]();
       } else {
         return part;
