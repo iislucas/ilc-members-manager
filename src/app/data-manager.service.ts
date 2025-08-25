@@ -88,7 +88,10 @@ export class DataManagerService {
     );
     try {
       const result = await getMembers();
-      this.members.setEntries((result.data as FetchMembersResult).members);
+      const members = (result.data as FetchMembersResult).members.map((m) => {
+        return { ...initMember(), ...m } as Member;
+      });
+      this.members.setEntries(members);
     } catch (error) {
       this.members.setError((error as Error).message);
     }
