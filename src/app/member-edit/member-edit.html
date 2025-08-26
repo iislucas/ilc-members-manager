@@ -134,30 +134,6 @@
         }
       </div>
 
-      <label for="membershipType">Type</label>
-      <select
-        id="membershipType"
-        name="membershipType"
-        [(ngModel)]="e.membershipType"
-        (ngModelChange)="updateMember()"
-        required
-      >
-        @for (type of membershipTypes; track type) {
-        <option [value]="type">{{ type }}</option>
-        }
-      </select>
-
-      <label for="membershipExpires">Expires</label>
-      <input
-        class="date"
-        type="date"
-        id="membershipExpires"
-        name="membershipExpires"
-        placeholder="YYYY-MM-DD"
-        [ngModel]="e.membershipExpires"
-        (ngModelChange)="updateMember()"
-      />
-
       <label for="sifuMemberId">Sifu</label>
       <div class="sifu-search">
         <app-member-search
@@ -181,6 +157,52 @@
         <div class="school-name">{{ schoolName() }}</div>
         }
       </div>
+
+      <label for="membershipType">Type</label>
+      <select
+        id="membershipType"
+        name="membershipType"
+        [(ngModel)]="e.membershipType"
+        (ngModelChange)="updateMember()"
+        required
+      >
+        @for (type of membershipTypes; track type) {
+        <option [value]="type">{{ type }}</option>
+        }
+      </select>
+
+      <label for="firstMembershipStarted">First Membership Started</label>
+      <input
+        class="date"
+        type="date"
+        id="firstMembershipStarted"
+        name="firstMembershipStarted"
+        placeholder="YYYY-MM-DD"
+        [ngModel]="e.firstMembershipStarted"
+        (ngModelChange)="updateMember()"
+      />
+
+      <label for="lastRenewalDate">Last Renewal Date</label>
+      <input
+        class="date"
+        type="date"
+        id="lastRenewalDate"
+        name="lastRenewalDate"
+        placeholder="YYYY-MM-DD"
+        [ngModel]="e.lastRenewalDate"
+        (ngModelChange)="updateMember()"
+      />
+
+      <label for="currentMembershipExpires">Current Membership Expires</label>
+      <input
+        class="date"
+        type="date"
+        id="currentMembershipExpires"
+        name="currentMembershipExpires"
+        placeholder="YYYY-MM-DD"
+        [ngModel]="e.currentMembershipExpires"
+        (ngModelChange)="updateMember()"
+      />
 
       <h3>Level</h3>
       <label for="studentLevel">Student</label>
@@ -246,6 +268,25 @@
         (ngModelChange)="updateMember()"
       />
 
+      <label for="publicEmail">Public Email</label>
+      <input
+        class="long"
+        type="email"
+        id="publicEmail"
+        name="publicEmail"
+        [(ngModel)]="e.publicEmail"
+        (ngModelChange)="updateMember()"
+      />
+
+      <label for="publicPhone">Public Phone</label>
+      <input
+        type="text"
+        id="publicPhone"
+        name="publicPhone"
+        [(ngModel)]="e.publicPhone"
+        (ngModelChange)="updateMember()"
+      />
+      
       <h3>Admin</h3>
       <label for="isAdmin">Is Admin</label>
       <div class="admin-section">

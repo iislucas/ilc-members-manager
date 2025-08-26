@@ -81,12 +81,15 @@ export type Member = {
   isAdmin: boolean;
 
   // Internal ILC HQ Information
-  membershipType: MembershipType;
-  membershipExpires: string; // Date membership expires
   memberId: string; // ILC Member Id: UNIQUE
   sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
   // SchoolID managing this member. If empty, managed by HQ.
   managingOrgId: string;
+
+  membershipType: MembershipType;
+  firstMembershipStarted: string; // YYYY-MM-DD, or empty if unknown.
+  lastRenewalDate: ''; // YYYY-MM-DD, or empty if none.
+  currentMembershipExpires: string; // Date membership expires
 
   // Contact information
   name: string; // Full name
@@ -96,6 +99,9 @@ export type Member = {
   country: string; // Country of residence
   phone: string; // Phone number
   email: string; // Contact email, UNIQUE
+
+  publicEmail: string; // publicly listed email address for contacting them
+  publicPhone: string; // publicly listed phone number for contacting them
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -120,6 +126,8 @@ export type Member = {
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructorsPublic/{instructorId}
 export type InstructorPublicData = {
+  id: string; // Firebase document ID. Unique. Should be instructorId.
+
   name: string; // Full name
   memberId: string; // ILC Member Id: UNIQUE
   instructorWebsite: string; // Optional website URL
@@ -134,6 +142,12 @@ export type InstructorPublicData = {
   //
   // ILC HQ issued a unique instructor ID, empty = not instructor.
   instructorId: string;
+
+  city: string;
+  country: string;
+
+  publicEmail: string;
+  publicPhone: string;
 };
 
 export function initMember(): Member {
@@ -151,12 +165,19 @@ export function initMember(): Member {
     phone: '', // optional.
     email: '', // Unique and equal to the id.
 
+    publicEmail: '',
+    publicPhone: '',
+    instructorWebsite: '', // Optional website URL
+
     // Student membership status
-    membershipType: MembershipType.Annual,
-    membershipExpires: '',
     memberId: '',
     sifuMemberId: '', // ILC Member Number of the member's Sifu
     managingOrgId: '', // Default to HQ
+
+    membershipType: MembershipType.Annual,
+    firstMembershipStarted: '', // YYYY-MM-DD, or empty if unknown.
+    lastRenewalDate: '', // YYYY-MM-DD, or empty if none.
+    currentMembershipExpires: '', // YYYY-MM-DD, or empty if none.
 
     // Instructor details
     instructorId: '', // must not be empty is isInstructor is true.
@@ -164,7 +185,6 @@ export function initMember(): Member {
     // use strings not Timestmp because this allows a null value of empty
     // string.
     instructorLicenseExpires: '', // YYYY-MM-DD, or empty if none.
-    instructorWebsite: '', // Optional website URL
 
     // Level information
     // empty string indicates none graded yet.
@@ -189,6 +209,23 @@ export function initSchool(): School {
     schoolWebsite: '',
     owner: '',
     managers: [],
+  };
+}
+
+export function initInstructor(): InstructorPublicData {
+  return {
+    id: '',
+    name: '',
+    memberId: '',
+    instructorWebsite: '',
+    studentLevel: StudentLevel.None,
+    applicationLevel: ApplicationLevel.None,
+    mastersLevels: [],
+    instructorId: '',
+    city: '',
+    country: '',
+    publicEmail: '',
+    publicPhone: '',
   };
 }
 

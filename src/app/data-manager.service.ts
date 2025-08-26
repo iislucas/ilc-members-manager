@@ -9,22 +9,17 @@ import {
   getFirestore,
   onSnapshot,
   query,
-  where,
-  getDocs,
-  addDoc,
 } from 'firebase/firestore';
 import {
   Member,
   initMember,
   School,
   initSchool,
-  FetchMembersResult,
-  FetchInstructorsResult,
+  InstructorPublicData,
+  initInstructor,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import * as Papa from 'papaparse';
-import { User } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
 import { SearchableSet } from './searchable-set';
 
 /** The state of the schools collection. */
@@ -45,6 +40,10 @@ export class DataManagerService {
   private db = getFirestore(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
   private membersCollection = collection(this.db, 'members');
+  private instructorsPublicCollection = collection(
+    this.db,
+    'instructorsPublic',
+  );
   private snapshotsToUnsubscribe: (() => void)[] = [];
 
   // A signal to hold the state of the members list.
@@ -57,11 +56,11 @@ export class DataManagerService {
     'city',
     'country',
   ]);
-  public instructors = new SearchableSet<Member>([
+  public instructors = new SearchableSet<InstructorPublicData>([
     'memberId',
     'instructorId',
     'name',
-    'email',
+    'publicEmail',
     'memberId',
     'city',
     'country',
@@ -78,14 +77,9 @@ export class DataManagerService {
       this.unsubscribeSnapshots();
       const user = await this.firebaseService.loggedIn();
       this.updateMembersSync(user);
-      // this.updateInstructorsSync();
+      this.updateInstructorsSync();
       this.updateSchoolsSync();
     });
-    effect(() =>
-      this.instructors.setEntries(
-        this.members.entries().filter((m) => m.instructorId),
-      ),
-    );
   }
 
   unsubscribeSnapshots() {
@@ -151,67 +145,6 @@ export class DataManagerService {
     }
   }
 
-  //  // Admin: Return all members
-  //   if (userDetails.isAdmin) {
-  //     const membersSnapshot = await db.collection('members').get();
-  //     const members = membersSnapshot.docs.map(
-  //       (doc) => ({ id: doc.id, ...doc.data() } as Member)
-  //     );
-  //     return {
-  //       members,
-  //     };
-  //   }
-
-  //   if (userDetails.schoolsManaged.length > 0) {
-  //     const membersSnapshot = await db
-  //       .collection('members')
-
-  //       .get();
-  //     const members = membersSnapshot.docs.map(
-  //       (doc) => ({ id: doc.id, ...doc.data() } as Member)
-  //     );
-  //     return {
-  //       members,
-  //     };
-  //   }
-
-  // async updateMembersSync() {
-  //   const getMembers = httpsCallable(
-  //     this.firebaseService.functions,
-  //     'getMembers',
-  //   );
-  //   try {
-  //     const result = await getMembers();
-  //     const members = (result.data as FetchMembersResult).members.map((m) => {
-  //       return { ...initMember(), ...m } as Member;
-  //     });
-  //     this.members.setEntries(members);
-  //   } catch (error) {
-  //     this.members.setError((error as Error).message);
-  //   }
-  // }
-
-  // TODO: lets have a firebase on update that results in a copy of instructors
-  // in a special collection "instructors", which also has the appropriate
-  // subset of the information about instructors.
-  // async updateInstructorsSync() {
-  //   const getMembers = httpsCallable(
-  //     this.firebaseService.functions,
-  //     'getInstructors',
-  //   );
-  //   try {
-  //     const result = await getMembers();
-  //     const members = (result.data as FetchInstructorsResult).instructors.map(
-  //       (m) => {
-  //         return { ...initMember(), ...m } as Member;
-  //       },
-  //     );
-  //     this.instructors.setEntries(members);
-  //   } catch (error) {
-  //     this.instructors.setError((error as Error).message);
-  //   }
-  // }
-
   async updateSchoolsSync() {
     this.snapshotsToUnsubscribe.push(
       onSnapshot(
@@ -224,6 +157,28 @@ export class DataManagerService {
         },
         (error) => {
           this.schools.setError(error.message);
+        },
+      ),
+    );
+  }
+
+  async updateInstructorsSync() {
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(
+        this.instructorsPublicCollection,
+        (snapshot) => {
+          const instructors = snapshot.docs.map(
+            (doc) =>
+              ({
+                ...initInstructor(),
+                ...doc.data(),
+                id: doc.id,
+              }) as InstructorPublicData,
+          );
+          this.instructors.setEntries(instructors);
+        },
+        (error) => {
+          this.instructors.setError(error.message);
         },
       ),
     );

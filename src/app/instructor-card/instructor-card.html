@@ -17,6 +17,16 @@
   </div>
   <div class="city">{{ i.city }}</div>
   <div class="country">{{ i.country }}</div>
+  @if (i.publicEmail) {
+  <div class="email">
+    <a [href]="'mailto:' + i.publicEmail">Email</a>
+  </div>
+  }
+  @if (i.publicPhone) {
+  <div class="phone">
+    <a [href]="'tel:' + i.publicPhone">Phone</a>
+  </div>
+  }
   @if (i.instructorWebsite) {
   <div class="website">
     <a [href]="i.instructorWebsite" target="_blank">Website</a>

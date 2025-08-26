@@ -23,13 +23,18 @@ async function updateInstructor(
   if (member && isInstructor(member)) {
     logger.info(`Updating instructor ${instructorId}`);
     const instructor: InstructorPublicData = {
+      id: member.instructorId,
       name: member.name,
       memberId: member.memberId,
-      instructorWebsite: member.instructorWebsite,
       studentLevel: member.studentLevel,
       applicationLevel: member.applicationLevel,
       mastersLevels: member.mastersLevels,
       instructorId: member.instructorId,
+      city: member.city,
+      country: member.country,
+      publicEmail: member.publicEmail,
+      publicPhone: member.publicPhone,
+      instructorWebsite: member.instructorWebsite,
     };
     // For now we copy all data
     await instructorRef.set(instructor);

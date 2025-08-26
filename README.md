@@ -24,11 +24,10 @@ send notifications.
 See the [STATUS.md](./STATUS.md) file for the latest status of the project, and
 the TODOs.
 
-## Libraries used in this project
+## Install local dependencies & get a dev setup
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.0.5.
-
-## Install local dependencies
+This project was generated using [Angular
+CLI](https://github.com/angular/angular-cli) version 20.0.5.
 
 ```bash
 npm install
@@ -37,17 +36,7 @@ npm install
 cd ..
 ```
 
-## Development server
-
-To start a local development server, run:
-
-```bash
-npm run start
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Environment configuration
+### Environment configuration
 
 This project uses environment files to manage configuration for different environments.
 
@@ -61,12 +50,24 @@ When adding new environment variables, be sure to update both files accordingly.
 Copy & fill out `functions/src/environments/environment.template.ts`, saving it as
 `functions/src/environments/environment.ts`.
 
-## Code scaffolding
+### How to Code on this project
+
+### Development server
+
+To start a local development server, run:
+
+```bash
+npm run start
+```
+
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+
+### Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
 
 ```bash
-npx ng generate component component-name
+npx ng generate component component-name --project ilc-members-manager
 ```
 
 For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
@@ -75,7 +76,7 @@ For a complete list of available schematics (such as `components`, `directives`,
 npx ng generate --help
 ```
 
-## Building
+### Building
 
 To build the project run:
 
@@ -103,15 +104,24 @@ npm run start
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
-## Additional Resources
+### Firestore indexes
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+To download the firebase/firestore indexes locally (useful when you used the
+web-ui to update/add a rule, and now want it locally):
 
-## AI-assisted Development
+```sh
+firebase firestore:indexes > firestore.indexes.json
+```
+
+### AI-assisted Development
 
 This project can be worked on with AI assistants, like Gemini. To provide the
 AI with the necessary context, point it to the `.gemini/GEMINI.md` file, which
 contains the project's tech stack, coding style, and other relevant information.
+
+### Additional Angular Resources
+
+For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 
 ## Deployment
 
