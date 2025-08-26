@@ -50,10 +50,12 @@ export class MemberEditComponent {
     return JSON.parse(JSON.stringify(m));
   });
   isSaving = signal(false);
-  collapsed = signal(true);
+  collapsed = linkedSignal<boolean>(() => {
+    return this.collapse() ?? true;
+  });
   isDirty = computed(
     () =>
-      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember())
+      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember()),
   );
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
@@ -147,7 +149,7 @@ export class MemberEditComponent {
     return this.allMembers().some(
       (m) =>
         m.email?.toLowerCase() === member.email?.toLowerCase() &&
-        m.id !== member.id
+        m.id !== member.id,
     );
   });
 
@@ -159,7 +161,7 @@ export class MemberEditComponent {
     return this.allMembers().some(
       (m) =>
         m.memberId.toLowerCase() === member.memberId.toLowerCase() &&
-        m.id !== member.id
+        m.id !== member.id,
     );
   });
 
@@ -174,7 +176,7 @@ export class MemberEditComponent {
         await this.membersService.addMember(member);
       }
       // Shortcut so we don't need to wait for Firebase/firestore sync loop to
-      // update the original member that will
+      // update the original member that will... also, now we use get-members, we don't directly
       Object.assign(this.member(), member);
       this.editableMember.set({ ...member });
       // Now we can update the isSaving state and close the being edited member.
@@ -182,6 +184,7 @@ export class MemberEditComponent {
       this.collapsed.set(true);
       this.close.emit();
     } catch (e: unknown) {
+      console.error(e);
       this.asyncError.set(e as Error);
       this.isSaving.set(false);
     }
@@ -197,6 +200,7 @@ export class MemberEditComponent {
         try {
           await this.membersService.deleteMember(member.id);
         } catch (e: unknown) {
+          console.error(e);
           this.asyncError.set(e as Error);
         }
       }

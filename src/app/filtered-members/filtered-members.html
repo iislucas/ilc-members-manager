@@ -2,3 +2,8 @@
   [memberSet]="filteredMemberSet"
   [jumpToMember]="jumpToMember()"
 ></app-member-list>
+@if(errorMessage()) {
+<div class="error-container">
+  Error: <span class="error-message">{{ errorMessage() }}</span>
+</div>
+}

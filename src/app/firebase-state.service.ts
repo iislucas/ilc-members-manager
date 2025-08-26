@@ -104,7 +104,7 @@ export class FirebaseStateService {
     this.loggedIn = signal(
       new Promise<UserDetails>((resolve, reject) => {
         this.loggedInResolverFn = resolve;
-      })
+      }),
     );
 
     onAuthStateChanged(this.auth, async (user) => {
@@ -114,9 +114,10 @@ export class FirebaseStateService {
         try {
           const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
             this.functions,
-            'getUserDetails'
+            'getUserDetails',
           );
           userDetailsResult = (await getUserDetails()).data;
+          console.log('userDetailsResult', userDetailsResult);
         } catch (error: unknown) {
           console.warn(error);
           this.loggingIn.set(false);
@@ -138,7 +139,7 @@ export class FirebaseStateService {
         this.loggedIn.set(
           new Promise<UserDetails>((resolve, reject) => {
             this.loggedInResolverFn = resolve;
-          })
+          }),
         );
       }
     });
@@ -149,7 +150,7 @@ export class FirebaseStateService {
     try {
       const userCredential = await signInWithPopup(
         this.auth,
-        new GoogleAuthProvider()
+        new GoogleAuthProvider(),
       );
       return { success: true, userCredential };
     } catch (exception: unknown) {
@@ -168,14 +169,14 @@ export class FirebaseStateService {
 
   public async loginWithEmail(
     pass: string,
-    email: string
+    email: string,
   ): Promise<AuthOperationResult> {
     this.loggingIn.set(true);
     try {
       const userCredential = await signInWithEmailAndPassword(
         this.auth,
         email,
-        pass
+        pass,
       );
       return { success: true, userCredential };
     } catch (exception: unknown) {
@@ -196,14 +197,14 @@ export class FirebaseStateService {
 
   public async signupWithEmail(
     pass: string,
-    email: string
+    email: string,
   ): Promise<AuthOperationResult> {
     this.loggingIn.set(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         this.auth,
         email,
-        pass
+        pass,
       );
       return { success: true, userCredential };
     } catch (exception: unknown) {

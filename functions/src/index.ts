@@ -18,3 +18,15 @@ export { getMembers } from './get-members';
 export { httpLogger } from './http-logger-example';
 
 export { getInstructors } from './get-instructors';
+
+export {
+  onInstructorCreated,
+  onInstructorUpdated,
+  onInstructorDeleted,
+} from './mirror-instructors';
+
+export {
+  onSchoolMemberCreated,
+  onSchoolMemberUpdated,
+  onSchoolMemberDeleted,
+} from './mirror-school-members';

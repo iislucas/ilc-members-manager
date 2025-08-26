@@ -5,177 +5,191 @@
   in... } @else 
    -->
   @if (user) {
-
-  <div class="nav-bar">
-    <div class="title-and-menu">
-      @if (user.isAdmin) {
-      <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-        <app-icon name="menu"></app-icon>
-      </button>
-      @if(menuOpen()) {
-      <div class="menu">
-        <div
-          class="menu-item"
-          (click)="currentView.set(Views.MyData); menuOpen.set(false)"
-        >
-          My Data
-        </div>
-        @if (user.isAdmin || user.schoolsManaged.length > 0) {
-        <div
-          class="menu-item"
-          (click)="currentView.set(Views.ManageMembers); menuOpen.set(false)"
-        >
-          Manage Members
-        </div>
+    <div class="nav-bar">
+      <div class="title-and-menu">
+        <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
+          <app-icon name="menu"></app-icon>
+        </button>
+        @if (menuOpen()) {
+          <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
+          <div class="menu">
+            <div
+              class="menu-item"
+              (click)="currentView.set(Views.MyData); menuOpen.set(false)"
+            >
+              My Data
+            </div>
+            @if (user.isAdmin || user.schoolsManaged.length > 0) {
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ManageMembers); menuOpen.set(false)
+                "
+              >
+                Manage Members
+              </div>
+            }
+            <div
+              class="menu-item"
+              (click)="currentView.set(Views.Schools); menuOpen.set(false)"
+            >
+              Schools
+            </div>
+            @if (user.isAdmin) {
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ImportExport); menuOpen.set(false)
+                "
+              >
+                Import/Export Members
+              </div>
+            }
+            <div
+              class="menu-item"
+              (click)="
+                currentView.set(Views.FindAnInstructor); menuOpen.set(false)
+              "
+            >
+              Find an Instructor
+            </div>
+          </div>
         }
-        <div
-          class="menu-item"
-          (click)="currentView.set(Views.Schools); menuOpen.set(false)"
-        >
-          Schools
-        </div>
-        @if (user.isAdmin) {
-        <div
-          class="menu-item"
-          (click)="currentView.set(Views.ImportExport); menuOpen.set(false)"
-        >
-          Import/Export Members
-        </div>
-        }
-        <div
-          class="menu-item"
-          (click)="currentView.set(Views.FindAnInstructor); menuOpen.set(false)"
-        >
-          Find an Instructor
-        </div>
+        <div class="title">{{ currentViewTitle() }}</div>
       </div>
-      } }
-      <div class="title">{{ currentViewTitle() }}</div>
+      <app-profile-menu></app-profile-menu>
     </div>
-    <app-profile-menu></app-profile-menu>
-  </div>
-  @if (logoutError(); as message) {
-  <div class="error-container">
-    Logout error: <span>{{ message }}</span>
-  </div>
-  }
-  <main class="main">
-    @if (firebaseService.loggingIn()) {
-    <app-spinner></app-spinner>
-    } @else { @switch (currentView()) { @case (Views.Home) {
-    <app-member-view [member]="user.member"></app-member-view>
-    } @case (Views.MyData) {
-    <app-member-view [member]="user.member"></app-member-view>
-    } @case (Views.ManageMembers) {
-    <app-member-list [memberSet]="dataService.members"></app-member-list>
-    } @case (Views.ImportExport) {
-    <app-member-import-export></app-member-import-export>
-    } @case (Views.FindAnInstructor) {
-    <app-find-an-instructor></app-find-an-instructor>
-    } @case (Views.Schools) {
-    <app-school-list></app-school-list>
-    } @case (Views.SchoolMembers) { @let school = schoolInUrlPath(); @if(school)
-    {
-    <app-filtered-members
-      [memberSet]="dataService.members"
-      [schoolId]="school.schoolId"
-      [jumpToMember]="jumpToMemberInUrlParams()"
-    ></app-filtered-members>
-    } @else {
-    <p>
-      No such school:
-      {{ routingService.signals[Views.SchoolMembers].pathVars.schoolId() }}
-    </p>
-    } } } }
-  </main>
-  } @else {
-  <h1>ILC Members Manager</h1>
-  <main class="main">
-    <div class="login-options">
-      <div class="card email-login">
-        <div>
-          Email:
-          <input
-            #email
-            type="email"
-            name="email"
-            ngModel
-            required
-            placeholder="Email"
-          />
-        </div>
-        <div>
-          Password:
-          <input
-            #password
-            type="password"
-            name="password"
-            ngModel
-            required
-            placeholder="Password"
-          />
-        </div>
-        <div class="buttons">
-          <button
-            (click)="loginWithEmail(email.value, password.value)"
-            [disabled]="!email.value || !password.value"
-          >
-            Login
-          </button>
-          <button
-            (click)="signupWithEmail(email.value, password.value)"
-            [disabled]="!email.value || !password.value"
-          >
-            Signup
-          </button>
-        </div>
-
-        @if (signupError(); as message) {
-        <div class="error-container">
-          Signup error: <span class="error-message">{{ message }}</span>
-        </div>
-        } @if (loginWithEmailError(); as message) {
-        <div class="error-container">
-          Login with email error:
-          <span class="error-message">{{ message }}</span>
-        </div>
-        } @if (invalidLoginCredentials()) {
-        <p>
-          Your password is invalid. Do you want to
-          <button (click)="resetPassword(email.value)">
-            reset your password
-          </button>
-          ?
-        </p>
-        } @if (resetPasswordSuccess(); as message) {
-        <div class="success">
-          <span>{{ message }}</span>
-        </div>
-        } @if (resetPasswordError(); as message) {
-        <div class="error-container">
-          Reset password error: <span class="error-message">{{ message }}</span>
-        </div>
-        }
-      </div>
-
-      <div class="card google-login">
-        <button (click)="loginWithGoogle()">Login with Google</button>
-        @if (loginWithGoogleError(); as message) {
-        <div class="error">
-          Login with Google Error:
-          <span class="error-message">{{ message }}</span>
-        </div>
-        }
-      </div>
-
-      @if(firebaseService.loginError()) {
+    @if (logoutError(); as message) {
       <div class="error-container">
-        Login error:
-        <span class="error-message">{{ firebaseService.loginError() }}</span>
+        Logout error: <span>{{ message }}</span>
       </div>
+    }
+    <main class="main">
+      @if (firebaseService.loggingIn()) {
+        <app-spinner></app-spinner>
+      } @else {
+        @switch (currentView()) {
+          @case (Views.Home) {
+            <app-member-view [member]="user.member"></app-member-view>
+          }
+          @case (Views.MyData) {
+            <app-member-view [member]="user.member"></app-member-view>
+          }
+          @case (Views.ManageMembers) {
+            <app-filtered-members
+              [memberSet]="dataService.members"
+            ></app-filtered-members>
+          }
+          @case (Views.ImportExport) {
+            <app-member-import-export></app-member-import-export>
+          }
+          @case (Views.FindAnInstructor) {
+            <app-find-an-instructor></app-find-an-instructor>
+          }
+          @case (Views.Schools) {
+            <app-school-list></app-school-list>
+          }
+          @case (Views.SchoolMembers) {
+            <app-school-members></app-school-members>
+          }
+        }
       }
-    </div>
-  </main>
+    </main>
+  } @else {
+    <h1>ILC Members Manager</h1>
+    <main class="main">
+      <div class="login-options">
+        <div class="card email-login">
+          <div>
+            Email:
+            <input
+              #email
+              type="email"
+              name="email"
+              ngModel
+              required
+              placeholder="Email"
+            />
+          </div>
+          <div>
+            Password:
+            <input
+              #password
+              type="password"
+              name="password"
+              ngModel
+              required
+              placeholder="Password"
+            />
+          </div>
+          <div class="buttons">
+            <button
+              (click)="loginWithEmail(email.value, password.value)"
+              [disabled]="!email.value || !password.value"
+            >
+              Login
+            </button>
+            <button
+              (click)="signupWithEmail(email.value, password.value)"
+              [disabled]="!email.value || !password.value"
+            >
+              Signup
+            </button>
+          </div>
+
+          @if (signupError(); as message) {
+            <div class="error-container">
+              Signup error: <span class="error-message">{{ message }}</span>
+            </div>
+          }
+          @if (loginWithEmailError(); as message) {
+            <div class="error-container">
+              Login with email error:
+              <span class="error-message">{{ message }}</span>
+            </div>
+          }
+          @if (invalidLoginCredentials()) {
+            <p>
+              Your password is invalid. Do you want to
+              <button (click)="resetPassword(email.value)">
+                reset your password
+              </button>
+              ?
+            </p>
+          }
+          @if (resetPasswordSuccess(); as message) {
+            <div class="success">
+              <span>{{ message }}</span>
+            </div>
+          }
+          @if (resetPasswordError(); as message) {
+            <div class="error-container">
+              Reset password error:
+              <span class="error-message">{{ message }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="card google-login">
+          <button (click)="loginWithGoogle()">Login with Google</button>
+          @if (loginWithGoogleError(); as message) {
+            <div class="error">
+              Login with Google Error:
+              <span class="error-message">{{ message }}</span>
+            </div>
+          }
+        </div>
+
+        @if (firebaseService.loginError()) {
+          <div class="error-container">
+            Login error:
+            <span class="error-message">{{
+              firebaseService.loginError()
+            }}</span>
+          </div>
+        }
+      </div>
+    </main>
   }
   <app-footer></app-footer>
 </div>

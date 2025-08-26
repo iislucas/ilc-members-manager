@@ -1,4 +1,4 @@
-import { Component, effect, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input } from '@angular/core';
 import { MemberListComponent } from '../member-list/member-list';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
@@ -17,22 +17,22 @@ export class FilteredMembersComponent {
   country = input<string>('');
   jumpToMember = input<string>('');
   filteredMemberSet = new SearchableSet<Member>();
+  errorMessage = computed(() => {
+    return this.memberSet().error() || this.filteredMemberSet.error();
+  });
 
   constructor() {
     effect(() => {
       if (this.memberSet().loaded()) {
-        console.log('app-filtered-members: loaded');
         let filteredSet = this.memberSet().entries();
         if (this.schoolId() !== '') {
           filteredSet = filteredSet.filter(
-            (m) => m.managingOrgId === this.schoolId()
+            (m) => m.managingOrgId === this.schoolId(),
           );
         }
         if (this.country() !== '') {
           filteredSet = filteredSet.filter((m) => m.country === this.country());
         }
-        console.log(filteredSet);
-        console.log(`app-filtered-members: ${filteredSet.length}`);
         this.filteredMemberSet.setEntries(filteredSet);
       }
     });

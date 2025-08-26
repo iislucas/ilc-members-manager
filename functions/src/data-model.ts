@@ -85,10 +85,7 @@ export type Member = {
   membershipExpires: string; // Date membership expires
   memberId: string; // ILC Member Id: UNIQUE
   sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
-  // The ID of the school/org this member belongs to. This will be part of the
-  // document path, but is included here for convenience. This must always be
-  // set. For members not in a specific school, we use value of
-  // `ILC_HQ_MANAGER_ID`
+  // SchoolID managing this member. If empty, managed by HQ.
   managingOrgId: string;
 
   // Contact information
@@ -118,6 +115,25 @@ export type Member = {
 
   // Notes only for ILC HQ.
   notes: string;
+};
+
+// Public information about instructors; mirrored from the member data into
+// firestore path /instructorsPublic/{instructorId}
+export type InstructorPublicData = {
+  name: string; // Full name
+  memberId: string; // ILC Member Id: UNIQUE
+  instructorWebsite: string; // Optional website URL
+
+  // Level information
+  studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
+  applicationLevel: ApplicationLevel; // e.g., 'Level 1', 'Level 2'
+  // Saved as a string list to allow search within these.
+  mastersLevels: MasterLevel[];
+
+  // Instructor information.
+  //
+  // ILC HQ issued a unique instructor ID, empty = not instructor.
+  instructorId: string;
 };
 
 export function initMember(): Member {

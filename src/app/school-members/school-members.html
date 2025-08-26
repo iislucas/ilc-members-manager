@@ -1,0 +1,16 @@
+@let s = schoolInUrlPathStatus();
+@if (s.status === SchoolStatusKind.NoSchoolInPath) {
+  <p>No valid school is specified in the URL path.</p>
+} @else if (s.status === SchoolStatusKind.SchoolNotFound) {
+  <p>
+    No such school:
+    {{ routingService.signals[Views.SchoolMembers].pathVars.schoolId() }}
+  </p>
+} @else if (s.status === SchoolStatusKind.SchoolsLoading) {
+  <app-spinner></app-spinner>
+} @else if (s.status === SchoolStatusKind.SchoolFound) {
+  <app-filtered-members
+    [memberSet]="dataService.members"
+    [schoolId]="s.school.schoolId"
+  ></app-filtered-members>
+}

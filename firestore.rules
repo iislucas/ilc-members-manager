@@ -9,16 +9,27 @@ service cloud.firestore {
       function isAdmin() {
         return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
       }
-      allow read: if isOwner() || isAdmin();
-      allow write: if isAdmin();
+      function isSchoolManager() {
+        let userMember = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
+        let member = get(/databases/$(database)/documents/members/$(memberEmail)).data;
+        let school = get(/databases/$(database)/documents/schools/$(member.managingOrgId)).data;
+        return userMember.memberId == school.owner || userMember.memberId in school.managers;
+      }
+      allow read: if isOwner() || isAdmin() || isSchoolManager();
+      allow write: if isAdmin() || isSchoolManager();
     }
 
     match /schools/{schoolId} {
       function isAdmin() {
         return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
       }
-      allow read: if isAdmin();
+      allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /instructorsPublic/{instructorId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     match /schools/{schoolId}/members/{memberId} {

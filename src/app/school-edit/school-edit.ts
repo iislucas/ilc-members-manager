@@ -51,7 +51,7 @@ export class SchoolEditComponent {
   collapsed = signal(true);
   isDirty = computed(
     () =>
-      JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool())
+      JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool()),
   );
   private membersService = inject(DataManagerService);
   owner = computed(() => {
@@ -67,7 +67,7 @@ export class SchoolEditComponent {
       (memberId) =>
         this.membersService.instructors
           .entries()
-          .find((m) => m.memberId === memberId) || null
+          .find((m) => m.memberId === memberId) || null,
     );
   });
 
@@ -140,7 +140,7 @@ export class SchoolEditComponent {
     return this.allSchools().some(
       (s) =>
         s.schoolId?.toLowerCase() === school.schoolId?.toLowerCase() &&
-        s.id !== school.id
+        s.id !== school.id,
     );
   });
 
@@ -149,15 +149,12 @@ export class SchoolEditComponent {
     this.asyncError.set(null);
     try {
       const school = this.editableSchool()!;
-      if (school.id) {
-        await this.membersService.updateSchool(school.id, school);
-      } else {
-        await this.membersService.addSchool(school);
-      }
+      await this.membersService.setSchool(school);
       this.isSaving.set(false);
       this.collapsed.set(true);
       this.close.emit();
     } catch (e: unknown) {
+      console.error(e);
       this.asyncError.set(e as Error);
       this.isSaving.set(false);
     }
@@ -169,13 +166,14 @@ export class SchoolEditComponent {
     this.asyncError.set(null);
     if (
       confirm(
-        `Are you sure you want to delete ${this.editableSchool()!.schoolName}?`
+        `Are you sure you want to delete ${this.editableSchool().schoolName}?`,
       )
     ) {
-      if (this.editableSchool()!.id) {
+      if (this.editableSchool().id) {
         try {
-          await this.membersService.deleteSchool(this.editableSchool()!.id!);
+          await this.membersService.deleteSchool(this.editableSchool().id);
         } catch (e: unknown) {
+          console.error(e);
           this.asyncError.set(e as Error);
         }
       }

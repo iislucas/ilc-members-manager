@@ -21,7 +21,7 @@ import {
   FetchMembersResult,
   FetchInstructorsResult,
 } from '../../functions/src/data-model';
-import { FirebaseStateService } from './firebase-state.service';
+import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import * as Papa from 'papaparse';
 import { User } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -44,7 +44,8 @@ export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
-  private unsubscribeSnapshots: () => void = () => {};
+  private membersCollection = collection(this.db, 'members');
+  private snapshotsToUnsubscribe: (() => void)[] = [];
 
   // A signal to hold the state of the members list.
   public members = new SearchableSet<Member>([
@@ -75,76 +76,164 @@ export class DataManagerService {
   constructor() {
     effect(async () => {
       this.unsubscribeSnapshots();
-      await this.firebaseService.loggedIn();
-      this.updateMembersSync();
-      this.updateInstructorsSync();
+      const user = await this.firebaseService.loggedIn();
+      this.updateMembersSync(user);
+      // this.updateInstructorsSync();
       this.updateSchoolsSync();
     });
-    effect(() => this.members.entries().filter((m) => m.instructorId));
+    effect(() =>
+      this.instructors.setEntries(
+        this.members.entries().filter((m) => m.instructorId),
+      ),
+    );
   }
 
-  async updateMembersSync() {
-    const getMembers = httpsCallable(
-      this.firebaseService.functions,
-      'getMembers'
-    );
-    try {
-      const result = await getMembers();
-      const members = (result.data as FetchMembersResult).members.map((m) => {
-        return { ...initMember(), ...m } as Member;
-      });
-      this.members.setEntries(members);
-    } catch (error) {
-      this.members.setError((error as Error).message);
-    }
+  unsubscribeSnapshots() {
+    this.snapshotsToUnsubscribe.forEach((unsubscribe) => unsubscribe());
   }
 
-  async updateInstructorsSync() {
-    const getMembers = httpsCallable(
-      this.firebaseService.functions,
-      'getInstructors'
-    );
-    try {
-      const result = await getMembers();
-      const members = (result.data as FetchInstructorsResult).instructors.map(
-        (m) => {
-          return { ...initMember(), ...m } as Member;
-        }
+  async updateMembersSync(user: UserDetails) {
+    if (user.isAdmin) {
+      this.snapshotsToUnsubscribe.push(
+        onSnapshot(
+          this.membersCollection,
+          (snapshot) => {
+            const members = snapshot.docs.map(
+              (doc) =>
+                ({ ...initMember(), ...doc.data(), id: doc.id }) as Member,
+            );
+            this.members.setEntries(members);
+          },
+          (error) => {
+            console.error(error);
+            this.members.setError(error.message);
+          },
+        ),
       );
-      this.instructors.setEntries(members);
-    } catch (error) {
-      this.instructors.setError((error as Error).message);
+    } else if (user.schoolsManaged.length > 0) {
+      const allMembers = new Map<string, Member>();
+
+      user.schoolsManaged.forEach((schoolId) => {
+        const membersCollectionPath = `schools/${schoolId}/members`;
+        const membersQuery = query(collection(this.db, membersCollectionPath));
+
+        const unsubscribe = onSnapshot(
+          membersQuery,
+          (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'removed') {
+                allMembers.delete(change.doc.id);
+              } else {
+                allMembers.set(change.doc.id, {
+                  ...initMember(),
+                  ...change.doc.data(),
+                  id: change.doc.id,
+                } as Member);
+              }
+            });
+            this.members.setEntries(Array.from(allMembers.values()));
+          },
+          (error) => {
+            console.error(
+              `Error fetching members for school ${schoolId}:`,
+              error,
+            );
+            this.members.setError(
+              `Error fetching members for school ${schoolId}.`,
+            );
+          },
+        );
+        this.snapshotsToUnsubscribe.push(unsubscribe);
+      });
+    } else {
+      console.error('User is not a school manager or admin');
+      this.members.setError(`You are not a school manager or admin.`);
     }
   }
+
+  //  // Admin: Return all members
+  //   if (userDetails.isAdmin) {
+  //     const membersSnapshot = await db.collection('members').get();
+  //     const members = membersSnapshot.docs.map(
+  //       (doc) => ({ id: doc.id, ...doc.data() } as Member)
+  //     );
+  //     return {
+  //       members,
+  //     };
+  //   }
+
+  //   if (userDetails.schoolsManaged.length > 0) {
+  //     const membersSnapshot = await db
+  //       .collection('members')
+
+  //       .get();
+  //     const members = membersSnapshot.docs.map(
+  //       (doc) => ({ id: doc.id, ...doc.data() } as Member)
+  //     );
+  //     return {
+  //       members,
+  //     };
+  //   }
+
+  // async updateMembersSync() {
+  //   const getMembers = httpsCallable(
+  //     this.firebaseService.functions,
+  //     'getMembers',
+  //   );
+  //   try {
+  //     const result = await getMembers();
+  //     const members = (result.data as FetchMembersResult).members.map((m) => {
+  //       return { ...initMember(), ...m } as Member;
+  //     });
+  //     this.members.setEntries(members);
+  //   } catch (error) {
+  //     this.members.setError((error as Error).message);
+  //   }
+  // }
+
+  // TODO: lets have a firebase on update that results in a copy of instructors
+  // in a special collection "instructors", which also has the appropriate
+  // subset of the information about instructors.
+  // async updateInstructorsSync() {
+  //   const getMembers = httpsCallable(
+  //     this.firebaseService.functions,
+  //     'getInstructors',
+  //   );
+  //   try {
+  //     const result = await getMembers();
+  //     const members = (result.data as FetchInstructorsResult).instructors.map(
+  //       (m) => {
+  //         return { ...initMember(), ...m } as Member;
+  //       },
+  //     );
+  //     this.instructors.setEntries(members);
+  //   } catch (error) {
+  //     this.instructors.setError((error as Error).message);
+  //   }
+  // }
 
   async updateSchoolsSync() {
-    this.unsubscribeSnapshots = onSnapshot(
-      this.schoolsCollection,
-      (snapshot) => {
-        const schools = snapshot.docs.map(
-          (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id } as School)
-        );
-        this.schools.setEntries(schools);
-      },
-      (error) => {
-        this.schools.setError(error.message);
-      }
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(
+        this.schoolsCollection,
+        (snapshot) => {
+          const schools = snapshot.docs.map(
+            (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id }) as School,
+          );
+          this.schools.setEntries(schools);
+        },
+        (error) => {
+          this.schools.setError(error.message);
+        },
+      ),
     );
   }
 
   async addMember(member: Partial<Member>): Promise<DocumentReference> {
-    if (!member.managingOrgId) {
-      throw new Error('managingOrgId is required to add a member');
-    }
     if (!member.email) {
       throw new Error('email is required to add a member');
     }
-    const collectionRef = collection(
-      this.db,
-      'schools',
-      member.managingOrgId,
-      'members'
-    );
+    const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef, member.email);
     return setDoc(newDocRef, member).then(() => newDocRef);
   }
@@ -153,53 +242,19 @@ export class DataManagerService {
     if (member.email && member.email !== emailId) {
       return this.updateMemberEmail(emailId, member);
     }
-    if (!member.managingOrgId) {
-      throw new Error('managingOrgId is required to update a member');
-    }
-    const docRef = doc(
-      this.db,
-      'schools',
-      member.managingOrgId,
-      'members',
-      emailId
-    );
+    const docRef = doc(this.db, 'members', emailId);
     return setDoc(docRef, member, { merge: true });
   }
 
   // TOOD: move this to functions, we don't want to depend on admin user.
   private async updateMemberEmail(
     oldEmail: string,
-    member: Partial<Member>
+    member: Partial<Member>,
   ): Promise<void> {
     if (!member.email) {
       throw new Error('New email not provided');
     }
-    const newEmail = member.email;
-    // 1. create a new entry in the members with all the same data and the new email
     await this.addMember(member);
-
-    // 2. update any email entries in the managers or owners of Schools
-    const schools = await getDocs(this.schoolsCollection);
-    for (const school of schools.docs) {
-      const schoolData = school.data() as School;
-      const managers = schoolData.managers ?? [];
-      let updated = false;
-      if (schoolData.owner === oldEmail) {
-        schoolData.owner = newEmail;
-        updated = true;
-      }
-      if (managers.includes(oldEmail)) {
-        schoolData.managers = managers.map((manager: string) =>
-          manager === oldEmail ? newEmail : manager
-        );
-        updated = true;
-      }
-      if (updated) {
-        await this.updateSchool(school.id, schoolData);
-      }
-    }
-
-    // 3. delete the old members entry
     await this.deleteMember(oldEmail);
   }
 
@@ -208,12 +263,10 @@ export class DataManagerService {
     return deleteDoc(docRef);
   }
 
-  async addSchool(school: Partial<School>): Promise<DocumentReference> {
-    return addDoc(this.schoolsCollection, school);
-  }
-
-  async updateSchool(id: string, school: Partial<School>): Promise<void> {
-    return setDoc(doc(this.db, 'schools', id), school, { merge: true });
+  async setSchool(school: School): Promise<void> {
+    return setDoc(doc(this.db, 'schools', school.schoolId), school, {
+      merge: true,
+    });
   }
 
   async deleteSchool(id: string): Promise<void> {

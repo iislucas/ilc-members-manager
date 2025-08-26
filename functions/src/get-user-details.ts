@@ -12,7 +12,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   if (!request.auth) {
     throw new HttpsError(
       'unauthenticated',
-      'The function must be called while authenticated.'
+      'The function must be called while authenticated.',
     );
   }
 
@@ -25,7 +25,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     if (!user.email) {
       throw new HttpsError(
         'permission-denied',
-        'This service only works for users with an email address.'
+        'This service only works for users with an email address.',
       );
     }
 
@@ -33,7 +33,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     if (!memberDoc.exists) {
       throw new HttpsError(
         'permission-denied',
-        'You do not have permission to perform this action as you are not a member.'
+        'You do not have permission to perform this action as you are not a member.',
       );
     }
     const userMemberData = memberDoc.data() as Member;
@@ -41,11 +41,11 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     // School manager/owner query
     const schoolsOwnedQuery = db
       .collection('schools')
-      .where('owner', '==', uid)
+      .where('owner', '==', userMemberData.memberId)
       .get();
     const schoolsManagedQuery = db
       .collection('schools')
-      .where('managers', 'array-contains', uid)
+      .where('managers', 'array-contains', userMemberData.memberId)
       .get();
 
     const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
@@ -54,8 +54,8 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     ]);
 
     const schoolIds = new Set<string>();
-    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
-    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
+    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
+    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
 
     // Admin: Return all members
     if (userMemberData.isAdmin) {
@@ -82,7 +82,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     }
     throw new HttpsError(
       'internal',
-      'An error occurred while getting user details.'
+      'An error occurred while getting user details.',
     );
   }
 }
@@ -92,5 +92,5 @@ export const getUserDetails = onCall<unknown, Promise<FetchUserDetailsResult>>(
   async (request) => {
     logger.info('getUserKind called', { auth: request.auth });
     return getUserDetailsHelper(request);
-  }
+  },
 );

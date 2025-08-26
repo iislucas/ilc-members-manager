@@ -3,7 +3,6 @@ import { FirebaseStateService } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
-import { UnauthorizedComponent } from './unauthorized/unauthorized';
 import { MemberListComponent } from './member-list/member-list';
 import { FooterComponent } from './footer/footer';
 import { MemberViewComponent } from './member-view/member-view';
@@ -16,7 +15,7 @@ import { FindAnInstructorComponent } from './find-an-instructor/find-an-instruct
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
 import { DataManagerService } from './data-manager.service';
-import { MemberEditComponent } from './member-edit/member-edit';
+import { SchoolMembersComponent } from './school-members/school-members';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 
 @Component({
@@ -33,7 +32,7 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
     FindAnInstructorComponent,
     ProfileMenuComponent,
     SchoolListComponent,
-    MemberListComponent,
+    SchoolMembersComponent,
     FilteredMembersComponent,
   ],
   templateUrl: './app.html',
@@ -48,16 +47,6 @@ export class App {
   public menuOpen = signal(false);
   public currentView = this.routingService.matchedPatternId;
   public Views = Views;
-  public schoolInUrlPath = computed(() => {
-    const schoolId =
-      this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
-    if (schoolId) {
-      return this.dataService.schools
-        .entries()
-        .find((s) => s.schoolId === schoolId);
-    }
-    return null;
-  });
   public jumpToMemberInUrlParams = computed(() => {
     const patternId = this.routingService.matchedPatternId();
     if (
@@ -108,6 +97,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.loginWithGoogle();
     if (!result.success) {
+      console.warn(result.errorCode);
       this.loginWithGoogleError.set(result.errorCode);
     }
   }
@@ -116,6 +106,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.loginWithEmail(pass, email);
     if (!result.success) {
+      console.warn(result.errorCode);
       this.loginWithEmailError.set(result.errorCode);
       if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
         this.invalidLoginCredentials.set(true);
@@ -127,6 +118,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.signupWithEmail(pass, email);
     if (!result.success) {
+      console.warn(result.errorCode);
       this.signupError.set(result.errorCode);
     }
   }
@@ -134,17 +126,19 @@ export class App {
   public async resetPassword(email: string) {
     this.dismissMessages();
     if (!email) {
+      console.warn('resetPasswordError: no email provided');
       this.resetPasswordError.set(
-        'Please enter your email address to reset your password.'
+        'Please enter your email address to reset your password.',
       );
       return;
     }
     const result = await this.firebaseService.resetPassword(email);
     if (result.success) {
       this.resetPasswordSuccess.set(
-        'A password reset link has been sent to your email.'
+        'A password reset link has been sent to your email.',
       );
     } else {
+      console.warn(result.errorMessage);
       this.resetPasswordError.set(result.errorMessage);
     }
   }
@@ -153,6 +147,7 @@ export class App {
     this.dismissMessages();
     const result = await this.firebaseService.logout();
     if (!result.success) {
+      console.warn(result.errorCode);
       this.logoutError.set(result.errorCode);
     }
   }

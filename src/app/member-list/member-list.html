@@ -1,41 +1,46 @@
 @if (loading()) {
-<app-spinner></app-spinner>
+  <app-spinner></app-spinner>
 } @else if (error()) {
-<p class="error">{{ error() }}</p>
+  <div class="error-container">
+    <span class="error-message">{{ error() }}</span>
+  </div>
 } @else {
-<div class="search-header">
-  <div class="search-box">
-    <app-icon class="search-icon" name="search"></app-icon>
-    <input
-      type="text"
-      placeholder="Search by name or email"
-      (input)="onSearch($event)"
-    />
+  <div class="search-header">
+    <div class="search-box">
+      <app-icon class="search-icon" name="search"></app-icon>
+      <input
+        type="text"
+        placeholder="Search by name or email"
+        (input)="onSearch($event)"
+      />
+    </div>
+    @if (canMakeNewMembers()) {
+      <button (click)="onNewMember()">New Member</button>
+    }
   </div>
-  @if(canMakeNewMembers()) {
-  <button (click)="onNewMember()">New Member</button>
-  }
-</div>
-<div class="member-cards">
-  @if(isAddingMember()) {
-  <div class="member-card">
-    <app-member-edit
-      [member]="newMember()"
-      [allMembers]="members()"
-      [collapse]="!isAddingMember()"
-      (close)="onNewMemberClose()"
-      [canDelete]="false"
-    ></app-member-edit>
+  <div class="member-cards">
+    @if (isAddingMember()) {
+      <div class="member-card">
+        <app-member-edit
+          [member]="newMember()"
+          [allMembers]="members()"
+          [collapse]="false"
+          (close)="onNewMemberClose()"
+          [canDelete]="false"
+        ></app-member-edit>
+      </div>
+    }
+    @let membersList = members();
+    @if (membersList.length === 0) {
+      <div>No members.</div>
+    }
+    @for (member of membersList; track member.email) {
+      <div class="member-card">
+        <app-member-edit
+          [member]="member"
+          [allMembers]="members()"
+        ></app-member-edit>
+      </div>
+    }
   </div>
-  } @let membersList = members(); @if(membersList.length === 0) {
-  <div>No members.</div>
-  } @for (member of membersList; track member.email) {
-  <div class="member-card">
-    <app-member-edit
-      [member]="member"
-      [allMembers]="members()"
-    ></app-member-edit>
-  </div>
-  }
-</div>
 }
