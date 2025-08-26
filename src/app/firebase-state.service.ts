@@ -25,7 +25,11 @@ import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { doc, Firestore, getDoc, getFirestore } from 'firebase/firestore';
-import { FetchUserDetailsResult, Member } from '../../functions/src/data-model';
+import {
+  FetchUserDetailsResult,
+  initMember,
+  Member,
+} from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
@@ -121,7 +125,7 @@ export class FirebaseStateService {
         }
         const userDetails: UserDetails = {
           firebaseUser: user,
-          member: userDetailsResult.userMemberData,
+          member: { ...initMember(), ...userDetailsResult.userMemberData },
           isAdmin: userDetailsResult.isAdmin,
           schoolsManaged: userDetailsResult.schoolsManaged,
         };

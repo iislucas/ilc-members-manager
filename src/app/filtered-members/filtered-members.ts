@@ -21,15 +21,19 @@ export class FilteredMembersComponent {
   constructor() {
     effect(() => {
       if (this.memberSet().loaded()) {
-        let initialSet = this.memberSet().entries();
+        console.log('app-filtered-members: loaded');
+        let filteredSet = this.memberSet().entries();
         if (this.schoolId() !== '') {
-          initialSet = initialSet.filter(
+          filteredSet = filteredSet.filter(
             (m) => m.managingOrgId === this.schoolId()
           );
         }
         if (this.country() !== '') {
-          initialSet = initialSet.filter((m) => m.country === this.country());
+          filteredSet = filteredSet.filter((m) => m.country === this.country());
         }
+        console.log(filteredSet);
+        console.log(`app-filtered-members: ${filteredSet.length}`);
+        this.filteredMemberSet.setEntries(filteredSet);
       }
     });
   }

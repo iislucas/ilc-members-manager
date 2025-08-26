@@ -19,7 +19,10 @@
   @if (!collapsed()) {
   <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
     <div class="form-section">
-      <h3>School Details</h3>
+      <h3>
+        School Details
+        <div class="members-link" (click)="gotoMembers()">Members</div>
+      </h3>
       <label for="schoolName">School Name</label>
       <div>
         <input
@@ -117,10 +120,10 @@
         }
       </div>
 
-      <label class="align-top">Managers</label>
+      <label class="align-top" for="managers">Managers</label>
       <div>
         @for(managerEmail of s.managers; track $index; let i = $index) {
-        <div class="member-search-with-details">
+        <div class="member-search-with-details" id="managers">
           <app-member-search
             id="manager-{{ managerEmail }}"
             [searchTerm]="managerEmail"

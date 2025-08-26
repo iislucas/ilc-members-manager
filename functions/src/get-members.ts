@@ -22,8 +22,6 @@ export const getMembers = onCall<unknown, Promise<FetchMembersResult>>(
         );
         return {
           members,
-          schoolsManaged: userDetails.schoolsManaged,
-          isAdmin: true,
         };
       }
 
@@ -37,14 +35,12 @@ export const getMembers = onCall<unknown, Promise<FetchMembersResult>>(
         );
         return {
           members,
-          schoolsManaged: userDetails.schoolsManaged,
-          isAdmin: false,
         };
       }
 
       // If not admin or manager of others. TODO: consider Sifu's having manager
       // access over their students?
-      return { members: [], schoolsManaged: [], isAdmin: false };
+      return { members: [] };
     } catch (error: unknown) {
       logger.error('Error getting members:', error);
       if (error instanceof HttpsError) {

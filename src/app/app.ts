@@ -19,15 +19,12 @@ import { DataManagerService } from './data-manager.service';
 import { MemberEditComponent } from './member-edit/member-edit';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 
-function getRouterMemberId(router: RoutingService<AppPathPatterns>) {}
-
 @Component({
   selector: 'app-root',
   imports: [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    UnauthorizedComponent,
     FooterComponent,
     MemberViewComponent,
     IconComponent,
@@ -36,7 +33,6 @@ function getRouterMemberId(router: RoutingService<AppPathPatterns>) {}
     FindAnInstructorComponent,
     ProfileMenuComponent,
     SchoolListComponent,
-    MemberEditComponent,
     MemberListComponent,
     FilteredMembersComponent,
   ],
@@ -56,7 +52,9 @@ export class App {
     const schoolId =
       this.routingService.signals[Views.SchoolMembers].pathVars.schoolId();
     if (schoolId) {
-      return this.dataService.schools.entries().find((s) => s.id === schoolId);
+      return this.dataService.schools
+        .entries()
+        .find((s) => s.schoolId === schoolId);
     }
     return null;
   });

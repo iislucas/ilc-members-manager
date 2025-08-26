@@ -187,3 +187,8 @@ export type FetchUserDetailsResult = {
 export type FetchMembersResult = {
   members: Member[];
 };
+
+// The type returned by get-instructors function call.
+export type FetchInstructorsResult = {
+  instructors: Member[];
+};

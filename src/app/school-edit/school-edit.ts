@@ -17,6 +17,8 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-school-edit',
@@ -182,6 +184,17 @@ export class SchoolEditComponent {
 
   closeErrors() {
     this.asyncError.set(null);
+  }
+
+  private routingService: RoutingService<AppPathPatterns> =
+    inject(RoutingService);
+  gotoMembers() {
+    this.routingService.matchedPatternId.set(Views.SchoolMembers);
+    const signals = this.routingService.signals[Views.SchoolMembers];
+    // TODO: should we do a single asignement for all params, that way we don't
+    // miss any? This means a single signal for all path params at once. Path
+    // params are not optional. Url Params can keep the same pattern;
+    signals.pathVars.schoolId.set(this.school().schoolId);
   }
 
   asyncError = signal<Error | null>(null);

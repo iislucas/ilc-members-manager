@@ -55,6 +55,9 @@ export class MemberEditComponent {
     () =>
       JSON.stringify(this.member()) !== JSON.stringify(this.editableMember())
   );
+  saveComplete = computed(() => {
+    return this.isSaving() && !this.isDirty();
+  });
   sifuSearch = linkedSignal<string>(() => {
     const member = this.editableMember();
     return member.sifuMemberId;
@@ -170,6 +173,11 @@ export class MemberEditComponent {
       } else {
         await this.membersService.addMember(member);
       }
+      // Shortcut so we don't need to wait for Firebase/firestore sync loop to
+      // update the original member that will
+      Object.assign(this.member(), member);
+      this.editableMember.set({ ...member });
+      // Now we can update the isSaving state and close the being edited member.
       this.isSaving.set(false);
       this.collapsed.set(true);
       this.close.emit();

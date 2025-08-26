@@ -19,6 +19,7 @@ import {
   School,
   initSchool,
   FetchMembersResult,
+  FetchInstructorsResult,
 } from '../../functions/src/data-model';
 import { FirebaseStateService } from './firebase-state.service';
 import * as Papa from 'papaparse';
@@ -76,6 +77,7 @@ export class DataManagerService {
       this.unsubscribeSnapshots();
       await this.firebaseService.loggedIn();
       this.updateMembersSync();
+      this.updateInstructorsSync();
       this.updateSchoolsSync();
     });
     effect(() => this.members.entries().filter((m) => m.instructorId));
@@ -94,6 +96,24 @@ export class DataManagerService {
       this.members.setEntries(members);
     } catch (error) {
       this.members.setError((error as Error).message);
+    }
+  }
+
+  async updateInstructorsSync() {
+    const getMembers = httpsCallable(
+      this.firebaseService.functions,
+      'getInstructors'
+    );
+    try {
+      const result = await getMembers();
+      const members = (result.data as FetchInstructorsResult).instructors.map(
+        (m) => {
+          return { ...initMember(), ...m } as Member;
+        }
+      );
+      this.instructors.setEntries(members);
+    } catch (error) {
+      this.instructors.setError((error as Error).message);
     }
   }
 
@@ -198,23 +218,6 @@ export class DataManagerService {
 
   async deleteSchool(id: string): Promise<void> {
     return deleteDoc(doc(this.db, 'schools', id));
-  }
-
-  // TODO: Create a firebase function to find/return all instructors, and use
-  // that here instead. We don't need to be watching snapshot changes here.
-  async fetchActiveInstructors(country?: string): Promise<Member[]> {
-    const constraints = [
-      where('instructorId', '>', ''),
-      where('membershipExpires', '>', new Date().toISOString()),
-    ];
-    if (country) {
-      constraints.push(where('country', '==', country));
-    }
-    const q = query(collection(this.db, 'members'), ...constraints);
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(
-      (doc) => ({ ...initMember(), ...doc.data(), id: doc.id } as Member)
-    );
   }
 
   downloadCsv() {

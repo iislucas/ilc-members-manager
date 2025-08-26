@@ -107,3 +107,10 @@
   align-items: center;
   flex-wrap: nowrap;
 }
+
+.members-link {
+  cursor: pointer;
+  font-size: small;
+  text-decoration: underline;
+  color: blue;
+}

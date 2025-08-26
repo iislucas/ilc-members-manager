@@ -27,12 +27,13 @@
       [canDelete]="false"
     ></app-member-edit>
   </div>
-  } @for (member of members(); track member.email) {
+  } @let membersList = members(); @if(membersList.length === 0) {
+  <div>No members.</div>
+  } @for (member of membersList; track member.email) {
   <div class="member-card">
     <app-member-edit
       [member]="member"
       [allMembers]="members()"
-      (close)="($event)"
     ></app-member-edit>
   </div>
   }

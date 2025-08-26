@@ -14,3 +14,7 @@ export { getCalendarEvents } from './calendar';
 export { deleteUser } from './delete-user';
 export { getUserDetails } from './get-user-details';
 export { getMembers } from './get-members';
+
+export { httpLogger } from './http-logger-example';
+
+export { getInstructors } from './get-instructors';
