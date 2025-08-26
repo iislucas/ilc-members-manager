@@ -15,6 +15,7 @@ import {
   MembershipType,
   MasterLevel,
   School,
+  InstructorPublicData,
 } from '../../../functions/src/data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
@@ -22,6 +23,7 @@ import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
 import { SchoolSearchComponent } from '../school-search/school-search';
+import { deepObjEq } from '../utils';
 
 @Component({
   selector: 'app-member-edit',
@@ -43,8 +45,9 @@ export class MemberEditComponent {
   canDelete = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
+  MembershipType = MembershipType;
   membershipTypes = Object.values(MembershipType);
-  masterLevels = Object.values(MasterLevel);
+  masterLevels = Object.values(MasterLevel).sort();
   editableMember = linkedSignal<Member>(() => {
     const m = this.member();
     return JSON.parse(JSON.stringify(m));
@@ -53,10 +56,7 @@ export class MemberEditComponent {
   collapsed = linkedSignal<boolean>(() => {
     return this.collapse() ?? true;
   });
-  isDirty = computed(
-    () =>
-      JSON.stringify(this.member()) !== JSON.stringify(this.editableMember()),
-  );
+  isDirty = computed(() => !deepObjEq(this.member(), this.editableMember()));
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
   });
@@ -102,7 +102,7 @@ export class MemberEditComponent {
 
   constructor() {}
 
-  sifuSelected(sifu: Member) {
+  sifuSelected(sifu: InstructorPublicData) {
     this.editableMember.update((m) => {
       m.sifuMemberId = sifu.memberId;
       return { ...m };

@@ -35,3 +35,11 @@ export function stringToDate(dateString: string | null | undefined): Date {
   }
   return date;
 }
+
+export function deepObjEq(obj1: Object, obj2: Object) {
+  const sortedKeys1 = Object.keys(obj1).sort();
+  const jsonString1 = JSON.stringify(obj1, sortedKeys1);
+  const sortedKeys2 = Object.keys(obj2).sort();
+  const jsonString2 = JSON.stringify(obj2, sortedKeys2);
+  return jsonString1 === jsonString2;
+}

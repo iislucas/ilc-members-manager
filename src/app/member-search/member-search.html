@@ -9,15 +9,16 @@
     placeholder="Search for a member"
   />
   @if (showResults()) {
-  <ul class="results-list">
-    @for (member of filteredMembers(); track member.id) {
-    <li (mousedown)="selectMember(member)">
-      <span class="identifier-chip"
-        >{{ member.memberId }}-{{ member.instructorId }}</span
-      >
-      {{ member.name }} <span class="small-email">{{ member.email }}</span>
-    </li>
-    }
-  </ul>
+    <ul class="results-list">
+      @for (member of filteredMembers(); track member.id) {
+        <li (mousedown)="selectMember(member)">
+          <span class="identifier-chip"
+            >{{ member.memberId }}-{{ member.instructorId }}</span
+          >
+          {{ member.name }}
+          <span class="small-email">{{ member.publicEmail }}</span>
+        </li>
+      }
+    </ul>
   }
 </div>

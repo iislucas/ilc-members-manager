@@ -7,7 +7,10 @@ import {
   signal,
 } from '@angular/core';
 import { DataManagerService } from '../data-manager.service';
-import { Member } from '../../../functions/src/data-model';
+import {
+  InstructorPublicData,
+  Member,
+} from '../../../functions/src/data-model';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -23,7 +26,7 @@ export class MemberSearchComponent {
   searchTerm = input.required<string>();
   allMembers = input<boolean>(true);
   searchTermChange = output<string>();
-  memberSelected = output<Member>();
+  memberSelected = output<InstructorPublicData>();
 
   showResults = signal(false);
 
@@ -39,7 +42,7 @@ export class MemberSearchComponent {
     this.searchTermChange.emit((event.target as HTMLInputElement).value);
   }
 
-  selectMember(member: Member) {
+  selectMember(member: InstructorPublicData) {
     this.memberSelected.emit(member);
     this.searchTermChange.emit(member.memberId);
     this.showResults.set(false);

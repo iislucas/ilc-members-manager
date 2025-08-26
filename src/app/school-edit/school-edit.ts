@@ -11,7 +11,11 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { School, Member } from '../../../functions/src/data-model';
+import {
+  School,
+  Member,
+  InstructorPublicData,
+} from '../../../functions/src/data-model';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
@@ -19,6 +23,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { deepObjEq } from '../utils';
 
 @Component({
   selector: 'app-school-edit',
@@ -49,10 +54,7 @@ export class SchoolEditComponent {
   });
   isSaving = signal(false);
   collapsed = signal(true);
-  isDirty = computed(
-    () =>
-      JSON.stringify(this.school()) !== JSON.stringify(this.editableSchool()),
-  );
+  isDirty = computed(() => !deepObjEq(this.school(), this.editableSchool()));
   private membersService = inject(DataManagerService);
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
@@ -97,14 +99,14 @@ export class SchoolEditComponent {
     });
   }
 
-  updateManager(index: number, member: Member) {
+  updateManager(index: number, member: InstructorPublicData) {
     this.editableSchool.update((school) => {
-      school.managers[index] = member.email;
+      school.managers[index] = member.memberId;
       return { ...school };
     });
   }
 
-  updateOwner(member: Member) {
+  updateOwner(member: InstructorPublicData) {
     this.editableSchool.update((school) => {
       school!.owner = member.memberId;
       return { ...school! };

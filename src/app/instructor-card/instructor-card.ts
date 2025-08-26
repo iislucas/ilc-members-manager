@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { Member } from '../../../functions/src/data-model';
+import {
+  InstructorPublicData,
+  Member,
+} from '../../../functions/src/data-model';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 
@@ -12,5 +15,5 @@ import { IconComponent } from '../icons/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InstructorCardComponent {
-  instructor = input.required<Member>();
+  instructor = input.required<InstructorPublicData>();
 }

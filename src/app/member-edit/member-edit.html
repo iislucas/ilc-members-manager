@@ -4,23 +4,30 @@
   <div class="edit-form-header" (click)="toggle($event)">
     <div class="identifier">
       @if (e.memberId) {
-      <span>{{ e.memberId }}</span>
-      } @if (e.instructorId) {
-      <span>-{{ e.instructorId }}</span>
+        <span>{{ e.memberId }}</span>
+      }
+      @if (e.instructorId) {
+        <span>-{{ e.instructorId }}</span>
       }
     </div>
     <div class="name">
-      @if(e.name.trim() === '') { [Name needs to be entered] }
-      {{ e.name }}@if(isDirty()){<span>*</span>}
+      @if (e.name.trim() === "") {
+        [Name needs to be entered]
+      }
+      {{ e.name }}
+      @if (isDirty()) {
+        <span>*</span>
+      }
     </div>
-    @if(e.isAdmin) {
-    <app-icon name="admin"></app-icon>
+    @if (e.isAdmin) {
+      <app-icon name="admin"></app-icon>
     }
     <div class="level">
       @if (e.studentLevel) {
-      <span>S:{{ e.studentLevel }}</span>
-      } @if (e.applicationLevel) {
-      <span>A:{{ e.applicationLevel }}</span>
+        <span>S:{{ e.studentLevel }}</span>
+      }
+      @if (e.applicationLevel) {
+        <span>A:{{ e.applicationLevel }}</span>
       }
     </div>
     <div class="country">{{ e.country }}</div>
@@ -30,326 +37,341 @@
   </div>
 
   @if (!collapsed()) {
-  <form #memberForm="ngForm" (ngSubmit)="saveMember()">
-    <div class="form-section">
-      <h3>Contact</h3>
-      <label for="name">Name</label>
-      <div>
+    <form #memberForm="ngForm" (ngSubmit)="saveMember()">
+      <div class="form-section">
+        <h3>Contact</h3>
+        <label for="name">Name</label>
+        <div>
+          <input
+            class="long"
+            type="text"
+            id="name"
+            name="name"
+            [(ngModel)]="e.name"
+            (ngModelChange)="updateMember()"
+            #name="ngModel"
+            required
+          />
+          @if (name.invalid) {
+            <div class="error-message">Name is required.</div>
+          }
+        </div>
+
+        <label for="email">Email</label>
+        <div>
+          <input
+            class="long"
+            type="email"
+            id="email"
+            name="email"
+            [(ngModel)]="e.email"
+            (ngModelChange)="updateMember()"
+            #email="ngModel"
+            required
+            email
+          />
+          @if (isDupEmail()) {
+            <div class="error-message">
+              This email address is already in use.
+            </div>
+          } @else if (email.invalid) {
+            <div class="error-message">Please enter a valid email address.</div>
+          }
+        </div>
+
+        <label for="address" class="align-top">Address</label>
+        <textarea
+          class="long"
+          id="address"
+          name="address"
+          [(ngModel)]="e.address"
+          (ngModelChange)="updateMember()"
+        ></textarea>
+
+        <label for="city">City</label>
+        <input
+          type="text"
+          id="city"
+          name="city"
+          [(ngModel)]="e.city"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="zipCode">Zip Code</label>
+        <input
+          type="text"
+          id="zipCode"
+          name="zipCode"
+          [(ngModel)]="e.zipCode"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="country">Country</label>
+        <input
+          type="text"
+          id="country"
+          name="country"
+          [(ngModel)]="e.country"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="phone">Phone</label>
+        <input
+          type="text"
+          id="phone"
+          name="phone"
+          [(ngModel)]="e.phone"
+          (ngModelChange)="updateMember()"
+        />
+
+        <h3>Member</h3>
+        <label for="memberId">Member ID</label>
+        <div>
+          <input
+            type="text"
+            id="memberId"
+            name="memberId"
+            [(ngModel)]="e.memberId"
+            (ngModelChange)="updateMember()"
+            #memberId="ngModel"
+            [required]="e.id === ''"
+          />
+          @if (memberId.invalid) {
+            <div class="error-message">Member ID is required.</div>
+          } @else if (isDupMemberId()) {
+            <div class="error-message">This member ID is already in use.</div>
+          }
+        </div>
+
+        <label for="sifuMemberId">Sifu</label>
+        <div class="sifu-search">
+          <app-member-search
+            [searchTerm]="sifuSearch()"
+            (searchTermChange)="sifuSearch.set($event)"
+            (memberSelected)="sifuSelected($event)"
+          ></app-member-search>
+          @if (sifuName()) {
+            <div class="sifu-name">{{ sifuName() }}</div>
+          }
+        </div>
+
+        <label for="inSchoolId">Managed by school</label>
+        <div class="school-search">
+          <app-school-search
+            [searchTerm]="schoolSearch()"
+            (searchTermChange)="schoolSearch.set($event)"
+            (schoolSelected)="schoolSelected($event)"
+          ></app-school-search>
+          @if (schoolName()) {
+            <div class="school-name">{{ schoolName() }}</div>
+          }
+        </div>
+
+        <label for="membershipType">Type</label>
+        <select
+          id="membershipType"
+          name="membershipType"
+          [(ngModel)]="e.membershipType"
+          (ngModelChange)="updateMember()"
+          required
+        >
+          @for (type of membershipTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+
+        <label for="firstMembershipStarted">First Membership</label>
+        <input
+          class="date"
+          type="date"
+          id="firstMembershipStarted"
+          name="firstMembershipStarted"
+          placeholder="YYYY-MM-DD"
+          [(ngModel)]="e.firstMembershipStarted"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="lastRenewalDate">Last Renewal</label>
+        <input
+          class="date"
+          type="date"
+          id="lastRenewalDate"
+          name="lastRenewalDate"
+          placeholder="YYYY-MM-DD"
+          [(ngModel)]="e.lastRenewalDate"
+          (ngModelChange)="updateMember()"
+        />
+
+        @if (e.membershipType !== MembershipType.Life) {
+          <label for="currentMembershipExpires">Expires</label>
+          <input
+            class="date"
+            type="date"
+            id="currentMembershipExpires"
+            name="currentMembershipExpires"
+            placeholder="YYYY-MM-DD"
+            [(ngModel)]="e.currentMembershipExpires"
+            (ngModelChange)="updateMember()"
+          />
+        }
+
+        <h3>Level</h3>
+        <label for="studentLevel">Student</label>
+        <input
+          type="text"
+          id="studentLevel"
+          name="studentLevel"
+          [(ngModel)]="e.studentLevel"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="applicationLevel">Application</label>
+        <input
+          type="text"
+          id="applicationLevel"
+          name="applicationLevel"
+          [(ngModel)]="e.applicationLevel"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="mastersLevels">Masters</label>
+        <div>
+          @for (level of masterLevels; track level) {
+            <div class="masterLevel">
+              <input
+                type="checkbox"
+                [checked]="e.mastersLevels.includes(level)"
+                (change)="onMasterLevelChange(level, $event.target.checked)"
+              />
+              {{ level }}
+            </div>
+          }
+        </div>
+
+        <h3>Instructor</h3>
+        <label for="instructorId">Instructor ID</label>
+        <input
+          type="text"
+          id="instructorId"
+          name="instructorId"
+          [(ngModel)]="e.instructorId"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="instructorLicenseExpires">License Expires</label>
+        <input
+          class="date"
+          type="date"
+          id="instructorLicenseExpires"
+          name="instructorLicenseExpires"
+          placeholder="YYYY-MM-DD"
+          [(ngModel)]="e.instructorLicenseExpires"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="instructorWebsite">Website</label>
         <input
           class="long"
           type="text"
-          id="name"
-          name="name"
-          [(ngModel)]="e.name"
+          id="instructorWebsite"
+          name="instructorWebsite"
+          [(ngModel)]="e.instructorWebsite"
           (ngModelChange)="updateMember()"
-          #name="ngModel"
-          required
         />
-        @if(name.invalid) {
-        <div class="error-message">Name is required.</div>
-        }
-      </div>
 
-      <label for="email">Email</label>
-      <div>
+        <label for="publicEmail">Public Email</label>
         <input
           class="long"
           type="email"
-          id="email"
-          name="email"
-          [(ngModel)]="e.email"
+          id="publicEmail"
+          name="publicEmail"
+          [(ngModel)]="e.publicEmail"
           (ngModelChange)="updateMember()"
-          #email="ngModel"
-          required
-          email
         />
-        @if (isDupEmail()) {
-        <div class="error-message">This email address is already in use.</div>
-        } @else if (email.invalid) {
-        <div class="error-message">Please enter a valid email address.</div>
-        }
-      </div>
 
-      <label for="address" class="align-top">Address</label>
-      <textarea
-        class="long"
-        id="address"
-        name="address"
-        [(ngModel)]="e.address"
-        (ngModelChange)="updateMember()"
-      ></textarea>
-
-      <label for="city">City</label>
-      <input
-        type="text"
-        id="city"
-        name="city"
-        [(ngModel)]="e.city"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="zipCode">Zip Code</label>
-      <input
-        type="text"
-        id="zipCode"
-        name="zipCode"
-        [(ngModel)]="e.zipCode"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="country">Country</label>
-      <input
-        type="text"
-        id="country"
-        name="country"
-        [(ngModel)]="e.country"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="phone">Phone</label>
-      <input
-        type="text"
-        id="phone"
-        name="phone"
-        [(ngModel)]="e.phone"
-        (ngModelChange)="updateMember()"
-      />
-
-      <h3>Member</h3>
-      <label for="memberId">Member ID</label>
-      <div>
+        <label for="publicPhone">Public Phone</label>
         <input
           type="text"
-          id="memberId"
-          name="memberId"
-          [(ngModel)]="e.memberId"
+          id="publicPhone"
+          name="publicPhone"
+          [(ngModel)]="e.publicPhone"
           (ngModelChange)="updateMember()"
-          #memberId="ngModel"
-          [required]="e.id === ''"
         />
-        @if(memberId.invalid) {
-        <div class="error-message">Member ID is required.</div>
-        } @else if(isDupMemberId()) {
-        <div class="error-message">This member ID is already in use.</div>
-        }
-      </div>
 
-      <label for="sifuMemberId">Sifu</label>
-      <div class="sifu-search">
-        <app-member-search
-          [searchTerm]="sifuSearch()"
-          (searchTermChange)="sifuSearch.set($event)"
-          (memberSelected)="sifuSelected($event)"
-        ></app-member-search>
-        @if(sifuName()) {
-        <div class="sifu-name">{{ sifuName() }}</div>
-        }
-      </div>
-
-      <label for="inSchoolId">Managed by school</label>
-      <div class="school-search">
-        <app-school-search
-          [searchTerm]="schoolSearch()"
-          (searchTermChange)="schoolSearch.set($event)"
-          (schoolSelected)="schoolSelected($event)"
-        ></app-school-search>
-        @if(schoolName()) {
-        <div class="school-name">{{ schoolName() }}</div>
-        }
-      </div>
-
-      <label for="membershipType">Type</label>
-      <select
-        id="membershipType"
-        name="membershipType"
-        [(ngModel)]="e.membershipType"
-        (ngModelChange)="updateMember()"
-        required
-      >
-        @for (type of membershipTypes; track type) {
-        <option [value]="type">{{ type }}</option>
-        }
-      </select>
-
-      <label for="firstMembershipStarted">First Membership Started</label>
-      <input
-        class="date"
-        type="date"
-        id="firstMembershipStarted"
-        name="firstMembershipStarted"
-        placeholder="YYYY-MM-DD"
-        [ngModel]="e.firstMembershipStarted"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="lastRenewalDate">Last Renewal Date</label>
-      <input
-        class="date"
-        type="date"
-        id="lastRenewalDate"
-        name="lastRenewalDate"
-        placeholder="YYYY-MM-DD"
-        [ngModel]="e.lastRenewalDate"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="currentMembershipExpires">Current Membership Expires</label>
-      <input
-        class="date"
-        type="date"
-        id="currentMembershipExpires"
-        name="currentMembershipExpires"
-        placeholder="YYYY-MM-DD"
-        [ngModel]="e.currentMembershipExpires"
-        (ngModelChange)="updateMember()"
-      />
-
-      <h3>Level</h3>
-      <label for="studentLevel">Student</label>
-      <input
-        type="text"
-        id="studentLevel"
-        name="studentLevel"
-        [(ngModel)]="e.studentLevel"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="applicationLevel">Application</label>
-      <input
-        type="text"
-        id="applicationLevel"
-        name="applicationLevel"
-        [(ngModel)]="e.applicationLevel"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="mastersLevels">Masters</label>
-      <div>
-        @for (level of masterLevels; track level) {
-        <div class="masterLevel">
+        <h3>Admin</h3>
+        <label for="isAdmin">Is Admin</label>
+        <div class="admin-section">
           <input
             type="checkbox"
-            [checked]="e.mastersLevels.includes(level)"
-            (change)="onMasterLevelChange(level, $event.target.checked)"
+            id="isAdmin"
+            name="isAdmin"
+            [(ngModel)]="e.isAdmin"
+            (ngModelChange)="updateMember()"
           />
-          {{ level }}
+          (can edit all members)
         </div>
-        }
-      </div>
 
-      <h3>Instructor</h3>
-      <label for="instructorId">Instructor ID</label>
-      <input
-        type="text"
-        id="instructorId"
-        name="instructorId"
-        [(ngModel)]="e.instructorId"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="instructorLicenseExpires">License Expires</label>
-      <input
-        class="date"
-        type="date"
-        id="instructorLicenseExpires"
-        name="instructorLicenseExpires"
-        placeholder="YYYY-MM-DD"
-        [ngModel]="e.instructorLicenseExpires"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="instructorWebsite">Website</label>
-      <input
-        class="long"
-        type="text"
-        id="instructorWebsite"
-        name="instructorWebsite"
-        [(ngModel)]="e.instructorWebsite"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="publicEmail">Public Email</label>
-      <input
-        class="long"
-        type="email"
-        id="publicEmail"
-        name="publicEmail"
-        [(ngModel)]="e.publicEmail"
-        (ngModelChange)="updateMember()"
-      />
-
-      <label for="publicPhone">Public Phone</label>
-      <input
-        type="text"
-        id="publicPhone"
-        name="publicPhone"
-        [(ngModel)]="e.publicPhone"
-        (ngModelChange)="updateMember()"
-      />
-      
-      <h3>Admin</h3>
-      <label for="isAdmin">Is Admin</label>
-      <div class="admin-section">
-        <input
-          type="checkbox"
-          id="isAdmin"
-          name="isAdmin"
-          [(ngModel)]="e.isAdmin"
+        <label for="notes" class="align-top">Notes</label>
+        <textarea
+          class="long"
+          id="notes"
+          name="notes"
+          [(ngModel)]="e.notes"
           (ngModelChange)="updateMember()"
-        />
-        (can edit all members)
+        ></textarea>
       </div>
 
-      <label for="notes" class="align-top">Notes</label>
-      <textarea
-        class="long"
-        id="notes"
-        name="notes"
-        [(ngModel)]="e.notes"
-        (ngModelChange)="updateMember()"
-      ></textarea>
-    </div>
-
-    @if (errorMessage().length > 0) {
-    <div class="error-container">
-      <div class="error-message">
-        <ul>
-          @for(error of errorMessage(); track error) {
-          <li>{{ error }}</li>
+      @if (errorMessage().length > 0) {
+        <div class="error-container">
+          <div class="error-message">
+            <ul>
+              @for (error of errorMessage(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          </div>
+          <button
+            type="button"
+            class="icon-only-button"
+            (click)="closeErrors()"
+          >
+            <app-icon name="close" />
+          </button>
+        </div>
+      }
+      <div class="form-actions">
+        <div class="left-actions">
+          @if (isSaving()) {
+            <app-spinner></app-spinner>
+          } @else {
+            @if (isDirty()) {
+              <button
+                type="submit"
+                [disabled]="
+                  isDupEmail() || isDupMemberId() || memberForm.invalid
+                "
+              >
+                Save
+              </button>
+            }
+            <button type="button" (click)="cancel($event)">
+              @if (isDirty()) {
+                Cancel
+              } @else {
+                Close
+              }
+            </button>
           }
-        </ul>
+        </div>
+        <div class="right-actions">
+          @if (canDelete()) {
+            <button class="delete-button" (click)="deleteMember($event)">
+              <app-icon name="trash" fill="#000" />
+              Delete
+            </button>
+          }
+        </div>
       </div>
-      <button type="button" class="icon-only-button" (click)="closeErrors()">
-        <app-icon name="close" />
-      </button>
-    </div>
-    }
-    <div class="form-actions">
-      <div class="left-actions">
-        @if(isSaving()) {
-        <app-spinner></app-spinner>
-        } @else { @if(isDirty()){
-        <button
-          type="submit"
-          [disabled]="isDupEmail() || isDupMemberId() || memberForm.invalid"
-        >
-          Save
-        </button>
-        }
-        <button type="button" (click)="cancel($event)">
-          @if(isDirty()){Cancel} @else {Close}
-        </button>
-        }
-      </div>
-      <div class="right-actions">
-        @if(canDelete()) {
-        <button class="delete-button" (click)="deleteMember($event)">
-          <app-icon name="trash" fill="#000" />
-          Delete
-        </button>
-        }
-      </div>
-    </div>
-  </form>
+    </form>
   }
 </div>
