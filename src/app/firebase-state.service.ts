@@ -110,7 +110,6 @@ export class FirebaseStateService {
     onAuthStateChanged(this.auth, async (user) => {
       if (user && user.email) {
         let userDetailsResult: FetchUserDetailsResult;
-        this.loggingIn.set(true);
         try {
           const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
             this.functions,
