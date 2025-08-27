@@ -121,7 +121,6 @@ export class FirebaseStateService {
             'getUserDetails',
           );
           userDetailsResult = (await getUserDetails()).data;
-          console.log('userDetailsResult', userDetailsResult);
         } catch (error: unknown) {
           console.warn(error);
           this.loggingIn.set(false);
@@ -141,7 +140,6 @@ export class FirebaseStateService {
         // From now on, listen to changes to the member document.
         const memberDocRef = doc(this.db, 'members', user.email);
         this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
-          console.log('new user doc member', doc.data());
           const currentUserDetails = this.user();
           if (currentUserDetails) {
             const memberData = doc.data() as Member;
