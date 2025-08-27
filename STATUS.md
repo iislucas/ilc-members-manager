@@ -45,11 +45,18 @@ SquareSpace site, and therefore need other means of managing their information.
 - This covers the core CRUD (Create, Read, Update, Delete) operations for members.
 - Defined the Firebase security policy and data structures (admins can edit everything, and are controlled by the isAdmin property, non-admins can only view their single record - the one that matches the email they are logged in with).
 
-#### \[To Do\]: Synchronisation with SquareSpace orders
+#### \[In Progress(couchfault)\]: Synchronisation with SquareSpace orders
 
-- Provide an automatic every 6 hours synchronisation with SquareSpace so that
-  people's status is updated.
-- Provide a manual way to synchronise with SquareSpace.
+- Provide an automatic, e.g. every 6 hours synchronisation, with SquareSpace so
+  that people's status is updated. Altenatively (better), use webhook from
+  orders. Initial thing is: whenever an order comes in, update the
+  membership/license end date, and most recent renewal date in the firestore
+  database appropriately (add a year to current timing, or 1 year from current
+  date, whichever is the latest)
+- Provide a manual way to synchronise with SquareSpace?
+- When an order comes in for an instructuor license, we'd like to wait for
+  fulfilment, and once that happens, we'd like to add them to the members area
+  for instructors.
 
 #### \[In Progress(iislucas)\]: Find an Instructor View & WebComponent
 
@@ -71,12 +78,18 @@ SquareSpace site, and therefore need other means of managing their information.
 
 - Provide a way to backup the data to a google-sheet or download a CSV of the
   current state. Also save monthly backups to a cloud bucket.
+- Have periodic backups to cloud stoage, just in case.
+
+#### \[In Progress(couchfault)\]: Import the real data
+
+- Develop a way to import the current real data, from CSV/sheets/wherever into
+  the webapp.
 
 ---
 
 ### \[P1\]: General schools/Membership management
 
-#### \[In Progress(iislucas)\]: School Managers
+#### \[Completed(iislucas)\]: School Managers
 
 Make the application into something that schools/country managers can also use
 to manage their information. Website only still at this point.
@@ -85,16 +98,9 @@ to manage their information. Website only still at this point.
   can manage the school.
 - Each member can optionally belong to a school. When a member belongs to a
   school, they can be managed by any manger or owner of the school.
-- TODO: School owner permission actually work.
-- TODO: Admins can use school-ID to search members also. School IDs will always begin
-  with "SC-" so we don't make peopel enter that bit, and ensure that data is
-  consistent.
-
-#### \[To Do\]: Support Country Managers manage their country & activity feed
-
-- Allow country managers to manage all people in their country. All changes
-  should populate an activity feed that ILC HQ can see. (ILC HQ changes should
-  also be recorded here). Maybe back this up to bigquery or end emails.
+- Admins can use school-ID to search members also.
+- Short term: country manager are just added as managers for every school they
+  can manage.
 
 #### \[To Do\]: Implement Activity Logging
 
@@ -102,11 +108,16 @@ to manage their information. Website only still at this point.
 - This log should be viewable by admins to track modifications.
 - Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
 
-#### \[To Do\]: Instructors can manage their own publicly listed info
+#### \[To Do\]: Instructors/Members can manage their own info
 
 - Instructors, when they login, can update their publicly listed information
   (mostly their address, and links to websites; they can't change/choose their
   level)
+- Members can self-update the relevant parts of their own information.
+
+---
+
+### \[P2\]: End-user Progressive WebApp & other nice stuff
 
 #### \[To Do\]: Provide a way to communicate with all instructors
 
@@ -114,9 +125,15 @@ to manage their information. Website only still at this point.
 - Maybe this is via push notifications?
 - Maybe instructors should be able to specify how they'd like to be contacted?
 
----
+#### \[To Do\]: UX polish
 
-### \[P2\]: End-user Progressive WebApp & other nice stuff
+- School IDs will always begin with "SC-" so we don't make peopel enter that
+  bit, and ensure that data is consistent.
+- Create a special concept of country/region managers to manage all people in
+  their country. All changes should populate an activity feed that ILC HQ can
+  see. (ILC HQ changes should also be recorded here). Maybe back this up to
+  bigquery or end emails. Note: short term, country/region managers are just
+  added as managers of all schools in their region by an admin.
 
 #### \[To Do\]: Support people viewing and updating their public information
 

@@ -50,7 +50,10 @@ When adding new environment variables, be sure to update both files accordingly.
 Copy & fill out `functions/src/environments/environment.template.ts`, saving it as
 `functions/src/environments/environment.ts`.
 
-### How to Code on this project
+## How to Code on this project
+
+Make sure to see the AI context doc [.gemini/GEMINI.md](./.gemini/GEMINI.md] for
+details of the tech stack and coding style.
 
 ### Development server
 
@@ -60,7 +63,14 @@ To start a local development server, run:
 npm run start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Once the server is running, open your browser and navigate to
+`http://localhost:4200/`. The application will automatically reload whenever you
+modify any of the source files.
+
+### The core data structures
+
+See [./functions/src/data-model.ts](./functions/src/data-model.ts) for the core
+data structures.
 
 ### Code scaffolding
 
@@ -86,23 +96,13 @@ npm run build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
-## Running unit tests
+### Running unit tests
 
 To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
 
 ```bash
 npm run test
 ```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-npm run start
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
 ### Firestore indexes
 
