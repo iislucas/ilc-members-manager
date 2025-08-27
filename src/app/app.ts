@@ -73,7 +73,7 @@ export class App {
       case Views.ImportExport:
         return 'Import/Export';
       case Views.Home:
-        return 'My Data in ILC';
+        return 'Members';
       default:
         return 'Unknown view';
     }

@@ -108,15 +108,16 @@ to manage their information. Website only still at this point.
 - This log should be viewable by admins to track modifications.
 - Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
 
-#### \[In Progress(iislucas)\]: School owners/members can manage appropriate information
+#### \[Completed(iislucas)\]: School owners/members can manage appropriate information
 
 - Members can self-update the relevant parts of their own information: ['name',
   'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone',
   'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth',
   'sifuMemberId']
-- School managers/owners can update their own information like
-  (mostly their address, and links to websites; they can't change/choose their
-  level)
+- School managers/owners can udpate members in their schools, like members can
+  as well as the fields: ['membershipType', 'firstMembershipStarted',
+  'lastRenewalDate', 'currentMembershipExpires', 'instructorLicenseExpires',
+  'studentLevel', and 'applicationLevel'].
 
 #### \[In Progress(iislucas)\]: Manage global IDs for instructors & members
 

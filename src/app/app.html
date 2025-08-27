@@ -20,7 +20,7 @@
                   currentView.set(Views.ManageMembers); menuOpen.set(false)
                 "
               >
-                Manage Members
+                Members
               </div>
             }
             <div
@@ -64,7 +64,9 @@
       } @else {
         @switch (currentView()) {
           @case (Views.Home) {
-            <app-member-view [member]="user.member"></app-member-view>
+            <app-filtered-members
+              [memberSet]="dataService.members"
+            ></app-filtered-members>
           }
           @case (Views.ManageMembers) {
             <app-filtered-members
