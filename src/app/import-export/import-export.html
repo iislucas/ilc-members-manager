@@ -1,0 +1,81 @@
+<div class="page-layout">
+  <div class="card">
+    <h2>Members</h2>
+    <div class="import-export-actions">
+      <div class="import">
+        <h3>Import Members</h3>
+        <input
+          type="file"
+          (change)="onFileChange($event, 'member')"
+          accept=".csv,.jsonl"
+        />
+      </div>
+      <div class="export">
+        <h3>Export Members</h3>
+        <div class="export-buttons">
+          <button (click)="membersService.downloadMembersAsCsv()">
+            Download CSV
+          </button>
+          <button (click)="membersService.downloadMembersAsJsonL()">
+            Download JSONL
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Schools</h2>
+    <div class="import-export-actions">
+      <div class="import">
+        <h3>Import Schools</h3>
+        <input
+          type="file"
+          (change)="onFileChange($event, 'school')"
+          accept=".csv,.jsonl"
+        />
+      </div>
+      <div class="export">
+        <h3>Export Schools</h3>
+        <div class="export-buttons">
+          <button (click)="membersService.downloadSchoolsAsCsv()">
+            Download CSV
+          </button>
+          <button (click)="membersService.downloadSchoolsAsJsonL()">
+            Download JSONL
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (parsedData().length > 0) {
+  <div class="card mapping-table">
+    <h3>Map Fields to {{ importType() }}</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>{{ importType() }} Field</th>
+          <th>CSV/JSONL Header</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (field of fieldsToMap(); track field) {
+          <tr>
+            <td>{{ field }}</td>
+            <td>
+              <select (change)="setMapping(field, $event)">
+                <option value="">--Select Header--</option>
+                @for (header of headers(); track header) {
+                  <option [value]="header">{{ header }}</option>
+                }
+              </select>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <button (click)="importData()">Import {{ importType() }} Data</button>
+  </div>
+}

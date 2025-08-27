@@ -1,32 +1,47 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import {
   Member,
   MembershipType,
   initMember,
   MasterLevel,
+  School,
+  initSchool,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';
-import { Timestamp } from 'firebase/firestore';
 
 type ParsedRow = Record<string, string>;
+type ImportType = 'member' | 'school';
 
 @Component({
-  selector: 'app-member-import-export',
+  selector: 'app-import-export',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './member-import-export.html',
-  styleUrl: './member-import-export.scss',
+  templateUrl: './import-export.html',
+  styleUrl: './import-export.scss',
 })
-export class MemberImportExportComponent {
+export class ImportExportComponent {
   public membersService = inject(DataManagerService);
   public parsedData = signal<ParsedRow[]>([]);
   public headers = signal<string[]>([]);
-  public mapping = signal<Record<string, string>>({}); // { memberField: csvHeader }
-  public memberFields = Object.keys(initMember()) as Array<keyof Member>;
+  public mapping = signal<Record<string, string>>({});
+  public importType = signal<ImportType>('member');
 
-  onFileChange(event: Event) {
+  private memberFields = Object.keys(initMember()) as Array<keyof Member>;
+  private schoolFields = Object.keys(initSchool()) as Array<keyof School>;
+
+  public fieldsToMap = computed(() => {
+    return this.importType() === 'member'
+      ? this.memberFields
+      : this.schoolFields;
+  });
+
+  onFileChange(event: Event, type: ImportType) {
+    this.importType.set(type);
+    this.parsedData.set([]);
+    this.headers.set([]);
+    this.mapping.set({});
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -61,7 +76,6 @@ export class MemberImportExportComponent {
               if (index === 0) {
                 firstObjectHeaders = Object.keys(parsed);
               }
-              // Convert all values to string for consistency with CSV parsing
               const stringifiedRow: ParsedRow = {};
               for (const key in parsed) {
                 stringifiedRow[key] = String(parsed[key]);
@@ -80,13 +94,21 @@ export class MemberImportExportComponent {
     }
   }
 
-  setMapping(memberField: keyof Member, event: Event) {
+  setMapping(field: string, event: Event) {
     const selectElement = event.target as HTMLSelectElement;
     const csvHeader = selectElement.value;
-    this.mapping.update((m) => ({ ...m, [memberField]: csvHeader }));
+    this.mapping.update((m) => ({ ...m, [field]: csvHeader }));
   }
 
   importData() {
+    if (this.importType() === 'member') {
+      this.importMembers();
+    } else {
+      this.importSchools();
+    }
+  }
+
+  private importMembers() {
     const data = this.parsedData();
     const mapping = this.mapping();
 
@@ -105,7 +127,6 @@ export class MemberImportExportComponent {
             member[key] = ['true', '1', 'yes'].includes(value.toLowerCase());
             break;
           case 'membershipType':
-            // TODO: Add type validation for MembershipType
             member[key] = value as MembershipType;
             break;
           case 'mastersLevels':
@@ -120,6 +141,35 @@ export class MemberImportExportComponent {
       }
       if (Object.keys(member).length > 0) {
         await this.membersService.addMember(member);
+      }
+    });
+  }
+
+  private importSchools() {
+    const data = this.parsedData();
+    const mapping = this.mapping();
+
+    data.forEach(async (row) => {
+      const school: Partial<School> = {};
+
+      for (const partialKey in mapping) {
+        const key = partialKey as keyof School;
+        const csvHeader = mapping[key];
+        const value = row[csvHeader];
+
+        if (value === undefined || value === null || value === '') continue;
+
+        switch (key) {
+          case 'managers':
+            school[key] = value.split(',').map((s) => s.trim());
+            break;
+          default:
+            (school as any)[key] = value;
+            break;
+        }
+      }
+      if (Object.keys(school).length > 0) {
+        await this.membersService.setSchool(school as School);
       }
     });
   }

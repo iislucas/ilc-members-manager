@@ -1,0 +1,30 @@
+.page-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 0.4em;
+}
+
+h3 {
+  margin-top: 0.2em;
+}
+
+.import-export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 0.5em;
+}
+
+.mapping-table {
+  margin-top: 1em;
+}

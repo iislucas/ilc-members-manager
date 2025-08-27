@@ -228,33 +228,70 @@ export class DataManagerService {
     return deleteDoc(doc(this.db, 'schools', id));
   }
 
-  downloadCsv() {
-    const members = this.members.entries().map((m) => ({
-      ...m,
-      mastersLevels: m.mastersLevels.join(','),
-    }));
+  downloadMembersAsCsv() {
+    const memberFields = Object.keys(initMember()) as Array<keyof Member>;
+    const members = this.members.entries().map((m) => {
+      const member: Partial<Member> = {};
+      for (const key of memberFields) {
+        (member as any)[key] = m[key];
+      }
+      if (m.mastersLevels) {
+        (member as any).mastersLevels = m.mastersLevels.join(',');
+      }
+      return member;
+    });
     const csv = Papa.unparse(members);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'members.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    this.downloadFile('members.csv', csv, 'text/csv');
   }
 
-  downloadJsonL() {
-    const members = this.members.entries();
-    const jsonl = members.map((member) => JSON.stringify(member)).join('\n');
-    const blob = new Blob([jsonl], {
-      type: 'application/jsonl;charset=utf-8;',
+  downloadMembersAsJsonL() {
+    const memberFields = Object.keys(initMember()) as Array<keyof Member>;
+    const members = this.members.entries().map((m) => {
+      const member: Partial<Member> = {};
+      for (const key of memberFields) {
+        (member as any)[key] = m[key];
+      }
+      return member;
     });
+    const jsonl = members.map((member) => JSON.stringify(member)).join('\n');
+    this.downloadFile('members.jsonl', jsonl, 'application/jsonl');
+  }
+
+  downloadSchoolsAsCsv() {
+    const schoolFields = Object.keys(initSchool()) as Array<keyof School>;
+    const schools = this.schools.entries().map((s) => {
+      const school: Partial<School> = {};
+      for (const key of schoolFields) {
+        (school as any)[key] = s[key];
+      }
+      if (s.managers) {
+        (school as any).managers = s.managers.join(',');
+      }
+      return school;
+    });
+    const csv = Papa.unparse(schools);
+    this.downloadFile('schools.csv', csv, 'text/csv');
+  }
+
+  downloadSchoolsAsJsonL() {
+    const schoolFields = Object.keys(initSchool()) as Array<keyof School>;
+    const schools = this.schools.entries().map((s) => {
+      const school: Partial<School> = {};
+      for (const key of schoolFields) {
+        (school as any)[key] = s[key];
+      }
+      return school;
+    });
+    const jsonl = schools.map((school) => JSON.stringify(school)).join('\n');
+    this.downloadFile('schools.jsonl', jsonl, 'application/jsonl');
+  }
+
+  private downloadFile(filename: string, content: string, mimeType: string) {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'members.jsonl');
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();

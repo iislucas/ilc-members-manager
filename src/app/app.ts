@@ -3,11 +3,10 @@ import { FirebaseStateService } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
-import { MemberListComponent } from './member-list/member-list';
 import { FooterComponent } from './footer/footer';
 import { MemberViewComponent } from './member-view/member-view';
 import { IconComponent } from './icons/icon.component';
-import { MemberImportExportComponent } from './member-import-export/member-import-export';
+import { ImportExportComponent } from './import-export/import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
 import { AppPathPatterns, Views } from './app.config';
@@ -27,7 +26,7 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
     FooterComponent,
     MemberViewComponent,
     IconComponent,
-    MemberImportExportComponent,
+    ImportExportComponent,
     SpinnerComponent,
     FindAnInstructorComponent,
     ProfileMenuComponent,

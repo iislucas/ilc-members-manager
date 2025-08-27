@@ -1,19 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 
-import { MemberImportExportComponent } from './member-import-export';
+import { ImportExportComponent } from './import-export';
 
 describe('MemberImportExportComponent', () => {
-  let component: MemberImportExportComponent;
-  let fixture: ComponentFixture<MemberImportExportComponent>;
+  let component: ImportExportComponent;
+  let fixture: ComponentFixture<ImportExportComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MemberImportExportComponent],
+      imports: [ImportExportComponent],
       providers: [provideZonelessChangeDetection()],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(MemberImportExportComponent);
+    fixture = TestBed.createComponent(ImportExportComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
