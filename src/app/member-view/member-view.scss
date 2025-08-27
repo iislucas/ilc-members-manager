@@ -1,5 +1,8 @@
 @use "../member-details-layout.scss";
 
+:host {
+}
+
 .view-form {
   .view-form-header {
     @extend .form-header;

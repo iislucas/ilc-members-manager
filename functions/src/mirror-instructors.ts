@@ -30,7 +30,7 @@ async function updateInstructor(
       applicationLevel: member.applicationLevel,
       mastersLevels: member.mastersLevels,
       instructorId: member.instructorId,
-      city: member.city,
+      publicRegionOrCity: member.publicRegionOrCity,
       country: member.country,
       publicEmail: member.publicEmail,
       publicPhone: member.publicPhone,

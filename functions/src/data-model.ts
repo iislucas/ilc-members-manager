@@ -105,6 +105,8 @@ export type Member = {
 
   publicEmail: string; // publicly listed email address for contacting them
   publicPhone: string; // publicly listed phone number for contacting them
+  publicRegionOrCity: string; // publicly listed area/city
+  instructorWebsite: string; // Optional website URL
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -120,7 +122,6 @@ export type Member = {
   // use strings not Timestmp because this allows a null value of empty
   // string.
   instructorLicenseExpires: string; // YYYY-MM-DD, or empty if none.
-  instructorWebsite: string; // Optional website URL
 
   // Notes only for ILC HQ.
   notes: string;
@@ -146,7 +147,7 @@ export type InstructorPublicData = {
   // ILC HQ issued a unique instructor ID, empty = not instructor.
   instructorId: string;
 
-  city: string;
+  publicRegionOrCity: string;
   country: string;
 
   publicEmail: string;
@@ -173,7 +174,8 @@ export function initMember(): Member {
 
     publicEmail: '',
     publicPhone: '',
-    instructorWebsite: '', // Optional website URL
+    publicRegionOrCity: '', // publicly listed area/city
+    instructorWebsite: '', // Optional publicly listed website URL
 
     // Student membership status
     memberId: '',
@@ -228,7 +230,7 @@ export function initInstructor(): InstructorPublicData {
     applicationLevel: ApplicationLevel.None,
     mastersLevels: [],
     instructorId: '',
-    city: '',
+    publicRegionOrCity: '',
     country: '',
     publicEmail: '',
     publicPhone: '',

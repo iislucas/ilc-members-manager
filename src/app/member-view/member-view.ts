@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member } from '../../../functions/src/data-model';
+import { Member, MembershipType } from '../../../functions/src/data-model';
 import { environment } from '../../environments/environment';
 import { IconComponent } from '../icons/icon.component';
 
@@ -12,6 +12,8 @@ import { IconComponent } from '../icons/icon.component';
   styleUrls: ['./member-view.scss'],
 })
 export class MemberViewComponent {
+  MembershipType = MembershipType;
+
   member = input.required<Member>();
   adminEmail = environment.adminEmail;
 }

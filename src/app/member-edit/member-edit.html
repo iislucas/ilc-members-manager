@@ -289,35 +289,52 @@
           (ngModelChange)="updateMember()"
         />
 
-        <label for="instructorWebsite">Website</label>
-        <input
-          class="long"
-          type="text"
-          id="instructorWebsite"
-          name="instructorWebsite"
-          [(ngModel)]="e.instructorWebsite"
-          (ngModelChange)="updateMember()"
-        />
+        @if (e.instructorId) {
+          <h3>Public Listing</h3>
 
-        <label for="publicEmail">Public Email</label>
-        <input
-          class="long"
-          type="email"
-          id="publicEmail"
-          name="publicEmail"
-          [(ngModel)]="e.publicEmail"
-          (ngModelChange)="updateMember()"
-        />
+          <p>
+            Member ID, instructor ID, and graded levels and these details are
+            listed on the ILC website.
+          </p>
 
-        <label for="publicPhone">Public Phone</label>
-        <input
-          type="text"
-          id="publicPhone"
-          name="publicPhone"
-          [(ngModel)]="e.publicPhone"
-          (ngModelChange)="updateMember()"
-        />
+          <label for="instructorWebsite">Website</label>
+          <input
+            class="long"
+            type="text"
+            id="instructorWebsite"
+            name="instructorWebsite"
+            [(ngModel)]="e.instructorWebsite"
+            (ngModelChange)="updateMember()"
+          />
 
+          <label for="publicEmail">Public Email</label>
+          <input
+            class="long"
+            type="email"
+            id="publicEmail"
+            name="publicEmail"
+            [(ngModel)]="e.publicEmail"
+            (ngModelChange)="updateMember()"
+          />
+
+          <label for="publicPhone">Public Phone</label>
+          <input
+            type="text"
+            id="publicPhone"
+            name="publicPhone"
+            [(ngModel)]="e.publicPhone"
+            (ngModelChange)="updateMember()"
+          />
+
+          <label for="publicRegionOrCity">Public Region/City</label>
+          <input
+            type="text"
+            id="publicRegionOrCity"
+            name="publicRegionOrCity"
+            [(ngModel)]="e.publicRegionOrCity"
+            (ngModelChange)="updateMember()"
+          />
+        }
         <h3>Admin</h3>
         <label for="isAdmin">Is Admin</label>
         <div class="admin-section">

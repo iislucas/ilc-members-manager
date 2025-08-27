@@ -72,11 +72,13 @@
     <label>First Membership Started</label>
     <div class="value">{{ m.firstMembershipStarted }}</div>
 
-    <label>Last Renewal Date</label>
-    <div class="value">{{ m.lastRenewalDate }}</div>
+    @if (m.membershipType !== MembershipType.Life) {
+      <label>Last Renewal Date</label>
+      <div class="value">{{ m.lastRenewalDate }}</div>
 
-    <label>Current Membership Expires</label>
-    <div class="value">{{ m.currentMembershipExpires }}</div>
+      <label>Current Membership Expires</label>
+      <div class="value">{{ m.currentMembershipExpires }}</div>
+    }
 
     <h3>Level</h3>
     <label>Student Level</label>
@@ -92,11 +94,29 @@
     <label>Instructor ID</label>
     <div class="value">{{ m.instructorId }}</div>
 
-    <label>Instructor License Expires</label>
-    <div class="value">{{ m.instructorLicenseExpires }}</div>
+    @if (m.instructorId) {
+      <label>Instructor License Expires</label>
+      <div class="value">{{ m.instructorLicenseExpires }}</div>
 
-    <label>Instructor Website</label>
-    <div class="value">{{ m.instructorWebsite }}</div>
+      <h3>Instructor Public Listing Details</h3>
+
+      <p>
+        Member ID, instructor ID, and graded levels and these details are listed
+        on the ILC website.
+      </p>
+
+      <label>Public Contact Email</label>
+      <div class="value">{{ m.publicEmail }}</div>
+
+      <label>Public Contact Phone</label>
+      <div class="value">{{ m.publicPhone }}</div>
+
+      <label>Public Region/City</label>
+      <div class="value">{{ m.publicRegionOrCity }}</div>
+
+      <label>Instructor's Public ILC Website</label>
+      <div class="value">{{ m.instructorWebsite }}</div>
+    }
 
     <h3>Admin</h3>
     <label>Is Admin</label>

@@ -40,7 +40,18 @@ h3 {
   border-top: 1px solid #ccc;
 
   h3 {
+    // text-align: center;
     grid-column: 1 / -1;
+    margin-bottom: 8px;
+    padding-bottom: 0px;
+    border-bottom: 1px solid #ddd;
+    margin-left: 1em;
+    margin-right: 1em;
+  }
+
+  p {
+    grid-column: 1 / -1;
+    margin-top: 0px;
     margin-bottom: 10px;
   }
 
