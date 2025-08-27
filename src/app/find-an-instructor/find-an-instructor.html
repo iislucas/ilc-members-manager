@@ -2,6 +2,7 @@
   <div class="search-box">
     <app-icon class="search-icon" name="search"></app-icon>
     <input
+      id="search-input"
       type="text"
       [(ngModel)]="searchTerm"
       placeholder="Search by name, city, or country..."
@@ -9,11 +10,12 @@
   </div>
 
   <div class="results-container">
-    @if (filteredInstructors().length > 0) { @for (instructor of
-    filteredInstructors(); track instructor.id) {
-    <app-instructor-card [instructor]="instructor"> </app-instructor-card>
-    } } @else {
-    <p>No instructors found.</p>
+    @if (filteredInstructors().length > 0) {
+      @for (instructor of filteredInstructors(); track instructor.id) {
+        <app-instructor-card [instructor]="instructor"> </app-instructor-card>
+      }
+    } @else {
+      <p>No instructors found.</p>
     }
   </div>
 </div>
