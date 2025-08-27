@@ -76,9 +76,9 @@ SquareSpace site, and therefore need other means of managing their information.
 
 #### \[In Progress(iislucas)\]: Backup to sheets/CSV just in case
 
-- Provide a way to backup the data to a google-sheet or download a CSV of the
+- DONE: Provide a way to backup the data to a google-sheet or download a CSV of the
   current state. Also save monthly backups to a cloud bucket.
-- Have periodic backups to cloud stoage, just in case.
+- TODO: Have periodic backups to cloud stoage, just in case.
 
 #### \[In Progress(couchfault)\]: Import the real data
 
@@ -102,13 +102,13 @@ to manage their information. Website only still at this point.
 - Short term: country manager are just added as managers for every school they
   can manage.
 
-#### \[To Do\]: Implement Activity Logging
+#### \[In Progress(iislucas)\]: Implement Activity Logging
 
 - Create a basic activity feed that logs all membership changes (creations, updates, deletions).
 - This log should be viewable by admins to track modifications.
 - Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
 
-#### \[To Do\]: Instructors/Members can manage their own info
+#### \[In Progress(iislucas)\]: Instructors/Members can manage their own info
 
 - Instructors, when they login, can update their publicly listed information
   (mostly their address, and links to websites; they can't change/choose their
