@@ -14,7 +14,7 @@ function isInstructor(member: Member): boolean {
   return member.instructorId !== '' && member.instructorLicenseExpires >= today;
 }
 
-async function updateInstructor(
+export async function updateInstructor(
   instructorId: string,
   member: Member | undefined,
 ) {
@@ -43,38 +43,3 @@ async function updateInstructor(
     await instructorRef.delete();
   }
 }
-
-export const onInstructorCreated = onDocumentCreated(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    const member = snap.data() as Member;
-    await updateInstructor(snap.id, member);
-  },
-);
-
-export const onInstructorUpdated = onDocumentUpdated(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    const member = snap.after.data() as Member;
-    await updateInstructor(snap.after.id, member);
-  },
-);
-
-export const onInstructorDeleted = onDocumentDeleted(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    await updateInstructor(snap.id, undefined);
-  },
-);

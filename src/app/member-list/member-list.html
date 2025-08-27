@@ -1,4 +1,5 @@
-@if (loading()) {
+@let u = user();
+@if (loading() || !u) {
   <app-spinner></app-spinner>
 } @else if (error()) {
   <div class="error-container">
@@ -10,7 +11,7 @@
       <app-icon class="search-icon" name="search"></app-icon>
       <input
         type="text"
-        placeholder="Search by name or email"
+        placeholder="Search members by name, member ID, email, or city..."
         (input)="onSearch($event)"
       />
     </div>
@@ -30,10 +31,15 @@
         ></app-member-edit>
       </div>
     }
-    @let membersList = members();
-    @if (membersList.length === 0) {
-      <div>No members.</div>
+    @if (!u.isAdmin) {
+      <div class="member-card">
+        <app-member-edit
+          [member]="u.member"
+          [allMembers]="members()"
+        ></app-member-edit>
+      </div>
     }
+    @let membersList = members();
     @for (member of membersList; track member.email) {
       <div class="member-card">
         <app-member-edit

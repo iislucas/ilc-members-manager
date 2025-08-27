@@ -7,6 +7,7 @@
     (focus)="onFocus()"
     (blur)="onBlur()"
     placeholder="Search for a member"
+    [disabled]="disabled()"
   />
   @if (showResults()) {
     <ul class="results-list">

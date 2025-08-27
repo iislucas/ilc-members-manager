@@ -10,17 +10,21 @@
   </div>
   <div class="level">
     @if (i.studentLevel) {
-      <span>Student {{ i.studentLevel }}</span>
+      <span>Student {{ i.studentLevel }}, </span>
     }
     @if (i.applicationLevel) {
       <span>Application {{ i.applicationLevel }}</span>
     }
   </div>
-  <div class="city">{{ i.publicRegionOrCity }}</div>
-  <div class="country">{{ i.country }}</div>
+  <div class="city-and-country">
+    @if (i.publicRegionOrCity) {
+      <span class="city">{{ i.publicRegionOrCity }}, </span>
+    }
+    <span class="country">{{ i.country }}</span>
+  </div>
   @if (i.publicEmail) {
     <div class="email">
-      <a [href]="'mailto:' + i.publicEmail">Email</a>
+      <a [href]="'mailto:' + i.publicEmail">{{ i.publicEmail }}</a>
     </div>
   }
   @if (i.publicPhone) {

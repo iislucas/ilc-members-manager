@@ -140,7 +140,7 @@ export class ImportExportComponent {
         }
       }
       if (Object.keys(member).length > 0) {
-        await this.membersService.addMember(member);
+        await this.membersService.addMember(member as Member);
       }
     });
   }

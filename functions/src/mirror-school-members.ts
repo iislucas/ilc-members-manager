@@ -9,7 +9,7 @@ import { Member } from './data-model';
 
 const db = admin.firestore();
 
-async function updateSchoolMember(
+export async function updateSchoolMember(
   memberId: string,
   member: Member | undefined,
   previousMember?: Member,
@@ -37,40 +37,3 @@ async function updateSchoolMember(
     await memberRef.set(member as Member);
   }
 }
-
-export const onSchoolMemberCreated = onDocumentCreated(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    const member = snap.data() as Member;
-    await updateSchoolMember(snap.id, member);
-  },
-);
-
-export const onSchoolMemberUpdated = onDocumentUpdated(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    const member = snap.after.data() as Member;
-    const previousMember = snap.before.data() as Member;
-    await updateSchoolMember(snap.after.id, member, previousMember);
-  },
-);
-
-export const onSchoolMemberDeleted = onDocumentDeleted(
-  'members/{memberId}',
-  async (event) => {
-    const snap = event.data;
-    if (!snap) {
-      return;
-    }
-    const member = snap.data() as Member;
-    await updateSchoolMember(snap.id, undefined, member);
-  },
-);

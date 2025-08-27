@@ -9,6 +9,9 @@ import {
   getFirestore,
   onSnapshot,
   query,
+  Timestamp,
+  serverTimestamp,
+  orderBy,
 } from 'firebase/firestore';
 import {
   Member,
@@ -54,6 +57,7 @@ export class DataManagerService {
     'email',
     'memberId',
     'city',
+    'publicRegionOrCity',
     'country',
   ]);
   public instructors = new SearchableSet<InstructorPublicData>([
@@ -62,7 +66,8 @@ export class DataManagerService {
     'name',
     'publicEmail',
     'memberId',
-    'city',
+    'publicRegionOrCity',
+    'publicPhone',
     'country',
   ]);
   public schools = new SearchableSet<School>([
@@ -88,14 +93,16 @@ export class DataManagerService {
 
   async updateMembersSync(user: UserDetails) {
     if (user.isAdmin) {
+      const q = query(this.membersCollection, orderBy('lastUpdated', 'desc'));
       this.snapshotsToUnsubscribe.push(
         onSnapshot(
-          this.membersCollection,
+          q,
           (snapshot) => {
             const members = snapshot.docs.map(
               (doc) =>
                 ({ ...initMember(), ...doc.data(), id: doc.id }) as Member,
             );
+            console.log(members);
             this.members.setEntries(members);
           },
           (error) => {
@@ -108,8 +115,10 @@ export class DataManagerService {
       const allMembers = new Map<string, Member>();
 
       user.schoolsManaged.forEach((schoolId) => {
-        const membersCollectionPath = `schools/${schoolId}/members`;
-        const membersQuery = query(collection(this.db, membersCollectionPath));
+        const membersQuery = query(
+          collection(this.db, `schools/${schoolId}/members`),
+          orderBy('lastUpdated', 'desc'),
+        );
 
         const unsubscribe = onSnapshot(
           membersQuery,
@@ -140,15 +149,18 @@ export class DataManagerService {
         this.snapshotsToUnsubscribe.push(unsubscribe);
       });
     } else {
-      console.error('User is not a school manager or admin');
-      this.members.setError(`You are not a school manager or admin.`);
+      this.members.setEntries([]);
+      // console.log(user);
+      // console.error('User is not a school manager or admin');
+      // this.members.setError(`You are not a school manager or admin.`);
     }
   }
 
   async updateSchoolsSync() {
+    const q = query(this.schoolsCollection, orderBy('schoolId', 'desc'));
     this.snapshotsToUnsubscribe.push(
       onSnapshot(
-        this.schoolsCollection,
+        q,
         (snapshot) => {
           const schools = snapshot.docs.map(
             (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id }) as School,
@@ -163,6 +175,10 @@ export class DataManagerService {
   }
 
   async updateInstructorsSync() {
+    const q = query(
+      this.instructorsPublicCollection,
+      orderBy('applicationLevel', 'desc'),
+    );
     this.snapshotsToUnsubscribe.push(
       onSnapshot(
         this.instructorsPublicCollection,
@@ -184,27 +200,35 @@ export class DataManagerService {
     );
   }
 
-  async addMember(member: Partial<Member>): Promise<DocumentReference> {
+  async addMember(member: Member): Promise<DocumentReference> {
     if (!member.email) {
       throw new Error('email is required to add a member');
     }
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef, member.email);
-    return setDoc(newDocRef, member).then(() => newDocRef);
+    const memberWithNewTimestamp: Member = {
+      ...member,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(newDocRef, memberWithNewTimestamp).then(() => newDocRef);
   }
 
-  async updateMember(emailId: string, member: Partial<Member>): Promise<void> {
+  async updateMember(emailId: string, member: Member): Promise<void> {
     if (member.email && member.email !== emailId) {
       return this.updateMemberEmail(emailId, member);
     }
     const docRef = doc(this.db, 'members', emailId);
-    return setDoc(docRef, member, { merge: true });
+    const memberWithNewTimestamp: Member = {
+      ...member,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(docRef, memberWithNewTimestamp, { merge: true });
   }
 
   // TOOD: move this to functions, we don't want to depend on admin user.
   private async updateMemberEmail(
     oldEmail: string,
-    member: Partial<Member>,
+    member: Member,
   ): Promise<void> {
     if (!member.email) {
       throw new Error('New email not provided');
@@ -219,9 +243,18 @@ export class DataManagerService {
   }
 
   async setSchool(school: School): Promise<void> {
-    return setDoc(doc(this.db, 'schools', school.schoolId), school, {
-      merge: true,
-    });
+    const schoolWithNewTimestamp: School = {
+      ...school,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+
+    return setDoc(
+      doc(this.db, 'schools', school.schoolId),
+      schoolWithNewTimestamp,
+      {
+        merge: true,
+      },
+    );
   }
 
   async deleteSchool(id: string): Promise<void> {

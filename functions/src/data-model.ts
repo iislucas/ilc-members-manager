@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life', // includes from spouse of a Life member.
@@ -43,6 +45,7 @@ export enum MasterLevel {
 // Firestore path: /school/{doc-id}
 export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
+  lastUpdated: Timestamp; // ISO string: YYYY-MM-DD...
 
   schoolId: string; // ILC HQ issued School Id
   schoolName: string; // School name
@@ -59,25 +62,11 @@ export type School = {
   managers: string[];
 };
 
-// TODO: have this represented in firestore, cloud functions, and special menu
-// for managing country?
-//
-// This is used to represent a country that has delegated management.
-export type CountryManagement = {
-  id: string; // Document ID, UNIQUE, firebase managed.
-
-  countryName: string; // The name of the country.
-
-  // The name of the owner for this country; they can set the managers, and
-  // change anything in the country.
-  owner: string;
-  // The emails of people allowed to manage members within this country.
-  managers: string[];
-};
-
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   id: string; // Document ID, UNIQUE, should be the same as email.
+  lastUpdated: Timestamp; // ISO string: YYYY-MM-DD...
+
   isAdmin: boolean;
 
   // Internal ILC HQ Information
@@ -158,6 +147,8 @@ export function initMember(): Member {
   return {
     // Unique ID, should be same as email.
     id: '',
+    lastUpdated: Timestamp.now(), // ISO string...
+
     isAdmin: false,
 
     // Personal & Contact information
@@ -208,6 +199,8 @@ export function initMember(): Member {
 export function initSchool(): School {
   return {
     id: '',
+    lastUpdated: Timestamp.now(), // ISO string...
+
     schoolId: '',
     schoolName: '',
     schoolAddress: '',

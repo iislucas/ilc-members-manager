@@ -2,6 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     match /members/{memberEmail} {
       function isOwner() {
         return request.auth.token.email == memberEmail;
@@ -15,21 +19,32 @@ service cloud.firestore {
         let school = get(/databases/$(database)/documents/schools/$(member.managingOrgId)).data;
         return userMember.memberId == school.owner || userMember.memberId in school.managers;
       }
+      function isValidEdit() {
+        return request.resource.data.lastUpdated == request.time;
+      }
       allow read: if isOwner() || isAdmin() || isSchoolManager();
-      allow write: if isAdmin() || isSchoolManager();
+      allow write: if isValidEdit() && (isAdmin() || isSchoolManager());
+      allow update: if isValidEdit() && isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth', 'sifuMemberId']);
     }
 
     match /schools/{schoolId} {
       function isAdmin() {
         return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
       }
+      function isSchoolManager() {
+        let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
+        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
+        return member.memberId == school.owner || member.memberId in school.managers;
+      }
+      function isValidEdit() {
+        return request.resource.data.lastUpdated == request.time;
+      }
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isValidEdit() && isAdmin() && isSchoolManager();
     }
 
     match /instructorsPublic/{instructorId} {
       allow read: if true;
-      allow write: if false;
     }
 
     match /schools/{schoolId}/members/{memberId} {
@@ -41,7 +56,7 @@ service cloud.firestore {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
         return member.memberId == school.owner || member.memberId in school.managers;
       }
-      allow read, write: if isAdmin() || isSchoolManager();
+      allow read: if isAdmin() || isSchoolManager();
     }
   }
 }

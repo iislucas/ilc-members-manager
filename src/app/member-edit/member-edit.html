@@ -1,7 +1,7 @@
 @let e = editableMember();
 
 <div class="edit-form">
-  <div class="edit-form-header" (click)="toggle($event)">
+  <div class="edit-form-header" (click)="toggleCollapseState($event)">
     <div class="identifier">
       @if (e.memberId) {
         <span>{{ e.memberId }}</span>
@@ -30,7 +30,14 @@
         <span>A:{{ e.applicationLevel }}</span>
       }
     </div>
-    <div class="country">{{ e.country }}</div>
+    <div class="city-and-country">
+      @if (e.publicRegionOrCity) {
+        <span class="city">{{ e.publicRegionOrCity }}, </span>
+      } @else if (e.city) {
+        <span class="city">{{ e.city }}, </span>
+      }
+      {{ e.country }}
+    </div>
     <div class="unfold-button">
       <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
     </div>
@@ -39,6 +46,9 @@
   @if (!collapsed()) {
     <form #memberForm="ngForm" (ngSubmit)="saveMember()">
       <div class="form-section">
+        <p class="timestamp">
+          Last updated: {{ e.lastUpdated.toDate().toISOString() }}
+        </p>
         <h3>Contact</h3>
         <label for="name">Name</label>
         <div>
@@ -50,6 +60,7 @@
             [(ngModel)]="e.name"
             (ngModelChange)="updateMember()"
             #name="ngModel"
+            [disabled]="!canEditPersonalDetails()"
             required
           />
           @if (name.invalid) {
@@ -67,6 +78,7 @@
             [(ngModel)]="e.email"
             (ngModelChange)="updateMember()"
             #email="ngModel"
+            [disabled]="!canEditPersonalDetails()"
             required
             email
           />
@@ -86,6 +98,7 @@
           name="address"
           [(ngModel)]="e.address"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         ></textarea>
 
         <label for="city">City</label>
@@ -95,6 +108,7 @@
           name="city"
           [(ngModel)]="e.city"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <label for="zipCode">Zip Code</label>
@@ -104,6 +118,7 @@
           name="zipCode"
           [(ngModel)]="e.zipCode"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <label for="country">Country</label>
@@ -113,6 +128,7 @@
           name="country"
           [(ngModel)]="e.country"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <label for="phone">Phone</label>
@@ -122,6 +138,7 @@
           name="phone"
           [(ngModel)]="e.phone"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <label for="gender">Gender</label>
@@ -131,6 +148,7 @@
           name="gender"
           [(ngModel)]="e.gender"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <label for="dateOfBirth">Date of Birth</label>
@@ -142,6 +160,7 @@
           placeholder="YYYY-MM-DD"
           [(ngModel)]="e.dateOfBirth"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditPersonalDetails()"
         />
 
         <h3>Member</h3>
@@ -155,6 +174,7 @@
             (ngModelChange)="updateMember()"
             #memberId="ngModel"
             [required]="e.id === ''"
+            [disabled]="!canEditAllDetails()"
           />
           @if (memberId.invalid) {
             <div class="error-message">Member ID is required.</div>
@@ -169,6 +189,7 @@
             [searchTerm]="studentOfMemberId()"
             (searchTermChange)="studentOfMemberId.set($event)"
             (memberSelected)="studendOfSelected($event)"
+            [disabled]="!canEditPersonalDetails()"
           ></app-member-search>
           @if (studentOfName()) {
             <div class="sifu-name">{{ studentOfName() }}</div>
@@ -181,6 +202,7 @@
             [searchTerm]="schoolSearch()"
             (searchTermChange)="schoolSearch.set($event)"
             (schoolSelected)="schoolSelected($event)"
+            [disabled]="!canEditAllDetails()"
           ></app-school-search>
           @if (schoolName()) {
             <div class="school-name">{{ schoolName() }}</div>
@@ -193,6 +215,7 @@
           name="membershipType"
           [(ngModel)]="e.membershipType"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
           required
         >
           @for (type of membershipTypes; track type) {
@@ -209,6 +232,7 @@
           placeholder="YYYY-MM-DD"
           [(ngModel)]="e.firstMembershipStarted"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
         />
 
         <label for="lastRenewalDate">Last Renewal</label>
@@ -220,6 +244,7 @@
           placeholder="YYYY-MM-DD"
           [(ngModel)]="e.lastRenewalDate"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
         />
 
         @if (e.membershipType !== MembershipType.Life) {
@@ -232,6 +257,7 @@
             placeholder="YYYY-MM-DD"
             [(ngModel)]="e.currentMembershipExpires"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditMembershipDetails()"
           />
         }
 
@@ -243,6 +269,7 @@
           name="studentLevel"
           [(ngModel)]="e.studentLevel"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
         />
 
         <label for="applicationLevel">Application</label>
@@ -252,6 +279,7 @@
           name="applicationLevel"
           [(ngModel)]="e.applicationLevel"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
         />
 
         <label for="mastersLevels">Masters</label>
@@ -262,6 +290,7 @@
                 type="checkbox"
                 [checked]="e.mastersLevels.includes(level)"
                 (change)="onMasterLevelChange(level, $event.target.checked)"
+                [disabled]="!canEditAllDetails()"
               />
               {{ level }}
             </div>
@@ -276,6 +305,7 @@
           name="instructorId"
           [(ngModel)]="e.instructorId"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditAllDetails()"
         />
 
         <label for="instructorLicenseExpires">License Expires</label>
@@ -287,6 +317,7 @@
           placeholder="YYYY-MM-DD"
           [(ngModel)]="e.instructorLicenseExpires"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditMembershipDetails()"
         />
 
         @if (e.instructorId) {
@@ -305,6 +336,7 @@
             name="instructorWebsite"
             [(ngModel)]="e.instructorWebsite"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
           />
 
           <label for="publicEmail">Public Email</label>
@@ -315,6 +347,7 @@
             name="publicEmail"
             [(ngModel)]="e.publicEmail"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
           />
 
           <label for="publicPhone">Public Phone</label>
@@ -324,6 +357,7 @@
             name="publicPhone"
             [(ngModel)]="e.publicPhone"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
           />
 
           <label for="publicRegionOrCity">Public Region/City</label>
@@ -333,6 +367,7 @@
             name="publicRegionOrCity"
             [(ngModel)]="e.publicRegionOrCity"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
           />
         }
         <h3>Admin</h3>
@@ -344,6 +379,7 @@
             name="isAdmin"
             [(ngModel)]="e.isAdmin"
             (ngModelChange)="updateMember()"
+            [disabled]="!canEditAllDetails()"
           />
           (can edit all members)
         </div>
@@ -355,6 +391,7 @@
           name="notes"
           [(ngModel)]="e.notes"
           (ngModelChange)="updateMember()"
+          [disabled]="!canEditAllDetails()"
         ></textarea>
       </div>
 

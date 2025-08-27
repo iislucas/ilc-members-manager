@@ -17,13 +17,7 @@ export { getUserDetails } from './get-user-details';
 export { httpLogger } from './http-logger-example';
 
 export {
-  onInstructorCreated,
-  onInstructorUpdated,
-  onInstructorDeleted,
-} from './mirror-instructors';
-
-export {
-  onSchoolMemberCreated,
-  onSchoolMemberUpdated,
-  onSchoolMemberDeleted,
-} from './mirror-school-members';
+  onMemberCreated,
+  onMemberUpdated,
+  onMemberDeleted,
+} from './on-member-update';

@@ -7,15 +7,16 @@
     (focus)="onFocus()"
     (blur)="onBlur()"
     placeholder="Search for a school..."
+    [disabled]="disabled()"
   />
   @if (showResults() && filteredSchools().length > 0) {
-  <ul class="results-list">
-    @for (school of filteredSchools(); track school.id) {
-    <li (click)="selectSchool(school)">
-      <span class="identifier-chip">{{ school.schoolId }}</span>
-      <span> {{ school.schoolName }}</span>
-    </li>
-    }
-  </ul>
+    <ul class="results-list">
+      @for (school of filteredSchools(); track school.id) {
+        <li (click)="selectSchool(school)">
+          <span class="identifier-chip">{{ school.schoolId }}</span>
+          <span> {{ school.schoolName }}</span>
+        </li>
+      }
+    </ul>
   }
 </div>

@@ -23,6 +23,7 @@ export class SchoolSearchComponent {
   searchTerm = input.required<string>();
   searchTermChange = output<string>();
   schoolSelected = output<School>();
+  disabled = input<boolean>(false);
 
   showResults = signal(false);
 

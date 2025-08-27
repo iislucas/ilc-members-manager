@@ -108,16 +108,25 @@ to manage their information. Website only still at this point.
 - This log should be viewable by admins to track modifications.
 - Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
 
-#### \[In Progress(iislucas)\]: Instructors/Members can manage their own info
+#### \[In Progress(iislucas)\]: School owners/members can manage appropriate information
 
-- Instructors, when they login, can update their publicly listed information
+- Members can self-update the relevant parts of their own information: ['name',
+  'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone',
+  'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth',
+  'sifuMemberId']
+- School managers/owners can update their own information like
   (mostly their address, and links to websites; they can't change/choose their
   level)
-- Members can self-update the relevant parts of their own information.
+
+#### \[In Progress(iislucas)\]: Manage global IDs for instructors & members
 
 ---
 
 ### \[P2\]: End-user Progressive WebApp & other nice stuff
+
+#### \[To Do\]: Support business logic for gradings
+
+#### \[To Do\]: Support viewing/analytics for orders
 
 #### \[To Do\]: Provide a way to communicate with all instructors
 
@@ -134,10 +143,8 @@ to manage their information. Website only still at this point.
   see. (ILC HQ changes should also be recorded here). Maybe back this up to
   bigquery or end emails. Note: short term, country/region managers are just
   added as managers of all schools in their region by an admin.
-
-#### \[To Do\]: Support people viewing and updating their public information
-
-- Non-country managers should be able to update their own information.
+- Make the member list and school list have consistent widths per part, so
+  things are nicely ligned up.
 
 #### \[To Do\]: Make the WebApp into a Progressive WebApp
 

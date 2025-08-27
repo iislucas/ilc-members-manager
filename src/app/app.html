@@ -13,12 +13,6 @@
         @if (menuOpen()) {
           <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
           <div class="menu">
-            <div
-              class="menu-item"
-              (click)="currentView.set(Views.MyData); menuOpen.set(false)"
-            >
-              My Data
-            </div>
             @if (user.isAdmin || user.schoolsManaged.length > 0) {
               <div
                 class="menu-item"
@@ -42,7 +36,7 @@
                   currentView.set(Views.ImportExport); menuOpen.set(false)
                 "
               >
-                Import/Export Members
+                Import/Export
               </div>
             }
             <div
@@ -70,9 +64,6 @@
       } @else {
         @switch (currentView()) {
           @case (Views.Home) {
-            <app-member-view [member]="user.member"></app-member-view>
-          }
-          @case (Views.MyData) {
             <app-member-view [member]="user.member"></app-member-view>
           }
           @case (Views.ManageMembers) {

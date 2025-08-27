@@ -5,6 +5,7 @@ import { initSchool, School } from '../../../functions/src/data-model';
 import { SchoolEditComponent } from '../school-edit/school-edit';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { FirebaseStateService } from '../firebase-state.service';
 
 @Component({
   selector: 'app-school-list',
@@ -14,6 +15,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   styleUrls: ['./school-list.scss'],
 })
 export class SchoolListComponent {
+  stateService = inject(FirebaseStateService);
   private dataManager = inject(DataManagerService);
   private searchTerm = signal('');
   isAddingSchool = signal(false);

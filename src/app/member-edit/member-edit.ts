@@ -20,6 +20,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberSearchComponent } from '../member-search/member-search';
 import { SchoolSearchComponent } from '../school-search/school-search';
@@ -50,7 +51,9 @@ export class MemberEditComponent {
   masterLevels = Object.values(MasterLevel).sort();
   editableMember = linkedSignal<Member>(() => {
     const m = this.member();
-    return JSON.parse(JSON.stringify(m));
+    const editable = JSON.parse(JSON.stringify(m));
+    editable.lastUpdated = m.lastUpdated;
+    return editable;
   });
   isSaving = signal(false);
   collapsed = linkedSignal<boolean>(() => {
@@ -70,6 +73,35 @@ export class MemberEditComponent {
   });
   private membersService = inject(DataManagerService);
   private elementRef = inject(ElementRef);
+  private firebaseState = inject(FirebaseStateService);
+  lastUpdated = computed(() => {
+    console.log(this.member().lastUpdated);
+    return this.member().lastUpdated.toDate().toISOString();
+  });
+
+  canEditPersonalDetails = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const member = this.member();
+    if (user.firebaseUser.email === member.email) return true;
+    return user.schoolsManaged.includes(member.managingOrgId);
+  });
+
+  canEditMembershipDetails = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const member = this.member();
+    return user.schoolsManaged.includes(member.managingOrgId);
+  });
+
+  canEditAllDetails = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    return user.isAdmin;
+  });
+
   asyncError = signal<Error | null>(null);
   studentOfName = computed(() => {
     const sifuMemId = this.studentOfMemberId();
@@ -128,7 +160,7 @@ export class MemberEditComponent {
     this.close.emit();
   }
 
-  toggle($event: Event) {
+  toggleCollapseState($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
     if (this.isDirty() && !this.collapsed()) {

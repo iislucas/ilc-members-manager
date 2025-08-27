@@ -50,7 +50,9 @@ export class SchoolEditComponent {
   close = output();
   editableSchool = linkedSignal<School>(() => {
     const s = this.school();
-    return JSON.parse(JSON.stringify(s));
+    const editable = JSON.parse(JSON.stringify(s));
+    editable.lastUpdated = s.lastUpdated;
+    return editable;
   });
   isSaving = signal(false);
   collapsed = signal(true);

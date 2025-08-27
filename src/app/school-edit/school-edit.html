@@ -15,7 +15,10 @@
           <span>*</span>
         }
       </div>
-      <div class="country">{{ s.schoolCountry }}</div>
+      <div class="city-or-country">
+        <span class="city">{{ s.schoolCity }}, </span
+        ><span class="country">{{ s.schoolCountry }}</span>
+      </div>
       <div class="unfold-button">
         <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
       </div>
@@ -24,6 +27,9 @@
     @if (!collapsed()) {
       <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
         <div class="form-section">
+          <p class="timestamp">
+            Last updated: {{ s.lastUpdated.toDate().toISOString() }}
+          </p>
           <h3>
             School Details
             <div class="members-link" (click)="gotoMembers()">Members</div>

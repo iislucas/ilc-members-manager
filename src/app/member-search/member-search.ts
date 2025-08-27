@@ -25,6 +25,7 @@ export class MemberSearchComponent {
 
   searchTerm = input.required<string>();
   allMembers = input<boolean>(false);
+  disabled = input<boolean>(false);
   searchTermChange = output<string>();
   memberSelected = output<InstructorPublicData>();
 

@@ -1,4 +1,5 @@
-@if (loading()) {
+@let u = stateService.user();
+@if (loading() || !u) {
   <app-spinner></app-spinner>
 } @else if (error()) {
   <p class="error">{{ error() }}</p>
@@ -9,11 +10,13 @@
       <input
         id="search-input"
         type="text"
-        placeholder="Search by name"
+        placeholder="Search schools by name, ID, city or country..."
         (input)="onSearch($event)"
       />
     </div>
-    <button (click)="onNewSchool()">New School</button>
+    @if (u.isAdmin) {
+      <button (click)="onNewSchool()">New School</button>
+    }
   </div>
   <div class="member-cards">
     @if (isAddingSchool()) {
