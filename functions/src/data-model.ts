@@ -91,7 +91,7 @@ export type Member = {
   lastRenewalDate: ''; // YYYY-MM-DD, or empty if none.
   currentMembershipExpires: string; // Date membership expires
 
-  // Contact information
+  // Personal & Contact information
   name: string; // Full name
   address: string; // Mailing address
   city: string; // Country of residence
@@ -99,6 +99,9 @@ export type Member = {
   country: string; // Country of residence
   phone: string; // Phone number
   email: string; // Contact email, UNIQUE
+
+  gender: string; // Male/Female/whatever string they choose.
+  dateOfBirth: string; // Date of birth
 
   publicEmail: string; // publicly listed email address for contacting them
   publicPhone: string; // publicly listed phone number for contacting them
@@ -156,7 +159,7 @@ export function initMember(): Member {
     id: '',
     isAdmin: false,
 
-    // Contact information
+    // Personal & Contact information
     name: '', // The person's full name, first name first.
     address: '', // Mailing address
     city: '', // Mailing address
@@ -164,6 +167,9 @@ export function initMember(): Member {
     country: '', // Country of residence
     phone: '', // optional.
     email: '', // Unique and equal to the id.
+
+    gender: '', // Male/Female/whatever string they choose.
+    dateOfBirth: '', // Date of birth: YYYY-MM-DD
 
     publicEmail: '',
     publicPhone: '',

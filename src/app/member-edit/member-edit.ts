@@ -60,7 +60,7 @@ export class MemberEditComponent {
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
   });
-  sifuSearch = linkedSignal<string>(() => {
+  studentOfMemberId = linkedSignal<string>(() => {
     const member = this.editableMember();
     return member.sifuMemberId;
   });
@@ -71,11 +71,11 @@ export class MemberEditComponent {
   private membersService = inject(DataManagerService);
   private elementRef = inject(ElementRef);
   asyncError = signal<Error | null>(null);
-  sifuName = computed(() => {
-    const sifuMemId = this.sifuSearch();
+  studentOfName = computed(() => {
+    const sifuMemId = this.studentOfMemberId();
     if (sifuMemId) {
-      const sifu = this.allMembers().find((m) => m.memberId === sifuMemId);
-      return sifu?.name ?? '';
+      const studentOf = this.allMembers().find((m) => m.memberId === sifuMemId);
+      return studentOf?.name ?? '';
     }
     return '';
   });
@@ -102,7 +102,7 @@ export class MemberEditComponent {
 
   constructor() {}
 
-  sifuSelected(sifu: InstructorPublicData) {
+  studendOfSelected(sifu: InstructorPublicData) {
     this.editableMember.update((m) => {
       m.sifuMemberId = sifu.memberId;
       return { ...m };

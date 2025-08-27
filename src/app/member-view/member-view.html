@@ -4,22 +4,24 @@
   <div class="view-form-header">
     <div class="identifier">
       @if (m.memberId) {
-      <span>{{ m.memberId }}</span>
-      } @if (m.instructorId) {
-      <span>-{{ m.instructorId }}</span>
+        <span>{{ m.memberId }}</span>
+      }
+      @if (m.instructorId) {
+        <span>-{{ m.instructorId }}</span>
       }
     </div>
     <div class="name">
       {{ m.name }}
     </div>
-    @if(m.isAdmin) {
-    <app-icon name="admin"></app-icon>
+    @if (m.isAdmin) {
+      <app-icon name="admin"></app-icon>
     }
     <div class="level">
       @if (m.studentLevel) {
-      <span>S:{{ m.studentLevel }}</span>
-      } @if (m.applicationLevel) {
-      <span>A:{{ m.applicationLevel }}</span>
+        <span>S:{{ m.studentLevel }}</span>
+      }
+      @if (m.applicationLevel) {
+        <span>A:{{ m.applicationLevel }}</span>
       }
     </div>
     <div class="country">{{ m.country }}</div>
@@ -48,14 +50,20 @@
     <label>Phone</label>
     <div class="value">{{ m.phone }}</div>
 
+    <label>Gender</label>
+    <div class="value">{{ m.gender }}</div>
+
+    <label>Date of Birth</label>
+    <div class="value">{{ m.dateOfBirth }}</div>
+
     <h3>Member</h3>
     <label>Member ID</label>
     <div class="value">{{ m.memberId }}</div>
 
-    <label>Sifu Member ID</label>
+    <label>Student of</label>
     <div class="value">{{ m.sifuMemberId }}</div>
 
-    <label>Managed by School ID</label>
+    <label>Managed by</label>
     <div class="value">{{ m.managingOrgId }}</div>
 
     <label>Membership Type</label>

@@ -1,10 +1,4 @@
-import {
-  computed,
-  Injectable,
-  Signal,
-  signal,
-  WritableSignal,
-} from '@angular/core';
+import { Injectable, signal, WritableSignal } from '@angular/core';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import {
   Auth,
@@ -23,8 +17,13 @@ import {
 import { environment } from '../environments/environment';
 import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
-import { toObservable } from '@angular/core/rxjs-interop';
-import { doc, Firestore, getDoc, getFirestore } from 'firebase/firestore';
+import {
+  doc,
+  Firestore,
+  getFirestore,
+  onSnapshot,
+  Unsubscribe,
+} from 'firebase/firestore';
 import {
   FetchUserDetailsResult,
   initMember,
@@ -91,6 +90,7 @@ export class FirebaseStateService {
   // );
   public user = signal<UserDetails | null>(null);
   private db: Firestore;
+  private unsubscribeFromMember: Unsubscribe | null = null;
 
   constructor() {
     this.app = initializeApp(environment.firebase);
@@ -108,6 +108,11 @@ export class FirebaseStateService {
     );
 
     onAuthStateChanged(this.auth, async (user) => {
+      if (this.unsubscribeFromMember) {
+        this.unsubscribeFromMember();
+        this.unsubscribeFromMember = null;
+      }
+
       if (user && user.email) {
         let userDetailsResult: FetchUserDetailsResult;
         try {
@@ -132,6 +137,20 @@ export class FirebaseStateService {
         this.user.set(userDetails);
         this.loggedInResolverFn(userDetails);
         this.loggingIn.set(false);
+
+        // From now on, listen to changes to the member document.
+        const memberDocRef = doc(this.db, 'members', user.email);
+        this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
+          console.log('new user doc member', doc.data());
+          const currentUserDetails = this.user();
+          if (currentUserDetails) {
+            const memberData = doc.data() as Member;
+            this.user.set({
+              ...currentUserDetails,
+              member: { ...initMember(), ...memberData },
+            });
+          }
+        });
       } else {
         // logging out
         this.user.set(null);

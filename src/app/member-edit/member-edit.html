@@ -124,6 +124,26 @@
           (ngModelChange)="updateMember()"
         />
 
+        <label for="gender">Gender</label>
+        <input
+          type="text"
+          id="gender"
+          name="gender"
+          [(ngModel)]="e.gender"
+          (ngModelChange)="updateMember()"
+        />
+
+        <label for="dateOfBirth">Date of Birth</label>
+        <input
+          class="date"
+          type="date"
+          id="dateOfBirth"
+          name="dateOfBirth"
+          placeholder="YYYY-MM-DD"
+          [(ngModel)]="e.dateOfBirth"
+          (ngModelChange)="updateMember()"
+        />
+
         <h3>Member</h3>
         <label for="memberId">Member ID</label>
         <div>
@@ -143,19 +163,19 @@
           }
         </div>
 
-        <label for="sifuMemberId">Sifu</label>
+        <label for="sifuMemberId">Student of</label>
         <div class="sifu-search">
           <app-member-search
-            [searchTerm]="sifuSearch()"
-            (searchTermChange)="sifuSearch.set($event)"
-            (memberSelected)="sifuSelected($event)"
+            [searchTerm]="studentOfMemberId()"
+            (searchTermChange)="studentOfMemberId.set($event)"
+            (memberSelected)="studendOfSelected($event)"
           ></app-member-search>
-          @if (sifuName()) {
-            <div class="sifu-name">{{ sifuName() }}</div>
+          @if (studentOfName()) {
+            <div class="sifu-name">{{ studentOfName() }}</div>
           }
         </div>
 
-        <label for="inSchoolId">Managed by school</label>
+        <label for="inSchoolId">Managed by</label>
         <div class="school-search">
           <app-school-search
             [searchTerm]="schoolSearch()"
