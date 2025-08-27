@@ -24,7 +24,7 @@ export class MemberSearchComponent {
   private membersService = inject(DataManagerService);
 
   searchTerm = input.required<string>();
-  allMembers = input<boolean>(true);
+  allMembers = input<boolean>(false);
   searchTermChange = output<string>();
   memberSelected = output<InstructorPublicData>();
 

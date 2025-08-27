@@ -1,7 +1,13 @@
 @use "../../styles.scss" as *;
 
+:host {
+  display: flex;
+  flex-grow: 1;
+}
+
 .search-container {
   position: relative;
+  flex-grow: 1;
 }
 .results-list {
   @extend .menu-style;
@@ -9,7 +15,8 @@
   list-style-type: none;
   margin: 0;
   padding: 0;
-  width: 100%;
+  min-width: 100%;
+  max-width: max-content;
   z-index: 1000;
 }
 .results-list li {

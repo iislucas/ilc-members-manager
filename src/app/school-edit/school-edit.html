@@ -1,201 +1,216 @@
 @if (editableSchool(); as s) {
-<div class="edit-form">
-  <div class="edit-form-header" (click)="toggle($event)">
-    <div class="identifier">
-      @if (s.schoolId) {
-      <span>{{ s.schoolId }}</span>
-      }
+  <div class="edit-form">
+    <div class="edit-form-header" (click)="toggle($event)">
+      <div class="identifier">
+        @if (s.schoolId) {
+          <span>{{ s.schoolId }}</span>
+        }
+      </div>
+      <div class="name">
+        @if (s.schoolName.trim() === "") {
+          [Name needs to be entered]
+        }
+        {{ s.schoolName }}
+        @if (isDirty()) {
+          <span>*</span>
+        }
+      </div>
+      <div class="country">{{ s.schoolCountry }}</div>
+      <div class="unfold-button">
+        <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+      </div>
     </div>
-    <div class="name">
-      @if(s.schoolName.trim() === '') { [Name needs to be entered] }
-      {{ s.schoolName }}@if(isDirty()){<span>*</span>}
-    </div>
-    <div class="country">{{ s.schoolCountry }}</div>
-    <div class="unfold-button">
-      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
-    </div>
+
+    @if (!collapsed()) {
+      <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
+        <div class="form-section">
+          <h3>
+            School Details
+            <div class="members-link" (click)="gotoMembers()">Members</div>
+          </h3>
+          <label for="schoolName">School Name</label>
+          <div>
+            <input
+              class="long"
+              type="text"
+              id="schoolName"
+              name="schoolName"
+              [(ngModel)]="s.schoolName"
+              (ngModelChange)="updateSchool()"
+              #schoolName="ngModel"
+              required
+            />
+            @if (schoolName.invalid) {
+              <div class="error-message">School Name is required.</div>
+            }
+          </div>
+
+          <label for="schoolId">School ID</label>
+          <div>
+            <input
+              type="text"
+              id="schoolId"
+              name="schoolId"
+              [(ngModel)]="s.schoolId"
+              (ngModelChange)="updateSchool()"
+              #schoolId="ngModel"
+              required
+            />
+            @if (schoolId.invalid) {
+              <div class="error-message">School ID is required.</div>
+            } @else if (isDupSchoolId()) {
+              <div class="error-message">This school ID is already in use.</div>
+            }
+          </div>
+
+          <label for="schoolAddress" class="align-top">Address</label>
+          <textarea
+            class="long"
+            id="schoolAddress"
+            name="schoolAddress"
+            [(ngModel)]="s.schoolAddress"
+            (ngModelChange)="updateSchool()"
+          ></textarea>
+
+          <label for="schoolCity">City</label>
+          <input
+            type="text"
+            id="schoolCity"
+            name="schoolCity"
+            [(ngModel)]="s.schoolCity"
+            (ngModelChange)="updateSchool()"
+          />
+
+          <label for="schoolZipCode">Zip Code</label>
+          <input
+            type="text"
+            id="schoolZipCode"
+            name="schoolZipCode"
+            [(ngModel)]="s.schoolZipCode"
+            (ngModelChange)="updateSchool()"
+          />
+
+          <label for="schoolCountry">Country</label>
+          <input
+            type="text"
+            id="schoolCountry"
+            name="schoolCountry"
+            [(ngModel)]="s.schoolCountry"
+            (ngModelChange)="updateSchool()"
+          />
+
+          <label for="schoolWebsite">Website</label>
+          <input
+            class="long"
+            type="text"
+            id="schoolWebsite"
+            name="schoolWebsite"
+            [(ngModel)]="s.schoolWebsite"
+            (ngModelChange)="updateSchool()"
+          />
+
+          <h3>Management</h3>
+          <label for="owner">Owner</label>
+          <div>
+            <div class="member-search-with-details">
+              <app-member-search
+                id="owner"
+                [searchTerm]="s.owner"
+                (searchTermChange)="s.owner = $event"
+                (memberSelected)="updateOwner($event)"
+              ></app-member-search>
+              @if (owner(); as o) {
+                <div class="member-details">{{ o.name }}</div>
+              }
+            </div>
+          </div>
+
+          <label class="align-top" for="managers">Managers</label>
+          <div>
+            @for (managerMemberId of s.managers; track $index; let i = $index) {
+              <div class="member-search-with-details" id="managers">
+                <app-member-search
+                  id="manager-{{ managerMemberId }}"
+                  [searchTerm]="managerMemberId"
+                  (searchTermChange)="s.managers[i] = $event"
+                  (memberSelected)="updateManager(i, $event)"
+                ></app-member-search>
+                @if (managers()[i]; as m) {
+                  <div class="member-details">{{ m.name }}</div>
+                }
+                <button
+                  class="icon-only-button"
+                  type="button"
+                  (click)="removeManager(i); updateSchool()"
+                >
+                  <app-icon name="close" />
+                </button>
+              </div>
+            }
+            <button type="button" (click)="s.managers.push(''); updateSchool()">
+              Add Manager
+            </button>
+          </div>
+        </div>
+
+        @if (errorMessage().length > 0) {
+          <div class="error-container">
+            <div class="error-message">
+              <ul>
+                @for (error of errorMessage(); track error) {
+                  <li>{{ error }}</li>
+                }
+              </ul>
+            </div>
+            <button
+              type="button"
+              class="icon-only-button"
+              (click)="closeErrors()"
+            >
+              <app-icon name="close" />
+            </button>
+          </div>
+        }
+        <div class="form-actions">
+          <div class="left-actions">
+            @if (isSaving()) {
+              <app-spinner></app-spinner>
+            } @else {
+              @if (isDirty()) {
+                <button
+                  type="submit"
+                  [disabled]="isDupSchoolId() || schoolForm.invalid"
+                >
+                  Save
+                </button>
+              }
+              <button type="button" (click)="cancel($event)">
+                @if (isDirty()) {
+                  Cancel
+                } @else {
+                  Close
+                }
+              </button>
+            }
+          </div>
+          <div class="right-actions">
+            @if (canDelete()) {
+              <button class="delete-button" (click)="deleteSchool($event)">
+                <app-icon name="trash" fill="#000" />
+                Delete
+              </button>
+            }
+          </div>
+        </div>
+      </form>
+    }
   </div>
-
-  @if (!collapsed()) {
-  <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
-    <div class="form-section">
-      <h3>
-        School Details
-        <div class="members-link" (click)="gotoMembers()">Members</div>
-      </h3>
-      <label for="schoolName">School Name</label>
-      <div>
-        <input
-          class="long"
-          type="text"
-          id="schoolName"
-          name="schoolName"
-          [(ngModel)]="s.schoolName"
-          (ngModelChange)="updateSchool()"
-          #schoolName="ngModel"
-          required
-        />
-        @if(schoolName.invalid) {
-        <div class="error-message">School Name is required.</div>
-        }
-      </div>
-
-      <label for="schoolId">School ID</label>
-      <div>
-        <input
-          type="text"
-          id="schoolId"
-          name="schoolId"
-          [(ngModel)]="s.schoolId"
-          (ngModelChange)="updateSchool()"
-          #schoolId="ngModel"
-          required
-        />
-        @if(schoolId.invalid) {
-        <div class="error-message">School ID is required.</div>
-        } @else if(isDupSchoolId()) {
-        <div class="error-message">This school ID is already in use.</div>
-        }
-      </div>
-
-      <label for="schoolAddress" class="align-top">Address</label>
-      <textarea
-        class="long"
-        id="schoolAddress"
-        name="schoolAddress"
-        [(ngModel)]="s.schoolAddress"
-        (ngModelChange)="updateSchool()"
-      ></textarea>
-
-      <label for="schoolCity">City</label>
-      <input
-        type="text"
-        id="schoolCity"
-        name="schoolCity"
-        [(ngModel)]="s.schoolCity"
-        (ngModelChange)="updateSchool()"
-      />
-
-      <label for="schoolZipCode">Zip Code</label>
-      <input
-        type="text"
-        id="schoolZipCode"
-        name="schoolZipCode"
-        [(ngModel)]="s.schoolZipCode"
-        (ngModelChange)="updateSchool()"
-      />
-
-      <label for="schoolCountry">Country</label>
-      <input
-        type="text"
-        id="schoolCountry"
-        name="schoolCountry"
-        [(ngModel)]="s.schoolCountry"
-        (ngModelChange)="updateSchool()"
-      />
-
-      <label for="schoolWebsite">Website</label>
-      <input
-        class="long"
-        type="text"
-        id="schoolWebsite"
-        name="schoolWebsite"
-        [(ngModel)]="s.schoolWebsite"
-        (ngModelChange)="updateSchool()"
-      />
-
-      <h3>Management</h3>
-      <label for="owner">Owner</label>
-      <div>
-        <div class="member-search-with-details">
-          <app-member-search
-            id="owner"
-            [searchTerm]="s.owner"
-            (searchTermChange)="s.owner = $event"
-            (memberSelected)="updateOwner($event)"
-          ></app-member-search>
-        </div>
-        @if (owner(); as o) {
-        <div class="member-details">{{ o.name }}</div>
-        }
-      </div>
-
-      <label class="align-top" for="managers">Managers</label>
-      <div>
-        @for(managerEmail of s.managers; track $index; let i = $index) {
-        <div class="member-search-with-details" id="managers">
-          <app-member-search
-            id="manager-{{ managerEmail }}"
-            [searchTerm]="managerEmail"
-            (searchTermChange)="s.managers[i] = $event"
-            (memberSelected)="updateManager(i, $event)"
-          ></app-member-search>
-          <button
-            class="icon-only-button"
-            type="button"
-            (click)="removeManager(i); updateSchool()"
-          >
-            <app-icon name="close" />
-          </button>
-        </div>
-        @if (managers()[i]; as m) {
-        <div class="member-details">{{ m.name }}</div>
-        } }
-        <button type="button" (click)="s.managers.push(''); updateSchool()">
-          Add Manager
-        </button>
-      </div>
-    </div>
-
-    @if (errorMessage().length > 0) {
+} @else {
+  <div class="edit-form">
     <div class="error-container">
       <div class="error-message">
-        <ul>
-          @for(error of errorMessage(); track error) {
-          <li>{{ error }}</li>
-          }
-        </ul>
+        <p>No school is selected for editing.</p>
       </div>
-      <button type="button" class="icon-only-button" (click)="closeErrors()">
-        <app-icon name="close" />
-      </button>
-    </div>
-    }
-    <div class="form-actions">
-      <div class="left-actions">
-        @if(isSaving()) {
-        <app-spinner></app-spinner>
-        } @else { @if(isDirty()){
-        <button
-          type="submit"
-          [disabled]="isDupSchoolId() || schoolForm.invalid"
-        >
-          Save
-        </button>
-        }
-        <button type="button" (click)="cancel($event)">
-          @if(isDirty()){Cancel} @else {Close}
-        </button>
-        }
-      </div>
-      <div class="right-actions">
-        @if(canDelete()) {
-        <button class="delete-button" (click)="deleteSchool($event)">
-          <app-icon name="trash" fill="#000" />
-          Delete
-        </button>
-        }
-      </div>
-    </div>
-  </form>
-  }
-</div>
-} @else {
-<div class="edit-form">
-  <div class="error-container">
-    <div class="error-message">
-      <p>No school is selected for editing.</p>
     </div>
   </div>
-</div>
 }
