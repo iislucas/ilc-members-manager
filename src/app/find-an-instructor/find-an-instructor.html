@@ -10,12 +10,16 @@
   </div>
 
   <div class="results-container">
-    @if (filteredInstructors().length > 0) {
-      @for (instructor of filteredInstructors(); track instructor.id) {
-        <app-instructor-card [instructor]="instructor"> </app-instructor-card>
-      }
+    @if (findInstructorsService.instructors.loading()) {
+      <app-spinner></app-spinner>
     } @else {
-      <p>No instructors found.</p>
+      @if (filteredInstructors().length > 0) {
+        @for (instructor of filteredInstructors(); track instructor.id) {
+          <app-instructor-card [instructor]="instructor"> </app-instructor-card>
+        }
+      } @else {
+        <p>No instructors found.</p>
+      }
     }
   </div>
 </div>
