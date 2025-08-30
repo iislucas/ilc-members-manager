@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   signal,
+  ViewEncapsulation,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -18,6 +19,7 @@ import { FindInstructorsService } from '../find-instructors.service';
   templateUrl: './find-an-instructor.html',
   styleUrl: './find-an-instructor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class FindAnInstructorComponent {
   private findInstructorsService = inject(FindInstructorsService);

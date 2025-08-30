@@ -171,3 +171,14 @@ Deploy just firebase rules
 ```sh
 npm run deploy:firestore-rules
 ```
+
+#### Deploying the Find an Instructor web-component
+
+```sh
+# Build the web-component files
+npm run build:wc
+# Set the cloud bucket name/path
+CLOUD_BUCKET_NAME_AND_PATH=...
+# Copy files to the cloud bucket.
+gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* gs://${CLOUD_BUCKET_NAME_AND_PATH}
+```

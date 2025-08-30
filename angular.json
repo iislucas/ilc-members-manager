@@ -119,6 +119,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "outputPath": "dist/find-an-instructor-wc",
             "index": "src/find-an-instructor.wc.html",
             "browser": "src/find-an-instructor.wc.ts",
             "tsConfig": "tsconfig.wc.json",
@@ -145,7 +146,7 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all",
+              "outputHashing": "none",
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
