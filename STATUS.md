@@ -58,7 +58,7 @@ SquareSpace site, and therefore need other means of managing their information.
   fulfilment, and once that happens, we'd like to add them to the members area
   for instructors.
 
-#### \[In Progress(iislucas)\]: Find an Instructor View & WebComponent
+#### \[Completed(iislucas)\]: Find an Instructor View & WebComponent
 
 - Provide a standalone web-component that can be embeded into a SquareSpace
   site. This should provide the ability to search and browse the licensed
@@ -70,9 +70,10 @@ SquareSpace site, and therefore need other means of managing their information.
     client side.
   - It might make sense for this to be in a separte repo, like:
     https://github.com/iislucas/google-cal-events-viewer
-- TODO: Create a dedicated firebse function for getting instructors that also
-  only returns the relevant to be public parts. Also make a dedicated
+- Create a dedicated firebase/firestore collection for getting instructors that
+  also only returns the relevant to be public parts. Also make a dedicated
   mini-service for finding instructors.
+- Configure and make live on the site.
 
 #### \[In Progress(iislucas)\]: Backup to sheets/CSV just in case
 
@@ -104,9 +105,12 @@ to manage their information. Website only still at this point.
 
 #### \[In Progress(iislucas)\]: Implement Activity Logging
 
-- Create a basic activity feed that logs all membership changes (creations, updates, deletions).
+- Create a basic activity feed that logs all membership changes (creations,
+  updates, deletions).
 - This log should be viewable by admins to track modifications.
-- Consider the storage mechanism for this activity log (e.g., separate Firestore collection, email notifications) to ensure data integrity and potential recovery.
+- Consider the storage mechanism for this activity log (e.g., separate Firestore
+  collection, email notifications) to ensure data integrity and potential
+  recovery.
 
 #### \[Completed(iislucas)\]: School owners/members can manage appropriate information
 
@@ -120,6 +124,8 @@ to manage their information. Website only still at this point.
   'studentLevel', and 'applicationLevel'].
 
 #### \[In Progress(iislucas)\]: Manage global IDs for instructors & members
+
+- Admins should not need to figure out the next IDs for instructors and members.
 
 ---
 
