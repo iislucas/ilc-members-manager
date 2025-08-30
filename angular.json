@@ -114,12 +114,12 @@
       },
       "root": "",
       "sourceRoot": "src",
-      "prefix": "app",
+      "prefix": "find-an-instructor.wc",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "index": "src/find-an-instructor.html",
+            "index": "src/find-an-instructor.wc.html",
             "browser": "src/find-an-instructor.wc.ts",
             "tsConfig": "tsconfig.wc.json",
             "inlineStyleLanguage": "scss",
@@ -171,10 +171,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ilc-members-manager:build:production"
+              "buildTarget": "find-an-instructor-wc:build:production"
             },
             "development": {
-              "buildTarget": "ilc-members-manager:build:development"
+              "buildTarget": "find-an-instructor-wc:build:development"
             }
           },
           "defaultConfiguration": "development"

@@ -94,12 +94,12 @@ export class FirebaseStateService {
 
   constructor() {
     this.app = initializeApp(environment.firebase);
+    this.db = getFirestore(this.app);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
     if (environment.production) {
       this.analytics = getAnalytics(this.app);
     }
-    this.db = getFirestore(this.app);
 
     this.loggedIn = signal(
       new Promise<UserDetails>((resolve, reject) => {

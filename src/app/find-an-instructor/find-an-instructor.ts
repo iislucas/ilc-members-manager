@@ -2,15 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   signal,
 } from '@angular/core';
-import { DataManagerService } from '../data-manager.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { InstructorCardComponent } from '../instructor-card/instructor-card';
+import { FindInstructorsService } from '../find-instructors.service';
 
 @Component({
   selector: 'app-find-an-instructor',
@@ -21,10 +20,10 @@ import { InstructorCardComponent } from '../instructor-card/instructor-card';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FindAnInstructorComponent {
-  private membersService = inject(DataManagerService);
+  private findInstructorsService = inject(FindInstructorsService);
   searchTerm = signal('');
 
   filteredInstructors = computed(() => {
-    return this.membersService.instructors.search(this.searchTerm());
+    return this.findInstructorsService.instructors.search(this.searchTerm());
   });
 }

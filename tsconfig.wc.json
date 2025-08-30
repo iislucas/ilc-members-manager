@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src/instructors.wc.ts", "src/**/*.d.ts"]
+  "include": ["src/find-an-instructor.wc.ts", "src/**/*.d.ts"]
 }
