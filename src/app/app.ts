@@ -4,7 +4,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
 import { FooterComponent } from './footer/footer';
-import { MemberViewComponent } from './member-view/member-view';
 import { IconComponent } from './icons/icon.component';
 import { ImportExportComponent } from './import-export/import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
@@ -24,7 +23,6 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
     FormsModule,
     ReactiveFormsModule,
     FooterComponent,
-    MemberViewComponent,
     IconComponent,
     ImportExportComponent,
     SpinnerComponent,
