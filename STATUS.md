@@ -165,6 +165,8 @@ Make a admin global settings page.
   added as managers of all schools in their region by an admin.
 - Make the member list and school list have consistent widths per part, so
   things are nicely ligned up.
+- When saving sometimes warning appear and disappear. e.g. on new member
+  especially.
 
 #### \[To Do\]: Make the WebApp into a Progressive WebApp
 
