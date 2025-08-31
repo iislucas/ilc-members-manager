@@ -181,6 +181,13 @@ input[type="date"] {
   }
 }
 
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #eee;
+  border: none;
+}
+
 .email-chip {
   font-size: small;
   font-family: monospace;

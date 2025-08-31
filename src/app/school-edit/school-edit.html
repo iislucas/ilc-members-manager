@@ -30,8 +30,9 @@
           <p class="timestamp">
             Last updated: {{ s.lastUpdated.toDate().toISOString() }}
           </p>
-          <p class="members-link" (click)="gotoMembers()">Members</p>
-
+          @if (userIsSchoolManager()) {
+            <p class="members-link" (click)="gotoMembers()">Manage Members</p>
+          }
           <h3>School Details</h3>
           <label for="schoolName">School Name</label>
           <div class="rhs">
