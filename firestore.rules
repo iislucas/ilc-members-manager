@@ -23,6 +23,7 @@ service cloud.firestore {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if isOwner() || isAdmin() || isSchoolManager();
+      allow delete: if isAdmin(); 
       allow write: if isValidEdit() && (isAdmin() || isSchoolManager());
       allow update: if isValidEdit() && isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth', 'sifuMemberId']);
     }
@@ -41,6 +42,7 @@ service cloud.firestore {
       }
       allow read: if true;
       allow write: if isValidEdit() && isAdmin();
+      allow delete: if isAdmin();
       allow update: if isValidEdit() && isSchoolManager() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managers']);
     }
 

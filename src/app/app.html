@@ -13,16 +13,14 @@
         @if (menuOpen()) {
           <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
           <div class="menu">
-            @if (user.isAdmin || user.schoolsManaged.length > 0) {
-              <div
-                class="menu-item"
-                (click)="
-                  currentView.set(Views.ManageMembers); menuOpen.set(false)
-                "
-              >
-                Members
-              </div>
-            }
+            <div
+              class="menu-item"
+              (click)="
+                currentView.set(Views.ManageMembers); menuOpen.set(false)
+              "
+            >
+              Members
+            </div>
             <div
               class="menu-item"
               (click)="currentView.set(Views.Schools); menuOpen.set(false)"

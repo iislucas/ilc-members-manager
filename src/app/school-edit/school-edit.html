@@ -44,6 +44,7 @@
               (ngModelChange)="updateSchool()"
               #schoolName="ngModel"
               required
+              [disabled]="!userIsAdmin()"
             />
             @if (schoolName.invalid) {
               <div class="error-message">School Name is required.</div>
@@ -56,7 +57,7 @@
               [initAssignment]="schoolIdAssignment()"
               [canBeUnset]="false"
               [expectedNextId]="expectedNextSchoolId()"
-              [canEdit]="true"
+              [canEdit]="userIsAdmin()"
               (assignment)="handleSchoolIdAssignmentChange($event)"
             ></app-id-assignment>
             @if (isDupSchoolId()) {
@@ -72,6 +73,7 @@
               name="schoolAddress"
               [(ngModel)]="s.schoolAddress"
               (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
             ></textarea>
           </div>
 
@@ -83,6 +85,7 @@
               name="schoolCity"
               [(ngModel)]="s.schoolCity"
               (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin()"
             />
           </div>
 
@@ -94,6 +97,7 @@
               name="schoolZipCode"
               [(ngModel)]="s.schoolZipCode"
               (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
             />
           </div>
 
@@ -105,6 +109,7 @@
               name="schoolCountry"
               [(ngModel)]="s.schoolCountry"
               (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin()"
             />
           </div>
 
@@ -117,6 +122,7 @@
               name="schoolWebsite"
               [(ngModel)]="s.schoolWebsite"
               (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
             />
           </div>
 
@@ -130,6 +136,7 @@
               [displayFns]="instructorDisplayFns"
               [initSearchTerm]="s.owner"
               (textUpdated)="s.owner = $event; updateSchool()"
+              [disabled]="!userIsAdmin()"
             ></app-autocomplete>
             @if (s.owner === "") {
               <div class="error-message">No owner set</div>
@@ -158,11 +165,13 @@
                     [displayFns]="instructorDisplayFns"
                     [initSearchTerm]="s.managers[i]"
                     (textUpdated)="s.managers[i] = $event; updateSchool()"
+                    [disabled]="!userIsAdmin() && !userIsSchoolManager()"
                   ></app-autocomplete>
                   <button
                     class="icon-only-button"
                     type="button"
                     (click)="removeManager(i); updateSchool()"
+                    [disabled]="!userIsAdmin() && !userIsSchoolManager()"
                   >
                     <app-icon name="close" />
                   </button>
@@ -182,7 +191,11 @@
                 }
               </div>
             }
-            <button type="button" (click)="s.managers.push(''); updateSchool()">
+            <button
+              type="button"
+              (click)="s.managers.push(''); updateSchool()"
+              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+            >
               Add Manager
             </button>
           </div>
@@ -229,7 +242,7 @@
             }
           </div>
           <div class="right-actions">
-            @if (canDelete()) {
+            @if (canDelete() && userIsAdmin()) {
               <button class="delete-button" (click)="deleteSchool($event)">
                 <app-icon name="trash" fill="#000" />
                 Delete

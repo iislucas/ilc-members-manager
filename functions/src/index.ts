@@ -11,7 +11,6 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 export { getCalendarEvents } from './calendar';
-export { deleteUser } from './delete-user';
 export { getUserDetails } from './get-user-details';
 export { nextMemberId, nextInstructorId, nextSchoolId } from './counters';
 

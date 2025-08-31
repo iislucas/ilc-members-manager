@@ -29,6 +29,7 @@ import {
   Assignment,
   IdAssignmentComponent,
 } from '../id-assignment/id-assignment';
+import { FirebaseStateService } from '../firebase-state.service';
 
 @Component({
   selector: 'app-school-edit',
@@ -49,6 +50,7 @@ export class SchoolEditComponent {
   // this component's element ref to support scrolling into view?
   private elementRef = inject(ElementRef);
   membersService = inject(DataManagerService);
+  stateService = inject(FirebaseStateService);
 
   school = input.required<School>();
   allSchools = input.required<School[]>();
@@ -74,6 +76,20 @@ export class SchoolEditComponent {
       !deepObjEq(this.school(), this.editableSchool()) ||
       this.schoolIdAssignment().kind !== AssignKind.UnchangedExistingId,
   );
+
+  userIsAdmin = computed(() => this.stateService.user()?.isAdmin ?? false);
+  userIsSchoolManager = computed(() => {
+    const member = this.stateService.user()?.member;
+    if (!member) return false;
+    const school = this.school();
+    if (!school) return false;
+    return (
+      member.instructorId === school.owner ||
+      school.managers.includes(member.instructorId)
+    );
+  });
+
+  isNewSchool = computed(() => !this.school()?.id);
 
   expectedNextSchoolId = computed(() => {
     const counters = this.membersService.counters();
