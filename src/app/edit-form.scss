@@ -1,0 +1,140 @@
+@use "../scss_variables" as v;
+
+h3 {
+  text-align: center;
+  font-weight: bold;
+  padding-bottom: 0.2em;
+  color: #722;
+}
+
+.form-header {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1em;
+
+  .identifier {
+    width: 6em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .name {
+    font-weight: bold;
+  }
+
+  .level {
+    display: flex;
+    gap: 0.5em;
+  }
+}
+
+.form-section {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  margin-top: 1em;
+  padding-top: 0.5em;
+  border-top: 1px solid #ccc;
+
+  h3 {
+    // text-align: center;
+    grid-column: 1 / -1;
+    margin-left: 0px;
+    margin-bottom: 8px;
+    padding: 0.4em;
+    padding-left: 0.5em;
+    // padding-bottom: 0px;
+    background-color: v.$theme-bg-color;
+    border-radius: 8px;
+    color: v.$theme-heading-color-subtle;
+    font-size: 1.1em;
+    // border-bottom: 2px solid #ddd;
+    text-align: left;
+    font-weight: bold;
+  }
+
+  p {
+    padding-left: 0.5em;
+    margin: 0px;
+    grid-column: 1 / -1;
+  }
+
+  label {
+    padding-left: 0.5em;
+    text-align: right;
+    // font-weight: bold;
+  }
+
+  .align-top {
+    align-self: start;
+    padding-top: 8px;
+  }
+}
+
+.edit-form {
+  padding-right: v.$card-padding;
+  padding-bottom: unset;
+  padding-left: v.$card-padding;
+  padding-top: unset;
+
+  .edit-form-header {
+    padding-top: v.$card-padding;
+    padding-bottom: v.$card-padding;
+    @extend .form-header;
+    cursor: pointer;
+
+    .unfold-button {
+      margin-left: auto;
+    }
+  }
+
+  .form-section {
+    margin-top: 0px;
+    border-top: 1px solid transparent;
+    transition: border-color 0.3s ease-in-out;
+  }
+
+  .form-actions {
+    border-top: 1px dashed #bbb;
+    padding-bottom: v.$card-padding;
+    padding-top: 1em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1em;
+
+    .left-actions {
+      display: flex;
+      gap: 1em;
+    }
+  }
+}
+
+.rhs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex-grow: 1;
+}
+
+:host(.is-open) .form-section {
+  border-top-color: #ccc;
+}
+
+.timestamp {
+  font-family: "Courier New", Courier, monospace;
+  font-size: small;
+  margin-bottom: 0px;
+}
+
+.note {
+  font-size: small;
+  color: #555;
+}

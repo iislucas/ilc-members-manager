@@ -49,9 +49,8 @@
         <p class="timestamp">Last updated: {{ lastUpdated() }}</p>
         <h3>Contact</h3>
         <label for="name">Name</label>
-        <div>
+        <div class="rhs">
           <input
-            class="long"
             type="text"
             id="name"
             name="name"
@@ -67,9 +66,8 @@
         </div>
 
         <label for="email">Email</label>
-        <div>
+        <div class="rhs">
           <input
-            class="long"
             type="email"
             id="email"
             name="email"
@@ -90,37 +88,42 @@
         </div>
 
         <label for="address" class="align-top">Address</label>
-        <textarea
-          class="long"
-          id="address"
-          name="address"
-          [(ngModel)]="e.address"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        ></textarea>
+        <div class="rhs">
+          <textarea
+            id="address"
+            name="address"
+            [(ngModel)]="e.address"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          ></textarea>
+        </div>
 
         <label for="city">City</label>
-        <input
-          type="text"
-          id="city"
-          name="city"
-          [(ngModel)]="e.city"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="city"
+            name="city"
+            [(ngModel)]="e.city"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          />
+        </div>
 
         <label for="zipCode">Zip Code</label>
-        <input
-          type="text"
-          id="zipCode"
-          name="zipCode"
-          [(ngModel)]="e.zipCode"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="zipCode"
+            name="zipCode"
+            [(ngModel)]="e.zipCode"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          />
+        </div>
 
         <label for="country">Country</label>
-        <div class="autocomplete-with-alt-value">
+        <div class="rhs">
           <app-autocomplete
             [searchableSet]="membersService.countries"
             [displayFns]="countryDisplayFns"
@@ -138,52 +141,69 @@
         </div>
 
         <label for="phone">Phone</label>
-        <input
-          type="text"
-          id="phone"
-          name="phone"
-          [(ngModel)]="e.phone"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="phone"
+            name="phone"
+            [(ngModel)]="e.phone"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          />
+        </div>
 
         <label for="gender">Gender</label>
-        <input
-          type="text"
-          id="gender"
-          name="gender"
-          [(ngModel)]="e.gender"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="gender"
+            name="gender"
+            [(ngModel)]="e.gender"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          />
+        </div>
 
         <label for="dateOfBirth">Date of Birth</label>
-        <input
-          class="date"
-          type="date"
-          id="dateOfBirth"
-          name="dateOfBirth"
-          placeholder="YYYY-MM-DD"
-          [(ngModel)]="e.dateOfBirth"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="rhs">
+          <input
+            class="date"
+            type="date"
+            id="dateOfBirth"
+            name="dateOfBirth"
+            placeholder="YYYY-MM-DD"
+            [(ngModel)]="e.dateOfBirth"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditPersonalDetails()"
+          />
+        </div>
 
         <h3>Member</h3>
 
         <label for="memberId">Member ID</label>
-        <div>
-          <app-id-assignment
-            [initAssignment]="memberIdAssignment()"
-            [canBeUnset]="false"
-            [expectedNextId]="expectedNextMemberId()"
-            [canEdit]="canEditAllDetails()"
-            (assignment)="handleMemberIdAssignmentChange($event)"
-          ></app-id-assignment>
+        <div class="rhs">
+          @if (
+            memberIdAssignment().kind === AssignKind.AssignNewAutoId &&
+            !countryWithCode()
+          ) {
+            <div>
+              <span class="error-message"
+                >Please enter a country with a valid country code above, so that
+              </span>
+            </div>
+          } @else {
+            <app-id-assignment
+              [initAssignment]="memberIdAssignment()"
+              [canBeUnset]="false"
+              [expectedNextId]="expectedNextMemberId()"
+              [canEdit]="canEditAllDetails()"
+              (assignment)="handleMemberIdAssignmentChange($event)"
+            ></app-id-assignment>
+          }
         </div>
 
         <label for="sifuMemberId">Student of</label>
-        <div class="autocomplete-with-alt-value">
+        <div class="rhs">
           <app-autocomplete
             name="student of"
             [searchableSet]="membersService.instructors"
@@ -194,12 +214,12 @@
             (textUpdated)="e.sifuMemberId = $event; updateMember()"
           ></app-autocomplete>
           @if (e.sifuMemberId === "") {
-            <div>No instructor set</div>
+            <div class="note">No instructor set</div>
           } @else if (
             membersService.instructors.entriesMap().get(e.sifuMemberId);
             as sifuData
           ) {
-            <div>{{ sifuData.name }}</div>
+            <div class="note">{{ sifuData.name }}</div>
           } @else {
             <div class="error-message">
               invalid instructor ID:
@@ -209,7 +229,7 @@
         </div>
 
         <label for="inSchoolId">Managed by</label>
-        <div class="autocomplete-with-alt-value">
+        <div class="rhs">
           <app-autocomplete
             [searchableSet]="membersService.schools"
             [placeholder]="'Search for a school'"
@@ -219,95 +239,109 @@
             (textUpdated)="e.managingOrgId = $event; updateMember()"
           ></app-autocomplete>
           @if (e.managingOrgId.trim() === "") {
-            <div>Managed by ILC HQ</div>
+            <div class="note">Managed by ILC HQ</div>
           } @else if (
             membersService.schools.entriesMap().get(e.managingOrgId);
             as schoolData
           ) {
-            <div>{{ schoolData.schoolName }}</div>
+            <div class="note">{{ schoolData.schoolName }}</div>
           } @else {
             <div class="error-message">invalid school ID</div>
           }
         </div>
 
         <label for="membershipType">Type</label>
-        <select
-          id="membershipType"
-          name="membershipType"
-          [(ngModel)]="e.membershipType"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-          required
-        >
-          @for (type of membershipTypes; track type) {
-            <option [value]="type">{{ type }}</option>
-          }
-        </select>
+        <div class="rhs">
+          <select
+            id="membershipType"
+            name="membershipType"
+            [(ngModel)]="e.membershipType"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditMembershipDetails()"
+            required
+          >
+            @for (type of membershipTypes; track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </div>
 
         <label for="firstMembershipStarted">First Membership</label>
-        <input
-          class="date"
-          type="date"
-          id="firstMembershipStarted"
-          name="firstMembershipStarted"
-          placeholder="YYYY-MM-DD"
-          [(ngModel)]="e.firstMembershipStarted"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-        />
-
-        <label for="lastRenewalDate">Last Renewal</label>
-        <input
-          class="date"
-          type="date"
-          id="lastRenewalDate"
-          name="lastRenewalDate"
-          placeholder="YYYY-MM-DD"
-          [(ngModel)]="e.lastRenewalDate"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-        />
-
-        @if (e.membershipType !== MembershipType.Life) {
-          <label for="currentMembershipExpires">Expires</label>
+        <div class="rhs">
           <input
             class="date"
             type="date"
-            id="currentMembershipExpires"
-            name="currentMembershipExpires"
+            id="firstMembershipStarted"
+            name="firstMembershipStarted"
             placeholder="YYYY-MM-DD"
-            [(ngModel)]="e.currentMembershipExpires"
+            [(ngModel)]="e.firstMembershipStarted"
             (ngModelChange)="updateMember()"
             [disabled]="!canEditMembershipDetails()"
           />
+        </div>
+
+        <label for="lastRenewalDate">Last Renewal</label>
+        <div class="rhs">
+          <input
+            class="date"
+            type="date"
+            id="lastRenewalDate"
+            name="lastRenewalDate"
+            placeholder="YYYY-MM-DD"
+            [(ngModel)]="e.lastRenewalDate"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditMembershipDetails()"
+          />
+        </div>
+
+        @if (e.membershipType !== MembershipType.Life) {
+          <label for="currentMembershipExpires">Expires</label>
+          <div class="rhs">
+            <input
+              class="date"
+              type="date"
+              id="currentMembershipExpires"
+              name="currentMembershipExpires"
+              placeholder="YYYY-MM-DD"
+              [(ngModel)]="e.currentMembershipExpires"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditMembershipDetails()"
+            />
+          </div>
         }
 
         <h3>Level</h3>
         <label for="studentLevel">Student</label>
-        <input
-          type="text"
-          id="studentLevel"
-          name="studentLevel"
-          [(ngModel)]="e.studentLevel"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="studentLevel"
+            name="studentLevel"
+            [(ngModel)]="e.studentLevel"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditMembershipDetails()"
+          />
+        </div>
 
         <label for="applicationLevel">Application</label>
-        <input
-          type="text"
-          id="applicationLevel"
-          name="applicationLevel"
-          [(ngModel)]="e.applicationLevel"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-        />
+        <div class="rhs">
+          <input
+            type="text"
+            id="applicationLevel"
+            name="applicationLevel"
+            [(ngModel)]="e.applicationLevel"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditMembershipDetails()"
+          />
+        </div>
 
-        <label for="mastersLevels">Masters</label>
-        <div>
+        <label for="masterLevels">Master</label>
+        <div class="rhs">
           @for (level of masterLevels; track level) {
             <div class="masterLevel">
               <input
+                id="masterLevels"
+                name="masterLevels"
                 type="checkbox"
                 [checked]="e.mastersLevels.includes(level)"
                 (change)="onMasterLevelChange(level, $event.target.checked)"
@@ -320,12 +354,10 @@
 
         <h3>Instructor</h3>
         <label for="instructorId">Instructor ID</label>
-        <div class="id-assignment-with-button">
+        <div class="rhs">
           <app-id-assignment
-            [initAssignment]="{
-              curId: e.instructorId,
-              kind: AssignKind.UnchangedExistingId,
-            }"
+            name="instructorId"
+            [initAssignment]="instructorIdAssignment()"
             [canBeUnset]="true"
             [expectedNextId]="expectedNextInstructorId()"
             [canEdit]="canEditAllDetails()"
@@ -333,71 +365,82 @@
           ></app-id-assignment>
         </div>
 
-        <label for="instructorLicenseExpires">License Expires</label>
-        <input
-          class="date"
-          type="date"
-          id="instructorLicenseExpires"
-          name="instructorLicenseExpires"
-          placeholder="YYYY-MM-DD"
-          [(ngModel)]="e.instructorLicenseExpires"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditMembershipDetails()"
-        />
+        @if (
+          e.instructorId.trim() !== "" ||
+          instructorIdAssignment().kind === AssignKind.AssignNewAutoId
+        ) {
+          <label for="instructorLicenseExpires">License Expires</label>
+          <div class="rhs">
+            <input
+              class="date"
+              type="date"
+              id="instructorLicenseExpires"
+              name="instructorLicenseExpires"
+              placeholder="YYYY-MM-DD"
+              [(ngModel)]="e.instructorLicenseExpires"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditMembershipDetails()"
+            />
+          </div>
 
-        @if (e.instructorId) {
-          <h3>Public Listing</h3>
+          <h3>Instructor Public Listing</h3>
 
-          <p>
+          <p class="note">
             Member ID, instructor ID, and graded levels and these details are
             listed on the ILC website.
           </p>
 
           <label for="instructorWebsite">Website</label>
-          <input
-            class="long"
-            type="text"
-            id="instructorWebsite"
-            name="instructorWebsite"
-            [(ngModel)]="e.instructorWebsite"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="instructorWebsite"
+              name="instructorWebsite"
+              [(ngModel)]="e.instructorWebsite"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditPersonalDetails()"
+            />
+          </div>
 
           <label for="publicEmail">Public Email</label>
-          <input
-            class="long"
-            type="email"
-            id="publicEmail"
-            name="publicEmail"
-            [(ngModel)]="e.publicEmail"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
-          />
+          <div class="rhs">
+            <input
+              type="email"
+              id="publicEmail"
+              name="publicEmail"
+              [(ngModel)]="e.publicEmail"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditPersonalDetails()"
+            />
+          </div>
 
           <label for="publicPhone">Public Phone</label>
-          <input
-            type="text"
-            id="publicPhone"
-            name="publicPhone"
-            [(ngModel)]="e.publicPhone"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="publicPhone"
+              name="publicPhone"
+              [(ngModel)]="e.publicPhone"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditPersonalDetails()"
+            />
+          </div>
 
           <label for="publicRegionOrCity">Public Region/City</label>
-          <input
-            type="text"
-            id="publicRegionOrCity"
-            name="publicRegionOrCity"
-            [(ngModel)]="e.publicRegionOrCity"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="publicRegionOrCity"
+              name="publicRegionOrCity"
+              [(ngModel)]="e.publicRegionOrCity"
+              (ngModelChange)="updateMember()"
+              [disabled]="!canEditPersonalDetails()"
+            />
+          </div>
         }
         <h3>Admin</h3>
         <label for="isAdmin">Is Admin</label>
-        <div class="admin-section">
+        <div class="rhs">
           <input
             type="checkbox"
             id="isAdmin"
@@ -406,18 +449,19 @@
             (ngModelChange)="updateMember()"
             [disabled]="!canEditAllDetails()"
           />
-          (can edit all members)
+          <span class="note">(can edit all members)</span>
         </div>
 
         <label for="notes" class="align-top">Notes</label>
-        <textarea
-          class="long"
-          id="notes"
-          name="notes"
-          [(ngModel)]="e.notes"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditAllDetails()"
-        ></textarea>
+        <div class="rhs">
+          <textarea
+            id="notes"
+            name="notes"
+            [(ngModel)]="e.notes"
+            (ngModelChange)="updateMember()"
+            [disabled]="!canEditAllDetails()"
+          ></textarea>
+        </div>
       </div>
 
       @if (errorMessage().length > 0) {

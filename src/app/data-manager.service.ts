@@ -60,6 +60,7 @@ export class DataManagerService {
     'instructorId',
     'name',
     'email',
+    'publicEmail',
     'memberId',
     'city',
     'publicRegionOrCity',

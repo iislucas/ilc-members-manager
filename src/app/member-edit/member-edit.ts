@@ -28,10 +28,7 @@ import {
   Assignment,
   IdAssignmentComponent,
 } from '../id-assignment/id-assignment';
-import {
-  AutocompleteComponent,
-  AutocompleteItem,
-} from '../autocomplete/autocomplete';
+import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { CountryCode } from '../country-codes';
 import { Timestamp } from 'firebase/firestore';
 
@@ -67,7 +64,7 @@ export class MemberEditComponent {
   member = input.required<Member>();
   editableMember = linkedSignal<Member>(() => {
     const m = this.member();
-    const editable = JSON.parse(JSON.stringify(m));
+    const editable = structuredClone(m);
     editable.lastUpdated = m.lastUpdated;
     return editable;
   });
@@ -78,7 +75,12 @@ export class MemberEditComponent {
   collapsed = linkedSignal<boolean>(() => {
     return this.collapse() ?? true;
   });
-  isDirty = computed(() => !deepObjEq(this.member(), this.editableMember()));
+  isDirty = computed(
+    () =>
+      !deepObjEq(this.member(), this.editableMember()) ||
+      this.memberIdAssignment().kind !== AssignKind.UnchangedExistingId ||
+      this.instructorIdAssignment().kind !== AssignKind.UnchangedExistingId,
+  );
   isSaving = signal(false);
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
@@ -86,10 +88,11 @@ export class MemberEditComponent {
 
   // Pretty printing values
   lastUpdated = computed(() => {
-    console.log('member last update: ', this.member().lastUpdated);
-    console.log(this.member());
-    if (this.member().lastUpdated) {
-      return this.member().lastUpdated.toDate().toISOString();
+    // There is a small time-window when server assigned timestamp is the value,
+    // for this time, lastUpdated is null, so just provide a now timestamp for
+    // that.
+    if (this.editableMember().lastUpdated) {
+      return this.editableMember().lastUpdated.toDate().toISOString();
     } else {
       return Timestamp.now().toDate().toISOString();
     }
@@ -105,9 +108,9 @@ export class MemberEditComponent {
   // TODO: add error checking, expectedNextMemberId should not be empty!
   expectedNextMemberId = computed(() => {
     const counters = this.membersService.counters();
-    if (!counters) return '';
+    if (!counters) return '...loading...';
     const code = this.countryWithCode()?.id;
-    if (!code) return '';
+    if (!code) return 'specified once valid country is selected above';
     const nextId = (counters.memberIdCounters[code] || 0) + 1;
     return `${code}${nextId}`;
   });
@@ -134,14 +137,13 @@ export class MemberEditComponent {
   };
 
   // Local state, for assigning new instructors...
-  instructorIdAssignment = linkedSignal<Assignment>(() => {
+  initInstructorIdAssignment(): Assignment {
     return {
       kind: AssignKind.UnchangedExistingId,
       curId: this.member().instructorId,
     };
-  });
-
-  memberIdAssignment = linkedSignal<Assignment>(() => {
+  }
+  initMemberIdAssignment(): Assignment {
     if (this.member().memberId.trim() === '') {
       return {
         kind: AssignKind.AssignNewAutoId,
@@ -153,7 +155,13 @@ export class MemberEditComponent {
         curId: this.member().memberId,
       };
     }
-  });
+  }
+  instructorIdAssignment = linkedSignal<Assignment>(() =>
+    this.initInstructorIdAssignment(),
+  );
+  memberIdAssignment = linkedSignal<Assignment>(() =>
+    this.initMemberIdAssignment(),
+  );
 
   // User permissions state, for what can be shown.
   canDelete = input<boolean>(true);
@@ -199,6 +207,8 @@ export class MemberEditComponent {
   }
 
   handleInstructorIdAssignmentChange(assignment: Assignment) {
+    console.log('handleInstructorIdAssignmentChange', assignment);
+    this.instructorIdAssignment.set(assignment);
     if (
       assignment.kind === AssignKind.UnchangedExistingId ||
       assignment.kind === AssignKind.AssignNewAutoId
@@ -215,6 +225,8 @@ export class MemberEditComponent {
   }
 
   handleMemberIdAssignmentChange(assignment: Assignment) {
+    console.log('handleMemberIdAssignmentChange', assignment);
+    this.memberIdAssignment.set(assignment);
     if (
       assignment.kind === AssignKind.UnchangedExistingId ||
       assignment.kind === AssignKind.AssignNewAutoId
@@ -233,7 +245,11 @@ export class MemberEditComponent {
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    this.editableMember.set({ ...this.member() });
+    const m = this.member();
+    this.editableMember.set(structuredClone(m));
+    this.editableMember().lastUpdated = m.lastUpdated;
+    this.instructorIdAssignment.set(this.initInstructorIdAssignment());
+    this.memberIdAssignment.set(this.initMemberIdAssignment());
     this.collapsed.set(true);
     this.close.emit();
   }

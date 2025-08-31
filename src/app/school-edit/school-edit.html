@@ -30,12 +30,11 @@
           <p class="timestamp">
             Last updated: {{ s.lastUpdated.toDate().toISOString() }}
           </p>
-          <h3>
-            School Details
-            <div class="members-link" (click)="gotoMembers()">Members</div>
-          </h3>
+          <p class="members-link" (click)="gotoMembers()">Members</p>
+
+          <h3>School Details</h3>
           <label for="schoolName">School Name</label>
-          <div>
+          <div class="rhs">
             <input
               class="long"
               type="text"
@@ -52,7 +51,7 @@
           </div>
 
           <label for="schoolId">School ID</label>
-          <div>
+          <div class="rhs">
             <input
               type="text"
               id="schoolId"
@@ -70,87 +69,121 @@
           </div>
 
           <label for="schoolAddress" class="align-top">Address</label>
-          <textarea
-            class="long"
-            id="schoolAddress"
-            name="schoolAddress"
-            [(ngModel)]="s.schoolAddress"
-            (ngModelChange)="updateSchool()"
-          ></textarea>
+          <div class="rhs">
+            <textarea
+              class="long"
+              id="schoolAddress"
+              name="schoolAddress"
+              [(ngModel)]="s.schoolAddress"
+              (ngModelChange)="updateSchool()"
+            ></textarea>
+          </div>
 
           <label for="schoolCity">City</label>
-          <input
-            type="text"
-            id="schoolCity"
-            name="schoolCity"
-            [(ngModel)]="s.schoolCity"
-            (ngModelChange)="updateSchool()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="schoolCity"
+              name="schoolCity"
+              [(ngModel)]="s.schoolCity"
+              (ngModelChange)="updateSchool()"
+            />
+          </div>
 
           <label for="schoolZipCode">Zip Code</label>
-          <input
-            type="text"
-            id="schoolZipCode"
-            name="schoolZipCode"
-            [(ngModel)]="s.schoolZipCode"
-            (ngModelChange)="updateSchool()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="schoolZipCode"
+              name="schoolZipCode"
+              [(ngModel)]="s.schoolZipCode"
+              (ngModelChange)="updateSchool()"
+            />
+          </div>
 
           <label for="schoolCountry">Country</label>
-          <input
-            type="text"
-            id="schoolCountry"
-            name="schoolCountry"
-            [(ngModel)]="s.schoolCountry"
-            (ngModelChange)="updateSchool()"
-          />
+          <div class="rhs">
+            <input
+              type="text"
+              id="schoolCountry"
+              name="schoolCountry"
+              [(ngModel)]="s.schoolCountry"
+              (ngModelChange)="updateSchool()"
+            />
+          </div>
 
           <label for="schoolWebsite">Website</label>
-          <input
-            class="long"
-            type="text"
-            id="schoolWebsite"
-            name="schoolWebsite"
-            [(ngModel)]="s.schoolWebsite"
-            (ngModelChange)="updateSchool()"
-          />
+          <div class="rhs">
+            <input
+              class="long"
+              type="text"
+              id="schoolWebsite"
+              name="schoolWebsite"
+              [(ngModel)]="s.schoolWebsite"
+              (ngModelChange)="updateSchool()"
+            />
+          </div>
 
           <h3>Management</h3>
           <label for="owner">Owner</label>
-          <div>
-            <div class="member-search-with-details">
-              <app-member-search
-                id="owner"
-                [searchTerm]="s.owner"
-                (searchTermChange)="s.owner = $event"
-                (memberSelected)="updateOwner($event)"
-              ></app-member-search>
-              @if (owner(); as o) {
-                <div class="member-details">{{ o.name }}</div>
-              }
-            </div>
+          <div class="rhs">
+            <app-autocomplete
+              name="owner"
+              [searchableSet]="membersService.instructors"
+              [placeholder]="'Search instructor for owner'"
+              [displayFns]="instructorDisplayFns"
+              [initSearchTerm]="s.owner"
+              (textUpdated)="s.owner = $event; updateSchool()"
+            ></app-autocomplete>
+            @if (s.owner === "") {
+              <div class="error-message">No owner set</div>
+            } @else if (
+              membersService.instructors.entriesMap().get(s.owner);
+              as ownerData
+            ) {
+              <div class="note">{{ ownerData.name }}</div>
+            } @else {
+              <div class="error-message">
+                Invalid Owner (Instructor) ID:
+                <span class="identifier-chip">{{ s.owner }}</span>
+              </div>
+            }
           </div>
 
           <label class="align-top" for="managers">Managers</label>
-          <div>
+          <div class="rhs">
             @for (managerMemberId of s.managers; track $index; let i = $index) {
               <div class="member-search-with-details" id="managers">
-                <app-member-search
-                  id="manager-{{ managerMemberId }}"
-                  [searchTerm]="managerMemberId"
-                  (searchTermChange)="s.managers[i] = $event"
-                  (memberSelected)="updateManager(i, $event)"
-                ></app-member-search>
-                @if (managers()[i]; as m) {
-                  <div class="member-details">{{ m.name }}</div>
+                <div class="oneLine">
+                  <app-autocomplete
+                    name="owner"
+                    [searchableSet]="membersService.instructors"
+                    [placeholder]="'Search instructor for owner'"
+                    [displayFns]="instructorDisplayFns"
+                    [initSearchTerm]="s.managers[i]"
+                    (textUpdated)="s.managers[i] = $event; updateSchool()"
+                  ></app-autocomplete>
+                  <button
+                    class="icon-only-button"
+                    type="button"
+                    (click)="removeManager(i); updateSchool()"
+                  >
+                    <app-icon name="close" />
+                  </button>
+                </div>
+                @if (s.owner === "") {
+                  <div class="error-message">No owner set</div>
+                } @else if (
+                  membersService.instructors.entriesMap().get(s.owner);
+                  as ownerData
+                ) {
+                  <div class="note">{{ ownerData.name }}</div>
+                } @else {
+                  <div class="error-message">
+                    Invalid Owner (Instructor) ID:
+                    <span class="identifier-chip">{{ s.owner }}</span>
+                  </div>
                 }
-                <button
-                  class="icon-only-button"
-                  type="button"
-                  (click)="removeManager(i); updateSchool()"
-                >
-                  <app-icon name="close" />
-                </button>
               </div>
             }
             <button type="button" (click)="s.managers.push(''); updateSchool()">

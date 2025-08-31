@@ -20,10 +20,10 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MemberSearchComponent } from '../member-search/member-search';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { deepObjEq } from '../utils';
+import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 @Component({
   selector: 'app-school-edit',
@@ -33,8 +33,8 @@ import { deepObjEq } from '../utils';
     FormsModule,
     IconComponent,
     SpinnerComponent,
-    MemberSearchComponent,
     IconComponent,
+    AutocompleteComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -42,22 +42,24 @@ import { deepObjEq } from '../utils';
 export class SchoolEditComponent {
   // this component's element ref to support scrolling into view?
   private elementRef = inject(ElementRef);
+  membersService = inject(DataManagerService);
 
   school = input.required<School>();
   allSchools = input.required<School[]>();
   canDelete = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
+
   editableSchool = linkedSignal<School>(() => {
     const s = this.school();
-    const editable = JSON.parse(JSON.stringify(s));
+    const editable = structuredClone(s);
     editable.lastUpdated = s.lastUpdated;
     return editable;
   });
   isSaving = signal(false);
   collapsed = signal(true);
   isDirty = computed(() => !deepObjEq(this.school(), this.editableSchool()));
-  private membersService = inject(DataManagerService);
+
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
     const owner = this.membersService.instructors
@@ -74,6 +76,11 @@ export class SchoolEditComponent {
           .find((m) => m.memberId === memberId) || null,
     );
   });
+
+  instructorDisplayFns = {
+    toChipId: (i: InstructorPublicData) => i.id,
+    toName: (i: InstructorPublicData) => i.name,
+  };
 
   @HostBinding('class.is-open')
   get isOpen() {

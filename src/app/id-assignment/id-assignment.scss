@@ -7,14 +7,6 @@
   align-items: center;
 }
 
-.id-input,
-.id-display,
-.next-id {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .menu-container {
   position: relative;
 }
@@ -26,6 +18,14 @@
   left: 0;
 }
 
-.menu-item {
-  cursor: pointer;
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.note {
+  font-size: small;
+  color: #555;
 }

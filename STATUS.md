@@ -144,9 +144,8 @@ Make a admin global settings page.
 
 ### \[P2\]: End-user Progressive WebApp & other nice stuff
 
-#### \[To Do\]: Support business logic for gradings
-
-#### \[To Do\]: Support viewing/analytics for orders
+- Business logic for gradings
+- Support viewing/analytics for orders
 
 #### \[To Do\]: Provide a way to communicate with all instructors
 
@@ -156,7 +155,7 @@ Make a admin global settings page.
 
 #### \[To Do\]: UX polish
 
-- School IDs will always begin with "SC-" so we don't make peopel enter that
+- School IDs will always begin with "SC-" so we don't make people enter that
   bit, and ensure that data is consistent.
 - Create a special concept of country/region managers to manage all people in
   their country. All changes should populate an activity feed that ILC HQ can

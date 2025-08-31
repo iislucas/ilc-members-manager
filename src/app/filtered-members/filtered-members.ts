@@ -16,7 +16,18 @@ export class FilteredMembersComponent {
   schoolId = input<string>('');
   country = input<string>('');
   jumpToMember = input<string>('');
-  filteredMemberSet = new SearchableSet<Member>();
+  // TODO: consider making that list of fields into a constant somewhere
+  filteredMemberSet = new SearchableSet<Member>([
+    'memberId',
+    'instructorId',
+    'name',
+    'email',
+    'publicEmail',
+    'memberId',
+    'city',
+    'publicRegionOrCity',
+    'country',
+  ]);
   errorMessage = computed(() => {
     return this.memberSet().error() || this.filteredMemberSet.error();
   });

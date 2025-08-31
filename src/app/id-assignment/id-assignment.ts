@@ -1,4 +1,11 @@
-import { Component, input, linkedSignal, output, signal } from '@angular/core';
+import {
+  Component,
+  effect,
+  input,
+  linkedSignal,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule, isFormArray } from '@angular/forms';
 import { IconComponent } from '../icons/icon.component';
 import { CommonModule } from '@angular/common';
@@ -50,9 +57,12 @@ export class IdAssignmentComponent {
   // State
   menuOpen = signal(false);
 
-  effect() {
-    if (this.editedAssignment() !== this.initAssignment()) {
-      this.assignment.emit(this.editedAssignment());
-    }
+  constructor() {
+    effect(() => {
+      if (this.editedAssignment() !== this.initAssignment()) {
+        this.assignment.emit({ ...this.editedAssignment() });
+      }
+      this.menuOpen.set(false);
+    });
   }
 }

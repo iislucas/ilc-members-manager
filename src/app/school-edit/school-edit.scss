@@ -1,5 +1,5 @@
 @use "../../scss_variables" as *;
-@use "../member-details-layout.scss" as *;
+@use "../edit-form.scss" as *;
 
 :host {
   display: block;
@@ -15,102 +15,6 @@
   }
 }
 
-.edit-form {
-  padding-right: $card-padding;
-  padding-bottom: unset;
-  padding-left: $card-padding;
-  padding-top: unset;
-
-  .edit-form-header {
-    padding-top: $card-padding;
-    padding-bottom: $card-padding;
-    @extend .form-header;
-    cursor: pointer;
-
-    .unfold-button {
-      margin-left: auto;
-    }
-  }
-
-  .form-section {
-    margin-top: 0px;
-    border-top: 1px solid transparent;
-    transition: border-color 0.3s ease-in-out;
-
-    input[type="text"],
-    input[type="email"],
-    select,
-    textarea {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box; /* Ensures padding doesn't affect width */
-    }
-
-    input[type="checkbox"] {
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-
-    .long {
-      grid-column: 2 / 3;
-    }
-
-    input[type="date"] {
-      width: auto;
-      min-width: 120px;
-      max-width: 150px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-
-      &::placeholder {
-        color: #999;
-      }
-    }
-
-    /* Special case for checkbox */
-    .admin-section {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 10px;
-    }
-  }
-
-  .form-actions {
-    border-top: 1px dashed #bbb;
-    padding-bottom: $card-padding;
-    padding-top: 1em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 1em;
-
-    .left-actions {
-      display: flex;
-      gap: 1em;
-    }
-  }
-}
-
-:host(.is-open) .form-section {
-  border-top-color: #ccc;
-}
-
-.member-search-with-details {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.5em;
-}
-
 .member-details {
   font-size: small;
 }
@@ -122,7 +26,9 @@
   color: blue;
 }
 
-.timestamp {
-  font-family: "Courier New", Courier, monospace;
-  font-size: small;
+.oneLine {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
 }

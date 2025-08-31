@@ -21,7 +21,7 @@ export class SearchableSet<T extends { id: string }> {
   loaded = computed(() => !this.loading() && this.error() === null);
 
   constructor(
-    private fieldsToSearch: string[] = [],
+    public fieldsToSearch: string[],
     entries?: T[],
   ) {
     if (entries) {

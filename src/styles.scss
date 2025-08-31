@@ -101,7 +101,7 @@ button:disabled {
   padding: 1em;
   border: 1px solid $theme-border-color;
   // box-shadow: 0 0 0.5em #955;
-  min-width: 10em;
+  min-width: 7em;
   display: flex;
   flex-direction: column;
   align-items: start;
@@ -118,13 +118,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   justify-content: start;
-
-  hr {
-    margin-top: 5px;
-    border-top: 1px solid #ccc;
-    margin-bottom: 5px;
-    flex-grow: 1;
-  }
 }
 
 .menu-item {
@@ -139,9 +132,23 @@ button:disabled {
 input[type="text"],
 input[type="password"],
 input[type="email"],
-select,
+select {
+  background-color: unset;
+  width: auto;
+  // field-sizing: content;
+  max-width: 30em;
+  flex-grow: 1;
+  padding: 8px;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+
 textarea {
-  width: 100%;
+  background-color: unset;
+  flex-grow: 1;
+  // field-sizing: content;
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -150,13 +157,20 @@ textarea {
 
 textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 3em;
+  max-width: 30em;
+}
+
+select {
+  width: auto;
+  max-width: 30em;
+  field-sizing: content;
 }
 
 input[type="date"] {
   width: auto;
   min-width: 120px;
-  max-width: 150px;
+  max-width: 10em;
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -188,6 +202,23 @@ input[type="date"] {
   font-size: small;
   font-family: monospace;
   border: 1px solid $theme-chip-border-color;
+  padding: 0.2em;
+}
+
+.missing-identifier-chip {
+  border-radius: 5px;
+  font-size: small;
+  font-family: monospace;
+  border: 1px dashed $theme-chip-border-color;
+  padding: 0.2em;
+}
+
+.dynamic-identifier-chip {
+  background-color: $theme-chip-bg-color;
+  border-radius: 5px;
+  font-size: small;
+  font-family: monospace;
+  border: 1px dashed $theme-chip-border-color;
   padding: 0.2em;
 }
 
