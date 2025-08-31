@@ -17,7 +17,7 @@ service cloud.firestore {
         let userMember = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
         let member = get(/databases/$(database)/documents/members/$(memberEmail)).data;
         let school = get(/databases/$(database)/documents/schools/$(member.managingOrgId)).data;
-        return userMember.memberId == school.owner || userMember.memberId in school.managers;
+        return userMember.instructorId == school.owner || userMember.instructorId in school.managers;
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
@@ -34,13 +34,14 @@ service cloud.firestore {
       function isSchoolManager() {
         let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return member.memberId == school.owner || member.memberId in school.managers;
+        return member.instructorId == school.owner || member.instructorId in school.managers;
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if true;
-      allow write: if isValidEdit() && isAdmin() && isSchoolManager();
+      allow write: if isValidEdit() && isAdmin();
+      allow update: if isValidEdit() && isSchoolManager() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managers']);
     }
 
     match /instructorsPublic/{instructorId} {
@@ -54,7 +55,7 @@ service cloud.firestore {
       function isSchoolManager() {
         let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return member.memberId == school.owner || member.memberId in school.managers;
+        return member.instructorId == school.owner || member.instructorId in school.managers;
       }
       allow read: if isAdmin() || isSchoolManager();
     }

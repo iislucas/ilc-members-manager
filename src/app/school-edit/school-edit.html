@@ -52,18 +52,14 @@
 
           <label for="schoolId">School ID</label>
           <div class="rhs">
-            <input
-              type="text"
-              id="schoolId"
-              name="schoolId"
-              [(ngModel)]="s.schoolId"
-              (ngModelChange)="updateSchool()"
-              #schoolId="ngModel"
-              required
-            />
-            @if (schoolId.invalid) {
-              <div class="error-message">School ID is required.</div>
-            } @else if (isDupSchoolId()) {
+            <app-id-assignment
+              [initAssignment]="schoolIdAssignment()"
+              [canBeUnset]="false"
+              [expectedNextId]="expectedNextSchoolId()"
+              [canEdit]="true"
+              (assignment)="handleSchoolIdAssignmentChange($event)"
+            ></app-id-assignment>
+            @if (isDupSchoolId()) {
               <div class="error-message">This school ID is already in use.</div>
             }
           </div>
@@ -174,14 +170,14 @@
                 @if (s.owner === "") {
                   <div class="error-message">No owner set</div>
                 } @else if (
-                  membersService.instructors.entriesMap().get(s.owner);
-                  as ownerData
+                  membersService.instructors.entriesMap().get(s.managers[i]);
+                  as managerData
                 ) {
-                  <div class="note">{{ ownerData.name }}</div>
+                  <div class="note">{{ managerData.name }}</div>
                 } @else {
                   <div class="error-message">
                     Invalid Owner (Instructor) ID:
-                    <span class="identifier-chip">{{ s.owner }}</span>
+                    <span class="identifier-chip">{{ s.managers[i] }}</span>
                   </div>
                 }
               </div>

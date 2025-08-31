@@ -24,6 +24,11 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { deepObjEq } from '../utils';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import {
+  AssignKind,
+  Assignment,
+  IdAssignmentComponent,
+} from '../id-assignment/id-assignment';
 
 @Component({
   selector: 'app-school-edit',
@@ -35,6 +40,7 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
     SpinnerComponent,
     IconComponent,
     AutocompleteComponent,
+    IdAssignmentComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -50,6 +56,9 @@ export class SchoolEditComponent {
   collapse = input<boolean | null>(null);
   close = output();
 
+  // Constants
+  AssignKind = AssignKind;
+
   editableSchool = linkedSignal<School>(() => {
     const s = this.school();
     const editable = structuredClone(s);
@@ -57,8 +66,37 @@ export class SchoolEditComponent {
     return editable;
   });
   isSaving = signal(false);
-  collapsed = signal(true);
-  isDirty = computed(() => !deepObjEq(this.school(), this.editableSchool()));
+  collapsed = linkedSignal<boolean>(() => {
+    return this.collapse() ?? true;
+  });
+  isDirty = computed(
+    () =>
+      !deepObjEq(this.school(), this.editableSchool()) ||
+      this.schoolIdAssignment().kind !== AssignKind.UnchangedExistingId,
+  );
+
+  expectedNextSchoolId = computed(() => {
+    const counters = this.membersService.counters();
+    if (!counters) return '';
+    return (counters.schoolIdCounter + 1).toString();
+  });
+
+  initSchoolIdAssignment(): Assignment {
+    if (this.school().schoolId.trim() === '') {
+      return {
+        kind: AssignKind.AssignNewAutoId,
+        curId: '',
+      };
+    } else {
+      return {
+        kind: AssignKind.UnchangedExistingId,
+        curId: this.school().schoolId,
+      };
+    }
+  }
+  schoolIdAssignment = linkedSignal<Assignment>(() =>
+    this.initSchoolIdAssignment(),
+  );
 
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
@@ -92,10 +130,34 @@ export class SchoolEditComponent {
     return this.isDirty();
   }
 
-  constructor() {}
+  constructor() {
+    effect(() => {
+      const collapse = this.collapse();
+      if (collapse !== null) {
+        this.collapsed.set(collapse);
+      }
+    });
+  }
 
   updateSchool() {
     this.editableSchool.set({ ...this.editableSchool() });
+  }
+
+  handleSchoolIdAssignmentChange(assignment: Assignment) {
+    this.schoolIdAssignment.set(assignment);
+    if (
+      assignment.kind === AssignKind.UnchangedExistingId ||
+      assignment.kind === AssignKind.AssignNewAutoId
+    ) {
+      return;
+    }
+
+    if (assignment.kind === AssignKind.AssignNewManualId) {
+      this.editableSchool().schoolId = assignment.newId;
+    } else if (assignment.kind === AssignKind.RemoveId) {
+      this.editableSchool().schoolId = '';
+    }
+    this.updateSchool();
   }
 
   removeManager(index: number) {
@@ -123,7 +185,10 @@ export class SchoolEditComponent {
   }
 
   cancel($event: Event) {
-    this.editableSchool.set({ ...this.school() });
+    const s = this.school();
+    this.editableSchool.set(structuredClone(s));
+    this.editableSchool().lastUpdated = s.lastUpdated;
+    this.schoolIdAssignment.set(this.initSchoolIdAssignment());
     $event.preventDefault();
     $event.stopPropagation();
     this.collapsed.set(true);
@@ -160,6 +225,15 @@ export class SchoolEditComponent {
     this.asyncError.set(null);
     try {
       const school = this.editableSchool()!;
+      const schoolIdAssignment = this.schoolIdAssignment().kind;
+      if (schoolIdAssignment === AssignKind.AssignNewAutoId) {
+        school.schoolId = (
+          await this.membersService.createNextSchoolId()
+        ).toString();
+      } else if (school.schoolId === '') {
+        throw new Error(`School ID cannot be empty.`);
+      }
+
       await this.membersService.setSchool(school);
       this.isSaving.set(false);
       this.collapsed.set(true);
@@ -219,7 +293,13 @@ export class SchoolEditComponent {
     if (school.schoolName.trim() === '') {
       errors.push('School Name cannot be empty.');
     }
-    if (!school.id && school.schoolId.trim() === '') {
+    if (school.owner.trim() === '') {
+      errors.push('School must have an owner.');
+    }
+    if (
+      school.schoolId.trim() === '' &&
+      this.schoolIdAssignment().kind !== AssignKind.AssignNewAutoId
+    ) {
       errors.push('School ID cannot be empty for a new school.');
     }
     const asyncError = this.asyncError();

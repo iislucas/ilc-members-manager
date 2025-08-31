@@ -2,6 +2,11 @@ import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
+// When a member record is deleted, also delete the corresponding firebase user.
+// This was important when we used auth tokens/tags to denote permissions rather
+// than the content of the firestore DB members record.
+//
+// This should now be unused.
 export const deleteUser = onDocumentDeleted(
   'members/{memberEmail}',
   async (event) => {
@@ -25,5 +30,5 @@ export const deleteUser = onDocumentDeleted(
     } catch (error: unknown) {
       logger.error(`Error deleting user with email ${memberEmail}:`, error);
     }
-  }
+  },
 );

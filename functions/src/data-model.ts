@@ -12,6 +12,7 @@ export type Counters = {
 
   // The last assigned instructor ID number.
   instructorIdCounter: number;
+  schoolIdCounter: number;
 };
 
 // ==================================================================

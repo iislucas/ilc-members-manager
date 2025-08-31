@@ -21,7 +21,6 @@ import {
   InstructorPublicData,
   initInstructor,
   Counters,
-  CountryCodes,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -318,6 +317,15 @@ export class DataManagerService {
       'nextInstructorId',
     );
     const result = await nextInstructorId();
+    return result.data.newId;
+  }
+
+  async createNextSchoolId(): Promise<number> {
+    const nextSchoolId = httpsCallable<unknown, { newId: number }>(
+      this.functions,
+      'nextSchoolId',
+    );
+    const result = await nextSchoolId();
     return result.data.newId;
   }
 
