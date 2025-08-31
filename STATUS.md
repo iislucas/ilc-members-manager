@@ -103,15 +103,6 @@ to manage their information. Website only still at this point.
 - Short term: country manager are just added as managers for every school they
   can manage.
 
-#### \[In Progress(iislucas)\]: Implement Activity Logging
-
-- Create a basic activity feed that logs all membership changes (creations,
-  updates, deletions).
-- This log should be viewable by admins to track modifications.
-- Consider the storage mechanism for this activity log (e.g., separate Firestore
-  collection, email notifications) to ensure data integrity and potential
-  recovery.
-
 #### \[Completed(iislucas)\]: School owners/members can manage appropriate information
 
 - Members can self-update the relevant parts of their own information: ['name',
@@ -125,7 +116,17 @@ to manage their information. Website only still at this point.
 
 #### \[Completed(iislucas)\]: Manage global IDs for instructors & members
 
-- Admins should not need to figure out the next IDs for instructors and members.
+- Admins should not need to figure out the next IDs for instructors, members,
+  and schools.
+
+#### \[In Progress(iislucas)\]: Implement Activity Logging
+
+- Create a basic activity feed that logs all membership changes (creations,
+  updates, deletions).
+- This log should be viewable by admins to track modifications.
+- Consider the storage mechanism for this activity log (e.g., separate Firestore
+  collection, email notifications) to ensure data integrity and potential
+  recovery.
 
 #### \[In Progress(iislucas)\]: Some admin tools / general managment
 
