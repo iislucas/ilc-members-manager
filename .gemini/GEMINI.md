@@ -1,11 +1,15 @@
 # AI Guide: Project Tech Stack and Coding Style
 
-## 1. Introduction
-
 **Purpose:** This guide details the technology stack, coding standards, and
 style conventions for the ILC Members Manager. Its purpose is to ensure that any
 AI assistant contributing to the project can do so in a consistent and
 high-quality manner, adhering to established practices.
+
+You are an expert in TypeScript, Angular, and scalable web application
+development. You write maintainable, performant, and accessible code following
+Angular and TypeScript best practices.
+
+## 1. Key other files to consult
 
 The key documents to read are (if you are an AI, include these in your context
 now):
@@ -27,7 +31,8 @@ versions and libraries is crucial.
 
 - **Framework:** **Angular `^20.0.0`**. All components, services, and modules
   should follow Angular best practices, but do NOT use the angular router.
-  Always use the Angular CLI for cretaing components `npx ng generate component school-members --project=ilc-members-manager`
+  Always use the Angular CLI for cretaing components:
+  `npx ng generate component ${COMPONENT_NAME} --project=ilc-members-manager`
 - **Language:** **TypeScript `~5.8.2`**. All code must be written in TypeScript.
 - **Reactivity:** **Angular Signals** are the primary and preferred mechanism
   for managing state and reactivity within components, avoid Observables
@@ -76,65 +81,53 @@ cognitive load.
 
 ## 5. Angular & TypeScript Best Practices
 
-The project enforces a high level of type safety and modern Angular practices.
+### TypeScript Best Practices
 
-- **Dependency Injection:** Use the `inject()` function for dependency
-  injection. Avoid constructor property promotion.
+- Use strict type checking
+- Prefer type inference when the type is obvious
+- Avoid the `any` type; use `unknown` when type is uncertain
 
-  ```typescript
-  // Correct
-  export class MyService {
-    private http = inject(HttpClient);
-  }
+### Angular Best Practices
 
-  // Incorrect
-  export class MyService {
-    constructor(private http: HttpClient) {}
-  }
-  ```
+- Always use standalone components over NgModules
+- Must NOT set `standalone: true` inside Angular decorators. It's the default.
+- Use signals for state management
+- Implement lazy loading for feature routes
+- Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
+- Use `NgOptimizedImage` for all static images.
+  - `NgOptimizedImage` does not work for inline base64 images.
 
-- **Component Inputs:** Use signal-based inputs. Avoid the `@Input()` decorator.
-  ```typescript
-  // Correct
-  export class MyComponent {
-    name = input<string>(); // Optional input
-    id = input.required<string>(); // Required input
-  }
-  ```
-- **Component Outputs:** Use the `output()` function. Avoid the `@Output()`
-  decorator and `EventEmitter`.
+### Components
 
-  ```typescript
-  // Correct
-  export class MyComponent {
-    itemSelected = output<string>();
+- Keep components small and focused on a single responsibility
+- Use `input()` and `output()` functions instead of decorators
+- Use `computed()` for derived state
+- Set `changeDetection: ChangeDetectionStrategy.OnPush` in `@Component` decorator
+- Prefer inline templates for small components
+- Prefer Reactive forms instead of Template-driven ones
+- Do NOT use `ngClass`, use `class` bindings instead
+- Do NOT use `ngStyle`, use `style` bindings instead
 
-    selectItem(id: string) {
-      this.itemSelected.emit(id);
-    }
-  }
-  ```
+### State Management
 
-- **Strict Mode:** `strict: true` is enabled. Avoid using the `any` type. All
-  variables and function returns must have explicit types.
-- **Error Handling:** Use `unknown` for the type of the error in `catch` blocks
-  to ensure type safety.
-  ```typescript
-  try {
-    // ...
-  } catch (error: unknown) {
-    // ...
-  }
-  ```
-- **Key Compiler Flags to Respect:**
-  - `noImplicitReturns`: Ensure all code paths in a function return a value if
-    the function is declared to do so.
-  - `strictTemplates`: In Angular templates, adhere to strict type checking.
-    Ensure all bindings are type-compatible.
+- Use signals for local component state
+- Use `computed()` for derived state
+- Keep state transformations pure and predictable
+- Do NOT use `mutate` on signals, use `update` or `set` instead
 
----
+### Templates
 
-## 6. Styling
+- Keep templates simple and avoid complex logic
+- Use native control flow (`@if`, `@for`, `@switch`) instead of `*ngIf`, `*ngFor`, `*ngSwitch`
+- Use the async pipe to handle observables
+
+### Services
+
+- Design services around a single responsibility
+- Use the `providedIn: 'root'` option for singleton services
+- Use the `inject()` function instead of constructor injection
+
+### 6. CSS Styling
 
 - **Language:** **SCSS** is the standard for all styling.
 - **Scope:** All styles should be component-scoped (defined in the component's

@@ -1,0 +1,25 @@
+<div class="autocomplete-container">
+  <input
+    type="text"
+    [name]="name()"
+    [placeholder]="placeholder()"
+    [disabled]="disabled()"
+    [value]="searchTerm()"
+    (input)="onSearchTermChange($event)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+  />
+
+  @if (showResults() && filteredItems().length > 0) {
+    <ul class="results-list">
+      @for (item of filteredItems(); track item.id) {
+        <li (mousedown)="selectItem(item)">
+          @if (item.id) {
+            <span class="identifier-chip">{{ chip(item) }}</span>
+          }
+          {{ display(item) }}
+        </li>
+      }
+    </ul>
+  }
+</div>

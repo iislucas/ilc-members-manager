@@ -1,5 +1,27 @@
 import { Timestamp } from 'firebase/firestore';
 
+// ==================================================================
+// # COUNTERS
+// ==================================================================
+// All counters are stored in a single document for atomic updates.
+// Firestore path: /counters/singleton
+//
+export type Counters = {
+  // A map from 2-letter country code to the last assigned member ID number.
+  memberIdCounters: { [countryCode: string]: number };
+
+  // The last assigned instructor ID number.
+  instructorIdCounter: number;
+};
+
+// ==================================================================
+// # Enums & Helper Types
+// ==================================================================
+
+export type CountryCodes = {
+  codes: { [countryName: string]: string };
+};
+
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life', // includes from spouse of a Life member.
@@ -42,6 +64,15 @@ export enum MasterLevel {
   Compassion = 'Compassion Hands',
 }
 
+export enum MemberIdUpdateStatus {
+  Pending = 'pending',
+  Stable = 'stable',
+}
+
+// ==================================================================
+// # Schools and Members
+// ==================================================================
+
 // Firestore path: /school/{doc-id}
 export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
@@ -71,6 +102,7 @@ export type Member = {
 
   // Internal ILC HQ Information
   memberId: string; // ILC Member Id: UNIQUE
+
   sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
   // SchoolID managing this member. If empty, managed by HQ.
   managingOrgId: string;
@@ -142,6 +174,10 @@ export type InstructorPublicData = {
   publicEmail: string;
   publicPhone: string;
 };
+
+// ==================================================================
+// # Initial values for Schools and Members
+// ==================================================================
 
 export function initMember(): Member {
   return {
@@ -230,19 +266,13 @@ export function initInstructor(): InstructorPublicData {
   };
 }
 
+// ==================================================================
+// # API Request types
+// ==================================================================
+
 // Used for login to know what kind of user this is.
 export type FetchUserDetailsResult = {
   userMemberData: Member;
   isAdmin: boolean;
   schoolsManaged: string[];
-};
-
-// The type returned by get-members function call.
-export type FetchMembersResult = {
-  members: Member[];
-};
-
-// The type returned by get-instructors function call.
-export type FetchInstructorsResult = {
-  instructors: Member[];
 };

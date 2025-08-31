@@ -20,7 +20,10 @@ export class SearchableSet<T extends { id: string }> {
   error = computed(() => this.state().error);
   loaded = computed(() => !this.loading() && this.error() === null);
 
-  constructor(private fieldsToSearch: string[] = [], entries?: T[]) {
+  constructor(
+    private fieldsToSearch: string[] = [],
+    entries?: T[],
+  ) {
     if (entries) {
       this.setEntries(entries);
     }
@@ -36,7 +39,7 @@ export class SearchableSet<T extends { id: string }> {
     return miniSearch;
   });
 
-  private memberMap = computed(() => {
+  public entriesMap = computed(() => {
     const map = new Map<string, T>();
     for (const e of this.entries()) {
       map.set(e.id, e);
@@ -58,7 +61,7 @@ export class SearchableSet<T extends { id: string }> {
       entries = this.entries();
     } else {
       const results = this.membersMiniSearch().search(term, { fuzzy: 0.2 });
-      entries = results.map((result) => this.memberMap().get(result.id)!);
+      entries = results.map((result) => this.entriesMap().get(result.id)!);
     }
     return entries;
   }

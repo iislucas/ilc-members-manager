@@ -13,6 +13,7 @@ admin.initializeApp();
 export { getCalendarEvents } from './calendar';
 export { deleteUser } from './delete-user';
 export { getUserDetails } from './get-user-details';
+export { nextMemberId, nextInstructorId } from './counters';
 
 export { httpLogger } from './http-logger-example';
 

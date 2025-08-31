@@ -48,6 +48,15 @@
       align-items: center;
       gap: 10px;
     }
+    .id-input {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      input {
+        max-width: 10em;
+      }
+    }
   }
 
   .form-actions {
@@ -79,4 +88,18 @@
 .timestamp {
   font-family: "Courier New", Courier, monospace;
   font-size: small;
+}
+
+.autocomplete-with-alt-value {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.id-assignment-with-button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }

@@ -16,7 +16,7 @@ export const onMemberCreated = onDocumentCreated(
     }
     const member = snap.data() as Member;
     await updateSchoolMember(snap.id, member);
-    await updateInstructor(snap.id, member);
+    await updateInstructor({ previousMember: undefined, member });
   },
 );
 
@@ -30,7 +30,7 @@ export const onMemberUpdated = onDocumentUpdated(
     const member = snap.after.data() as Member;
     const previousMember = snap.before.data() as Member;
     await updateSchoolMember(snap.after.id, member, previousMember);
-    await updateInstructor(snap.after.id, member);
+    await updateInstructor({ previousMember, member });
   },
 );
 
@@ -43,6 +43,6 @@ export const onMemberDeleted = onDocumentDeleted(
     }
     const member = snap.data() as Member;
     await updateSchoolMember(snap.id, undefined, member);
-    await updateInstructor(snap.id, undefined);
+    await updateInstructor({ previousMember: member, member: undefined });
   },
 );

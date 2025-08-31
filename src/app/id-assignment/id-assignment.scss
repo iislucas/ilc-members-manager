@@ -1,0 +1,31 @@
+@use "../../scss_variables" as *;
+@use "../../styles" as *;
+
+:host {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.id-input,
+.id-display,
+.next-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-container {
+  position: relative;
+}
+
+.menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+}
+
+.menu-item {
+  cursor: pointer;
+}

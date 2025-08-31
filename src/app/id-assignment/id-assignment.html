@@ -1,0 +1,115 @@
+@let cur = editedAssignment();
+@if (cur.kind === AssignKind.AssignNewAutoId) {
+  <div>
+    <span>Auto-assigned ID (Expected: {{ expectedNextId() }})</span>
+    @if (cur.curId) {
+      (Replacing current id:
+      <span class="identifier-chip">{{ cur.curId }}</span
+      >)
+    }
+  </div>
+} @else if (cur.kind === AssignKind.UnchangedExistingId) {
+  <div>
+    @if (cur.curId) {
+      <span class="identifier-chip">{{ cur.curId }}</span>
+    } @else {
+      <span>None</span>
+    }
+  </div>
+} @else if (cur.kind === AssignKind.RemoveId) {
+  <div>
+    Removing ID <span class="identifier-chip">{{ cur.curId }}</span>
+  </div>
+} @else if (cur.kind === AssignKind.AssignNewManualId) {
+  <div>
+    @if (cur.curId) {
+      Manually changing ID:
+      <span class="identifier-chip">{{ cur.curId }}</span> to:
+      <span class="identifier-chip">{{ cur.newId }}</span>
+    } @else {
+      New manually assigned ID:
+      <span class="identifier-chip">{{ cur.newId }}</span>
+    }
+    <input
+      type="text"
+      [ngModel]="cur.newId"
+      (ngModelChange)="
+        editedAssignment.set({
+          kind: AssignKind.AssignNewManualId,
+          newId: $event,
+          curId: cur.curId,
+        })
+      "
+      [disabled]="!canEdit()"
+    />
+  </div>
+}
+@if (canEdit()) {
+  <div class="menu-container">
+    <button
+      type="button"
+      class="icon-only-button"
+      (click)="menuOpen.set(!menuOpen())"
+    >
+      <app-icon name="more_vert" />
+    </button>
+    @if (menuOpen()) {
+      <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
+      <div class="menu">
+        @if (cur.kind !== AssignKind.AssignNewManualId) {
+          <div
+            class="menu-item"
+            (click)="
+              editedAssignment.set({
+                kind: AssignKind.AssignNewManualId,
+                curId: cur.curId,
+                newId: cur.curId,
+              })
+            "
+          >
+            Edit Manually
+          </div>
+        }
+        @if (cur.kind !== AssignKind.AssignNewAutoId) {
+          <div
+            class="menu-item"
+            (click)="
+              editedAssignment.set({
+                kind: AssignKind.AssignNewAutoId,
+                curId: cur.curId,
+              })
+            "
+          >
+            Assign New Automatic ID
+          </div>
+        }
+        @if (canBeUnset() && cur.kind !== AssignKind.RemoveId) {
+          <div
+            class="menu-item"
+            (click)="
+              editedAssignment.set({
+                kind: AssignKind.RemoveId,
+                curId: cur.curId,
+              })
+            "
+          >
+            Remove and unset ID
+          </div>
+        }
+        @if (cur.kind !== AssignKind.UnchangedExistingId) {
+          <div
+            class="menu-item"
+            (click)="
+              editedAssignment.set({
+                kind: AssignKind.UnchangedExistingId,
+                curId: cur.curId,
+              })
+            "
+          >
+            Reset
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

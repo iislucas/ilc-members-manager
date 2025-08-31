@@ -22,9 +22,18 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MemberSearchComponent } from '../member-search/member-search';
-import { SchoolSearchComponent } from '../school-search/school-search';
 import { deepObjEq } from '../utils';
+import {
+  AssignKind,
+  Assignment,
+  IdAssignmentComponent,
+} from '../id-assignment/id-assignment';
+import {
+  AutocompleteComponent,
+  AutocompleteItem,
+} from '../autocomplete/autocomplete';
+import { CountryCode } from '../country-codes';
+import { Timestamp } from 'firebase/firestore';
 
 @Component({
   selector: 'app-member-edit',
@@ -34,51 +43,120 @@ import { deepObjEq } from '../utils';
     FormsModule,
     IconComponent,
     SpinnerComponent,
-    MemberSearchComponent,
-    SchoolSearchComponent,
+    IdAssignmentComponent,
+    AutocompleteComponent,
   ],
   templateUrl: './member-edit.html',
   styleUrl: './member-edit.scss',
 })
 export class MemberEditComponent {
-  member = input.required<Member>();
+  private elementRef = inject(ElementRef);
+  private firebaseState = inject(FirebaseStateService);
+  public membersService = inject(DataManagerService);
+  // all values from the member service, used for dup-checking...
+  // Maybe we can use membersService.members? and not need this...?
   allMembers = input.required<Member[]>();
-  canDelete = input<boolean>(true);
-  collapse = input<boolean | null>(null);
-  close = output();
+
+  // Constants
+  AssignKind = AssignKind;
   MembershipType = MembershipType;
   membershipTypes = Object.values(MembershipType);
   masterLevels = Object.values(MasterLevel).sort();
+
+  // The core object of interest.
+  member = input.required<Member>();
   editableMember = linkedSignal<Member>(() => {
     const m = this.member();
     const editable = JSON.parse(JSON.stringify(m));
     editable.lastUpdated = m.lastUpdated;
     return editable;
   });
-  isSaving = signal(false);
+
+  // Visual state
+  collapse = input<boolean | null>(null);
+  close = output();
   collapsed = linkedSignal<boolean>(() => {
     return this.collapse() ?? true;
   });
   isDirty = computed(() => !deepObjEq(this.member(), this.editableMember()));
+  isSaving = signal(false);
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
   });
-  studentOfMemberId = linkedSignal<string>(() => {
-    const member = this.editableMember();
-    return member.sifuMemberId;
-  });
-  schoolSearch = linkedSignal<string>(() => {
-    const member = this.editableMember();
-    return member.managingOrgId;
-  });
-  private membersService = inject(DataManagerService);
-  private elementRef = inject(ElementRef);
-  private firebaseState = inject(FirebaseStateService);
+
+  // Pretty printing values
   lastUpdated = computed(() => {
-    console.log(this.member().lastUpdated);
-    return this.member().lastUpdated.toDate().toISOString();
+    console.log('member last update: ', this.member().lastUpdated);
+    console.log(this.member());
+    if (this.member().lastUpdated) {
+      return this.member().lastUpdated.toDate().toISOString();
+    } else {
+      return Timestamp.now().toDate().toISOString();
+    }
+  });
+  countryWithCode = computed<CountryCode | null>(() => {
+    const countryName = this.editableMember().country;
+    return (
+      this.membersService.countries
+        .entries()
+        .find((c) => c.name === countryName) || null
+    );
+  });
+  // TODO: add error checking, expectedNextMemberId should not be empty!
+  expectedNextMemberId = computed(() => {
+    const counters = this.membersService.counters();
+    if (!counters) return '';
+    const code = this.countryWithCode()?.id;
+    if (!code) return '';
+    const nextId = (counters.memberIdCounters[code] || 0) + 1;
+    return `${code}${nextId}`;
+  });
+  // TODO: add error checking, expectedNextMemberId should not be empty if
+  // this.assignInstructorIdOnSave() is true.
+  expectedNextInstructorId = computed(() => {
+    const counters = this.membersService.counters();
+    if (!counters) return '';
+    return (counters.instructorIdCounter + 1).toString();
   });
 
+  // For auto-completes, how we show stuff
+  countryDisplayFns = {
+    toChipId: (c: { id: string; name: string }) => c.id,
+    toName: (c: { id: string; name: string }) => c.name,
+  };
+  schoolDisplayFns = {
+    toChipId: (s: School) => s.schoolId,
+    toName: (s: School) => s.schoolName,
+  };
+  instructorDisplayFns = {
+    toChipId: (i: InstructorPublicData) => i.id,
+    toName: (i: InstructorPublicData) => i.name,
+  };
+
+  // Local state, for assigning new instructors...
+  instructorIdAssignment = linkedSignal<Assignment>(() => {
+    return {
+      kind: AssignKind.UnchangedExistingId,
+      curId: this.member().instructorId,
+    };
+  });
+
+  memberIdAssignment = linkedSignal<Assignment>(() => {
+    if (this.member().memberId.trim() === '') {
+      return {
+        kind: AssignKind.AssignNewAutoId,
+        curId: '',
+      };
+    } else {
+      return {
+        kind: AssignKind.UnchangedExistingId,
+        curId: this.member().memberId,
+      };
+    }
+  });
+
+  // User permissions state, for what can be shown.
+  canDelete = input<boolean>(true);
   canEditPersonalDetails = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
@@ -87,7 +165,6 @@ export class MemberEditComponent {
     if (user.firebaseUser.email === member.email) return true;
     return user.schoolsManaged.includes(member.managingOrgId);
   });
-
   canEditMembershipDetails = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
@@ -95,33 +172,16 @@ export class MemberEditComponent {
     const member = this.member();
     return user.schoolsManaged.includes(member.managingOrgId);
   });
-
   canEditAllDetails = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
     return user.isAdmin;
   });
 
+  // Erro handling.
   asyncError = signal<Error | null>(null);
-  studentOfName = computed(() => {
-    const sifuMemId = this.studentOfMemberId();
-    if (sifuMemId) {
-      const studentOf = this.allMembers().find((m) => m.memberId === sifuMemId);
-      return studentOf?.name ?? '';
-    }
-    return '';
-  });
-  schoolName = computed(() => {
-    const schoolId = this.schoolSearch();
-    if (schoolId) {
-      const school = this.membersService.schools
-        .entries()
-        .find((s) => s.schoolId === schoolId);
-      return school?.schoolName ?? '';
-    }
-    return '';
-  });
 
+  // CSS host handyness.
   @HostBinding('class.is-open')
   get isOpen() {
     return !this.collapsed();
@@ -134,22 +194,40 @@ export class MemberEditComponent {
 
   constructor() {}
 
-  studendOfSelected(sifu: InstructorPublicData) {
-    this.editableMember.update((m) => {
-      m.sifuMemberId = sifu.memberId;
-      return { ...m };
-    });
-  }
-
-  schoolSelected(school: School) {
-    this.editableMember.update((m) => {
-      m.managingOrgId = school.schoolId;
-      return { ...m };
-    });
-  }
-
   updateMember() {
     this.editableMember.set({ ...this.editableMember() });
+  }
+
+  handleInstructorIdAssignmentChange(assignment: Assignment) {
+    if (
+      assignment.kind === AssignKind.UnchangedExistingId ||
+      assignment.kind === AssignKind.AssignNewAutoId
+    ) {
+      return;
+    }
+
+    if (assignment.kind === AssignKind.AssignNewManualId) {
+      this.editableMember().instructorId = assignment.newId;
+    } else if (assignment.kind === AssignKind.RemoveId) {
+      this.editableMember().instructorId = '';
+    }
+    this.updateMember();
+  }
+
+  handleMemberIdAssignmentChange(assignment: Assignment) {
+    if (
+      assignment.kind === AssignKind.UnchangedExistingId ||
+      assignment.kind === AssignKind.AssignNewAutoId
+    ) {
+      return;
+    }
+
+    if (assignment.kind === AssignKind.AssignNewManualId) {
+      this.editableMember().memberId = assignment.newId;
+    } else if (assignment.kind === AssignKind.RemoveId) {
+      this.editableMember().memberId = '';
+    }
+    this.updateMember();
   }
 
   cancel($event: Event) {
@@ -202,6 +280,28 @@ export class MemberEditComponent {
     this.asyncError.set(null);
     try {
       const member = this.editableMember();
+      const memberIdAssignment = this.memberIdAssignment().kind;
+      if (memberIdAssignment === AssignKind.AssignNewAutoId) {
+        const countryCode = this.countryWithCode()?.id;
+        if (countryCode) {
+          member.memberId =
+            await this.membersService.createNextMemberId(countryCode);
+        } else {
+          throw new Error(
+            `Invalid country code: ${countryCode}, please make sure the code exists before you save, otherwise we don't know how to assign an member ID (member IDs are of the form CCNNN where CC is the two character country code)`,
+          );
+        }
+      } else if (member.memberId === '') {
+        throw new Error(`Member ID cannot be empty.`);
+      }
+
+      const instructorIdAssignment = this.instructorIdAssignment().kind;
+      if (instructorIdAssignment === AssignKind.AssignNewAutoId) {
+        member.instructorId = (
+          await this.membersService.createNextInstructorId()
+        ).toString();
+      }
+
       if (member.email) {
         await this.membersService.updateMember(member.email, member);
       } else {
@@ -209,8 +309,10 @@ export class MemberEditComponent {
       }
       // Shortcut so we don't need to wait for Firebase/firestore sync loop to
       // update the original member that will... also, now we use get-members, we don't directly
-      Object.assign(this.member(), member);
-      this.editableMember.set({ ...member });
+
+      // Object.assign(this.member(), member);
+      // this.editableMember.set({ ...member });
+
       // Now we can update the isSaving state and close the being edited member.
       this.isSaving.set(false);
       this.collapsed.set(true);
@@ -272,7 +374,10 @@ export class MemberEditComponent {
     if (member.name.trim() === '') {
       errors.push('Name cannot be empty.');
     }
-    if (!member.id && member.memberId.trim() === '') {
+    if (
+      this.memberIdAssignment().kind !== AssignKind.AssignNewAutoId &&
+      member.memberId.trim() === ''
+    ) {
       errors.push('Member ID cannot be empty for a new member.');
     }
     const asyncError = this.asyncError();

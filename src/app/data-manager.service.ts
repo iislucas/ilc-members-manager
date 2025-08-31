@@ -20,10 +20,14 @@ import {
   initSchool,
   InstructorPublicData,
   initInstructor,
+  Counters,
+  CountryCodes,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
+import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -41,6 +45,7 @@ export interface SchoolsState {
 export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private db = getFirestore(this.firebaseService.app);
+  private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
   private membersCollection = collection(this.db, 'members');
   private instructorsPublicCollection = collection(
@@ -76,6 +81,8 @@ export class DataManagerService {
     'schoolCity',
     'schoolCountry',
   ]);
+  public counters = signal<Counters | null>(null);
+  public countries = new SearchableSet<CountryCode>(['name', 'id']);
 
   constructor() {
     effect(async () => {
@@ -84,6 +91,8 @@ export class DataManagerService {
       this.updateMembersSync(user);
       this.updateInstructorsSync();
       this.updateSchoolsSync();
+      this.updateCountersSync();
+      this.updateCountryCodesSync();
     });
   }
 
@@ -102,7 +111,6 @@ export class DataManagerService {
               (doc) =>
                 ({ ...initMember(), ...doc.data(), id: doc.id }) as Member,
             );
-            console.log(members);
             this.members.setEntries(members);
           },
           (error) => {
@@ -200,6 +208,39 @@ export class DataManagerService {
     );
   }
 
+  async updateCountersSync() {
+    const countersRef = doc(this.db, 'counters', 'singleton');
+    const docSnap = await getDoc(countersRef);
+
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(countersRef, (doc) => {
+        if (doc.exists()) {
+          console.log('counters: ', doc.data());
+          this.counters.set(doc.data() as Counters);
+        } else {
+          console.log('First run, set counters');
+          setDoc(countersRef, { memberIdCounters: {}, instructorIdCounter: 0 });
+        }
+      }),
+    );
+  }
+
+  async updateCountryCodesSync() {
+    const countryCodesRef = doc(this.db, 'static', 'country-codes');
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(countryCodesRef, (doc) => {
+        if (doc.exists()) {
+          const countryCode = doc.data() as CountryCodesDoc;
+          this.countries.setEntries(countryCode.codes);
+        } else {
+          console.log('First run, creating country codes');
+          const countryCodes: CountryCodesDoc = { codes: countryCodeList };
+          setDoc(countryCodesRef, countryCodes);
+        }
+      }),
+    );
+  }
+
   async addMember(member: Member): Promise<DocumentReference> {
     if (!member.email) {
       throw new Error('email is required to add a member');
@@ -259,6 +300,24 @@ export class DataManagerService {
 
   async deleteSchool(id: string): Promise<void> {
     return deleteDoc(doc(this.db, 'schools', id));
+  }
+
+  async createNextMemberId(countryCode: string): Promise<string> {
+    const nextMemberId = httpsCallable<
+      { countryCode: string },
+      { newId: string }
+    >(this.functions, 'nextMemberId');
+    const result = await nextMemberId({ countryCode });
+    return result.data.newId;
+  }
+
+  async createNextInstructorId(): Promise<number> {
+    const nextInstructorId = httpsCallable<unknown, { newId: number }>(
+      this.functions,
+      'nextInstructorId',
+    );
+    const result = await nextInstructorId();
+    return result.data.newId;
   }
 
   downloadMembersAsCsv() {

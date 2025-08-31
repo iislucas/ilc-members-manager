@@ -126,6 +126,12 @@ to manage their information. Website only still at this point.
 #### \[In Progress(iislucas)\]: Manage global IDs for instructors & members
 
 - Admins should not need to figure out the next IDs for instructors and members.
+- Make a admin global settings page.
+  - Should show missing member IDs (search for members with a member ID
+    that don't also have a exact next sequential next member ID)
+  - A tab to show all admins, so it's quick and easy to see them.
+  - A page to show (and search) all school owners and managers, and what they
+    manage.
 
 ---
 

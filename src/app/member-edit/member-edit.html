@@ -46,9 +46,7 @@
   @if (!collapsed()) {
     <form #memberForm="ngForm" (ngSubmit)="saveMember()">
       <div class="form-section">
-        <p class="timestamp">
-          Last updated: {{ e.lastUpdated.toDate().toISOString() }}
-        </p>
+        <p class="timestamp">Last updated: {{ lastUpdated() }}</p>
         <h3>Contact</h3>
         <label for="name">Name</label>
         <div>
@@ -122,14 +120,22 @@
         />
 
         <label for="country">Country</label>
-        <input
-          type="text"
-          id="country"
-          name="country"
-          [(ngModel)]="e.country"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditPersonalDetails()"
-        />
+        <div class="autocomplete-with-alt-value">
+          <app-autocomplete
+            [searchableSet]="membersService.countries"
+            [displayFns]="countryDisplayFns"
+            [inputBoxIsChip]="false"
+            [placeholder]="'Search for a country'"
+            [initSearchTerm]="e.country"
+            [disabled]="!canEditPersonalDetails()"
+            (textUpdated)="e.country = $event; updateMember()"
+          ></app-autocomplete>
+          @if (countryWithCode(); as cc) {
+            <div class="identifier-chip">{{ cc.id }}</div>
+          } @else {
+            <div class="error-message">invalid country</div>
+          }
+        </div>
 
         <label for="phone">Phone</label>
         <input
@@ -164,48 +170,63 @@
         />
 
         <h3>Member</h3>
+
         <label for="memberId">Member ID</label>
         <div>
-          <input
-            type="text"
-            id="memberId"
-            name="memberId"
-            [(ngModel)]="e.memberId"
-            (ngModelChange)="updateMember()"
-            #memberId="ngModel"
-            [required]="e.id === ''"
-            [disabled]="!canEditAllDetails()"
-          />
-          @if (memberId.invalid) {
-            <div class="error-message">Member ID is required.</div>
-          } @else if (isDupMemberId()) {
-            <div class="error-message">This member ID is already in use.</div>
-          }
+          <app-id-assignment
+            [initAssignment]="memberIdAssignment()"
+            [canBeUnset]="false"
+            [expectedNextId]="expectedNextMemberId()"
+            [canEdit]="canEditAllDetails()"
+            (assignment)="handleMemberIdAssignmentChange($event)"
+          ></app-id-assignment>
         </div>
 
         <label for="sifuMemberId">Student of</label>
-        <div class="sifu-search">
-          <app-member-search
-            [searchTerm]="studentOfMemberId()"
-            (searchTermChange)="studentOfMemberId.set($event)"
-            (memberSelected)="studendOfSelected($event)"
+        <div class="autocomplete-with-alt-value">
+          <app-autocomplete
+            name="student of"
+            [searchableSet]="membersService.instructors"
+            [placeholder]="'Search for an instructor'"
+            [displayFns]="instructorDisplayFns"
             [disabled]="!canEditPersonalDetails()"
-          ></app-member-search>
-          @if (studentOfName()) {
-            <div class="sifu-name">{{ studentOfName() }}</div>
+            [initSearchTerm]="e.sifuMemberId"
+            (textUpdated)="e.sifuMemberId = $event; updateMember()"
+          ></app-autocomplete>
+          @if (e.sifuMemberId === "") {
+            <div>No instructor set</div>
+          } @else if (
+            membersService.instructors.entriesMap().get(e.sifuMemberId);
+            as sifuData
+          ) {
+            <div>{{ sifuData.name }}</div>
+          } @else {
+            <div class="error-message">
+              invalid instructor ID:
+              <span class="identifier-chip">{{ e.sifuMemberId }}</span>
+            </div>
           }
         </div>
 
         <label for="inSchoolId">Managed by</label>
-        <div class="school-search">
-          <app-school-search
-            [searchTerm]="schoolSearch()"
-            (searchTermChange)="schoolSearch.set($event)"
-            (schoolSelected)="schoolSelected($event)"
+        <div class="autocomplete-with-alt-value">
+          <app-autocomplete
+            [searchableSet]="membersService.schools"
+            [placeholder]="'Search for a school'"
+            [displayFns]="schoolDisplayFns"
             [disabled]="!canEditAllDetails()"
-          ></app-school-search>
-          @if (schoolName()) {
-            <div class="school-name">{{ schoolName() }}</div>
+            [initSearchTerm]="e.managingOrgId"
+            (textUpdated)="e.managingOrgId = $event; updateMember()"
+          ></app-autocomplete>
+          @if (e.managingOrgId.trim() === "") {
+            <div>Managed by ILC HQ</div>
+          } @else if (
+            membersService.schools.entriesMap().get(e.managingOrgId);
+            as schoolData
+          ) {
+            <div>{{ schoolData.schoolName }}</div>
+          } @else {
+            <div class="error-message">invalid school ID</div>
           }
         </div>
 
@@ -299,14 +320,18 @@
 
         <h3>Instructor</h3>
         <label for="instructorId">Instructor ID</label>
-        <input
-          type="text"
-          id="instructorId"
-          name="instructorId"
-          [(ngModel)]="e.instructorId"
-          (ngModelChange)="updateMember()"
-          [disabled]="!canEditAllDetails()"
-        />
+        <div class="id-assignment-with-button">
+          <app-id-assignment
+            [initAssignment]="{
+              curId: e.instructorId,
+              kind: AssignKind.UnchangedExistingId,
+            }"
+            [canBeUnset]="true"
+            [expectedNextId]="expectedNextInstructorId()"
+            [canEdit]="canEditAllDetails()"
+            (assignment)="handleInstructorIdAssignmentChange($event)"
+          ></app-id-assignment>
+        </div>
 
         <label for="instructorLicenseExpires">License Expires</label>
         <input

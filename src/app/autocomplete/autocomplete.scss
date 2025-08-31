@@ -1,0 +1,32 @@
+@use "../../scss_variables" as *;
+@use "../../styles" as *;
+
+.autocomplete-container {
+  position: relative;
+}
+
+.results-list {
+  @extend .menu-style;
+  position: absolute;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  min-width: 100%;
+  max-width: max-content;
+  z-index: 1;
+  max-height: 10em;
+  overflow-y: scroll;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    gap: 8px;
+    padding: 8px;
+    cursor: pointer;
+  }
+
+  li:hover {
+    background-color: #f0f0f0;
+  }
+}
