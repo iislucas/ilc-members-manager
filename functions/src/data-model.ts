@@ -33,7 +33,7 @@ export enum MembershipType {
 }
 
 export enum StudentLevel {
-  None = 'None',
+  None = '',
   Entry = 'Entry',
   Level1 = '1',
   Level2 = '2',
@@ -49,7 +49,7 @@ export enum StudentLevel {
 }
 
 export enum ApplicationLevel {
-  None = 'None',
+  None = '',
   Level1 = '1',
   Level2 = '2',
   Level3 = '3',

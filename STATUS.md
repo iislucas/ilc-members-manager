@@ -202,3 +202,8 @@ Make a admin global settings page.
   people can find others in an area more easily.
 
 - Allow registration for workshops in the app.
+
+#### Consider server-side search
+
+- If the search-index creation is slow on client side, we could move to using
+  MeiliSearch or the like instead.
