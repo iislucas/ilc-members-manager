@@ -27,7 +27,6 @@
     @if (!collapsed()) {
       <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
         <div class="form-section">
-          <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
           @if (userIsSchoolManager()) {
             <p class="members-link" (click)="gotoMembers()">Manage Members</p>
           }
@@ -241,6 +240,7 @@
             }
           </div>
           <div class="right-actions">
+            <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
             @if (canDelete() && userIsAdmin()) {
               <button class="delete-button" (click)="deleteSchool($event)">
                 <app-icon name="trash" fill="#000" />

@@ -55,6 +55,19 @@ button {
   padding: 0.2em;
 }
 
+.delete-button {
+  background-color: unset;
+  border: 1px solid #ccc;
+  color: #666;
+}
+
+.delete-button:hover {
+  background-color: unset;
+  border: 1px solid #c66;
+  background-color: #faa;
+  color: $button-text-color;
+}
+
 button:hover {
   // On hover, slightly darken the background and increase the shadow for a "lift" effect.
   background-color: $button-hover-bg-color;

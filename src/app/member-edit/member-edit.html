@@ -52,7 +52,6 @@
   @if (!collapsed()) {
     <form #memberForm="ngForm" (ngSubmit)="saveMember()">
       <div class="form-section">
-        <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
         <h3>Contact</h3>
         <label for="name">Name</label>
         <div class="rhs">
@@ -425,9 +424,9 @@
           <h3>Instructor Public Listing</h3>
 
           <p class="note">
-            Member ID, instructor ID, your graded levels and these details are
-            public and listed on the ILC website while your instructor license
-            is active.
+            While your instructor license is active, your Member ID, instructor
+            ID, your graded levels, and the details in this section are public,
+            and listed on the ILC website.
           </p>
 
           <label for="instructorWebsite">Website</label>
@@ -549,6 +548,8 @@
           }
         </div>
         <div class="right-actions">
+          <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
+
           @if (collapsable() && canDelete()) {
             <button class="delete-button" (click)="deleteMember($event)">
               <app-icon name="trash" fill="#000" />
