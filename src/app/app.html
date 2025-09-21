@@ -15,11 +15,9 @@
           <div class="menu">
             <div
               class="menu-item"
-              (click)="
-                currentView.set(Views.ManageMembers); menuOpen.set(false)
-              "
+              (click)="currentView.set(Views.MyProfile); menuOpen.set(false)"
             >
-              Members
+              My Profile
             </div>
             <div
               class="menu-item"
@@ -27,6 +25,25 @@
             >
               Schools
             </div>
+            <div
+              class="menu-item"
+              (click)="
+                currentView.set(Views.FindAnInstructor); menuOpen.set(false)
+              "
+            >
+              Find an Instructor
+            </div>
+            @if (user.isAdmin || user.schoolsManaged.length > 0) {
+              <div class="menu-seperator"></div>
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ManageMembers); menuOpen.set(false)
+                "
+              >
+                Manage Members
+              </div>
+            }
             @if (user.isAdmin) {
               <div
                 class="menu-item"
@@ -37,14 +54,6 @@
                 Import/Export
               </div>
             }
-            <div
-              class="menu-item"
-              (click)="
-                currentView.set(Views.FindAnInstructor); menuOpen.set(false)
-              "
-            >
-              Find an Instructor
-            </div>
           </div>
         }
         <div class="title">{{ currentViewTitle() }}</div>
@@ -62,9 +71,18 @@
       } @else {
         @switch (currentView()) {
           @case (Views.Home) {
-            <app-filtered-members
-              [memberSet]="dataService.members"
-            ></app-filtered-members>
+            <app-member-edit
+              [allMembers]="dataService.members.entries()"
+              [member]="user.member"
+              [collapsable]="false"
+            ></app-member-edit>
+          }
+          @case (Views.MyProfile) {
+            <app-member-edit
+              [allMembers]="dataService.members.entries()"
+              [member]="user.member"
+              [collapsable]="false"
+            ></app-member-edit>
           }
           @case (Views.ManageMembers) {
             <app-filtered-members
@@ -181,9 +199,10 @@
           @if (firebaseService.loginError()) {
             <div class="error-container">
               Login error:
-              <span class="error-message">{{
-                firebaseService.loginError()
-              }}</span>
+              <span class="error-message">
+                {{ firebaseService.loginError() }} (Check your internet
+                connection?)</span
+              >
             </div>
           }
         </div>

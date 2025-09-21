@@ -17,6 +17,10 @@ body {
   padding: 0px;
 }
 
+// ----------------------------------------------------------------------------
+//  Buttons
+// ----------------------------------------------------------------------------
+
 button {
   // Inherit font styles for consistency
   font-family: inherit;
@@ -95,6 +99,10 @@ button:disabled {
   }
 }
 
+// ----------------------------------------------------------------------------
+//  Card style
+// ----------------------------------------------------------------------------
+
 .card {
   background-color: $theme-bg-color;
   border-radius: 0.5em;
@@ -108,26 +116,9 @@ button:disabled {
   gap: 0.3em;
 }
 
-.menu-style {
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 0.4em;
-  z-index: 100;
-  box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  justify-content: start;
-}
-
-.menu-item {
-  padding: 0.5em;
-  white-space: nowrap; /* Prevent text from wrapping */
-}
-
-.menu-item:hover {
-  background-color: $menu-item-hover-color;
-}
+// ----------------------------------------------------------------------------
+//  Standard input stuff
+// ----------------------------------------------------------------------------
 
 input[type="text"],
 input[type="password"],
@@ -188,6 +179,16 @@ textarea:disabled {
   border: none;
 }
 
+// ----------------------------------------------------------------------------
+//  Chips and text styles
+// ----------------------------------------------------------------------------
+
+.small-email {
+  font-size: smaller;
+  font-family: monospace;
+  padding: 0.2em;
+}
+
 .email-chip {
   font-size: small;
   font-family: monospace;
@@ -195,12 +196,6 @@ textarea:disabled {
   border-radius: 5px;
   padding: 0.2em;
   border: 1px solid $theme-chip-border-color;
-}
-
-.small-email {
-  font-size: smaller;
-  font-family: monospace;
-  padding: 0.2em;
 }
 
 .identifier-chip {
@@ -229,6 +224,10 @@ textarea:disabled {
   padding: 0.2em;
 }
 
+// ----------------------------------------------------------------------------
+//  Errors
+// ----------------------------------------------------------------------------
+
 .error-container {
   display: flex;
   flex-direction: row;
@@ -244,6 +243,37 @@ textarea:disabled {
 .error-message {
   color: red;
   flex: 1;
+}
+
+// ----------------------------------------------------------------------------
+//  Menus
+// ----------------------------------------------------------------------------
+.menu-style {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 0.4em;
+  z-index: 100;
+  box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+}
+
+.menu-item {
+  padding: 0.5em;
+  white-space: nowrap; /* Prevent text from wrapping */
+  cursor: pointer;
+  margin: 0.2em;
+}
+
+.menu-seperator {
+  border-top: 1px solid #ddd;
+}
+
+.menu-item:hover {
+  background-color: $menu-item-hover-color;
+  margin: 0.2em;
 }
 
 .menu-overlay {

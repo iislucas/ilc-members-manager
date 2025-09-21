@@ -104,7 +104,7 @@ export type Member = {
   // Internal ILC HQ Information
   memberId: string; // ILC Member Id: UNIQUE
 
-  sifuMemberId: string; // ILC issues Instructor ID of the member's Sifu
+  sifuInstructorId: string; // ILC issues Instructor ID of the member's Sifu
   // SchoolID managing this member. If empty, managed by HQ.
   managingOrgId: string;
 
@@ -207,7 +207,7 @@ export function initMember(): Member {
 
     // Student membership status
     memberId: '',
-    sifuMemberId: '', // ILC Member Number of the member's Sifu
+    sifuInstructorId: '', // ILC Member Number of the member's Sifu
     managingOrgId: '', // Default to HQ
 
     membershipType: MembershipType.Annual,

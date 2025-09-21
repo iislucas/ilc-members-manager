@@ -86,11 +86,14 @@ h3 {
     padding-top: v.$card-padding;
     padding-bottom: v.$card-padding;
     @extend .form-header;
-    cursor: pointer;
 
     .unfold-button {
       margin-left: auto;
     }
+  }
+
+  .can-toggle-collapse {
+    cursor: pointer;
   }
 
   .form-section {

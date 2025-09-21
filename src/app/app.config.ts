@@ -9,6 +9,7 @@ import { addUrlParams, pathPattern, pv } from './routing.utils';
 import { RoutingConfig } from './routing.service';
 
 export enum Views {
+  MyProfile = 'myProfile',
   ManageMembers = 'manageMembers',
   ImportExport = 'importExport',
   FindAnInstructor = 'findAnInstructor',
@@ -22,6 +23,7 @@ export const initPathPatterns = {
   [Views.ImportExport]: pathPattern`import-export`,
   [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
   [Views.Schools]: addUrlParams(pathPattern`schools`, ['schoolId']),
+  [Views.MyProfile]: pathPattern`myProfile`,
   [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['memberId']),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,

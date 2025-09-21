@@ -11,8 +11,6 @@ import {
   updateSignalsFromSubsts,
   PathPatterns,
   PatternSignals,
-  PathVarSignals,
-  UrlParamSignals,
   UrlParamNames,
   PathVarNames,
 } from './routing.utils';
@@ -116,7 +114,7 @@ export class RoutingService<T extends PathPatterns> {
     }
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries<WritableSignal<string>>(
-      this.signals[patternId].urlParams
+      this.signals[patternId].urlParams,
     )) {
       params.set(key, value());
     }
@@ -131,11 +129,11 @@ export class RoutingService<T extends PathPatterns> {
       this.matchedPatternId.set(match.patternId);
       updateSignalsFromSubsts(
         match.pathParams,
-        this.signals[match.patternId].pathVars
+        this.signals[match.patternId].pathVars,
       );
       updateSignalsFromSubsts(
         match.urlParams,
-        this.signals[match.patternId].urlParams
+        this.signals[match.patternId].urlParams,
       );
     } else {
       this.matchedPatternId.set(null);

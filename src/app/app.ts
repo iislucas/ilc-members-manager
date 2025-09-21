@@ -15,6 +15,7 @@ import { SchoolListComponent } from './school-list/school-list';
 import { DataManagerService } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
+import { MemberEditComponent } from './member-edit/member-edit';
 
 @Component({
   selector: 'app-root',
@@ -31,6 +32,8 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
     SchoolListComponent,
     SchoolMembersComponent,
     FilteredMembersComponent,
+    MemberEditComponent,
+    MemberEditComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -59,7 +62,7 @@ export class App {
     const viewId = this.routingService.matchedPatternId() as Views | '';
     switch (viewId) {
       case Views.ManageMembers:
-        return 'Members';
+        return 'Manage Members';
       case Views.FindAnInstructor:
         return 'Find an Instructor';
       case Views.Schools:
@@ -72,8 +75,10 @@ export class App {
         return 'Import/Export';
       case Views.Home:
         return 'Members';
+      case Views.MyProfile:
+        return 'My Profile';
       default:
-        return 'Unknown view';
+        return 'Unknown View';
     }
   });
 
@@ -102,7 +107,9 @@ export class App {
     const result = await this.firebaseService.loginWithEmail(pass, email);
     if (!result.success) {
       console.warn(result.errorCode);
-      this.loginWithEmailError.set(result.errorCode);
+      this.loginWithEmailError.set(
+        `${result.errorCode}: check you are online?`,
+      );
       if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
         this.invalidLoginCredentials.set(true);
       }
@@ -114,7 +121,7 @@ export class App {
     const result = await this.firebaseService.signupWithEmail(pass, email);
     if (!result.success) {
       console.warn(result.errorCode);
-      this.signupError.set(result.errorCode);
+      this.signupError.set(`${result.errorCode}: check you are online?`);
     }
   }
 

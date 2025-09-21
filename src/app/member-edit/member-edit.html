@@ -1,7 +1,11 @@
 @let e = editableMember();
 
 <div class="edit-form">
-  <div class="edit-form-header" (click)="toggleCollapseState($event)">
+  <div
+    class="edit-form-header"
+    [class.can-toggle-collapse]="collapsable()"
+    (click)="collapsable() && toggleCollapseState($event)"
+  >
     <div class="identifier">
       @if (e.memberId) {
         <span>{{ e.memberId }}</span>
@@ -38,9 +42,11 @@
       }
       {{ e.country }}
     </div>
-    <div class="unfold-button">
-      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
-    </div>
+    @if (collapsable()) {
+      <div class="unfold-button">
+        <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+      </div>
+    }
   </div>
 
   @if (!collapsed()) {
@@ -202,33 +208,40 @@
           }
         </div>
 
-        <label for="sifuMemberId">Student of</label>
+        <label for="sifuMemberId" class="align-top">Primary Instructor</label>
         <div class="rhs">
           <app-autocomplete
-            name="student of"
+            name="Primary Instructor"
             [searchableSet]="membersService.instructors"
             [placeholder]="'Search for an instructor'"
             [displayFns]="instructorDisplayFns"
             [disabled]="!canEditPersonalDetails()"
-            [initSearchTerm]="e.sifuMemberId"
-            (textUpdated)="e.sifuMemberId = $event; updateMember()"
+            [initSearchTerm]="e.sifuInstructorId"
+            (textUpdated)="e.sifuInstructorId = $event; updateMember()"
           ></app-autocomplete>
-          @if (e.sifuMemberId === "") {
-            <div class="note">No instructor set</div>
+          @if (e.sifuInstructorId === "") {
+            <div class="note">No primary instructor set</div>
           } @else if (
-            membersService.instructors.entriesMap().get(e.sifuMemberId);
+            membersService.instructors.entriesMap().get(e.sifuInstructorId);
             as sifuData
           ) {
             <div class="note">{{ sifuData.name }}</div>
           } @else {
             <div class="error-message">
               invalid instructor ID:
-              <span class="identifier-chip">{{ e.sifuMemberId }}</span>
+              <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
             </div>
           }
+          <div class="note">
+            You choose who you consider to be your primary instructor. Doing so
+            will allow them to see your ILC Member Details (the information on
+            this page) so they can contact you about workshops in your area.
+            They will not be able to edit these details, and you can change who
+            you consider to be your primary instructor at any time.
+          </div>
         </div>
 
-        <label for="inSchoolId">Managed by</label>
+        <label for="inSchoolId" class="align-top">Primary School</label>
         <div class="rhs">
           <app-autocomplete
             [searchableSet]="membersService.schools"
@@ -239,7 +252,7 @@
             (textUpdated)="e.managingOrgId = $event; updateMember()"
           ></app-autocomplete>
           @if (e.managingOrgId.trim() === "") {
-            <div class="note">Managed by ILC HQ</div>
+            <div class="note">Primary School is ILC HQ</div>
           } @else if (
             membersService.schools.entriesMap().get(e.managingOrgId);
             as schoolData
@@ -248,6 +261,13 @@
           } @else {
             <div class="error-message">invalid school ID</div>
           }
+          <div class="note">
+            You choose who your primary school is. Doing so will allow
+            administrators of the school to see and edit your ILC Member Details
+            (the information on this page). This is so that they can contact you
+            about workshops in your area, and update your details when you
+            grade. You can change your primary school at any time.
+          </div>
         </div>
 
         <label for="membershipType">Type</label>
@@ -386,8 +406,9 @@
           <h3>Instructor Public Listing</h3>
 
           <p class="note">
-            Member ID, instructor ID, and graded levels and these details are
-            listed on the ILC website.
+            Member ID, instructor ID, your graded levels and these details are
+            public and listed on the ILC website while your instructor license
+            is active.
           </p>
 
           <label for="instructorWebsite">Website</label>
@@ -497,17 +518,19 @@
                 Save
               </button>
             }
-            <button type="button" (click)="cancel($event)">
-              @if (isDirty()) {
-                Cancel
-              } @else {
-                Close
-              }
-            </button>
+            @if (collapsable()) {
+              <button type="button" (click)="cancel($event)">
+                @if (isDirty()) {
+                  Cancel
+                } @else {
+                  Close
+                }
+              </button>
+            }
           }
         </div>
         <div class="right-actions">
-          @if (canDelete()) {
+          @if (collapsable() && canDelete()) {
             <button class="delete-button" (click)="deleteMember($event)">
               <app-icon name="trash" fill="#000" />
               Delete

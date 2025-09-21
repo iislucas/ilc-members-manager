@@ -70,10 +70,11 @@ export class MemberEditComponent {
   });
 
   // Visual state
+  collapsable = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
   collapsed = linkedSignal<boolean>(() => {
-    return this.collapse() ?? true;
+    return this.collapsable() && (this.collapse() ?? true);
   });
   isDirty = computed(
     () =>
