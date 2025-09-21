@@ -1,4 +1,8 @@
-import { Timestamp } from 'firebase/firestore';
+import {
+  DocumentSnapshot,
+  QueryDocumentSnapshot,
+  Timestamp,
+} from 'firebase/firestore';
 
 // ==================================================================
 // # COUNTERS
@@ -98,9 +102,22 @@ export type SchoolFirebaseDoc = Omit<School, 'lastUpdated'> & {
   lastUpdated: Timestamp;
 };
 
+export function firestoreDocToSchool(doc: QueryDocumentSnapshot): School {
+  const docData = doc.data();
+  // There's a short time after a write happens where
+  // memberData.lastUpdated is full before the server timestamp gets
+  // the actual data back.
+  const lastUpdated = docData.lastUpdated
+    ? docData.lastUpdated.toDate().toISOString()
+    : new Date().toISOString();
+  return { ...initSchool(), ...docData, lastUpdated, id: doc.id };
+}
+
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
+  // Note this is needed by SearchableSet.
   id: string; // Document ID, UNIQUE, should be the same as email.
+
   lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
 
   isAdmin: boolean;
@@ -157,9 +174,21 @@ export type MemberFirestoreDoc = Omit<Member, 'lastUpdated'> & {
   lastUpdated: Timestamp;
 };
 
+export function firestoreDocToMember(doc: QueryDocumentSnapshot): Member {
+  const docData = doc.data();
+  // There's a short time after a write happens where
+  // memberData.lastUpdated is full before the server timestamp gets
+  // the actual data back.
+  const lastUpdated = docData.lastUpdated
+    ? docData.lastUpdated.toDate().toISOString()
+    : new Date().toISOString();
+  return { ...initMember(), ...docData, lastUpdated, id: doc.id };
+}
+
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructorsPublic/{instructorId}
 export type InstructorPublicData = {
+  // Note this is needed by SearchableSet.
   id: string; // Firebase document ID. Unique. Should be instructorId.
 
   name: string; // Full name
@@ -183,6 +212,13 @@ export type InstructorPublicData = {
   publicEmail: string;
   publicPhone: string;
 };
+
+export function firestoreDocToInstructorPublicData(
+  doc: QueryDocumentSnapshot,
+): InstructorPublicData {
+  const docData = doc.data();
+  return { ...initInstructor(), ...docData, id: doc.id };
+}
 
 // ==================================================================
 // # Initial values for Schools and Members

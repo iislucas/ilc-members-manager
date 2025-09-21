@@ -23,6 +23,9 @@ import {
   Counters,
   MemberFirestoreDoc,
   SchoolFirebaseDoc,
+  firestoreDocToMember,
+  firestoreDocToSchool,
+  firestoreDocToInstructorPublicData,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -109,10 +112,7 @@ export class DataManagerService {
         onSnapshot(
           q,
           (snapshot) => {
-            const members = snapshot.docs.map(
-              (doc) =>
-                ({ ...initMember(), ...doc.data(), id: doc.id }) as Member,
-            );
+            const members = snapshot.docs.map(firestoreDocToMember);
             this.members.setEntries(members);
           },
           (error) => {
@@ -137,14 +137,7 @@ export class DataManagerService {
               if (change.type === 'removed') {
                 allMembers.delete(change.doc.id);
               } else {
-                const fsDoc = change.doc.data() as MemberFirestoreDoc;
-                const lastUpdated = fsDoc.lastUpdated.toDate().toISOString();
-                allMembers.set(change.doc.id, {
-                  ...initMember(),
-                  ...fsDoc,
-                  id: change.doc.id,
-                  lastUpdated,
-                } as Member);
+                allMembers.set(change.doc.id, firestoreDocToMember(change.doc));
               }
             });
             this.members.setEntries(Array.from(allMembers.values()));
@@ -175,9 +168,7 @@ export class DataManagerService {
       onSnapshot(
         q,
         (snapshot) => {
-          const schools = snapshot.docs.map(
-            (doc) => ({ ...initSchool(), ...doc.data(), id: doc.id }) as School,
-          );
+          const schools = snapshot.docs.map(firestoreDocToSchool);
           this.schools.setEntries(schools);
         },
         (error) => {
@@ -197,12 +188,7 @@ export class DataManagerService {
         this.instructorsPublicCollection,
         (snapshot) => {
           const instructors = snapshot.docs.map(
-            (doc) =>
-              ({
-                ...initInstructor(),
-                ...doc.data(),
-                id: doc.id,
-              }) as InstructorPublicData,
+            firestoreDocToInstructorPublicData,
           );
           this.instructors.setEntries(instructors);
         },

@@ -133,17 +133,15 @@ Login to Google Cloud SDK:
 gcloud auth login
 ```
 
+Set project, application default credentials, Login to Firebase:
+
 ```sh
-export PROJECT=
+export PROJECT= # ... YOUR PROJECT NAME ...
 gcloud config set project ${PROJECT}
-gcloud auth application-default set-quota-project ${PROJECT}
-```
-
-Login to Firebase:
-
-```sh
+gcloud auth application-default login
 firebase login
-firebase use --add # and then select your project
+# and then select your project
+firebase use --add
 ```
 
 ### Deploy
@@ -178,7 +176,8 @@ npm run deploy:firestore-rules
 # Build the web-component files
 npm run build:wc
 # Set the cloud bucket name/path
-CLOUD_BUCKET_NAME_AND_PATH=...
+CLOUD_BUCKET_NAME_AND_PATH= # .. Cloud bucket name and path....
 # Copy files to the cloud bucket.
-gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* gs://${CLOUD_BUCKET_NAME_AND_PATH}
+gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* \
+  gs://${CLOUD_BUCKET_NAME_AND_PATH}
 ```

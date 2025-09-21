@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import {
   FetchUserDetailsResult,
+  firestoreDocToMember,
   initMember,
   Member,
   MemberFirestoreDoc,
@@ -145,13 +146,15 @@ export class FirebaseStateService {
         // From now on, listen to changes to the member document.
         const memberDocRef = doc(this.db, 'members', user.email);
         this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
+          if (!doc.exists()) {
+            // logout? show error? The doc was deleted from under their feet?
+            return;
+          }
           const currentUserDetails = this.user();
           if (currentUserDetails) {
-            const memberData = doc.data() as MemberFirestoreDoc;
-            const lastUpdated = memberData.lastUpdated.toDate().toISOString();
             this.user.set({
               ...currentUserDetails,
-              member: { ...initMember(), ...memberData, lastUpdated },
+              member: firestoreDocToMember(doc),
             });
           }
         });
@@ -177,10 +180,14 @@ export class FirebaseStateService {
       return { success: true, userCredential };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
+      if (error.code === 'auth/cancelled-popup-request') {
+        return {
+          success: false,
+          errorCode: 'auth/cancelled-popup-request',
+        };
+      }
       console.error('Google login failed:', error);
       console.error(error);
-      // console.error(error.name);
-      // console.error(error.message);
       this.loggingIn.set(false);
       return {
         success: false,
@@ -204,11 +211,6 @@ export class FirebaseStateService {
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
       console.error('Email login failed:', error);
-      // console.log(error);
-      // console.log(error.name);
-      // console.log(error.message);
-      // console.log((error as any).code);
-      // console.log(JSON.stringify(error));
       this.loggingIn.set(false);
       return {
         success: false,

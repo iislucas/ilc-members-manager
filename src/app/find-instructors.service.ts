@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import {
   InstructorPublicData,
+  firestoreDocToInstructorPublicData,
   initInstructor,
 } from '../../functions/src/data-model';
 import { environment } from '../environments/environment';
@@ -57,12 +58,7 @@ export class FindInstructorsService {
         this.instructorsPublicCollection,
         (snapshot) => {
           const instructors = snapshot.docs.map(
-            (doc) =>
-              ({
-                ...initInstructor(),
-                ...doc.data(),
-                id: doc.id,
-              }) as InstructorPublicData,
+            firestoreDocToInstructorPublicData,
           );
           this.instructors.setEntries(instructors);
         },
