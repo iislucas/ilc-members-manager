@@ -66,8 +66,8 @@
       </div>
     }
     <main class="main">
-      @if (firebaseService.loggingIn()) {
-        <app-spinner></app-spinner>
+      @if (dataService.loadingState() !== DataServiceState.Loaded) {
+        <app-spinner>Loading app data...</app-spinner>
       } @else {
         @switch (currentView()) {
           @case (Views.Home) {
@@ -107,8 +107,12 @@
   } @else {
     <h1>ILC Members App</h1>
     <main class="main">
-      @if (firebaseService.loggingIn()) {
-        <app-spinner></app-spinner>
+      @if (
+        firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
+      ) {
+        <app-spinner>Initialising app...</app-spinner>
+      } @else if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
+        <app-spinner>Logging in... </app-spinner>
       } @else {
         <div class="login-options">
           <div class="card email-login">

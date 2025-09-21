@@ -98,12 +98,12 @@ export type School = {
   managers: string[];
 };
 
-export type SchoolFirebaseDoc = Omit<School, 'lastUpdated'> & {
+export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'id'> & {
   lastUpdated: Timestamp;
 };
 
 export function firestoreDocToSchool(doc: QueryDocumentSnapshot): School {
-  const docData = doc.data();
+  const docData = doc.data() as SchoolFirebaseDoc;
   // There's a short time after a write happens where
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
@@ -170,12 +170,12 @@ export type Member = {
   notes: string;
 };
 
-export type MemberFirestoreDoc = Omit<Member, 'lastUpdated'> & {
+export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'id'> & {
   lastUpdated: Timestamp;
 };
 
 export function firestoreDocToMember(doc: QueryDocumentSnapshot): Member {
-  const docData = doc.data();
+  const docData = doc.data() as MemberFirestoreDoc;
   // There's a short time after a write happens where
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
@@ -213,10 +213,12 @@ export type InstructorPublicData = {
   publicPhone: string;
 };
 
+export type InstructorPublicDataFirebaseDoc = Omit<InstructorPublicData, 'id'>;
+
 export function firestoreDocToInstructorPublicData(
   doc: QueryDocumentSnapshot,
 ): InstructorPublicData {
-  const docData = doc.data();
+  const docData = doc.data() as InstructorPublicDataFirebaseDoc;
   return { ...initInstructor(), ...docData, id: doc.id };
 }
 

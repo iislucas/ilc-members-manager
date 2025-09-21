@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FirebaseStateService } from './firebase-state.service';
+import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
@@ -12,7 +12,7 @@ import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
-import { DataManagerService } from './data-manager.service';
+import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberEditComponent } from './member-edit/member-edit';
@@ -47,6 +47,8 @@ export class App {
   public menuOpen = signal(false);
   public currentView = this.routingService.matchedPatternId;
   public Views = Views;
+  public LoginStatus = LoginStatus;
+  public DataServiceState = DataServiceState;
   public jumpToMemberInUrlParams = computed(() => {
     const patternId = this.routingService.matchedPatternId();
     if (

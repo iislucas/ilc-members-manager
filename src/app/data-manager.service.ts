@@ -1,4 +1,11 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import {
   collection,
   doc,
@@ -43,6 +50,11 @@ export interface SchoolsState {
   error: string | null;
 }
 
+export enum DataServiceState {
+  Loading = 'Loading',
+  Loaded = 'Loaded',
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -57,6 +69,17 @@ export class DataManagerService {
     'instructorsPublic',
   );
   private snapshotsToUnsubscribe: (() => void)[] = [];
+  loadingState = linkedSignal<DataServiceState>(() => {
+    if (
+      this.members.loaded() &&
+      this.schools.loaded() &&
+      this.instructors.loaded()
+    ) {
+      return DataServiceState.Loaded;
+    } else {
+      return DataServiceState.Loading;
+    }
+  });
 
   // A signal to hold the state of the members list.
   public members = new SearchableSet<Member>([

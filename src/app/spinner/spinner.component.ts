@@ -5,6 +5,7 @@ import { Component } from '@angular/core';
   standalone: true,
   template: `
     <div class="spinner-container">
+      <ng-content></ng-content>
       <div class="spinner"></div>
     </div>
   `,
@@ -15,8 +16,10 @@ import { Component } from '@angular/core';
       }
       .spinner-container {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
+        gap: 1em;
       }
       .spinner {
         border: 4px solid rgba(0, 0, 0, 0.1);

@@ -64,6 +64,13 @@ export type ResetPasswordResult =
 
 export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 
+export enum LoginStatus {
+  FirebaseLoadingStatus = 'FirebaseLoadingStatus',
+  LoggingIn = 'LoggingIn',
+  SignedIn = 'SignedIn',
+  SignedOut = 'SignedOut',
+}
+
 // ----------------------------------------------------------------------------
 export type UserDetails = {
   member: Member;
@@ -80,7 +87,8 @@ export class FirebaseStateService {
   public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
-  public loggingIn = signal(false);
+
+  public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
   private loggedInResolverFn: (value: UserDetails) => void = () => {};
   public loginError = signal<string | null>(null);
@@ -115,63 +123,72 @@ export class FirebaseStateService {
         this.unsubscribeFromMember = null;
       }
 
-      if (user && user.email) {
-        let userDetailsResult: FetchUserDetailsResult;
-        try {
-          const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
-            this.functions,
-            'getUserDetails',
-          );
-          userDetailsResult = (await getUserDetails()).data;
-        } catch (error: unknown) {
-          console.warn(error);
-          this.loggingIn.set(false);
-          this.loginError.set((error as Error).message);
-          return;
-        }
-
-        const userDetails: UserDetails = {
-          firebaseUser: user,
-          member: {
-            ...initMember(),
-            ...userDetailsResult.userMemberData,
-          },
-          isAdmin: userDetailsResult.isAdmin,
-          schoolsManaged: userDetailsResult.schoolsManaged,
-        };
-        this.user.set(userDetails);
-        this.loggedInResolverFn(userDetails);
-        this.loggingIn.set(false);
-
-        // From now on, listen to changes to the member document.
-        const memberDocRef = doc(this.db, 'members', user.email);
-        this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
-          if (!doc.exists()) {
-            // logout? show error? The doc was deleted from under their feet?
-            return;
-          }
-          const currentUserDetails = this.user();
-          if (currentUserDetails) {
-            this.user.set({
-              ...currentUserDetails,
-              member: firestoreDocToMember(doc),
-            });
-          }
-        });
-      } else {
-        // logging out
+      if (!user || !user.email) {
+        // SignedOut
         this.user.set(null);
+        this.loginStatus.set(LoginStatus.SignedOut);
         this.loggedIn.set(
           new Promise<UserDetails>((resolve, reject) => {
             this.loggedInResolverFn = resolve;
           }),
         );
+        return;
       }
+
+      this.loginStatus.set(LoginStatus.LoggingIn);
+
+      let userDetailsResult: FetchUserDetailsResult;
+      try {
+        const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
+          this.functions,
+          'getUserDetails',
+        );
+        userDetailsResult = (await getUserDetails()).data;
+      } catch (error: unknown) {
+        console.warn(error);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loginError.set((error as Error).message);
+        this.auth.signOut();
+        return;
+      }
+
+      const userDetails: UserDetails = {
+        firebaseUser: user,
+        member: {
+          ...initMember(),
+          ...userDetailsResult.userMemberData,
+        },
+        isAdmin: userDetailsResult.isAdmin,
+        schoolsManaged: userDetailsResult.schoolsManaged,
+      };
+      this.user.set(userDetails);
+      this.loggedInResolverFn(userDetails);
+      this.loginStatus.set(LoginStatus.SignedIn);
+
+      // From now on, listen to changes to the member document.
+      const memberDocRef = doc(this.db, 'members', user.email);
+      this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
+        if (!doc.exists()) {
+          this.loginStatus.set(LoginStatus.SignedOut);
+          this.auth.signOut();
+          console.warn(
+            `The users membership doc was removed while they were signed in, and they've been signed out.`,
+          );
+          return;
+        }
+        const currentUserDetails = this.user();
+        if (currentUserDetails) {
+          this.user.set({
+            ...currentUserDetails,
+            member: firestoreDocToMember(doc),
+          });
+        }
+      });
     });
   }
 
   public async loginWithGoogle(): Promise<AuthOperationResult> {
-    this.loggingIn.set(true);
+    this.loginStatus.set(LoginStatus.LoggingIn);
     try {
       const userCredential = await signInWithPopup(
         this.auth,
@@ -188,7 +205,7 @@ export class FirebaseStateService {
       }
       console.error('Google login failed:', error);
       console.error(error);
-      this.loggingIn.set(false);
+      this.loginStatus.set(LoginStatus.SignedOut);
       return {
         success: false,
         errorCode: error.code,
@@ -200,7 +217,7 @@ export class FirebaseStateService {
     pass: string,
     email: string,
   ): Promise<AuthOperationResult> {
-    this.loggingIn.set(true);
+    this.loginStatus.set(LoginStatus.LoggingIn);
     try {
       const userCredential = await signInWithEmailAndPassword(
         this.auth,
@@ -211,7 +228,7 @@ export class FirebaseStateService {
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
       console.error('Email login failed:', error);
-      this.loggingIn.set(false);
+      this.loginStatus.set(LoginStatus.SignedOut);
       return {
         success: false,
         errorCode: error.code,
@@ -223,7 +240,7 @@ export class FirebaseStateService {
     pass: string,
     email: string,
   ): Promise<AuthOperationResult> {
-    this.loggingIn.set(true);
+    this.loginStatus.set(LoginStatus.LoggingIn);
     try {
       const userCredential = await createUserWithEmailAndPassword(
         this.auth,
@@ -237,7 +254,7 @@ export class FirebaseStateService {
       console.error(error);
       console.error(error.name);
       console.error(error.message);
-      this.loggingIn.set(false);
+      this.loginStatus.set(LoginStatus.SignedOut);
       return {
         success: false,
         errorCode: error.code,

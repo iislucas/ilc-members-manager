@@ -44,6 +44,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     const userMemberData: Member = {
       ...userMemberDocData,
       lastUpdated: userMemberDocData.lastUpdated.toDate().toISOString(),
+      id: memberDoc.id,
     };
 
     // School manager/owner query
