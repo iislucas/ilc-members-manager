@@ -6,7 +6,11 @@ import {
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import { FetchUserDetailsResult, Member } from './data-model';
+import {
+  FetchUserDetailsResult,
+  Member,
+  MemberFirestoreDoc,
+} from './data-model';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   if (!request.auth) {
@@ -36,7 +40,11 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
         'You do not have permission to perform this action as you are not a member.',
       );
     }
-    const userMemberData = memberDoc.data() as Member;
+    const userMemberDocData = memberDoc.data() as MemberFirestoreDoc;
+    const userMemberData: Member = {
+      ...userMemberDocData,
+      lastUpdated: userMemberDocData.lastUpdated.toDate().toISOString(),
+    };
 
     // School manager/owner query
     const schoolsOwnedQuery = db

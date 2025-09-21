@@ -27,9 +27,7 @@
     @if (!collapsed()) {
       <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
         <div class="form-section">
-          <p class="timestamp">
-            Last updated: {{ s.lastUpdated.toDate().toISOString() }}
-          </p>
+          <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
           @if (userIsSchoolManager()) {
             <p class="members-link" (click)="gotoMembers()">Manage Members</p>
           }

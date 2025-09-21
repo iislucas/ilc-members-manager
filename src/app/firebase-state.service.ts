@@ -28,6 +28,7 @@ import {
   FetchUserDetailsResult,
   initMember,
   Member,
+  MemberFirestoreDoc,
 } from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
@@ -127,9 +128,13 @@ export class FirebaseStateService {
           this.loginError.set((error as Error).message);
           return;
         }
+
         const userDetails: UserDetails = {
           firebaseUser: user,
-          member: { ...initMember(), ...userDetailsResult.userMemberData },
+          member: {
+            ...initMember(),
+            ...userDetailsResult.userMemberData,
+          },
           isAdmin: userDetailsResult.isAdmin,
           schoolsManaged: userDetailsResult.schoolsManaged,
         };
@@ -142,10 +147,11 @@ export class FirebaseStateService {
         this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
           const currentUserDetails = this.user();
           if (currentUserDetails) {
-            const memberData = doc.data() as Member;
+            const memberData = doc.data() as MemberFirestoreDoc;
+            const lastUpdated = memberData.lastUpdated.toDate().toISOString();
             this.user.set({
               ...currentUserDetails,
-              member: { ...initMember(), ...memberData },
+              member: { ...initMember(), ...memberData, lastUpdated },
             });
           }
         });

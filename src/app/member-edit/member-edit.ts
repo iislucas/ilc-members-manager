@@ -86,18 +86,6 @@ export class MemberEditComponent {
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
   });
-
-  // Pretty printing values
-  lastUpdated = computed(() => {
-    // There is a small time-window when server assigned timestamp is the value,
-    // for this time, lastUpdated is null, so just provide a now timestamp for
-    // that.
-    if (this.editableMember().lastUpdated) {
-      return this.editableMember().lastUpdated.toDate().toISOString();
-    } else {
-      return Timestamp.now().toDate().toISOString();
-    }
-  });
   countryWithCode = computed<CountryCode | null>(() => {
     const countryName = this.editableMember().country;
     return (
@@ -251,7 +239,7 @@ export class MemberEditComponent {
     this.editableMember().lastUpdated = m.lastUpdated;
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
-    this.collapsed.set(true);
+    this.collapsed.set(this.collapsable());
     this.close.emit();
   }
 
@@ -332,7 +320,7 @@ export class MemberEditComponent {
 
       // Now we can update the isSaving state and close the being edited member.
       this.isSaving.set(false);
-      this.collapsed.set(true);
+      this.collapsed.set(this.collapsable());
       this.close.emit();
     } catch (e: unknown) {
       console.error(e);

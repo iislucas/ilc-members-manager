@@ -77,7 +77,7 @@ export enum MemberIdUpdateStatus {
 // Firestore path: /school/{doc-id}
 export type School = {
   id: string; // Document ID, UNIQUE, firebase managed.
-  lastUpdated: Timestamp; // ISO string: YYYY-MM-DD...
+  lastUpdated: string; // ISO string: YYYY-MM-DD; Converted to/from Timestamp on server.
 
   schoolId: string; // ILC HQ issued School Id
   schoolName: string; // School name
@@ -94,10 +94,14 @@ export type School = {
   managers: string[];
 };
 
+export type SchoolFirebaseDoc = Omit<School, 'lastUpdated'> & {
+  lastUpdated: Timestamp;
+};
+
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   id: string; // Document ID, UNIQUE, should be the same as email.
-  lastUpdated: Timestamp; // ISO string: YYYY-MM-DD...
+  lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
 
   isAdmin: boolean;
 
@@ -149,6 +153,10 @@ export type Member = {
   notes: string;
 };
 
+export type MemberFirestoreDoc = Omit<Member, 'lastUpdated'> & {
+  lastUpdated: Timestamp;
+};
+
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructorsPublic/{instructorId}
 export type InstructorPublicData = {
@@ -184,7 +192,7 @@ export function initMember(): Member {
   return {
     // Unique ID, should be same as email.
     id: '',
-    lastUpdated: Timestamp.now(), // ISO string...
+    lastUpdated: new Date().toISOString(), // ISO string...
 
     isAdmin: false,
 
@@ -236,7 +244,7 @@ export function initMember(): Member {
 export function initSchool(): School {
   return {
     id: '',
-    lastUpdated: Timestamp.now(), // ISO string...
+    lastUpdated: new Date().toISOString(), // // ISO string...
 
     schoolId: '',
     schoolName: '',

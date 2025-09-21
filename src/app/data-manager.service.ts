@@ -21,6 +21,8 @@ import {
   InstructorPublicData,
   initInstructor,
   Counters,
+  MemberFirestoreDoc,
+  SchoolFirebaseDoc,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -135,10 +137,13 @@ export class DataManagerService {
               if (change.type === 'removed') {
                 allMembers.delete(change.doc.id);
               } else {
+                const fsDoc = change.doc.data() as MemberFirestoreDoc;
+                const lastUpdated = fsDoc.lastUpdated.toDate().toISOString();
                 allMembers.set(change.doc.id, {
                   ...initMember(),
-                  ...change.doc.data(),
+                  ...fsDoc,
                   id: change.doc.id,
+                  lastUpdated,
                 } as Member);
               }
             });
@@ -247,7 +252,7 @@ export class DataManagerService {
     }
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef, member.email);
-    const memberWithNewTimestamp: Member = {
+    const memberWithNewTimestamp: MemberFirestoreDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -259,7 +264,7 @@ export class DataManagerService {
       return this.updateMemberEmail(emailId, member);
     }
     const docRef = doc(this.db, 'members', emailId);
-    const memberWithNewTimestamp: Member = {
+    const memberWithNewTimestamp: MemberFirestoreDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -284,7 +289,7 @@ export class DataManagerService {
   }
 
   async setSchool(school: School): Promise<void> {
-    const schoolWithNewTimestamp: School = {
+    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
       ...school,
       lastUpdated: serverTimestamp() as Timestamp,
     };

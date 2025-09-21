@@ -56,7 +56,7 @@
             }
           </div>
         }
-        <div class="title">{{ currentViewTitle() }}</div>
+        <div class="title">ILC App <span>-</span> {{ currentViewTitle() }}</div>
       </div>
       <app-profile-menu></app-profile-menu>
     </div>
@@ -105,7 +105,7 @@
       }
     </main>
   } @else {
-    <h1>ILC Members Manager</h1>
+    <h1>ILC Members App</h1>
     <main class="main">
       @if (firebaseService.loggingIn()) {
         <app-spinner></app-spinner>

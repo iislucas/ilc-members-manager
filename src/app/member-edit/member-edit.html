@@ -52,7 +52,7 @@
   @if (!collapsed()) {
     <form #memberForm="ngForm" (ngSubmit)="saveMember()">
       <div class="form-section">
-        <p class="timestamp">Last updated: {{ lastUpdated() }}</p>
+        <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
         <h3>Contact</h3>
         <label for="name">Name</label>
         <div class="rhs">
@@ -184,31 +184,24 @@
           />
         </div>
 
-        <h3>Member</h3>
+        <h3>Primary Instructor</h3>
+        <p class="note">
+          Members choose who they consider to be their primary instructor. The
+          member can change who they consider to be their primary instructor at
+          any time. This information is viewable only by the member, the primary
+          instructor they selected, and ILC HQ. The primary instructor can see
+          the member's
+          <span class="section-chip">Contacts Details</span>,
+          <span class="section-chip">Membership Status & Level</span>,
+          <span class="section-chip">Instructor Status</span> (and if they are
+          an instructor, their
+          <span class="section-chip">Instructor Public Listing</span>). The
+          primary instructor cannot edit the member's details.
+        </p>
 
-        <label for="memberId">Member ID</label>
-        <div class="rhs">
-          @if (
-            memberIdAssignment().kind === AssignKind.AssignNewAutoId &&
-            !countryWithCode()
-          ) {
-            <div>
-              <span class="error-message"
-                >Please enter a country with a valid country code above, so that
-              </span>
-            </div>
-          } @else {
-            <app-id-assignment
-              [initAssignment]="memberIdAssignment()"
-              [canBeUnset]="false"
-              [expectedNextId]="expectedNextMemberId()"
-              [canEdit]="canEditAllDetails()"
-              (assignment)="handleMemberIdAssignmentChange($event)"
-            ></app-id-assignment>
-          }
-        </div>
-
-        <label for="sifuMemberId" class="align-top">Primary Instructor</label>
+        <label for="sifuInstructorId" class="align-top"
+          >Primary Instructor ID</label
+        >
         <div class="rhs">
           <app-autocomplete
             name="Primary Instructor"
@@ -232,16 +225,23 @@
               <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
             </div>
           }
-          <div class="note">
-            You choose who you consider to be your primary instructor. Doing so
-            will allow them to see your ILC Member Details (the information on
-            this page) so they can contact you about workshops in your area.
-            They will not be able to edit these details, and you can change who
-            you consider to be your primary instructor at any time.
-          </div>
         </div>
 
-        <label for="inSchoolId" class="align-top">Primary School</label>
+        <h3>Primary School</h3>
+
+        <p class="note">
+          Each member chooses the primary school they want to be associated
+          with. Members can change your primary school at any time. This
+          viewable only by the member, the primary school they select, and ILC
+          HQ. Administrators of the primary school can see and edit
+          <span class="section-chip">Contacts Details</span>,
+          <span class="section-chip">Membership Status & Level</span>,
+          <span class="section-chip">Instructor Status</span> (and if the member
+          if an instructor, their
+          <span class="section-chip">Instructor Public Listing</span>).
+        </p>
+
+        <label for="inSchoolId" class="align-top">Primary School ID</label>
         <div class="rhs">
           <app-autocomplete
             [searchableSet]="membersService.schools"
@@ -261,13 +261,30 @@
           } @else {
             <div class="error-message">invalid school ID</div>
           }
-          <div class="note">
-            You choose who your primary school is. Doing so will allow
-            administrators of the school to see and edit your ILC Member Details
-            (the information on this page). This is so that they can contact you
-            about workshops in your area, and update your details when you
-            grade. You can change your primary school at any time.
-          </div>
+        </div>
+
+        <h3>Membership Status & Level</h3>
+
+        <label for="memberId">Member ID</label>
+        <div class="rhs">
+          @if (
+            memberIdAssignment().kind === AssignKind.AssignNewAutoId &&
+            !countryWithCode()
+          ) {
+            <div>
+              <span class="error-message"
+                >Please enter a country with a valid country code above, so that
+              </span>
+            </div>
+          } @else {
+            <app-id-assignment
+              [initAssignment]="memberIdAssignment()"
+              [canBeUnset]="false"
+              [expectedNextId]="expectedNextMemberId()"
+              [canEdit]="canEditAllDetails()"
+              (assignment)="handleMemberIdAssignmentChange($event)"
+            ></app-id-assignment>
+          }
         </div>
 
         <label for="membershipType">Type</label>
@@ -330,7 +347,6 @@
           </div>
         }
 
-        <h3>Level</h3>
         <label for="studentLevel">Student</label>
         <div class="rhs">
           <input
@@ -372,7 +388,7 @@
           }
         </div>
 
-        <h3>Instructor</h3>
+        <h3>Instructor Status</h3>
         <label for="instructorId">Instructor ID</label>
         <div class="rhs">
           <app-id-assignment
