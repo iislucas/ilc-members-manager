@@ -154,25 +154,31 @@ export class MemberEditComponent {
 
   // User permissions state, for what can be shown.
   canDelete = input<boolean>(true);
-  canEditPersonalDetails = computed(() => {
-    const user = this.firebaseState.user();
-    if (!user) return false;
-    if (user.isAdmin) return true;
-    const member = this.member();
-    if (user.firebaseUser.email === member.email) return true;
-    return user.schoolsManaged.includes(member.managingOrgId);
-  });
-  canEditMembershipDetails = computed(() => {
+  userIsSchoolManagerOrAdmin = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
     if (user.isAdmin) return true;
     const member = this.member();
     return user.schoolsManaged.includes(member.managingOrgId);
   });
-  canEditAllDetails = computed(() => {
+  userIsAdmin = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
     return user.isAdmin;
+  });
+  userIsMemberOrAdmin = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    return user.isAdmin || this.member().email === user.firebaseUser.email;
+  });
+  userIsMemberSchoolManagerOrAdmin = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    return (
+      user.isAdmin ||
+      this.member().email === user.firebaseUser.email ||
+      user.schoolsManaged.includes(this.member().managingOrgId)
+    );
   });
 
   // Erro handling.

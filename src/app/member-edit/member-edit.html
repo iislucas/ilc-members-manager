@@ -62,7 +62,7 @@
             [(ngModel)]="e.name"
             (ngModelChange)="updateMember()"
             #name="ngModel"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             required
           />
           @if (name.invalid) {
@@ -79,7 +79,7 @@
             [(ngModel)]="e.email"
             (ngModelChange)="updateMember()"
             #email="ngModel"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             required
             email
           />
@@ -99,7 +99,7 @@
             name="address"
             [(ngModel)]="e.address"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           ></textarea>
         </div>
 
@@ -111,7 +111,7 @@
             name="city"
             [(ngModel)]="e.city"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -123,7 +123,7 @@
             name="zipCode"
             [(ngModel)]="e.zipCode"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -135,7 +135,7 @@
             [inputBoxIsChip]="false"
             [placeholder]="'Search for a country'"
             [initSearchTerm]="e.country"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             (textUpdated)="e.country = $event; updateMember()"
           ></app-autocomplete>
           @if (countryWithCode(); as cc) {
@@ -153,7 +153,7 @@
             name="phone"
             [(ngModel)]="e.phone"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -165,7 +165,7 @@
             name="gender"
             [(ngModel)]="e.gender"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -179,91 +179,95 @@
             placeholder="YYYY-MM-DD"
             [(ngModel)]="e.dateOfBirth"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditPersonalDetails()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
         </div>
 
-        <h3>Primary Instructor</h3>
-        <p class="note">
-          Members choose who they consider to be their primary instructor, and
-          can change it at any time. The primary instructor is visable only to
-          the member, their current primary instructor, and ILC HQ.
-        </p>
-        <p class="note">
-          The primary instructor can see the member's
-          <span class="section-chip">Contacts Details</span>,
-          <span class="section-chip">Membership Status & Level</span>, and
-          <span class="section-chip">Instructor Status</span> (and if they are
-          an instructor, their
-          <span class="section-chip">Instructor Public Listing</span>). The
-          primary instructor cannot edit the member's details.
-        </p>
+        @if (userIsMemberOrAdmin()) {
+          <h3>Primary Instructor</h3>
+          <p class="note">
+            Members choose who they consider to be their primary instructor, and
+            can change it at any time. The primary instructor is visable only to
+            the member, their current primary instructor, and ILC HQ.
+          </p>
+          <p class="note">
+            The primary instructor can see the member's
+            <span class="section-chip">Contacts Details</span>,
+            <span class="section-chip">Membership Status & Level</span>, and
+            <span class="section-chip">Instructor Status</span> (and if they are
+            an instructor, their
+            <span class="section-chip">Instructor Public Listing</span>). The
+            primary instructor cannot edit the member's details.
+          </p>
 
-        <label for="sifuInstructorId" class="align-top"
-          >Primary Instructor ID</label
-        >
-        <div class="rhs">
-          <app-autocomplete
-            name="Primary Instructor"
-            [searchableSet]="membersService.instructors"
-            [placeholder]="'Search for an instructor'"
-            [displayFns]="instructorDisplayFns"
-            [disabled]="!canEditPersonalDetails()"
-            [initSearchTerm]="e.sifuInstructorId"
-            (textUpdated)="e.sifuInstructorId = $event; updateMember()"
-          ></app-autocomplete>
-          @if (e.sifuInstructorId === "") {
-            <div class="note">No primary instructor set</div>
-          } @else if (
-            membersService.instructors.entriesMap().get(e.sifuInstructorId);
-            as sifuData
-          ) {
-            <div class="note">{{ sifuData.name }}</div>
-          } @else {
-            <div class="error-message">
-              invalid instructor ID:
-              <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
-            </div>
-          }
-        </div>
+          <label for="sifuInstructorId" class="align-top"
+            >Primary Instructor ID</label
+          >
+          <div class="rhs">
+            <app-autocomplete
+              name="Primary Instructor"
+              [searchableSet]="membersService.instructors"
+              [placeholder]="'Search for an instructor'"
+              [displayFns]="instructorDisplayFns"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [initSearchTerm]="e.sifuInstructorId"
+              (textUpdated)="e.sifuInstructorId = $event; updateMember()"
+            ></app-autocomplete>
+            @if (e.sifuInstructorId === "") {
+              <div class="note">No primary instructor set</div>
+            } @else if (
+              membersService.instructors.entriesMap().get(e.sifuInstructorId);
+              as sifuData
+            ) {
+              <div class="note">{{ sifuData.name }}</div>
+            } @else {
+              <div class="error-message">
+                invalid instructor ID:
+                <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
+              </div>
+            }
+          </div>
+        }
 
-        <h3>Primary School</h3>
+        @if (userIsMemberSchoolManagerOrAdmin()) {
+          <h3>Primary School</h3>
 
-        <p class="note">
-          Member choose their primary school and can change it at any time. A
-          member's primary school is visible only to the member, the current
-          primary school and ILC HQ.
-        </p>
-        <p class="note">
-          Administrators of the primary school can see and edit
-          <span class="section-chip">Contacts Details</span>,
-          <span class="section-chip">Membership Status & Level</span>, and
-          <span class="section-chip">Instructor Status</span> (and if the member
-          if an instructor, their
-          <span class="section-chip">Instructor Public Listing</span>).
-        </p>
+          <p class="note">
+            Member choose their primary school and can change it at any time. A
+            member's primary school is visible only to the member, the current
+            primary school and ILC HQ.
+          </p>
+          <p class="note">
+            Administrators of the primary school can see and edit
+            <span class="section-chip">Contacts Details</span>,
+            <span class="section-chip">Membership Status & Level</span>, and
+            <span class="section-chip">Instructor Status</span> (and if the
+            member if an instructor, their
+            <span class="section-chip">Instructor Public Listing</span>).
+          </p>
 
-        <label for="inSchoolId" class="align-top">Primary School ID</label>
-        <div class="rhs">
-          <app-autocomplete
-            [searchableSet]="membersService.schools"
-            [placeholder]="'Search for a school'"
-            [displayFns]="schoolDisplayFns"
-            [disabled]="!canEditAllDetails()"
-            [initSearchTerm]="e.managingOrgId"
-            (textUpdated)="e.managingOrgId = $event; updateMember()"
-          ></app-autocomplete>
-          @if (e.managingOrgId.trim() === "") {
-            <div class="note">Primary School is ILC HQ</div>
-          } @else if (
-            membersService.schools.entriesMap().get(e.managingOrgId);
-            as schoolData
-          ) {
-            <div class="note">{{ schoolData.schoolName }}</div>
-          } @else {
-            <div class="error-message">invalid school ID</div>
-          }
-        </div>
+          <label for="inSchoolId" class="align-top">Primary School ID</label>
+          <div class="rhs">
+            <app-autocomplete
+              [searchableSet]="membersService.schools"
+              [placeholder]="'Search for a school'"
+              [displayFns]="schoolDisplayFns"
+              [disabled]="!userIsMemberOrAdmin()"
+              [initSearchTerm]="e.managingOrgId"
+              (textUpdated)="e.managingOrgId = $event; updateMember()"
+            ></app-autocomplete>
+            @if (e.managingOrgId.trim() === "") {
+              <div class="note">Primary School is ILC HQ</div>
+            } @else if (
+              membersService.schools.entriesMap().get(e.managingOrgId);
+              as schoolData
+            ) {
+              <div class="note">{{ schoolData.schoolName }}</div>
+            } @else {
+              <div class="error-message">invalid school ID</div>
+            }
+          </div>
+        }
 
         <h3>Membership Status & Level</h3>
 
@@ -283,7 +287,7 @@
               [initAssignment]="memberIdAssignment()"
               [canBeUnset]="false"
               [expectedNextId]="expectedNextMemberId()"
-              [canEdit]="canEditAllDetails()"
+              [canEdit]="userIsAdmin()"
               (assignment)="handleMemberIdAssignmentChange($event)"
             ></app-id-assignment>
           }
@@ -296,7 +300,7 @@
             name="membershipType"
             [(ngModel)]="e.membershipType"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditMembershipDetails()"
+            [disabled]="!userIsSchoolManagerOrAdmin()"
             required
           >
             @for (type of membershipTypes; track type) {
@@ -315,7 +319,7 @@
             placeholder="YYYY-MM-DD"
             [(ngModel)]="e.firstMembershipStarted"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditMembershipDetails()"
+            [disabled]="!userIsSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -329,7 +333,7 @@
             placeholder="YYYY-MM-DD"
             [(ngModel)]="e.lastRenewalDate"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditMembershipDetails()"
+            [disabled]="!userIsSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -344,7 +348,7 @@
               placeholder="YYYY-MM-DD"
               [(ngModel)]="e.currentMembershipExpires"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditMembershipDetails()"
+              [disabled]="!userIsSchoolManagerOrAdmin()"
             />
           </div>
         }
@@ -357,7 +361,7 @@
             name="studentLevel"
             [(ngModel)]="e.studentLevel"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditMembershipDetails()"
+            [disabled]="!userIsSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -369,7 +373,7 @@
             name="applicationLevel"
             [(ngModel)]="e.applicationLevel"
             (ngModelChange)="updateMember()"
-            [disabled]="!canEditMembershipDetails()"
+            [disabled]="!userIsSchoolManagerOrAdmin()"
           />
         </div>
 
@@ -383,7 +387,7 @@
                 type="checkbox"
                 [checked]="e.mastersLevels.includes(level)"
                 (change)="onMasterLevelChange(level, $event.target.checked)"
-                [disabled]="!canEditAllDetails()"
+                [disabled]="!userIsAdmin()"
               />
               {{ level }}
             </div>
@@ -398,7 +402,7 @@
             [initAssignment]="instructorIdAssignment()"
             [canBeUnset]="true"
             [expectedNextId]="expectedNextInstructorId()"
-            [canEdit]="canEditAllDetails()"
+            [canEdit]="userIsAdmin()"
             (assignment)="handleInstructorIdAssignmentChange($event)"
           ></app-id-assignment>
         </div>
@@ -417,7 +421,7 @@
               placeholder="YYYY-MM-DD"
               [(ngModel)]="e.instructorLicenseExpires"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditMembershipDetails()"
+              [disabled]="!userIsSchoolManagerOrAdmin()"
             />
           </div>
 
@@ -437,7 +441,7 @@
               name="instructorWebsite"
               [(ngModel)]="e.instructorWebsite"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditPersonalDetails()"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             />
           </div>
 
@@ -449,7 +453,7 @@
               name="publicEmail"
               [(ngModel)]="e.publicEmail"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditPersonalDetails()"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             />
           </div>
 
@@ -461,7 +465,7 @@
               name="publicPhone"
               [(ngModel)]="e.publicPhone"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditPersonalDetails()"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             />
           </div>
 
@@ -473,34 +477,36 @@
               name="publicRegionOrCity"
               [(ngModel)]="e.publicRegionOrCity"
               (ngModelChange)="updateMember()"
-              [disabled]="!canEditPersonalDetails()"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             />
           </div>
         }
-        <h3>Admin</h3>
-        <label for="isAdmin">Is Admin</label>
-        <div class="rhs">
-          <input
-            type="checkbox"
-            id="isAdmin"
-            name="isAdmin"
-            [(ngModel)]="e.isAdmin"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditAllDetails()"
-          />
-          <span class="note">(can edit all members)</span>
-        </div>
+        @if (userIsAdmin()) {
+          <h3>Admin</h3>
+          <label for="isAdmin">Is Admin</label>
+          <div class="rhs">
+            <input
+              type="checkbox"
+              id="isAdmin"
+              name="isAdmin"
+              [(ngModel)]="e.isAdmin"
+              (ngModelChange)="updateMember()"
+              [disabled]="!userIsAdmin()"
+            />
+            <span class="note">(can edit all members)</span>
+          </div>
 
-        <label for="notes" class="align-top">Notes</label>
-        <div class="rhs">
-          <textarea
-            id="notes"
-            name="notes"
-            [(ngModel)]="e.notes"
-            (ngModelChange)="updateMember()"
-            [disabled]="!canEditAllDetails()"
-          ></textarea>
-        </div>
+          <label for="notes" class="align-top">Notes</label>
+          <div class="rhs">
+            <textarea
+              id="notes"
+              name="notes"
+              [(ngModel)]="e.notes"
+              (ngModelChange)="updateMember()"
+              [disabled]="!userIsAdmin()"
+            ></textarea>
+          </div>
+        }
       </div>
 
       @if (errorMessage().length > 0) {

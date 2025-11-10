@@ -153,6 +153,11 @@ export class DataManagerService {
           orderBy('lastUpdated', 'desc'),
         );
 
+        // TODO: race condition: if someone changes school within one that you
+        // manage, we might add the new one, then delete the old one, which will
+        // remove it from the all members collection.
+        //
+        // TODO: think if we can use the path instead of the id?
         const unsubscribe = onSnapshot(
           membersQuery,
           (snapshot) => {

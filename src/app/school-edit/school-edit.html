@@ -127,15 +127,18 @@
           <h3>Management</h3>
           <label for="owner">Owner</label>
           <div class="rhs">
-            <app-autocomplete
-              name="owner"
-              [searchableSet]="membersService.instructors"
-              [placeholder]="'Search instructor for owner'"
-              [displayFns]="instructorDisplayFns"
-              [initSearchTerm]="s.owner"
-              (textUpdated)="s.owner = $event; updateSchool()"
-              [disabled]="!userIsAdmin()"
-            ></app-autocomplete>
+            @if (userIsAdmin()) {
+              <app-autocomplete
+                name="owner"
+                [searchableSet]="membersService.instructors"
+                [placeholder]="'Search instructor for owner'"
+                [displayFns]="instructorDisplayFns"
+                [initSearchTerm]="s.owner"
+                (textUpdated)="s.owner = $event; updateSchool()"
+              ></app-autocomplete>
+            } @else {
+              <span class="identifier-chip">{{ s.owner }}</span>
+            }
             @if (s.owner === "") {
               <div class="error-message">No owner set</div>
             } @else if (
@@ -155,32 +158,38 @@
           <div class="rhs">
             @for (managerMemberId of s.managers; track $index; let i = $index) {
               <div class="member-search-with-details" id="managers">
-                <div class="oneLine">
-                  <app-autocomplete
-                    name="owner"
-                    [searchableSet]="membersService.instructors"
-                    [placeholder]="'Search instructor for owner'"
-                    [displayFns]="instructorDisplayFns"
-                    [initSearchTerm]="s.managers[i]"
-                    (textUpdated)="s.managers[i] = $event; updateSchool()"
-                    [disabled]="!userIsAdmin() && !userIsSchoolManager()"
-                  ></app-autocomplete>
-                  <button
-                    class="icon-only-button"
-                    type="button"
-                    (click)="removeManager(i); updateSchool()"
-                    [disabled]="!userIsAdmin() && !userIsSchoolManager()"
-                  >
-                    <app-icon name="close" />
-                  </button>
-                </div>
-                @if (s.owner === "") {
-                  <div class="error-message">No owner set</div>
+                @if (userIsAdmin() || userIsSchoolManager()) {
+                  <div class="oneLine">
+                    <app-autocomplete
+                      name="owner"
+                      [searchableSet]="membersService.instructors"
+                      [placeholder]="'Search instructor for owner'"
+                      [displayFns]="instructorDisplayFns"
+                      [initSearchTerm]="s.managers[i]"
+                      (textUpdated)="s.managers[i] = $event; updateSchool()"
+                      [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+                    ></app-autocomplete>
+                    <button
+                      class="icon-only-button"
+                      type="button"
+                      (click)="removeManager(i); updateSchool()"
+                    >
+                      <app-icon name="close" />
+                    </button>
+                  </div>
+                }
+                @if (s.managers[i] === "") {
+                  <div class="error-message">No manager set</div>
                 } @else if (
                   membersService.instructors.entriesMap().get(s.managers[i]);
                   as managerData
                 ) {
-                  <div class="note">{{ managerData.name }}</div>
+                  <div class="note">
+                    @if (!userIsAdmin() && !userIsSchoolManager()) {
+                      <span class="identifier-chip">{{ s.managers[i] }}</span>
+                    }
+                    {{ managerData.name }}
+                  </div>
                 } @else {
                   <div class="error-message">
                     Invalid Owner (Instructor) ID:
@@ -189,13 +198,14 @@
                 }
               </div>
             }
-            <button
-              type="button"
-              (click)="s.managers.push(''); updateSchool()"
-              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
-            >
-              Add Manager
-            </button>
+            @if (userIsAdmin() || userIsSchoolManager()) {
+              <button
+                type="button"
+                (click)="s.managers.push(''); updateSchool()"
+              >
+                Add Manager
+              </button>
+            }
           </div>
         </div>
 
