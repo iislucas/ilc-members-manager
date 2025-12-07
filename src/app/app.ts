@@ -61,7 +61,14 @@ export class App {
   });
 
   currentViewTitle = computed(() => {
-    const viewId = this.routingService.matchedPatternId() as Views | '';
+    return this.viewIdToTitle(
+      this.routingService.matchedPatternId() as Views | '',
+    );
+  });
+
+  constructor() {}
+
+  viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
       case Views.ManageMembers:
         return 'Manage Members';
@@ -82,9 +89,7 @@ export class App {
       default:
         return 'Unknown View';
     }
-  });
-
-  constructor() {}
+  }
 
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);

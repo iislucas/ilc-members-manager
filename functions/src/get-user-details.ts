@@ -50,11 +50,11 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     // School manager/owner query
     const schoolsOwnedQuery = db
       .collection('schools')
-      .where('owner', '==', userMemberData.memberId)
+      .where('owner', '==', userMemberData.instructorId)
       .get();
     const schoolsManagedQuery = db
       .collection('schools')
-      .where('managers', 'array-contains', userMemberData.memberId)
+      .where('managers', 'array-contains', userMemberData.instructorId)
       .get();
 
     const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([

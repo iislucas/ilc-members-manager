@@ -76,6 +76,9 @@ export class MemberEditComponent {
   collapsed = linkedSignal<boolean>(() => {
     return this.collapsable() && (this.collapse() ?? true);
   });
+  showInstructorNotes = signal(false);
+  showSchoolNotes = signal(false);
+
   isDirty = computed(
     () =>
       !deepObjEq(this.member(), this.editableMember()) ||

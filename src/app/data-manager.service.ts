@@ -129,6 +129,8 @@ export class DataManagerService {
   }
 
   async updateMembersSync(user: UserDetails) {
+    console.log(`updateMembersSync(${user.member.email}: UserDetails)`);
+    console.log(user);
     if (user.isAdmin) {
       const q = query(this.membersCollection, orderBy('lastUpdated', 'desc'));
       this.snapshotsToUnsubscribe.push(
@@ -152,22 +154,28 @@ export class DataManagerService {
           collection(this.db, `schools/${schoolId}/members`),
           orderBy('lastUpdated', 'desc'),
         );
+        console.log(`loading members from: schools/${schoolId}/members`);
 
-        // TODO: race condition: if someone changes school within one that you
-        // manage, we might add the new one, then delete the old one, which will
-        // remove it from the all members collection.
-        //
-        // TODO: think if we can use the path instead of the id?
         const unsubscribe = onSnapshot(
           membersQuery,
           (snapshot) => {
             snapshot.docChanges().forEach((change) => {
               if (change.type === 'removed') {
-                allMembers.delete(change.doc.id);
+                // Avoids race condition when someone is moved from one school
+                // you own to another. Without this, we might add/update the
+                // member due to the new school, but then remove them from the
+                // old school, which, without this check would remove them from
+                // the global set.
+                const mem = allMembers.get(change.doc.id);
+                if (mem?.managingOrgId === schoolId) {
+                  allMembers.delete(change.doc.id);
+                }
               } else {
                 allMembers.set(change.doc.id, firestoreDocToMember(change.doc));
               }
             });
+            console.log('members loaded:');
+            console.log(Array.from(allMembers.values()));
             this.members.setEntries(Array.from(allMembers.values()));
           },
           (error) => {

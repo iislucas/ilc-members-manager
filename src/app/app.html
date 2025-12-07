@@ -17,13 +17,13 @@
               class="menu-item"
               (click)="currentView.set(Views.MyProfile); menuOpen.set(false)"
             >
-              My Profile
+              {{ viewIdToTitle(Views.MyProfile) }}
             </div>
             <div
               class="menu-item"
               (click)="currentView.set(Views.Schools); menuOpen.set(false)"
             >
-              Schools
+              {{ viewIdToTitle(Views.Schools) }}
             </div>
             <div
               class="menu-item"
@@ -31,7 +31,7 @@
                 currentView.set(Views.FindAnInstructor); menuOpen.set(false)
               "
             >
-              Find an Instructor
+              {{ viewIdToTitle(Views.FindAnInstructor) }}
             </div>
             @if (user.isAdmin || user.schoolsManaged.length > 0) {
               <div class="menu-seperator"></div>
@@ -41,7 +41,7 @@
                   currentView.set(Views.ManageMembers); menuOpen.set(false)
                 "
               >
-                Manage Members
+                {{ viewIdToTitle(Views.ManageMembers) }}
               </div>
             }
             @if (user.isAdmin) {
@@ -51,7 +51,7 @@
                   currentView.set(Views.ImportExport); menuOpen.set(false)
                 "
               >
-                Import/Export
+                {{ viewIdToTitle(Views.ImportExport) }}
               </div>
             }
           </div>

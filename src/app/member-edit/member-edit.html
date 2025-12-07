@@ -184,21 +184,31 @@
         </div>
 
         @if (userIsMemberOrAdmin()) {
-          <h3>Primary Instructor</h3>
-          <p class="note">
-            Members choose who they consider to be their primary instructor, and
-            can change it at any time. The primary instructor is visable only to
-            the member, their current primary instructor, and ILC HQ.
-          </p>
-          <p class="note">
-            The primary instructor can see the member's
-            <span class="section-chip">Contacts Details</span>,
-            <span class="section-chip">Membership Status & Level</span>, and
-            <span class="section-chip">Instructor Status</span> (and if they are
-            an instructor, their
-            <span class="section-chip">Instructor Public Listing</span>). The
-            primary instructor cannot edit the member's details.
-          </p>
+          <h3>
+            Primary Instructor
+            <app-icon
+              name="info"
+              (click)="showInstructorNotes.set(!showInstructorNotes())"
+              style="cursor: pointer"
+            ></app-icon>
+          </h3>
+          @if (showInstructorNotes()) {
+            <p class="note">
+              Members choose who they consider to be their primary instructor,
+              and can change it at any time. The member's choice of primary
+              instructor is visable only to the member, their current primary
+              instructor, and ILC HQ.
+            </p>
+            <p class="note">
+              The selected primary instructor can see the member's
+              <span class="section-chip">Contacts Details</span>,
+              <span class="section-chip">Membership Status & Level</span>, and
+              <span class="section-chip">Instructor Status</span> (and if this
+              member if an instructor, their
+              <span class="section-chip">Instructor Public Listing</span>). The
+              primary instructor cannot edit the any of the member's details.
+            </p>
+          }
 
           <label for="sifuInstructorId" class="align-top"
             >Primary Instructor ID</label
@@ -230,21 +240,30 @@
         }
 
         @if (userIsMemberSchoolManagerOrAdmin()) {
-          <h3>Primary School</h3>
+          <h3>
+            Primary School
+            <app-icon
+              name="info"
+              (click)="showSchoolNotes.set(!showSchoolNotes())"
+              style="cursor: pointer"
+            ></app-icon>
+          </h3>
 
-          <p class="note">
-            Member choose their primary school and can change it at any time. A
-            member's primary school is visible only to the member, the current
-            primary school and ILC HQ.
-          </p>
-          <p class="note">
-            Administrators of the primary school can see and edit
-            <span class="section-chip">Contacts Details</span>,
-            <span class="section-chip">Membership Status & Level</span>, and
-            <span class="section-chip">Instructor Status</span> (and if the
-            member if an instructor, their
-            <span class="section-chip">Instructor Public Listing</span>).
-          </p>
+          @if (showSchoolNotes()) {
+            <p class="note">
+              Member choose their primary school and can change it at any time.
+              A member's primary school is visible only to the member, the
+              current primary school and ILC HQ.
+            </p>
+            <p class="note">
+              Administrators of the primary school can see and edit
+              <span class="section-chip">Contacts Details</span>,
+              <span class="section-chip">Membership Status & Level</span>, and
+              <span class="section-chip">Instructor Status</span> (and if the
+              member if an instructor, their
+              <span class="section-chip">Instructor Public Listing</span>).
+            </p>
+          }
 
           <label for="inSchoolId" class="align-top">Primary School ID</label>
           <div class="rhs">

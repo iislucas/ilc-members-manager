@@ -35,7 +35,9 @@
     padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
     border: 1px solid #ccc;
     border-radius: 20px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition:
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
     flex-grow: 1;
 
     &:focus {
@@ -53,4 +55,18 @@
   align-items: stretch;
   gap: v.$card-sep;
   flex-grow: 1;
+}
+
+app-member-edit {
+  display: block;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
 }
