@@ -177,10 +177,46 @@ export class ImportExportComponent {
             break;
         }
       }
-      if (Object.keys(member).length > 0) {
-        await this.membersService.addMember(member as Member);
+      if (Object.keys(member).length > 0 && member.email) {
+        const existingMember = this.membersService.members
+          .entries()
+          .find((m) => m.email === member.email);
+
+        if (existingMember) {
+          if (this.hasMemberChanged(member, existingMember)) {
+            await this.membersService.updateMember(
+              member.email,
+              member as Member,
+            );
+          }
+        } else {
+          await this.membersService.addMember(member as Member);
+        }
       }
     });
+  }
+
+  private hasMemberChanged(
+    newMember: Partial<Member>,
+    existingMember: Member,
+  ): boolean {
+    for (const key in newMember) {
+      const typedKey = key as keyof Member;
+      const newValue = newMember[typedKey];
+      const oldValue = existingMember[typedKey];
+
+      // Skip undefined/null in newMember
+      if (newValue === undefined || newValue === null) continue;
+
+      if (Array.isArray(newValue) && Array.isArray(oldValue)) {
+        const newSorted = [...newValue].sort().join(',');
+        const oldSorted = [...oldValue].sort().join(',');
+        if (newSorted !== oldSorted) return true;
+      } else if (newValue !== oldValue) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private importSchools() {
