@@ -27,6 +27,13 @@ export class ImportExportComponent {
   public headers = signal<string[]>([]);
   public mapping = signal<Record<string, string>>({});
   public importType = signal<ImportType>('member');
+  public currentExampleIndex = signal(0);
+
+  public currentExampleRow = computed(() => {
+    const data = this.parsedData();
+    const index = this.currentExampleIndex();
+    return data[index] || {};
+  });
 
   private memberFields = Object.keys(initMember()) as Array<keyof Member>;
   private schoolFields = Object.keys(initSchool()) as Array<keyof School>;
@@ -42,6 +49,7 @@ export class ImportExportComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
+    this.currentExampleIndex.set(0);
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -55,6 +63,7 @@ export class ImportExportComponent {
         complete: (result) => {
           this.headers.set(result.meta.fields ?? []);
           this.parsedData.set(result.data);
+          this.setDefaultMapping(result.meta.fields ?? []);
         },
       });
     } else if (
@@ -89,15 +98,44 @@ export class ImportExportComponent {
 
         this.headers.set(firstObjectHeaders);
         this.parsedData.set(data);
+        this.setDefaultMapping(firstObjectHeaders);
       };
       reader.readAsText(file);
     }
   }
 
-  setMapping(field: string, event: Event) {
+  setDefaultMapping(headers: string[]) {
+    const fields = this.fieldsToMap();
+    const mapping: Record<string, string> = {};
+    fields.forEach((field) => {
+      if (headers.includes(field)) {
+        mapping[field] = field;
+      }
+    });
+    this.mapping.set(mapping);
+  }
+
+  setOneMappingValue(field: string, event: Event) {
     const selectElement = event.target as HTMLSelectElement;
     const csvHeader = selectElement.value;
-    this.mapping.update((m) => ({ ...m, [field]: csvHeader }));
+    this.mapping.update((m) => {
+      if (csvHeader) {
+        return { ...m, [field]: csvHeader };
+      } else {
+        const { [field]: removed, ...rest } = m;
+        return rest;
+      }
+    });
+  }
+
+  nextExample() {
+    this.currentExampleIndex.update((i) =>
+      Math.min(i + 1, this.parsedData().length - 1),
+    );
+  }
+
+  prevExample() {
+    this.currentExampleIndex.update((i) => Math.max(i - 1, 0));
   }
 
   importData() {

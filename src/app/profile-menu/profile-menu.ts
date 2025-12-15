@@ -1,5 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ImageLoaderService } from '../image-loader.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { IconComponent } from '../icons/icon.component';
 
@@ -12,8 +13,28 @@ import { IconComponent } from '../icons/icon.component';
 })
 export class ProfileMenuComponent {
   public firebaseService = inject(FirebaseStateService);
+  public imageLoader = inject(ImageLoaderService);
   public user = this.firebaseService.user;
   public menuOpen = signal(false);
+  // TODO: loadedImage should be a linkedSignal, and we can skip the effect in
+  // the constructor I think.
+  public loadedImage = signal<string | null>(null);
+
+  constructor() {
+    effect(
+      () => {
+        const url = this.userPhotoURL;
+        this.loadedImage.set(null);
+        if (url) {
+          this.imageLoader.loadImage(url).then(
+            (blobUrl) => this.loadedImage.set(blobUrl),
+            () => this.loadedImage.set(null),
+          );
+        }
+      },
+      { allowSignalWrites: true },
+    );
+  }
 
   get userInitial(): string {
     const user = this.user();

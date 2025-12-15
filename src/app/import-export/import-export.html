@@ -51,13 +51,31 @@
 </div>
 
 @if (parsedData().length > 0) {
+  @let fieldMapping = mapping();
   <div class="card mapping-table">
     <h3>Map Fields to {{ importType() }}</h3>
+
+    <div class="example-navigation">
+      <button (click)="prevExample()" [disabled]="currentExampleIndex() === 0">
+        Previous Example
+      </button>
+      <span>
+        Showing row {{ currentExampleIndex() + 1 }} of {{ parsedData().length }}
+      </span>
+      <button
+        (click)="nextExample()"
+        [disabled]="currentExampleIndex() === parsedData().length - 1"
+      >
+        Next Example
+      </button>
+    </div>
+
     <table>
       <thead>
         <tr>
           <th>{{ importType() }} Field</th>
           <th>CSV/JSONL Header</th>
+          <th>Example Value</th>
         </tr>
       </thead>
       <tbody>
@@ -65,12 +83,24 @@
           <tr>
             <td>{{ field }}</td>
             <td>
-              <select (change)="setMapping(field, $event)">
+              <select (change)="setOneMappingValue(field, $event)">
                 <option value="">--Select Header--</option>
                 @for (header of headers(); track header) {
-                  <option [value]="header">{{ header }}</option>
+                  <option
+                    [value]="header"
+                    [selected]="fieldMapping[field] === header"
+                  >
+                    {{ header }}
+                  </option>
                 }
               </select>
+            </td>
+            <td>
+              @if (fieldMapping[field]) {
+                {{ currentExampleRow()[fieldMapping[field]] }}
+              } @else {
+                <span class="no-mapping">--</span>
+              }
             </td>
           </tr>
         }
