@@ -16,8 +16,11 @@
         }
       </div>
       <div class="city-or-country">
-        <span class="city">{{ s.schoolCity }}, </span
-        ><span class="country">{{ s.schoolCountry }}</span>
+        <span class="city">{{ s.schoolCity }}, </span>
+        @if (s.schoolCountyOrState) {
+          <span class="county-state">{{ s.schoolCountyOrState }}, </span>
+        }
+        <span class="country">{{ s.schoolCountry }}</span>
       </div>
       <div class="unfold-button">
         <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
@@ -94,6 +97,18 @@
               id="schoolZipCode"
               name="schoolZipCode"
               [(ngModel)]="s.schoolZipCode"
+              (ngModelChange)="updateSchool()"
+              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+            />
+          </div>
+
+          <label for="schoolCountyOrState">County/State</label>
+          <div class="rhs">
+            <input
+              type="text"
+              id="schoolCountyOrState"
+              name="schoolCountyOrState"
+              [(ngModel)]="s.schoolCountyOrState"
               (ngModelChange)="updateSchool()"
               [disabled]="!userIsAdmin() && !userIsSchoolManager()"
             />

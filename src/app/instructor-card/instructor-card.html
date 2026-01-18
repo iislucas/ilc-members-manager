@@ -20,6 +20,9 @@
     @if (i.publicRegionOrCity) {
       <span class="city">{{ i.publicRegionOrCity }}, </span>
     }
+    @if (i.publicCountyOrState) {
+      <span class="county-state">{{ i.publicCountyOrState }}, </span>
+    }
     <span class="country">{{ i.country }}</span>
   </div>
   @if (i.publicEmail) {

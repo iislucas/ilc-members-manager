@@ -90,7 +90,9 @@ export class DataManagerService {
     'publicEmail',
     'memberId',
     'city',
+    'countyOrState',
     'publicRegionOrCity',
+    'publicCountyOrState',
     'country',
   ]);
   public instructors = new SearchableSet<InstructorPublicData>([
@@ -100,6 +102,7 @@ export class DataManagerService {
     'publicEmail',
     'memberId',
     'publicRegionOrCity',
+    'publicCountyOrState',
     'publicPhone',
     'country',
   ]);
@@ -107,6 +110,7 @@ export class DataManagerService {
     'schoolName',
     'schoolId',
     'schoolCity',
+    'schoolCountyOrState',
     'schoolCountry',
   ]);
   public counters = signal<Counters | null>(null);

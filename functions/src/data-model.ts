@@ -29,7 +29,8 @@ export type CountryCodes = {
 
 export enum MembershipType {
   Annual = 'Annual',
-  Life = 'Life', // includes from spouse of a Life member.
+  Life = 'Life',
+  LifePartner = 'LifeByPartner', // spouse of a Life member.
   Senior = 'Senior',
   Student = 'Student',
   Deceased = 'Deceased',
@@ -88,6 +89,7 @@ export type School = {
   schoolAddress: string; // Address line of the school
   schoolCity: string; // City address line of the school
   schoolZipCode: string; // Zip or postcode of the school
+  schoolCountyOrState: string; // County or State
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
 
@@ -139,6 +141,7 @@ export type Member = {
   address: string; // Mailing address
   city: string; // Country of residence
   zipCode: string; // Country of residence
+  countyOrState: string; // County or State
   country: string; // Country of residence
   phone: string; // Phone number
   email: string; // Contact email, UNIQUE
@@ -149,6 +152,7 @@ export type Member = {
   publicEmail: string; // publicly listed email address for contacting them
   publicPhone: string; // publicly listed phone number for contacting them
   publicRegionOrCity: string; // publicly listed area/city
+  publicCountyOrState: string; // publicly listed county or state
   instructorWebsite: string; // Optional website URL
 
   // Level information
@@ -207,6 +211,7 @@ export type InstructorPublicData = {
   instructorId: string;
 
   publicRegionOrCity: string;
+  publicCountyOrState: string;
   country: string;
 
   publicEmail: string;
@@ -239,6 +244,7 @@ export function initMember(): Member {
     address: '', // Mailing address
     city: '', // Mailing address
     zipCode: '', // Mailing address
+    countyOrState: '', // County or State
     country: '', // Country of residence
     phone: '', // optional.
     email: '', // Unique and equal to the id.
@@ -249,6 +255,7 @@ export function initMember(): Member {
     publicEmail: '',
     publicPhone: '',
     publicRegionOrCity: '', // publicly listed area/city
+    publicCountyOrState: '', // publicly listed county or state
     instructorWebsite: '', // Optional publicly listed website URL
 
     // Student membership status
@@ -289,6 +296,7 @@ export function initSchool(): School {
     schoolAddress: '',
     schoolCity: '',
     schoolZipCode: '',
+    schoolCountyOrState: '',
     schoolCountry: '',
     schoolWebsite: '',
     owner: '',
@@ -307,6 +315,7 @@ export function initInstructor(): InstructorPublicData {
     mastersLevels: [],
     instructorId: '',
     publicRegionOrCity: '',
+    publicCountyOrState: '',
     country: '',
     publicEmail: '',
     publicPhone: '',

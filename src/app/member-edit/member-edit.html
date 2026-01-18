@@ -35,10 +35,19 @@
       }
     </div>
     <div class="city-and-country">
+      <!-- TODO: think about showing both in the summary view, but being clear which is public? -->
       @if (e.publicRegionOrCity) {
         <span class="city">{{ e.publicRegionOrCity }}, </span>
-      } @else if (e.city) {
-        <span class="city">{{ e.city }}, </span>
+        @if (e.publicCountyOrState) {
+          <span>{{ e.publicCountyOrState }}, </span>
+        }
+      } @else {
+        @if (e.city) {
+          <span class="city">{{ e.city }}, </span>
+        }
+        @if (e.countyOrState) {
+          <span>{{ e.countyOrState }}, </span>
+        }
       }
       {{ e.country }}
     </div>
@@ -122,6 +131,17 @@
             id="zipCode"
             name="zipCode"
             [(ngModel)]="e.zipCode"
+            (ngModelChange)="updateMember()"
+            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+          />
+        </div>
+        <label for="countyOrState">County/State</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="countyOrState"
+            name="countyOrState"
+            [(ngModel)]="e.countyOrState"
             (ngModelChange)="updateMember()"
             [disabled]="!userIsMemberSchoolManagerOrAdmin()"
           />
@@ -495,6 +515,18 @@
               id="publicRegionOrCity"
               name="publicRegionOrCity"
               [(ngModel)]="e.publicRegionOrCity"
+              (ngModelChange)="updateMember()"
+              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            />
+          </div>
+
+          <label for="publicCountyOrState">Public County/State</label>
+          <div class="rhs">
+            <input
+              type="text"
+              id="publicCountyOrState"
+              name="publicCountyOrState"
+              [(ngModel)]="e.publicCountyOrState"
               (ngModelChange)="updateMember()"
               [disabled]="!userIsMemberSchoolManagerOrAdmin()"
             />

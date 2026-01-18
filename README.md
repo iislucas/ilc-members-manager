@@ -142,8 +142,6 @@ gcloud auth application-default login
 firebase login
 # and then select your project
 firebase use --add
-# and then select your project
-firebase use --add
 ```
 
 ### Deploy

@@ -51,6 +51,7 @@ export async function updateInstructor(update: InstructorUpdate) {
         mastersLevels: member.mastersLevels,
         instructorId: member.instructorId,
         publicRegionOrCity: member.publicRegionOrCity,
+        publicCountyOrState: member.publicCountyOrState,
         country: member.country,
         publicEmail: member.publicEmail,
         publicPhone: member.publicPhone,

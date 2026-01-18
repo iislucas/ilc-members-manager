@@ -25,7 +25,9 @@ export class FilteredMembersComponent {
     'publicEmail',
     'memberId',
     'city',
+    'countyOrState',
     'publicRegionOrCity',
+    'publicCountyOrState',
     'country',
   ]);
   errorMessage = computed(() => {
