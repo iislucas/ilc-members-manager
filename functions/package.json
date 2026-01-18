@@ -1,10 +1,16 @@
 {
   "name": "google-cal-events-viewer-functions",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "protobufjs"
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "deploy": "npm run build && firebase deploy --only functions",
-    "emulate": "npm run build && concurrently \"npm run build:watch\" \"firebase emulators:start\"",
+    "deploy": "pnpm build && firebase deploy --only functions",
+    "emulate": "pnpm build && concurrently \"pnpm build:watch\" \"firebase emulators:start\"",
     "logs": "firebase functions:log",
     "admin": "ts-node scripts/admin.ts"
   },

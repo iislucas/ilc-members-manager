@@ -7,16 +7,26 @@
     "start:wc": "ng serve --project find-an-instructor-wc",
     "build": "ng build --project ilc-members-manager",
     "build:wc": "ng build --project find-an-instructor-wc",
-    "build:functions": "npm --prefix functions run build",
-    "build:all": "npm run build && npm run build:functions",
+    "build:functions": "pnpm --prefix functions run build",
+    "build:all": "pnpm build && pnpm build:functions",
     "watch": "ng build --watch --configuration development --project ilc-members-manager",
     "test:watch": "ng test --project ilc-members-manager",
     "test:once": "ng test --no-watch --browsers=ChromeHeadless --project ilc-members-manager",
-    "test": "npm run test:once",
-    "deploy": "npm run build:all && firebase deploy",
+    "test": "pnpm test:once",
+    "deploy": "pnpm build:all && firebase deploy",
     "deploy:firestore-rules": "firebase deploy --only firestore:rules",
-    "deploy:functions": "npm run build:functions && firebase deploy --only functions",
-    "deploy:hosting": "npm run build && firebase deploy --only hosting"
+    "deploy:functions": "pnpm build:functions && firebase deploy --only functions",
+    "deploy:hosting": "pnpm build && firebase deploy --only hosting"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@parcel/watcher",
+      "esbuild",
+      "lmdb",
+      "msgpackr-extract",
+      "protobufjs"
+    ]
   },
   "prettier": {
     "overrides": [

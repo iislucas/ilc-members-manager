@@ -8,14 +8,14 @@ To deploy:
 
 (from root directory, not functions subdirectory)
 ```sh
-npm run deploy:functions
+pnpm deploy:functions
 ```
 
 To emulate locally, run: 
 
 (from the functions subdirectory)
 ```sh
-npm run emulate
+pnpm run emulate
 ```
 
 Wait a bit for it to show a list of available ports etc and listing of URLs
@@ -23,7 +23,7 @@ for different functions. Then...
 
 ```sh
 cd functions
-npm run emulate
+pnpm run emulate
 ```
 And in another shell... 
 ```sh

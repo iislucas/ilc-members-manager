@@ -30,9 +30,9 @@ This project was generated using [Angular
 CLI](https://github.com/angular/angular-cli) version 20.0.5.
 
 ```bash
-npm install
+pnpm install
 cd functions
-npm install
+pnpm install
 cd ..
 ```
 
@@ -60,7 +60,7 @@ details of the tech stack and coding style.
 To start a local development server, run:
 
 ```bash
-npm run start
+pnpm start
 ```
 
 Once the server is running, open your browser and navigate to
@@ -77,13 +77,13 @@ data structures.
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
 
 ```bash
-npx ng generate component component-name --project ilc-members-manager
+pnpm ng generate component component-name --project ilc-members-manager
 ```
 
 For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
 
 ```bash
-npx ng generate --help
+pnpm ng generate --help
 ```
 
 ### Building
@@ -91,7 +91,7 @@ npx ng generate --help
 To build the project run:
 
 ```bash
-npm run build
+pnpm build
 ```
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
@@ -101,7 +101,7 @@ This will compile your project and store the build artifacts in the `dist/` dire
 To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
 
 ```bash
-npm run test
+pnpm test
 ```
 
 ### Firestore indexes
@@ -142,6 +142,8 @@ gcloud auth application-default login
 firebase login
 # and then select your project
 firebase use --add
+# and then select your project
+firebase use --add
 ```
 
 ### Deploy
@@ -149,32 +151,32 @@ firebase use --add
 Deploy everything, functions and hosted web app:
 
 ```sh
-npm run deploy
+pnpm deploy
 ```
 
 Deploy just the hosted web UI:
 
 ```sh
-npm run deploy:hosting
+pnpm deploy:hosting
 ```
 
 Deploy just functions
 
 ```sh
-npm run deploy:functions
+pnpm deploy:functions
 ```
 
 Deploy just firebase rules
 
 ```sh
-npm run deploy:firestore-rules
+pnpm deploy:firestore-rules
 ```
 
 #### Deploying the Find an Instructor web-component
 
 ```sh
 # Build the web-component files
-npm run build:wc
+pnpm build:wc
 # Set the cloud bucket name/path
 CLOUD_BUCKET_NAME_AND_PATH= # .. Cloud bucket name and path....
 # Copy files to the cloud bucket.
