@@ -23,12 +23,17 @@ export type ImportStage =
   | 'COMPLETED';
 
 export interface ProposedChange {
-  status: 'NEW' | 'UPDATE' | 'UNCHANGED';
+  status: 'NEW' | 'UPDATE' | 'UNCHANGED' | 'ISSUE';
   key: string;
   newItem: Member | School;
   oldItem?: Member | School;
   diffs: { field: string; oldVal: string; newVal: string }[];
+  issues?: string[];
 }
+
+type MappingResult<T> =
+  | { success: true; value: T }
+  | { success: false; issue: string };
 
 @Component({
   selector: 'app-import-export',
@@ -61,6 +66,7 @@ export class ImportExportComponent {
     return {
       new: changes.filter((c) => c.status === 'NEW').length,
       update: changes.filter((c) => c.status === 'UPDATE').length,
+      issue: changes.filter((c) => c.status === 'ISSUE').length,
       unchanged: changes.filter((c) => c.status === 'UNCHANGED').length,
       total: changes.length,
     };
@@ -222,7 +228,7 @@ export class ImportExportComponent {
       const row = data[i];
 
       if (this.importType() === 'member') {
-        const member = this.mapRowToMember(row, mapping);
+        const { member, issues } = this.mapRowToMember(row, mapping);
         if (!member.email) continue; // Skip if no email
 
         const existing = this.membersService.members
@@ -232,18 +238,25 @@ export class ImportExportComponent {
         if (existing) {
           const diffs = this.getDifferences(member, existing);
           proposed.push({
-            status: diffs.length > 0 ? 'UPDATE' : 'UNCHANGED',
+            status:
+              issues.length > 0
+                ? 'ISSUE'
+                : diffs.length > 0
+                  ? 'UPDATE'
+                  : 'UNCHANGED',
             key: member.email,
             newItem: member as Member,
             oldItem: existing,
             diffs,
+            issues: issues.length > 0 ? issues : undefined,
           });
         } else {
           proposed.push({
-            status: 'NEW',
+            status: issues.length > 0 ? 'ISSUE' : 'NEW',
             key: member.email,
             newItem: member as Member,
             diffs: [],
+            issues: issues.length > 0 ? issues : undefined,
           });
         }
       } else {
@@ -315,8 +328,9 @@ export class ImportExportComponent {
   private mapRowToMember(
     row: ParsedRow,
     mapping: Record<string, string>,
-  ): Partial<Member> {
+  ): { member: Partial<Member>; issues: string[] } {
     const member: Partial<Member> = {};
+    const issues: string[] = [];
     for (const partialKey in mapping) {
       const key = partialKey as keyof Member;
       const csvHeader = mapping[key];
@@ -328,9 +342,20 @@ export class ImportExportComponent {
         case 'isAdmin':
           member[key] = ['true', '1', 'yes'].includes(value.toLowerCase());
           break;
-        case 'membershipType':
-          member[key] = value as MembershipType;
+        case 'membershipType': {
+          const result = this.mapMembershipType(value);
+          if (result.success) {
+            member[key] = result.value;
+          } else {
+            issues.push(result.issue);
+            // Even if it fails mapping, we can keep the raw value as a string cast
+            // though it might violate the enum type if we were strict.
+            // But for the 'member' object we are building, we'll leave it as is
+            // or maybe set it to a default if we have to.
+            // Since member is Partial<Member>, we can just not set it if we want to be safe.
+          }
           break;
+        }
         case 'mastersLevels':
           member[key] = value.split(',').map((s) => s.trim()) as MasterLevel[];
           break;
@@ -339,7 +364,33 @@ export class ImportExportComponent {
           break;
       }
     }
-    return member;
+    return { member, issues };
+  }
+
+  private mapMembershipType(value: string): MappingResult<MembershipType> {
+    const normalized = value.toLowerCase().trim().replace(/\s+/g, ' ');
+
+    if (normalized.includes('annual'))
+      return { success: true, value: MembershipType.Annual };
+    if (
+      normalized.includes('life (partner)') ||
+      normalized.includes('life partner')
+    )
+      return { success: true, value: MembershipType.LifePartner };
+    if (normalized.includes('life'))
+      return { success: true, value: MembershipType.Life };
+    if (normalized.includes('senior'))
+      return { success: true, value: MembershipType.Senior };
+    if (normalized.includes('student'))
+      return { success: true, value: MembershipType.Student };
+    if (normalized.includes('minor'))
+      return { success: true, value: MembershipType.Minor };
+    if (normalized.includes('inactive'))
+      return { success: true, value: MembershipType.Inactive };
+    if (normalized.includes('deceased'))
+      return { success: true, value: MembershipType.Deceased };
+
+    return { success: false, issue: `Unknown membership type: "${value}"` };
   }
 
   private mapRowToSchool(

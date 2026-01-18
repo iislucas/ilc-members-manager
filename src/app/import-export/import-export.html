@@ -142,6 +142,7 @@
           <div class="summary-stats">
             <div class="stat new">New: {{ summary.new }}</div>
             <div class="stat update">Updates: {{ summary.update }}</div>
+            <div class="stat issue">Issues: {{ summary.issue }}</div>
             <div class="stat unchanged">Unchanged: {{ summary.unchanged }}</div>
             <div class="stat total">Total: {{ summary.total }}</div>
           </div>
@@ -175,8 +176,26 @@
                   {{ change.key }}
                 </h4>
 
-                @if (change.status === "NEW") {
-                  <p>This is a new record.</p>
+                @if (change.status === "ISSUE") {
+                  <div class="issues-list card">
+                    <h5>Mapping Issues Found:</h5>
+                    <ul>
+                      @for (issue of change.issues; track issue) {
+                        <li>{{ issue }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+
+                @if (change.status === "NEW" || change.status === "ISSUE") {
+                  @if (change.status === "NEW") {
+                    <p>This is a new record.</p>
+                  } @else {
+                    <p>
+                      This record has mapping issues. Review below and consider
+                      fixing your import file.
+                    </p>
+                  }
                   <pre>{{ change.newItem | json }}</pre>
                 } @else if (change.status === "UPDATE") {
                   <table>

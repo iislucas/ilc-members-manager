@@ -33,6 +33,7 @@ export enum MembershipType {
   LifePartner = 'LifeByPartner', // spouse of a Life member.
   Senior = 'Senior',
   Student = 'Student',
+  Minor = 'Minor',
   Deceased = 'Deceased',
   Inactive = 'Inactive',
 }
