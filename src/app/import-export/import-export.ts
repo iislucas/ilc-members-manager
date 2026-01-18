@@ -57,9 +57,17 @@ export class ImportExportComponent {
 
   // Analysis / Preview
   public proposedChanges = signal<ProposedChange[]>([]);
+  public selectedStatusFilter = signal<string | null>(null);
+  public filteredProposedChanges = computed(() => {
+    const changes = this.proposedChanges();
+    const filter = this.selectedStatusFilter();
+    if (!filter) return changes;
+    return changes.filter((c) => c.status === filter);
+  });
+
   public previewIndex = signal(0);
   public currentPreviewChange = computed(
-    () => this.proposedChanges()[this.previewIndex()],
+    () => this.filteredProposedChanges()[this.previewIndex()],
   );
   public changesSummary = computed(() => {
     const changes = this.proposedChanges();
@@ -95,6 +103,7 @@ export class ImportExportComponent {
     this.headers.set([]);
     this.mapping.set({});
     this.proposedChanges.set([]);
+    this.selectedStatusFilter.set(null);
     this.previewIndex.set(0);
     this.importProgress.set({ current: 0, total: 0 });
     // Reset file input if needed via ViewChild, but for now user can just click button
@@ -215,6 +224,7 @@ export class ImportExportComponent {
 
   async analyzeData() {
     this.stage.set('ANALYZING');
+    this.selectedStatusFilter.set(null);
     this.previewIndex.set(0);
 
     // Give UI a moment to update to 'ANALYZING'
@@ -229,7 +239,16 @@ export class ImportExportComponent {
 
       if (this.importType() === 'member') {
         const { member, issues } = this.mapRowToMember(row, mapping);
-        if (!member.email) continue; // Skip if no email
+        if (!member.email) {
+          proposed.push({
+            status: 'ISSUE',
+            key: 'Missing Email',
+            newItem: member as Member,
+            diffs: [],
+            issues: ['Email is required', ...issues],
+          });
+          continue;
+        }
 
         const existing = this.membersService.members
           .entries()
@@ -450,11 +469,20 @@ export class ImportExportComponent {
 
   nextPreview() {
     this.previewIndex.update((i) =>
-      Math.min(i + 1, this.proposedChanges().length - 1),
+      Math.min(i + 1, this.filteredProposedChanges().length - 1),
     );
   }
 
   prevPreview() {
     this.previewIndex.update((i) => Math.max(i - 1, 0));
+  }
+
+  setFilter(status: string | null) {
+    if (this.selectedStatusFilter() === status) {
+      this.selectedStatusFilter.set(null);
+    } else {
+      this.selectedStatusFilter.set(status);
+    }
+    this.previewIndex.set(0);
   }
 }

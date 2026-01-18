@@ -61,22 +61,53 @@ h3 {
     font-weight: bold;
     padding: 0.5em 1em;
     border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid transparent;
+
+    &:hover {
+      filter: brightness(0.9);
+      transform: translateY(-1px);
+    }
+
+    &.active {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
 
     &.new {
       color: #2e7d32;
       background: #e8f5e9;
+      &.active {
+        border-color: #2e7d32;
+      }
     }
     &.update {
       color: #f57c00;
       background: #fff3e0;
+      &.active {
+        border-color: #f57c00;
+      }
     }
     &.unchanged {
       color: #616161;
       background: #eeeeee;
+      &.active {
+        border-color: #616161;
+      }
     }
     &.issue {
       color: #c62828;
       background: #ffebee;
+      &.active {
+        border-color: #c62828;
+      }
+    }
+    &.total {
+      color: #1976d2;
+      background: #e3f2fd;
+      &.active {
+        border-color: #1976d2;
+      }
     }
   }
 }

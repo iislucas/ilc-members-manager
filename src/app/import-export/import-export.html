@@ -140,14 +140,44 @@
           <h3>Review Changes</h3>
           @let summary = changesSummary();
           <div class="summary-stats">
-            <div class="stat new">New: {{ summary.new }}</div>
-            <div class="stat update">Updates: {{ summary.update }}</div>
-            <div class="stat issue">Issues: {{ summary.issue }}</div>
-            <div class="stat unchanged">Unchanged: {{ summary.unchanged }}</div>
-            <div class="stat total">Total: {{ summary.total }}</div>
+            <div
+              class="stat new"
+              [class.active]="selectedStatusFilter() === 'NEW'"
+              (click)="setFilter('NEW')"
+            >
+              New: {{ summary.new }}
+            </div>
+            <div
+              class="stat update"
+              [class.active]="selectedStatusFilter() === 'UPDATE'"
+              (click)="setFilter('UPDATE')"
+            >
+              Updates: {{ summary.update }}
+            </div>
+            <div
+              class="stat issue"
+              [class.active]="selectedStatusFilter() === 'ISSUE'"
+              (click)="setFilter('ISSUE')"
+            >
+              Issues: {{ summary.issue }}
+            </div>
+            <div
+              class="stat unchanged"
+              [class.active]="selectedStatusFilter() === 'UNCHANGED'"
+              (click)="setFilter('UNCHANGED')"
+            >
+              Unchanged: {{ summary.unchanged }}
+            </div>
+            <div
+              class="stat total"
+              [class.active]="selectedStatusFilter() === null"
+              (click)="setFilter(null)"
+            >
+              Total: {{ summary.total }}
+            </div>
           </div>
 
-          @if (proposedChanges().length > 0) {
+          @if (filteredProposedChanges().length > 0) {
             <div class="change-viewer">
               <div class="example-navigation">
                 <button
@@ -157,11 +187,14 @@
                   Previous Change
                 </button>
                 <span>
-                  {{ previewIndex() + 1 }} of {{ proposedChanges().length }}
+                  {{ previewIndex() + 1 }} of
+                  {{ filteredProposedChanges().length }}
                 </span>
                 <button
                   (click)="nextPreview()"
-                  [disabled]="previewIndex() === proposedChanges().length - 1"
+                  [disabled]="
+                    previewIndex() === filteredProposedChanges().length - 1
+                  "
                 >
                   Next Change
                 </button>

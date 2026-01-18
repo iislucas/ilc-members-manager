@@ -31,8 +31,7 @@ export class ProfileMenuComponent {
             () => this.loadedImage.set(null),
           );
         }
-      },
-      { allowSignalWrites: true },
+      }
     );
   }
 
