@@ -59,7 +59,7 @@
   </div>
 
   @if (!collapsed()) {
-    <form #memberForm="ngForm" (ngSubmit)="saveMember()">
+    <form (submit)="saveMember()">
       <div class="form-section">
         <h3>Contact</h3>
         <label for="name">Name</label>
@@ -68,14 +68,11 @@
             type="text"
             id="name"
             name="name"
-            [(ngModel)]="e.name"
-            (ngModelChange)="updateMember()"
-            #name="ngModel"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.name"
             required
           />
-          @if (name.invalid) {
-            <div class="error-message">Name is required.</div>
+          @if (form.name().errors(); as errors) {
+            <div class="error-message">{{ errors[0].message }}</div>
           }
         </div>
 
@@ -85,19 +82,15 @@
             type="email"
             id="email"
             name="email"
-            [(ngModel)]="e.email"
-            (ngModelChange)="updateMember()"
-            #email="ngModel"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.email"
             required
-            email
           />
           @if (isDupEmail()) {
             <div class="error-message">
               This email address is already in use.
             </div>
-          } @else if (email.invalid) {
-            <div class="error-message">Please enter a valid email address.</div>
+          } @else if (form.email().errors(); as errors) {
+            <div class="error-message">{{ errors[0].message }}</div>
           }
         </div>
 
@@ -106,9 +99,7 @@
           <textarea
             id="address"
             name="address"
-            [(ngModel)]="e.address"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.address"
           ></textarea>
         </div>
 
@@ -118,9 +109,7 @@
             type="text"
             id="city"
             name="city"
-            [(ngModel)]="e.city"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.city"
           />
         </div>
 
@@ -130,9 +119,7 @@
             type="text"
             id="zipCode"
             name="zipCode"
-            [(ngModel)]="e.zipCode"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.zipCode"
           />
         </div>
         <label for="countyOrState">County/State</label>
@@ -141,9 +128,7 @@
             type="text"
             id="countyOrState"
             name="countyOrState"
-            [(ngModel)]="e.countyOrState"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.countyOrState"
           />
         </div>
 
@@ -154,9 +139,8 @@
             [displayFns]="countryDisplayFns"
             [inputBoxIsChip]="false"
             [placeholder]="'Search for a country'"
-            [initSearchTerm]="e.country"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
-            (textUpdated)="e.country = $event; updateMember()"
+            [initSearchTerm]="form.country().value()"
+            (textUpdated)="form.country().value.set($event)"
           ></app-autocomplete>
           @if (countryWithCode(); as cc) {
             <div class="identifier-chip">{{ cc.id }}</div>
@@ -171,9 +155,7 @@
             type="text"
             id="phone"
             name="phone"
-            [(ngModel)]="e.phone"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.phone"
           />
         </div>
 
@@ -183,9 +165,7 @@
             type="text"
             id="gender"
             name="gender"
-            [(ngModel)]="e.gender"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.gender"
           />
         </div>
 
@@ -197,9 +177,7 @@
             id="dateOfBirth"
             name="dateOfBirth"
             placeholder="YYYY-MM-DD"
-            [(ngModel)]="e.dateOfBirth"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+            [formField]="form.dateOfBirth"
           />
         </div>
 
@@ -239,9 +217,8 @@
               [searchableSet]="membersService.instructors"
               [placeholder]="'Search for an instructor'"
               [displayFns]="instructorDisplayFns"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
-              [initSearchTerm]="e.sifuInstructorId"
-              (textUpdated)="e.sifuInstructorId = $event; updateMember()"
+              [initSearchTerm]="form.sifuInstructorId().value()"
+              (textUpdated)="form.sifuInstructorId().value.set($event)"
             ></app-autocomplete>
             @if (e.sifuInstructorId === "") {
               <div class="note">No primary instructor set</div>
@@ -291,9 +268,8 @@
               [searchableSet]="membersService.schools"
               [placeholder]="'Search for a school'"
               [displayFns]="schoolDisplayFns"
-              [disabled]="!userIsMemberOrAdmin()"
-              [initSearchTerm]="e.managingOrgId"
-              (textUpdated)="e.managingOrgId = $event; updateMember()"
+              [initSearchTerm]="form.managingOrgId().value()"
+              (textUpdated)="form.managingOrgId().value.set($event)"
             ></app-autocomplete>
             @if (e.managingOrgId.trim() === "") {
               <div class="note">Primary School is ILC HQ</div>
@@ -337,9 +313,7 @@
           <select
             id="membershipType"
             name="membershipType"
-            [(ngModel)]="e.membershipType"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsSchoolManagerOrAdmin()"
+            [formField]="form.membershipType"
             required
           >
             @for (type of membershipTypes; track type) {
@@ -356,9 +330,7 @@
             id="firstMembershipStarted"
             name="firstMembershipStarted"
             placeholder="YYYY-MM-DD"
-            [(ngModel)]="e.firstMembershipStarted"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsSchoolManagerOrAdmin()"
+            [formField]="form.firstMembershipStarted"
           />
         </div>
 
@@ -370,9 +342,7 @@
             id="lastRenewalDate"
             name="lastRenewalDate"
             placeholder="YYYY-MM-DD"
-            [(ngModel)]="e.lastRenewalDate"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsSchoolManagerOrAdmin()"
+            [formField]="form.lastRenewalDate"
           />
         </div>
 
@@ -385,9 +355,7 @@
               id="currentMembershipExpires"
               name="currentMembershipExpires"
               placeholder="YYYY-MM-DD"
-              [(ngModel)]="e.currentMembershipExpires"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsSchoolManagerOrAdmin()"
+              [formField]="form.currentMembershipExpires"
             />
           </div>
         }
@@ -398,9 +366,7 @@
             type="text"
             id="studentLevel"
             name="studentLevel"
-            [(ngModel)]="e.studentLevel"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsSchoolManagerOrAdmin()"
+            [formField]="form.studentLevel"
           />
         </div>
 
@@ -410,9 +376,7 @@
             type="text"
             id="applicationLevel"
             name="applicationLevel"
-            [(ngModel)]="e.applicationLevel"
-            (ngModelChange)="updateMember()"
-            [disabled]="!userIsSchoolManagerOrAdmin()"
+            [formField]="form.applicationLevel"
           />
         </div>
 
@@ -425,7 +389,9 @@
                 name="masterLevels"
                 type="checkbox"
                 [checked]="e.mastersLevels.includes(level)"
-                (change)="onMasterLevelChange(level, $event.target.checked)"
+                (change)="
+                  onMasterLevelChange(level, $any($event.target).checked)
+                "
                 [disabled]="!userIsAdmin()"
               />
               {{ level }}
@@ -458,9 +424,7 @@
               id="instructorLicenseExpires"
               name="instructorLicenseExpires"
               placeholder="YYYY-MM-DD"
-              [(ngModel)]="e.instructorLicenseExpires"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsSchoolManagerOrAdmin()"
+              [formField]="form.instructorLicenseExpires"
             />
           </div>
 
@@ -478,9 +442,7 @@
               type="text"
               id="instructorWebsite"
               name="instructorWebsite"
-              [(ngModel)]="e.instructorWebsite"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [formField]="form.instructorWebsite"
             />
           </div>
 
@@ -490,9 +452,7 @@
               type="email"
               id="publicEmail"
               name="publicEmail"
-              [(ngModel)]="e.publicEmail"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [formField]="form.publicEmail"
             />
           </div>
 
@@ -502,9 +462,7 @@
               type="text"
               id="publicPhone"
               name="publicPhone"
-              [(ngModel)]="e.publicPhone"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [formField]="form.publicPhone"
             />
           </div>
 
@@ -514,9 +472,7 @@
               type="text"
               id="publicRegionOrCity"
               name="publicRegionOrCity"
-              [(ngModel)]="e.publicRegionOrCity"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [formField]="form.publicRegionOrCity"
             />
           </div>
 
@@ -526,9 +482,7 @@
               type="text"
               id="publicCountyOrState"
               name="publicCountyOrState"
-              [(ngModel)]="e.publicCountyOrState"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsMemberSchoolManagerOrAdmin()"
+              [formField]="form.publicCountyOrState"
             />
           </div>
         }
@@ -540,9 +494,7 @@
               type="checkbox"
               id="isAdmin"
               name="isAdmin"
-              [(ngModel)]="e.isAdmin"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsAdmin()"
+              [formField]="form.isAdmin"
             />
             <span class="note">(can edit all members)</span>
           </div>
@@ -552,9 +504,7 @@
             <textarea
               id="notes"
               name="notes"
-              [(ngModel)]="e.notes"
-              (ngModelChange)="updateMember()"
-              [disabled]="!userIsAdmin()"
+              [formField]="form.notes"
             ></textarea>
           </div>
         }
@@ -587,7 +537,7 @@
               <button
                 type="submit"
                 [disabled]="
-                  isDupEmail() || isDupMemberId() || memberForm.invalid
+                  isDupEmail() || isDupMemberId() || form().invalid()
                 "
               >
                 Save

@@ -28,7 +28,7 @@
     </div>
 
     @if (!collapsed()) {
-      <form #schoolForm="ngForm" (ngSubmit)="saveSchool()">
+      <form (submit)="saveSchool()">
         <div class="form-section">
           @if (userIsSchoolManager()) {
             <p class="members-link" (click)="gotoMembers()">Manage Members</p>
@@ -40,15 +40,10 @@
               class="long"
               type="text"
               id="schoolName"
-              name="schoolName"
-              [(ngModel)]="s.schoolName"
-              (ngModelChange)="updateSchool()"
-              #schoolName="ngModel"
-              required
-              [disabled]="!userIsAdmin()"
+              [formField]="form.schoolName"
             />
-            @if (schoolName.invalid) {
-              <div class="error-message">School Name is required.</div>
+            @if (form.schoolName().errors(); as errors) {
+              <div class="error-message">{{ errors[0].message }}</div>
             }
           </div>
 
@@ -71,10 +66,7 @@
             <textarea
               class="long"
               id="schoolAddress"
-              name="schoolAddress"
-              [(ngModel)]="s.schoolAddress"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+              [formField]="form.schoolAddress"
             ></textarea>
           </div>
 
@@ -83,10 +75,7 @@
             <input
               type="text"
               id="schoolCity"
-              name="schoolCity"
-              [(ngModel)]="s.schoolCity"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin()"
+              [formField]="form.schoolCity"
             />
           </div>
 
@@ -95,10 +84,7 @@
             <input
               type="text"
               id="schoolZipCode"
-              name="schoolZipCode"
-              [(ngModel)]="s.schoolZipCode"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+              [formField]="form.schoolZipCode"
             />
           </div>
 
@@ -107,10 +93,7 @@
             <input
               type="text"
               id="schoolCountyOrState"
-              name="schoolCountyOrState"
-              [(ngModel)]="s.schoolCountyOrState"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+              [formField]="form.schoolCountyOrState"
             />
           </div>
 
@@ -119,10 +102,7 @@
             <input
               type="text"
               id="schoolCountry"
-              name="schoolCountry"
-              [(ngModel)]="s.schoolCountry"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin()"
+              [formField]="form.schoolCountry"
             />
           </div>
 
@@ -132,10 +112,7 @@
               class="long"
               type="text"
               id="schoolWebsite"
-              name="schoolWebsite"
-              [(ngModel)]="s.schoolWebsite"
-              (ngModelChange)="updateSchool()"
-              [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+              [formField]="form.schoolWebsite"
             />
           </div>
 
@@ -148,8 +125,8 @@
                 [searchableSet]="membersService.instructors"
                 [placeholder]="'Search instructor for owner'"
                 [displayFns]="instructorDisplayFns"
-                [initSearchTerm]="s.owner"
-                (textUpdated)="s.owner = $event; updateSchool()"
+                [initSearchTerm]="form.owner().value()"
+                (textUpdated)="form.owner().value.set($event)"
               ></app-autocomplete>
             } @else {
               <span class="identifier-chip">{{ s.owner }}</span>
@@ -181,13 +158,12 @@
                       [placeholder]="'Search instructor for owner'"
                       [displayFns]="instructorDisplayFns"
                       [initSearchTerm]="s.managers[i]"
-                      (textUpdated)="s.managers[i] = $event; updateSchool()"
-                      [disabled]="!userIsAdmin() && !userIsSchoolManager()"
+                      (textUpdated)="updateManagerId(i, $event)"
                     ></app-autocomplete>
                     <button
                       class="icon-only-button"
                       type="button"
-                      (click)="removeManager(i); updateSchool()"
+                      (click)="removeManager(i)"
                     >
                       <app-icon name="close" />
                     </button>
@@ -216,7 +192,7 @@
             @if (userIsAdmin() || userIsSchoolManager()) {
               <button
                 type="button"
-                (click)="s.managers.push(''); updateSchool()"
+                (click)="addManager()"
               >
                 Add Manager
               </button>
@@ -250,7 +226,7 @@
               @if (isDirty()) {
                 <button
                   type="submit"
-                  [disabled]="isDupSchoolId() || schoolForm.invalid"
+                  [disabled]="isDupSchoolId() || form().invalid()"
                 >
                   Save
                 </button>

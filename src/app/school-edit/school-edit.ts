@@ -15,8 +15,15 @@ import {
   School,
   Member,
   InstructorPublicData,
+  initSchool,
 } from '../../../functions/src/data-model';
-import { FormsModule } from '@angular/forms';
+import {
+  form,
+  FormField,
+  required,
+  FieldTree,
+  disabled,
+} from '@angular/forms/signals';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -36,10 +43,9 @@ import { FirebaseStateService } from '../firebase-state.service';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    FormField,
     IconComponent,
     SpinnerComponent,
-    IconComponent,
     AutocompleteComponent,
     IdAssignmentComponent,
   ],
@@ -47,7 +53,6 @@ import { FirebaseStateService } from '../firebase-state.service';
   styleUrl: './school-edit.scss',
 })
 export class SchoolEditComponent {
-  // this component's element ref to support scrolling into view?
   private elementRef = inject(ElementRef);
   membersService = inject(DataManagerService);
   stateService = inject(FirebaseStateService);
@@ -61,19 +66,46 @@ export class SchoolEditComponent {
   // Constants
   AssignKind = AssignKind;
 
-  editableSchool = linkedSignal<School>(() => {
+  // The signal holding the data model for the form.
+  schoolFormModel = signal<School>(initSchool());
+
+  // Use form() to create a FieldTree for validation and state tracking.
+  form: FieldTree<School> = form(this.schoolFormModel, (schema) => {
+    required(schema.schoolName, { message: 'School Name is required.' });
+    required(schema.owner, { message: 'School must have an owner.' });
+    required(schema.schoolId, { message: 'School ID is required.' });
+
+    disabled(schema.schoolName, () => !this.userIsAdmin());
+    disabled(schema.schoolId, () => !this.userIsAdmin());
+    disabled(schema.schoolCity, () => !this.userIsAdmin());
+    disabled(schema.schoolCountry, () => !this.userIsAdmin());
+    disabled(schema.schoolAddress, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(schema.schoolZipCode, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(schema.schoolCountyOrState, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(schema.schoolWebsite, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(schema.owner, () => !this.userIsAdmin());
+    disabled(schema.managers, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+  });
+
+  // Sync input school to the form model.
+  private _sync = effect(() => {
     const s = this.school();
+    // We deep clone to ensure the form model has its own copy.
     const editable = structuredClone(s);
     editable.lastUpdated = s.lastUpdated;
-    return editable;
+    this.schoolFormModel.set(editable);
   });
+
+  // Get an editable version of the school for save (it's the same as the model).
+  editableSchool = computed<School>(() => this.schoolFormModel());
+
   isSaving = signal(false);
   collapsed = linkedSignal<boolean>(() => {
     return this.collapse() ?? true;
   });
   isDirty = computed(
     () =>
-      !deepObjEq(this.school(), this.editableSchool()) ||
+      this.form().dirty() ||
       this.schoolIdAssignment().kind !== AssignKind.UnchangedExistingId,
   );
 
@@ -156,7 +188,7 @@ export class SchoolEditComponent {
   }
 
   updateSchool() {
-    this.editableSchool.set({ ...this.editableSchool() });
+    // No longer needed with Signal Forms as it's reactive
   }
 
   handleSchoolIdAssignmentChange(assignment: Assignment) {
@@ -169,41 +201,41 @@ export class SchoolEditComponent {
     }
 
     if (assignment.kind === AssignKind.AssignNewManualId) {
-      this.editableSchool().schoolId = assignment.newId;
+      this.form.schoolId().value.set(assignment.newId);
     } else if (assignment.kind === AssignKind.RemoveId) {
-      this.editableSchool().schoolId = '';
+      this.form.schoolId().value.set('');
     }
-    this.updateSchool();
   }
 
   removeManager(index: number) {
     const currentManagers = this.managers();
     const newManagers = [...currentManagers];
     newManagers.splice(index, 1);
-    this.editableSchool.update((school) => {
-      school!.managers.splice(index, 1);
-      return { ...school! };
+    this.form.managers().value.update((managers: string[]) => {
+      const newManagers = [...managers];
+      newManagers.splice(index, 1);
+      return newManagers;
     });
   }
 
-  updateManager(index: number, member: InstructorPublicData) {
-    this.editableSchool.update((school) => {
-      school.managers[index] = member.memberId;
-      return { ...school };
+  updateManagerId(index: number, memberId: string) {
+    this.form.managers().value.update((managers: string[]) => {
+      const newManagers = [...managers];
+      newManagers[index] = memberId;
+      return newManagers;
     });
+  }
+
+  addManager() {
+    this.form.managers().value.update((m) => [...m, '']);
   }
 
   updateOwner(member: InstructorPublicData) {
-    this.editableSchool.update((school) => {
-      school!.owner = member.memberId;
-      return { ...school! };
-    });
+    this.form.owner().value.set(member.memberId);
   }
 
   cancel($event: Event) {
-    const s = this.school();
-    this.editableSchool.set(structuredClone(s));
-    this.editableSchool().lastUpdated = s.lastUpdated;
+    this.form().reset();
     this.schoolIdAssignment.set(this.initSchoolIdAssignment());
     $event.preventDefault();
     $event.stopPropagation();
@@ -251,6 +283,7 @@ export class SchoolEditComponent {
       }
 
       await this.membersService.setSchool(school);
+      this.form().reset();
       this.isSaving.set(false);
       this.collapsed.set(true);
       this.close.emit();
@@ -306,14 +339,15 @@ export class SchoolEditComponent {
     if (this.isDupSchoolId()) {
       errors.push('This school ID is already in use.');
     }
-    if (school.schoolName.trim() === '') {
-      errors.push('School Name cannot be empty.');
+    const schoolNameErrors = this.form.schoolName().errors();
+    if (schoolNameErrors) {
+      errors.push(schoolNameErrors[0].message ?? 'School Name is invalid.');
     }
-    if (school.owner.trim() === '') {
+    if (this.form.owner().value().trim() === '') {
       errors.push('School must have an owner.');
     }
     if (
-      school.schoolId.trim() === '' &&
+      this.form.schoolId().value().trim() === '' &&
       this.schoolIdAssignment().kind !== AssignKind.AssignNewAutoId
     ) {
       errors.push('School ID cannot be empty for a new school.');

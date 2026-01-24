@@ -8,6 +8,8 @@ import {
   ElementRef,
   computed,
   linkedSignal,
+  resource,
+  effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -16,8 +18,17 @@ import {
   MasterLevel,
   School,
   InstructorPublicData,
+  initMember,
 } from '../../../functions/src/data-model';
-import { FormsModule } from '@angular/forms';
+import {
+  form,
+  FormField,
+  required,
+  email,
+  debounce,
+  FieldTree,
+  disabled,
+} from '@angular/forms/signals';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -36,8 +47,7 @@ import { Timestamp } from 'firebase/firestore';
   selector: 'app-member-edit',
   standalone: true,
   imports: [
-    CommonModule,
-    FormsModule,
+    FormField,
     IconComponent,
     SpinnerComponent,
     IdAssignmentComponent,
@@ -62,12 +72,54 @@ export class MemberEditComponent {
 
   // The core object of interest.
   member = input.required<Member>();
-  editableMember = linkedSignal<Member>(() => {
-    const m = this.member();
-    const editable = structuredClone(m);
-    editable.lastUpdated = m.lastUpdated;
-    return editable;
+
+  // The signal holding the data model for the form.
+  memberFormModel = signal<Member>(initMember());
+
+  // Use form() to create a FieldTree for validation and state tracking.
+  form: FieldTree<Member> = form(this.memberFormModel, (schema) => {
+    required(schema.name, { message: 'Name is required.' });
+    required(schema.email, { message: 'An email must be provided.' });
+    email(schema.email, { message: 'Please enter a valid email address.' });
+    required(schema.membershipType, { message: 'Membership type is required.' });
+
+    disabled(schema.name, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.email, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.address, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.city, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.zipCode, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.countyOrState, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.country, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.phone, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.gender, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.dateOfBirth, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.sifuInstructorId, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.managingOrgId, () => !this.userIsMemberOrAdmin());
+    disabled(schema.membershipType, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.firstMembershipStarted, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.lastRenewalDate, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.currentMembershipExpires, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.studentLevel, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.applicationLevel, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.instructorLicenseExpires, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(schema.instructorWebsite, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.publicEmail, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.publicPhone, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.publicRegionOrCity, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.publicCountyOrState, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.isAdmin, () => !this.userIsAdmin());
+    disabled(schema.notes, () => !this.userIsAdmin());
   });
+
+  // Sync input member to the form model.
+  _sync = effect(() => {
+    const m = this.member();
+    // We deep clone to ensure the form model has its own copy.
+    this.memberFormModel.set(structuredClone(m));
+  });
+
+  // Get an editable version of the member for save (it's the same as the model).
+  editableMember = computed<Member>(() => this.memberFormModel());
 
   // Visual state
   collapsable = input<boolean>(true);
@@ -81,7 +133,7 @@ export class MemberEditComponent {
 
   isDirty = computed(
     () =>
-      !deepObjEq(this.member(), this.editableMember()) ||
+      this.form().dirty() ||
       this.memberIdAssignment().kind !== AssignKind.UnchangedExistingId ||
       this.instructorIdAssignment().kind !== AssignKind.UnchangedExistingId,
   );
@@ -201,7 +253,7 @@ export class MemberEditComponent {
   constructor() {}
 
   updateMember() {
-    this.editableMember.set({ ...this.editableMember() });
+    // No longer needed with signalGroup as it's reactive
   }
 
   handleInstructorIdAssignmentChange(assignment: Assignment) {
@@ -215,11 +267,10 @@ export class MemberEditComponent {
     }
 
     if (assignment.kind === AssignKind.AssignNewManualId) {
-      this.editableMember().instructorId = assignment.newId;
+      this.form.instructorId().value.set(assignment.newId);
     } else if (assignment.kind === AssignKind.RemoveId) {
-      this.editableMember().instructorId = '';
+      this.form.instructorId().value.set('');
     }
-    this.updateMember();
   }
 
   handleMemberIdAssignmentChange(assignment: Assignment) {
@@ -233,19 +284,17 @@ export class MemberEditComponent {
     }
 
     if (assignment.kind === AssignKind.AssignNewManualId) {
-      this.editableMember().memberId = assignment.newId;
+      this.form.memberId().value.set(assignment.newId);
     } else if (assignment.kind === AssignKind.RemoveId) {
-      this.editableMember().memberId = '';
+      this.form.memberId().value.set('');
     }
-    this.updateMember();
   }
 
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
     const m = this.member();
-    this.editableMember.set(structuredClone(m));
-    this.editableMember().lastUpdated = m.lastUpdated;
+    this.form().reset();
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
     this.collapsed.set(this.collapsable());
@@ -321,6 +370,8 @@ export class MemberEditComponent {
       } else {
         await this.membersService.addMember(member);
       }
+
+      this.form().reset();
       // Shortcut so we don't need to wait for Firebase/firestore sync loop to
       // update the original member that will... also, now we use get-members, we don't directly
 
@@ -356,17 +407,14 @@ export class MemberEditComponent {
   }
 
   onMasterLevelChange(level: MasterLevel, isChecked: boolean) {
-    this.editableMember.update((m) => {
-      if (isChecked) {
-        m.mastersLevels.push(level);
-      } else {
-        const index = m.mastersLevels.indexOf(level);
-        if (index > -1) {
-          m.mastersLevels.splice(index, 1);
-        }
-      }
-      return { ...m };
-    });
+    const current = this.form.mastersLevels().value();
+    if (isChecked) {
+      this.form.mastersLevels().value.set([...current, level]);
+    } else {
+      this.form.mastersLevels().value.set(
+        current.filter((l: MasterLevel) => l !== level),
+      );
+    }
   }
 
   closeErrors() {
@@ -379,13 +427,13 @@ export class MemberEditComponent {
     if (this.isDupEmail()) {
       errors.push('This email address is already in use.');
     }
-    if (member.email.trim() === '') {
+    if (this.form.email().value().trim() === '') {
       errors.push('An email must be provided.');
     }
     if (this.isDupMemberId()) {
       errors.push('This member ID is already in use.');
     }
-    if (member.name.trim() === '') {
+    if (this.form.name().value().trim() === '') {
       errors.push('Name cannot be empty.');
     }
     if (

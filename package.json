@@ -16,7 +16,8 @@
     "deploy": "pnpm build:all && firebase deploy",
     "deploy:firestore-rules": "firebase deploy --only firestore:rules",
     "deploy:functions": "pnpm build:functions && firebase deploy --only functions",
-    "deploy:hosting": "pnpm build && firebase deploy --only hosting"
+    "deploy:hosting": "pnpm build && firebase deploy --only hosting",
+    "mcp": "ng mcp"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
