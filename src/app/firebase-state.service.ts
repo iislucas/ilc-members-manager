@@ -300,6 +300,9 @@ export class FirebaseStateService {
 export function createFirebaseStateServiceMock(): Partial<FirebaseStateService> {
   return {
     user: signal(null),
+    loginStatus: signal(LoginStatus.SignedOut),
+    loggedIn: signal(Promise.resolve({} as UserDetails)),
+    loginError: signal(null),
     loginWithGoogle: (): Promise<AuthOperationResult> =>
       Promise.resolve({
         success: true,

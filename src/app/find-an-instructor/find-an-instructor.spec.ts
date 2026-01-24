@@ -1,20 +1,38 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { FindAnInstructor } from './find-an-instructor';
+import { FindAnInstructorComponent } from './find-an-instructor';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { FindInstructorsService } from '../find-instructors.service';
 
-describe('FindAnInstructor', () => {
-  let component: FindAnInstructor;
-  let fixture: ComponentFixture<FindAnInstructor>;
+describe('FindAnInstructorComponent', () => {
+  let component: FindAnInstructorComponent;
+  let fixture: ComponentFixture<FindAnInstructorComponent>;
+  let findInstructorsServiceMock: Partial<FindInstructorsService>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [FindAnInstructor]
-    })
-    .compileComponents();
+    findInstructorsServiceMock = {
+      instructors: {
+        loading: signal(false),
+        entries: signal([]),
+        error: signal(null),
+        search: () => [],
+      } as any,
+    };
 
-    fixture = TestBed.createComponent(FindAnInstructor);
+    await TestBed.configureTestingModule({
+      imports: [FindAnInstructorComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: FindInstructorsService,
+          useValue: findInstructorsServiceMock,
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(FindAnInstructorComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    await fixture.whenStable();
   });
 
   it('should create', () => {

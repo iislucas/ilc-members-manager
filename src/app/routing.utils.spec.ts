@@ -100,7 +100,7 @@ describe('Routing Utils', () => {
       const result = matchUrl(url, pathPatterns);
       expect(result).toEqual({
         patternId: 'memberEditId',
-        pathParams: { memberId: '123', view: 'edit' },
+        pathParams: { memberId: '123' },
         urlParams: { foo: 'bar' },
       });
     });

@@ -1,20 +1,28 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
 
-import { IdAssignment } from './id-assignment';
+import { IdAssignmentComponent } from './id-assignment';
 
-describe('IdAssignment', () => {
-  let component: IdAssignment;
-  let fixture: ComponentFixture<IdAssignment>;
+describe('IdAssignmentComponent', () => {
+  let component: IdAssignmentComponent;
+  let fixture: ComponentFixture<IdAssignmentComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [IdAssignment]
+      imports: [IdAssignmentComponent],
+      providers: [provideZonelessChangeDetection()],
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(IdAssignment);
+    fixture = TestBed.createComponent(IdAssignmentComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    fixture.componentRef.setInput('initAssignment', {
+      kind: 'AssignNewAutoId',
+      curId: 'A1',
+    });
+    fixture.componentRef.setInput('canEdit', true);
+    fixture.componentRef.setInput('expectedNextId', 'A2');
+    await fixture.whenStable();
   });
 
   it('should create', () => {

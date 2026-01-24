@@ -1,20 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
 
-import { Autocomplete } from './autocomplete';
+import { AutocompleteComponent } from './autocomplete';
 
-describe('Autocomplete', () => {
-  let component: Autocomplete;
-  let fixture: ComponentFixture<Autocomplete>;
+describe('AutocompleteComponent', () => {
+  let component: AutocompleteComponent<any>;
+  let fixture: ComponentFixture<AutocompleteComponent<any>>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Autocomplete]
+      imports: [AutocompleteComponent],
+      providers: [provideZonelessChangeDetection()],
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(Autocomplete);
+    fixture = TestBed.createComponent(AutocompleteComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    fixture.componentRef.setInput('searchableSet', { search: () => [] });
+    fixture.componentRef.setInput('displayFns', {
+      toChipId: (x: any) => x.id,
+      toName: (x: any) => x.name,
+    });
+    await fixture.whenStable();
   });
 
   it('should create', () => {
