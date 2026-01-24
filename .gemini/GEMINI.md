@@ -29,11 +29,11 @@ now):
 This project is built on a specific set of technologies. Adherence to these
 versions and libraries is crucial.
 
-- **Framework:** **Angular `^20.0.0`**. All components, services, and modules
+- **Framework:** **Angular `^21.x.x`**. All components, services, and modules
   should follow Angular best practices, but do NOT use the angular router.
   Always use the Angular CLI for cretaing components:
   `npx ng generate component ${COMPONENT_NAME} --project=ilc-members-manager`
-- **Language:** **TypeScript `~5.8.2`**. All code must be written in TypeScript.
+- **Language:** **TypeScript `~5.9.x`**. All code must be written in TypeScript.
 - **Reactivity:** **Angular Signals** are the primary and preferred mechanism
   for managing state and reactivity within components, avoid Observables
   wherever you reasonably can do so.
@@ -96,6 +96,7 @@ cognitive load.
 - Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
 - Use `NgOptimizedImage` for all static images.
   - `NgOptimizedImage` does not work for inline base64 images.
+- Use signal-based forms instead of reactive forms.
 
 ### Components
 

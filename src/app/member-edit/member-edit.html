@@ -67,9 +67,7 @@
           <input
             type="text"
             id="name"
-            name="name"
             [formField]="form.name"
-            required
           />
           @if (form.name().errors(); as errors) {
             <div class="error-message">{{ errors[0].message }}</div>
@@ -81,9 +79,7 @@
           <input
             type="email"
             id="email"
-            name="email"
             [formField]="form.email"
-            required
           />
           @if (isDupEmail()) {
             <div class="error-message">
@@ -98,7 +94,6 @@
         <div class="rhs">
           <textarea
             id="address"
-            name="address"
             [formField]="form.address"
           ></textarea>
         </div>
@@ -108,7 +103,6 @@
           <input
             type="text"
             id="city"
-            name="city"
             [formField]="form.city"
           />
         </div>
@@ -118,7 +112,6 @@
           <input
             type="text"
             id="zipCode"
-            name="zipCode"
             [formField]="form.zipCode"
           />
         </div>
@@ -127,7 +120,6 @@
           <input
             type="text"
             id="countyOrState"
-            name="countyOrState"
             [formField]="form.countyOrState"
           />
         </div>
@@ -154,7 +146,6 @@
           <input
             type="text"
             id="phone"
-            name="phone"
             [formField]="form.phone"
           />
         </div>
@@ -164,7 +155,6 @@
           <input
             type="text"
             id="gender"
-            name="gender"
             [formField]="form.gender"
           />
         </div>
@@ -175,7 +165,6 @@
             class="date"
             type="date"
             id="dateOfBirth"
-            name="dateOfBirth"
             placeholder="YYYY-MM-DD"
             [formField]="form.dateOfBirth"
           />
@@ -312,9 +301,7 @@
         <div class="rhs">
           <select
             id="membershipType"
-            name="membershipType"
             [formField]="form.membershipType"
-            required
           >
             @for (type of membershipTypes; track type) {
               <option [value]="type">{{ type }}</option>
@@ -328,7 +315,6 @@
             class="date"
             type="date"
             id="firstMembershipStarted"
-            name="firstMembershipStarted"
             placeholder="YYYY-MM-DD"
             [formField]="form.firstMembershipStarted"
           />
@@ -340,7 +326,6 @@
             class="date"
             type="date"
             id="lastRenewalDate"
-            name="lastRenewalDate"
             placeholder="YYYY-MM-DD"
             [formField]="form.lastRenewalDate"
           />
@@ -353,7 +338,6 @@
               class="date"
               type="date"
               id="currentMembershipExpires"
-              name="currentMembershipExpires"
               placeholder="YYYY-MM-DD"
               [formField]="form.currentMembershipExpires"
             />
@@ -365,7 +349,6 @@
           <input
             type="text"
             id="studentLevel"
-            name="studentLevel"
             [formField]="form.studentLevel"
           />
         </div>
@@ -375,7 +358,6 @@
           <input
             type="text"
             id="applicationLevel"
-            name="applicationLevel"
             [formField]="form.applicationLevel"
           />
         </div>
@@ -422,7 +404,6 @@
               class="date"
               type="date"
               id="instructorLicenseExpires"
-              name="instructorLicenseExpires"
               placeholder="YYYY-MM-DD"
               [formField]="form.instructorLicenseExpires"
             />
@@ -441,7 +422,6 @@
             <input
               type="text"
               id="instructorWebsite"
-              name="instructorWebsite"
               [formField]="form.instructorWebsite"
             />
           </div>
@@ -451,7 +431,6 @@
             <input
               type="email"
               id="publicEmail"
-              name="publicEmail"
               [formField]="form.publicEmail"
             />
           </div>
@@ -461,7 +440,6 @@
             <input
               type="text"
               id="publicPhone"
-              name="publicPhone"
               [formField]="form.publicPhone"
             />
           </div>
@@ -471,7 +449,6 @@
             <input
               type="text"
               id="publicRegionOrCity"
-              name="publicRegionOrCity"
               [formField]="form.publicRegionOrCity"
             />
           </div>
@@ -481,7 +458,6 @@
             <input
               type="text"
               id="publicCountyOrState"
-              name="publicCountyOrState"
               [formField]="form.publicCountyOrState"
             />
           </div>
@@ -493,7 +469,6 @@
             <input
               type="checkbox"
               id="isAdmin"
-              name="isAdmin"
               [formField]="form.isAdmin"
             />
             <span class="note">(can edit all members)</span>
@@ -503,7 +478,6 @@
           <div class="rhs">
             <textarea
               id="notes"
-              name="notes"
               [formField]="form.notes"
             ></textarea>
           </div>
