@@ -27,7 +27,7 @@ the TODOs.
 ## Install local dependencies & get a dev setup
 
 This project was generated using [Angular
-CLI](https://github.com/angular/angular-cli) version 20.0.5.
+CLI](https://github.com/angular/angular-cli) version 20.0.5, and uses pnpm for all shell commands.
 
 ```bash
 pnpm install
@@ -71,20 +71,6 @@ modify any of the source files.
 
 See [./functions/src/data-model.ts](./functions/src/data-model.ts) for the core
 data structures.
-
-### Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-pnpm ng generate component component-name --project ilc-members-manager
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-pnpm ng generate --help
-```
 
 ### Building
 
