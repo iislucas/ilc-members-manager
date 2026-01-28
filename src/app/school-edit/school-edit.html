@@ -42,8 +42,9 @@
               id="schoolName"
               [formField]="form.schoolName"
             />
-            @if (form.schoolName().errors(); as errors) {
-              <div class="error-message">{{ errors[0].message }}</div>
+            @let schoolNameErrors = form.schoolName().errors();
+            @if (schoolNameErrors.length > 0 && schoolNameErrors[0]; as error) {
+              <div class="error-message">{{ error.message }}</div>
             }
           </div>
 
