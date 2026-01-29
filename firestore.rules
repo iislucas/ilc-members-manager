@@ -6,36 +6,45 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /members/{memberEmail} {
+    function isAdmin() {
+      let email = request.auth.token.email;
+      return email != null && 
+             exists(/databases/$(database)/documents/acl/$(email)) &&
+             get(/databases/$(database)/documents/acl/$(email)).data.isAdmin == true;
+    }
+    match /members/{memberId} {
+      function getMemberDocIds() {
+        let email = request.auth.token.email;
+        return (email != null && exists(/databases/$(database)/documents/acl/$(email))) 
+               ? get(/databases/$(database)/documents/acl/$(email)).data.memberDocIds 
+               : [];
+      }
       function isOwner() {
-        return request.auth.token.email == memberEmail;
+        return (request.auth.token.email in resource.data.emails) || 
+               (memberId in getMemberDocIds());
       }
-      function isAdmin() {
-        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
-      }
-      function isSchoolManager() {
-        let userMember = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
-        let member = get(/databases/$(database)/documents/members/$(memberEmail)).data;
-        let school = get(/databases/$(database)/documents/schools/$(member.managingOrgId)).data;
-        return userMember.instructorId == school.owner || userMember.instructorId in school.managers;
+      function isManagerOfMemberSchool() {
+        let member = resource.data;
+        let schoolId = member.managingOrgId;
+        let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
+        return schoolId != "" && exists(schoolPath) && (
+          let school = get(schoolPath).data;
+          (request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails)
+        );
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
       }
-      allow read: if isOwner() || isAdmin() || isSchoolManager();
+      allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
       allow delete: if isAdmin(); 
-      allow write: if isValidEdit() && (isAdmin() || isSchoolManager());
-      allow update: if isValidEdit() && isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth', 'sifuMemberId']);
+      allow write: if isValidEdit() && (isAdmin() || isManagerOfMemberSchool());
+      allow update: if isValidEdit() && isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 'emails', 'gender', 'dateOfBirth', 'sifuMemberId']);
     }
 
     match /schools/{schoolId} {
-      function isAdmin() {
-        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
-      }
       function isSchoolManager() {
-        let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return member.instructorId == school.owner || member.instructorId in school.managers;
+        return request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails;
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
@@ -51,29 +60,24 @@ service cloud.firestore {
     }
 
     match /schools/{schoolId}/members/{memberId} {
-      function isAdmin() {
-        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
-      }
       function isSchoolManager() {
-        let member = get(/databases/$(database)/documents/members/$(request.auth.token.email)).data;
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return member.instructorId == school.owner || member.instructorId in school.managers;
+        return request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails;
       }
       allow read: if isAdmin() || isSchoolManager();
     }
 
+    match /acl/{email} {
+      allow read: if request.auth.token.email == email || isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /static/country-codes {
-      function isAdmin() {
-        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
-      }
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
     match /counters/singleton {
-      function isAdmin() {
-        return get(/databases/$(database)/documents/members/$(request.auth.token.email)).data.isAdmin == true;
-      }
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }

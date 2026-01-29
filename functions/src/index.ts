@@ -21,3 +21,5 @@ export {
   onMemberUpdated,
   onMemberDeleted,
 } from './on-member-update';
+
+export { onSchoolCreated, onSchoolUpdated } from './on-school-update';

@@ -239,20 +239,24 @@ export class ImportExportComponent {
 
       if (this.importType() === 'member') {
         const { member, issues } = this.mapRowToMember(row, mapping);
-        if (!member.email) {
+        const emails = member.emails || [];
+        if (emails.length === 0) {
           proposed.push({
             status: 'ISSUE',
             key: 'Missing Email',
             newItem: member as Member,
             diffs: [],
-            issues: ['Email is required', ...issues],
+            issues: ['At least one email is required', ...issues],
           });
           continue;
         }
 
         const existing = this.membersService.members
           .entries()
-          .find((m) => m.email === member.email);
+          .find((m) => {
+            const memberEmails = m.emails || [];
+            return emails.some(e => memberEmails.includes(e));
+          });
 
         if (existing) {
           const diffs = this.getDifferences(member, existing);
@@ -263,7 +267,7 @@ export class ImportExportComponent {
                 : diffs.length > 0
                   ? 'UPDATE'
                   : 'UNCHANGED',
-            key: member.email,
+            key: emails[0],
             newItem: member as Member,
             oldItem: existing,
             diffs,
@@ -272,7 +276,7 @@ export class ImportExportComponent {
         } else {
           proposed.push({
             status: issues.length > 0 ? 'ISSUE' : 'NEW',
-            key: member.email,
+            key: emails[0],
             newItem: member as Member,
             diffs: [],
             issues: issues.length > 0 ? issues : undefined,
@@ -375,6 +379,9 @@ export class ImportExportComponent {
           }
           break;
         }
+        case 'emails':
+          member[key] = value.split(',').map((s) => s.trim()).filter(e => !!e);
+          break;
         case 'mastersLevels':
           member[key] = value.split(',').map((s) => s.trim()) as MasterLevel[];
           break;

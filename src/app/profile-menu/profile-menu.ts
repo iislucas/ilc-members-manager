@@ -48,6 +48,9 @@ export class ProfileMenuComponent {
 
   get userDisplayName(): string {
     const user = this.user();
+    if (user && user.member && user.member.name) {
+      return user.member.name;
+    }
     if (user && user.firebaseUser.displayName) {
       return user.firebaseUser.displayName;
     }

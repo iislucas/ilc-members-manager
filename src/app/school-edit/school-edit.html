@@ -28,7 +28,7 @@
     </div>
 
     @if (!collapsed()) {
-      <form (submit)="saveSchool()">
+      <form (submit)="saveSchool($event)">
         <div class="form-section">
           @if (userIsSchoolManager()) {
             <p class="members-link" (click)="gotoMembers()">Manage Members</p>

@@ -125,9 +125,9 @@ Set project, application default credentials, Login to Firebase:
 export PROJECT= # ... YOUR PROJECT NAME ...
 gcloud config set project ${PROJECT}
 gcloud auth application-default login
-firebase login
+pnpm exec firebase login
 # and then select your project
-firebase use --add
+pnpm exec firebase use --add ${PROJECT}
 ```
 
 ### Deploy

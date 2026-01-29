@@ -12,8 +12,22 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import * as fs from 'fs';
 
+// Parse command line arguments
+const argv = yargs(hideBin(process.argv))
+  .option('project', {
+    type: 'string',
+    description: 'Firebase Project ID',
+    demandOption: false,
+  })
+  .help(false) // We handle help later with yargs command setup
+  .parseSync();
+
+const projectId = (argv as any).project || process.env.GCLOUD_PROJECT;
+
 // Initialize Firebase Admin SDK
-const app = firebase.initializeApp();
+const app = firebase.initializeApp({
+  projectId,
+});
 const auth = firebase.auth();
 
 async function setAdmin(email: string) {

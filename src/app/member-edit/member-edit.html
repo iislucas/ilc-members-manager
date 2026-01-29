@@ -59,7 +59,7 @@
   </div>
 
   @if (!collapsed()) {
-    <form (submit)="saveMember()">
+    <form (submit)="saveMember($event)">
       <div class="form-section">
         <h3>Contact</h3>
         <label for="name">Name</label>
@@ -75,17 +75,20 @@
           }
         </div>
 
-        <label for="email">Email</label>
+        <label for="emails">Emails</label>
         <div class="rhs">
           <input
-            type="email"
-            id="email"
-            [formField]="form.email"
+            type="text"
+            id="emails"
+            [value]="emailsInput()"
+            (input)="updateEmails($any($event.target).value)"
+            (blur)="emailsField.dirty()"
           />
-          @let emailErrors = form.email().errors();
+          @let emailsField = form.emails();
+          @let emailErrors = emailsField.errors();
           @if (isDupEmail()) {
             <div class="error-message">
-              This email address is already in use.
+              One of these emails is already in use by another member.
             </div>
           } @else if (emailErrors.length > 0 && emailErrors[0]; as error) {
             <div class="error-message">{{ error.message }}</div>

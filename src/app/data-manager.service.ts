@@ -86,7 +86,7 @@ export class DataManagerService {
     'memberId',
     'instructorId',
     'name',
-    'email',
+    'emails',
     'publicEmail',
     'memberId',
     'city',
@@ -133,7 +133,7 @@ export class DataManagerService {
   }
 
   async updateMembersSync(user: UserDetails) {
-    console.log(`updateMembersSync(${user.member.email}: UserDetails)`);
+    console.log(`updateMembersSync(${user.member.emails[0]}: UserDetails)`);
     console.log(user);
     if (user.isAdmin) {
       const q = query(this.membersCollection, orderBy('lastUpdated', 'desc'));
@@ -273,11 +273,8 @@ export class DataManagerService {
   }
 
   async addMember(member: Member): Promise<DocumentReference> {
-    if (!member.email) {
-      throw new Error('email is required to add a member');
-    }
     const collectionRef = collection(this.db, 'members');
-    const newDocRef = doc(collectionRef, member.email);
+    const newDocRef = doc(collectionRef);
     const memberWithNewTimestamp: MemberFirestoreDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
@@ -285,11 +282,8 @@ export class DataManagerService {
     return setDoc(newDocRef, memberWithNewTimestamp).then(() => newDocRef);
   }
 
-  async updateMember(emailId: string, member: Member): Promise<void> {
-    if (member.email && member.email !== emailId) {
-      return this.updateMemberEmail(emailId, member);
-    }
-    const docRef = doc(this.db, 'members', emailId);
+  async updateMember(id: string, member: Member): Promise<void> {
+    const docRef = doc(this.db, 'members', id);
     const memberWithNewTimestamp: MemberFirestoreDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
@@ -297,17 +291,6 @@ export class DataManagerService {
     return setDoc(docRef, memberWithNewTimestamp, { merge: true });
   }
 
-  // TOOD: move this to functions, we don't want to depend on admin user.
-  private async updateMemberEmail(
-    oldEmail: string,
-    member: Member,
-  ): Promise<void> {
-    if (!member.email) {
-      throw new Error('New email not provided');
-    }
-    await this.addMember(member);
-    await this.deleteMember(oldEmail);
-  }
 
   async deleteMember(emailId: string): Promise<void> {
     const docRef = doc(this.db, 'members', emailId);

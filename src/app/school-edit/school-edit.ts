@@ -156,10 +156,10 @@ export class SchoolEditComponent {
   managers = computed(() => {
     const managerMemIds = this.editableSchool().managers;
     return managerMemIds.map(
-      (memberId) =>
+      (memberDocId) =>
         this.membersService.instructors
           .entries()
-          .find((m) => m.memberId === memberId) || null,
+          .find((m) => m.memberId === memberDocId) || null,
     );
   });
 
@@ -218,10 +218,10 @@ export class SchoolEditComponent {
     });
   }
 
-  updateManagerId(index: number, memberId: string) {
+  updateManagerId(index: number, memberDocId: string) {
     this.form.managers().value.update((managers: string[]) => {
       const newManagers = [...managers];
-      newManagers[index] = memberId;
+      newManagers[index] = memberDocId;
       return newManagers;
     });
   }
@@ -268,7 +268,8 @@ export class SchoolEditComponent {
     );
   });
 
-  async saveSchool() {
+  async saveSchool(event: Event) {
+    event.preventDefault();
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {

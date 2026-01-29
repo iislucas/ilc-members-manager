@@ -40,7 +40,7 @@
       </div>
     }
     @let membersList = members();
-    @for (member of membersList; track member.email) {
+    @for (member of membersList; track member.id) {
       <div class="member-card">
         <app-member-edit
           [member]="member"

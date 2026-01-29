@@ -17,6 +17,29 @@
           <div class="display-name">{{ userDisplayName }}</div>
           <div class="email-chip">{{ userEmail }}</div>
         </div>
+
+        @if (user.memberProfiles.length > 1) {
+          <div class="profile-switcher">
+            <div class="switcher-header">Switch Profile</div>
+            <div class="profile-list">
+              @for (profile of user.memberProfiles; track profile.id) {
+                <div
+                  class="profile-item"
+                  [class.selected]="profile.id === user.member.id"
+                  (click)="firebaseService.selectProfile(profile.id)"
+                >
+                  <div class="profile-name">{{ profile.name }}</div>
+                  @if (profile.isAdmin) {
+                    <span class="admin-badge">Admin</span>
+                  }
+                  @if (profile.id === user.member.id) {
+                    <app-icon name="check" class="check-icon"></app-icon>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
         <button (click)="logout()">
           <app-icon name="logout"></app-icon>
           Logout

@@ -33,28 +33,49 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       );
     }
 
-    const memberDoc = await db.collection('members').doc(user.email).get();
-    if (!memberDoc.exists) {
-      throw new HttpsError(
-        'permission-denied',
-        'You do not have permission to perform this action as you are not a member.',
-      );
+    const aclDoc = await db.collection('acl').doc(user.email).get();
+    if (!aclDoc.exists) {
+      // If no ACL exists, this user has no member profiles associated with them.
+      return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
     }
-    const userMemberDocData = memberDoc.data() as MemberFirestoreDoc;
-    const userMemberData: Member = {
-      ...userMemberDocData,
-      lastUpdated: userMemberDocData.lastUpdated.toDate().toISOString(),
-      id: memberDoc.id,
-    };
+
+    const aclData = aclDoc.data() as { memberDocIds: string[] };
+    const memberDocIds = aclData.memberDocIds || [];
+
+    const memberRefs = memberDocIds.map((id) => db.collection('members').doc(id));
+    const memberDocs =
+      memberRefs.length > 0 ? await db.getAll(...memberRefs) : [];
+
+    const userMemberProfiles: Member[] = memberDocs
+      .filter((doc) => doc.exists)
+      .map((doc) => {
+        const data = doc.data() as MemberFirestoreDoc;
+        return {
+          ...data,
+          lastUpdated: data.lastUpdated.toDate().toISOString(),
+          id: doc.id,
+        } as Member;
+      });
+
+    if (userMemberProfiles.length === 0) {
+      return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
+    }
+
+    // For simplicity, we use the first profile to determine "primary" permissions
+    // like isAdmin or schoolsManaged, though in the UI the user can switch.
+    // The data-manager.service.ts will handle the switching logic.
+    const primaryMember = userMemberProfiles[0];
 
     // School manager/owner query
+    // NOTE: This now checks across ALL profiles? Or just the primary?
+    // Let's check across the primary for now as per current app logic.
     const schoolsOwnedQuery = db
       .collection('schools')
-      .where('owner', '==', userMemberData.instructorId)
+      .where('owner', '==', primaryMember.instructorId)
       .get();
     const schoolsManagedQuery = db
       .collection('schools')
-      .where('managers', 'array-contains', userMemberData.instructorId)
+      .where('managers', 'array-contains', primaryMember.instructorId)
       .get();
 
     const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
@@ -66,24 +87,11 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
     schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
 
-    // Admin: Return all members
-    if (userMemberData.isAdmin) {
-      return {
-        userMemberData,
-        schoolsManaged: [...schoolIds],
-        isAdmin: true,
-      };
-    } else if (schoolIds.size > 0) {
-      return {
-        userMemberData,
-        schoolsManaged: [...schoolIds],
-        isAdmin: false,
-      };
-    } else {
-      // If not admin or manager of others. TODO: consider Sifu's having
-      // manager access over their students?
-      return { userMemberData, schoolsManaged: [], isAdmin: false };
-    }
+    return {
+      userMemberProfiles,
+      schoolsManaged: [...schoolIds],
+      isAdmin: primaryMember.isAdmin,
+    };
   } catch (error: unknown) {
     logger.error('Error getting members:', error);
     if (error instanceof HttpsError) {

@@ -79,12 +79,12 @@ export class MemberEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<Member> = form(this.memberFormModel, (schema) => {
     required(schema.name, { message: 'Name is required.' });
-    required(schema.email, { message: 'An email must be provided.' });
-    email(schema.email, { message: 'Please enter a valid email address.' });
+    required(schema.emails as any, { message: 'An email must be provided.' });
+    // TODO: email validation for array...
     required(schema.membershipType, { message: 'Membership type is required.' });
 
     disabled(schema.name, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.email, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.emails as any, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.address, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.city, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.zipCode, () => !this.userIsMemberSchoolManagerOrAdmin());
@@ -224,14 +224,16 @@ export class MemberEditComponent {
   userIsMemberOrAdmin = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
-    return user.isAdmin || this.member().email === user.firebaseUser.email;
+    const emails = this.member().emails || [];
+    return user.isAdmin || emails.includes(user.firebaseUser.email || '');
   });
   userIsMemberSchoolManagerOrAdmin = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
+    const emails = this.member().emails || [];
     return (
       user.isAdmin ||
-      this.member().email === user.firebaseUser.email ||
+      emails.includes(user.firebaseUser.email || '') ||
       user.schoolsManaged.includes(this.member().managingOrgId)
     );
   });
@@ -248,6 +250,19 @@ export class MemberEditComponent {
   @HostBinding('class.is-dirty')
   get isDirtyClass() {
     return this.isDirty();
+  }
+
+  emailsInput = linkedSignal(() => this.member().emails.join(', '));
+
+  updateEmails(val: string) {
+    this.emailsInput.set(val);
+    const emails = val
+      .split(',')
+      .map((e) => e.trim())
+      .filter((e) => !!e);
+    this.memberFormModel.update((m) => ({ ...m, emails }));
+    // Trigger dirty state manually for the field if needed,
+    // but memberFormModel update might be enough for the form signal.
   }
 
   constructor() {}
@@ -319,11 +334,12 @@ export class MemberEditComponent {
     if (!this.allMembers || !member) {
       return false;
     }
-    return this.allMembers().some(
-      (m) =>
-        m.email?.toLowerCase() === member.email?.toLowerCase() &&
-        m.id !== member.id,
-    );
+    const currentEmails = (member.emails || []).map((e) => e.toLowerCase());
+    return this.allMembers().some((m) => {
+      if (m.id === member.id) return false;
+      const otherEmails = (m.emails || []).map((e) => e.toLowerCase());
+      return currentEmails.some((e) => otherEmails.includes(e));
+    });
   });
 
   isDupMemberId = computed(() => {
@@ -338,7 +354,8 @@ export class MemberEditComponent {
     );
   });
 
-  async saveMember() {
+  async saveMember(event: Event) {
+    event.preventDefault();
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
@@ -365,8 +382,8 @@ export class MemberEditComponent {
         ).toString();
       }
 
-      if (member.email) {
-        await this.membersService.updateMember(member.email, member);
+      if (member.id) {
+        await this.membersService.updateMember(member.id, member);
       } else {
         await this.membersService.addMember(member);
       }
@@ -427,7 +444,7 @@ export class MemberEditComponent {
     if (this.isDupEmail()) {
       errors.push('This email address is already in use.');
     }
-    if (this.form.email().value().trim() === '') {
+    if (this.form.emails && (this.form.emails() as any).value().length === 0) {
       errors.push('An email must be provided.');
     }
     if (this.isDupMemberId()) {

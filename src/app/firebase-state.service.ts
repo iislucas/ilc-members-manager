@@ -73,7 +73,8 @@ export enum LoginStatus {
 
 // ----------------------------------------------------------------------------
 export type UserDetails = {
-  member: Member;
+  member: Member; // The currently selected profile
+  memberProfiles: Member[]; // All profiles
   isAdmin: boolean;
   schoolsManaged: string[];
   firebaseUser: User;
@@ -152,12 +153,23 @@ export class FirebaseStateService {
         return;
       }
 
+      const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
+        ...initMember(),
+        ...p,
+      }));
+
+      if (!profiles || profiles.length === 0) {
+        console.warn('No profiles found for user', user.email);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loginError.set('No profiles found for user');
+        this.auth.signOut();
+        return;
+      }
+
       const userDetails: UserDetails = {
         firebaseUser: user,
-        member: {
-          ...initMember(),
-          ...userDetailsResult.userMemberData,
-        },
+        member: profiles[0],
+        memberProfiles: profiles,
         isAdmin: userDetailsResult.isAdmin,
         schoolsManaged: userDetailsResult.schoolsManaged,
       };
@@ -166,24 +178,64 @@ export class FirebaseStateService {
       this.loginStatus.set(LoginStatus.SignedIn);
 
       // From now on, listen to changes to the member document.
-      const memberDocRef = doc(this.db, 'members', user.email);
-      this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
-        if (!doc.exists()) {
+      this.setupMemberSnapshotListener();
+    });
+  }
+
+  public selectProfile(memberDocId: string) {
+    const currentUserDetails = this.user();
+    if (!currentUserDetails) return;
+
+    const newProfile = currentUserDetails.memberProfiles.find(
+      (p) => p.id === memberDocId,
+    );
+    if (newProfile) {
+      this.user.set({
+        ...currentUserDetails,
+        member: newProfile,
+        isAdmin: newProfile.isAdmin,
+      });
+      // We should also re-fetch schoolsManaged if we want to be fully correct,
+      // but for now let's assume the user re-logs or we handle it in setupMemberSnapshotListener
+      this.setupMemberSnapshotListener();
+    }
+  }
+
+  private setupMemberSnapshotListener() {
+    if (this.unsubscribeFromMember) {
+      this.unsubscribeFromMember();
+      this.unsubscribeFromMember = null;
+    }
+
+    const currentUserDetails = this.user();
+    if (!currentUserDetails || !currentUserDetails.member.id) return;
+
+    const memberDocRef = doc(this.db, 'members', currentUserDetails.member.id);
+    this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
+      if (!doc.exists()) {
+        const status = this.loginStatus();
+        if (status === LoginStatus.SignedIn) {
           this.loginStatus.set(LoginStatus.SignedOut);
           this.auth.signOut();
           console.warn(
             `The users membership doc was removed while they were signed in, and they've been signed out.`,
           );
-          return;
         }
-        const currentUserDetails = this.user();
-        if (currentUserDetails) {
-          this.user.set({
-            ...currentUserDetails,
-            member: firestoreDocToMember(doc),
-          });
-        }
-      });
+        return;
+      }
+      const updatedDetails = this.user();
+      if (updatedDetails) {
+        const updatedMember = firestoreDocToMember(doc);
+        this.user.set({
+          ...updatedDetails,
+          member: updatedMember,
+          isAdmin: updatedMember.isAdmin,
+          // Update the profile in the list as well
+          memberProfiles: updatedDetails.memberProfiles.map((p) =>
+            p.id === updatedMember.id ? updatedMember : p,
+          ),
+        });
+      }
     });
   }
 

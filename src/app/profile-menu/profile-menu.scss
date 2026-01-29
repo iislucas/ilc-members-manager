@@ -53,10 +53,75 @@
   .user-info {
     padding-bottom: 10px;
     text-align: center;
+    width: 100%;
 
     .display-name {
       font-weight: bold;
       margin: 0;
+    }
+  }
+
+  .profile-switcher {
+    width: 100%;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 10px 0;
+    margin-bottom: 10px;
+
+    .switcher-header {
+      font-size: 0.7em;
+      text-transform: uppercase;
+      color: #666;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+      padding-left: 5px;
+    }
+
+    .profile-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .profile-item {
+      padding: 8px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.9em;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+
+      &.selected {
+        font-weight: bold;
+        background-color: rgba(0, 0, 0, 0.03);
+        color: $button-border-color;
+      }
+
+      .profile-name {
+        flex-grow: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .admin-badge {
+        font-size: 0.7em;
+        background-color: #eee;
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin: 0 5px;
+        font-weight: normal;
+        color: #333;
+      }
+
+      .check-icon {
+        font-size: 1.2em;
+      }
     }
   }
 }

@@ -5,7 +5,7 @@ import { Member } from './data-model';
 const db = admin.firestore();
 
 export async function updateSchoolMember(
-  memberId: string,
+  memberDocId: string,
   member: Member | undefined,
   previousMember?: Member,
 ) {
@@ -16,22 +16,22 @@ export async function updateSchoolMember(
   const previousPrimaryInstructorId = previousMember?.sifuInstructorId;
 
   if (previousSchoolId && previousSchoolId !== schoolId) {
-    logger.info(`Removing member ${memberId} from school ${previousSchoolId}`);
+    logger.info(`Removing member ${memberDocId} from school ${previousSchoolId}`);
     const previousMemberRef = db
       .collection('schools')
       .doc(previousSchoolId)
       .collection('members')
-      .doc(memberId);
+      .doc(memberDocId);
     await previousMemberRef.delete();
   }
 
   if (schoolId) {
-    logger.info(`Updating member ${memberId} in school ${schoolId}`);
+    logger.info(`Updating member ${memberDocId} in school ${schoolId}`);
     const memberRef = db
       .collection('schools')
       .doc(schoolId)
       .collection('members')
-      .doc(memberId);
+      .doc(memberDocId);
     await memberRef.set(member as Member);
   }
 
@@ -40,25 +40,25 @@ export async function updateSchoolMember(
     previousPrimaryInstructorId !== primaryInstructorId
   ) {
     logger.info(
-      `Removing member ${memberId} under Primary Instructor ${previousPrimaryInstructorId}`,
+      `Removing member ${memberDocId} under Primary Instructor ${previousPrimaryInstructorId}`,
     );
     const previousMemberRef = db
       .collection('instructors')
       .doc(previousPrimaryInstructorId)
       .collection('members')
-      .doc(memberId);
+      .doc(memberDocId);
     await previousMemberRef.delete();
   }
 
   if (primaryInstructorId) {
     logger.info(
-      `Updating member ${memberId} under Primary Instructor ${primaryInstructorId}`,
+      `Updating member ${memberDocId} under Primary Instructor ${primaryInstructorId}`,
     );
     const memberRef = db
       .collection('instructors')
       .doc(primaryInstructorId)
       .collection('members')
-      .doc(memberId);
+      .doc(memberDocId);
     await memberRef.set(member as Member);
   }
 }

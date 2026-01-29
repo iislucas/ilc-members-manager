@@ -99,6 +99,10 @@ export type School = {
   owner: string;
   // The `memberId`s of people allowed to manage people within this school.
   managers: string[];
+
+  // Redundant email addresses for firestore rules.
+  ownerEmail: string;
+  managerEmails: string[];
 };
 
 export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'id'> & {
@@ -119,7 +123,7 @@ export function firestoreDocToSchool(doc: QueryDocumentSnapshot): School {
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   // Note this is needed by SearchableSet.
-  id: string; // Document ID, UNIQUE, should be the same as email.
+  id: string; // Firestore document ID, UNIQUE, auto-generated.
 
   lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
 
@@ -145,7 +149,7 @@ export type Member = {
   countyOrState: string; // County or State
   country: string; // Country of residence
   phone: string; // Phone number
-  email: string; // Contact email, UNIQUE
+  emails: string[]; // List of contact email addresses, UNIQUE across members? (Business rule: each email maps to one member? No, one email can manage multiple. But a member has multiple emails)
 
   gender: string; // Male/Female/whatever string they choose.
   dateOfBirth: string; // Date of birth
@@ -234,7 +238,7 @@ export function firestoreDocToInstructorPublicData(
 
 export function initMember(): Member {
   return {
-    // Unique ID, should be same as email.
+    // Firestore auto-generated document ID.
     id: '',
     lastUpdated: new Date().toISOString(), // ISO string...
 
@@ -248,7 +252,7 @@ export function initMember(): Member {
     countyOrState: '', // County or State
     country: '', // Country of residence
     phone: '', // optional.
-    email: '', // Unique and equal to the id.
+    emails: [], // List of emails.
 
     gender: '', // Male/Female/whatever string they choose.
     dateOfBirth: '', // Date of birth: YYYY-MM-DD
@@ -302,6 +306,8 @@ export function initSchool(): School {
     schoolWebsite: '',
     owner: '',
     managers: [],
+    ownerEmail: '',
+    managerEmails: [],
   };
 }
 
@@ -324,12 +330,25 @@ export function initInstructor(): InstructorPublicData {
 }
 
 // ==================================================================
+// # ACL
+// ==================================================================
+// Firestore path: /acl/{email}
+// Maps an email to the member IDs it is allowed to manage.
+export type ACL = {
+  memberDocIds: string[];
+  instructorIds: string[];
+  isAdmin: boolean;
+};
+
+export type ACLFirebaseDoc = ACL;
+
+// ==================================================================
 // # API Request types
 // ==================================================================
 
 // Used for login to know what kind of user this is.
 export type FetchUserDetailsResult = {
-  userMemberData: Member;
+  userMemberProfiles: Member[];
   isAdmin: boolean;
   schoolsManaged: string[];
 };
