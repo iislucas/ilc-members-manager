@@ -4,6 +4,8 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
+import { FirebaseApp, initializeApp } from 'firebase/app';
+import { environment } from '../environments/environment';
 import { provideHttpClient } from '@angular/common/http';
 import { addUrlParams, pathPattern, pv } from './routing.utils';
 import { RoutingConfig } from './routing.service';
@@ -47,6 +49,8 @@ export const ROUTING_CONFIG = new InjectionToken<
   RoutingConfig<AppPathPatterns>
 >('routing.config');
 
+export const FIREBASE_APP = new InjectionToken<FirebaseApp>('firebase.app');
+
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
@@ -55,6 +59,10 @@ export const appConfig: ApplicationConfig = {
     {
       provide: ROUTING_CONFIG,
       useValue: { validPathPatterns: initPathPatterns },
+    },
+    {
+      provide: FIREBASE_APP,
+      useValue: initializeApp(environment.firebase),
     },
   ],
 };

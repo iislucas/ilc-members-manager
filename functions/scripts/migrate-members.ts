@@ -55,6 +55,7 @@ async function migrate() {
     const newMemberData = {
       ...data,
       emails: [emailId],
+      isAdmin: !!data.isAdmin,
     };
     
     // Remove the old 'email' property if it's present in the document object
@@ -83,9 +84,7 @@ async function migrate() {
         data.instructorId,
       );
     }
-    if (data.isAdmin === true) {
-      aclUpdate.isAdmin = true;
-    }
+    aclUpdate.isAdmin = !!data.isAdmin;
 
     batch.set(aclRef, aclUpdate, { merge: true });
 

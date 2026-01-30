@@ -7,11 +7,18 @@ import {
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
+import { initializeApp } from 'firebase/app';
+import { environment } from './environments/environment';
+import { FIREBASE_APP } from './app/app.config';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
     provideBrowserGlobalErrorListeners(),
+    {
+      provide: FIREBASE_APP,
+      useValue: initializeApp(environment.firebase),
+    },
   ],
 };
 

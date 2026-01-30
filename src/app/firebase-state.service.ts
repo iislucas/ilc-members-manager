@@ -1,5 +1,5 @@
-import { Injectable, signal, WritableSignal } from '@angular/core';
-import { FirebaseApp, initializeApp } from 'firebase/app';
+import { inject, Injectable, signal, WritableSignal } from '@angular/core';
+import { FirebaseApp } from 'firebase/app';
 import {
   Auth,
   getAuth,
@@ -15,6 +15,7 @@ import {
   AuthErrorCodes,
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
+import { FIREBASE_APP } from './app.config';
 import { Analytics, getAnalytics } from 'firebase/analytics';
 import { Functions, getFunctions, httpsCallable } from 'firebase/functions';
 import {
@@ -84,7 +85,7 @@ export type UserDetails = {
   providedIn: 'root',
 })
 export class FirebaseStateService {
-  public app: FirebaseApp;
+  public app = inject(FIREBASE_APP);
   public analytics?: Analytics;
   public functions: Functions;
   private auth: Auth;
@@ -93,18 +94,11 @@ export class FirebaseStateService {
   public loggedIn: WritableSignal<Promise<UserDetails>>;
   private loggedInResolverFn: (value: UserDetails) => void = () => {};
   public loginError = signal<string | null>(null);
-
-  // public readonly user$ = toObservable(this.user);
-  // public readonly userAsMember$ = toObservable(this.userAsMember);
-  // public readonly userIsAdmin = computed(
-  //   () => this.userAsMember()?.isAdmin ?? false
-  // );
   public user = signal<UserDetails | null>(null);
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
 
   constructor() {
-    this.app = initializeApp(environment.firebase);
     this.db = getFirestore(this.app);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
@@ -119,66 +113,74 @@ export class FirebaseStateService {
     );
 
     onAuthStateChanged(this.auth, async (user) => {
-      if (this.unsubscribeFromMember) {
-        this.unsubscribeFromMember();
-        this.unsubscribeFromMember = null;
-      }
+        console.log('FirebaseStateService: onAuthStateChanged', this.auth, user);
 
-      if (!user || !user.email) {
-        // SignedOut
-        this.user.set(null);
-        this.loginStatus.set(LoginStatus.SignedOut);
-        this.loggedIn.set(
-          new Promise<UserDetails>((resolve, reject) => {
-            this.loggedInResolverFn = resolve;
-          }),
-        );
-        return;
-      }
+        if (this.unsubscribeFromMember) {
+          this.unsubscribeFromMember();
+          this.unsubscribeFromMember = null;
+        }
 
-      this.loginStatus.set(LoginStatus.LoggingIn);
+        if (!user || !user.email) {
+          // SignedOut
+          console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
+          this.user.set(null);
+          this.loginStatus.set(LoginStatus.SignedOut);
+          this.loggedIn.set(
+            new Promise<UserDetails>((resolve, reject) => {
+              this.loggedInResolverFn = resolve;
+            }),
+          );
+          return;
+        }
 
-      let userDetailsResult: FetchUserDetailsResult;
-      try {
-        const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
-          this.functions,
-          'getUserDetails',
-        );
-        userDetailsResult = (await getUserDetails()).data;
-      } catch (error: unknown) {
-        console.warn(error);
-        this.loginStatus.set(LoginStatus.SignedOut);
-        this.loginError.set((error as Error).message);
-        this.auth.signOut();
-        return;
-      }
+        this.loginStatus.set(LoginStatus.LoggingIn);
+        console.log('FirebaseStateService: Fetching user details...');
 
-      const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
-        ...initMember(),
-        ...p,
-      }));
+        let userDetailsResult: FetchUserDetailsResult;
+        try {
+          const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
+            this.functions,
+            'getUserDetails',
+          );
+          userDetailsResult = (await getUserDetails()).data;
+          console.log('FirebaseStateService: userDetailsResult:', userDetailsResult);
+        } catch (error: unknown) {
+          console.error('Error in getUserDetails:', error);
+          this.loginStatus.set(LoginStatus.SignedOut);
+          this.loginError.set((error as Error).message);
+          console.warn('Logging out because getUserDetails failed.');
+          this.auth.signOut();
+          return;
+        }
 
-      if (!profiles || profiles.length === 0) {
-        console.warn('No profiles found for user', user.email);
-        this.loginStatus.set(LoginStatus.SignedOut);
-        this.loginError.set('No profiles found for user');
-        this.auth.signOut();
-        return;
-      }
+        const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
+          ...initMember(),
+          ...p,
+        }));
 
-      const userDetails: UserDetails = {
-        firebaseUser: user,
-        member: profiles[0],
-        memberProfiles: profiles,
-        isAdmin: userDetailsResult.isAdmin,
-        schoolsManaged: userDetailsResult.schoolsManaged,
-      };
-      this.user.set(userDetails);
-      this.loggedInResolverFn(userDetails);
-      this.loginStatus.set(LoginStatus.SignedIn);
+        if (!profiles || profiles.length === 0) {
+          console.warn('No profiles found for user', user.email);
+          this.loginStatus.set(LoginStatus.SignedOut);
+          this.loginError.set('No profiles found for user');
+          console.warn('Logging out because no member profiles were found.');
+          this.auth.signOut();
+          return;
+        }
 
-      // From now on, listen to changes to the member document.
-      this.setupMemberSnapshotListener();
+        const userDetails: UserDetails = {
+          firebaseUser: user,
+          member: profiles[0],
+          memberProfiles: profiles,
+          isAdmin: userDetailsResult.isAdmin,
+          schoolsManaged: userDetailsResult.schoolsManaged,
+        };
+        console.log('FirebaseStateService: Setting user signal to details for:', user.email);
+        this.user.set(userDetails);
+        this.loggedInResolverFn(userDetails);
+        this.loginStatus.set(LoginStatus.SignedIn);
+
+        // From now on, listen to changes to the member document.
+        this.setupMemberSnapshotListener();
     });
   }
 
@@ -211,32 +213,42 @@ export class FirebaseStateService {
     if (!currentUserDetails || !currentUserDetails.member.id) return;
 
     const memberDocRef = doc(this.db, 'members', currentUserDetails.member.id);
-    this.unsubscribeFromMember = onSnapshot(memberDocRef, (doc) => {
-      if (!doc.exists()) {
-        const status = this.loginStatus();
-        if (status === LoginStatus.SignedIn) {
-          this.loginStatus.set(LoginStatus.SignedOut);
-          this.auth.signOut();
-          console.warn(
-            `The users membership doc was removed while they were signed in, and they've been signed out.`,
-          );
+    this.unsubscribeFromMember = onSnapshot(
+      memberDocRef,
+      (doc) => {
+        if (!doc.exists()) {
+          console.warn(`FirebaseStateService: Member doc snapshot says NOT EXISTS for ${currentUserDetails.member.id}`);
+          const status = this.loginStatus();
+          if (status === LoginStatus.SignedIn) {
+            console.warn('FirebaseStateService: Signing out because doc no longer exists in SignedIn state.');
+            this.loginStatus.set(LoginStatus.SignedOut);
+            console.warn(
+              `The users membership doc (${currentUserDetails.member.id}) was removed while they were signed in, and they've been signed out.`,
+            );
+            this.auth.signOut();
+          }
+          return;
         }
-        return;
-      }
-      const updatedDetails = this.user();
-      if (updatedDetails) {
-        const updatedMember = firestoreDocToMember(doc);
-        this.user.set({
-          ...updatedDetails,
-          member: updatedMember,
-          isAdmin: updatedMember.isAdmin,
-          // Update the profile in the list as well
-          memberProfiles: updatedDetails.memberProfiles.map((p) =>
-            p.id === updatedMember.id ? updatedMember : p,
-          ),
-        });
-      }
-    });
+        const updatedDetails = this.user();
+        if (updatedDetails) {
+          const updatedMember = firestoreDocToMember(doc);
+          this.user.set({
+            ...updatedDetails,
+            member: updatedMember,
+            isAdmin: updatedMember.isAdmin,
+            // Update the profile in the list as well
+            memberProfiles: updatedDetails.memberProfiles.map((p) =>
+              p.id === updatedMember.id ? updatedMember : p,
+            ),
+          });
+        }
+      },
+      (error) => {
+        console.error('Error in member snapshot listener:', error);
+        // We DON'T sign out here yet, just log it. 
+        // If it's a permission error, it might be transient or a rule change.
+      },
+    );
   }
 
   public async loginWithGoogle(): Promise<AuthOperationResult> {

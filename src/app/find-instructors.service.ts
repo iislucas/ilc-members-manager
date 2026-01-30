@@ -1,4 +1,4 @@
-import { effect, Injectable } from '@angular/core';
+import { effect, inject, Injectable } from '@angular/core';
 import {
   collection,
   getFirestore,
@@ -13,13 +13,13 @@ import {
 } from '../../functions/src/data-model';
 import { environment } from '../environments/environment';
 import { SearchableSet } from './searchable-set';
-import { initializeApp } from 'firebase/app';
+import { FIREBASE_APP } from './app.config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class FindInstructorsService {
-  app = initializeApp(environment.firebase);
+  app = inject(FIREBASE_APP);
   db = getFirestore(this.app);
   private snapshotsToUnsubscribe: (() => void)[] = [];
   private instructorsPublicCollection = collection(

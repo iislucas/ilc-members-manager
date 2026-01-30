@@ -219,10 +219,6 @@ export class DataManagerService {
   }
 
   async updateInstructorsSync() {
-    const q = query(
-      this.instructorsPublicCollection,
-      orderBy('applicationLevel', 'desc'),
-    );
     this.snapshotsToUnsubscribe.push(
       onSnapshot(
         this.instructorsPublicCollection,
@@ -230,6 +226,7 @@ export class DataManagerService {
           const instructors = snapshot.docs.map(
             firestoreDocToInstructorPublicData,
           );
+          console.log('instructors: ', instructors);
           this.instructors.setEntries(instructors);
         },
         (error) => {
@@ -241,8 +238,6 @@ export class DataManagerService {
 
   async updateCountersSync() {
     const countersRef = doc(this.db, 'counters', 'singleton');
-    const docSnap = await getDoc(countersRef);
-
     this.snapshotsToUnsubscribe.push(
       onSnapshot(countersRef, (doc) => {
         if (doc.exists()) {

@@ -8,16 +8,14 @@ service cloud.firestore {
 
     function isAdmin() {
       let email = request.auth.token.email;
-      return email != null && 
-             exists(/databases/$(database)/documents/acl/$(email)) &&
-             get(/databases/$(database)/documents/acl/$(email)).data.isAdmin == true;
+      let aclPath = /databases/$(database)/documents/acl/$(email);
+      return email != null && exists(aclPath) && get(aclPath).data.isAdmin == true;
     }
     match /members/{memberId} {
       function getMemberDocIds() {
         let email = request.auth.token.email;
-        return (email != null && exists(/databases/$(database)/documents/acl/$(email))) 
-               ? get(/databases/$(database)/documents/acl/$(email)).data.memberDocIds 
-               : [];
+        let aclPath = /databases/$(database)/documents/acl/$(email);
+        return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
       }
       function isOwner() {
         return (request.auth.token.email in resource.data.emails) || 
@@ -27,9 +25,10 @@ service cloud.firestore {
         let member = resource.data;
         let schoolId = member.managingOrgId;
         let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
+        let school = get(schoolPath).data;
         return schoolId != "" && exists(schoolPath) && (
-          let school = get(schoolPath).data;
-          (request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails)
+          request.auth.token.email == school.ownerEmail || 
+          request.auth.token.email in school.managerEmails
         );
       }
       function isValidEdit() {
@@ -38,13 +37,18 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
       allow delete: if isAdmin(); 
       allow write: if isValidEdit() && (isAdmin() || isManagerOfMemberSchool());
-      allow update: if isValidEdit() && isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 'emails', 'gender', 'dateOfBirth', 'sifuMemberId']);
+      allow update: if isValidEdit() && isOwner() && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 
+           'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 
+           'emails', 'gender', 'dateOfBirth', 'sifuMemberId']);
     }
 
     match /schools/{schoolId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails;
+        return request.auth.token.email == school.ownerEmail || 
+            request.auth.token.email in school.managerEmails;
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
@@ -52,7 +56,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isValidEdit() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if isValidEdit() && isSchoolManager() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managers']);
+      allow update: if isValidEdit() && isSchoolManager() && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managers']);
     }
 
     match /instructorsPublic/{instructorId} {
@@ -62,7 +68,8 @@ service cloud.firestore {
     match /schools/{schoolId}/members/{memberId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.ownerEmail || request.auth.token.email in school.managerEmails;
+        return request.auth.token.email == school.ownerEmail || 
+            request.auth.token.email in school.managerEmails;
       }
       allow read: if isAdmin() || isSchoolManager();
     }

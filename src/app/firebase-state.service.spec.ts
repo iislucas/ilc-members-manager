@@ -5,16 +5,43 @@ import {
   LogoutResult,
 } from './firebase-state.service';
 import { User, UserCredential } from 'firebase/auth';
-import { provideZonelessChangeDetection, effect } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { FIREBASE_APP } from './app.config';
+import { deleteApp, FirebaseApp, initializeApp } from 'firebase/app';
 
 describe('FirebaseStateService', () => {
   let service: FirebaseStateService;
+  let app: FirebaseApp;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), FirebaseStateService],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: FIREBASE_APP,
+          useValue: initializeApp(
+            {
+              apiKey: 'fake',
+              authDomain: 'fake',
+              projectId: 'fake',
+              storageBucket: 'fake',
+              messagingSenderId: 'fake',
+              appId: 'fake',
+            },
+            `test-app-${Math.random()}`,
+          ),
+        },
+        FirebaseStateService,
+      ],
     });
+    app = TestBed.inject(FIREBASE_APP);
     service = TestBed.inject(FirebaseStateService);
+  });
+
+  afterEach(async () => {
+    if (app) {
+      await deleteApp(app);
+    }
   });
 
   it('should be created', () => {
