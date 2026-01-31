@@ -4,7 +4,7 @@ import { Member } from './data-model';
 
 const db = admin.firestore();
 
-export async function updateSchoolMember(
+export async function updateMemberViewForSchoolAndInstrucor(
   memberDocId: string,
   member: Member | undefined,
   previousMember?: Member,

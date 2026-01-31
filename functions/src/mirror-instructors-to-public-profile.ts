@@ -10,40 +10,31 @@ function isInstructor(member: Member): boolean {
 }
 
 export type InstructorUpdate =
-  | { previousMember: undefined; member: Member }
+  | { previous: undefined; member: Member }
   | {
-      previousMember: Member;
+      previous: Member;
       member: undefined;
     }
   | {
-      previousMember: Member;
+      previous: Member;
       member: Member;
     };
 
-export async function updateInstructor(update: InstructorUpdate) {
+export async function updateInstructorPublicProfile(update: InstructorUpdate) {
   if (update.member) {
-    // TODO: consider putting in a transaction
     const member = update.member;
-    const prev = update.previousMember;
-    if (
-      prev &&
-      prev.instructorId &&
-      prev.instructorId !== member.instructorId
-    ) {
-      logger.info(
-        `Removing old instructor, ID changed: ${prev.instructorId} -> ${member.instructorId}`,
-      );
-      await db.collection('instructorsPublic').doc(prev.instructorId).delete();
-    }
-
     if (isInstructor(member)) {
-      const instructorRef = db
-        .collection('instructorsPublic')
-        .doc(member.instructorId);
+      if (!member.id) {
+        logger.error(
+          `Member ${member.name} has no ID, cannot update instructor public data`,
+        );
+        return;
+      }
+      const instructorRef = db.collection('instructorsPublic').doc(member.id);
 
-      logger.info(`Updating instructor $${member.instructorId}`);
+      logger.info(`Updating instructorId(${member.instructorId}) for member with Doc ${member.id}`);
       const instructor: InstructorPublicData = {
-        id: member.instructorId,
+        id: member.id, // The ID of this document matches the Member Document ID
         name: member.name,
         memberId: member.memberId,
         studentLevel: member.studentLevel,
@@ -59,12 +50,22 @@ export async function updateInstructor(update: InstructorUpdate) {
       };
       // For now we copy all data
       await instructorRef.set(instructor);
+    } else {
+      // If they were an instructor and now are not, we should delete the public record.
+      // We check if the record exists first? Or just delete it.
+      // `delete()` is idempotent if it doesn't exist.
+      if (member.id) {
+        await db.collection('instructorsPublic').doc(member.id).delete();
+      }
     }
-  } else {
-    logger.info(`Removing instructor ${update.previousMember.instructorId}`);
-    await db
-      .collection('instructorsPublic')
-      .doc(update.previousMember.instructorId)
-      .delete();
+  } else if (update.previous) {
+    // Member was deleted
+    const prev = update.previous;
+    if (prev.id) {
+      logger.info(
+        `Removing instructor public data for deleted member ${prev.id}`,
+      );
+      await db.collection('instructorsPublic').doc(prev.id).delete();
+    }
   }
 }

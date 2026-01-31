@@ -327,6 +327,7 @@ export class FirebaseStateService {
   }
 
   public async logout(): Promise<LogoutResult> {
+    console.log('logout called');
     try {
       await signOut(this.auth);
       return { success: true };

@@ -2,11 +2,19 @@ import { environment } from './environment/environment';
 import * as admin from 'firebase-admin';
 import { Member, School } from './data-model';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export const allowedOrigins = environment.domains;
 if (process.env.GCLOUD_PROJECT) {
   allowedOrigins.push(`https://${process.env.GCLOUD_PROJECT}.web.app`);
 }
+
+// Transforms a type to allow its properties to be the original type,
+// or a Firestore FieldValue. This also makes all properties optional,
+// which is standard for an update operation.
+export type FirestoreUpdate<T> = {
+  [P in keyof T]?: T[P] | FieldValue;
+};
 
 export async function getMemberByEmail(
   email: string,

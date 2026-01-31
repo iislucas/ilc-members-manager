@@ -62,13 +62,14 @@ async function run() {
 
   for (const doc of membersSnap.docs) {
     const member = doc.data() as Member;
+    member.id = doc.id;
     
     if (isInstructor(member)) {
-      qualifyingInstructorIds.add(member.instructorId);
-      console.log(`Member ${member.name} (${member.instructorId}) qualifies as instructor.`);
+      qualifyingInstructorIds.add(member.id); // We track qualifying MEMBER DOC IDs now
+      console.log(`Member ${member.name} (${member.instructorId}) qualifies as instructor. Doc ID: ${member.id}`);
       
       const instructorData: InstructorPublicData = {
-        id: member.instructorId,
+        id: member.id, // Key is Member Doc ID
         name: member.name,
         memberId: member.memberId,
         instructorWebsite: member.instructorWebsite || '',
@@ -84,7 +85,8 @@ async function run() {
       };
 
       if (!argv['dry-run']) {
-        await db.collection('instructorsPublic').doc(member.instructorId).set(instructorData);
+        // Use member.id as key
+        await db.collection('instructorsPublic').doc(member.id).set(instructorData);
       }
       updatedCount++;
     } else {

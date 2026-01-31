@@ -31,7 +31,6 @@ export class FindInstructorsService {
     'instructorId',
     'name',
     'publicEmail',
-    'memberId',
     'publicRegionOrCity',
     'publicPhone',
     'country',

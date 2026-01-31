@@ -5,6 +5,70 @@ import {
 } from 'firebase/firestore';
 
 // ==================================================================
+// # Collections in Firebase
+// ==================================================================
+/* 
+
+Admins can read and write to all documents.
+
+## /acl/{email} : ACL
+
+Stored the ACLs for a given login email address. It specifies a 
+number of members (via their Doc ID in /members/{memberDocId}) that 
+this email owns. It also caches if any of those members are an "admin". 
+This is readable only by "admins", and by the user that logs in with this 
+email. It is writable only by "admins".
+
+## /members/{memberDocId} : Member
+
+This is the primary document for a member. It contains all the 
+information about a member, including their name, address, phone, 
+email, and other contact information. It is readable by a user that logs 
+in with one of the emails associated with this member. 
+It is fully writable only by "admins", although a subset of the fields can 
+be edited by a user who is logged in as one of this member's emails.
+
+## /instructorsPublic/{memberDocId} : InstructorPublic
+
+The /instructorsPublic/ collection stores cached public information 
+for each "instructor" member in /members/{memberDocId} (for each that 
+has an `instructorId` that is not empty and `instructorLicenseExpires` 
+is in the future). They hold the public profile information of 
+instructors, e.g. their contact information.
+
+## /schools/{schoolDocId} : School
+
+This document contains public information about a school, including its name, 
+address, and contact information. The public information is readable by anyone.
+Admins can update the information, and a school manager or owner can also 
+write some of the fields.
+
+### /schools/{schoolDocId}/members/{memberDocId}: Member
+
+This document is cached member information (from /members/{memberDocId})
+for members of this school. This allows for efficient queries of 
+all members of a school by school owners and managers.
+
+## /instructors/{instructorMemberDocId}/members/{studentMemberDocId}: Member
+
+This document is cached member information (from /members/{memberDocId})
+that are have listed the instructor as their primary instructor. 
+This allows for efficient queries of by an instrutcor of all their students.
+Both {instructorMemberDocId} and {studentMemberDocId} should correspond to 
+entries in the /members/{memberDocId}.
+
+## /counters/singleton : Counters
+
+These counters are used to generate unique IDs for new members and instructors.
+
+## /countries/singleton : CountryCodes
+
+This document contains a map of country names to their 2-letter ISO codes.
+
+*/
+
+
+// ==================================================================
 // # COUNTERS
 // ==================================================================
 // All counters are stored in a single document for atomic updates.
@@ -130,7 +194,8 @@ export type Member = {
   isAdmin: boolean;
 
   // Internal ILC HQ Information
-  memberId: string; // ILC Member Id: UNIQUE
+  memberId: string; // ILC Member Id (human readable): UNIQUE
+  // Note: This is NOT the document ID.
 
   sifuInstructorId: string; // ILC issues Instructor ID of the member's Sifu
   // SchoolID managing this member. If empty, managed by HQ.

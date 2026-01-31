@@ -5,27 +5,42 @@ import {
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import { Member, ACL } from './data-model';
-import { updateSchoolMember } from './mirror-school-members';
-import { updateInstructor } from './mirror-instructors';
+import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
+import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
+import { FirestoreUpdate } from './common';
+import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
 
-async function updateACL(
-  memberDocId: string,
-  instructorId: string,
-  emails: string[],
-  previousEmails: string[] = [],
-  previousInstructorId: string = '',
-) {
+async function updateACL(aclUpdate: {
+  previous?: Member;
+  member?: Member;
+}) {
+  const { previous, member } = aclUpdate;
+  if (!previous && !member) {
+    logger.error(`updateACL called without member or previous member`);
+    return;
+  }
+  const memberDocId = member?.id || previous?.id;
+
+  const emails = member?.emails || [];
+  const instructorId = member?.instructorId;
+
+  const previousEmails = previous?.emails || [];
+  const previousInstructorId = previous?.instructorId;
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
+
+  if (added.length === 0 && removed.length === 0) {
+    return;
+  }
 
   const batch = db.batch();
 
   for (const email of added) {
     if (!email) continue;
     const aclRef = db.collection('acl').doc(email);
-    const update: any = {
+    const update: FirestoreUpdate<ACL> = {
       memberDocIds: admin.firestore.FieldValue.arrayUnion(memberDocId),
     };
     if (instructorId) {
@@ -37,7 +52,7 @@ async function updateACL(
   for (const email of removed) {
     if (!email) continue;
     const aclRef = db.collection('acl').doc(email);
-    const update: any = {
+    const update: FirestoreUpdate<ACL> = {
       memberDocIds: admin.firestore.FieldValue.arrayRemove(memberDocId),
     };
     if (previousInstructorId) {
@@ -91,9 +106,11 @@ export const onMemberCreated = onDocumentCreated(
       return;
     }
     const member = snap.data() as Member;
-    await updateSchoolMember(snap.id, member);
-    await updateInstructor({ previousMember: undefined, member });
-    await updateACL(snap.id, member.instructorId, member.emails || []);
+    member.id = snap.id; // Ensure ID is present
+
+    await updateMemberViewForSchoolAndInstrucor(snap.id, member);
+    await updateInstructorPublicProfile({ previous: undefined, member });
+    await updateACL({ previous: undefined, member: member });
   },
 );
 
@@ -105,16 +122,14 @@ export const onMemberUpdated = onDocumentUpdated(
       return;
     }
     const member = snap.after.data() as Member;
-    const previousMember = snap.before.data() as Member;
-    await updateSchoolMember(snap.after.id, member, previousMember);
-    await updateInstructor({ previousMember, member });
-    await updateACL(
-      snap.after.id,
-      member.instructorId,
-      member.emails || [],
-      previousMember.emails || [],
-      previousMember.instructorId,
-    );
+    member.id = snap.after.id;
+
+    const previous = snap.before.data() as Member;
+    previous.id = snap.before.id;
+
+    await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
+    await updateInstructorPublicProfile({ previous, member });
+    await updateACL({ previous, member });
   },
 );
 
@@ -126,8 +141,10 @@ export const onMemberDeleted = onDocumentDeleted(
       return;
     }
     const member = snap.data() as Member;
-    await updateSchoolMember(snap.id, undefined, member);
-    await updateInstructor({ previousMember: member, member: undefined });
-    await updateACL(snap.id, '', [], member.emails || [], member.instructorId);
+    member.id = snap.id;
+
+    await updateMemberViewForSchoolAndInstrucor(snap.id, undefined, member);
+    await updateInstructorPublicProfile({ previous: member, member: undefined });
+    await updateACL({ previous: member, member: undefined });
   },
 );
