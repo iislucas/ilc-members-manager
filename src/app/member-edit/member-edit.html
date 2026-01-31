@@ -168,7 +168,7 @@
             [inputBoxIsChip]="false"
             [placeholder]="'Search for a country'"
             [initSearchTerm]="form.country().value()"
-            (textUpdated)="form.country().value.set($event)"
+            (textUpdated)="updateCountry($event)"
           ></app-autocomplete>
           @if (countryWithCode(); as cc) {
             <div class="identifier-chip">{{ cc.id }}</div>
@@ -243,7 +243,7 @@
               [placeholder]="'Search for an instructor'"
               [displayFns]="instructorDisplayFns"
               [initSearchTerm]="form.sifuInstructorId().value()"
-              (textUpdated)="form.sifuInstructorId().value.set($event)"
+              (textUpdated)="updateSifuInstructorId($event)"
             ></app-autocomplete>
             @if (e.sifuInstructorId === "") {
               <div class="note">No primary instructor set</div>
@@ -294,7 +294,7 @@
               [placeholder]="'Search for a school'"
               [displayFns]="schoolDisplayFns"
               [initSearchTerm]="form.managingOrgId().value()"
-              (textUpdated)="form.managingOrgId().value.set($event)"
+              (textUpdated)="updateManagingOrgId($event)"
             ></app-autocomplete>
             @if (e.managingOrgId.trim() === "") {
               <div class="note">Primary School is ILC HQ</div>
