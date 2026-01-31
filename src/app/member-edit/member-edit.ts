@@ -176,7 +176,7 @@ export class MemberEditComponent {
     toName: (s: School) => s.schoolName,
   };
   instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.id,
+    toChipId: (i: InstructorPublicData) => i.instructorId,
     toName: (i: InstructorPublicData) => i.name,
   };
 
@@ -253,21 +253,20 @@ export class MemberEditComponent {
   }
 
   addEmail() {
-    this.memberFormModel.update((m) => ({ ...m, emails: [...m.emails, ''] }));
+    this.form.emails().value.update((emails) => [...emails, '']);
   }
 
   removeEmail(index: number) {
-    this.memberFormModel.update((m) => ({
-      ...m,
-      emails: m.emails.filter((_, i) => i !== index),
-    }));
+    this.form
+      .emails()
+      .value.update((emails) => emails.filter((_, i) => i !== index));
   }
 
   updateEmail(index: number, val: string) {
-    this.memberFormModel.update((m) => {
-      const emails = [...m.emails];
-      emails[index] = val;
-      return { ...m, emails };
+    this.form.emails().value.update((emails) => {
+      const newEmails = [...emails];
+      newEmails[index] = val;
+      return newEmails;
     });
   }
 

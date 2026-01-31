@@ -82,7 +82,7 @@ export class DataManagerService {
   });
 
   // A signal to hold the state of the members list.
-  public members = new SearchableSet<Member>([
+  public members = new SearchableSet<'memberId', Member>([
     'memberId',
     'instructorId',
     'name',
@@ -94,8 +94,9 @@ export class DataManagerService {
     'publicRegionOrCity',
     'publicCountyOrState',
     'country',
-  ]);
-  public instructors = new SearchableSet<InstructorPublicData>([
+  ],
+  'memberId');
+  public instructors = new SearchableSet<'instructorId', InstructorPublicData>([
     'memberId',
     'instructorId',
     'name',
@@ -105,16 +106,16 @@ export class DataManagerService {
     'publicCountyOrState',
     'publicPhone',
     'country',
-  ]);
-  public schools = new SearchableSet<School>([
+  ], 'instructorId');
+  public schools = new SearchableSet<'schoolId', School>([
     'schoolName',
     'schoolId',
     'schoolCity',
     'schoolCountyOrState',
     'schoolCountry',
-  ]);
+  ], 'schoolId');
   public counters = signal<Counters | null>(null);
-  public countries = new SearchableSet<CountryCode>(['name', 'id']);
+  public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
 
   constructor() {
     effect(async () => {

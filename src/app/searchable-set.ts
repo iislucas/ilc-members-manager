@@ -2,7 +2,7 @@ import { computed, signal } from '@angular/core';
 import MiniSearch from 'minisearch';
 
 // TODO: add caching of the memberset in localstorage? Or indexDB?
-export class SearchableSet<T extends { id: string }> {
+export class SearchableSet<ID extends string, T extends { [key in ID]: string }> {
   // A signal to hold the state of the members list.
   private state = signal<{
     entries: T[];
@@ -22,6 +22,7 @@ export class SearchableSet<T extends { id: string }> {
 
   constructor(
     public fieldsToSearch: string[],
+    public idField: ID,
     entries?: T[],
   ) {
     if (entries) {
@@ -32,8 +33,8 @@ export class SearchableSet<T extends { id: string }> {
   private membersMiniSearch = computed(() => {
     const miniSearch = new MiniSearch<T>({
       fields: this.fieldsToSearch,
-      storeFields: ['id'],
-      idField: 'id',
+      storeFields: [this.idField],
+      idField: this.idField,
     });
     miniSearch.addAll(this.entries());
     return miniSearch;
@@ -42,7 +43,7 @@ export class SearchableSet<T extends { id: string }> {
   public entriesMap = computed(() => {
     const map = new Map<string, T>();
     for (const e of this.entries()) {
-      map.set(e.id, e);
+      map.set(e[this.idField], e);
     }
     return map;
   });
@@ -61,7 +62,7 @@ export class SearchableSet<T extends { id: string }> {
       entries = this.entries();
     } else {
       const results = this.membersMiniSearch().search(term, { fuzzy: 0.2 });
-      entries = results.map((result) => this.entriesMap().get(result.id)!);
+      entries = results.map((result) => this.entriesMap().get(result[this.idField])!);
     }
     return entries;
   }

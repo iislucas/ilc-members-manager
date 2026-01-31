@@ -33,7 +33,7 @@ export class MemberListComponent {
     return user.isAdmin || user.schoolsManaged.length > 0;
   });
 
-  memberSet = input.required<SearchableSet<Member>>();
+  memberSet = input.required<SearchableSet<'memberId', Member>>();
   jumpToMember = input<string>('');
 
   private searchTerm = signal('');

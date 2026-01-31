@@ -263,7 +263,7 @@ export function firestoreDocToMember(doc: QueryDocumentSnapshot): Member {
 // firestore path /instructorsPublic/{instructorId}
 export type InstructorPublicData = {
   // Note this is needed by SearchableSet.
-  id: string; // Firebase document ID. Unique. Should be instructorId.
+  id: string; // Firebase document ID. Unique. This is not the same as instructorId.
 
   name: string; // Full name
   memberId: string; // ILC Member Id: UNIQUE
@@ -277,7 +277,8 @@ export type InstructorPublicData = {
 
   // Instructor information.
   //
-  // ILC HQ issued a unique instructor ID, empty = not instructor.
+  // This is a human-readable instructor ID, not the same as the Firebase document ID.
+  // ILC HQ issued a unique instructor ID, empty = not instructor. 
   instructorId: string;
 
   publicRegionOrCity: string;

@@ -26,14 +26,15 @@ export type DisplayFns<T> = {
   templateUrl: './autocomplete.html',
   styleUrl: './autocomplete.scss',
 })
-export class AutocompleteComponent<T extends { id: string }> {
-  searchableSet = input.required<SearchableSet<T>>();
+export class AutocompleteComponent<ID extends string, T extends { [key in ID]: string } > {
+  searchableSet = input.required<SearchableSet<ID, T>>();
   displayFns = input.required<DisplayFns<T>>();
   name = input<string>('');
   placeholder = input<string>('');
   disabled = input<boolean>(false);
   inputBoxIsChip = input<boolean>(true);
   initSearchTerm = input<string>('');
+  idField = computed(() => this.searchableSet().idField);
 
   itemSelected = output<T>();
   textUpdated = output<string>();

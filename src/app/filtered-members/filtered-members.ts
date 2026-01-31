@@ -12,12 +12,12 @@ import { Member } from '../../../functions/src/data-model';
   styleUrl: './filtered-members.scss',
 })
 export class FilteredMembersComponent {
-  memberSet = input.required<SearchableSet<Member>>();
+  memberSet = input.required<SearchableSet<'memberId', Member>>();
   schoolId = input<string>('');
   country = input<string>('');
   jumpToMember = input<string>('');
   // TODO: consider making that list of fields into a constant somewhere
-  filteredMemberSet = new SearchableSet<Member>([
+  filteredMemberSet = new SearchableSet<'memberId', Member>([
     'memberId',
     'instructorId',
     'name',
@@ -29,7 +29,7 @@ export class FilteredMembersComponent {
     'publicRegionOrCity',
     'publicCountyOrState',
     'country',
-  ]);
+  ], 'memberId');
   errorMessage = computed(() => {
     return this.memberSet().error() || this.filteredMemberSet.error();
   });

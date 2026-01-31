@@ -9,9 +9,7 @@ import {
 import {
   InstructorPublicData,
   firestoreDocToInstructorPublicData,
-  initInstructor,
 } from '../../functions/src/data-model';
-import { environment } from '../environments/environment';
 import { SearchableSet } from './searchable-set';
 import { FIREBASE_APP } from './app.config';
 
@@ -26,7 +24,7 @@ export class FindInstructorsService {
     this.db,
     'instructorsPublic',
   );
-  public instructors = new SearchableSet<InstructorPublicData>([
+  public instructors = new SearchableSet<'instructorId', InstructorPublicData>([
     'memberId',
     'instructorId',
     'name',
@@ -34,7 +32,7 @@ export class FindInstructorsService {
     'publicRegionOrCity',
     'publicPhone',
     'country',
-  ]);
+  ], 'instructorId');
 
   constructor() {
     effect(async () => {
