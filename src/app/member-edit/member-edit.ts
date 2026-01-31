@@ -252,17 +252,23 @@ export class MemberEditComponent {
     return this.isDirty();
   }
 
-  emailsInput = linkedSignal(() => this.member().emails.join(', '));
+  addEmail() {
+    this.memberFormModel.update((m) => ({ ...m, emails: [...m.emails, ''] }));
+  }
 
-  updateEmails(val: string) {
-    this.emailsInput.set(val);
-    const emails = val
-      .split(',')
-      .map((e) => e.trim())
-      .filter((e) => !!e);
-    this.memberFormModel.update((m) => ({ ...m, emails }));
-    // Trigger dirty state manually for the field if needed,
-    // but memberFormModel update might be enough for the form signal.
+  removeEmail(index: number) {
+    this.memberFormModel.update((m) => ({
+      ...m,
+      emails: m.emails.filter((_, i) => i !== index),
+    }));
+  }
+
+  updateEmail(index: number, val: string) {
+    this.memberFormModel.update((m) => {
+      const emails = [...m.emails];
+      emails[index] = val;
+      return { ...m, emails };
+    });
   }
 
   constructor() {}

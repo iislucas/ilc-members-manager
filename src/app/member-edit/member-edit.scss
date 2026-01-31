@@ -1,1 +1,31 @@
 @use "../edit-form.scss" as *;
+
+.email-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  input {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.add-email-btn {
+  opacity: 0.6;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.add-email-row {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 4px;
+}

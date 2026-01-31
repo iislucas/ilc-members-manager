@@ -9,6 +9,8 @@ import {
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
   User,
   UserCredential,
   sendPasswordResetEmail,
@@ -106,6 +108,13 @@ export class FirebaseStateService {
       this.analytics = getAnalytics(this.app);
     }
 
+    // Note: without this, the user will be signed out when the app is reloaded,
+    // and also, I've seen some strange issues where the user is logged out after 
+    // 10-60 seconds.
+    setPersistence(this.auth, browserLocalPersistence)
+      .then(() => console.log('FirebaseStateService: Persistence set to browserLocalPersistence'))
+      .catch((e) => console.error('FirebaseStateService: Failed to set persistence', e));
+
     this.loggedIn = signal(
       new Promise<UserDetails>((resolve, reject) => {
         this.loggedInResolverFn = resolve;
@@ -113,8 +122,6 @@ export class FirebaseStateService {
     );
 
     onAuthStateChanged(this.auth, async (user) => {
-        console.log('FirebaseStateService: onAuthStateChanged', this.auth, user);
-
         if (this.unsubscribeFromMember) {
           this.unsubscribeFromMember();
           this.unsubscribeFromMember = null;
@@ -134,8 +141,6 @@ export class FirebaseStateService {
         }
 
         this.loginStatus.set(LoginStatus.LoggingIn);
-        console.log('FirebaseStateService: Fetching user details...');
-
         let userDetailsResult: FetchUserDetailsResult;
         try {
           const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
@@ -143,13 +148,12 @@ export class FirebaseStateService {
             'getUserDetails',
           );
           userDetailsResult = (await getUserDetails()).data;
-          console.log('FirebaseStateService: userDetailsResult:', userDetailsResult);
         } catch (error: unknown) {
           console.error('Error in getUserDetails:', error);
           this.loginStatus.set(LoginStatus.SignedOut);
           this.loginError.set((error as Error).message);
-          console.warn('Logging out because getUserDetails failed.');
-          this.auth.signOut();
+          console.warn('Logging out because getUserDetails failed with error:', error);
+          this.logout();
           return;
         }
 
@@ -163,7 +167,7 @@ export class FirebaseStateService {
           this.loginStatus.set(LoginStatus.SignedOut);
           this.loginError.set('No profiles found for user');
           console.warn('Logging out because no member profiles were found.');
-          this.auth.signOut();
+          this.logout();
           return;
         }
 
@@ -225,7 +229,7 @@ export class FirebaseStateService {
             console.warn(
               `The users membership doc (${currentUserDetails.member.id}) was removed while they were signed in, and they've been signed out.`,
             );
-            this.auth.signOut();
+            this.logout();
           }
           return;
         }

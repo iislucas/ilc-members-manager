@@ -75,17 +75,48 @@
           }
         </div>
 
-        <label for="emails">Emails</label>
+        <label>Emails</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="emails"
-            [value]="emailsInput()"
-            (input)="updateEmails($any($event.target).value)"
-            (blur)="emailsField.dirty()"
-          />
           @let emailsField = form.emails();
           @let emailErrors = emailsField.errors();
+
+          @for (email of emailsField.value(); track $index; let last = $last) {
+            <div class="email-row">
+              <input
+                type="text"
+                [value]="email"
+                (input)="updateEmail($index, $any($event.target).value)"
+                (blur)="emailsField.dirty()"
+                placeholder="name@example.com"
+              />
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="removeEmail($index)"
+                title="Remove email"
+              >
+                <app-icon name="trash" />
+              </button>
+              @if (last) {
+                <button
+                  type="button"
+                  class="icon-only-button add-email-btn"
+                  (click)="addEmail()"
+                  title="Add another email"
+                >
+                  <app-icon name="add" />
+                </button>
+              }
+            </div>
+          }
+          @if (emailsField.value().length === 0) {
+            <div class="add-email-row">
+              <button type="button" class="text-button" (click)="addEmail()">
+                + Add Email
+              </button>
+            </div>
+          }
+
           @if (isDupEmail()) {
             <div class="error-message">
               One of these emails is already in use by another member.
