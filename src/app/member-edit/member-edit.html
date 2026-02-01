@@ -561,6 +561,12 @@
                   Close
                 }
               </button>
+            } @else {
+              @if (isDirty()) {
+                <button type="button" (click)="cancel($event)">
+                  Undo changes
+                </button>
+              }
             }
           }
         </div>

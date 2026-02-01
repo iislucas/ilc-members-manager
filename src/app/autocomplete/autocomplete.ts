@@ -42,14 +42,15 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   showResults = signal(false);
 
   filteredItems = computed(() => {
-    return this.searchableSet().search(this.searchTerm());
+    const items = this.searchableSet().search(this.searchTerm());
+    return items.length === 1 && items[0][this.idField()].toLowerCase() === this.searchTerm().toLowerCase() ? 
+      this.searchableSet().entries() : items;
   });
 
   onSearchTermChange(event: Event) {
     const updatedText = (event.target as HTMLInputElement).value;
     this.textUpdated.emit(updatedText);
     this.searchTerm.set(updatedText);
-    console.log('autocomplete updated:', updatedText);
   }
 
   selectItem(item: T) {

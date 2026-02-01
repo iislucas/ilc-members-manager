@@ -61,8 +61,8 @@ export class SearchableSet<ID extends string, T extends { [key in ID]: string }>
     if (!term) {
       entries = this.entries();
     } else {
-      const results = this.membersMiniSearch().search(term, { fuzzy: 0.2 });
-      entries = results.map((result) => this.entriesMap().get(result[this.idField])!);
+      const results = this.membersMiniSearch().search(term, { fuzzy: 0.2, prefix: true });
+      entries = results.map((result) => this.entriesMap().get(result.id)!);
     }
     return entries;
   }

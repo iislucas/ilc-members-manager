@@ -79,6 +79,7 @@ export class MemberEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<Member> = form(this.memberFormModel, (schema) => {
     required(schema.name, { message: 'Name is required.' });
+    // TODO: don't use any types... 
     required(schema.emails as any, { message: 'An email must be provided.' });
     // TODO: email validation for array...
     required(schema.membershipType, { message: 'Membership type is required.' });
@@ -351,12 +352,11 @@ export class MemberEditComponent {
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    const m = this.member();
     this.form().reset();
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
     this.collapsed.set(this.collapsable());
-    this.close.emit();
+    if(this.collapsable()) { this.close.emit(); }
   }
 
   toggleCollapseState($event: Event) {
