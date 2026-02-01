@@ -85,7 +85,7 @@
               <input
                 type="text"
                 [value]="email"
-                (input)="updateEmail($index, $any($event.target).value)"
+                (input)="updateEmail($index, $event)"
                 (blur)="emailsField.dirty()"
                 placeholder="name@example.com"
               />
@@ -407,9 +407,7 @@
                 name="masterLevels"
                 type="checkbox"
                 [checked]="e.mastersLevels.includes(level)"
-                (change)="
-                  onMasterLevelChange(level, $any($event.target).checked)
-                "
+                (change)="onMasterLevelChange(level, $event)"
                 [disabled]="!userIsAdmin()"
               />
               {{ level }}

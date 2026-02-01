@@ -79,13 +79,12 @@ export class MemberEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<Member> = form(this.memberFormModel, (schema) => {
     required(schema.name, { message: 'Name is required.' });
-    // TODO: don't use any types... 
-    required(schema.emails as any, { message: 'An email must be provided.' });
+    required(schema.emails, { message: 'An email must be provided.' });
     // TODO: email validation for array...
     required(schema.membershipType, { message: 'Membership type is required.' });
 
     disabled(schema.name, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.emails as any, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(schema.emails, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.address, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.city, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.zipCode, () => !this.userIsMemberSchoolManagerOrAdmin());
@@ -286,7 +285,8 @@ export class MemberEditComponent {
       .value.update((emails) => emails.filter((_, i) => i !== index));
   }
 
-  updateEmail(index: number, val: string) {
+  updateEmail(index: number, event: Event) {
+    const val = (event.target as HTMLInputElement).value;
     this.form.emails().value.update((emails) => {
       const newEmails = [...emails];
       newEmails[index] = val;
@@ -353,6 +353,9 @@ export class MemberEditComponent {
     $event.preventDefault();
     $event.stopPropagation();
     this.form().reset();
+    // Reset the form model to a fresh clone of the original member
+    // This will trigger the effect to sync all fields including emails and autocomplete values
+    this.memberFormModel.set(structuredClone(this.member()));
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
     this.collapsed.set(this.collapsable());
@@ -466,7 +469,8 @@ export class MemberEditComponent {
     }
   }
 
-  onMasterLevelChange(level: MasterLevel, isChecked: boolean) {
+  onMasterLevelChange(level: MasterLevel, event: Event) {
+    const isChecked = (event.target as HTMLInputElement).checked;
     const current = this.form.mastersLevels().value();
     if (isChecked) {
       this.form.mastersLevels().value.set([...current, level]);
@@ -488,7 +492,7 @@ export class MemberEditComponent {
     if (this.isDupEmail()) {
       errors.push('This email address is already in use.');
     }
-    if (this.form.emails && (this.form.emails() as any).value().length === 0) {
+    if (this.form.emails && this.form.emails().value().length === 0) {
       errors.push('An email must be provided.');
     }
     if (this.isDupMemberId()) {
