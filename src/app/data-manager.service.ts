@@ -227,7 +227,6 @@ export class DataManagerService {
           const instructors = snapshot.docs.map(
             firestoreDocToInstructorPublicData,
           );
-          console.log('instructors: ', instructors);
           this.instructors.setEntries(instructors);
         },
         (error) => {
@@ -242,10 +241,8 @@ export class DataManagerService {
     this.snapshotsToUnsubscribe.push(
       onSnapshot(countersRef, (doc) => {
         if (doc.exists()) {
-          console.log('counters: ', doc.data());
           this.counters.set(doc.data() as Counters);
         } else {
-          console.log('First run, set counters');
           setDoc(countersRef, { memberIdCounters: {}, instructorIdCounter: 0 });
         }
       }),
@@ -260,7 +257,6 @@ export class DataManagerService {
           const countryCode = doc.data() as CountryCodesDoc;
           this.countries.setEntries(countryCode.codes);
         } else {
-          console.log('First run, creating country codes');
           const countryCodes: CountryCodesDoc = { codes: countryCodeList };
           setDoc(countryCodesRef, countryCodes);
         }

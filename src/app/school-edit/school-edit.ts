@@ -164,7 +164,7 @@ export class SchoolEditComponent {
   });
 
   instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.id,
+    toChipId: (i: InstructorPublicData) => i.instructorId,
     toName: (i: InstructorPublicData) => i.name,
   };
 
@@ -341,7 +341,7 @@ export class SchoolEditComponent {
       errors.push('This school ID is already in use.');
     }
     const schoolNameErrors = this.form.schoolName().errors();
-    if (schoolNameErrors) {
+    if (schoolNameErrors && schoolNameErrors.length > 0 && schoolNameErrors[0]) {
       errors.push(schoolNameErrors[0].message ?? 'School Name is invalid.');
     }
     if (this.form.owner().value().trim() === '') {
