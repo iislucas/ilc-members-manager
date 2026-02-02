@@ -8,6 +8,7 @@
     (input)="onSearchTermChange($event)"
     (focus)="onFocus()"
     (blur)="onBlur()"
+    autocomplete="off"
   />
 
   @if (showResults() && filteredItems().length > 0) {
