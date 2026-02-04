@@ -135,32 +135,32 @@ pnpm exec firebase use --add ${PROJECT}
 Deploy everything, functions and hosted web app:
 
 ```sh
-pnpm deploy
+pnpm run deploy
 ```
 
 Deploy just the hosted web UI:
 
 ```sh
-pnpm deploy:hosting
+pnpm run deploy:hosting
 ```
 
 Deploy just functions
 
 ```sh
-pnpm deploy:functions
+pnpm run deploy:functions
 ```
 
 Deploy just firebase rules
 
 ```sh
-pnpm deploy:firestore-rules
+pnpm run deploy:firestore-rules
 ```
 
 #### Deploying the Find an Instructor web-component
 
 ```sh
 # Build the web-component files
-pnpm build:wc
+pnpm run build:wc
 # Set the cloud bucket name/path
 CLOUD_BUCKET_NAME_AND_PATH= # .. Cloud bucket name and path....
 # Copy files to the cloud bucket.

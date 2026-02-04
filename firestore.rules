@@ -42,7 +42,7 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 
            'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 
-           'emails', 'gender', 'dateOfBirth', 'sifuMemberId']);
+           'emails', 'gender', 'dateOfBirth', 'sifuInstructorId']);
     }
 
     match /schools/{schoolId} {

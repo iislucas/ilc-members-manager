@@ -65,16 +65,31 @@ async function run() {
   const membersSnap = await db.collection('members').get();
   console.log(`Found ${membersSnap.size} members to process.`);
 
+  const members = membersSnap.docs.map((doc) => {
+    const data = doc.data() as Member;
+    data.id = doc.id;
+    return data;
+  });
+
   const qualifyingInstructorIds = new Set<string>();
+  const studentsByInstructorId = new Map<string, Member[]>();
+
+  for (const member of members) {
+    if (member.sifuInstructorId) {
+      if (!studentsByInstructorId.has(member.sifuInstructorId)) {
+        studentsByInstructorId.set(member.sifuInstructorId, []);
+      }
+      studentsByInstructorId.get(member.sifuInstructorId)!.push(member);
+    }
+  }
+
   let updatedCount = 0;
   let skippedCount = 0;
+  let totalStudentsCount = 0;
 
-  for (const doc of membersSnap.docs) {
-    const member = doc.data() as Member;
-    member.id = doc.id;
-
+  for (const member of members) {
     if (isInstructor(member)) {
-      qualifyingInstructorIds.add(member.id); // We track qualifying MEMBER DOC IDs now
+      qualifyingInstructorIds.add(member.id);
       console.log(
         `Member ${member.name} (${member.instructorId}) qualifies as instructor. Doc ID: ${member.id}`,
       );
@@ -96,9 +111,44 @@ async function run() {
       };
 
       if (!argv['dry-run']) {
-        // Use member.id as key
         await db.collection('instructors').doc(member.id).set(instructorData);
       }
+
+      const students = studentsByInstructorId.get(member.instructorId) || [];
+      console.log(`  - Found ${students.length} students for this instructor.`);
+
+      for (const student of students) {
+        if (!argv['dry-run']) {
+          await db
+            .collection('instructors')
+            .doc(member.id)
+            .collection('members')
+            .doc(student.id)
+            .set(student);
+        }
+        totalStudentsCount++;
+      }
+
+      if (argv.cleanup) {
+        const studentSubcollection = await db
+          .collection('instructors')
+          .doc(member.id)
+          .collection('members')
+          .get();
+        const currentStudentIds = new Set(students.map((s) => s.id));
+
+        for (const studentDoc of studentSubcollection.docs) {
+          if (!currentStudentIds.has(studentDoc.id)) {
+            console.log(
+              `  - Removing orphaned student ${studentDoc.id} from instructor ${member.id}`,
+            );
+            if (!argv['dry-run']) {
+              await studentDoc.ref.delete();
+            }
+          }
+        }
+      }
+
       updatedCount++;
     } else {
       skippedCount++;
@@ -107,6 +157,7 @@ async function run() {
 
   console.log(`\nProcessed ${membersSnap.size} members:`);
   console.log(`- ${updatedCount} instructors updated/created`);
+  console.log(`- ${totalStudentsCount} student records updated/created`);
   console.log(`- ${skippedCount} members skipped (not qualifying)`);
 
   if (argv.cleanup) {
@@ -120,6 +171,13 @@ async function run() {
       if (!qualifyingInstructorIds.has(doc.id)) {
         console.log(`Removing orphaned instructor document: ${doc.id}`);
         if (!argv['dry-run']) {
+          // Note: This only deletes the parent doc, not the subcollections.
+          // Firestore doesn't automatically delete subcollections.
+          // In a script like this, we should potentially delete them or at least notify.
+          const studentsSnap = await doc.ref.collection('members').get();
+          for (const sDoc of studentsSnap.docs) {
+            await sDoc.ref.delete();
+          }
           await doc.ref.delete();
         }
         removedCount++;

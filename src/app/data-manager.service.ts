@@ -64,10 +64,7 @@ export class DataManagerService {
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
   private membersCollection = collection(this.db, 'members');
-  private instructorsPublicCollection = collection(
-    this.db,
-    'instructorsPublic',
-  );
+  private instructorsPublicCollection = collection(this.db, 'instructors');
   private snapshotsToUnsubscribe: (() => void)[] = [];
   loadingState = linkedSignal<DataServiceState>(() => {
     if (
@@ -82,38 +79,46 @@ export class DataManagerService {
   });
 
   // A signal to hold the state of the members list.
-  public members = new SearchableSet<'memberId', Member>([
+  public members = new SearchableSet<'memberId', Member>(
+    [
+      'memberId',
+      'instructorId',
+      'name',
+      'emails',
+      'publicEmail',
+      'memberId',
+      'city',
+      'countyOrState',
+      'publicRegionOrCity',
+      'publicCountyOrState',
+      'country',
+    ],
     'memberId',
+  );
+  public instructors = new SearchableSet<'instructorId', InstructorPublicData>(
+    [
+      'memberId',
+      'instructorId',
+      'name',
+      'publicEmail',
+      'memberId',
+      'publicRegionOrCity',
+      'publicCountyOrState',
+      'publicPhone',
+      'country',
+    ],
     'instructorId',
-    'name',
-    'emails',
-    'publicEmail',
-    'memberId',
-    'city',
-    'countyOrState',
-    'publicRegionOrCity',
-    'publicCountyOrState',
-    'country',
-  ],
-  'memberId');
-  public instructors = new SearchableSet<'instructorId', InstructorPublicData>([
-    'memberId',
-    'instructorId',
-    'name',
-    'publicEmail',
-    'memberId',
-    'publicRegionOrCity',
-    'publicCountyOrState',
-    'publicPhone',
-    'country',
-  ], 'instructorId');
-  public schools = new SearchableSet<'schoolId', School>([
-    'schoolName',
+  );
+  public schools = new SearchableSet<'schoolId', School>(
+    [
+      'schoolName',
+      'schoolId',
+      'schoolCity',
+      'schoolCountyOrState',
+      'schoolCountry',
+    ],
     'schoolId',
-    'schoolCity',
-    'schoolCountyOrState',
-    'schoolCountry',
-  ], 'schoolId');
+  );
   public counters = signal<Counters | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
 
@@ -282,7 +287,6 @@ export class DataManagerService {
     };
     return setDoc(docRef, memberWithNewTimestamp, { merge: true });
   }
-
 
   async deleteMember(emailId: string): Promise<void> {
     const docRef = doc(this.db, 'members', emailId);

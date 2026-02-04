@@ -108,7 +108,7 @@ to manage their information. Website only still at this point.
 - Members can self-update the relevant parts of their own information: ['name',
   'instructorWebsite', 'publicRegionOrCity', 'publicEmail', 'publicPhone',
   'address', 'zipCode', 'country', 'phone', 'email', 'gender', 'dateOfBirth',
-  'sifuMemberId']
+  'sifuInstructorId']
 - School managers/owners can udpate members in their schools, like members can
   as well as the fields: ['membershipType', 'firstMembershipStarted',
   'lastRenewalDate', 'currentMembershipExpires', 'instructorLicenseExpires',
