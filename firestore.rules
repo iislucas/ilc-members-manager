@@ -11,15 +11,16 @@ service cloud.firestore {
       let aclPath = /databases/$(database)/documents/acl/$(email);
       return email != null && exists(aclPath) && get(aclPath).data.isAdmin == true;
     }
+    function getUserMemberDocIds() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/$(database)/documents/acl/$(email);
+      return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
+    }
+
     match /members/{memberId} {
-      function getMemberDocIds() {
-        let email = request.auth.token.email;
-        let aclPath = /databases/$(database)/documents/acl/$(email);
-        return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
-      }
       function isOwner() {
         return (request.auth.token.email in resource.data.emails) || 
-               (memberId in getMemberDocIds());
+               (memberId in getUserMemberDocIds());
       }
       function isManagerOfMemberSchool() {
         let member = resource.data;
@@ -61,8 +62,12 @@ service cloud.firestore {
             ['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managers']);
     }
 
-    match /instructorsPublic/{instructorId} {
+    match /instructors/{instructorMemberDocId} {
       allow read: if true;
+      
+      match /members/{studentMemberDocId} {
+        allow read: if instructorMemberDocId in getUserMemberDocIds();
+      }
     }
 
     match /schools/{schoolId}/members/{memberId} {

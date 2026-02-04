@@ -28,14 +28,6 @@ in with one of the emails associated with this member.
 It is fully writable only by "admins", although a subset of the fields can 
 be edited by a user who is logged in as one of this member's emails.
 
-## /instructorsPublic/{memberDocId} : InstructorPublic
-
-The /instructorsPublic/ collection stores cached public information 
-for each "instructor" member in /members/{memberDocId} (for each that 
-has an `instructorId` that is not empty and `instructorLicenseExpires` 
-is in the future). They hold the public profile information of 
-instructors, e.g. their contact information.
-
 ## /schools/{schoolDocId} : School
 
 This document contains public information about a school, including its name, 
@@ -48,6 +40,14 @@ write some of the fields.
 This document is cached member information (from /members/{memberDocId})
 for members of this school. This allows for efficient queries of 
 all members of a school by school owners and managers.
+
+## /instructors/{memberDocId} : InstructorPublic
+
+The /instructors/ collection stores cached public information 
+for each "instructor" member in /members/{memberDocId} (for each that 
+has an `instructorId` that is not empty and `instructorLicenseExpires` 
+is in the future). They hold the public profile information of 
+instructors, e.g. their contact information.
 
 ## /instructors/{instructorMemberDocId}/members/{studentMemberDocId}: Member
 
@@ -65,8 +65,22 @@ These counters are used to generate unique IDs for new members and instructors.
 
 This document contains a map of country names to their 2-letter ISO codes.
 
-*/
+# Namespaces for IDs: 
 
+ - DocIds: These are the firestore document IDs, and are not human readable.
+    - MemberDocId: The document ID for a member in the /members/ collection.
+    - InstructorDocId: The document ID for an instructor in the /instructors/ 
+      collection. Every instructor is also a member, so this will be the same 
+      as a MemberDocId.
+    - SchoolDocId: The document ID for a school in the /schools/ collection.
+  - MemberId: The ILC headquareters member ID for a member. This is a human 
+    readable namespace.
+  - InstructorId: The ILC headquareters instructorID. This is a human-readable 
+    namespace.
+  - SchoolId: The ILC headquareters school ID. This is a human-readable 
+    namespace.
+
+*/
 
 // ==================================================================
 // # COUNTERS
@@ -158,10 +172,10 @@ export type School = {
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
 
-  // The `memberId` of the owner of this school; can set the managers, and
+  // The `memberId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
   owner: string;
-  // The `memberId`s of people allowed to manage people within this school.
+  // The `memberId`s (human readable) of people allowed to manage people within this school.
   managers: string[];
 
   // Redundant email addresses for firestore rules.
@@ -260,7 +274,7 @@ export function firestoreDocToMember(doc: QueryDocumentSnapshot): Member {
 }
 
 // Public information about instructors; mirrored from the member data into
-// firestore path /instructorsPublic/{instructorId}
+// firestore path /instructors/{instructorId}
 export type InstructorPublicData = {
   // Note this is needed by SearchableSet.
   id: string; // Firebase document ID. Unique. This is not the same as instructorId.
@@ -278,7 +292,7 @@ export type InstructorPublicData = {
   // Instructor information.
   //
   // This is a human-readable instructor ID, not the same as the Firebase document ID.
-  // ILC HQ issued a unique instructor ID, empty = not instructor. 
+  // ILC HQ issued a unique instructor ID, empty = not instructor.
   instructorId: string;
 
   publicRegionOrCity: string;

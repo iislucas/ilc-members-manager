@@ -20,19 +20,19 @@ export class FindInstructorsService {
   app = inject(FIREBASE_APP);
   db = getFirestore(this.app);
   private snapshotsToUnsubscribe: (() => void)[] = [];
-  private instructorsPublicCollection = collection(
-    this.db,
-    'instructorsPublic',
-  );
-  public instructors = new SearchableSet<'instructorId', InstructorPublicData>([
-    'memberId',
+  private instructorsPublicCollection = collection(this.db, 'instructors');
+  public instructors = new SearchableSet<'instructorId', InstructorPublicData>(
+    [
+      'memberId',
+      'instructorId',
+      'name',
+      'publicEmail',
+      'publicRegionOrCity',
+      'publicPhone',
+      'country',
+    ],
     'instructorId',
-    'name',
-    'publicEmail',
-    'publicRegionOrCity',
-    'publicPhone',
-    'country',
-  ], 'instructorId');
+  );
 
   constructor() {
     effect(async () => {

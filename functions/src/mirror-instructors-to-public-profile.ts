@@ -30,9 +30,11 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
         );
         return;
       }
-      const instructorRef = db.collection('instructorsPublic').doc(member.id);
+      const instructorRef = db.collection('instructors').doc(member.id);
 
-      logger.info(`Updating instructorId(${member.instructorId}) for member with Doc ${member.id}`);
+      logger.info(
+        `Updating instructorId(${member.instructorId}) for member with Doc ${member.id}`,
+      );
       const instructor: InstructorPublicData = {
         id: member.id, // The ID of this document matches the Member Document ID
         name: member.name,
@@ -55,7 +57,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       // We check if the record exists first? Or just delete it.
       // `delete()` is idempotent if it doesn't exist.
       if (member.id) {
-        await db.collection('instructorsPublic').doc(member.id).delete();
+        await db.collection('instructors').doc(member.id).delete();
       }
     }
   } else if (update.previous) {
@@ -65,7 +67,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       logger.info(
         `Removing instructor public data for deleted member ${prev.id}`,
       );
-      await db.collection('instructorsPublic').doc(prev.id).delete();
+      await db.collection('instructors').doc(prev.id).delete();
     }
   }
 }

@@ -52,3 +52,4 @@ src/environments/environment.local.ts
 .firebase/
 .firebaserc
 firebase-debug.log
+firestore-debug.log
