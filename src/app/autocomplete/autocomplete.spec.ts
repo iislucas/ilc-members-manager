@@ -4,15 +4,14 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete';
 
 describe('AutocompleteComponent', () => {
-  let component: AutocompleteComponent<any>;
-  let fixture: ComponentFixture<AutocompleteComponent<any>>;
+  let component: AutocompleteComponent<any, any>;
+  let fixture: ComponentFixture<AutocompleteComponent<any, any>>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AutocompleteComponent],
       providers: [provideZonelessChangeDetection()],
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AutocompleteComponent);
     component = fixture.componentInstance;

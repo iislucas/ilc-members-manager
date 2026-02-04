@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SchoolEditComponent } from './school-edit';
 import { DataManagerService } from '../data-manager.service';
-import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
+import {
+  FirebaseStateService,
+  createFirebaseStateServiceMock,
+} from '../firebase-state.service';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { initSchool, School } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
@@ -19,26 +22,35 @@ describe('SchoolEditComponent', () => {
     schoolName: 'Test School',
     schoolId: 'S001',
     owner: 'instructor-1',
-    managers: []
+    managers: [],
   };
 
   beforeEach(async () => {
-    dataManagerServiceMock = jasmine.createSpyObj('DataManagerService', [
-      'setSchool',
-      'createNextSchoolId'
-    ], {
-      members: new SearchableSet<any>([]),
-      instructors: new SearchableSet<any>([]),
-      schools: new SearchableSet<School>([]),
-      counters: signal(null)
-    });
+    dataManagerServiceMock = jasmine.createSpyObj(
+      'DataManagerService',
+      ['setSchool', 'createNextSchoolId'],
+      {
+        members: new SearchableSet<'memberId', any>(['name'], 'memberId', []),
+        instructors: new SearchableSet<'instructorId', any>(
+          ['name'],
+          'instructorId',
+          [],
+        ),
+        schools: new SearchableSet<'schoolId', School>(
+          ['schoolName'],
+          'schoolId',
+          [],
+        ),
+        counters: signal(null),
+      },
+    );
 
     firebaseStateServiceMock = createFirebaseStateServiceMock();
     firebaseStateServiceMock.user.set({
       isAdmin: true,
       member: {} as any,
       schoolsManaged: [],
-      firebaseUser: { email: 'admin@example.com' } as any
+      firebaseUser: { email: 'admin@example.com' } as any,
     });
 
     await TestBed.configureTestingModule({
@@ -53,7 +65,7 @@ describe('SchoolEditComponent', () => {
             validPathPatterns: initPathPatterns,
           },
         },
-      ]
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SchoolEditComponent);
@@ -75,7 +87,7 @@ describe('SchoolEditComponent', () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.setSchool).toHaveBeenCalledWith(
-      jasmine.objectContaining({ schoolName: 'Test School' })
+      jasmine.objectContaining({ schoolName: 'Test School' }),
     );
   });
 });

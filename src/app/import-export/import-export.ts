@@ -189,6 +189,14 @@ export class ImportExportComponent {
     fields.forEach((field) => {
       if (headers.includes(field)) {
         mapping[field] = field;
+      } else if (field === 'emails') {
+        // Look for 'email' or 'emails' (case-insensitive) if 'emails' is not an exact match
+        const emailHeader = headers.find(
+          (h) => h.toLowerCase() === 'email' || h.toLowerCase() === 'emails',
+        );
+        if (emailHeader) {
+          mapping[field] = emailHeader;
+        }
       }
     });
     return mapping;
@@ -239,24 +247,29 @@ export class ImportExportComponent {
 
       if (this.importType() === 'member') {
         const { member, issues } = this.mapRowToMember(row, mapping);
-        const emails = member.emails || [];
-        if (emails.length === 0) {
+
+        // Skip if all mapped fields are empty
+        const mappedValues = Object.values(mapping).map((header) =>
+          row[header]?.trim(),
+        );
+        if (mappedValues.every((v) => !v)) {
+          continue;
+        }
+
+        const memberId = member.memberId;
+
+        if (!memberId) {
           proposed.push({
             status: 'ISSUE',
-            key: 'Missing Email',
+            key: `Row ${i + 1}`,
             newItem: member as Member,
             diffs: [],
-            issues: ['At least one email is required', ...issues],
+            issues: ['Member ID is required', ...issues],
           });
           continue;
         }
 
-        const existing = this.membersService.members
-          .entries()
-          .find((m) => {
-            const memberEmails = m.emails || [];
-            return emails.some(e => memberEmails.includes(e));
-          });
+        const existing = this.membersService.members.entriesMap().get(memberId);
 
         if (existing) {
           const diffs = this.getDifferences(member, existing);
@@ -267,8 +280,8 @@ export class ImportExportComponent {
                 : diffs.length > 0
                   ? 'UPDATE'
                   : 'UNCHANGED',
-            key: emails[0],
-            newItem: member as Member,
+            key: memberId,
+            newItem: { ...existing, ...member } as Member,
             oldItem: existing,
             diffs,
             issues: issues.length > 0 ? issues : undefined,
@@ -276,14 +289,23 @@ export class ImportExportComponent {
         } else {
           proposed.push({
             status: issues.length > 0 ? 'ISSUE' : 'NEW',
-            key: emails[0],
-            newItem: member as Member,
+            key: memberId,
+            newItem: { ...initMember(), ...member } as Member,
             diffs: [],
             issues: issues.length > 0 ? issues : undefined,
           });
         }
       } else {
         const school = this.mapRowToSchool(row, mapping);
+
+        // Skip if all mapped fields are empty
+        const mappedValues = Object.values(mapping).map((header) =>
+          row[header]?.trim(),
+        );
+        if (mappedValues.every((v) => !v)) {
+          continue;
+        }
+
         if (!school.schoolId) continue; // Skip if no schoolId
 
         const existing = this.membersService.schools
@@ -331,7 +353,7 @@ export class ImportExportComponent {
           } else {
             // Merge update
             await this.membersService.updateMember(
-              change.key,
+              change.oldItem?.id || change.key,
               change.newItem as Member,
             );
           }
@@ -357,9 +379,11 @@ export class ImportExportComponent {
     for (const partialKey in mapping) {
       const key = partialKey as keyof Member;
       const csvHeader = mapping[key];
-      const value = row[csvHeader];
+      let value = row[csvHeader];
 
-      if (value === undefined || value === null || value === '') continue;
+      if (value === undefined || value === null) continue;
+      value = value.trim();
+      if (value === '') continue;
 
       switch (key) {
         case 'isAdmin':
@@ -380,7 +404,10 @@ export class ImportExportComponent {
           break;
         }
         case 'emails':
-          member[key] = value.split(',').map((s) => s.trim()).filter(e => !!e);
+          member[key] = value
+            .split(/[,\s\n]+/)
+            .map((s) => s.trim())
+            .filter((e) => !!e);
           break;
         case 'mastersLevels':
           member[key] = value.split(',').map((s) => s.trim()) as MasterLevel[];
@@ -427,9 +454,11 @@ export class ImportExportComponent {
     for (const partialKey in mapping) {
       const key = partialKey as keyof School;
       const csvHeader = mapping[key];
-      const value = row[csvHeader];
+      let value = row[csvHeader];
 
-      if (value === undefined || value === null || value === '') continue;
+      if (value === undefined || value === null) continue;
+      value = value.trim();
+      if (value === '') continue;
 
       switch (key) {
         case 'managers':
