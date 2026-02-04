@@ -9,6 +9,7 @@ export type CalendarRequest = { calendarId: string } & Partial<{
 
 // Define interfaces for the Google Calendar API response
 export type GoogleCalendarEventItem = {
+  id: string;
   summary?: string;
   start?: {
     dateTime?: string;

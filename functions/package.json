@@ -12,7 +12,8 @@
     "deploy": "pnpm build && firebase deploy --only functions",
     "emulate": "pnpm build && concurrently \"pnpm build:watch\" \"firebase emulators:start\"",
     "logs": "firebase functions:log",
-    "admin": "ts-node scripts/admin.ts"
+    "admin": "ts-node scripts/admin.ts",
+    "dedupe-members": "ts-node scripts/dedupe-members.ts"
   },
   "main": "dist/index.js",
   "engines": {

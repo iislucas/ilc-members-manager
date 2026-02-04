@@ -100,13 +100,13 @@
               </tr>
             </thead>
             <tbody>
-              @for (field of fieldsToMap(); track field) {
+              @for (field of fieldsToMap(); track $index) {
                 <tr>
                   <td>{{ field }}</td>
                   <td>
                     <select (change)="setOneMappingValue(field, $event)">
                       <option value="">--Select Header--</option>
-                      @for (header of headers(); track header) {
+                      @for (header of headers(); track $index) {
                         <option
                           [value]="header"
                           [selected]="fieldMapping[field] === header"
@@ -213,7 +213,7 @@
                   <div class="issues-list card">
                     <h5>Mapping Issues Found:</h5>
                     <ul>
-                      @for (issue of change.issues; track issue) {
+                      @for (issue of change.issues; track $index) {
                         <li>{{ issue }}</li>
                       }
                     </ul>

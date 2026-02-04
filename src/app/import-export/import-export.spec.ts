@@ -26,8 +26,13 @@ describe('MemberImportExportComponent', () => {
           provide: DataManagerService,
           useValue: {
             countries: { entries: signal([]) },
-            members: { entriesMap: () => new Map() },
-            schools: { entriesMap: () => new Map() },
+            members: {
+              entriesMap: signal(new Map()),
+            },
+            schools: {
+              entries: signal([]),
+              entriesMap: signal(new Map()),
+            },
           },
         },
       ],
@@ -141,6 +146,68 @@ describe('MemberImportExportComponent', () => {
       const changes = component.proposedChanges();
       expect(changes.length).toBe(1);
       expect(changes[0].key).toBe('M1');
+    });
+
+    it('should lowercase emails during parsing', () => {
+      const row = {
+        emails: 'Test1@Test.com, TEST2@test.com',
+        publicEmail: 'Public@Test.com',
+      };
+      const mapping = { emails: 'emails', publicEmail: 'publicEmail' };
+      const { member } = (component as any).mapRowToMember(row, mapping);
+      expect(member.emails).toEqual(['test1@test.com', 'test2@test.com']);
+      expect(member.publicEmail).toBe('public@test.com');
+    });
+
+    it('should lowercase school emails during parsing', () => {
+      const row = {
+        ownerEmail: 'Owner@Test.com',
+        managerEmails: 'Manager1@Test.com, MANAGER2@test.com',
+      };
+      const mapping = {
+        ownerEmail: 'ownerEmail',
+        managerEmails: 'managerEmails',
+      };
+      const school = (component as any).mapRowToSchool(row, mapping);
+      expect(school.ownerEmail).toBe('owner@test.com');
+      expect(school.managerEmails).toEqual([
+        'manager1@test.com',
+        'manager2@test.com',
+      ]);
+    });
+
+    it('should flag duplicate memberIds in the same import file', async () => {
+      component.importType.set('member');
+      component.parsedData.set([
+        { name: 'User 1', memberId: 'M1' },
+        { name: 'User 2', memberId: 'M1' }, // Duplicate
+      ]);
+      component.mapping.set({ name: 'name', memberId: 'memberId' });
+
+      await component.analyzeData();
+
+      const changes = component.proposedChanges();
+      expect(changes.length).toBe(2);
+      expect(changes[0].status).toBe('NEW');
+      expect(changes[1].status).toBe('ISSUE');
+      expect(changes[1].issues).toContain('Duplicate ID in import file');
+    });
+
+    it('should flag duplicate schoolIds in the same import file', async () => {
+      component.importType.set('school');
+      component.parsedData.set([
+        { schoolName: 'School 1', schoolId: 'S1' },
+        { schoolName: 'School 2', schoolId: 'S1' }, // Duplicate
+      ]);
+      component.mapping.set({ schoolName: 'schoolName', schoolId: 'schoolId' });
+
+      await component.analyzeData();
+
+      const changes = component.proposedChanges();
+      expect(changes.length).toBe(2);
+      expect(changes[0].status).toBe('NEW');
+      expect(changes[1].status).toBe('ISSUE');
+      expect(changes[1].issues).toContain('Duplicate ID in import file');
     });
   });
 });

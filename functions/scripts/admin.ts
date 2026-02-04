@@ -1,8 +1,9 @@
-/* 
- 
-Usage: GOOGLE_APPLICATION_CREDENTIALS=./path/to/your/credentials.json 
+/*
+Usage: 
 
-ts-node functions/scripts/admin.ts set ${EMAIL_ADDRESS}
+NOTE: GOOGLE_APPLICATION_CREDENTIALS should be set in your environment if not using default credentials.
+
+pnpm exec ts-node functions/scripts/admin.ts set ${EMAIL_ADDRESS}
 
 */
 
@@ -54,7 +55,7 @@ async function setAdmin(email: string) {
     console.error(`Error setting admin privileges for ${email}:`, error);
     if ((error as any).code === 'auth/configuration-not-found') {
       console.error(
-        '\nFirebase authentication credentials not found. Please ensure you have set the GOOGLE_APPLICATION_CREDENTIALS environment variable or are logged in with `gcloud auth application-default login`.'
+        '\nFirebase authentication credentials not found. Please ensure you have set the GOOGLE_APPLICATION_CREDENTIALS environment variable or are logged in with `gcloud auth application-default login`.',
       );
     }
     process.exit(1);
@@ -105,7 +106,7 @@ async function main() {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     try {
       const creds = JSON.parse(
-        fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')
+        fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'),
       );
       console.log(`Running admin script for project: ${creds.project_id}`);
     } catch (e) {
@@ -113,7 +114,7 @@ async function main() {
     }
   } else {
     console.log(
-      'GOOGLE_APPLICATION_CREDENTIALS not set, depending on application default credentials'
+      'GOOGLE_APPLICATION_CREDENTIALS not set, depending on application default credentials',
     );
   }
 
@@ -122,7 +123,7 @@ async function main() {
   console.log(
     `app.appCheck().app.options.projectId;: ${
       app.appCheck().app.options.projectId
-    }`
+    }`,
   );
 
   // const projectConfig = await auth.projectConfigManager().getProjectConfig();
@@ -130,7 +131,7 @@ async function main() {
   console.log(
     `Running command for remote project: ${
       app.remoteConfig().app.options.projectId
-    }`
+    }`,
   );
 
   yargs(hideBin(process.argv))
@@ -148,7 +149,7 @@ async function main() {
         if (argv.email) {
           await setAdmin(argv.email);
         }
-      }
+      },
     )
     .command(
       'unset <email>',
@@ -164,7 +165,7 @@ async function main() {
         if (argv.email) {
           await unsetAdmin(argv.email);
         }
-      }
+      },
     )
     .command('list', 'List all admin users', async () => {
       await listAdmins();
@@ -183,7 +184,7 @@ async function main() {
         if (argv.email) {
           await checkAdminStatus(argv.email);
         }
-      }
+      },
     )
     .demandCommand(1, 'You need to provide a command')
     .help().argv;

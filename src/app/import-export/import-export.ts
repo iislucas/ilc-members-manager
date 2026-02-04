@@ -241,6 +241,7 @@ export class ImportExportComponent {
     const proposed: ProposedChange[] = [];
     const data = this.parsedData();
     const mapping = this.mapping();
+    const seenIds = new Set<string>();
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -268,6 +269,18 @@ export class ImportExportComponent {
           });
           continue;
         }
+
+        if (seenIds.has(memberId)) {
+          proposed.push({
+            status: 'ISSUE',
+            key: memberId,
+            newItem: { ...initMember(), ...member } as Member,
+            diffs: [],
+            issues: ['Duplicate ID in import file', ...issues],
+          });
+          continue;
+        }
+        seenIds.add(memberId);
 
         const existing = this.membersService.members.entriesMap().get(memberId);
 
@@ -308,9 +321,21 @@ export class ImportExportComponent {
 
         if (!school.schoolId) continue; // Skip if no schoolId
 
+        if (seenIds.has(school.schoolId)) {
+          proposed.push({
+            status: 'ISSUE',
+            key: school.schoolId,
+            newItem: school as School,
+            diffs: [],
+            issues: ['Duplicate ID in import file'],
+          });
+          continue;
+        }
+        seenIds.add(school.schoolId);
+
         const existing = this.membersService.schools
-          .entries()
-          .find((s) => s.schoolId === school.schoolId);
+          .entriesMap()
+          .get(school.schoolId);
 
         if (existing) {
           const diffs = this.getDifferences(school, existing);
@@ -406,8 +431,11 @@ export class ImportExportComponent {
         case 'emails':
           member[key] = value
             .split(/[,\s\n]+/)
-            .map((s) => s.trim())
+            .map((s) => s.trim().toLowerCase())
             .filter((e) => !!e);
+          break;
+        case 'publicEmail':
+          member[key] = value.toLowerCase();
           break;
         case 'mastersLevels':
           member[key] = value.split(',').map((s) => s.trim()) as MasterLevel[];
@@ -463,6 +491,15 @@ export class ImportExportComponent {
       switch (key) {
         case 'managers':
           school[key] = value.split(',').map((s) => s.trim());
+          break;
+        case 'ownerEmail':
+          school[key] = value.toLowerCase();
+          break;
+        case 'managerEmails':
+          school[key] = value
+            .split(/[,\s\n]+/)
+            .map((s) => s.trim().toLowerCase())
+            .filter((e) => !!e);
           break;
         default:
           (school as any)[key] = value;
