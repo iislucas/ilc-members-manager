@@ -19,6 +19,38 @@
       <button (click)="onNewMember()">New Member</button>
     }
   </div>
+
+  @if (errorsExist()) {
+    <div class="error-box">
+      <div class="error-box-header" (click)="toggleErrors()">
+        <app-icon
+          [name]="showErrors() ? 'expand_more' : 'expand_less'"
+        ></app-icon>
+        <span
+          >There are entries with duplicate IDs ({{
+            duplicateEntries().length
+          }})</span
+        >
+      </div>
+      @if (showErrors()) {
+        <div class="error-box-content">
+          <p class="error-hint">
+            Please resolve these duplicate IDs to ensure data integrity.
+          </p>
+          <div class="member-cards">
+            @for (member of duplicateEntries(); track member.id) {
+              <div class="member-card duplicate">
+                <app-member-edit
+                  [member]="member"
+                  [allMembers]="members()"
+                ></app-member-edit>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
   <div class="member-cards">
     @if (isAddingMember()) {
       <div class="member-card">

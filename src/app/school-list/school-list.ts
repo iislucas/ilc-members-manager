@@ -23,13 +23,19 @@ export class SchoolListComponent {
 
   // Expose signals from the service to the template
   schools = computed(() => {
-    const term = this.searchTerm().toLowerCase();
-    return this.dataManager.schools
-      .entries()
-      .filter((school) => school.schoolName.toLowerCase().includes(term));
+    return this.dataManager.schools.search(this.searchTerm());
   });
+  duplicateEntries = computed(() =>
+    this.dataManager.schools.duplicateEntries(),
+  );
+  errorsExist = computed(() => this.duplicateEntries().length > 0);
+  showErrors = signal(false);
   loading = this.dataManager.schools.loading;
   error = this.dataManager.schools.error;
+
+  toggleErrors() {
+    this.showErrors.set(!this.showErrors());
+  }
 
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);

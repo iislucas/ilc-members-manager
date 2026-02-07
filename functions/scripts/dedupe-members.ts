@@ -43,11 +43,14 @@ async function main() {
     console.log(`Found ${membersSnap.size} members.`);
 
     const memberIdGroups: { [memberId: string]: string[] } = {};
+    const emptyMemberIdDocIds: string[] = [];
 
     membersSnap.forEach((doc) => {
       const data = doc.data();
       const memberId = data.memberId;
-      if (memberId) {
+      if (!memberId || memberId.trim() === '') {
+        emptyMemberIdDocIds.push(doc.id);
+      } else {
         if (!memberIdGroups[memberId]) {
           memberIdGroups[memberId] = [];
         }
@@ -59,23 +62,20 @@ async function main() {
       ([_, docIds]) => docIds.length > 1,
     );
 
-    if (duplicateGroups.length === 0) {
-      console.log('No duplicate memberID entries found.');
+    if (duplicateGroups.length === 0 && emptyMemberIdDocIds.length === 0) {
+      console.log('No duplicate or empty memberID entries found.');
       return;
     }
 
-    console.log(`Found ${duplicateGroups.length} duplicate memberID entries:`);
-
-    for (const [memberId, docIds] of duplicateGroups) {
+    if (emptyMemberIdDocIds.length > 0) {
       console.log(
-        `- memberId: ${memberId} (Found in docs: ${docIds.join(', ')})`,
+        `Found ${emptyMemberIdDocIds.length} members with empty memberId:`,
       );
-
-      if (!dryRun) {
-        for (const docId of docIds) {
+      for (const docId of emptyMemberIdDocIds) {
+        console.log(`- DocID: ${docId}`);
+        if (!dryRun) {
           const docRef = db.collection('members').doc(docId);
           const docSnap = await docRef.get();
-
           if (docSnap.exists) {
             const data = docSnap.data();
             console.log(`  Moving doc ${docId} to members_duplicates...`);
@@ -85,10 +85,43 @@ async function main() {
               .set({
                 ...data,
                 movedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                reason: 'duplicate_member_id',
+                reason: 'empty_member_id',
               });
             console.log(`  Deleting doc ${docId} from members...`);
             await docRef.delete();
+          }
+        }
+      }
+    }
+
+    if (duplicateGroups.length > 0) {
+      console.log(
+        `Found ${duplicateGroups.length} duplicate memberID entries:`,
+      );
+      for (const [memberId, docIds] of duplicateGroups) {
+        console.log(
+          `- memberId: ${memberId} (Found in docs: ${docIds.join(', ')})`,
+        );
+
+        if (!dryRun) {
+          for (const docId of docIds) {
+            const docRef = db.collection('members').doc(docId);
+            const docSnap = await docRef.get();
+
+            if (docSnap.exists) {
+              const data = docSnap.data();
+              console.log(`  Moving doc ${docId} to members_duplicates...`);
+              await db
+                .collection('members_duplicates')
+                .doc(docId)
+                .set({
+                  ...data,
+                  movedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                  reason: 'duplicate_member_id',
+                });
+              console.log(`  Deleting doc ${docId} from members...`);
+              await docRef.delete();
+            }
           }
         }
       }

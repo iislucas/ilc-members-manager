@@ -70,3 +70,45 @@ app-member-edit {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 }
+
+.error-box {
+  margin-bottom: 1em;
+  border: 1px solid #ffcccc;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff5f5;
+
+  .error-box-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.75em 1em;
+    background-color: #fee2e2;
+    cursor: pointer;
+    font-weight: 600;
+    color: #991b1b;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #fecaca;
+    }
+
+    app-icon {
+      color: #991b1b;
+    }
+  }
+
+  .error-box-content {
+    padding: 1em;
+
+    .error-hint {
+      margin-bottom: 1em;
+      font-size: 0.9em;
+      color: #7f1d1d;
+    }
+  }
+
+  .member-card.duplicate {
+    border-color: #fecaca;
+  }
+}

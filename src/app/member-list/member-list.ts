@@ -42,10 +42,18 @@ export class MemberListComponent {
 
   // Expose signals from the service to the template
   members = computed(() => {
+    console.log('members computed, searching for:', this.searchTerm());
     return this.memberSet().search(this.searchTerm());
   });
+  duplicateEntries = computed(() => this.memberSet().duplicateEntries());
+  errorsExist = computed(() => this.duplicateEntries().length > 0);
+  showErrors = signal(false);
   loading = computed(() => this.memberSet().loading());
   error = computed(() => this.memberSet().error());
+
+  toggleErrors() {
+    this.showErrors.set(!this.showErrors());
+  }
 
   constructor() {
     effect(() => {

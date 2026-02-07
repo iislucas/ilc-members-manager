@@ -35,7 +35,9 @@
     padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
     border: 1px solid #ccc;
     border-radius: 20px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition:
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
     flex-grow: 1;
 
     &:focus {
@@ -53,4 +55,46 @@
   align-items: stretch;
   gap: v.$card-sep;
   flex-grow: 1;
+}
+
+.error-box {
+  margin-bottom: 1em;
+  border: 1px solid #ffcccc;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff5f5;
+
+  .error-box-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.75em 1em;
+    background-color: #fee2e2;
+    cursor: pointer;
+    font-weight: 600;
+    color: #991b1b;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #fecaca;
+    }
+
+    app-icon {
+      color: #991b1b;
+    }
+  }
+
+  .error-box-content {
+    padding: 1em;
+
+    .error-hint {
+      margin-bottom: 1em;
+      font-size: 0.9em;
+      color: #7f1d1d;
+    }
+  }
+
+  .member-card.duplicate {
+    border-color: #fecaca;
+  }
 }

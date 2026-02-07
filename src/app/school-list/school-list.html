@@ -18,6 +18,38 @@
       <button (click)="onNewSchool()">New School</button>
     }
   </div>
+
+  @if (errorsExist()) {
+    <div class="error-box">
+      <div class="error-box-header" (click)="toggleErrors()">
+        <app-icon
+          [name]="showErrors() ? 'expand_more' : 'expand_less'"
+        ></app-icon>
+        <span
+          >There are entries with duplicate IDs ({{
+            duplicateEntries().length
+          }})</span
+        >
+      </div>
+      @if (showErrors()) {
+        <div class="error-box-content">
+          <p class="error-hint">
+            Please resolve these duplicate IDs to ensure data integrity.
+          </p>
+          <div class="member-cards">
+            @for (school of duplicateEntries(); track school.id) {
+              <div class="member-card duplicate">
+                <app-school-edit
+                  [school]="school"
+                  [allSchools]="schools()"
+                ></app-school-edit>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
   <div class="member-cards">
     @if (isAddingSchool()) {
       <div class="member-card">

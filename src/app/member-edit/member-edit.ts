@@ -81,32 +81,67 @@ export class MemberEditComponent {
     required(schema.name, { message: 'Name is required.' });
     required(schema.emails, { message: 'An email must be provided.' });
     // TODO: email validation for array...
-    required(schema.membershipType, { message: 'Membership type is required.' });
+    required(schema.membershipType, {
+      message: 'Membership type is required.',
+    });
 
     disabled(schema.name, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.emails, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.address, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.city, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.zipCode, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.countyOrState, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(
+      schema.countyOrState,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
     disabled(schema.country, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.phone, () => !this.userIsMemberSchoolManagerOrAdmin());
     disabled(schema.gender, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.dateOfBirth, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.sifuInstructorId, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(
+      schema.dateOfBirth,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.sifuInstructorId,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
     disabled(schema.managingOrgId, () => !this.userIsMemberOrAdmin());
     disabled(schema.membershipType, () => !this.userIsSchoolManagerOrAdmin());
-    disabled(schema.firstMembershipStarted, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(
+      schema.firstMembershipStarted,
+      () => !this.userIsSchoolManagerOrAdmin(),
+    );
     disabled(schema.lastRenewalDate, () => !this.userIsSchoolManagerOrAdmin());
-    disabled(schema.currentMembershipExpires, () => !this.userIsSchoolManagerOrAdmin());
+    disabled(
+      schema.currentMembershipExpires,
+      () => !this.userIsSchoolManagerOrAdmin(),
+    );
     disabled(schema.studentLevel, () => !this.userIsSchoolManagerOrAdmin());
     disabled(schema.applicationLevel, () => !this.userIsSchoolManagerOrAdmin());
-    disabled(schema.instructorLicenseExpires, () => !this.userIsSchoolManagerOrAdmin());
-    disabled(schema.instructorWebsite, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.publicEmail, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.publicPhone, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.publicRegionOrCity, () => !this.userIsMemberSchoolManagerOrAdmin());
-    disabled(schema.publicCountyOrState, () => !this.userIsMemberSchoolManagerOrAdmin());
+    disabled(
+      schema.instructorLicenseExpires,
+      () => !this.userIsSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.instructorWebsite,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicEmail,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicPhone,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicRegionOrCity,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicCountyOrState,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
     disabled(schema.isAdmin, () => !this.userIsAdmin());
     disabled(schema.notes, () => !this.userIsAdmin());
   });
@@ -135,7 +170,7 @@ export class MemberEditComponent {
   emailsChanged = computed(() => {
     const currentEmails = this.form.emails().value();
     const originalEmails = this.member().emails || [];
-    
+
     return (
       currentEmails.length !== originalEmails.length ||
       currentEmails.some((email, index) => email !== originalEmails[index])
@@ -359,7 +394,9 @@ export class MemberEditComponent {
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
     this.collapsed.set(this.collapsable());
-    if(this.collapsable()) { this.close.emit(); }
+    if (this.collapsable()) {
+      this.close.emit();
+    }
   }
 
   toggleCollapseState($event: Event) {
@@ -429,8 +466,10 @@ export class MemberEditComponent {
       }
 
       if (member.id) {
+        console.log('Updating member', member);
         await this.membersService.updateMember(member.id, member);
       } else {
+        console.log('Adding member', member);
         await this.membersService.addMember(member);
       }
 
@@ -475,9 +514,9 @@ export class MemberEditComponent {
     if (isChecked) {
       this.form.mastersLevels().value.set([...current, level]);
     } else {
-      this.form.mastersLevels().value.set(
-        current.filter((l: MasterLevel) => l !== level),
-      );
+      this.form
+        .mastersLevels()
+        .value.set(current.filter((l: MasterLevel) => l !== level));
     }
     this.form.mastersLevels().markAsDirty();
   }
