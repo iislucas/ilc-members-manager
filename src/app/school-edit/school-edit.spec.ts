@@ -90,4 +90,29 @@ describe('SchoolEditComponent', () => {
       jasmine.objectContaining({ schoolName: 'Test School' }),
     );
   });
+
+  it('should be dirty when owner is changed', () => {
+    expect(component.isDirty()).toBeFalse();
+    component.updateOwner('new-owner-id');
+    expect(component.isDirty()).toBeTrue();
+  });
+
+  it('should be dirty when manager is added or removed', () => {
+    expect(component.isDirty()).toBeFalse();
+    component.addManager();
+    expect(component.isDirty()).toBeTrue();
+
+    // Reset dirty state to test removal
+    component.form().reset();
+    expect(component.isDirty()).toBeFalse();
+
+    component.updateManagerId(0, 'manager-1');
+    expect(component.isDirty()).toBeTrue();
+
+    component.form().reset();
+    expect(component.isDirty()).toBeFalse();
+
+    component.removeManager(0);
+    expect(component.isDirty()).toBeTrue();
+  });
 });

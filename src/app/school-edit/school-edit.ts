@@ -79,12 +79,27 @@ export class SchoolEditComponent {
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.schoolCity, () => !this.userIsAdmin());
     disabled(schema.schoolCountry, () => !this.userIsAdmin());
-    disabled(schema.schoolAddress, () => !this.userIsAdmin() && !this.userIsSchoolManager());
-    disabled(schema.schoolZipCode, () => !this.userIsAdmin() && !this.userIsSchoolManager());
-    disabled(schema.schoolCountyOrState, () => !this.userIsAdmin() && !this.userIsSchoolManager());
-    disabled(schema.schoolWebsite, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(
+      schema.schoolAddress,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.schoolZipCode,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.schoolCountyOrState,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.schoolWebsite,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
     disabled(schema.owner, () => !this.userIsAdmin());
-    disabled(schema.managers, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(
+      schema.managers,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
   });
 
   // Sync input school to the form model.
@@ -148,18 +163,14 @@ export class SchoolEditComponent {
 
   owner = computed(() => {
     const ownerMemId = this.editableSchool().owner;
-    const owner = this.membersService.instructors
-      .entries()
-      .find((m) => m.memberId === ownerMemId);
+    const owner = this.membersService.instructors.entriesMap().get(ownerMemId);
     return owner || null;
   });
   managers = computed(() => {
     const managerMemIds = this.editableSchool().managers;
     return managerMemIds.map(
       (memberDocId) =>
-        this.membersService.instructors
-          .entries()
-          .find((m) => m.memberId === memberDocId) || null,
+        this.membersService.instructors.entriesMap().get(memberDocId) || null,
     );
   });
 
@@ -216,6 +227,7 @@ export class SchoolEditComponent {
       newManagers.splice(index, 1);
       return newManagers;
     });
+    this.form.managers().markAsDirty();
   }
 
   updateManagerId(index: number, memberDocId: string) {
@@ -224,14 +236,17 @@ export class SchoolEditComponent {
       newManagers[index] = memberDocId;
       return newManagers;
     });
+    this.form.managers().markAsDirty();
   }
 
   addManager() {
     this.form.managers().value.update((m) => [...m, '']);
+    this.form.managers().markAsDirty();
   }
 
-  updateOwner(member: InstructorPublicData) {
-    this.form.owner().value.set(member.memberId);
+  updateOwner(memberDocId: string) {
+    this.form.owner().value.set(memberDocId);
+    this.form.owner().markAsDirty();
   }
 
   cancel($event: Event) {
@@ -341,7 +356,11 @@ export class SchoolEditComponent {
       errors.push('This school ID is already in use.');
     }
     const schoolNameErrors = this.form.schoolName().errors();
-    if (schoolNameErrors && schoolNameErrors.length > 0 && schoolNameErrors[0]) {
+    if (
+      schoolNameErrors &&
+      schoolNameErrors.length > 0 &&
+      schoolNameErrors[0]
+    ) {
       errors.push(schoolNameErrors[0].message ?? 'School Name is invalid.');
     }
     if (this.form.owner().value().trim() === '') {

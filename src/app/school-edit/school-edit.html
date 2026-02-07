@@ -73,11 +73,7 @@
 
           <label for="schoolCity">City</label>
           <div class="rhs">
-            <input
-              type="text"
-              id="schoolCity"
-              [formField]="form.schoolCity"
-            />
+            <input type="text" id="schoolCity" [formField]="form.schoolCity" />
           </div>
 
           <label for="schoolZipCode">Zip Code</label>
@@ -127,7 +123,7 @@
                 [placeholder]="'Search instructor for owner'"
                 [displayFns]="instructorDisplayFns"
                 [initSearchTerm]="form.owner().value()"
-                (textUpdated)="form.owner().value.set($event)"
+                (textUpdated)="updateOwner($event)"
               ></app-autocomplete>
             } @else {
               <span class="identifier-chip">{{ s.owner }}</span>
@@ -191,12 +187,7 @@
               </div>
             }
             @if (userIsAdmin() || userIsSchoolManager()) {
-              <button
-                type="button"
-                (click)="addManager()"
-              >
-                Add Manager
-              </button>
+              <button type="button" (click)="addManager()">Add Manager</button>
             }
           </div>
         </div>
