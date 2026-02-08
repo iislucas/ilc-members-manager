@@ -41,10 +41,15 @@ export class MemberListComponent {
   newMember = signal<Member>(initMember());
 
   // Expose signals from the service to the template
+  limit = signal(50);
   members = computed(() => {
-    console.log('members computed, searching for:', this.searchTerm());
-    return this.memberSet().search(this.searchTerm());
+    const all = this.memberSet().search(this.searchTerm());
+    return all.slice(0, this.limit());
   });
+  totalMembers = computed(
+    () => this.memberSet().search(this.searchTerm()).length,
+  );
+
   duplicateEntries = computed(() => this.memberSet().duplicateEntries());
   errorsExist = computed(() => this.duplicateEntries().length > 0);
   showErrors = signal(false);
@@ -53,6 +58,10 @@ export class MemberListComponent {
 
   toggleErrors() {
     this.showErrors.set(!this.showErrors());
+  }
+
+  showAll() {
+    this.limit.set(Infinity);
   }
 
   constructor() {
@@ -65,6 +74,7 @@ export class MemberListComponent {
 
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
+    this.limit.set(50);
   }
 
   onNewMember() {

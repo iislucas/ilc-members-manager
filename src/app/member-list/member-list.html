@@ -80,5 +80,12 @@
         ></app-member-edit>
       </div>
     }
+    @if (membersList.length < totalMembers()) {
+      <div class="show-more-container">
+        <button class="show-more-button" (click)="showAll()">
+          Show all {{ totalMembers() }} members
+        </button>
+      </div>
+    }
   </div>
 }

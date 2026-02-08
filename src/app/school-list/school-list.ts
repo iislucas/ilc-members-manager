@@ -22,9 +22,15 @@ export class SchoolListComponent {
   newSchool = signal<School>(initSchool());
 
   // Expose signals from the service to the template
+  limit = signal(50);
   schools = computed(() => {
-    return this.dataManager.schools.search(this.searchTerm());
+    const all = this.dataManager.schools.search(this.searchTerm());
+    return all.slice(0, this.limit());
   });
+  totalSchools = computed(
+    () => this.dataManager.schools.search(this.searchTerm()).length,
+  );
+
   duplicateEntries = computed(() =>
     this.dataManager.schools.duplicateEntries(),
   );
@@ -37,8 +43,13 @@ export class SchoolListComponent {
     this.showErrors.set(!this.showErrors());
   }
 
+  showAll() {
+    this.limit.set(Infinity);
+  }
+
   onSearch(event: Event) {
     this.searchTerm.set((event.target as HTMLInputElement).value);
+    this.limit.set(50);
   }
 
   onNewSchool() {

@@ -71,5 +71,12 @@
         ></app-school-edit>
       </div>
     }
+    @if (schools().length < totalSchools()) {
+      <div class="show-more-container">
+        <button class="show-more-button" (click)="showAll()">
+          Show all {{ totalSchools() }} schools
+        </button>
+      </div>
+    }
   </div>
 }

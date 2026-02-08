@@ -112,3 +112,23 @@ app-school-edit {
     border-color: #fecaca;
   }
 }
+
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 1em;
+
+  .show-more-button {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #e0e0e0;
+    }
+  }
+}
