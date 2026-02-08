@@ -81,10 +81,23 @@ SquareSpace site, and therefore need other means of managing their information.
   current state. Also save monthly backups to a cloud bucket.
 - TODO: Have periodic backups to cloud stoage, just in case.
 
-#### \[In Progress(couchfault)\]: Import the real data
+#### \[Completed(iislucas)\]: Import the real data
 
 - Develop a way to import the current real data, from CSV/sheets/wherever into
   the webapp.
+
+#### \[Completed(iislucas)\]: Basic End user utility
+
+- Any ILC member can see their own information - this can act like a minimal
+  version of a "digital" passport, to see their level, and date of renewal. They
+  can also delete/remove/update relevant parts they can control (e.g. update
+  their contact information, but not ILC level, which can be done by country
+  managers or HQ only).
+
+#### \[Completed(iislucas)\]: Instructors can view their students
+
+- Instructors can view the information of all students who have listed them
+  as their primary instructor.
 
 ---
 
@@ -119,7 +132,7 @@ to manage their information. Website only still at this point.
 - Admins should not need to figure out the next IDs for instructors, members,
   and schools.
 
-#### \[In Progress(iislucas)\]: Implement Activity Logging
+#### \[To Do\]: Implement Activity Logging
 
 - Create a basic activity feed that logs all membership changes (creations,
   updates, deletions).
@@ -134,7 +147,7 @@ Make a admin global settings page.
 
 - Should show missing member IDs (search for members with a member ID
   that don't also have a exact next sequential next member ID)
-- DONE: Show and edit next ID numbers
+- Show and edit next ID numbers (in the new instructor, member, and school forms)
 - A tab to show all admins, so it's quick and easy to see them.
 - A page to show (and search) all school owners and managers, and what they
   manage.
@@ -143,22 +156,32 @@ Make a admin global settings page.
 
 ---
 
-### \[P2\]: End-user Progressive WebApp & other nice stuff
+#### \[To Do\]: Incorperate the calendar viewer for events and workshops
 
-- Business logic for gradings
-- Support viewing/analytics for orders
+- See the github: [iislucas/](github.com/iislucas/google-cal-events-viewer), and
+  pull in this code into this project, and adapt it so that within the members
+  app, people can get notifiations about events they are interested in.
 
-#### \[To Do\]: Provide a way to communicate with all instructors
+#### \[To Do\]: Make the WebApp into a Progressive WebApp
 
-- Maybe this is via having a google group that all instructors are part of?
-- Maybe this is via push notifications?
-- Maybe instructors should be able to specify how they'd like to be contacted?
+- Ensure that it can be downloaded and installed on Android and iOS devices, and
+  provide all functionality above.
+- Notifications for events.
+
+### \[P2\]: Business logic for gradings
+
+- Business logic for gradings. Provide a way to request gradings, and for
+  instructors to have a note to express approval for the grading.
+
+### \[P2\]: Business logic for orders
+
+- Support viewing/analytics for orders, and allow people to see their order history.
 
 #### \[To Do\]: UX polish
 
 - School IDs will always begin with "SC-" so we don't make people enter that
   bit, and ensure that data is consistent.
-- Create a special concept of country/region managers to manage all people in
+- Consider: Create a special concept of country/region managers to manage all people in
   their country. All changes should populate an activity feed that ILC HQ can
   see. (ILC HQ changes should also be recorded here). Maybe back this up to
   bigquery or end emails. Note: short term, country/region managers are just
@@ -166,26 +189,7 @@ Make a admin global settings page.
 - Make the member list and school list have consistent widths per part, so
   things are nicely ligned up.
 - When saving sometimes warning appear and disappear. e.g. on new member
-  especially.
-
-#### \[To Do\]: Make the WebApp into a Progressive WebApp
-
-- Ensure that it can be downloaded and installed on Android and iOS devices, and
-  provide all functionality above.
-
-#### \[To Do\]: Implement a calendar viewer for events and workshops
-
-- See the github: [iislucas/](github.com/iislucas/google-cal-events-viewer), and
-  pull in this code into this project, and adapt it so that within the members
-  app, people can get notifiations about events they are interested in.
-
-#### \[To Do\]: Basic End user utility
-
-- Any ILC member can see their own information - this can act like a minimal
-  version of a "digital" passport, to see their level, and date of renewal. They
-  can also delete/remove/update relevant parts they can control (e.g. update
-  their contact information, but not ILC level, which can be done by country
-  managers or HQ only).
+  especially. Check this is fixed.
 
 #### \[To Do\]: Passbook information functionality
 
@@ -193,8 +197,8 @@ Make a admin global settings page.
 
 - Support recording of attending a workshop/retreat & get a digital signature
 
-- Optionally Supprt, per country/school preference, recording of attending
-  classes. See:
+- Optionally Support, per country/school features/preferences, recording of attending
+  classes etc.
 
 #### \[To Do\]: Fun social / other stuff
 
@@ -203,7 +207,13 @@ Make a admin global settings page.
 
 - Allow registration for workshops in the app.
 
-#### Consider server-side search
+#### \[To Do\]: Provide a way to communicate with all instructors
 
-- If the search-index creation is slow on client side, we could move to using
-  MeiliSearch or the like instead.
+- Maybe this is via having a google group that all instructors are part of?
+- Maybe this is via push notifications?
+- Maybe instructors should be able to specify how they'd like to be contacted?
+
+#### Consider
+
+- Server-side search: If the search-index creation is slow on client side, we
+  could move to using MeiliSearch or the like instead.

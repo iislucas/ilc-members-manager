@@ -1,7 +1,7 @@
 # ILC Members Manager
 
 The goal of this project is to provide a simple Angular web application to
-manage the status of ILC memberships. There are 3 kinds of users:
+manage the status of ILC memberships. There are 3 kinds of users for this system:
 
 - **ILC Admins**: Can make arbitrary changes to anyone's status, as well as add
   country managers.
@@ -9,13 +9,10 @@ manage the status of ILC memberships. There are 3 kinds of users:
 - **ILC School Managers**: Can manage the status of all students within their
   school (but not themselves).
 
-- **ILC Country Managers**: Can manage the status of all students within their
-  country (but not themselves).
-
 - **ILC practitioners**: should be able to use their registerd email address to
   see the status of their data, and request deletion.
 
-The application should eventually support being a PWA (Progressive Web
+The application intends to eventually support being a PWA (Progressive Web
 Application) so it can be downloaded and saved on mobile devices, and used to
 send notifications.
 
