@@ -1,12 +1,21 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { InstructorPublicData, Member } from './data-model';
+import {
+  InstructorLicenseType,
+  InstructorPublicData,
+  Member,
+} from './data-model';
 
 const db = admin.firestore();
 
 function isInstructor(member: Member): boolean {
-  const today = new Date().toISOString().split('T')[0];
-  return member.instructorId !== '' && member.instructorLicenseExpires >= today;
+  if (member.instructorId === '') return false;
+  if (member.instructorLicenseType === InstructorLicenseType.Life) return true;
+  if (member.instructorLicenseType === InstructorLicenseType.Annual) {
+    const today = new Date().toISOString().split('T')[0];
+    return member.instructorLicenseExpires >= today;
+  }
+  return false;
 }
 
 export type InstructorUpdate =

@@ -98,8 +98,13 @@
     <div class="value">{{ m.instructorId }}</div>
 
     @if (m.instructorId) {
-      <label>Instructor License Expires</label>
-      <div class="value">{{ m.instructorLicenseExpires }}</div>
+      <label>Instructor License Type</label>
+      <div class="value">{{ m.instructorLicenseType }}</div>
+
+      @if (m.instructorLicenseType === "Annual") {
+        <label>Instructor License Expires</label>
+        <div class="value">{{ m.instructorLicenseExpires }}</div>
+      }
 
       <h3>Instructor Public Listing Details</h3>
 

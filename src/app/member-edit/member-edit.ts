@@ -18,6 +18,7 @@ import {
   MasterLevel,
   School,
   InstructorPublicData,
+  InstructorLicenseType,
   initMember,
 } from '../../../functions/src/data-model';
 import {
@@ -68,6 +69,8 @@ export class MemberEditComponent {
   AssignKind = AssignKind;
   MembershipType = MembershipType;
   membershipTypes = Object.values(MembershipType);
+  InstructorLicenseType = InstructorLicenseType;
+  instructorLicenseTypes = Object.values(InstructorLicenseType);
   masterLevels = Object.values(MasterLevel).sort();
 
   // The core object of interest.
@@ -120,6 +123,10 @@ export class MemberEditComponent {
     disabled(schema.applicationLevel, () => !this.userIsSchoolManagerOrAdmin());
     disabled(
       schema.instructorLicenseExpires,
+      () => !this.userIsSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.instructorLicenseType,
       () => !this.userIsSchoolManagerOrAdmin(),
     );
     disabled(

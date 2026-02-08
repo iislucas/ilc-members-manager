@@ -64,11 +64,7 @@
         <h3>Contact</h3>
         <label for="name">Name</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="name"
-            [formField]="form.name"
-          />
+          <input type="text" id="name" [formField]="form.name" />
           @let nameErrors = form.name().errors();
           @if (nameErrors.length > 0 && nameErrors[0]; as error) {
             <div class="error-message">{{ error.message }}</div>
@@ -128,28 +124,17 @@
 
         <label for="address" class="align-top">Address</label>
         <div class="rhs">
-          <textarea
-            id="address"
-            [formField]="form.address"
-          ></textarea>
+          <textarea id="address" [formField]="form.address"></textarea>
         </div>
 
         <label for="city">City</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="city"
-            [formField]="form.city"
-          />
+          <input type="text" id="city" [formField]="form.city" />
         </div>
 
         <label for="zipCode">Zip Code</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="zipCode"
-            [formField]="form.zipCode"
-          />
+          <input type="text" id="zipCode" [formField]="form.zipCode" />
         </div>
         <label for="countyOrState">County/State</label>
         <div class="rhs">
@@ -179,20 +164,12 @@
 
         <label for="phone">Phone</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="phone"
-            [formField]="form.phone"
-          />
+          <input type="text" id="phone" [formField]="form.phone" />
         </div>
 
         <label for="gender">Gender</label>
         <div class="rhs">
-          <input
-            type="text"
-            id="gender"
-            [formField]="form.gender"
-          />
+          <input type="text" id="gender" [formField]="form.gender" />
         </div>
 
         <label for="dateOfBirth">Date of Birth</label>
@@ -335,10 +312,7 @@
 
         <label for="membershipType">Type</label>
         <div class="rhs">
-          <select
-            id="membershipType"
-            [formField]="form.membershipType"
-          >
+          <select id="membershipType" [formField]="form.membershipType">
             @for (type of membershipTypes; track type) {
               <option [value]="type">{{ type }}</option>
             }
@@ -432,16 +406,33 @@
           e.instructorId.trim() !== "" ||
           instructorIdAssignment().kind === AssignKind.AssignNewAutoId
         ) {
-          <label for="instructorLicenseExpires">License Expires</label>
+          <label for="instructorLicenseType">License Type</label>
           <div class="rhs">
-            <input
-              class="date"
-              type="date"
-              id="instructorLicenseExpires"
-              placeholder="YYYY-MM-DD"
-              [formField]="form.instructorLicenseExpires"
-            />
+            <select
+              id="instructorLicenseType"
+              [formField]="form.instructorLicenseType"
+            >
+              @for (type of instructorLicenseTypes; track type) {
+                <option [value]="type">{{ type }}</option>
+              }
+            </select>
           </div>
+
+          @if (
+            form.instructorLicenseType().value() ===
+            InstructorLicenseType.Annual
+          ) {
+            <label for="instructorLicenseExpires">License Expires</label>
+            <div class="rhs">
+              <input
+                class="date"
+                type="date"
+                id="instructorLicenseExpires"
+                placeholder="YYYY-MM-DD"
+                [formField]="form.instructorLicenseExpires"
+              />
+            </div>
+          }
 
           <h3>Instructor Public Listing</h3>
 
@@ -500,20 +491,13 @@
           <h3>Admin</h3>
           <label for="isAdmin">Is Admin</label>
           <div class="rhs">
-            <input
-              type="checkbox"
-              id="isAdmin"
-              [formField]="form.isAdmin"
-            />
+            <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
             <span class="note">(can edit all members)</span>
           </div>
 
           <label for="notes" class="align-top">Notes</label>
           <div class="rhs">
-            <textarea
-              id="notes"
-              [formField]="form.notes"
-            ></textarea>
+            <textarea id="notes" [formField]="form.notes"></textarea>
           </div>
         }
       </div>
@@ -544,9 +528,7 @@
             @if (isDirty()) {
               <button
                 type="submit"
-                [disabled]="
-                  isDupEmail() || isDupMemberId() || form().invalid()
-                "
+                [disabled]="isDupEmail() || isDupMemberId() || form().invalid()"
               >
                 Save
               </button>

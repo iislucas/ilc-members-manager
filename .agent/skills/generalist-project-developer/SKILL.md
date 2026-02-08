@@ -114,4 +114,5 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 ## 7. Testing
 
 - Frameworks: **Karma** and **Jasmine**.
+- To run tests for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
 - Requirement: All new items should have a `.spec.ts` file with meaningful unit tests.

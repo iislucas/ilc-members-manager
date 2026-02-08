@@ -142,6 +142,12 @@ export enum ApplicationLevel {
   Level6 = '6',
 }
 
+export enum InstructorLicenseType {
+  None = 'None',
+  Annual = 'Annual',
+  Life = 'Life',
+}
+
 export enum MasterLevel {
   Good = 'Good Hands',
   Wonder = 'Wonder Hands',
@@ -253,6 +259,7 @@ export type Member = {
   // use strings not Timestmp because this allows a null value of empty
   // string.
   instructorLicenseExpires: string; // YYYY-MM-DD, or empty if none.
+  instructorLicenseType: InstructorLicenseType;
 
   // Notes only for ILC HQ.
   notes: string;
@@ -359,6 +366,7 @@ export function initMember(): Member {
     // use strings not Timestmp because this allows a null value of empty
     // string.
     instructorLicenseExpires: '', // YYYY-MM-DD, or empty if none.
+    instructorLicenseType: InstructorLicenseType.None,
 
     // Level information
     // empty string indicates none graded yet.
