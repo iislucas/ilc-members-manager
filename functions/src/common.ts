@@ -20,12 +20,38 @@ export async function getMemberByEmail(
   email: string,
   db: admin.firestore.Firestore,
 ): Promise<Member> {
-  const memberRef = db.collection('members').doc(email);
-  const memberDoc = await memberRef.get();
-  if (!memberDoc.exists) {
-    throw new HttpsError('not-found', 'Member not found');
+  // First, check the ACL collection which maps emails to member IDs
+  const aclRef = db.collection('acl').doc(email);
+  const aclDoc = await aclRef.get();
+
+  if (aclDoc.exists) {
+    const acl = aclDoc.data() as { memberDocIds: string[] };
+    if (acl.memberDocIds && acl.memberDocIds.length > 0) {
+      // For now, we utilize the first member profile associated with the email
+      // This logic might need to be expanded if we need to support specific profile selection affecting permissions here
+      const memberDocId = acl.memberDocIds[0];
+      const memberRef = db.collection('members').doc(memberDocId);
+      const memberDoc = await memberRef.get();
+      if (memberDoc.exists) {
+        return { ...memberDoc.data(), id: memberDoc.id } as Member;
+      }
+    }
   }
-  return memberDoc.data() as Member;
+
+  // Fallback: Query the members collection directly
+  // This is useful if the ACL hasn't been synced or for legacy support
+  const membersQuery = db
+    .collection('members')
+    .where('emails', 'array-contains', email)
+    .limit(1);
+  const membersSnapshot = await membersQuery.get();
+
+  if (!membersSnapshot.empty) {
+    const doc = membersSnapshot.docs[0];
+    return { ...doc.data(), id: doc.id } as Member;
+  }
+
+  throw new HttpsError('not-found', 'Member not found');
 }
 
 export async function getSchool(
