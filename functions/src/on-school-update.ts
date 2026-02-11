@@ -5,6 +5,7 @@ import {
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { School } from './data-model';
+import { ensureSchoolCountersAreAtLeast } from './counters';
 
 const db = admin.firestore();
 
@@ -65,6 +66,7 @@ export const onSchoolCreated = onDocumentCreated(
     if (!snap) return;
     const school = snap.data() as School;
     await updateSchoolEmails(snap.id, school);
+    await ensureSchoolCountersAreAtLeast(school);
   }
 );
 
@@ -76,12 +78,15 @@ export const onSchoolUpdated = onDocumentUpdated(
     const schoolAfter = snap.after.data() as School;
     const schoolBefore = snap.before.data() as School;
 
-    // Only update if owner or managers changed, or if emails are missing.
     if (schoolAfter.owner !== schoolBefore.owner ||
         JSON.stringify(schoolAfter.managers) !== JSON.stringify(schoolBefore.managers) ||
         !schoolAfter.ownerEmail ||
         !schoolAfter.managerEmails) {
       await updateSchoolEmails(snap.after.id, schoolAfter);
+    }
+
+    if (schoolAfter.schoolId !== schoolBefore.schoolId) {
+      await ensureSchoolCountersAreAtLeast(schoolAfter);
     }
   }
 );

@@ -4,7 +4,7 @@ import {
   CallableRequest,
 } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { Counters, Member } from './data-model';
+import { Counters, Member, School } from './data-model';
 import {
   allowedOrigins,
   assertAdmin,
@@ -56,8 +56,10 @@ async function nextMemberIdHelper(
     const newId = await db.runTransaction(async (transaction) => {
       const countersDoc = await transaction.get(countersRef);
       const counters = initDataFromCountersDoc(countersDoc);
-      const nextId =
-        (counters.memberIdCounters[countryCode.toUpperCase()] || 0) + 1;
+      const nextId = Math.max(
+        (counters.memberIdCounters[countryCode.toUpperCase()] || 0) + 1,
+        COUNTERS_MIN_DEFAULT,
+      );
       counters.memberIdCounters[countryCode.toUpperCase()] = nextId;
       transaction.set(countersRef, counters);
       return nextId;
@@ -78,7 +80,10 @@ async function nextInstructorIdHelper(request: CallableRequest<unknown>) {
     const newId = await db.runTransaction(async (transaction) => {
       const countersDoc = await transaction.get(countersRef);
       const counters = initDataFromCountersDoc(countersDoc);
-      const nextId = (counters.instructorIdCounter || 0) + 1;
+      const nextId = Math.max(
+        (counters.instructorIdCounter || 0) + 1,
+        COUNTERS_MIN_DEFAULT,
+      );
       counters.instructorIdCounter = nextId;
       transaction.set(countersRef, counters);
       return nextId;
@@ -99,7 +104,10 @@ async function nextSchoolIdHelper(request: CallableRequest<unknown>) {
     const newId = await db.runTransaction(async (transaction) => {
       const countersDoc = await transaction.get(countersRef);
       const counters = initDataFromCountersDoc(countersDoc);
-      const nextId = (counters.schoolIdCounter || 0) + 1;
+      const nextId = Math.max(
+        (counters.schoolIdCounter || 0) + 1,
+        COUNTERS_MIN_DEFAULT,
+      );
       counters.schoolIdCounter = nextId;
       transaction.set(countersRef, counters);
       return nextId;
@@ -161,6 +169,19 @@ export function extractCountersFromMember(member: Member): {
   return { memberIdCountryCode, memberIdNumber, instructorIdNumber };
 }
 
+export function extractCountersFromSchool(school: School): {
+  schoolIdNumber?: number;
+} {
+  let schoolIdNumber: number | undefined;
+  if (school.schoolId) {
+    const schoolIdMatch = school.schoolId.match(/^(\d+)$/);
+    if (schoolIdMatch) {
+      schoolIdNumber = parseInt(schoolIdMatch[1], 10);
+    }
+  }
+  return { schoolIdNumber };
+}
+
 /**
  * Calculates the next counter value based on a last seen ID.
  * It ensures the counter is at least one more than the last seen ID,
@@ -220,9 +241,37 @@ export async function ensureCountersAreAtLeast(member: Member) {
     });
   } catch (e) {
     console.error('Failed to update counters from member:', e);
-    // We do NOT re-throw here because this is a background side-effect
-    // and we don't want to fail the main member update if this fails,
-    // though arguably it might be important.
-    // For now, just log error.
+  }
+}
+
+export async function ensureSchoolCountersAreAtLeast(school: School) {
+  const { schoolIdNumber } = extractCountersFromSchool(school);
+
+  if (!schoolIdNumber) {
+    return;
+  }
+
+  const db = admin.firestore();
+  const countersRef = db.doc(COUNTERS_DOC_PATH);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const countersDoc = await transaction.get(countersRef);
+      const counters = initDataFromCountersDoc(countersDoc);
+      let changed = false;
+
+      const currentRef = counters.schoolIdCounter || COUNTERS_MIN_DEFAULT;
+      const nextVal = calculateNextCounterValue(schoolIdNumber, currentRef);
+      if (nextVal > currentRef) {
+        counters.schoolIdCounter = nextVal;
+        changed = true;
+      }
+
+      if (changed) {
+        transaction.set(countersRef, counters);
+      }
+    });
+  } catch (e) {
+    console.error('Failed to update counters from school:', e);
   }
 }

@@ -13,7 +13,8 @@
     "emulate": "pnpm build && concurrently \"pnpm build:watch\" \"firebase emulators:start\"",
     "logs": "firebase functions:log",
     "admin": "ts-node scripts/admin.ts",
-    "dedupe-members": "ts-node scripts/dedupe-members.ts"
+    "dedupe-members": "ts-node scripts/dedupe-members.ts",
+    "test": "jasmine --require=ts-node/register 'src/**/*.spec.ts'"
   },
   "main": "dist/index.js",
   "engines": {
@@ -28,8 +29,11 @@
   },
   "devDependencies": {
     "@google-cloud/secret-manager": "^6.0.1",
+    "@types/jasmine": "^6.0.0",
     "@types/yargs": "^17.0.33",
+    "jasmine": "^6.0.0",
     "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
     "yargs": "^17.7.2"
   },
   "eslintIgnore": [

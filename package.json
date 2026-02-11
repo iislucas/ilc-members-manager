@@ -13,6 +13,7 @@
     "test:watch": "ng test --project ilc-members-manager",
     "test:once": "ng test --no-watch --browsers=ChromeHeadless --project ilc-members-manager",
     "test": "pnpm test:once",
+    "test:functions": "pnpm --prefix functions test",
     "test:rules:in_emulator": "mocha -r ts-node/register tests/firestore.rules.spec.ts",
     "test:rules": "pnpm exec firebase emulators:exec --only firestore \"pnpm test:in_emulator\"",
     "deploy": "pnpm run build:all && firebase deploy",
