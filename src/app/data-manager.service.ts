@@ -330,8 +330,8 @@ export class DataManagerService {
     return result.data.newId;
   }
 
-  async createNextSchoolId(): Promise<number> {
-    const nextSchoolId = httpsCallable<unknown, { newId: number }>(
+  async createNextSchoolId(): Promise<string> {
+    const nextSchoolId = httpsCallable<unknown, { newId: string }>(
       this.functions,
       'nextSchoolId',
     );

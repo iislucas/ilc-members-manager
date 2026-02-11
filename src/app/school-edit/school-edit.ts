@@ -141,7 +141,7 @@ export class SchoolEditComponent {
   expectedNextSchoolId = computed(() => {
     const counters = this.membersService.counters();
     if (!counters) return '';
-    return (counters.schoolIdCounter + 1).toString();
+    return `SCH-${counters.schoolIdCounter + 1}`;
   });
 
   initSchoolIdAssignment(): Assignment {
@@ -291,9 +291,7 @@ export class SchoolEditComponent {
       const school = this.editableSchool()!;
       const schoolIdAssignment = this.schoolIdAssignment().kind;
       if (schoolIdAssignment === AssignKind.AssignNewAutoId) {
-        school.schoolId = (
-          await this.membersService.createNextSchoolId()
-        ).toString();
+        school.schoolId = await this.membersService.createNextSchoolId();
       } else if (school.schoolId === '') {
         throw new Error(`School ID cannot be empty.`);
       }

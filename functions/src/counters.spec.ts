@@ -1,5 +1,5 @@
-import { extractCountersFromMember, calculateNextCounterValue } from './counters';
-import { initMember } from './data-model';
+import { extractCountersFromMember, extractCountersFromSchool, calculateNextCounterValue } from './counters';
+import { initMember, initSchool } from './data-model';
 
 describe('Counters', () => {
     describe('extractCountersFromMember', () => {
@@ -37,6 +37,23 @@ describe('Counters', () => {
             const result = extractCountersFromMember(initMember());
             expect(result).toEqual({ memberIdCountryCode: undefined, memberIdNumber: undefined, instructorIdNumber: undefined });
         });
+    });
+
+    describe('extractCountersFromSchool', () => {
+        it('should parse standard School ID', () => {
+            const result = extractCountersFromSchool({ ...initSchool(), schoolId: 'SCH-100' });
+            expect(result).toEqual({ schoolIdNumber: 100 });
+        });
+
+        it('should ignore invalid School ID', () => {
+             const result = extractCountersFromSchool({ ...initSchool(), schoolId: 'INVALID' });
+             expect(result).toEqual({ schoolIdNumber: undefined });
+        });
+
+        it('should ignore old numeric School ID', () => {
+            const result = extractCountersFromSchool({ ...initSchool(), schoolId: '100' });
+            expect(result).toEqual({ schoolIdNumber: undefined });
+       });
     });
 
     describe('calculateNextCounterValue', () => {

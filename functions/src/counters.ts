@@ -112,7 +112,7 @@ async function nextSchoolIdHelper(request: CallableRequest<unknown>) {
       transaction.set(countersRef, counters);
       return nextId;
     });
-    return { newId };
+    return { newId: `SCH-${newId}` };
   } catch (e) {
     console.error('Transaction failure:', e);
     throw new HttpsError('internal', 'Transaction failure');
@@ -133,7 +133,7 @@ export const nextInstructorId = onCall<unknown, Promise<{ newId: number }>>(
   },
 );
 
-export const nextSchoolId = onCall<unknown, Promise<{ newId: number }>>(
+export const nextSchoolId = onCall<unknown, Promise<{ newId: string }>>(
   { cors: allowedOrigins },
   async (request) => {
     return nextSchoolIdHelper(request);
@@ -174,7 +174,7 @@ export function extractCountersFromSchool(school: School): {
 } {
   let schoolIdNumber: number | undefined;
   if (school.schoolId) {
-    const schoolIdMatch = school.schoolId.match(/^(\d+)$/);
+    const schoolIdMatch = school.schoolId.match(/^SCH-(\d+)$/);
     if (schoolIdMatch) {
       schoolIdNumber = parseInt(schoolIdMatch[1], 10);
     }
