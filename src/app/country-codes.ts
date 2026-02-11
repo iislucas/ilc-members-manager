@@ -19,7 +19,7 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Argentina', id: 'AR' },
   { name: 'Armenia', id: 'AM' },
   { name: 'Aruba', id: 'AW' },
-  { name: 'Australia', id: 'AU' },
+  { name: 'Australia', id: 'AUS' },
   { name: 'Austria', id: 'AT' },
   { name: 'Azerbaijan', id: 'AZ' },
   { name: 'Bahamas', id: 'BS' },
@@ -64,7 +64,7 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Cuba', id: 'CU' },
   { name: 'Curaçao', id: 'CW' },
   { name: 'Cyprus', id: 'CY' },
-  { name: 'Czech Republic', id: 'CZ' },
+  { name: 'Czechia / Czech Republic', id: 'CZ' },
   { name: "Côte d'Ivoire", id: 'CI' },
   { name: 'Denmark', id: 'DK' },
   { name: 'Djibouti', id: 'DJ' },
@@ -152,7 +152,7 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Mayotte', id: 'YT' },
   { name: 'Mexico', id: 'MX' },
   { name: 'Micronesia, Federated States of', id: 'FM' },
-  { name: 'Moldova, Republic of', id: 'MD' },
+  { name: 'Moldova', id: 'MD' },
   { name: 'Monaco', id: 'MC' },
   { name: 'Mongolia', id: 'MN' },
   { name: 'Montenegro', id: 'ME' },
@@ -188,7 +188,7 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Puerto Rico', id: 'PR' },
   { name: 'Qatar', id: 'QA' },
   { name: 'Romania', id: 'RO' },
-  { name: 'Russian Federation', id: 'RU' },
+  { name: 'Russia', id: 'RUS' },
   { name: 'Rwanda', id: 'RW' },
   { name: 'Réunion', id: 'RE' },
   { name: 'Saint Barthélemy', id: 'BL' },
@@ -199,17 +199,17 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Saint Pierre and Miquelon', id: 'PM' },
   { name: 'Saint Vincent and the Grenadines', id: 'VC' },
   { name: 'Samoa', id: 'WS' },
-  { name: 'San Marino', id: 'SM' },
+  { name: 'San Marino', id: 'SMO' },
   { name: 'Sao Tome and Principe', id: 'ST' },
   { name: 'Saudi Arabia', id: 'SA' },
   { name: 'Senegal', id: 'SN' },
   { name: 'Serbia', id: 'RS' },
   { name: 'Seychelles', id: 'SC' },
-  { name: 'Sierra Leone', id: 'SL' },
+  { name: 'Sierra Leone', id: 'SLE' },
   { name: 'Singapore', id: 'SG' },
   { name: 'Sint Maarten (Dutch part)', id: 'SX' },
   { name: 'Slovakia', id: 'SK' },
-  { name: 'Slovenia', id: 'SI' },
+  { name: 'Slovenia', id: 'SL' },
   { name: 'Solomon Islands', id: 'SB' },
   { name: 'Somalia', id: 'SO' },
   { name: 'South Africa', id: 'ZA' },
@@ -238,9 +238,9 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Turks and Caicos Islands', id: 'TC' },
   { name: 'Tuvalu', id: 'TV' },
   { name: 'Uganda', id: 'UG' },
-  { name: 'Ukraine', id: 'UA' },
+  { name: 'Ukraine', id: 'UKR' },
   { name: 'United Arab Emirates', id: 'AE' },
-  { name: 'United Kingdom', id: 'GB' },
+  { name: 'United Kingdom', id: 'UK' },
   { name: 'United States', id: 'US' },
   { name: 'United States Minor Outlying Islands', id: 'UM' },
   { name: 'Uruguay', id: 'UY' },
@@ -257,14 +257,6 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Zimbabwe', id: 'ZW' },
   { name: 'Åland Islands', id: 'AX' },
 ];
-
-// export function initCountryCodes(): { [key: string]: string } {
-//   const cc: { [key: string]: string } = {};
-//   for (const x of countryCodeList) {
-//     cc[x.id] = x.name;
-//   }
-//   return cc;
-// }
 
 export type CountryCodesDoc = {
   codes: CountryCode[];

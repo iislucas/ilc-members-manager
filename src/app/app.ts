@@ -169,5 +169,6 @@ export class App {
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
     this.logoutError.set(null);
+    this.firebaseService.loginError.set(null);
   }
 }

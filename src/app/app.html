@@ -63,6 +63,9 @@
     @if (logoutError(); as message) {
       <div class="error-container">
         Logout error: <span>{{ message }}</span>
+        <button class="icon-only-button" (click)="dismissMessages()">
+          <app-icon name="close"></app-icon>
+        </button>
       </div>
     }
     <main class="main">
@@ -105,8 +108,8 @@
       }
     </main>
   } @else {
-    <h1>ILC Members App</h1>
-    <main class="main">
+    <main>
+      <h1>ILC App</h1>
       @if (
         firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
       ) {
@@ -114,102 +117,91 @@
       } @else if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
         <app-spinner>Logging in... </app-spinner>
       } @else {
-        <div class="login-options">
-          <div class="card email-login">
-            <div>
-              Email:
-              <input
-                id="email-input"
-                autocomplete="email"
-                #email
-                type="email"
-                name="email"
-                ngModel
-                required
-                placeholder="Email"
-              />
-            </div>
-            <div>
-              Password:
-              <input
-                id="password-input"
-                autocomplete="current-password"
-                #password
-                type="password"
-                name="password"
-                ngModel
-                required
-                placeholder="Password"
-              />
-            </div>
-            <div class="buttons">
-              <button
-                (click)="loginWithEmail(email.value, password.value)"
-                [disabled]="!email.value || !password.value"
-              >
-                Login
-              </button>
-              <button
-                (click)="signupWithEmail(email.value, password.value)"
-                [disabled]="!email.value || !password.value"
-              >
-                Signup
-              </button>
-            </div>
+          @if (loginWithGoogleError(); as message) {
+          <div class="error-container">
+            <div>Login with Google Error:</div>
+            <div class="error-message">{{ message }}</div>
+            <button class="icon-only-button" (click)="dismissMessages()">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+          }
+          
+          @if (firebaseService.loginError()) {
+          <div class="error-container">
+            <div>Login error:</div>
+            <div class="error-message">
+              {{ firebaseService.loginError() }}</div>
+            <button class="icon-only-button" (click)="dismissMessages()">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+          }
+          <div class="login-options">
+            <div class="card email-login">
+              <div>
+                Email:
+                <input id="email-input" autocomplete="email" #email type="email" name="email" ngModel required placeholder="Email" />
+                </div>
+                <div>
+                  Password:
+                <input id="password-input" autocomplete="current-password" #password type="password" name="password" ngModel required
+                  placeholder="Password" />
+                </div>
+                <div class="buttons">
+                <button (click)="loginWithEmail(email.value, password.value)" [disabled]="!email.value || !password.value">
+                  Login
+                </button>
+                <button (click)="signupWithEmail(email.value, password.value)" [disabled]="!email.value || !password.value">
+                  Signup
+                </button>
+                </div>
 
-            @if (signupError(); as message) {
+              @if (signupError(); as message) {
               <div class="error-container">
                 Signup error: <span class="error-message">{{ message }}</span>
-              </div>
-            }
-            @if (loginWithEmailError(); as message) {
-              <div class="error-container">
-                Login with email error:
-                <span class="error-message">{{ message }}</span>
-              </div>
-            }
-            @if (invalidLoginCredentials()) {
-              <p>
-                Your password is invalid. Do you want to
-                <button (click)="resetPassword(email.value)">
-                  reset your password
-                </button>
-                ?
-              </p>
-            }
-            @if (resetPasswordSuccess(); as message) {
-              <div class="success">
-                <span>{{ message }}</span>
-              </div>
-            }
-            @if (resetPasswordError(); as message) {
-              <div class="error-container">
-                Reset password error:
-                <span class="error-message">{{ message }}</span>
-              </div>
-            }
-          </div>
+                  <button class="icon-only-button" (click)="dismissMessages()">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
+                }
+                @if (loginWithEmailError(); as message) {
+                <div class="error-container">
+                  Login with email error:
+                  <span class="error-message">{{ message }}</span>
+                  <button class="icon-only-button" (click)="dismissMessages()">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
+                }
+                @if (invalidLoginCredentials()) {
+                <p>
+                  Your password is invalid. Do you want to
+                  <button (click)="resetPassword(email.value)">
+                    reset your password
+                  </button>
+                  ?
+                </p>
+                }
+                @if (resetPasswordSuccess(); as message) {
+                <div class="success">
+                  <span>{{ message }}</span>
+                </div>
+                }
+                @if (resetPasswordError(); as message) {
+                <div class="error-container">
+                  Reset password error: <span class="error-message">{{ message }}</span>
+                  <button class="icon-only-button" (click)="dismissMessages()">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                  </div>
+                  }
+                  </div>
 
-          <div class="card google-login">
-            <button (click)="loginWithGoogle()">Login with Google</button>
-            @if (loginWithGoogleError(); as message) {
-              <div class="error">
-                Login with Google Error:
-                <span class="error-message">{{ message }}</span>
-              </div>
-            }
-          </div>
-
-          @if (firebaseService.loginError()) {
-            <div class="error-container">
-              Login error:
-              <span class="error-message">
-                {{ firebaseService.loginError() }} (Check your internet
-                connection?)</span
-              >
+            <div class="card google-login">
+              <button (click)="loginWithGoogle()">Login with Google</button>
             </div>
-          }
-        </div>
+          </div>
       }
     </main>
   }
