@@ -7,6 +7,7 @@ import * as admin from 'firebase-admin';
 import { Member, ACL } from './data-model';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
+import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate } from './common';
 import * as logger from 'firebase-functions/logger';
 
@@ -110,6 +111,7 @@ export const onMemberCreated = onDocumentCreated(
 
     await updateMemberViewForSchoolAndInstrucor(snap.id, member);
     await updateInstructorPublicProfile({ previous: undefined, member });
+    await ensureCountersAreAtLeast(member);
     await updateACL({ previous: undefined, member: member });
   },
 );
@@ -129,6 +131,15 @@ export const onMemberUpdated = onDocumentUpdated(
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
     await updateInstructorPublicProfile({ previous, member });
+
+    // Only update counters if IDs have changed/added
+    if (
+      member.memberId !== previous.memberId ||
+      member.instructorId !== previous.instructorId
+    ) {
+      await ensureCountersAreAtLeast(member);
+    }
+
     await updateACL({ previous, member });
   },
 );

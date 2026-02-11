@@ -1,7 +1,5 @@
 @use "../edit-form.scss" as *;
 
-:host {
-}
 
 .view-form {
   .view-form-header {
@@ -10,5 +8,8 @@
 
   .value {
     font-weight: normal;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 }

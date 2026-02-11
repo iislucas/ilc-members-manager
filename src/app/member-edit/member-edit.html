@@ -374,18 +374,23 @@
 
         <label for="masterLevels">Master</label>
         <div class="rhs">
-          @for (level of masterLevels; track level) {
-            <div class="masterLevel">
-              <input
-                id="masterLevels"
-                name="masterLevels"
-                type="checkbox"
-                [checked]="e.mastersLevels.includes(level)"
-                (change)="onMasterLevelChange(level, $event)"
-                [disabled]="!userIsAdmin()"
-              />
-              {{ level }}
-            </div>
+          @if (userIsAdmin()) {
+            @for (level of masterLevels; track level) {
+              <div class="masterLevel">
+                <input
+                  id="masterLevels"
+                  name="masterLevels"
+                  type="checkbox"
+                  [checked]="e.mastersLevels.includes(level)"
+                  (change)="onMasterLevelChange(level, $event)"
+                />
+                {{ level }}
+              </div>
+            }
+          } @else {
+            @for (level of e.mastersLevels; track level) {
+              <span class="identifier-chip">{{ level }}</span>
+            }
           }
         </div>
 

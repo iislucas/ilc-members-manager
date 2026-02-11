@@ -114,5 +114,8 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 ## 7. Testing
 
 - Frameworks: **Karma** and **Jasmine**.
-- To run tests for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
+- To run tests for specific angular UI components for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
+- To run tests for firebase firestore rules: `pnpm test:rules`
+- To run tests for firebase functions: `pnpm test:functions`
+  - To run a specific firebase function test: `pnpm exec ts-node --project functions/tsconfig.json functions/src/tests/<function-test-file>.ts`
 - Requirement: All new items should have a `.spec.ts` file with meaningful unit tests.

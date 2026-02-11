@@ -91,7 +91,11 @@
     <div class="value">{{ m.applicationLevel }}</div>
 
     <label>Masters Levels</label>
-    <div class="value">{{ m.mastersLevels.join(", ") }}</div>
+    <div class="value">
+      @for (level of m.mastersLevels; track level) {
+        <span class="identifier-chip">{{ level }}</span>
+      }
+    </div>
 
     <h3>Instructor</h3>
     <label>Instructor ID</label>
