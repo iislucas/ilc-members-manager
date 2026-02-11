@@ -19,11 +19,8 @@
             >
               {{ viewIdToTitle(Views.MyProfile) }}
             </div>
-            <div
-              class="menu-item"
-              (click)="currentView.set(Views.Schools); menuOpen.set(false)"
-            >
-              {{ viewIdToTitle(Views.Schools) }}
+            <div class="menu-item" (click)="currentView.set(Views.FindSchool); menuOpen.set(false)">
+              {{ viewIdToTitle(Views.FindSchool) }}
             </div>
             <div
               class="menu-item"
@@ -34,15 +31,17 @@
               {{ viewIdToTitle(Views.FindAnInstructor) }}
             </div>
             @if (user.isAdmin || user.schoolsManaged.length > 0) {
-              <div class="menu-seperator"></div>
-              <div
-                class="menu-item"
-                (click)="
-                  currentView.set(Views.ManageMembers); menuOpen.set(false)
-                "
-              >
-                {{ viewIdToTitle(Views.ManageMembers) }}
-              </div>
+            <div class="menu-seperator"></div>
+            <div class="menu-item" (click)="
+                                        currentView.set(Views.ManageMembers); menuOpen.set(false)
+                          ">
+              {{ viewIdToTitle(Views.ManageMembers) }}
+            </div>
+            }
+            @if (user.isAdmin || user.schoolsManaged.length > 0) {
+            <div class="menu-item" (click)="currentView.set(Views.Schools); menuOpen.set(false)">
+              {{ viewIdToTitle(Views.Schools) }}
+            </div>
             }
             @if (user.isAdmin) {
               <div
@@ -103,6 +102,9 @@
           }
           @case (Views.SchoolMembers) {
             <app-school-members></app-school-members>
+          }
+          @case (Views.FindSchool) {
+          <app-find-school></app-find-school>
           }
         }
       }

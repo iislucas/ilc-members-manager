@@ -113,5 +113,19 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  link: {
+    viewbox: '0 0 24 24',
+    fill: '#5f6368',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  person: {
+    viewbox: '0 0 24 24',
+    fill: '#5f6368',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 };
 

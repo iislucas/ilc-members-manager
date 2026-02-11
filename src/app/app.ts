@@ -16,6 +16,7 @@ import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberEditComponent } from './member-edit/member-edit';
+import { FindSchoolComponent } from './find-school/find-school';
 
 @Component({
   selector: 'app-root',
@@ -34,6 +35,7 @@ import { MemberEditComponent } from './member-edit/member-edit';
     FilteredMembersComponent,
     MemberEditComponent,
     MemberEditComponent,
+    FindSchoolComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -75,7 +77,9 @@ export class App {
       case Views.FindAnInstructor:
         return 'Find an Instructor';
       case Views.Schools:
-        return 'Schools';
+        return 'Manage Schools';
+      case Views.FindSchool:
+        return 'Find a School';
       case Views.SchoolMembers:
         const schoolId =
           this.routingService.signals[viewId].pathVars.schoolId();

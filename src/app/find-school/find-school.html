@@ -1,0 +1,47 @@
+<div class="school-search-container">
+  <div class="search-box">
+    <app-icon class="search-icon" name="search"></app-icon>
+    <input id="search-input" type="text" [(ngModel)]="searchTerm" placeholder="Search by name, city, or country..." />
+  </div>
+
+  <div class="results-container">
+    @if (dataManager.schools.loading()) {
+    <app-spinner></app-spinner>
+    } @else {
+    @if (filteredSchools().length > 0) {
+    @for (school of filteredSchools(); track school.id) {
+    <div class="school-card">
+      <div class="school-header">
+        <h3>{{ school.schoolName }}</h3>
+        <div class="school-location">
+          {{ school.schoolCity }}
+          @if (school.schoolCountyOrState) {
+          , {{ school.schoolCountyOrState }}
+          }
+          , {{ school.schoolCountry }}
+        </div>
+      </div>
+
+      <div class="school-details">
+        @if (school.schoolWebsite) {
+        <div class="detail-row">
+          <app-icon name="link"></app-icon>
+          <a [href]="school.schoolWebsite" target="_blank" rel="noopener noreferrer">{{ school.schoolWebsite }}</a>
+        </div>
+        }
+
+        @if (dataManager.instructors.entriesMap().get(school.owner); as owner) {
+        <div class="detail-row">
+          <app-icon name="person"></app-icon>
+          <span>School Owner: {{ owner.name }}</span>
+        </div>
+        }
+      </div>
+    </div>
+    }
+    } @else {
+    <p>No schools found.</p>
+    }
+    }
+  </div>
+</div>

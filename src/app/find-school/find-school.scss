@@ -1,0 +1,122 @@
+@use "../../scss_variables.scss" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: stretch;
+  flex-grow: 1;
+}
+
+.school-search-container {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 0;
+    margin-bottom: 20px;
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: #888;
+    }
+
+    input[type="text"] {
+      padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      flex-grow: 1;
+      width: 100%;
+
+      &:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        outline: none;
+      }
+    }
+  }
+
+  .results-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: start;
+    gap: v.$card-sep;
+    flex-grow: 1;
+    overflow-y: auto;
+
+    p {
+      text-align: center;
+    }
+  }
+}
+
+.school-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #eee;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .school-header {
+    margin-bottom: 12px;
+    
+    h3 {
+      margin: 0 0 4px 0;
+      color: #333;
+      font-size: 1.2rem;
+    }
+
+    .school-location {
+      color: #666;
+      font-size: 0.9rem;
+    }
+  }
+
+  .school-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #555;
+      font-size: 0.95rem;
+
+      app-icon {
+        width: 18px;
+        height: 18px;
+        color: #888;
+      }
+
+      a {
+        color: #007bff;
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+}
