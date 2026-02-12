@@ -126,6 +126,10 @@ export class MemberEditComponent {
       () => !this.userIsSchoolManagerOrAdmin(),
     );
     disabled(
+      schema.instructorLicenseRenewalDate,
+      () => !this.userIsSchoolManagerOrAdmin(),
+    );
+    disabled(
       schema.instructorLicenseType,
       () => !this.userIsSchoolManagerOrAdmin(),
     );

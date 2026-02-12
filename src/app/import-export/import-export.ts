@@ -588,6 +588,7 @@ export class ImportExportComponent {
         case 'lastRenewalDate':
         case 'currentMembershipExpires':
         case 'dateOfBirth':
+        case 'instructorLicenseRenewalDate':
         case 'instructorLicenseExpires': {
           const result = this.parseDate(value);
           if (result.success) {

@@ -427,6 +427,12 @@
             form.instructorLicenseType().value() ===
             InstructorLicenseType.Annual
           ) {
+            <label for="instructorLicenseRenewalDate">License Renewal</label>
+            <div class="rhs">
+              <input class="date" type="date" id="instructorLicenseRenewalDate" placeholder="YYYY-MM-DD"
+                [formField]="form.instructorLicenseRenewalDate" />
+            </div>
+
             <label for="instructorLicenseExpires">License Expires</label>
             <div class="rhs">
               <input
