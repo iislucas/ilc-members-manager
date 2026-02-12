@@ -49,16 +49,19 @@ describe('MemberImportExportComponent', () => {
 
   it('should filter proposed changes by status', async () => {
     // Mock proposed changes
-    const mockChanges: any[] = [
-      { status: 'NEW', key: 'new@test.com' },
-      { status: 'UPDATE', key: 'update@test.com' },
-      { status: 'ISSUE', key: 'issue@test.com' },
-    ];
-    component.proposedChanges.set(mockChanges);
+    const mockDelta: any = {
+      issues: [{ status: 'ISSUE', key: 'issue@test.com' }],
+      updates: [{ status: 'UPDATE', key: 'update@test.com' }],
+      unchanged: [],
+      new: new Map([['new@test.com', { status: 'NEW', key: 'new@test.com' }]]),
+      seenIds: new Set(),
+    };
+    component.proposedChanges.set(mockDelta);
     await fixture.whenStable();
 
-    // Initial state: no filter (Total)
-    expect(component.filteredProposedChanges().length).toBe(3);
+    // Initial state: default filter is ISSUE
+    expect(component.filteredProposedChanges().length).toBe(1);
+    expect(component.filteredProposedChanges()[0].status).toBe('ISSUE');
 
     // Filter by NEW
     component.setFilter('NEW');
@@ -72,18 +75,17 @@ describe('MemberImportExportComponent', () => {
     expect(component.filteredProposedChanges().length).toBe(1);
     expect(component.filteredProposedChanges()[0].status).toBe('UPDATE');
 
-    // Reset filter by clicking same filter again
+    // Reset filter by clicking same filter again (goes back to ISSUE)
     component.setFilter('UPDATE');
     await fixture.whenStable();
-    expect(component.filteredProposedChanges().length).toBe(3);
+    expect(component.filteredProposedChanges().length).toBe(1);
+    expect(component.filteredProposedChanges()[0].status).toBe('ISSUE');
 
-    // Set filter and then reset by passing null
+    // Set filter to ISSUES explicitly
     component.setFilter('ISSUE');
     await fixture.whenStable();
     expect(component.filteredProposedChanges().length).toBe(1);
-    component.setFilter(null);
-    await fixture.whenStable();
-    expect(component.filteredProposedChanges().length).toBe(3);
+    expect(component.filteredProposedChanges()[0].status).toBe('ISSUE');
   });
 
   describe('CSV Mapping and Parsing', () => {
@@ -116,10 +118,10 @@ describe('MemberImportExportComponent', () => {
 
       await component.analyzeData();
 
-      const changes = component.proposedChanges();
-      expect(changes.length).toBe(1);
-      expect(changes[0].status).toBe('ISSUE');
-      expect(changes[0].issues).toContain('Member ID is required');
+      const delta = component.proposedChanges() as any;
+      expect(delta.issues.length).toBe(1);
+      expect(delta.issues[0].status).toBe('ISSUE');
+      expect(delta.issues[0].issues).toContain('Member ID is required');
     });
 
     it('should trim string fields', () => {
@@ -143,9 +145,11 @@ describe('MemberImportExportComponent', () => {
 
       await component.analyzeData();
 
-      const changes = component.proposedChanges();
-      expect(changes.length).toBe(1);
-      expect(changes[0].key).toBe('M1');
+      const delta = component.proposedChanges() as any;
+      expect(delta.new.size).toBe(1);
+      const newMember = delta.new.get('M1');
+      expect(newMember).toBeTruthy();
+      expect(newMember.key).toBe('M1');
     });
 
     it('should lowercase emails during parsing', () => {
@@ -186,11 +190,13 @@ describe('MemberImportExportComponent', () => {
 
       await component.analyzeData();
 
-      const changes = component.proposedChanges();
-      expect(changes.length).toBe(2);
-      expect(changes[0].status).toBe('NEW');
-      expect(changes[1].status).toBe('ISSUE');
-      expect(changes[1].issues).toContain('Duplicate ID in import file');
+      const delta = component.proposedChanges() as any;
+      // Both duplicates become issues in member logic
+      expect(delta.new.size).toBe(0);
+      expect(delta.issues.length).toBe(2);
+      expect(delta.issues[0].status).toBe('ISSUE');
+      expect(delta.issues[1].status).toBe('ISSUE');
+      expect(delta.issues[1].issues).toContain('Duplicate ID (M1) in import file');
     });
 
     it('should flag duplicate schoolIds in the same import file', async () => {
@@ -203,11 +209,77 @@ describe('MemberImportExportComponent', () => {
 
       await component.analyzeData();
 
-      const changes = component.proposedChanges();
-      expect(changes.length).toBe(2);
-      expect(changes[0].status).toBe('NEW');
-      expect(changes[1].status).toBe('ISSUE');
-      expect(changes[1].issues).toContain('Duplicate ID in import file');
+      const delta = component.proposedChanges() as any;
+      // First one is NEW, second one is ISSUE in school logic
+      expect(delta.new.size).toBe(1);
+      expect(delta.issues.length).toBe(1);
+      expect(delta.issues[0].status).toBe('ISSUE');
+      expect(delta.issues[0].issues).toContain('Duplicate ID in import file');
+    });
+
+    it('should parse dates into YYYY-MM-DD format', () => {
+      const row = {
+        firstMembershipStarted: '02/01/2023', // DD/MM/YYYY -> 2023-01-02
+        lastRenewalDate: '2023-05-15', // YYYY-MM-DD -> 2023-05-15
+        dateOfBirth: '1990/12/31', // YYYY/MM/DD -> 1990-12-31
+        currentMembershipExpires: 'invalid-date',
+      };
+      const mapping = {
+        firstMembershipStarted: 'firstMembershipStarted',
+        lastRenewalDate: 'lastRenewalDate',
+        dateOfBirth: 'dateOfBirth',
+        currentMembershipExpires: 'currentMembershipExpires',
+      };
+
+      const { member, issues } = (component as any).mapRowToMember(row, mapping);
+
+      expect(member.firstMembershipStarted).toBe('2023-01-02');
+      expect(member.lastRenewalDate).toBe('2023-05-15');
+      expect(member.dateOfBirth).toBe('1990-12-31');
+      // For invalid date, it keeps original value but adds an issue
+      expect(member.currentMembershipExpires).toBe('invalid-date');
+      expect(issues.length).toBe(1);
+      expect(issues[0]).toContain('Invalid date format');
+    });
+
+    it('should parse DD-Mon-YYYY format', () => {
+      const row = {
+        dateOfBirth: '23-Feb-1953',
+      };
+      const mapping = {
+        dateOfBirth: 'dateOfBirth',
+      };
+      const { member } = (component as any).mapRowToMember(row, mapping);
+      expect(member.dateOfBirth).toBe('1953-02-23');
+    });
+
+    it('should parse year-only format as Jan 1st', () => {
+      const row = {
+        dateOfBirth: '1953',
+      };
+      const mapping = {
+        dateOfBirth: 'dateOfBirth',
+      };
+      const { member } = (component as any).mapRowToMember(row, mapping);
+      expect(member.dateOfBirth).toBe('1953-01-01');
+    });
+
+    it('should set instructorLicenseExpires to 1 year after lastRenewalDate if MembershipType is Annual', () => {
+      const row = {
+        lastRenewalDate: '2023-01-01',
+        membershipType: 'Annual',
+      };
+      const mapping = {
+        lastRenewalDate: 'lastRenewalDate',
+        membershipType: 'membershipType',
+      };
+      
+      // We expect instructorLicenseExpires to automatically be set
+      const { member } = (component as any).mapRowToMember(row, mapping);
+      
+      expect(member.lastRenewalDate).toBe('2023-01-01');
+      // 1 year after 2023-01-01 is 2024-01-01
+      expect(member.instructorLicenseExpires).toBe('2024-01-01');
     });
   });
 });

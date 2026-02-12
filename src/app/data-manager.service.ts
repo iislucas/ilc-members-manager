@@ -70,7 +70,8 @@ export class DataManagerService {
     if (
       this.members.loaded() &&
       this.schools.loaded() &&
-      this.instructors.loaded()
+      this.instructors.loaded() &&
+      this.myStudents.loaded()
     ) {
       return DataServiceState.Loaded;
     } else {
@@ -109,6 +110,21 @@ export class DataManagerService {
     ],
     'instructorId',
   );
+  public myStudents = new SearchableSet<'memberId', Member>(
+    [
+      'memberId',
+      'name',
+      'emails',
+      'publicEmail',
+      'memberId',
+      'city',
+      'countyOrState',
+      'publicRegionOrCity',
+      'publicCountyOrState',
+      'country',
+    ],
+    'memberId',
+  );
   public schools = new SearchableSet<'schoolId', School>(
     [
       'schoolName',
@@ -128,6 +144,7 @@ export class DataManagerService {
       const user = await this.firebaseService.loggedIn();
       this.updateMembersSync(user);
       this.updateInstructorsSync();
+      this.updateMyStudentsSync(user);
       this.updateSchoolsSync();
       this.updateCountersSync();
       this.updateCountryCodesSync();
@@ -239,6 +256,32 @@ export class DataManagerService {
         },
       ),
     );
+  }
+
+  async updateMyStudentsSync(user: UserDetails) {
+    // If the user is an instructor (has an instructorId), load their students.
+    // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.
+    if (user.member.instructorId) {
+      const q = query(
+        collection(this.db, `instructors/${user.member.id}/members`),
+        orderBy('name', 'asc'),
+      );
+      this.snapshotsToUnsubscribe.push(
+        onSnapshot(
+          q,
+          (snapshot) => {
+            const students = snapshot.docs.map(firestoreDocToMember);
+            this.myStudents.setEntries(students);
+          },
+          (error) => {
+            console.error('Error fetching my students:', error);
+            this.myStudents.setError(error.message);
+          },
+        ),
+      );
+    } else {
+      this.myStudents.setEntries([]);
+    }
   }
 
   async updateCountersSync() {

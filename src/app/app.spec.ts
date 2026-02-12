@@ -20,6 +20,7 @@ describe('App', () => {
       members: { loaded: signal(true) } as any,
       schools: { loaded: signal(true) } as any,
       instructors: { loaded: signal(true) } as any,
+      myStudents: { loaded: signal(true) } as any,
     };
 
     await TestBed.configureTestingModule({
@@ -49,8 +50,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain(
-      'ILC Members App',
-    );
+    expect(compiled.querySelector('h1')?.textContent).toContain('ILC App');
   });
 });

@@ -90,6 +90,8 @@ export class App {
         return 'Members';
       case Views.MyProfile:
         return 'My Profile';
+      case Views.MyStudents:
+        return 'My Students';
       default:
         return 'Unknown View';
     }

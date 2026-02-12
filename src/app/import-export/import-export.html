@@ -138,42 +138,48 @@
       @case ("PREVIEW") {
         <div class="preview-stage">
           <h3>Review Changes</h3>
-          @let summary = changesSummary();
+          @let delta = proposedChanges();
           <div class="summary-stats">
             <div
               class="stat new"
               [class.active]="selectedStatusFilter() === 'NEW'"
               (click)="setFilter('NEW')"
             >
-              New: {{ summary.new }}
+              New: {{ delta.new.size }}
             </div>
             <div
               class="stat update"
               [class.active]="selectedStatusFilter() === 'UPDATE'"
               (click)="setFilter('UPDATE')"
             >
-              Updates: {{ summary.update }}
+              Updates: {{ delta.updates.length }}
             </div>
             <div
               class="stat issue"
               [class.active]="selectedStatusFilter() === 'ISSUE'"
               (click)="setFilter('ISSUE')"
             >
-              Issues: {{ summary.issue }}
+              Issues: {{ delta.issues.length }}
             </div>
             <div
               class="stat unchanged"
               [class.active]="selectedStatusFilter() === 'UNCHANGED'"
               (click)="setFilter('UNCHANGED')"
             >
-              Unchanged: {{ summary.unchanged }}
+              Unchanged: {{ delta.unchanged.length }}
             </div>
             <div
               class="stat total"
-              [class.active]="selectedStatusFilter() === null"
-              (click)="setFilter(null)"
+              [class.active]="selectedStatusFilter() === 'ISSUE'"
+              (click)="setFilter('ISSUE')"
             >
-              Total: {{ summary.total }}
+              Total:
+              {{
+              delta.new.size +
+              delta.updates.length +
+              delta.issues.length +
+              delta.unchanged.length
+              }}
             </div>
           </div>
 

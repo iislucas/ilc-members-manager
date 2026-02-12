@@ -15,8 +15,7 @@
           <div class="menu">
             <div
               class="menu-item"
-              (click)="currentView.set(Views.MyProfile); menuOpen.set(false)"
-            >
+              (click)="currentView.set(Views.MyProfile); menuOpen.set(false)">
               {{ viewIdToTitle(Views.MyProfile) }}
             </div>
             <div class="menu-item" (click)="currentView.set(Views.FindSchool); menuOpen.set(false)">
@@ -24,17 +23,17 @@
             </div>
             <div
               class="menu-item"
-              (click)="
-                currentView.set(Views.FindAnInstructor); menuOpen.set(false)
-              "
-            >
+              (click)="currentView.set(Views.FindAnInstructor); menuOpen.set(false)">
               {{ viewIdToTitle(Views.FindAnInstructor) }}
             </div>
-            @if (user.isAdmin || user.schoolsManaged.length > 0) {
+            @if (user.member.instructorId) {
+            <div class="menu-item" (click)="currentView.set(Views.MyStudents); menuOpen.set(false)">
+              {{ viewIdToTitle(Views.MyStudents) }}
+            </div>
+            }
+            @if (user.isAdmin) {
             <div class="menu-seperator"></div>
-            <div class="menu-item" (click)="
-                                        currentView.set(Views.ManageMembers); menuOpen.set(false)
-                          ">
+            <div class="menu-item" (click)="currentView.set(Views.ManageMembers); menuOpen.set(false)">
               {{ viewIdToTitle(Views.ManageMembers) }}
             </div>
             }
@@ -46,10 +45,7 @@
             @if (user.isAdmin) {
               <div
                 class="menu-item"
-                (click)="
-                  currentView.set(Views.ImportExport); menuOpen.set(false)
-                "
-              >
+                (click)="currentView.set(Views.ImportExport); menuOpen.set(false)">
                 {{ viewIdToTitle(Views.ImportExport) }}
               </div>
             }
@@ -104,7 +100,10 @@
             <app-school-members></app-school-members>
           }
           @case (Views.FindSchool) {
-          <app-find-school></app-find-school>
+            <app-find-school></app-find-school>
+          }
+          @case (Views.MyStudents) {
+          <app-filtered-members [memberSet]="dataService.myStudents"></app-filtered-members>
           }
         }
       }

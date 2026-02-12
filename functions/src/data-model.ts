@@ -223,7 +223,7 @@ export type Member = {
 
   membershipType: MembershipType;
   firstMembershipStarted: string; // YYYY-MM-DD, or empty if unknown.
-  lastRenewalDate: ''; // YYYY-MM-DD, or empty if none.
+  lastRenewalDate: string; // YYYY-MM-DD, or empty if none.
   currentMembershipExpires: string; // Date membership expires
 
   // Personal & Contact information
@@ -260,6 +260,7 @@ export type Member = {
   // string.
   instructorLicenseExpires: string; // YYYY-MM-DD, or empty if none.
   instructorLicenseType: InstructorLicenseType;
+  instructorLicenseRenewalDate: string; // YYYY-MM-DD, or empty if none.
 
   // Notes only for ILC HQ.
   notes: string;
@@ -367,6 +368,7 @@ export function initMember(): Member {
     // string.
     instructorLicenseExpires: '', // YYYY-MM-DD, or empty if none.
     instructorLicenseType: InstructorLicenseType.None,
+    instructorLicenseRenewalDate: '', // YYYY-MM-DD, or empty if none.
 
     // Level information
     // empty string indicates none graded yet.

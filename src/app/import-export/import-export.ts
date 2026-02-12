@@ -7,12 +7,15 @@ import {
   MasterLevel,
   School,
   initSchool,
+  InstructorLicenseType,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import * as Papa from 'papaparse';
 import { CommonModule } from '@angular/common';
+import { parse, isValid, format, addYears } from 'date-fns';
 
 type ParsedRow = Record<string, string>;
+
 type ImportType = 'member' | 'school';
 export type ImportStage =
   | 'SELECT'
@@ -22,13 +25,30 @@ export type ImportStage =
   | 'IMPORTING'
   | 'COMPLETED';
 
-export interface ProposedChange {
-  status: 'NEW' | 'UPDATE' | 'UNCHANGED' | 'ISSUE';
+export type FilterStatus = 'NEW' | 'UPDATE' | 'ISSUE' | 'UNCHANGED';
+
+// Handy format for UI to be able to display changes
+export interface ProposedChange<T> {
+  status: FilterStatus;
   key: string;
-  newItem: Member | School;
-  oldItem?: Member | School;
+  newItem: T;
+  oldItem?: T;
   diffs: { field: string; oldVal: string; newVal: string }[];
   issues?: string[];
+}
+
+// A set of changes to be applied to the database
+export type ImportDelta<T> = {
+  issues: ProposedChange<T>[];
+  updates: ProposedChange<T>[];
+  unchanged: ProposedChange<T>[];
+  new: Map<string, ProposedChange<T>>;
+  // We need to keep track of seenIds as well as newMembersBeingConsidered
+  // because we need to handle the case where we find duplicates; in this 
+  // case all duplicates are removed from newMembersBeingConsidered, but 
+  // the we need to remember seenIds, just in case we find more duplicates
+  // later on.
+  seenIds: Set<string>;
 }
 
 type MappingResult<T> =
@@ -56,29 +76,35 @@ export class ImportExportComponent {
   public mapping = signal<Record<string, string>>({});
 
   // Analysis / Preview
-  public proposedChanges = signal<ProposedChange[]>([]);
-  public selectedStatusFilter = signal<string | null>(null);
+  public proposedChanges = signal<ImportDelta<Member> | ImportDelta<School>>({
+    issues: [],
+    updates: [],
+    unchanged: [],
+    new: new Map(),
+    seenIds: new Set(),
+  });
+  public selectedStatusFilter = signal<FilterStatus>('ISSUE');
   public filteredProposedChanges = computed(() => {
-    const changes = this.proposedChanges();
+    const delta = this.proposedChanges() as ImportDelta<Member | School>;
     const filter = this.selectedStatusFilter();
-    if (!filter) return changes;
-    return changes.filter((c) => c.status === filter);
+
+    switch (filter) {
+      case 'NEW':
+        return Array.from(delta.new.values());
+      case 'UPDATE':
+        return delta.updates;
+      case 'ISSUE':
+        return delta.issues;
+      case 'UNCHANGED':
+        return delta.unchanged;
+    }
   });
 
   public previewIndex = signal(0);
   public currentPreviewChange = computed(
     () => this.filteredProposedChanges()[this.previewIndex()],
   );
-  public changesSummary = computed(() => {
-    const changes = this.proposedChanges();
-    return {
-      new: changes.filter((c) => c.status === 'NEW').length,
-      update: changes.filter((c) => c.status === 'UPDATE').length,
-      issue: changes.filter((c) => c.status === 'ISSUE').length,
-      unchanged: changes.filter((c) => c.status === 'UNCHANGED').length,
-      total: changes.length,
-    };
-  });
+
 
   // Example Viewer (Mapping Stage)
   public currentExampleIndex = signal(0);
@@ -102,8 +128,14 @@ export class ImportExportComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
-    this.proposedChanges.set([]);
-    this.selectedStatusFilter.set(null);
+    this.proposedChanges.set({
+      issues: [],
+      updates: [],
+      unchanged: [],
+      new: new Map(),
+      seenIds: new Set(),
+    });
+    this.selectedStatusFilter.set('ISSUE');
     this.previewIndex.set(0);
     this.importProgress.set({ current: 0, total: 0 });
     // Reset file input if needed via ViewChild, but for now user can just click button
@@ -232,164 +264,288 @@ export class ImportExportComponent {
 
   async analyzeData() {
     this.stage.set('ANALYZING');
-    this.selectedStatusFilter.set(null);
+    this.selectedStatusFilter.set('ISSUE');
     this.previewIndex.set(0);
 
     // Give UI a moment to update to 'ANALYZING'
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const proposed: ProposedChange[] = [];
+    const delta =
+      this.importType() === 'member'
+        ? this.analyzeMembers()
+        : this.analyzeSchools();
+
+    this.proposedChanges.set(delta);
+    this.stage.set('PREVIEW');
+  }
+
+  private analyzeMembers(): ImportDelta<Member> {
+    const delta: ImportDelta<Member> = {
+      issues: [],
+      updates: [],
+      unchanged: [],
+      new: new Map(),
+      seenIds: new Set(),
+    };
     const data = this.parsedData();
-    const mapping = this.mapping();
-    const seenIds = new Set<string>();
 
     for (let i = 0; i < data.length; i++) {
-      const row = data[i];
+      this.analyzeMemberRow(data[i], i, delta);
+    }
 
-      if (this.importType() === 'member') {
-        const { member, issues } = this.mapRowToMember(row, mapping);
+    return delta;
+  }
 
-        // Skip if all mapped fields are empty
-        const mappedValues = Object.values(mapping).map((header) =>
-          row[header]?.trim(),
-        );
-        if (mappedValues.every((v) => !v)) {
-          continue;
-        }
+  private analyzeSchools(): ImportDelta<School> {
+    const delta: ImportDelta<School> = {
+      issues: [],
+      updates: [],
+      unchanged: [],
+      new: new Map(),
+      seenIds: new Set(),
+    };
+    const data = this.parsedData();
 
-        const memberId = member.memberId;
+    for (let i = 0; i < data.length; i++) {
+      this.analyzeSchoolRow(data[i], i, delta);
+    }
+    return delta;
+  }
 
-        if (!memberId) {
-          proposed.push({
-            status: 'ISSUE',
-            key: `Row ${i + 1}`,
-            newItem: member as Member,
-            diffs: [],
-            issues: ['Member ID is required', ...issues],
-          });
-          continue;
-        }
+  // Returns both issues and updates
+  private analyzeMemberRow(
+    row: ParsedRow,
+    index: number,
+    delta: ImportDelta<Member>,
+  ): void {
+    const { member, issues } = this.mapRowToMember(row, this.mapping());
 
-        if (seenIds.has(memberId)) {
-          proposed.push({
-            status: 'ISSUE',
-            key: memberId,
-            newItem: { ...initMember(), ...member } as Member,
-            diffs: [],
-            issues: ['Duplicate ID in import file', ...issues],
-          });
-          continue;
-        }
-        seenIds.add(memberId);
+    // Skip if all mapped fields are empty
+    const mappedValues = Object.values(this.mapping()).map((header) =>
+      row[header]?.trim(),
+    );
+    if (mappedValues.every((v) => !v)) {
+      return;
+    }
 
-        const existing = this.membersService.members.entriesMap().get(memberId);
+    const memberId = member.memberId;
 
-        if (existing) {
-          const diffs = this.getDifferences(member, existing);
-          proposed.push({
-            status:
-              issues.length > 0
-                ? 'ISSUE'
-                : diffs.length > 0
-                  ? 'UPDATE'
-                  : 'UNCHANGED',
+    if (!memberId) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: `Row ${index + 1}`,
+        newItem: member as Member,
+        diffs: [],
+        issues: ['Member ID is required', ...issues],
+      });
+      return;
+    }
+
+    if (delta.seenIds.has(memberId)) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: memberId,
+        newItem: { ...initMember(), ...member } as Member,
+        diffs: [],
+        issues: [`Duplicate ID (${memberId}) in import file`, ...issues],
+      });
+      const existingNewChange = delta.new.get(memberId);
+      if (existingNewChange) {
+        delta.issues.push({
+          ...existingNewChange,
+          status: 'ISSUE',
+          issues: [
+            `Duplicate ID (${memberId}) in import file`,
+            ...(existingNewChange.issues || []),
+          ],
+        });
+        delta.new.delete(memberId);
+      }
+      return;
+    }
+    delta.seenIds.add(memberId);
+
+    if (issues.length > 0) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: memberId,
+        newItem: { ...initMember(), ...member } as Member,
+        oldItem: undefined,
+        diffs: [],
+        issues,
+      });
+    } else {
+      const existing = this.membersService.members.entriesMap().get(memberId);
+      if (existing) {
+        const diffs = this.getDifferences(member, existing);
+        if (diffs.length > 0) {
+          delta.updates.push({
+            status: 'UPDATE',
             key: memberId,
             newItem: { ...existing, ...member } as Member,
             oldItem: existing,
             diffs,
-            issues: issues.length > 0 ? issues : undefined,
+            issues: undefined,
           });
         } else {
-          proposed.push({
-            status: issues.length > 0 ? 'ISSUE' : 'NEW',
+          delta.unchanged.push({
+            status: 'UNCHANGED',
             key: memberId,
-            newItem: { ...initMember(), ...member } as Member,
+            newItem: { ...existing, ...member } as Member,
+            oldItem: existing,
             diffs: [],
-            issues: issues.length > 0 ? issues : undefined,
+            issues: undefined,
           });
         }
       } else {
-        const school = this.mapRowToSchool(row, mapping);
-
-        // Skip if all mapped fields are empty
-        const mappedValues = Object.values(mapping).map((header) =>
-          row[header]?.trim(),
-        );
-        if (mappedValues.every((v) => !v)) {
-          continue;
-        }
-
-        if (!school.schoolId) continue; // Skip if no schoolId
-
-        if (seenIds.has(school.schoolId)) {
-          proposed.push({
-            status: 'ISSUE',
-            key: school.schoolId,
-            newItem: school as School,
-            diffs: [],
-            issues: ['Duplicate ID in import file'],
-          });
-          continue;
-        }
-        seenIds.add(school.schoolId);
-
-        const existing = this.membersService.schools
-          .entriesMap()
-          .get(school.schoolId);
-
-        if (existing) {
-          const diffs = this.getDifferences(school, existing);
-          proposed.push({
-            status: diffs.length > 0 ? 'UPDATE' : 'UNCHANGED',
-            key: school.schoolId,
-            newItem: school as School,
-            oldItem: existing,
-            diffs,
-          });
-        } else {
-          proposed.push({
-            status: 'NEW',
-            key: school.schoolId,
-            newItem: school as School,
-            diffs: [],
-          });
-        }
+        const newChange: ProposedChange<Member> = {
+          status: 'NEW',
+          key: memberId,
+          newItem: { ...initMember(), ...member } as Member,
+          diffs: [],
+        };
+        // Track for duplicate detection within the file
+        delta.new.set(memberId, newChange);
       }
     }
-
-    this.proposedChanges.set(proposed);
-    this.stage.set('PREVIEW');
   }
 
-  async executeImport() {
-    this.stage.set('IMPORTING');
-    const changes = this.proposedChanges().filter(
-      (c) => c.status !== 'UNCHANGED',
+  private analyzeSchoolRow(
+    row: ParsedRow,
+    index: number,
+    delta: ImportDelta<School>,
+  ): void {
+    const school = this.mapRowToSchool(row, this.mapping());
+
+    // Skip if all mapped fields are empty
+    const mappedValues = Object.values(this.mapping()).map((header) =>
+      row[header]?.trim(),
     );
-    const total = changes.length;
+    if (mappedValues.every((v) => !v)) {
+      return;
+    }
+
+    if (!school.schoolId) return; // Skip if no schoolId
+
+    if (delta.seenIds.has(school.schoolId)) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: school.schoolId,
+        newItem: school as School,
+        diffs: [],
+        issues: ['Duplicate ID in import file'],
+      });
+      return;
+    }
+    delta.seenIds.add(school.schoolId);
+
+    const existing = this.membersService.schools
+      .entriesMap()
+      .get(school.schoolId);
+
+    if (existing) {
+      const diffs = this.getDifferences(school, existing);
+      if (diffs.length > 0) {
+        delta.updates.push({
+          status: 'UPDATE',
+          key: school.schoolId,
+          newItem: school as School,
+          oldItem: existing,
+          diffs,
+        });
+      } else {
+        delta.unchanged.push({
+          status: 'UNCHANGED',
+          key: school.schoolId,
+          newItem: school as School,
+          oldItem: existing,
+          diffs: [],
+        });
+      }
+    } else {
+      delta.new.set(school.schoolId, {
+        status: 'NEW',
+        key: school.schoolId,
+        newItem: school as School,
+        diffs: [],
+      });
+    }
+  }
+
+
+  async executeImport() {
+    if (this.importType() === 'member') {
+      await this.executeImportMembers();
+    } else {
+      await this.executeImportSchools();
+    }
+  }
+
+  async executeImportMembers() {
+    this.stage.set('IMPORTING');
+    const delta = this.proposedChanges() as ImportDelta<Member>;
+    const newMembers = Array.from(delta.new.values());
+    const updates = delta.updates;
+    const total = newMembers.length + updates.length;
+    let currentProcessed = 0;
+
     this.importProgress.set({ current: 0, total });
 
-    for (let i = 0; i < total; i++) {
-      const change = changes[i];
+    for (const change of newMembers) {
       try {
-        if (this.importType() === 'member') {
-          if (change.status === 'NEW') {
-            await this.membersService.addMember(change.newItem as Member);
-          } else {
-            // Merge update
-            await this.membersService.updateMember(
-              change.oldItem?.id || change.key,
-              change.newItem as Member,
-            );
-          }
-        } else {
-          // Schools are always upserts essentially with setSchool
-          await this.membersService.setSchool(change.newItem as School);
-        }
+        await this.membersService.addMember(change.newItem);
       } catch (err) {
-        console.error('Failed to import', change.key, err);
+        console.error('Failed to import new member', change.key, err);
       }
-      this.importProgress.set({ current: i + 1, total });
+      currentProcessed++;
+      this.importProgress.set({ current: currentProcessed, total });
+    }
+
+    for (const change of updates) {
+      try {
+        // Merge update
+        await this.membersService.updateMember(
+          change.oldItem?.id || change.key,
+          change.newItem,
+        );
+      } catch (err) {
+        console.error('Failed to update member', change.key, err);
+      }
+      currentProcessed++;
+      this.importProgress.set({ current: currentProcessed, total });
+    }
+
+    this.stage.set('COMPLETED');
+  }
+
+  async executeImportSchools() {
+    this.stage.set('IMPORTING');
+    const delta = this.proposedChanges() as ImportDelta<School>;
+    const newSchools = Array.from(delta.new.values());
+    const updates = delta.updates;
+    const total = newSchools.length + updates.length;
+    let currentProcessed = 0;
+
+    this.importProgress.set({ current: 0, total });
+
+    for (const change of newSchools) {
+      try {
+        await this.membersService.setSchool(change.newItem);
+      } catch (err) {
+        console.error('Failed to import new school', change.key, err);
+      }
+      currentProcessed++;
+      this.importProgress.set({ current: currentProcessed, total });
+    }
+
+    for (const change of updates) {
+      try {
+        await this.membersService.setSchool(change.newItem);
+      } catch (err) {
+        console.error('Failed to update school', change.key, err);
+      }
+      currentProcessed++;
+      this.importProgress.set({ current: currentProcessed, total });
     }
 
     this.stage.set('COMPLETED');
@@ -428,6 +584,20 @@ export class ImportExportComponent {
           }
           break;
         }
+        case 'firstMembershipStarted':
+        case 'lastRenewalDate':
+        case 'currentMembershipExpires':
+        case 'dateOfBirth':
+        case 'instructorLicenseExpires': {
+          const result = this.parseDate(value);
+          if (result.success) {
+            member[key] = result.value;
+          } else {
+            issues.push(result.issue);
+            (member as any)[key] = value;
+          }
+          break;
+        }
         case 'emails':
           member[key] = value
             .split(/[,\s\n]+/)
@@ -445,7 +615,85 @@ export class ImportExportComponent {
           break;
       }
     }
+
+    // Auto-calculate membership expiration for annual members
+    if (
+      member.lastRenewalDate &&
+      member.membershipType === MembershipType.Annual && 
+      !member.currentMembershipExpires
+    ) {
+      const renewalDate = parse(member.lastRenewalDate, 'yyyy-MM-dd', new Date());
+      if (isValid(renewalDate)) {
+        const expiresDate = addYears(renewalDate, 1);
+        member.currentMembershipExpires = format(expiresDate, 'yyyy-MM-dd');
+      }
+    }
+
+    // Auto-calculate instructor license expiration for annual members
+    if (
+      member.instructorLicenseRenewalDate &&
+      member.instructorLicenseType === InstructorLicenseType.Annual && 
+      !member.instructorLicenseExpires
+    ) {
+      const issueDate = parse(member.instructorLicenseRenewalDate, 'yyyy-MM-dd', new Date());
+      if (isValid(issueDate)) {
+        const expiresDate = addYears(issueDate, 1);
+        member.instructorLicenseExpires = format(expiresDate, 'yyyy-MM-dd');
+      }
+    }
+
     return { member, issues };
+  }
+
+  private parseDate(value: string): MappingResult<string> {
+    if (!value) return { success: true, value: '' };
+
+    // Normalize separators and trim
+    const normalizedValue = value.trim();
+
+    // Check for year only (e.g. "1953")
+    if (/^\d{4}$/.test(normalizedValue)) {
+      const year = parseInt(normalizedValue, 10);
+      // Basic sanity check for year range if needed, e.g. 1900-2100
+      if (year > 1800 && year < 2200) {
+        return { success: true, value: `${year}-01-01` };
+      }
+    }
+
+    // List of supported formats to try
+    // date-fns 2.x/3.x/4.x uses 'yyyy' for year, 'dd' for day, 'MM' for month, 'MMM' for short month name
+    // We try multiple formats to be flexible.
+    const formats = [
+      'yyyy-MM-dd',    // ISO, e.g. 2023-12-31
+      'dd/MM/yyyy',    // UK, e.g. 31/12/2023
+      // 'd/K/yyyy' removed as K is hour
+      'd/M/yyyy',      // single digits, e.g. 1/2/2023
+      'yyyy/MM/dd',    // Japan, e.g. 2023/12/31
+      'dd-MMM-yyyy',   // e.g. 23-Feb-1953
+      'd-MMM-yyyy',    // e.g. 1-Feb-1953
+      'dd-MM-yyyy',    // e.g. 23-02-1953
+      'd-M-yyyy',      // e.g. 1-2-1953
+    ];
+
+    // Attempt to parse with each format
+    for (const fmt of formats) {
+      // parse(dateString, formatString, referenceDate)
+      const parsedDate = parse(normalizedValue, fmt, new Date());
+      
+      // isValid() checks if the date is valid (e.g. not February 30th)
+      if (isValid(parsedDate)) {
+        // Additional sanity check: 
+        // sometimes simplistic formats can match unexpectedly. 
+        // But date-fns is usually good if the format aligns.
+        // We format it to standard YYYY-MM-DD
+        return { success: true, value: format(parsedDate, 'yyyy-MM-dd') };
+      }
+    }
+
+    return {
+      success: false,
+      issue: `Invalid date format: "${value}". Expected YYYY-MM-DD, DD/MM/YYYY, or DD-Mon-YYYY.`,
+    };
   }
 
   private mapMembershipType(value: string): MappingResult<MembershipType> {
@@ -550,9 +798,9 @@ export class ImportExportComponent {
     this.previewIndex.update((i) => Math.max(i - 1, 0));
   }
 
-  setFilter(status: string | null) {
+  setFilter(status: FilterStatus) {
     if (this.selectedStatusFilter() === status) {
-      this.selectedStatusFilter.set(null);
+      this.selectedStatusFilter.set('ISSUE');
     } else {
       this.selectedStatusFilter.set(status);
     }
