@@ -21,7 +21,7 @@ Some language from Kung Fu / I Liq Chuan that is used:
 
 ## 2. Core Technologies
 
-- **Package Manager:** **pnpm**. Always use `pnpm` instead of `npm`.
+- **Package Manager:** **pnpm**. Always use `pnpm`, for tests, builds, etc. (do NOT use `npm`).
 - **Framework:** **Angular `^21.x.x`**.
   - Do NOT use the angular router.
   - Always use the Angular CLI for creating components: `pnpm exec ng generate component ${COMPONENT_NAME} --project=ilc-members-manager`

@@ -19,8 +19,8 @@ const COUNTERS_MIN_DEFAULT = 100;
 function initialCounters(): Counters {
   return {
     memberIdCounters: {},
-    instructorIdCounter: 0,
-    schoolIdCounter: 0,
+    instructorIdCounter: COUNTERS_MIN_DEFAULT,
+    schoolIdCounter: COUNTERS_MIN_DEFAULT,
   };
 }
 
@@ -42,10 +42,10 @@ async function nextMemberIdHelper(
 ) {
   await assertAdminOrSchoolManager(request);
   const countryCode = request.data.countryCode;
-  if (!countryCode || countryCode.length !== 2) {
+  if (!countryCode || countryCode.length < 2) {
     throw new HttpsError(
       'invalid-argument',
-      'A 2-letter country code must be provided.',
+      'The country code must be at least 2 letters.',
     );
   }
 
@@ -140,6 +140,71 @@ export const nextSchoolId = onCall<unknown, Promise<{ newId: string }>>(
   },
 );
 
+export const updateCounters = onCall<
+  {
+    memberIdCounters?: { [key: string]: number };
+    instructorIdCounter?: number;
+    schoolIdCounter?: number;
+  },
+  Promise<void>
+>({ cors: allowedOrigins }, async (request) => {
+  await assertAdmin(request);
+  const data = request.data;
+
+  const db = admin.firestore();
+  const countersRef = db.doc(COUNTERS_DOC_PATH);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const countersDoc = await transaction.get(countersRef);
+      const counters = initDataFromCountersDoc(countersDoc);
+      let changed = false;
+
+      if (data.memberIdCounters) {
+        for (const [code, val] of Object.entries(data.memberIdCounters)) {
+          const current =
+            counters.memberIdCounters[code] || COUNTERS_MIN_DEFAULT;
+          // We want the counter to represent the last used ID.
+          // So if we see 'val', we ensure the counter is at least 'val'.
+          const nextSafe = Math.max(val, COUNTERS_MIN_DEFAULT);
+          if (nextSafe > current) {
+            counters.memberIdCounters[code] = nextSafe;
+            changed = true;
+          }
+        }
+      }
+
+      if (data.instructorIdCounter) {
+        const current = counters.instructorIdCounter || COUNTERS_MIN_DEFAULT;
+        const nextSafe = Math.max(
+          data.instructorIdCounter,
+          COUNTERS_MIN_DEFAULT,
+        );
+        if (nextSafe > current) {
+          counters.instructorIdCounter = nextSafe;
+          changed = true;
+        }
+      }
+
+      if (data.schoolIdCounter) {
+        const current = counters.schoolIdCounter || COUNTERS_MIN_DEFAULT;
+        const nextSafe = Math.max(data.schoolIdCounter, COUNTERS_MIN_DEFAULT);
+        if (nextSafe > current) {
+          counters.schoolIdCounter = nextSafe;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        transaction.set(countersRef, counters);
+      }
+    });
+  } catch (e) {
+    console.error('Transaction failure:', e);
+    throw new HttpsError('internal', 'Transaction failure');
+  }
+});
+
 export function extractCountersFromMember(member: Member): {
   memberIdCountryCode?: string;
   memberIdNumber?: number;
@@ -149,8 +214,8 @@ export function extractCountersFromMember(member: Member): {
   let memberIdCountryCode: string | undefined;
   let memberIdNumber: number | undefined;
 
-  // Expected format: 2 letters followed by numbers, e.g. "US101"
-  const memberIdMatch = member.memberId?.match(/^([A-Za-z]{2})(\d+)$/);
+  // Expected format: 2 or 3 letters followed by numbers, e.g. "US101"
+  const memberIdMatch = member.memberId?.match(/^([A-Za-z]{2,3})(\d+)$/);
   if (memberIdMatch) {
     memberIdCountryCode = memberIdMatch[1].toUpperCase();
     memberIdNumber = parseInt(memberIdMatch[2], 10);
@@ -190,9 +255,8 @@ export function extractCountersFromSchool(school: School): {
 export function calculateNextCounterValue(
   lastSeenId: number,
   currentCounter: number,
-  minVal: number = COUNTERS_MIN_DEFAULT,
 ): number {
-  return Math.max(currentCounter, lastSeenId + 1, minVal);
+  return Math.max(currentCounter, lastSeenId) + 1;
 }
 
 /**

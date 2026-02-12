@@ -100,6 +100,16 @@ export class ImportExportComponent {
     }
   });
 
+  public counterUpdateResult = signal<{
+    success: boolean;
+    updates?: {
+      memberIdCounters?: { [key: string]: number };
+      instructorIdCounter?: number;
+      schoolIdCounter?: number;
+    };
+    error?: string;
+  } | null>(null);
+
   public previewIndex = signal(0);
   public currentPreviewChange = computed(
     () => this.filteredProposedChanges()[this.previewIndex()],
@@ -138,6 +148,7 @@ export class ImportExportComponent {
     this.selectedStatusFilter.set('ISSUE');
     this.previewIndex.set(0);
     this.importProgress.set({ current: 0, total: 0 });
+    this.counterUpdateResult.set(null);
     // Reset file input if needed via ViewChild, but for now user can just click button
   }
 
@@ -516,6 +527,67 @@ export class ImportExportComponent {
     }
 
     this.stage.set('COMPLETED');
+
+    try {
+      await this.updateCountersFromMembers();
+    } catch (err) {
+      console.error('Failed to update counters', err);
+      this.counterUpdateResult.set({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  async updateCountersFromMembers() {
+    const delta = this.proposedChanges() as ImportDelta<Member>;
+    const allMembers = [
+      ...Array.from(delta.new.values()).map((c) => c.newItem),
+      ...delta.updates.map((c) => c.newItem),
+      ...delta.unchanged.map((c) => c.newItem),
+    ];
+
+    const currentCounters = this.membersService.counters();
+    const memberIdCounters: { [key: string]: number } = {
+      ...(currentCounters?.memberIdCounters || {}),
+    };
+    let instructorIdCounter = currentCounters?.instructorIdCounter || 0;
+
+    for (const member of allMembers) {
+      // Parse Member ID
+      if (member.memberId) {
+        const match = member.memberId.match(/^([A-Za-z]{2,3})(\d+)$/);
+        if (match) {
+          const countryCode = match[1].toUpperCase();
+          const number = parseInt(match[2], 10);
+          if (!memberIdCounters[countryCode] || number > memberIdCounters[countryCode]) {
+            memberIdCounters[countryCode] = number;
+          }
+        }
+      }
+
+      // Parse Instructor ID
+      if (member.instructorId) {
+        const match = member.instructorId.match(/^(\d+)$/);
+        if (match) {
+          const number = parseInt(match[1], 10);
+          if (number > instructorIdCounter) {
+            instructorIdCounter = number;
+          }
+        }
+      }
+    }
+
+    const updates = {
+      memberIdCounters,
+      instructorIdCounter: instructorIdCounter > 0 ? instructorIdCounter : undefined,
+    };
+
+    await this.membersService.updateCounters(updates);
+    this.counterUpdateResult.set({
+      success: true,
+      updates,
+    });
   }
 
   async executeImportSchools() {
@@ -549,6 +621,56 @@ export class ImportExportComponent {
     }
 
     this.stage.set('COMPLETED');
+
+    try {
+      await this.updateCountersFromSchools();
+    } catch (err) {
+      console.error('Failed to update school counters', err);
+      this.counterUpdateResult.set({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  async updateCountersFromSchools() {
+    const delta = this.proposedChanges() as ImportDelta<School>;
+    const allSchools = [
+      ...Array.from(delta.new.values()).map((c) => c.newItem),
+      ...delta.updates.map((c) => c.newItem),
+      ...delta.unchanged.map((c) => c.newItem),
+    ];
+
+    const currentCounters = this.membersService.counters();
+    let schoolIdCounter = currentCounters?.schoolIdCounter || 0;
+
+    for (const school of allSchools) {
+      if (school.schoolId) {
+        const match = school.schoolId.match(/^SCH-(\d+)$/);
+        if (match) {
+          const number = parseInt(match[1], 10);
+          if (number > schoolIdCounter) {
+            schoolIdCounter = number;
+          }
+        }
+      }
+    }
+
+    if (schoolIdCounter > 0) {
+      const updates = {
+        schoolIdCounter,
+      };
+      await this.membersService.updateCounters(updates);
+      this.counterUpdateResult.set({
+        success: true,
+        updates,
+      });
+    } else {
+        this.counterUpdateResult.set({
+            success: true,
+            updates: { schoolIdCounter: 0 }, // Should indicate nothing updated really
+          });
+    }
   }
 
   private mapRowToMember(

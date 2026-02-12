@@ -382,6 +382,22 @@ export class DataManagerService {
     return result.data.newId;
   }
 
+  async updateCounters(counters: {
+    memberIdCounters?: { [key: string]: number };
+    instructorIdCounter?: number;
+    schoolIdCounter?: number;
+  }): Promise<void> {
+    const updateCounters = httpsCallable<
+      {
+        memberIdCounters?: { [key: string]: number };
+        instructorIdCounter?: number;
+        schoolIdCounter?: number;
+      },
+      void
+    >(this.functions, 'updateCounters');
+    await updateCounters(counters);
+  }
+
   downloadMembersAsCsv() {
     const memberFields = Object.keys(initMember()) as Array<keyof Member>;
     const members = this.members.entries().map((m) => {

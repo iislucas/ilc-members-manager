@@ -281,7 +281,52 @@
         <div class="completed-stage">
           <h3>Import Complete!</h3>
           <p>Successfully processed {{ importProgress().total }} records.</p>
+          @let counterResult = counterUpdateResult();
+          @if (counterResult) {
+          <div class="card counter-results" [class.success]="counterResult.success" [class.error]="!counterResult.success">
+            @if (counterResult.success) {
+            <h4>ID Counters Updated</h4>
+            <p>System counters have been synchronized with the imported data.</p>
+            <ul>
+              @let memberIdCounters = counterResult.updates?.memberIdCounters;
+              @if (memberIdCounters && (memberIdCounters | keyvalue).length > 0) {
+              <li>
+                <strong>Member ID Counters:</strong>
+                <ul>
+                  @for (
+                  entry of memberIdCounters | keyvalue;
+                  track entry.key
+                  ) {
+                  <li>{{ entry.key }}: {{ entry.value }}</li>
+                  }
+                </ul>
+              </li>
+              }
+              @if (counterResult.updates?.instructorIdCounter) {
+              <li>
+                <strong>Instructor ID Counter:</strong>
+                {{ counterResult.updates?.instructorIdCounter }}
+              </li>
+              }
+              @if (counterResult.updates?.schoolIdCounter) {
+              <li>
+                <strong>School ID Counter:</strong>
+                {{ counterResult.updates?.schoolIdCounter }}
+              </li>
+              }
+            </ul>
+            } @else {
+            <h4>Counter Update Failed</h4>
+            <p>
+              Failed to update system counters. Please contact support.
+              <br />
+              Error: {{ counterResult.error }}
+            </p>
+            }
+          </div>
+          }
         </div>
+
       }
     }
   </div>
