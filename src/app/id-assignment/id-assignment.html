@@ -17,17 +17,13 @@
       <span class="identifier-chip">{{ cur.curId }}</span>
     } @else {
       <span class="missing-identifier-chip">(No ID)</span>
-      <button
-        type="button"
-        (click)="
-          editedAssignment.set({
-            kind: AssignKind.AssignNewAutoId,
-            curId: cur.curId,
-          })
-        "
-      >
-        Assign
-      </button>
+      @if (canEdit()) {
+      <button type="button" (click)="editedAssignment.set({
+                    kind: AssignKind.AssignNewAutoId,
+              curId: cur.curId })">
+          Assign
+        </button>
+      }
     }
   } @else if (cur.kind === AssignKind.RemoveId) {
     <span>Removing ID: </span

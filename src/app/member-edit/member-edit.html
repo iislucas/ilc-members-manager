@@ -388,116 +388,90 @@
               </div>
             }
           } @else {
-            @for (level of e.mastersLevels; track level) {
+            @if(e.mastersLevels.length > 0) {
+              @for (level of e.mastersLevels; track level) {
               <span class="identifier-chip">{{ level }}</span>
+              }
+            } @else {
+            <span class="missing-identifier-chip">Not yet a master</span>
             }
           }
         </div>
 
-        <h3>Instructor Status</h3>
-        <label for="instructorId">Instructor ID</label>
-        <div class="rhs">
-          <app-id-assignment
-            name="instructorId"
-            [initAssignment]="instructorIdAssignment()"
-            [canBeUnset]="true"
-            [expectedNextId]="expectedNextInstructorId()"
-            [canEdit]="userIsAdmin()"
-            (assignment)="handleInstructorIdAssignmentChange($event)"
-          ></app-id-assignment>
-        </div>
+        @if (e.instructorId.trim() !== "" || userIsAdmin()) {
+          <h3>Instructor Status</h3>
+          <label for="instructorId">Instructor ID</label>
+          <div class="rhs">
+            <app-id-assignment name="instructorId" [initAssignment]="instructorIdAssignment()" [canBeUnset]="true"
+              [expectedNextId]="expectedNextInstructorId()" [canEdit]="userIsAdmin()"
+              (assignment)="handleInstructorIdAssignmentChange($event)"></app-id-assignment>
+            </div>
 
-        @if (
+          @if (
           e.instructorId.trim() !== "" ||
           instructorIdAssignment().kind === AssignKind.AssignNewAutoId
-        ) {
+          ) {
           <label for="instructorLicenseType">License Type</label>
           <div class="rhs">
-            <select
-              id="instructorLicenseType"
-              [formField]="form.instructorLicenseType"
-            >
+            <select id="instructorLicenseType" [formField]="form.instructorLicenseType">
               @for (type of instructorLicenseTypes; track type) {
-                <option [value]="type">{{ type }}</option>
+              <option [value]="type">{{ type }}</option>
               }
             </select>
           </div>
 
-          @if (
+            @if (
             form.instructorLicenseType().value() ===
             InstructorLicenseType.Annual
-          ) {
+            ) {
             <label for="instructorLicenseRenewalDate">License Renewal</label>
             <div class="rhs">
               <input class="date" type="date" id="instructorLicenseRenewalDate" placeholder="YYYY-MM-DD"
                 [formField]="form.instructorLicenseRenewalDate" />
             </div>
 
-            <label for="instructorLicenseExpires">License Expires</label>
+              <label for="instructorLicenseExpires">License Expires</label>
+              <div class="rhs">
+                <input class="date" type="date" id="instructorLicenseExpires" placeholder="YYYY-MM-DD"
+                  [formField]="form.instructorLicenseExpires" />
+                </div>
+                }
+
+            <h3>Instructor Public Listing</h3>
+
+            <p class="note">
+              While your instructor license is active, your Member ID, instructor
+              ID, your graded levels, and the details in this section are public,
+              and listed on the ILC website.
+            </p>
+
+            <label for="instructorWebsite">Website</label>
             <div class="rhs">
-              <input
-                class="date"
-                type="date"
-                id="instructorLicenseExpires"
-                placeholder="YYYY-MM-DD"
-                [formField]="form.instructorLicenseExpires"
-              />
-            </div>
+              <input type="text" id="instructorWebsite" [formField]="form.instructorWebsite" />
+              </div>
+
+            <label for="publicEmail">Public Email</label>
+            <div class="rhs">
+              <input type="email" id="publicEmail" [formField]="form.publicEmail" />
+              </div>
+
+            <label for="publicPhone">Public Phone</label>
+            <div class="rhs">
+              <input type="text" id="publicPhone" [formField]="form.publicPhone" />
+              </div>
+
+            <label for="publicRegionOrCity">Public Region/City</label>
+            <div class="rhs">
+              <input type="text" id="publicRegionOrCity" [formField]="form.publicRegionOrCity" />
+              </div>
+
+            <label for="publicCountyOrState">Public County/State</label>
+            <div class="rhs">
+              <input type="text" id="publicCountyOrState" [formField]="form.publicCountyOrState" />
+              </div>
           }
-
-          <h3>Instructor Public Listing</h3>
-
-          <p class="note">
-            While your instructor license is active, your Member ID, instructor
-            ID, your graded levels, and the details in this section are public,
-            and listed on the ILC website.
-          </p>
-
-          <label for="instructorWebsite">Website</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="instructorWebsite"
-              [formField]="form.instructorWebsite"
-            />
-          </div>
-
-          <label for="publicEmail">Public Email</label>
-          <div class="rhs">
-            <input
-              type="email"
-              id="publicEmail"
-              [formField]="form.publicEmail"
-            />
-          </div>
-
-          <label for="publicPhone">Public Phone</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="publicPhone"
-              [formField]="form.publicPhone"
-            />
-          </div>
-
-          <label for="publicRegionOrCity">Public Region/City</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="publicRegionOrCity"
-              [formField]="form.publicRegionOrCity"
-            />
-          </div>
-
-          <label for="publicCountyOrState">Public County/State</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="publicCountyOrState"
-              [formField]="form.publicCountyOrState"
-            />
-          </div>
         }
+
         @if (userIsAdmin()) {
           <h3>Admin</h3>
           <label for="isAdmin">Is Admin</label>
