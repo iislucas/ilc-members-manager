@@ -1,26 +1,19 @@
 <div class="page-layout">
   <div class="tabs">
-    <button
-      class="tab-button"
-      [class.active]="activeTab() === 'members'"
-      (click)="setActiveTab('members')"
-    >
-      Members
-      </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab() === 'schools'"
-      (click)="setActiveTab('schools')"
-    >
-      Schools
-      </button>
-      </div>
+    <button class="tab-button" [class.active]="activeTab() === 'members'" (click)="setActiveTab('members')">Members</button>
+    <button class="tab-button" [class.active]="activeTab() === 'schools'" (click)="setActiveTab('schools')">Schools</button>
+    <button class="tab-button" [class.active]="activeTab() === 'orders'" (click)="setActiveTab('orders')">Orders</button>
+    </div>
 
-  <div class="tab-content">
-    @if (activeTab() === 'members') {
+  <div class="tab-content" *ngIf="activeTab() === 'members'">
     <app-import-members></app-import-members>
-    } @else {
-      <app-import-schools></app-import-schools>
-      }
+  </div>
+  
+  <div class="tab-content" *ngIf="activeTab() === 'schools'">
+    <app-import-schools></app-import-schools>
+  </div>
+  
+  <div class="tab-content" *ngIf="activeTab() === 'orders'">
+    <app-import-orders></app-import-orders>
   </div>
 </div>

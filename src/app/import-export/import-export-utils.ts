@@ -44,7 +44,17 @@ export function parseDate(value: string): MappingResult<string> {
     if (!value) return { success: true, value: '' };
 
     // Normalize separators and trim
-    const normalizedValue = value.trim();
+    let normalizedValue = value.trim();
+
+    // Specific fix for dd-MMM-yy / d-MMM-yy format (e.g. 23-Feb-23)
+    // Assume 20{yy} for these cases.
+    const twoDigitYearMmmPattern = /^(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2})$/;
+    const mmmMatch = normalizedValue.match(twoDigitYearMmmPattern);
+    if (mmmMatch) {
+      const [, day, month, year] = mmmMatch;
+      // Reconstruct as dd-MMM-yyyy (e.g. 23-Feb-2023)
+      normalizedValue = `${day}-${month}-20${year}`;
+    }
 
     // Check for year only (e.g. "1953")
     if (/^\d{4}$/.test(normalizedValue)) {

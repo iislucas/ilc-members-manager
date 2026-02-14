@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import {
@@ -25,9 +26,9 @@ import { format, addYears, isValid, parse } from 'date-fns';
 @Component({
   selector: 'app-import-members',
   standalone: true,
-  imports: [CommonModule, SpinnerComponent],
+  imports: [CommonModule, SpinnerComponent, ImportMappingComponent],
   templateUrl: './import-members.component.html',
-  styleUrl: '../import-export.scss',
+  styleUrl: './import-members.component.scss',
 })
 export class ImportMembersComponent {
   public membersService = inject(DataManagerService);
@@ -80,13 +81,6 @@ export class ImportMembersComponent {
     () => this.filteredProposedChanges()[this.previewIndex()],
   );
 
-  // Example Viewer (Mapping Stage)
-  public currentExampleIndex = signal(0);
-  public currentExampleRow = computed(() => {
-    const data = this.parsedData();
-    const index = this.currentExampleIndex();
-    return data[index] || {};
-  });
 
   private memberFields = Object.keys(initMember()) as Array<keyof Member>;
 
@@ -116,7 +110,7 @@ export class ImportMembersComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
-    this.currentExampleIndex.set(0);
+    this.mapping.set({});
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -201,29 +195,6 @@ export class ImportMembersComponent {
       }
     });
     return mapping;
-  }
-
-  setOneMappingValue(field: string, event: Event) {
-    const selectElement = event.target as HTMLSelectElement;
-    const csvHeader = selectElement.value;
-    this.mapping.update((m) => {
-      if (csvHeader) {
-        return { ...m, [field]: csvHeader };
-      } else {
-        const { [field]: removed, ...rest } = m;
-        return rest;
-      }
-    });
-  }
-
-  nextExample() {
-    this.currentExampleIndex.update((i) =>
-      Math.min(i + 1, this.parsedData().length - 1),
-    );
-  }
-
-  prevExample() {
-    this.currentExampleIndex.update((i) => Math.max(i - 1, 0));
   }
 
   async analyzeData() {

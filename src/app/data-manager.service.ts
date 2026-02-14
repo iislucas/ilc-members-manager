@@ -33,6 +33,9 @@ import {
   firestoreDocToMember,
   firestoreDocToSchool,
   firestoreDocToInstructorPublicData,
+  Order,
+  firestoreDocToOrder,
+  OrderFirebaseDoc,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -65,6 +68,7 @@ export class DataManagerService {
   private schoolsCollection = collection(this.db, 'schools');
   private membersCollection = collection(this.db, 'members');
   private instructorsPublicCollection = collection(this.db, 'instructors');
+  private ordersCollection = collection(this.db, 'orders');
   private snapshotsToUnsubscribe: (() => void)[] = [];
   loadingState = linkedSignal<DataServiceState>(() => {
     if (
@@ -145,6 +149,10 @@ export class DataManagerService {
     ],
     'schoolId',
   );
+  public orders = new SearchableSet<'id', Order>(
+    ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId'],
+    'id',
+  );
   public counters = signal<Counters | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
 
@@ -156,9 +164,24 @@ export class DataManagerService {
       this.updateInstructorsSync();
       this.updateMyStudentsSync(user);
       this.updateSchoolsSync();
-      this.updateMySchoolsSync(user);
       this.updateCountersSync();
       this.updateCountryCodesSync();
+    });
+
+    // Effect for My Schools
+    effect(() => {
+      const user = this.firebaseService.user();
+      if (user) {
+        const allSchools = this.schools.entries();
+        const myMemberId = user.member.memberId;
+        const mySchoolsList = allSchools.filter(
+          (school) =>
+            school.owner === myMemberId || school.managers.includes(myMemberId),
+        );
+        this.mySchools.setEntries(mySchoolsList);
+      } else {
+        this.mySchools.setEntries([]);
+      }
     });
   }
 
@@ -269,6 +292,28 @@ export class DataManagerService {
     );
   }
 
+  async updateOrdersSync() {
+    return new Promise((resolve, reject) => {
+      // Only load orders if explicitly needed or requested to save bandwidth?
+      // For now, let's load them for admins to facilitate duplicate checking
+      const q = query(this.ordersCollection, orderBy('lastUpdated', 'desc'));
+      this.snapshotsToUnsubscribe.push(
+        onSnapshot(
+          q,
+          (snapshot) => {
+            const orders = snapshot.docs.map(firestoreDocToOrder);
+            this.orders.setEntries(orders);
+            resolve(this.orders);
+          },
+          (error) => {
+            this.orders.setError(error.message);
+            reject(error);
+          },
+        ),
+      );
+    });
+  }
+
   async updateMyStudentsSync(user: UserDetails) {
     // If the user is an instructor (has an instructorId), load their students.
     // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.
@@ -293,23 +338,6 @@ export class DataManagerService {
     } else {
       this.myStudents.setEntries([]);
     }
-  }
-
-  async updateMySchoolsSync(user: UserDetails) {
-    // Setup mySchools to be a filtered view of schools, when the list of all
-    // schools entries changes, update "My Schools".
-    effect(
-      () => {
-        const allSchools = this.schools.entries(); // Track changes to schools
-        const myMemberId = user.member.memberId;
-        const mySchoolsList = allSchools.filter(
-          (school) =>
-            school.owner === myMemberId || school.managers.includes(myMemberId),
-        );
-        this.mySchools.setEntries(mySchoolsList);
-      },
-      { allowSignalWrites: true },
-    );
   }
 
   async updateCountersSync() {
@@ -381,6 +409,27 @@ export class DataManagerService {
 
   async deleteSchool(id: string): Promise<void> {
     return deleteDoc(doc(this.db, 'schools', id));
+  }
+
+
+
+  async addOrder(order: Order): Promise<DocumentReference> {
+    const collectionRef = collection(this.db, 'orders');
+    const newDocRef = doc(collectionRef);
+    const orderWithNewTimestamp: OrderFirebaseDoc = {
+      ...order,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(newDocRef, orderWithNewTimestamp).then(() => newDocRef);
+  }
+
+  async updateOrder(id: string, order: Order): Promise<void> {
+    const docRef = doc(this.db, 'orders', id);
+    const orderWithNewTimestamp: OrderFirebaseDoc = {
+      ...order,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(docRef, orderWithNewTimestamp, { merge: true });
   }
 
   async createNextMemberId(countryCode: string): Promise<string> {

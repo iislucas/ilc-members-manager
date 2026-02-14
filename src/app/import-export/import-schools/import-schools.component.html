@@ -39,72 +39,8 @@
 
     @switch (stage()) {
       @case ("MAPPING") {
-        @let fieldMapping = mapping();
-        <div class="mapping-table">
-          <h3>Map Fields</h3>
-          <p>
-            Verify that the columns in your file match the correct fields. Check
-            the examples below.
-          </p>
-
-          <div class="example-navigation">
-            <button
-              (click)="prevExample()"
-              [disabled]="currentExampleIndex() === 0"
-            >
-              Previous Example
-            </button>
-            <span>
-              Row {{ currentExampleIndex() + 1 }} of {{ parsedData().length }}
-            </span>
-            <button
-              (click)="nextExample()"
-              [disabled]="currentExampleIndex() === parsedData().length - 1"
-            >
-              Next Example
-            </button>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>School Field</th>
-                <th>CSV/JSONL Header</th>
-                <th>Example Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (field of fieldsToMap(); track $index) {
-                <tr>
-                  <td>{{ field }}</td>
-                  <td>
-                    <select (change)="setOneMappingValue(field, $event)">
-                      <option value="">--Select Header--</option>
-                      @for (header of headers(); track $index) {
-                        <option
-                          [value]="header"
-                          [selected]="fieldMapping[field] === header"
-                        >
-                          {{ header }}
-                        </option>
-                      }
-                    </select>
-                  </td>
-                  <td>
-                    @if (fieldMapping[field]) {
-                      {{ currentExampleRow()[fieldMapping[field]] }}
-                    } @else {
-                      <span class="no-mapping">--</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <div class="stage-actions">
-            <button (click)="analyzeData()">Next: Analyze Changes</button>
-          </div>
-        </div>
+        <app-import-mapping [headers]="headers()" [fieldsToMap]="fieldsToMap()" [parsedData]="parsedData()"
+          [mapping]="mapping()" (mappingChange)="mapping.set($event)" (analyze)="analyzeData()"></app-import-mapping>
       }
       @case ("ANALYZING") {
         <app-spinner>Analyzing Data...</app-spinner>
