@@ -79,7 +79,7 @@ export class App {
         return 'Manage Members';
       case Views.FindAnInstructor:
         return 'Find an Instructor';
-      case Views.Schools:
+      case Views.ManageSchools:
         return 'Manage Schools';
       case Views.FindSchool:
         return 'Find a School';

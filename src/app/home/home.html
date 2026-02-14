@@ -67,7 +67,7 @@
         }
 
         @if (user()?.isAdmin || (user()?.schoolsManaged?.length || 0) > 0) {
-        <div class="card" (click)="navigateTo(Views.Schools)">
+        <div class="card" (click)="navigateTo(Views.ManageSchools)">
             <div class="icon-container">
                 <app-icon name="map" width="48px" height="48px"></app-icon>
             </div>

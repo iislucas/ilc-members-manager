@@ -16,7 +16,7 @@ export enum Views {
   ImportExport = 'importExport',
   FindAnInstructor = 'findAnInstructor',
   FindSchool = 'findSchool',
-  Schools = 'schools',
+  ManageSchools = 'schools',
   SchoolMembers = 'schoolMembers',
   Home = 'home',
   MyStudents = 'myStudents',
@@ -27,7 +27,7 @@ export const initPathPatterns = {
   [Views.ImportExport]: pathPattern`import-export`,
   [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId']),
-  [Views.Schools]: addUrlParams(pathPattern`schools`, ['schoolId']),
+  [Views.ManageSchools]: addUrlParams(pathPattern`schools`, ['schoolId']),
   [Views.MyProfile]: pathPattern`myProfile`,
   [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['memberId']),
   [Views.SchoolMembers]: addUrlParams(

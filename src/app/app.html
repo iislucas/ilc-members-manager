@@ -39,22 +39,18 @@
         </div>
         }
 
-        @if (user.isAdmin || user.schoolsManaged.length > 0) {
+        @if (user.isAdmin) {
         <div class="menu-seperator"></div>
         <!-- Admin -->
-        @if (user.isAdmin) {
         <div class="menu-item" (click)="currentView.set(Views.ManageMembers); menuOpen.set(false)">
           {{ viewIdToTitle(Views.ManageMembers) }}
         </div>
-        }
-        <div class="menu-item" (click)="currentView.set(Views.Schools); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.Schools) }}
+        <div class="menu-item" (click)="currentView.set(Views.ManageSchools); menuOpen.set(false)">
+          {{ viewIdToTitle(Views.ManageSchools) }}
         </div>
-        @if (user.isAdmin) {
         <div class="menu-item" (click)="currentView.set(Views.ImportExport); menuOpen.set(false)">
           {{ viewIdToTitle(Views.ImportExport) }}
         </div>
-        }
         }
       </div>
       }
@@ -91,7 +87,7 @@
     @case (Views.FindAnInstructor) {
     <app-find-an-instructor></app-find-an-instructor>
     }
-    @case (Views.Schools) {
+    @case (Views.ManageSchools) {
     <app-school-list></app-school-list>
     }
     @case (Views.SchoolMembers) {
