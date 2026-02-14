@@ -17,6 +17,7 @@ import { SchoolMembersComponent } from './school-members/school-members';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
+import { HomeComponent } from './home/home';
 
 @Component({
   selector: 'app-root',
@@ -35,7 +36,9 @@ import { FindSchoolComponent } from './find-school/find-school';
     FilteredMembersComponent,
     MemberEditComponent,
     MemberEditComponent,
+    MemberEditComponent,
     FindSchoolComponent,
+    HomeComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -87,7 +90,8 @@ export class App {
       case Views.ImportExport:
         return 'Import/Export';
       case Views.Home:
-        return 'Members';
+      case Views.Home:
+        return 'Home';
       case Views.MyProfile:
         return 'My Profile';
       case Views.MyStudents:
