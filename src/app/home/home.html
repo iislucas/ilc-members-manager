@@ -48,6 +48,18 @@
             </div>
         </div>
         }
+
+        @if ((user()?.schoolsManaged?.length || 0) > 0) {
+        <div class="card" (click)="navigateTo(Views.MySchools)">
+            <div class="icon-container">
+                <app-icon name="map" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+                <h2>My Schools</h2>
+                <p>Manage your schools</p>
+            </div>
+        </div>
+        }
     </div>
 
     @if (user()?.isAdmin || (user()?.schoolsManaged?.length || 0) > 0) {

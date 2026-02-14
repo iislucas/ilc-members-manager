@@ -1,6 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
+import { AppPathPatterns, Views } from '../app.config';
+import { SearchableSet } from '../searchable-set';
 import { initSchool, School } from '../../../functions/src/data-model';
 import { SchoolEditComponent } from '../school-edit/school-edit';
 import { IconComponent } from '../icons/icon.component';
@@ -22,22 +24,24 @@ export class SchoolListComponent {
   newSchool = signal<School>(initSchool());
 
   // Expose signals from the service to the template
+  @Input() schoolSet: SearchableSet<'schoolId', School> | null = null;
+
+  targetSchoolSet = computed(() => this.schoolSet || this.dataManager.schools);
+
   limit = signal(50);
   schools = computed(() => {
-    const all = this.dataManager.schools.search(this.searchTerm());
+    const all = this.targetSchoolSet().search(this.searchTerm());
     return all.slice(0, this.limit());
   });
   totalSchools = computed(
-    () => this.dataManager.schools.search(this.searchTerm()).length,
+    () => this.targetSchoolSet().search(this.searchTerm()).length,
   );
 
-  duplicateEntries = computed(() =>
-    this.dataManager.schools.duplicateEntries(),
-  );
+  duplicateEntries = computed(() => this.targetSchoolSet().duplicateEntries());
   errorsExist = computed(() => this.duplicateEntries().length > 0);
   showErrors = signal(false);
-  loading = this.dataManager.schools.loading;
-  error = this.dataManager.schools.error;
+  loading = computed(() => this.targetSchoolSet().loading());
+  error = computed(() => this.targetSchoolSet().error());
 
   toggleErrors() {
     this.showErrors.set(!this.showErrors());

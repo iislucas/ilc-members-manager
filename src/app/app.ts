@@ -96,6 +96,8 @@ export class App {
         return 'My Profile';
       case Views.MyStudents:
         return 'My Students';
+      case Views.MySchools:
+        return 'My Schools';
       default:
         return 'Unknown View';
     }

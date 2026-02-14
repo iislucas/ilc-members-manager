@@ -20,6 +20,7 @@ export enum Views {
   SchoolMembers = 'schoolMembers',
   Home = 'home',
   MyStudents = 'myStudents',
+  MySchools = 'mySchools',
 }
 
 export const initPathPatterns = {
@@ -35,6 +36,7 @@ export const initPathPatterns = {
     ['memberId'],
   ),
   [Views.MyStudents]: pathPattern`my-students`,
+  [Views.MySchools]: pathPattern`my-schools`,
 };
 
 // Santiy check for type correctness...

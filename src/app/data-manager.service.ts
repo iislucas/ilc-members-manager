@@ -125,6 +125,16 @@ export class DataManagerService {
     ],
     'memberId',
   );
+  public mySchools = new SearchableSet<'schoolId', School>(
+    [
+      'schoolName',
+      'schoolId',
+      'schoolCity',
+      'schoolCountyOrState',
+      'schoolCountry',
+    ],
+    'schoolId',
+  );
   public schools = new SearchableSet<'schoolId', School>(
     [
       'schoolName',
@@ -146,6 +156,7 @@ export class DataManagerService {
       this.updateInstructorsSync();
       this.updateMyStudentsSync(user);
       this.updateSchoolsSync();
+      this.updateMySchoolsSync(user);
       this.updateCountersSync();
       this.updateCountryCodesSync();
     });
@@ -282,6 +293,23 @@ export class DataManagerService {
     } else {
       this.myStudents.setEntries([]);
     }
+  }
+
+  async updateMySchoolsSync(user: UserDetails) {
+    // Setup mySchools to be a filtered view of schools, when the list of all
+    // schools entries changes, update "My Schools".
+    effect(
+      () => {
+        const allSchools = this.schools.entries(); // Track changes to schools
+        const myMemberId = user.member.memberId;
+        const mySchoolsList = allSchools.filter(
+          (school) =>
+            school.owner === myMemberId || school.managers.includes(myMemberId),
+        );
+        this.mySchools.setEntries(mySchoolsList);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   async updateCountersSync() {

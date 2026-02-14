@@ -26,7 +26,6 @@ export class SearchableSet<
   uniqueEntries = computed(() => {
     const entries = this.entries();
     const unique = [];
-    const ids = new Set<string>();
     const duplicateIds = this.duplicateIds();
     for (const entry of entries) {
       const id = entry[this.idField];

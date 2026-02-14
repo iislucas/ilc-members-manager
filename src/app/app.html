@@ -99,6 +99,9 @@
     @case (Views.MyStudents) {
     <app-filtered-members [memberSet]="dataService.myStudents"></app-filtered-members>
     }
+    @case (Views.MySchools) {
+    <app-school-list [schoolSet]="dataService.mySchools"></app-school-list>
+    }
     }
     }
   </main>
