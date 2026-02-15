@@ -11,7 +11,8 @@ import {
   FilterStatus,
   ImportDelta,
   getDifferences,
-  ProposedChange
+  ProposedChange,
+  ensureLaterDate
 } from '../import-export-utils';
 
 @Component({
@@ -244,12 +245,31 @@ export class ImportSchoolsComponent {
       .get(school.schoolId);
 
     if (existing) {
-      const diffs = getDifferences(school, existing);
+      const newSchool = { ...existing, ...school } as School;
+
+      const datesToCheck: (keyof School)[] = [
+        'schoolLicenseRenewalDate',
+        'schoolLicenseExpires'
+      ];
+
+      datesToCheck.forEach(field => {
+        const oldVal = existing[field] as string | undefined;
+        const proposedVal = school[field] as string | undefined;
+
+        if (proposedVal) {
+          const secureVal = ensureLaterDate(oldVal, proposedVal);
+          if (secureVal !== undefined) {
+            (newSchool as any)[field] = secureVal;
+          }
+        }
+      });
+
+      const diffs = getDifferences(newSchool, existing);
       if (diffs.length > 0) {
         delta.updates.push({
           status: 'UPDATE',
           key: school.schoolId,
-          newItem: school as School,
+          newItem: newSchool,
           oldItem: existing,
           diffs,
         });
@@ -257,7 +277,7 @@ export class ImportSchoolsComponent {
         delta.unchanged.push({
           status: 'UNCHANGED',
           key: school.schoolId,
-          newItem: school as School,
+          newItem: newSchool,
           oldItem: existing,
           diffs: [],
         });

@@ -22,7 +22,8 @@ import {
   getDifferences,
   parseDate,
   MappingResult,
-  ProposedChange
+  ProposedChange,
+  ensureLaterDate
 } from '../import-export-utils';
 import { format, addYears, isValid, parse, isAfter } from 'date-fns';
 
@@ -388,8 +389,9 @@ export class ImportOrdersComponent {
       let changed = false;
 
       // Renewal Date
-      if (order.datePaid !== newSchool.schoolLicenseRenewalDate) {
-        newSchool.schoolLicenseRenewalDate = order.datePaid;
+      const potentialNewRenewal = ensureLaterDate(newSchool.schoolLicenseRenewalDate, order.datePaid);
+      if (potentialNewRenewal && potentialNewRenewal !== newSchool.schoolLicenseRenewalDate) {
+        newSchool.schoolLicenseRenewalDate = potentialNewRenewal;
         changed = true;
       }
 
@@ -465,9 +467,10 @@ export class ImportOrdersComponent {
     const isInstructorLicense = paymentType.includes("Instructor's License") || paymentType === 'Instructor License';
 
 
-    if (isMembership && !paymentType.includes('Life')) { // Life members don't expire usually?
-      if (order.datePaid !== newMember.lastRenewalDate) {
-        newMember.lastRenewalDate = order.datePaid;
+    if (isMembership && !paymentType.includes('Life')) { // Life members don't expire
+      const potentialNewRenewal = ensureLaterDate(newMember.lastRenewalDate, order.datePaid);
+      if (potentialNewRenewal && potentialNewRenewal !== newMember.lastRenewalDate) {
+        newMember.lastRenewalDate = potentialNewRenewal;
         changed = true;
       }
 
@@ -481,8 +484,9 @@ export class ImportOrdersComponent {
     }
 
     if (isInstructorLicense) {
-      if (order.datePaid !== newMember.instructorLicenseRenewalDate) {
-        newMember.instructorLicenseRenewalDate = order.datePaid;
+      const potentialInstRenewal = ensureLaterDate(newMember.instructorLicenseRenewalDate, order.datePaid);
+      if (potentialInstRenewal && potentialInstRenewal !== newMember.instructorLicenseRenewalDate) {
+        newMember.instructorLicenseRenewalDate = potentialInstRenewal;
         changed = true;
       }
 

@@ -19,7 +19,8 @@ import {
   getDifferences,
   parseDate,
   MappingResult,
-  ProposedChange
+  ProposedChange,
+  ensureLaterDate
 } from '../import-export-utils';
 import { format, addYears, isValid, parse } from 'date-fns';
 
@@ -292,26 +293,52 @@ export class ImportMembersComponent {
     } else {
       const existing = this.membersService.members.entriesMap().get(memberId);
       if (existing) {
-        const diffs = getDifferences(member, existing);
+        // NOTE: We need to define newMember based on merge but respecting date rules
+        const newMember = { ...existing, ...member } as Member;
+
+        // Enforce date rules: do not overwrite with earlier dates
+        const datesToCheck: (keyof Member)[] = [
+          'lastRenewalDate',
+          'currentMembershipExpires',
+          'instructorLicenseRenewalDate',
+          'instructorLicenseExpires'
+        ];
+
+        datesToCheck.forEach(field => {
+          // We know these fields are strings in our model, or undefined
+          const oldVal = existing[field] as string | undefined;
+          const proposedVal = member[field] as string | undefined; // from import
+
+          // If proposedVal exists, we have already overwritten it in newMember via spread
+          // So we need to check if we should REVERT to oldVal
+          if (proposedVal) {
+            const secureVal = ensureLaterDate(oldVal, proposedVal);
+            if (secureVal !== undefined) {
+              (newMember as any)[field] = secureVal;
+            }
+          }
+        });
+
+        const diffs = getDifferences(newMember, existing);
         if (diffs.length > 0) {
           delta.updates.push({
             status: 'UPDATE',
             key: memberId,
-            newItem: { ...existing, ...member } as Member,
-            oldItem: existing,
-            diffs,
-            issues: undefined,
-          });
-        } else {
-          delta.unchanged.push({
-            status: 'UNCHANGED',
-            key: memberId,
-            newItem: { ...existing, ...member } as Member,
-            oldItem: existing,
-            diffs: [],
-            issues: undefined,
-          });
-        }
+              newItem: newMember,
+              oldItem: existing,
+              diffs,
+              issues: undefined,
+            });
+          } else {
+            delta.unchanged.push({
+              status: 'UNCHANGED',
+              key: memberId,
+                 newItem: newMember,
+                 oldItem: existing,
+                 diffs: [],
+                 issues: undefined,
+               });
+          }
       } else {
         const newChange: ProposedChange<Member> = {
           status: 'NEW',

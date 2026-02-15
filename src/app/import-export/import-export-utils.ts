@@ -131,3 +131,20 @@ export function getDifferences(
   }
   return diffs;
 }
+
+/**
+ * Returns the later of two dates. Assumes YYYY-MM-DD or comparable string format.
+ * If newDate is undefined/empty, returns oldDate.
+ * If oldDate is undefined/empty, returns newDate.
+ * If newDate > oldDate, returns newDate.
+ * Otherwise returns oldDate.
+ */
+export function ensureLaterDate(oldDate: string | undefined | null, newDate: string | undefined | null): string | undefined {
+  if (!newDate) return oldDate || undefined;
+  if (!oldDate) return newDate;
+
+  if (newDate > oldDate) {
+    return newDate;
+  }
+  return oldDate;
+}
