@@ -46,6 +46,9 @@ export function parseDate(value: string): MappingResult<string> {
   // Normalize separators and trim
   let normalizedValue = value.trim();
 
+  // Handle "Sept" as "Sep" (common non-standard 4-letter abbreviation)
+  normalizedValue = normalizedValue.replace(/Sept/i, 'Sep');
+
   // Specific fix for dd-MMM-yy / d-MMM-yy format (e.g. 23-Feb-23)
   // Assume 20{yy} for these cases.
   const twoDigitYearMmmPattern = /^(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2})$/;
@@ -76,6 +79,12 @@ export function parseDate(value: string): MappingResult<string> {
     'yyyy/MM/dd',    // Japan, e.g. 2023/12/31
     'dd-MMM-yyyy',   // e.g. 23-Feb-1953
     'd-MMM-yyyy',    // e.g. 1-Feb-1953
+    'dd-MMMM-yyyy',  // e.g. 21-April-1973
+    'd-MMMM-yyyy',   // e.g. 1-April-1973
+    'dd MMMM yyyy',  // e.g. 21 April 1973
+    'd MMMM yyyy',   // e.g. 1 April 1973
+    'MMMM dd, yyyy', // e.g. April 21, 1973
+    'MMMM d, yyyy',  // e.g. April 1, 1973
     'dd-MM-yyyy',    // e.g. 23-02-1953
     'd-M-yyyy',      // e.g. 1-2-1953
     'dd.MM.yyyy',    // e.g. 02.01.1967
@@ -100,7 +109,7 @@ export function parseDate(value: string): MappingResult<string> {
 
   return {
     success: false,
-    issue: `Invalid date format: "${value}". Expected YYYY-MM-DD, DD/MM/YYYY, or DD-Mon-YYYY.`,
+    issue: `Invalid date format: "${value}". Expected YYYY-MM-DD, DD/MM/YYYY, DD-Mon-YYYY, or DD-Month-YYYY.`,
   };
 }
 
