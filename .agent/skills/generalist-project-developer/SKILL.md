@@ -1,6 +1,6 @@
 ---
-name: generalist-project-developer
-description: Project-specific coding standards, tech stack, and best practices for the ILC Members Manager.
+name: generalist-developer
+description: Coding standards, tech stack, and best practices, including pnpm usage over npm and npx.
 ---
 
 # ILC Members Manager Developer Guide
@@ -68,11 +68,19 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ### Angular
 
-- Use standalone components.
-- Use signals for state management.
+- Use signals for state management, and use signal forms.
 - Implement lazy loading for feature routes.
 - Put host bindings inside the `host` object of the decorator.
 - Use `NgOptimizedImage` for static images.
+
+#### Avoid
+
+- Never use `subscribe()` in components – use `toSignal()` or async pipe
+- Never use constructor injection – always `inject()`
+- Never import `CommonModule`, avoid: (`NgIf`, `NgFor`)
+  (Use `@if` / `@for` / `@switch` for control flow)
+- Never use `*ngIf` / `*ngFor` – use `@if` / `@for` block syntax
+- Never create NgModules – all new code is standalone
 
 ### Components
 
