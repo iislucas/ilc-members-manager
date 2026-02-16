@@ -243,6 +243,22 @@ describe('ImportOrdersComponent', () => {
       expect(update.member.instructorLicenseExpires).toBe('2024-06-01');
       expect(update.member.instructorLicenseType).toBe(InstructorLicenseType.Annual);
     });
+
+    it('should update Student Level for Grading orders', async () => {
+      component.parsedData.set([
+        { 'order': 'grading', 'Reference Number': 'REF-GRAD', 'External ID': 'M1', 'Paid For': 'Student Level 3', 'Date Paid': '2023-07-01' }
+      ]);
+      // Use helper to get default mapping which should now include 'orderType' from 'order'
+      component.mapping.set(component.getDefaultMapping(['order', 'Reference Number', 'External ID', 'Paid For', 'Date Paid']));
+
+      await component.analyzeData();
+
+      const memberUpdates = component.proposedChanges().memberUpdates;
+      expect(memberUpdates.has('M1')).toBe(true);
+      const update = memberUpdates.get('M1')!;
+
+      expect(update.member.studentLevel).toBe('3');
+    });
   });
 
   describe('School Side Effects', () => {
@@ -384,6 +400,27 @@ describe('ImportOrdersComponent', () => {
       expect(stats.SCHOOL_LICENSE).toBe(1);
       expect(stats.INSTRUCTOR_LICENSE).toBe(1);
       expect(stats.OTHER).toBe(1);
+    });
+
+    it('should filter by GRADING', () => {
+      component.proposedChanges.update(pc => ({
+        ...pc,
+        orders: {
+          ...pc.orders,
+          new: new Map([
+            ...pc.orders.new,
+            ['5', {
+              key: '5',
+              status: 'NEW' as any,
+              newItem: { id: '5', orderType: 'grading', paidFor: 'Student Level 3' } as any,
+              diffs: []
+            }]
+          ])
+        }
+      }));
+      component.setTypeFilter('GRADING');
+      expect(component.filteredProposedChanges().length).toBe(1);
+      expect(component.filteredProposedChanges()[0].newItem.orderType).toBe('grading');
     });
   });
 });

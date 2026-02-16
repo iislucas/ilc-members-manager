@@ -333,6 +333,7 @@ export type Order = {
   id: string; // Firestore ID
   lastUpdated: string; // ISO string
 
+  orderType: string; // From CSV (column 'order')
   referenceNumber: string; // From CSV
   externalId: string; // From CSV (matches memberId)
   studentOf: string; // From CSV
@@ -450,6 +451,7 @@ export function initOrder(): Order {
   return {
     id: '',
     lastUpdated: new Date().toISOString(),
+    orderType: '',
     referenceNumber: '',
     externalId: '',
     studentOf: '',

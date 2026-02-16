@@ -43,6 +43,9 @@
           (click)="setTypeFilter('INSTRUCTOR_LICENSE')">
           Instructor Lic. ({{stats().INSTRUCTOR_LICENSE}})
         </button>
+        <button [class.active]="selectedTypeFilter() === 'GRADING'" (click)="setTypeFilter('GRADING')">
+          Gradings ({{stats().GRADING}})
+        </button>
         <button [class.active]="selectedTypeFilter() === 'OTHER'" (click)="setTypeFilter('OTHER')">
           Other ({{stats().OTHER}})
         </button>

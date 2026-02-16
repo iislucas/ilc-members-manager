@@ -7,6 +7,7 @@ import {
   Member,
   initMember,
   MembershipType,
+  StudentLevel,
   InstructorLicenseType,
   MasterLevel,
   Order,
@@ -28,7 +29,7 @@ import {
 } from '../import-export-utils';
 import { format, addYears, isValid, parse, isAfter } from 'date-fns';
 
-export type OrderType = 'ALL' | 'MEMBERSHIP' | 'SCHOOL_LICENSE' | 'INSTRUCTOR_LICENSE' | 'OTHER';
+export type OrderType = 'ALL' | 'MEMBERSHIP' | 'SCHOOL_LICENSE' | 'INSTRUCTOR_LICENSE' | 'GRADING' | 'OTHER';
 
 @Component({
   selector: 'app-import-orders',
@@ -118,6 +119,7 @@ export class ImportOrdersComponent {
       MEMBERSHIP: countByType('MEMBERSHIP'),
       SCHOOL_LICENSE: countByType('SCHOOL_LICENSE'),
       INSTRUCTOR_LICENSE: countByType('INSTRUCTOR_LICENSE'),
+      GRADING: countByType('GRADING'),
       OTHER: countByType('OTHER')
     };
   });
@@ -201,22 +203,23 @@ export class ImportOrdersComponent {
 
     // Map based on partial matches or exact matches
     const knownMappings: Record<string, string[]> = {
-      'referenceNumber': ['Reference Number', 'ref'],
-      'externalId': ['External ID', 'ext'],
-      'studentOf': ['Student Of'],
-      'paidFor': ['Paid For'],
-      'newRenew': ['New/Renew'],
-      'datePaid': ['Date Paid'],
+      'orderType': ['order', 'type', 'entry type'],
+      'referenceNumber': ['Reference Number', 'ref', 'Order #', 'Order ID', 'Reference'],
+      'externalId': ['External ID', 'ext', 'Member ID', 'Customer ID', 'Student ID', 'Student Member ID'],
+      'studentOf': ['Student Of', 'instructor'],
+      'paidFor': ['Paid For', 'Product', 'Item', 'Description'],
+      'newRenew': ['New/Renew', 'status'],
+      'datePaid': ['Date Paid', 'Payment Date', 'Date'],
       'startDate': ['Start Date'],
-      'lastName': ['Last Name'],
-      'firstName': ['First Name'],
-      'email': ['Email'],
+      'lastName': ['Last Name', 'Surname'],
+      'firstName': ['First Name', 'Forename', 'Given Name'],
+      'email': ['Email', 'Email Address'],
       'country': ['Country'],
-      'state': ['State'],
-      'costUsd': ['Cost USD'],
+      'state': ['State', 'Region'],
+      'costUsd': ['Cost USD', 'Price', 'Amount'],
       'collected': ['Collected'],
       'split': ['Split'],
-      'notes': ['Notes']
+      'notes': ['Notes', 'Comments']
     };
 
     fields.forEach((field) => {
@@ -507,6 +510,20 @@ export class ImportOrdersComponent {
       }
     }
 
+    // Checking for Gradings
+    const isGrading = order.orderType?.toLowerCase() === 'grading' || paymentType.toLowerCase().includes('student level');
+    if (isGrading) {
+      const levelMatch = paymentType.match(/Student Level\s*(\d+)/i);
+      if (levelMatch) {
+        const newLevel = levelMatch[1] as StudentLevel;
+        // Only update if it's a higher level or different
+        if (newMember.studentLevel !== newLevel) {
+          newMember.studentLevel = newLevel;
+          changed = true;
+        }
+      }
+    }
+
     if (changed) {
       const existingUpdate = memberUpdates.get(newMember.memberId);
       if (existingUpdate) {
@@ -659,6 +676,8 @@ export class ImportOrdersComponent {
     ].some(t => paymentType === t || paymentType === 'Member Dues - Annual');
 
     if (isMembership) return 'MEMBERSHIP';
+
+    if (order.orderType?.toLowerCase() === 'grading' || paymentType.toLowerCase().includes('student level')) return 'GRADING';
 
     return 'OTHER';
   }
