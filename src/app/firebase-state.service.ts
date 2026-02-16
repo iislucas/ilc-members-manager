@@ -39,31 +39,31 @@ type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 
 export type AuthOperationResult =
   | {
-      success: true;
-      userCredential: UserCredential;
-    }
+    success: true;
+    userCredential: UserCredential;
+  }
   | {
-      success: false;
-      errorCode: AuthErrorCodeStr;
-    };
+    success: false;
+    errorCode: AuthErrorCodeStr;
+  };
 
 export type LogoutResult =
   | {
-      success: true;
-    }
+    success: true;
+  }
   | {
-      success: false;
-      errorCode: AuthErrorCodeStr;
-    };
+    success: false;
+    errorCode: AuthErrorCodeStr;
+  };
 
 export type ResetPasswordResult =
   | {
-      success: true;
-    }
+    success: true;
+  }
   | {
-      success: false;
-      errorMessage: AuthErrorCodeStr;
-    };
+    success: false;
+    errorMessage: AuthErrorCodeStr;
+  };
 
 export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 
@@ -94,7 +94,7 @@ export class FirebaseStateService {
 
   public loginStatus = signal<LoginStatus>(LoginStatus.FirebaseLoadingStatus);
   public loggedIn: WritableSignal<Promise<UserDetails>>;
-  private loggedInResolverFn: (value: UserDetails) => void = () => {};
+  private loggedInResolverFn: (value: UserDetails) => void = () => { };
   public loginError = signal<string | null>(null);
   public user = signal<UserDetails | null>(null);
   private db: Firestore;
@@ -122,70 +122,70 @@ export class FirebaseStateService {
     );
 
     onAuthStateChanged(this.auth, async (user) => {
-        if (this.unsubscribeFromMember) {
-          this.unsubscribeFromMember();
-          this.unsubscribeFromMember = null;
-        }
+      if (this.unsubscribeFromMember) {
+        this.unsubscribeFromMember();
+        this.unsubscribeFromMember = null;
+      }
 
-        if (!user || !user.email) {
-          // SignedOut
-          console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
-          this.user.set(null);
-          this.loginStatus.set(LoginStatus.SignedOut);
-          this.loggedIn.set(
-            new Promise<UserDetails>((resolve, reject) => {
-              this.loggedInResolverFn = resolve;
-            }),
-          );
-          return;
-        }
+      if (!user || !user.email) {
+        // SignedOut
+        console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
+        this.user.set(null);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loggedIn.set(
+          new Promise<UserDetails>((resolve, reject) => {
+            this.loggedInResolverFn = resolve;
+          }),
+        );
+        return;
+      }
 
-        this.loginStatus.set(LoginStatus.LoggingIn);
-        let userDetailsResult: FetchUserDetailsResult;
-        try {
-          const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
-            this.functions,
-            'getUserDetails',
-          );
-          userDetailsResult = (await getUserDetails()).data;
-        } catch (error: unknown) {
-          console.error('Error in getUserDetails:', error);
-          this.loginStatus.set(LoginStatus.SignedOut);
-          this.loginError.set((error as Error).message);
-          console.warn('Logging out because getUserDetails failed with error:', error);
-          this.logout();
-          return;
-        }
+      this.loginStatus.set(LoginStatus.LoggingIn);
+      let userDetailsResult: FetchUserDetailsResult;
+      try {
+        const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
+          this.functions,
+          'getUserDetails',
+        );
+        userDetailsResult = (await getUserDetails()).data;
+      } catch (error: unknown) {
+        console.error('Error in getUserDetails:', error);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loginError.set((error as Error).message);
+        console.warn('Logging out because getUserDetails failed with error:', error);
+        this.logout();
+        return;
+      }
 
-        const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
-          ...initMember(),
-          ...p,
-        }));
+      const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
+        ...initMember(),
+        ...p,
+      }));
 
-        if (!profiles || profiles.length === 0) {
-          console.warn('No profiles found for user', user.email);
-          this.loginStatus.set(LoginStatus.SignedOut);
-          this.loginError.set(`We could not find your profile. ` + 
-            `Please contact ${environment.adminEmail} to ensure your account is setup.`);
-          console.warn('Logging out because no member profiles were found.');
-          this.logout();
-          return;
-        }
+      if (!profiles || profiles.length === 0) {
+        console.warn('No profiles found for user', user.email);
+        this.loginStatus.set(LoginStatus.SignedOut);
+        this.loginError.set(`We could not find your profile. ` +
+          `Please contact ${environment.adminEmail} to ensure your account is setup.`);
+        console.warn('Logging out because no member profiles were found.');
+        this.logout();
+        return;
+      }
 
-        const userDetails: UserDetails = {
-          firebaseUser: user,
-          member: profiles[0],
-          memberProfiles: profiles,
-          isAdmin: userDetailsResult.isAdmin,
-          schoolsManaged: userDetailsResult.schoolsManaged,
-        };
-        console.log('FirebaseStateService: Setting user signal to details for:', user.email);
-        this.user.set(userDetails);
-        this.loggedInResolverFn(userDetails);
-        this.loginStatus.set(LoginStatus.SignedIn);
+      const userDetails: UserDetails = {
+        firebaseUser: user,
+        member: profiles[0],
+        memberProfiles: profiles,
+        isAdmin: userDetailsResult.isAdmin,
+        schoolsManaged: userDetailsResult.schoolsManaged,
+      };
+      console.log('FirebaseStateService: Setting user signal to details for:', user.email);
+      this.user.set(userDetails);
+      this.loggedInResolverFn(userDetails);
+      this.loginStatus.set(LoginStatus.SignedIn);
 
-        // From now on, listen to changes to the member document.
-        this.setupMemberSnapshotListener();
+      // From now on, listen to changes to the member document.
+      this.setupMemberSnapshotListener();
     });
   }
 
@@ -367,7 +367,7 @@ export class FirebaseStateService {
   }
 }
 
-export function createFirebaseStateServiceMock(): Partial<FirebaseStateService> {
+export function createFirebaseStateServiceMock(): FirebaseStateService {
   return {
     user: signal(null),
     loginStatus: signal(LoginStatus.SignedOut),
@@ -391,5 +391,5 @@ export function createFirebaseStateServiceMock(): Partial<FirebaseStateService> 
     logout: (): Promise<LogoutResult> => Promise.resolve({ success: true }),
     resetPassword: (): Promise<ResetPasswordResult> =>
       Promise.resolve({ success: true }),
-  };
+  } as Partial<FirebaseStateService> as FirebaseStateService;
 }

@@ -13,7 +13,7 @@ import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
 describe('SchoolEditComponent', () => {
   let component: SchoolEditComponent;
   let fixture: ComponentFixture<SchoolEditComponent>;
-  let dataManagerServiceMock: jasmine.SpyObj<DataManagerService>;
+  let dataManagerServiceMock: any;
   let firebaseStateServiceMock: any;
 
   const mockSchool: School = {
@@ -26,24 +26,22 @@ describe('SchoolEditComponent', () => {
   };
 
   beforeEach(async () => {
-    dataManagerServiceMock = jasmine.createSpyObj(
-      'DataManagerService',
-      ['setSchool', 'createNextSchoolId'],
-      {
-        members: new SearchableSet<'memberId', any>(['name'], 'memberId', []),
-        instructors: new SearchableSet<'instructorId', any>(
-          ['name'],
-          'instructorId',
-          [],
-        ),
-        schools: new SearchableSet<'schoolId', School>(
-          ['schoolName'],
-          'schoolId',
-          [],
-        ),
-        counters: signal(null),
-      },
-    );
+    dataManagerServiceMock = {
+      setSchool: vi.fn(),
+      createNextSchoolId: vi.fn(),
+      members: new SearchableSet<'memberId', any>(['name'], 'memberId', []),
+      instructors: new SearchableSet<'instructorId', any>(
+        ['name'],
+        'instructorId',
+        [],
+      ),
+      schools: new SearchableSet<'schoolId', School>(
+        ['schoolName'],
+        'schoolId',
+        [],
+      ),
+      counters: signal(null),
+    };
 
     firebaseStateServiceMock = createFirebaseStateServiceMock();
     firebaseStateServiceMock.user.set({
@@ -80,39 +78,39 @@ describe('SchoolEditComponent', () => {
   });
 
   it('should call preventDefault and setSchool on save', async () => {
-    const event = jasmine.createSpyObj('Event', ['preventDefault']);
-    dataManagerServiceMock.setSchool.and.returnValue(Promise.resolve());
+    const event = { preventDefault: vi.fn() } as unknown as Event;
+    dataManagerServiceMock.setSchool.mockResolvedValue();
 
     await component.saveSchool(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.setSchool).toHaveBeenCalledWith(
-      jasmine.objectContaining({ schoolName: 'Test School' }),
+      expect.objectContaining({ schoolName: 'Test School' }),
     );
   });
 
   it('should be dirty when owner is changed', () => {
-    expect(component.isDirty()).toBeFalse();
+    expect(component.isDirty()).toBe(false);
     component.updateOwner('new-owner-id');
-    expect(component.isDirty()).toBeTrue();
+    expect(component.isDirty()).toBe(true);
   });
 
   it('should be dirty when manager is added or removed', () => {
-    expect(component.isDirty()).toBeFalse();
+    expect(component.isDirty()).toBe(false);
     component.addManager();
-    expect(component.isDirty()).toBeTrue();
+    expect(component.isDirty()).toBe(true);
 
     // Reset dirty state to test removal
     component.form().reset();
-    expect(component.isDirty()).toBeFalse();
+    expect(component.isDirty()).toBe(false);
 
     component.updateManagerId(0, 'manager-1');
-    expect(component.isDirty()).toBeTrue();
+    expect(component.isDirty()).toBe(true);
 
     component.form().reset();
-    expect(component.isDirty()).toBeFalse();
+    expect(component.isDirty()).toBe(false);
 
     component.removeManager(0);
-    expect(component.isDirty()).toBeTrue();
+    expect(component.isDirty()).toBe(true);
   });
 });

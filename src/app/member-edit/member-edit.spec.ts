@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Mock } from 'vitest';
 import { MemberEditComponent } from './member-edit';
 import { DataManagerService, DataServiceState } from '../data-manager.service';
 import {
   FirebaseStateService,
+  UserDetails,
   createFirebaseStateServiceMock,
 } from '../firebase-state.service';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
@@ -10,14 +12,18 @@ import {
   initMember,
   Member,
   MembershipType,
+  School,
+  InstructorPublicData,
 } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
+import { CountryCode } from '../country-codes';
+import { User } from 'firebase/auth';
 
 describe('MemberEditComponent', () => {
   let component: MemberEditComponent;
   let fixture: ComponentFixture<MemberEditComponent>;
-  let dataManagerServiceMock: jasmine.SpyObj<DataManagerService>;
-  let firebaseStateServiceMock: any;
+  let dataManagerServiceMock: DataManagerService;
+  let firebaseStateServiceMock: FirebaseStateService;
 
   const mockMember: Member = {
     ...initMember(),
@@ -30,35 +36,30 @@ describe('MemberEditComponent', () => {
   };
 
   beforeEach(async () => {
-    dataManagerServiceMock = jasmine.createSpyObj(
-      'DataManagerService',
-      [
-        'updateMember',
-        'addMember',
-        'createNextMemberId',
-        'createNextInstructorId',
-      ],
-      {
-        loadingState: signal(DataServiceState.Loaded),
-        members: new SearchableSet<'memberId', Member>(
-          ['name'],
-          'memberId',
-          [],
-        ),
-        instructors: new SearchableSet<'instructorId', any>(
-          ['name'],
-          'instructorId',
-          [],
-        ),
-        schools: new SearchableSet<'schoolId', any>(
-          ['schoolName'],
-          'schoolId',
-          [],
-        ),
-        countries: new SearchableSet<'id', any>(['name'], 'id', []),
-        counters: signal(null),
-      },
-    );
+    dataManagerServiceMock = {
+      updateMember: vi.fn(),
+      addMember: vi.fn(),
+      createNextMemberId: vi.fn(),
+      createNextInstructorId: vi.fn(),
+      loadingState: signal(DataServiceState.Loaded),
+      members: new SearchableSet<'memberId', Member>(
+        ['name'],
+        'memberId',
+        [],
+      ),
+      instructors: new SearchableSet<'instructorId', InstructorPublicData>(
+        ['name'],
+        'instructorId',
+        [],
+      ),
+      schools: new SearchableSet<'schoolId', School>(
+        ['schoolName'],
+        'schoolId',
+        [],
+      ),
+      countries: new SearchableSet<'id', CountryCode>(['name'], 'id', []),
+      counters: signal(null),
+    } as Partial<DataManagerService> as DataManagerService;
 
     dataManagerServiceMock.countries.setEntries([
       { id: 'US', name: 'United States' },
@@ -69,8 +70,9 @@ describe('MemberEditComponent', () => {
       isAdmin: true,
       member: mockMember,
       schoolsManaged: [],
-      firebaseUser: { email: 'admin@example.com' } as any,
-    });
+      firebaseUser: { email: 'admin@example.com' } as User,
+      memberProfiles: [],
+    } as UserDetails);
 
     await TestBed.configureTestingModule({
       imports: [MemberEditComponent],
@@ -93,15 +95,15 @@ describe('MemberEditComponent', () => {
   });
 
   it('should call preventDefault and updateMember on save', async () => {
-    const event = jasmine.createSpyObj('Event', ['preventDefault']);
-    dataManagerServiceMock.updateMember.and.returnValue(Promise.resolve());
+    const event = { preventDefault: vi.fn() } as unknown as Event;
+    (dataManagerServiceMock.updateMember as Mock).mockResolvedValue(undefined);
 
     await component.saveMember(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
       mockMember.id,
-      jasmine.objectContaining({ name: 'Test Member' }),
+      expect.objectContaining({ name: 'Test Member' }),
     );
   });
 
@@ -114,10 +116,8 @@ describe('MemberEditComponent', () => {
     fixture.componentRef.setInput('member', newMember);
     await fixture.whenStable();
 
-    const event = jasmine.createSpyObj('Event', ['preventDefault']);
-    dataManagerServiceMock.addMember.and.returnValue(
-      Promise.resolve({ id: 'new-id' } as any),
-    );
+    const event = { preventDefault: vi.fn() } as unknown as Event;
+    (dataManagerServiceMock.addMember as Mock).mockResolvedValue({ id: 'new-id' });
 
     await component.saveMember(event);
 

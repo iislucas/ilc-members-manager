@@ -14,7 +14,7 @@
     "logs": "firebase functions:log",
     "admin": "ts-node scripts/admin.ts",
     "dedupe-members": "ts-node scripts/dedupe-members.ts",
-    "test": "jasmine --require=ts-node/register 'src/**/*.spec.ts'"
+    "test": "vitest run --no-color"
   },
   "main": "dist/index.js",
   "engines": {
@@ -29,11 +29,10 @@
   },
   "devDependencies": {
     "@google-cloud/secret-manager": "^6.0.1",
-    "@types/jasmine": "^6.0.0",
     "@types/yargs": "^17.0.33",
-    "jasmine": "^6.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
     "yargs": "^17.7.2"
   },
   "eslintIgnore": [

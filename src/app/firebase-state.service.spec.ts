@@ -57,9 +57,10 @@ describe('FirebaseStateService', () => {
       success: true,
       userCredential: {} as UserCredential,
     };
-    const loginSpy = spyOn(service, 'loginWithGoogle').and.returnValue(
-      Promise.resolve(successResult)
-    );
+    // Use vi.spyOn instead of spyOn to see if it makes a difference
+    // cast to any to avoid strict type checks if needed, or use proper typing
+    const loginSpy = vi.spyOn(service, 'loginWithGoogle').mockResolvedValue(successResult);
+
     service.loginWithGoogle();
     expect(loginSpy).toHaveBeenCalled();
   });
@@ -69,8 +70,8 @@ describe('FirebaseStateService', () => {
       success: true,
       userCredential: {} as UserCredential,
     };
-    const loginSpy = spyOn(service, 'loginWithEmail').and.returnValue(
-      Promise.resolve(successResult)
+    const loginSpy = vi.spyOn(service, 'loginWithEmail').mockResolvedValue(
+      successResult
     );
     service.loginWithEmail('password', 'test@test.com');
     expect(loginSpy).toHaveBeenCalledWith('password', 'test@test.com');
@@ -81,8 +82,8 @@ describe('FirebaseStateService', () => {
       success: true,
       userCredential: {} as UserCredential,
     };
-    const signupSpy = spyOn(service, 'signupWithEmail').and.returnValue(
-      Promise.resolve(successResult)
+    const signupSpy = vi.spyOn(service, 'signupWithEmail').mockResolvedValue(
+      successResult
     );
     service.signupWithEmail('password', 'test@test.com');
     expect(signupSpy).toHaveBeenCalledWith('password', 'test@test.com');
@@ -90,8 +91,8 @@ describe('FirebaseStateService', () => {
 
   it('should call signOut when logout is called', () => {
     const successResult: LogoutResult = { success: true };
-    const logoutSpy = spyOn(service, 'logout').and.returnValue(
-      Promise.resolve(successResult)
+    const logoutSpy = vi.spyOn(service, 'logout').mockResolvedValue(
+      successResult
     );
     service.logout();
     expect(logoutSpy).toHaveBeenCalled();

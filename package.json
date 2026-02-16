@@ -10,8 +10,8 @@
     "build:functions": "pnpm --prefix functions run build",
     "build:all": "pnpm run build && pnpm run build:functions",
     "watch": "ng build --watch --configuration development --project ilc-members-manager",
-    "test:watch": "ng test --project ilc-members-manager",
-    "test:once": "ng test --no-watch --browsers=ChromeHeadless --project ilc-members-manager",
+    "test:watch": "vitest --no-color",
+    "test:once": "vitest run --no-color",
     "test": "pnpm test:once",
     "test:functions": "pnpm --prefix functions test",
     "test:rules:in_emulator": "mocha -r ts-node/register tests/firestore.rules.spec.ts",
@@ -64,20 +64,18 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@analogjs/platform": "^2.2.3",
+    "@analogjs/vite-plugin-angular": "^2.2.3",
+    "@analogjs/vitest-angular": "^2.2.3",
     "@angular/build": "^21.1.1",
     "@angular/cli": "^21.1.1",
     "@angular/compiler-cli": "^21.1.1",
     "@firebase/rules-unit-testing": "^5.0.0",
-    "@types/jasmine": "~5.1.0",
     "@types/mocha": "^10.0.10",
-    "jasmine-core": "~5.7.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
+    "jsdom": "^28.1.0",
     "mocha": "^11.7.5",
     "prettier": "^3.6.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.18"
   }
 }

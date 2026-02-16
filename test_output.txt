@@ -1,0 +1,212 @@
+
+> ilc-members-manager@0.0.0 test /Users/lucasd/code/ilc-members-manager
+> pnpm test:once
+
+
+> ilc-members-manager@0.0.0 test:once /Users/lucasd/code/ilc-members-manager
+> vitest run --no-color
+
+
+ RUN  v4.0.18 /Users/lucasd/code/ilc-members-manager
+
+ ✓ src/app/import-export/import-mapping/import-mapping.spec.ts (1 test) 190ms
+ ✓ src/app/id-assignment/id-assignment.spec.ts (1 test) 244ms
+ ✓ src/app/find-school/find-school.spec.ts (2 tests) 161ms
+ ✓ src/app/find-an-instructor/find-an-instructor.spec.ts (1 test) 111ms
+ ✓ src/app/calendar-view/calendar-view.spec.ts (1 test) 167ms
+ ✓ src/app/autocomplete/autocomplete.spec.ts (1 test) 79ms
+ ✓ src/app/school-edit/school-edit.spec.ts (4 tests) 269ms
+ ✓ src/app/routing.service.spec.ts (4 tests) 38ms
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should be created
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+ ✓ src/app/member-list/member-list.spec.ts (4 tests) 502ms
+     ✓ should create  325ms
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should be created
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should have a user signal that is initially null
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should have a user signal that is initially null
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call loginWithGoogle when login is called
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call loginWithGoogle when login is called
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call loginWithEmail when loginWithEmail is called
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call loginWithEmail when loginWithEmail is called
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call signupWithEmail when signupWithEmail is called
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call signupWithEmail when signupWithEmail is called
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call signOut when logout is called
+FirebaseStateService: Persistence set to browserLocalPersistence
+
+stdout | src/app/firebase-state.service.spec.ts > FirebaseStateService > should call signOut when logout is called
+FirebaseStateService: User is null or has no email, setting SignedOut state.
+
+ ✓ src/app/firebase-state.service.spec.ts (6 tests) 28ms
+stdout | src/app/member-edit/member-edit.spec.ts > MemberEditComponent > should call preventDefault and updateMember on save
+Updating member {
+  id: [32m'test-id'[39m,
+  lastUpdated: [32m'2026-02-16T20:56:50.076Z'[39m,
+  isAdmin: [33mfalse[39m,
+  name: [32m'Test Member'[39m,
+  address: [32m''[39m,
+  city: [32m''[39m,
+  zipCode: [32m''[39m,
+  countyOrState: [32m''[39m,
+  country: [32m'United States'[39m,
+  phone: [32m''[39m,
+  emails: [ [32m'test@example.com'[39m ],
+  gender: [32m''[39m,
+  dateOfBirth: [32m''[39m,
+  publicEmail: [32m''[39m,
+  publicPhone: [32m''[39m,
+  publicRegionOrCity: [32m''[39m,
+  publicCountyOrState: [32m''[39m,
+  instructorWebsite: [32m''[39m,
+  memberId: [32m'US001'[39m,
+  sifuInstructorId: [32m''[39m,
+  managingOrgId: [32m''[39m,
+  membershipType: [32m'Annual'[39m,
+  firstMembershipStarted: [32m''[39m,
+  lastRenewalDate: [32m''[39m,
+  currentMembershipExpires: [32m''[39m,
+  instructorId: [32m''[39m,
+  instructorLicenseExpires: [32m''[39m,
+  instructorLicenseType: [32m'None'[39m,
+  instructorLicenseRenewalDate: [32m''[39m,
+  studentLevel: [32m''[39m,
+  applicationLevel: [32m''[39m,
+  mastersLevels: [],
+  notes: [32m''[39m
+}
+
+ ✓ src/app/school-members/school-members.spec.ts (1 test) 298ms
+stdout | src/app/member-edit/member-edit.spec.ts > MemberEditComponent > should call addMember if member email is not present
+Adding member {
+  id: [32m''[39m,
+  lastUpdated: [32m'2026-02-16T20:56:50.473Z'[39m,
+  isAdmin: [33mfalse[39m,
+  name: [32m'New Member'[39m,
+  address: [32m''[39m,
+  city: [32m''[39m,
+  zipCode: [32m''[39m,
+  countyOrState: [32m''[39m,
+  country: [32m'United States'[39m,
+  phone: [32m''[39m,
+  emails: [],
+  gender: [32m''[39m,
+  dateOfBirth: [32m''[39m,
+  publicEmail: [32m''[39m,
+  publicPhone: [32m''[39m,
+  publicRegionOrCity: [32m''[39m,
+  publicCountyOrState: [32m''[39m,
+  instructorWebsite: [32m''[39m,
+  memberId: [90mundefined[39m,
+  sifuInstructorId: [32m''[39m,
+  managingOrgId: [32m''[39m,
+  membershipType: [32m'Annual'[39m,
+  firstMembershipStarted: [32m''[39m,
+  lastRenewalDate: [32m''[39m,
+  currentMembershipExpires: [32m''[39m,
+  instructorId: [32m''[39m,
+  instructorLicenseExpires: [32m''[39m,
+  instructorLicenseType: [32m'None'[39m,
+  instructorLicenseRenewalDate: [32m''[39m,
+  studentLevel: [32m''[39m,
+  applicationLevel: [32m''[39m,
+  mastersLevels: [],
+  notes: [32m''[39m
+}
+
+ ✓ src/app/school-list/school-list.spec.ts (4 tests) 442ms
+ ✓ src/app/routing.utils.spec.ts (11 tests) 11ms
+ ✓ src/app/member-edit/member-edit.spec.ts (3 tests) 400ms
+     ✓ should create  352ms
+stdout | src/app/searchable-set.spec.ts > SearchableSet > should perform search only on unique entries
+membersMiniSearch computed, adding [33m1[39m entries
+
+ ✓ src/app/searchable-set.spec.ts (5 tests) 4ms
+ ✓ src/app/profile-menu/profile-menu.spec.ts (1 test) 86ms
+ ✓ src/app/import-export/import-export.spec.ts (3 tests) 107ms
+ ✓ src/app/import-export/import-schools/import-schools.component.spec.ts (3 tests) 194ms
+ ✓ src/app/import-export/import-export-utils.spec.ts (6 tests) 4ms
+ ✓ src/app/app.spec.ts (2 tests) 225ms
+ ✓ src/app/import-export/import-members/import-members.component.spec.ts (13 tests) 415ms
+ ❯ src/app/import-export/import-orders/import-orders.component.spec.ts (17 tests | 3 failed) 1164ms
+     ✓ should create 68ms
+       ✓ should detect new orders 114ms
+       ✓ should detect existing orders (UPDATE) 105ms
+       × should detect duplicate orders within import file 108ms
+       ✓ should match member by External ID and update membership dates 104ms
+       ✓ should use the MAX of startDate, datePaid, and currentExpiry + 1yr for new expiry 104ms
+       ✓ should match member by Email if External ID is missing 104ms
+       × should flag ambiguous email 106ms
+       ✓ should update Instructor License dates 108ms
+       ✓ should match school by ID and update license dates 112ms
+       × should fail if School License order has no External ID 109ms
+       ✓ should show all items when filter is ALL 4ms
+       ✓ should filter by MEMBERSHIP 3ms
+       ✓ should filter by SCHOOL_LICENSE 4ms
+       ✓ should filter by INSTRUCTOR_LICENSE 3ms
+       ✓ should filter by OTHER 3ms
+       ✓ should calculate stats correctly 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/app/import-export/import-orders/import-orders.component.spec.ts > ImportOrdersComponent > Order Analysis > should detect duplicate orders within import file
+AssertionError: expected [ Array(1) ] to include StringMatching{…}
+ ❯ src/app/import-export/import-orders/import-orders.component.spec.ts:131:32
+    129|       const issues = delta.issues.filter(i => i.key === 'REF-DUP');
+    130|       expect(issues.length).toBeGreaterThan(0);
+    131|       expect(issues[0].issues).toContain(expect.stringMatching(/Duplic…
+       |                                ^
+    132|     });
+    133|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/app/import-export/import-orders/import-orders.component.spec.ts > ImportOrdersComponent > Member Side Effects > should flag ambiguous email
+AssertionError: expected [ Array(1) ] to include StringMatching /Ambiguous Email/
+ ❯ src/app/import-export/import-orders/import-orders.component.spec.ts:220:29
+    218|       const issue = delta.issues.find(i => i.key === 'REF-AMBIG');
+    219|       expect(issue).toBeTruthy();
+    220|       expect(issue!.issues).toContain(expect.stringMatching(/Ambiguous…
+       |                             ^
+    221|     });
+    222| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/app/import-export/import-orders/import-orders.component.spec.ts > ImportOrdersComponent > School Side Effects > should fail if School License order has no External ID
+AssertionError: expected [ Array(1) ] to include StringMatching{…}
+ ❯ src/app/import-export/import-orders/import-orders.component.spec.ts:291:29
+    289|       const issue = delta.issues.find(i => i.key === 'REF-SCH-FAIL');
+    290|       expect(issue).toBeTruthy();
+    291|       expect(issue!.issues).toContain(expect.stringMatching(/School Li…
+       |                             ^
+    292|     });
+    293|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 21 passed (22)
+      Tests  3 failed | 91 passed (94)
+   Start at  21:56:48
+   Duration  4.31s (transform 7.28s, setup 9.26s, import 15.48s, tests 5.14s, environment 8.70s)
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.

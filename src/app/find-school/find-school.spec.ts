@@ -12,7 +12,7 @@ describe('FindSchoolComponent', () => {
     mockDataManagerService = {
       schools: {
         loading: signal(false),
-        search: jasmine.createSpy('search').and.returnValue([]),
+        search: vi.fn().mockReturnValue([]),
       },
       instructors: {
         entriesMap: () => new Map(),

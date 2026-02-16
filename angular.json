@@ -29,12 +29,8 @@
               "src/tos.html",
               "src/privacy.html"
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
-            "allowedCommonJsDependencies": [
-              "papaparse"
-            ]
+            "styles": ["src/styles.scss"],
+            "allowedCommonJsDependencies": ["papaparse"]
           },
           "configurations": {
             "production": {
@@ -88,19 +84,10 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@analogjs/vitest-angular:test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "public"
-              }
-            ],
-            "styles": [
-              "src/styles.scss"
-            ]
+            "inlineStyleLanguage": "scss"
           }
         }
       }
@@ -125,12 +112,8 @@
             "tsConfig": "tsconfig.wc.json",
             "inlineStyleLanguage": "scss",
             "assets": [],
-            "styles": [
-              "src/styles.scss"
-            ],
-            "allowedCommonJsDependencies": [
-              "papaparse"
-            ]
+            "styles": ["src/styles.scss"],
+            "allowedCommonJsDependencies": ["papaparse"]
           },
           "configurations": {
             "production": {
@@ -184,19 +167,10 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@analogjs/vitest-angular:test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "public"
-              }
-            ],
-            "styles": [
-              "src/styles.scss"
-            ]
+            "inlineStyleLanguage": "scss"
           }
         }
       }

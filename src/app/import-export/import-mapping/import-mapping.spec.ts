@@ -1,19 +1,23 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ImportMapping } from './import-mapping';
+import { ImportMappingComponent } from './import-mapping';
 
 describe('ImportMapping', () => {
-  let component: ImportMapping;
-  let fixture: ComponentFixture<ImportMapping>;
+  let component: ImportMappingComponent;
+  let fixture: ComponentFixture<ImportMappingComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ImportMapping]
+      imports: [ImportMappingComponent]
     })
-    .compileComponents();
+      .compileComponents();
 
-    fixture = TestBed.createComponent(ImportMapping);
+    fixture = TestBed.createComponent(ImportMappingComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('headers', []);
+    fixture.componentRef.setInput('fieldsToMap', []);
+    fixture.componentRef.setInput('parsedData', []);
+    fixture.componentRef.setInput('mapping', {});
     await fixture.whenStable();
   });
 

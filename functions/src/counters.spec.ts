@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import * as admin from 'firebase-admin';
 import { extractCountersFromMember, extractCountersFromSchool, ensureCountersAreAtLeast, ensureSchoolCountersAreAtLeast, calculateNextCounterValue } from './counters';
 import { initMember, initSchool } from './data-model';
@@ -5,13 +6,13 @@ import { initMember, initSchool } from './data-model';
 describe('Counters', () => {
     describe('calculateNextCounterValue', () => {
         it('should return current + 1 if current > lastSeen', () => {
-             expect(calculateNextCounterValue(10, 20)).toBe(21);
+            expect(calculateNextCounterValue(10, 20)).toBe(21);
         });
         it('should return lastSeen + 1 if lastSeen > current', () => {
-             expect(calculateNextCounterValue(30, 20)).toBe(31);
+            expect(calculateNextCounterValue(30, 20)).toBe(31);
         });
         it('should return current + 1 if equal', () => {
-             expect(calculateNextCounterValue(20, 20)).toBe(21);
+            expect(calculateNextCounterValue(20, 20)).toBe(21);
         });
     });
 
@@ -64,36 +65,36 @@ describe('Counters', () => {
         });
 
         it('should ignore invalid School ID', () => {
-             const result = extractCountersFromSchool({ ...initSchool(), schoolId: 'INVALID' });
-             expect(result).toEqual({ schoolIdNumber: undefined });
+            const result = extractCountersFromSchool({ ...initSchool(), schoolId: 'INVALID' });
+            expect(result).toEqual({ schoolIdNumber: undefined });
         });
 
         it('should ignore old numeric School ID', () => {
             const result = extractCountersFromSchool({ ...initSchool(), schoolId: '100' });
             expect(result).toEqual({ schoolIdNumber: undefined });
-       });
+        });
     });
 
     describe('ensureCountersAreAtLeast', () => {
-        let firestoreSpy: jasmine.Spy;
-        let docSpy: jasmine.Spy;
-        let runTransactionSpy: jasmine.Spy;
-        let transactionGetSpy: jasmine.Spy;
-        let transactionSetSpy: jasmine.Spy;
+        let firestoreSpy: Mock;
+        let docSpy: Mock;
+        let runTransactionSpy: Mock;
+        let transactionGetSpy: Mock;
+        let transactionSetSpy: Mock;
 
         beforeEach(() => {
             const mockDocRef = { path: 'counters/singleton' };
-            docSpy = jasmine.createSpy('doc').and.returnValue(mockDocRef);
-            
-            transactionGetSpy = jasmine.createSpy('transaction.get');
-            transactionSetSpy = jasmine.createSpy('transaction.set');
+            docSpy = vi.fn().mockReturnValue(mockDocRef);
+
+            transactionGetSpy = vi.fn();
+            transactionSetSpy = vi.fn();
 
             const mockTransaction = {
                 get: transactionGetSpy,
                 set: transactionSetSpy
             };
 
-            runTransactionSpy = jasmine.createSpy('runTransaction').and.callFake(async (callback: any) => {
+            runTransactionSpy = vi.fn().mockImplementation(async (callback: any) => {
                 return callback(mockTransaction);
             });
 
@@ -102,11 +103,7 @@ describe('Counters', () => {
                 runTransaction: runTransactionSpy
             };
 
-
-
-            firestoreSpy = spyOnProperty(admin, 'firestore', 'get').and.returnValue((() => mockFirestore) as any);
-
-
+            firestoreSpy = vi.spyOn(admin, 'firestore').mockReturnValue(mockFirestore as any);
         });
 
         it('should update member counter if member ID is higher', async () => {
@@ -115,7 +112,7 @@ describe('Counters', () => {
                 instructorIdCounter: 100,
                 schoolIdCounter: 100
             };
-            transactionGetSpy.and.resolveTo({
+            transactionGetSpy.mockResolvedValue({
                 exists: true,
                 data: () => existingCounters
             });
@@ -125,8 +122,8 @@ describe('Counters', () => {
 
             expect(runTransactionSpy).toHaveBeenCalled();
             expect(transactionSetSpy).toHaveBeenCalledWith(
-                jasmine.any(Object), 
-                jasmine.objectContaining({
+                expect.any(Object),
+                expect.objectContaining({
                     memberIdCounters: { 'US': 101 } // 100 + 1
                 })
             );
@@ -138,7 +135,7 @@ describe('Counters', () => {
                 instructorIdCounter: 90,
                 schoolIdCounter: 100
             };
-            transactionGetSpy.and.resolveTo({
+            transactionGetSpy.mockResolvedValue({
                 exists: true,
                 data: () => existingCounters
             });
@@ -147,8 +144,8 @@ describe('Counters', () => {
             await ensureCountersAreAtLeast(member);
 
             expect(transactionSetSpy).toHaveBeenCalledWith(
-                jasmine.any(Object), 
-                jasmine.objectContaining({
+                expect.any(Object),
+                expect.objectContaining({
                     instructorIdCounter: 101
                 })
             );
@@ -162,25 +159,25 @@ describe('Counters', () => {
     });
 
     describe('ensureSchoolCountersAreAtLeast', () => {
-        let firestoreSpy: jasmine.Spy;
-        let docSpy: jasmine.Spy;
-        let runTransactionSpy: jasmine.Spy;
-        let transactionGetSpy: jasmine.Spy;
-        let transactionSetSpy: jasmine.Spy;
+        let firestoreSpy: Mock;
+        let docSpy: Mock;
+        let runTransactionSpy: Mock;
+        let transactionGetSpy: Mock;
+        let transactionSetSpy: Mock;
 
         beforeEach(() => {
             const mockDocRef = { path: 'counters/singleton' };
-            docSpy = jasmine.createSpy('doc').and.returnValue(mockDocRef);
-            
-            transactionGetSpy = jasmine.createSpy('transaction.get');
-            transactionSetSpy = jasmine.createSpy('transaction.set');
+            docSpy = vi.fn().mockReturnValue(mockDocRef);
+
+            transactionGetSpy = vi.fn();
+            transactionSetSpy = vi.fn();
 
             const mockTransaction = {
                 get: transactionGetSpy,
                 set: transactionSetSpy
             };
 
-            runTransactionSpy = jasmine.createSpy('runTransaction').and.callFake(async (callback: any) => {
+            runTransactionSpy = vi.fn().mockImplementation(async (callback: any) => {
                 return callback(mockTransaction);
             });
 
@@ -189,11 +186,7 @@ describe('Counters', () => {
                 runTransaction: runTransactionSpy
             };
 
-
-
-            firestoreSpy = spyOnProperty(admin, 'firestore', 'get').and.returnValue((() => mockFirestore) as any);
-
-
+            firestoreSpy = vi.spyOn(admin, 'firestore').mockReturnValue(mockFirestore as any);
         });
 
         it('should update school counter if school ID is higher', async () => {
@@ -202,7 +195,7 @@ describe('Counters', () => {
                 instructorIdCounter: 100,
                 schoolIdCounter: 90
             };
-            transactionGetSpy.and.resolveTo({
+            transactionGetSpy.mockResolvedValue({
                 exists: true,
                 data: () => existingCounters
             });
@@ -212,8 +205,8 @@ describe('Counters', () => {
 
             expect(runTransactionSpy).toHaveBeenCalled();
             expect(transactionSetSpy).toHaveBeenCalledWith(
-                jasmine.any(Object), 
-                jasmine.objectContaining({
+                expect.any(Object),
+                expect.objectContaining({
                     schoolIdCounter: 101 // 100 + 1
                 })
             );
