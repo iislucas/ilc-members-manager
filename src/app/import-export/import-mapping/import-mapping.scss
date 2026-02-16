@@ -1,0 +1,80 @@
+@use "sass:color";
+@use '../../../scss_variables' as *;
+
+// Local variables
+$primary-color: #66a;
+$text-secondary: #666;
+$text-muted: #999;
+$border-color: $theme-border-color;
+$seperator-color: #EEE;
+$bg-secondary: $theme-bg-color;
+
+.mapping-table {
+  h3 {
+    margin-top: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid $seperator-color;
+    }
+
+    th {
+      background-color: $bg-secondary;
+      font-weight: 600;
+      color: $text-secondary;
+      border-bottom: 1px solid $border-color;
+    }
+
+    td {
+      input, select {
+        width: 100%;
+        padding: 0.5rem;
+      }
+    }
+  }
+
+  .no-mapping {
+    color: $text-muted;
+    font-style: italic;
+  }
+}
+
+.example-navigation {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+  
+  span {
+    font-weight: 500;
+  }
+
+
+}
+
+.stage-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  
+  button.primary {
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: color.adjust($primary-color, $lightness: -10%);
+    }
+  }
+}

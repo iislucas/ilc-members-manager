@@ -1,0 +1,199 @@
+<div class="import-container">
+  @if (stage() === 'SELECT') {
+  <div class="stage-section file-select">
+    <div class="instructions">
+      <h3>Import Orders</h3>
+      <p>Upload a CSV file containing order data. The file should have headers like "Reference Number", "Amount", "Paid
+        For", etc.</p>
+      <p><strong>Note:</strong> This will also update associated Member/School license and membership dates.</p>
+    </div>
+    <input type="file" (change)="onFileChange($event)" accept=".csv" class="file-input" />
+  </div>
+  }
+
+  @if (stage() === 'MAPPING') {
+  <app-import-mapping [headers]="headers()" [fieldsToMap]="fieldsToMap()" [parsedData]="parsedData()"
+    [mapping]="mapping()" (mappingChange)="mapping.set($event)" (analyze)="analyzeData()"></app-import-mapping>
+  }
+
+  @if (stage() === 'ANALYZING') {
+  <div class="stage-section loading">
+    <app-spinner></app-spinner>
+    <p>Analyzing Orders...</p>
+  </div>
+  }
+
+  @if (stage() === 'PREVIEW') {
+  <div class="preview-stage">
+    <h3>Preview Changes</h3>
+    @let delta = proposedChanges().orders;
+    <div class="filters-container">
+      <div class="type-filters">
+        <button [class.active]="selectedTypeFilter() === 'ALL'" (click)="setTypeFilter('ALL')">
+          All ({{stats().ALL}})
+        </button>
+        <button [class.active]="selectedTypeFilter() === 'MEMBERSHIP'" (click)="setTypeFilter('MEMBERSHIP')">
+          Memberships ({{stats().MEMBERSHIP}})
+        </button>
+        <button [class.active]="selectedTypeFilter() === 'SCHOOL_LICENSE'" (click)="setTypeFilter('SCHOOL_LICENSE')">
+          School Lic. ({{stats().SCHOOL_LICENSE}})
+        </button>
+        <button [class.active]="selectedTypeFilter() === 'INSTRUCTOR_LICENSE'"
+          (click)="setTypeFilter('INSTRUCTOR_LICENSE')">
+          Instructor Lic. ({{stats().INSTRUCTOR_LICENSE}})
+        </button>
+        <button [class.active]="selectedTypeFilter() === 'OTHER'" (click)="setTypeFilter('OTHER')">
+          Other ({{stats().OTHER}})
+        </button>
+      </div>
+      <div class="summary-stats">
+        <div class="stat new" [class.active]="selectedStatusFilter() === 'NEW'" (click)="setFilter('NEW')">
+          New: {{delta.new.size}}
+        </div>
+        <div class="stat update" [class.active]="selectedStatusFilter() === 'UPDATE'" (click)="setFilter('UPDATE')">
+          Updates: {{delta.updates.length}}
+        </div>
+        <div class="stat unchanged" [class.active]="selectedStatusFilter() === 'UNCHANGED'"
+          (click)="setFilter('UNCHANGED')">
+          Unchanged: {{delta.unchanged.length}}
+        </div>
+        <div class="stat issue" [class.active]="selectedStatusFilter() === 'ISSUE'" (click)="setFilter('ISSUE')">
+          Issues: {{delta.issues.length}}
+        </div>
+      </div>
+    </div>
+
+    @if (proposedChanges().memberUpdates.size > 0 || proposedChanges().schoolUpdates.size > 0) {
+    <div class="side-effects-summary">
+      <h4>Side Effects Preview:</h4>
+      @if (proposedChanges().memberUpdates.size > 0) {
+      <div>
+        Updating {{proposedChanges().memberUpdates.size}} Members (Dates)
+      </div>
+      }
+      @if (proposedChanges().schoolUpdates.size > 0) {
+      <div>
+        Updating {{proposedChanges().schoolUpdates.size}} Schools (Dates)
+      </div>
+      }
+    </div>
+    }
+
+    @if (filteredProposedChanges().length > 0) {
+    <div class="change-viewer">
+      <div class="example-navigation">
+        <button (click)="prevPreview()" [disabled]="previewIndex() === 0">Previous Change</button>
+        <span>
+          {{previewIndex() + 1}} of {{filteredProposedChanges().length}}
+        </span>
+        <button (click)="nextPreview()" [disabled]="previewIndex() >= filteredProposedChanges().length - 1">Next
+          Change</button>
+      </div>
+
+      @let change = currentPreviewChange();
+      <div class="change-details card">
+        <h4>
+          <span class="status-badge {{ change.status }}">
+            {{ change.status }}
+          </span>
+          {{ change.key }}
+        </h4>
+
+        <!-- Issues -->
+        @if (change.issues?.length) {
+        <div class="issues-list card">
+          <h5>Issues:</h5>
+          <ul>
+            @for (issue of change.issues; track $index) {
+            <li class="error-text">{{issue}}</li>
+            }
+          </ul>
+        </div>
+        }
+
+        <!-- New Item Details -->
+        @if (change.status === 'NEW' || change.status === 'ISSUE') {
+        @if (change.status === 'NEW') {
+        <p>This is a new record.</p>
+        } @else {
+        <p>This record has mapping issues.</p>
+        }
+
+        <!-- Table for New/Issue items to separate fields -->
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (key of fieldsToMap(); track key) {
+            @if (change.newItem[key]) {
+            <tr>
+              <td>{{key}}</td>
+              <td>{{change.newItem[key]}}</td>
+            </tr>
+            }
+            }
+          </tbody>
+        </table>
+        }
+
+        <!-- Updates -->
+        @else if (change.status === 'UPDATE') {
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Old Value</th>
+              <th>New Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (diff of change.diffs; track diff.field) {
+            <tr>
+              <td>{{ diff.field }}</td>
+              <td class="old-val">{{ diff.oldVal }}</td>
+              <td class="new-val">{{ diff.newVal }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+        } @else {
+        <p>No changes detected for this record.</p>
+        }
+      </div>
+    </div>
+    }
+
+    @if (filteredProposedChanges().length === 0) {
+    <div class="no-items">
+      No items in this category.
+    </div>
+    }
+
+    <div class="stage-actions">
+      <button (click)="executeImportOrders()" class="primary">
+        Confirm & Import ({{delta.new.size + delta.updates.length}} Orders + Side
+        Effects)
+      </button>
+    </div>
+  </div>
+  }
+
+  @if (stage() === 'IMPORTING') {
+  <div class="stage-section loading">
+    <app-spinner></app-spinner>
+    <p>Importing... {{importProgress().current}} / {{importProgress().total}}</p>
+  </div>
+  }
+
+  @if (stage() === 'COMPLETED') {
+  <div class="stage-section completed">
+    <h3>Import Completed!</h3>
+    <p>Processed {{importProgress().total}} items successfully.</p>
+    <button (click)="reset()" class="secondary-button">Import More</button>
+  </div>
+  }
+</div>

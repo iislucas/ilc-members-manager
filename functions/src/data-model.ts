@@ -187,6 +187,10 @@ export type School = {
   // Redundant email addresses for firestore rules.
   ownerEmail: string;
   managerEmails: string[];
+
+  // School License
+  schoolLicenseRenewalDate: string; // YYYY-MM-DD
+  schoolLicenseExpires: string; // YYYY-MM-DD
 };
 
 export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'id'> & {
@@ -321,6 +325,45 @@ export function firestoreDocToInstructorPublicData(
 }
 
 // ==================================================================
+// # Orders
+// ==================================================================
+
+// Firestore path: /orders/{doc-id}
+export type Order = {
+  id: string; // Firestore ID
+  lastUpdated: string; // ISO string
+
+  referenceNumber: string; // From CSV
+  externalId: string; // From CSV (matches memberId)
+  studentOf: string; // From CSV
+  paidFor: string; // From CSV
+  newRenew: string; // From CSV
+  datePaid: string; // From CSV (YYYY-MM-DD)
+  startDate: string; // From CSV (YYYY-MM-DD)
+  lastName: string; // From CSV
+  firstName: string; // From CSV
+  email: string; // From CSV
+  country: string; // From CSV
+  state: string; // From CSV
+  costUsd: string; // From CSV
+  collected: string; // From CSV
+  split: string; // From CSV
+  notes: string; // From CSV
+};
+
+export type OrderFirebaseDoc = Omit<Order, 'lastUpdated' | 'id'> & {
+  lastUpdated: Timestamp;
+};
+
+export function firestoreDocToOrder(doc: QueryDocumentSnapshot): Order {
+  const docData = doc.data() as OrderFirebaseDoc;
+  const lastUpdated = docData.lastUpdated
+    ? docData.lastUpdated.toDate().toISOString()
+    : new Date().toISOString();
+  return { ...initOrder(), ...docData, lastUpdated, id: doc.id };
+}
+
+// ==================================================================
 // # Initial values for Schools and Members
 // ==================================================================
 
@@ -398,6 +441,31 @@ export function initSchool(): School {
     managers: [],
     ownerEmail: '',
     managerEmails: [],
+    schoolLicenseRenewalDate: '',
+    schoolLicenseExpires: '',
+  };
+}
+
+export function initOrder(): Order {
+  return {
+    id: '',
+    lastUpdated: new Date().toISOString(),
+    referenceNumber: '',
+    externalId: '',
+    studentOf: '',
+    paidFor: '',
+    newRenew: '',
+    datePaid: '',
+    startDate: '',
+    lastName: '',
+    firstName: '',
+    email: '',
+    country: '',
+    state: '',
+    costUsd: '',
+    collected: '',
+    split: '',
+    notes: '',
   };
 }
 
