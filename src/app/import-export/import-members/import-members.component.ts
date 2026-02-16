@@ -18,6 +18,7 @@ import {
   ImportDelta,
   getDifferences,
   parseDate,
+  parseToDate,
   MappingResult,
   ProposedChange,
   ensureLaterDate
@@ -41,7 +42,7 @@ export class ImportMembersComponent {
   // Data
   public parsedData = signal<ParsedRow[]>([]);
   public headers = signal<string[]>([]);
-  public mapping = signal<Record<string, string>>({});
+  public mapping = signal<Record<string, string[]>>({});
 
   // Analysis / Preview
   public proposedChanges = signal<ImportDelta<Member>>({
@@ -82,11 +83,44 @@ export class ImportMembersComponent {
     () => this.filteredProposedChanges()[this.previewIndex()],
   );
 
+  // Configuration
+  private static readonly FIELD_SEPARATORS: Record<string, string> = {
+    address: ', ',
+    name: ' ',
+  };
+
+  private static readonly MEMBER_FIELD_ALIASES: Record<string, string[][]> = {
+    notes: [['Notes']],
+    memberId: [['Member ID', 'MemberID', 'ID', 'Member Number', 'Membership Number']],
+    sifuInstructorId: [['Student Of', 'Sifu']],
+    membershipType: [['Membership Type', 'MembershipType', 'Plan']],
+    membershipStatus: [['Membership Status', 'Status']],
+    firstMembershipStarted: [['Start Date', 'Date Joined', 'Year Joined', 'Join Date']],
+    currentMembershipExpires: [['Expiry Date', 'Expires']],
+    studentLevel: [['Student Level', 'StudentLevel']],
+    applicationLevel: [['Instructor Level', 'InstructorLevel', 'Application Level']],
+    phone: [['Home Phone', 'Phone', 'Mobile', 'Telephone']],
+    name: [['First Name', 'FirstName'], ['Last Name', 'LastName']],
+    address: [['Street Address', 'Address', 'Home Street Address'], ['Address 2', 'Address2']],
+    city: [['City', 'Town', 'Home City']],
+    state: [['State', 'Province', 'County', 'Home State']],
+    postcode: [['Postcode', 'Zip', 'Postal Code', 'Home Postal Code', 'Zip Code']],
+    country: [['Country']],
+    gender: [['Gender']],
+    dateOfBirth: [['Birthdate', 'DOB', 'Date of Birth']],
+    instructorId: [['Ins ID', 'Instructor ID', 'InstructorID']],
+    instructorLicenseType: [['Instructor License Type']],
+    instructorLicenseRenewalDate: [['Instructor Renewal']],
+    instructorLicenseExpires: [['Instructor Expiry']],
+    emails: [['Home Email', 'Email', 'Emails', 'Email Address']],
+  };
+
+  public fieldSeparators = ImportMembersComponent.FIELD_SEPARATORS;
 
   private memberFields = Object.keys(initMember()) as Array<keyof Member>;
 
   public fieldsToMap = computed(() => {
-    return this.memberFields;
+    return this.memberFields.filter(f => f !== 'id' && f !== 'lastUpdated');
   });
 
   reset() {
@@ -111,7 +145,6 @@ export class ImportMembersComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
-    this.mapping.set({});
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -121,7 +154,7 @@ export class ImportMembersComponent {
     const onUploadComplete = (
       headers: string[],
       data: ParsedRow[],
-      mapping: Record<string, string>,
+      mapping: Record<string, string[]>,
     ) => {
       this.headers.set(headers);
       this.parsedData.set(data);
@@ -180,18 +213,28 @@ export class ImportMembersComponent {
     }
   }
 
-  getDefaultMapping(headers: string[]) {
+  getDefaultMapping(headers: string[]): Record<string, string[]> {
     const fields = this.fieldsToMap();
-    const mapping: Record<string, string> = {};
+    const mapping: Record<string, string[]> = {};
+    const aliases = ImportMembersComponent.MEMBER_FIELD_ALIASES;
+
     fields.forEach((field) => {
+      // Direct match
       if (headers.includes(field)) {
-        mapping[field] = field;
-      } else if (field === 'emails') {
-        const emailHeader = headers.find(
-          (h) => h.toLowerCase() === 'email' || h.toLowerCase() === 'emails',
-        );
-        if (emailHeader) {
-          mapping[field] = emailHeader;
+        mapping[field] = [field];
+        return;
+      }
+      // Alias match
+      if (aliases[field]) {
+        const matched: string[] = [];
+        for (const group of aliases[field]) {
+          const match = headers.find(h =>
+            group.some(alias => h.trim().toLowerCase() === alias.toLowerCase()),
+          );
+          if (match) matched.push(match);
+        }
+        if (matched.length > 0) {
+          mapping[field] = matched;
         }
       }
     });
@@ -237,9 +280,9 @@ export class ImportMembersComponent {
     const { member, issues } = this.mapRowToMember(row, this.mapping());
 
     // Skip if all mapped fields are empty
-    const mappedValues = Object.values(this.mapping()).map((header) =>
-      row[header]?.trim(),
-    );
+    const mappedValues = Object.values(this.mapping())
+      .flat()
+      .map((header) => row[header]?.trim());
     if (mappedValues.every((v) => !v)) {
       return;
     }
@@ -293,10 +336,9 @@ export class ImportMembersComponent {
     } else {
       const existing = this.membersService.members.entriesMap().get(memberId);
       if (existing) {
-        // NOTE: We need to define newMember based on merge but respecting date rules
         const newMember = { ...existing, ...member } as Member;
 
-        // Enforce date rules: do not overwrite with earlier dates
+        // Enforce date rules
         const datesToCheck: (keyof Member)[] = [
           'lastRenewalDate',
           'currentMembershipExpires',
@@ -305,12 +347,9 @@ export class ImportMembersComponent {
         ];
 
         datesToCheck.forEach(field => {
-          // We know these fields are strings in our model, or undefined
           const oldVal = existing[field] as string | undefined;
-          const proposedVal = member[field] as string | undefined; // from import
+          const proposedVal = member[field] as string | undefined;
 
-          // If proposedVal exists, we have already overwritten it in newMember via spread
-          // So we need to check if we should REVERT to oldVal
           if (proposedVal) {
             const secureVal = ensureLaterDate(oldVal, proposedVal);
             if (secureVal !== undefined) {
@@ -324,21 +363,21 @@ export class ImportMembersComponent {
           delta.updates.push({
             status: 'UPDATE',
             key: memberId,
-              newItem: newMember,
-              oldItem: existing,
-              diffs,
-              issues: undefined,
-            });
-          } else {
-            delta.unchanged.push({
-              status: 'UNCHANGED',
-              key: memberId,
-                 newItem: newMember,
-                 oldItem: existing,
-                 diffs: [],
-                 issues: undefined,
-               });
-          }
+            newItem: newMember,
+            oldItem: existing,
+            diffs,
+            issues: undefined,
+          });
+        } else {
+          delta.unchanged.push({
+            status: 'UNCHANGED',
+            key: memberId,
+            newItem: newMember,
+            oldItem: existing,
+            diffs: [],
+            issues: undefined,
+          });
+        }
       } else {
         const newChange: ProposedChange<Member> = {
           status: 'NEW',
@@ -346,7 +385,6 @@ export class ImportMembersComponent {
           newItem: { ...initMember(), ...member } as Member,
           diffs: [],
         };
-        // Track for duplicate detection within the file
         delta.new.set(memberId, newChange);
       }
     }
@@ -374,7 +412,6 @@ export class ImportMembersComponent {
 
     for (const change of updates) {
       try {
-        // Merge update
         await this.membersService.updateMember(
           change.oldItem?.id || change.key,
           change.newItem,
@@ -414,7 +451,6 @@ export class ImportMembersComponent {
     let instructorIdCounter = currentCounters?.instructorIdCounter || 0;
 
     for (const member of allMembers) {
-      // Parse Member ID
       if (member.memberId) {
         const match = member.memberId.match(/^([A-Za-z]{2,3})(\d+)$/);
         if (match) {
@@ -426,7 +462,6 @@ export class ImportMembersComponent {
         }
       }
 
-      // Parse Instructor ID
       if (member.instructorId) {
         const match = member.instructorId.match(/^(\d+)$/);
         if (match) {
@@ -450,29 +485,36 @@ export class ImportMembersComponent {
     });
   }
 
+  private joinHeaderValues(row: ParsedRow, headers: string[], field: string): string {
+    const sep = ImportMembersComponent.FIELD_SEPARATORS[field] ?? ' ';
+    return headers
+      .map(h => row[h]?.trim() ?? '')
+      .filter(v => v !== '')
+      .join(sep);
+  }
+
   private mapRowToMember(
     row: ParsedRow,
-    mapping: Record<string, string>,
+    mapping: Record<string, string[]>,
   ): { member: Partial<Member>; issues: string[] } {
     const member: Partial<Member> = {};
     const issues: string[] = [];
-    for (const partialKey in mapping) {
-      const key = partialKey as keyof Member;
-      const csvHeader = mapping[key];
-      let value = row[csvHeader];
 
-      if (value === undefined || value === null) continue;
-      value = value.trim();
+    for (const key in mapping) {
+      const csvHeaders = mapping[key];
+      if (!csvHeaders || csvHeaders.length === 0) continue;
+
+      const value = this.joinHeaderValues(row, csvHeaders, key);
       if (value === '') continue;
 
       switch (key) {
         case 'isAdmin':
-          member[key] = ['true', '1', 'yes'].includes(value.toLowerCase());
+          member.isAdmin = ['true', '1', 'yes'].includes(value.toLowerCase());
           break;
         case 'membershipType': {
           const result = this.mapMembershipType(value);
           if (result.success) {
-            member[key] = result.value;
+            member.membershipType = result.value;
           } else {
             issues.push(result.issue);
           }
@@ -486,24 +528,24 @@ export class ImportMembersComponent {
         case 'instructorLicenseExpires': {
           const result = parseDate(value);
           if (result.success) {
-            member[key] = result.value;
+            (member as Member)[key] = result.value;
           } else {
             issues.push(result.issue);
-            (member as any)[key] = value;
+            (member as Member)[key] = value;
           }
           break;
         }
         case 'emails':
-          member[key] = value
+          member.emails = value
             .split(/[,\s\n]+/)
             .map((s) => s.trim().toLowerCase())
             .filter((e) => !!e);
           break;
         case 'publicEmail':
-          member[key] = value.toLowerCase();
+          member.publicEmail = value.toLowerCase();
           break;
         case 'mastersLevels':
-          member[key] = value.split(',').map((s) => s.trim()) as MasterLevel[];
+          member.mastersLevels = value.split(',').map((s) => s.trim()) as MasterLevel[];
           break;
         default:
           (member as any)[key] = value;
@@ -511,27 +553,27 @@ export class ImportMembersComponent {
       }
     }
 
-    // Auto-calculate membership expiration for annual members
+    // Auto-calculate membership expiration
     if (
       member.lastRenewalDate &&
-      member.membershipType === MembershipType.Annual && 
+      member.membershipType === MembershipType.Annual &&
       !member.currentMembershipExpires
     ) {
-      const renewalDate = parse(member.lastRenewalDate, 'yyyy-MM-dd', new Date());
-      if (isValid(renewalDate)) {
+      const renewalDate = parseToDate(member.lastRenewalDate);
+      if (renewalDate && isValid(renewalDate)) {
         const expiresDate = addYears(renewalDate, 1);
         member.currentMembershipExpires = format(expiresDate, 'yyyy-MM-dd');
       }
     }
 
-    // Auto-calculate instructor license expiration for annual members
+    // Auto-calculate instructor license expiration
     if (
       member.instructorLicenseRenewalDate &&
-      member.instructorLicenseType === InstructorLicenseType.Annual && 
+      member.instructorLicenseType === InstructorLicenseType.Annual &&
       !member.instructorLicenseExpires
     ) {
-      const issueDate = parse(member.instructorLicenseRenewalDate, 'yyyy-MM-dd', new Date());
-      if (isValid(issueDate)) {
+      const issueDate = parseToDate(member.instructorLicenseRenewalDate);
+      if (issueDate && isValid(issueDate)) {
         const expiresDate = addYears(issueDate, 1);
         member.instructorLicenseExpires = format(expiresDate, 'yyyy-MM-dd');
       }

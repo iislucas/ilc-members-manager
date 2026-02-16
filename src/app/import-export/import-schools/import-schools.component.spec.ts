@@ -53,8 +53,8 @@ describe('ImportSchoolsComponent', () => {
       managerEmails: 'Manager1@Test.com, MANAGER2@test.com',
     };
     const mapping = {
-      ownerEmail: 'ownerEmail',
-      managerEmails: 'managerEmails',
+      ownerEmail: ['ownerEmail'],
+      managerEmails: ['managerEmails'],
     };
     const school = (component as any).mapRowToSchool(row, mapping);
     expect(school.ownerEmail).toBe('owner@test.com');
@@ -69,7 +69,7 @@ describe('ImportSchoolsComponent', () => {
       { schoolName: 'School 1', schoolId: 'S1' },
       { schoolName: 'School 2', schoolId: 'S1' }, // Duplicate
     ]);
-    component.mapping.set({ schoolName: 'schoolName', schoolId: 'schoolId' });
+    component.mapping.set({ schoolName: ['schoolName'], schoolId: ['schoolId'] });
 
     await component.analyzeData();
 

@@ -73,10 +73,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-NEW', externalId: 'M1', paidFor: 'Member Dues - Annual', datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -95,11 +95,11 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-001', externalId: 'M1', paidFor: 'Member Dues - Annual', datePaid: '2023-01-01', notes: 'Updated Note' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid',
-        notes: 'notes'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid'],
+        notes: ['notes']
       });
 
       await component.analyzeData();
@@ -115,7 +115,7 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-DUP', externalId: 'M1' },
         { referenceNumber: 'REF-DUP', externalId: 'M1' }
       ]);
-      component.mapping.set({ referenceNumber: 'referenceNumber', externalId: 'externalId' });
+      component.mapping.set({ referenceNumber: ['referenceNumber'], externalId: ['externalId'] });
 
       await component.analyzeData();
 
@@ -138,10 +138,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-MEM', externalId: 'M1', paidFor: 'Member Dues - Annual', datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -169,11 +169,11 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-MAX', externalId: 'M1', paidFor: 'Member Dues - Annual', datePaid: '2023-02-01', startDate: '2023-03-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid',
-        startDate: 'startDate'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid'],
+        startDate: ['startDate']
       });
 
       await component.analyzeData();
@@ -189,10 +189,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-EMAIL', email: 'user2@test.com', paidFor: 'Member Dues - Annual', datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        email: 'email',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        email: ['email'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -206,10 +206,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-AMBIG', email: 'duplicate@test.com', paidFor: 'Member Dues - Annual', datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        email: 'email',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        email: ['email'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -226,10 +226,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-INST', externalId: 'M1', paidFor: "Instructor's License", datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -251,10 +251,10 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-SCH', externalId: 'S1', paidFor: "School License", datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        externalId: 'externalId',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        externalId: ['externalId'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();
@@ -278,9 +278,9 @@ describe('ImportOrdersComponent', () => {
         { referenceNumber: 'REF-SCH-FAIL', paidFor: "School License", datePaid: '2023-06-01' }
       ]);
       component.mapping.set({
-        referenceNumber: 'referenceNumber',
-        paidFor: 'paidFor',
-        datePaid: 'datePaid'
+        referenceNumber: ['referenceNumber'],
+        paidFor: ['paidFor'],
+        datePaid: ['datePaid']
       });
 
       await component.analyzeData();

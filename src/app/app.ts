@@ -18,6 +18,7 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
+import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 
 @Component({
   selector: 'app-root',
@@ -39,6 +40,7 @@ import { HomeComponent } from './home/home';
     MemberEditComponent,
     FindSchoolComponent,
     HomeComponent,
+    SquarespaceContentComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -71,7 +73,7 @@ export class App {
     );
   });
 
-  constructor() {}
+  constructor() { }
 
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
@@ -90,7 +92,6 @@ export class App {
       case Views.ImportExport:
         return 'Import/Export';
       case Views.Home:
-      case Views.Home:
         return 'Home';
       case Views.MyProfile:
         return 'My Profile';
@@ -98,6 +99,10 @@ export class App {
         return 'My Students';
       case Views.MySchools:
         return 'My Schools';
+      case Views.ActiveMembers:
+        return 'Active Members Area';
+      case Views.ActiveInstructors:
+        return 'Active Instructors Area';
       default:
         return 'Unknown View';
     }

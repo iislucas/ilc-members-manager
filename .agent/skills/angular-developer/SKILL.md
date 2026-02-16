@@ -111,39 +111,13 @@ export class UserComponent {
 
 ## 4. Routing
 
-Use functional guards/resolvers and lazy loading.
-
-### Configuration
+Use my routing service to handle routing.
 
 ```typescript
-export const routes: Routes = [
-  // Lazy load component
-  {
-    path: "settings",
-    loadComponent: () => import("./settings/settings.component").then((m) => m.Settings),
-  },
-  // Lazy load feature routes
-  {
-    path: "admin",
-    loadChildren: () => import("./admin/admin.routes").then((m) => m.adminRoutes),
-    canActivate: [authGuard], // Functional guard
-  },
-];
-```
+import { addUrlParams, pathPattern, pv } from "./routing.utils";
+import { RoutingConfig } from "./routing.service";
 
-### Route Params as Signals
-
-Enable `withComponentInputBinding()` in `app.config.ts`.
-
-```typescript
-@Component({...})
-export class UserDetail {
-  // Route param :id automatically bound to signal input
-  id = input.required<string>();
-
-  // Computed derived from route param
-  userId = computed(() => parseInt(this.id(), 10));
-}
+// TODO: add more details here.
 ```
 
 ---

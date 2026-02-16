@@ -21,6 +21,7 @@ import {
   ImportDelta,
   getDifferences,
   parseDate,
+  parseToDate,
   MappingResult,
   ProposedChange,
   ensureLaterDate
@@ -46,7 +47,7 @@ export class ImportOrdersComponent {
   // Data
   public parsedData = signal<ParsedRow[]>([]);
   public headers = signal<string[]>([]);
-  public mapping = signal<Record<string, string>>({});
+  public mapping = signal<Record<string, string[]>>({});
 
   // Analysis / Preview
   public proposedChanges = signal<{
@@ -126,6 +127,8 @@ export class ImportOrdersComponent {
     () => this.filteredProposedChanges()[this.previewIndex()],
   );
 
+  public fieldSeparators: Record<string, string> = {};
+
 
   private orderFields = Object.keys(initOrder()) as Array<keyof Order>;
 
@@ -169,7 +172,7 @@ export class ImportOrdersComponent {
     const onUploadComplete = (
       headers: string[],
       data: ParsedRow[],
-      mapping: Record<string, string>,
+      mapping: Record<string, string[]>,
     ) => {
       this.headers.set(headers);
       this.parsedData.set(data);
@@ -192,9 +195,9 @@ export class ImportOrdersComponent {
     }
   }
 
-  getDefaultMapping(headers: string[]) {
+  getDefaultMapping(headers: string[]): Record<string, string[]> {
     const fields = this.fieldsToMap();
-    const mapping: Record<string, string> = {};
+    const mapping: Record<string, string[]> = {};
 
     // Map based on partial matches or exact matches
     const knownMappings: Record<string, string[]> = {
@@ -218,10 +221,10 @@ export class ImportOrdersComponent {
 
     fields.forEach((field) => {
       if (headers.includes(field)) {
-        mapping[field] = field;
+        mapping[field] = [field];
       } else if (knownMappings[field]) {
         const match = headers.find(h => knownMappings[field].some(km => h.toLowerCase() === km.toLowerCase()));
-        if (match) mapping[field] = match;
+        if (match) mapping[field] = [match];
       }
     });
     return mapping;
@@ -361,9 +364,9 @@ export class ImportOrdersComponent {
   ) {
     if (!order.paidFor) return;
     const paymentType = order.paidFor.trim();
-    const paidDate = parse(order.datePaid, 'yyyy-MM-dd', new Date());
+    const paidDate = parseToDate(order.datePaid);
 
-    if (!isValid(paidDate)) {
+    if (!paidDate || !isValid(paidDate)) {
       outIssues.push(`Invalid Paid Date: ${order.datePaid}`);
       return;
     }
@@ -525,14 +528,17 @@ export class ImportOrdersComponent {
 
   private mapRowToOrder(
     row: ParsedRow,
-    mapping: Record<string, string>,
+    mapping: Record<string, string[]>,
   ): { order: Partial<Order>; issues: string[] } {
     const order: Partial<Order> = {};
     const issues: string[] = [];
     for (const partialKey in mapping) {
       const key = partialKey as keyof Order;
-      const csvHeader = mapping[key];
-      let value = row[csvHeader];
+      const csvHeaders = mapping[key];
+      if (!csvHeaders || csvHeaders.length === 0) continue;
+
+      // Take first header value for orders (no multi-header joining needed)
+      let value = row[csvHeaders[0]];
 
       if (value === undefined || value === null) continue;
       value = value.trim();
@@ -679,22 +685,22 @@ export class ImportOrdersComponent {
     const dates: number[] = [];
 
     // 1. Paid Date
-    if (isValid(paidDate)) {
+    if (paidDate && isValid(paidDate)) {
       dates.push(paidDate.getTime());
     }
 
     // 2. Start Date
     if (startDateStr) {
-      const startDate = parse(startDateStr, 'yyyy-MM-dd', new Date());
-      if (isValid(startDate)) {
+      const startDate = parseToDate(startDateStr);
+      if (startDate && isValid(startDate)) {
         dates.push(startDate.getTime());
       }
     }
 
     // 3. Current Expiry
     if (currentExpiryStr) {
-      const currentExpiry = parse(currentExpiryStr, 'yyyy-MM-dd', new Date());
-      if (isValid(currentExpiry)) {
+      const currentExpiry = parseToDate(currentExpiryStr);
+      if (currentExpiry && isValid(currentExpiry)) {
         dates.push(currentExpiry.getTime());
       }
     }

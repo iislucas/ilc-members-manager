@@ -1,0 +1,227 @@
+.squarespace-container {
+  padding: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 400px;
+
+  .header-section {
+    margin-bottom: 2.5rem;
+    position: relative;
+
+    h2 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--primary-color, #1a1a1a);
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .header-accent {
+      height: 4px;
+      width: 60px;
+      background: linear-gradient(
+        90deg,
+        var(--primary-color, #3a5af1),
+        transparent
+      );
+      margin-top: 0.75rem;
+      border-radius: 2px;
+    }
+  }
+
+  .content-wrapper {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 0;
+    text-align: center;
+
+    p {
+      margin-top: 1.5rem;
+      color: #666;
+      font-size: 1.1rem;
+    }
+  }
+
+  .error-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #fff5f5;
+    border: 1px solid #fee2e2;
+    border-radius: 12px;
+
+    .error-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    h3 {
+      color: #991b1b;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    p {
+      color: #b91c1c;
+      margin-bottom: 2rem;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .retry-button {
+      padding: 0.75rem 2rem;
+      background: var(--primary-color, #3a5af1);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition:
+        transform 0.2s,
+        background 0.2s;
+
+      &:hover {
+        background: var(--primary-dark, #2b44d3);
+        transform: translateY(-2px);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  .empty-content-warning {
+    padding: 3rem;
+    text-align: center;
+    background: #f9fafb;
+    border: 2px dashed #e5e7eb;
+    border-radius: 12px;
+
+    p {
+      margin: 0.5rem 0;
+      color: #4b5563;
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .content {
+    line-height: 1.7;
+    font-size: 1.1rem;
+    color: #374151;
+
+    /* Reset some Squarespace specific styles that might interfere */
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      display: block;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+      &[src=""],
+      &:not([src]) {
+        display: none;
+      }
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      color: var(--primary-color, #111827);
+      margin-top: 2.5rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.3;
+    }
+
+    p {
+      margin-bottom: 1.5rem;
+    }
+
+    a {
+      color: var(--primary-color, #3a5af1);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+
+      &:hover {
+        border-bottom-color: currentColor;
+      }
+    }
+
+    ul,
+    ol {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+    }
+
+    blockquote {
+      border-left: 4px solid var(--primary-color, #3a5af1);
+      padding-left: 1.5rem;
+      font-style: italic;
+      margin: 2.5rem 0;
+      color: #4b5563;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid #e5e7eb;
+      margin: 3rem 0;
+    }
+
+    /* Support for Squarespace layout classes */
+    .sqs-layout {
+      .sqs-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+      }
+
+      .sqs-col-6 {
+        width: 50%;
+        padding: 0 10px;
+        @media (max-width: 768px) {
+          width: 100%;
+        }
+      }
+    }
+
+    .sqs-separator {
+      border-top: 3px double #e5e7eb;
+      width: 50%;
+      margin: 4rem auto;
+    }
+  }
+}

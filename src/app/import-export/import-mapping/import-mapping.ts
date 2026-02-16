@@ -13,10 +13,11 @@ export class ImportMappingComponent {
   public headers = input.required<string[]>();
   public fieldsToMap = input.required<string[]>();
   public parsedData = input.required<any[]>();
-  public mapping = input.required<Record<string, string>>();
+  public mapping = input.required<Record<string, string[]>>();
+  public separators = input<Record<string, string>>({});
 
   // Output events
-  public mappingChange = output<Record<string, string>>();
+  public mappingChange = output<Record<string, string[]>>();
   public analyze = output<void>();
 
   // Internal state
@@ -36,14 +37,36 @@ export class ImportMappingComponent {
     this.currentExampleIndex.update((i) => Math.max(i - 1, 0));
   }
 
-  setOneMappingValue(field: string, event: Event) {
+  addHeader(field: string, event: Event) {
     const value = (event.target as HTMLSelectElement).value;
-    const currentMapping = { ...this.mapping() };
-    if (value) {
-      currentMapping[field] = value;
-    } else {
+    if (!value) return;
+    const currentMapping = structuredClone(this.mapping());
+    if (!currentMapping[field]) {
+      currentMapping[field] = [];
+    }
+    if (!currentMapping[field].includes(value)) {
+      currentMapping[field].push(value);
+    }
+    this.mappingChange.emit(currentMapping);
+    // Reset the select back to placeholder
+    (event.target as HTMLSelectElement).value = '';
+  }
+
+  removeHeader(field: string, header: string) {
+    const currentMapping = structuredClone(this.mapping());
+    if (!currentMapping[field]) return;
+    currentMapping[field] = currentMapping[field].filter(h => h !== header);
+    if (currentMapping[field].length === 0) {
       delete currentMapping[field];
     }
     this.mappingChange.emit(currentMapping);
+  }
+
+  getExampleValue(field: string): string {
+    const headers = this.mapping()[field];
+    if (!headers || headers.length === 0) return '';
+    const row = this.currentExampleRow();
+    const sep = this.separators()[field] ?? ' ';
+    return headers.map(h => row[h] ?? '').filter(v => v !== '').join(sep);
   }
 }

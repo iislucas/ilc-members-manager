@@ -92,7 +92,7 @@ describe('ImportMembersComponent', () => {
     it('should map "email" header to "emails" field', () => {
       const headers = ['name', 'email', 'memberId'];
       const mapping = component.getDefaultMapping(headers);
-      expect(mapping['emails']).toBe('email');
+      expect(mapping['emails']).toEqual(['email']);
     });
 
     it('should split emails by commas, spaces, and newlines', () => {
@@ -100,7 +100,7 @@ describe('ImportMembersComponent', () => {
         emails:
           'test1@test.com, test2@test.com  test3@test.com\ntest4@test.com',
       };
-      const mapping = { emails: 'emails' };
+      const mapping = { emails: ['emails'] };
       const { member } = (component as any).mapRowToMember(row, mapping);
       expect(member.emails).toEqual([
         'test1@test.com',
@@ -112,7 +112,7 @@ describe('ImportMembersComponent', () => {
 
     it('should mark ISSUE if memberId is missing', async () => {
       component.parsedData.set([{ name: 'No ID', emails: 'test@test.com' }]);
-      component.mapping.set({ name: 'name', emails: 'emails' });
+      component.mapping.set({ name: ['name'], emails: ['emails'] });
 
       await component.analyzeData();
 
@@ -127,7 +127,7 @@ describe('ImportMembersComponent', () => {
         name: '  John Doe  ',
         memberId: '  M123  ',
       };
-      const mapping = { name: 'name', memberId: 'memberId' };
+      const mapping = { name: ['name'], memberId: ['memberId'] };
       const { member } = (component as any).mapRowToMember(row, mapping);
       expect(member.name).toBe('John Doe');
       expect(member.memberId).toBe('M123');
@@ -138,7 +138,7 @@ describe('ImportMembersComponent', () => {
         { name: '  ', memberId: '' },
         { name: 'John', memberId: 'M1' },
       ]);
-      component.mapping.set({ name: 'name', memberId: 'memberId' });
+      component.mapping.set({ name: ['name'], memberId: ['memberId'] });
 
       await component.analyzeData();
 
@@ -154,7 +154,7 @@ describe('ImportMembersComponent', () => {
         emails: 'Test1@Test.com, TEST2@test.com',
         publicEmail: 'Public@Test.com',
       };
-      const mapping = { emails: 'emails', publicEmail: 'publicEmail' };
+      const mapping = { emails: ['emails'], publicEmail: ['publicEmail'] };
       const { member } = (component as any).mapRowToMember(row, mapping);
       expect(member.emails).toEqual(['test1@test.com', 'test2@test.com']);
       expect(member.publicEmail).toBe('public@test.com');
@@ -165,7 +165,7 @@ describe('ImportMembersComponent', () => {
         { name: 'User 1', memberId: 'M1' },
         { name: 'User 2', memberId: 'M1' }, // Duplicate
       ]);
-      component.mapping.set({ name: 'name', memberId: 'memberId' });
+      component.mapping.set({ name: ['name'], memberId: ['memberId'] });
 
       await component.analyzeData();
 
@@ -186,10 +186,10 @@ describe('ImportMembersComponent', () => {
         currentMembershipExpires: 'invalid-date',
       };
       const mapping = {
-        firstMembershipStarted: 'firstMembershipStarted',
-        lastRenewalDate: 'lastRenewalDate',
-        dateOfBirth: 'dateOfBirth',
-        currentMembershipExpires: 'currentMembershipExpires',
+        firstMembershipStarted: ['firstMembershipStarted'],
+        lastRenewalDate: ['lastRenewalDate'],
+        dateOfBirth: ['dateOfBirth'],
+        currentMembershipExpires: ['currentMembershipExpires'],
       };
 
       const { member, issues } = (component as any).mapRowToMember(row, mapping);
@@ -208,7 +208,7 @@ describe('ImportMembersComponent', () => {
         dateOfBirth: '23-Feb-1953',
       };
       const mapping = {
-        dateOfBirth: 'dateOfBirth',
+        dateOfBirth: ['dateOfBirth'],
       };
       const { member } = (component as any).mapRowToMember(row, mapping);
       expect(member.dateOfBirth).toBe('1953-02-23');
@@ -219,7 +219,7 @@ describe('ImportMembersComponent', () => {
         dateOfBirth: '1953',
       };
       const mapping = {
-        dateOfBirth: 'dateOfBirth',
+        dateOfBirth: ['dateOfBirth'],
       };
       const { member } = (component as any).mapRowToMember(row, mapping);
       expect(member.dateOfBirth).toBe('1953-01-01');
@@ -231,13 +231,13 @@ describe('ImportMembersComponent', () => {
         membershipType: 'Annual',
       };
       const mapping = {
-        lastRenewalDate: 'lastRenewalDate',
-        membershipType: 'membershipType',
+        lastRenewalDate: ['lastRenewalDate'],
+        membershipType: ['membershipType'],
       };
-      
+
       // We expect currentMembershipExpires to automatically be set
       const { member } = (component as any).mapRowToMember(row, mapping);
-      
+
       expect(member.lastRenewalDate).toBe('2023-01-01');
       // 1 year after 2023-01-01 is 2024-01-01
       expect(member.currentMembershipExpires).toBe('2024-01-01');

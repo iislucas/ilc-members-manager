@@ -1,12 +1,12 @@
 @use "sass:color";
-@use '../../../scss_variables' as *;
+@use "../../../scss_variables" as *;
 
 // Local variables
 $primary-color: #66a;
 $text-secondary: #666;
 $text-muted: #999;
 $border-color: $theme-border-color;
-$seperator-color: #EEE;
+$seperator-color: #eee;
 $bg-secondary: $theme-bg-color;
 
 .mapping-table {
@@ -18,8 +18,9 @@ $bg-secondary: $theme-bg-color;
     width: 100%;
     border-collapse: collapse;
     margin-top: 1rem;
-    
-    th, td {
+
+    th,
+    td {
       text-align: left;
       padding: 0.75rem;
       border-bottom: 1px solid $seperator-color;
@@ -33,9 +34,41 @@ $bg-secondary: $theme-bg-color;
     }
 
     td {
-      input, select {
-        width: 100%;
-        padding: 0.5rem;
+      select {
+        padding: 0.35rem;
+      }
+    }
+  }
+
+  .headers-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .header-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: #e8eaf6;
+    border: 1px solid #c5cae9;
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 0.15rem;
+      color: $text-muted;
+
+      &:hover {
+        color: #c00;
       }
     }
   }
@@ -51,19 +84,17 @@ $bg-secondary: $theme-bg-color;
   align-items: center;
   gap: 1rem;
   margin: 1rem 0;
-  
+
   span {
     font-weight: 500;
   }
-
-
 }
 
 .stage-actions {
   margin-top: 2rem;
   display: flex;
   justify-content: flex-end;
-  
+
   button.primary {
     background-color: $primary-color;
     color: white;
@@ -72,7 +103,7 @@ $bg-secondary: $theme-bg-color;
     border-radius: 4px;
     font-size: 1rem;
     cursor: pointer;
-    
+
     &:hover {
       background-color: color.adjust($primary-color, $lightness: -10%);
     }

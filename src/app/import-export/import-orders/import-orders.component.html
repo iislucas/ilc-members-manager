@@ -13,7 +13,8 @@
 
   @if (stage() === 'MAPPING') {
   <app-import-mapping [headers]="headers()" [fieldsToMap]="fieldsToMap()" [parsedData]="parsedData()"
-    [mapping]="mapping()" (mappingChange)="mapping.set($event)" (analyze)="analyzeData()"></app-import-mapping>
+    [mapping]="mapping()" [separators]="fieldSeparators" (mappingChange)="mapping.set($event)"
+    (analyze)="analyzeData()"></app-import-mapping>
   }
 
   @if (stage() === 'ANALYZING') {

@@ -41,64 +41,80 @@ export type MappingResult<T> =
   | { success: false; issue: string };
 
 export function parseDate(value: string): MappingResult<string> {
-    if (!value) return { success: true, value: '' };
+  if (!value) return { success: true, value: '' };
 
-    // Normalize separators and trim
-    let normalizedValue = value.trim();
+  // Normalize separators and trim
+  let normalizedValue = value.trim();
 
-    // Specific fix for dd-MMM-yy / d-MMM-yy format (e.g. 23-Feb-23)
-    // Assume 20{yy} for these cases.
-    const twoDigitYearMmmPattern = /^(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2})$/;
-    const mmmMatch = normalizedValue.match(twoDigitYearMmmPattern);
-    if (mmmMatch) {
-      const [, day, month, year] = mmmMatch;
-      // Reconstruct as dd-MMM-yyyy (e.g. 23-Feb-2023)
-      normalizedValue = `${day}-${month}-20${year}`;
+  // Specific fix for dd-MMM-yy / d-MMM-yy format (e.g. 23-Feb-23)
+  // Assume 20{yy} for these cases.
+  const twoDigitYearMmmPattern = /^(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2})$/;
+  const mmmMatch = normalizedValue.match(twoDigitYearMmmPattern);
+  if (mmmMatch) {
+    const [, day, month, year] = mmmMatch;
+    // Reconstruct as dd-MMM-yyyy (e.g. 23-Feb-2023)
+    normalizedValue = `${day}-${month}-20${year}`;
+  }
+
+  // Check for year only (e.g. "1953")
+  if (/^\d{4}$/.test(normalizedValue)) {
+    const year = parseInt(normalizedValue, 10);
+    // Basic sanity check for year range if needed, e.g. 1900-2100
+    if (year > 1800 && year < 2200) {
+      return { success: true, value: `${year}-01-01` };
     }
+  }
 
-    // Check for year only (e.g. "1953")
-    if (/^\d{4}$/.test(normalizedValue)) {
-      const year = parseInt(normalizedValue, 10);
-      // Basic sanity check for year range if needed, e.g. 1900-2100
-      if (year > 1800 && year < 2200) {
-        return { success: true, value: `${year}-01-01` };
-      }
+  // List of supported formats to try
+  // date-fns 2.x/3.x/4.x uses 'yyyy' for year, 'dd' for day, 'MM' for month, 'MMM' for short month name
+  // We try multiple formats to be flexible.
+  const formats = [
+    'yyyy-MM-dd',    // ISO, e.g. 2023-12-31
+    'dd/MM/yyyy',    // UK, e.g. 31/12/2023
+    // 'd/K/yyyy' removed as K is hour
+    'd/M/yyyy',      // single digits, e.g. 1/2/2023
+    'yyyy/MM/dd',    // Japan, e.g. 2023/12/31
+    'dd-MMM-yyyy',   // e.g. 23-Feb-1953
+    'd-MMM-yyyy',    // e.g. 1-Feb-1953
+    'dd-MM-yyyy',    // e.g. 23-02-1953
+    'd-M-yyyy',      // e.g. 1-2-1953
+    'dd.MM.yyyy',    // e.g. 02.01.1967
+    'd.MM.yyyy',     // e.g. 2.1.1967
+    'd.M.yy',        // e.g. 2.1.67
+  ];
+
+  // Attempt to parse with each format
+  for (const fmt of formats) {
+    // parse(dateString, formatString, referenceDate)
+    const parsedDate = parse(normalizedValue, fmt, new Date());
+
+    // isValid() checks if the date is valid (e.g. not February 30th)
+    if (isValid(parsedDate)) {
+      // Additional sanity check: 
+      // sometimes simplistic formats can match unexpectedly. 
+      // But date-fns is usually good if the format aligns.
+      // We format it to standard YYYY-MM-DD
+      return { success: true, value: format(parsedDate, 'yyyy-MM-dd') };
     }
+  }
 
-    // List of supported formats to try
-    // date-fns 2.x/3.x/4.x uses 'yyyy' for year, 'dd' for day, 'MM' for month, 'MMM' for short month name
-    // We try multiple formats to be flexible.
-    const formats = [
-      'yyyy-MM-dd',    // ISO, e.g. 2023-12-31
-      'dd/MM/yyyy',    // UK, e.g. 31/12/2023
-      // 'd/K/yyyy' removed as K is hour
-      'd/M/yyyy',      // single digits, e.g. 1/2/2023
-      'yyyy/MM/dd',    // Japan, e.g. 2023/12/31
-      'dd-MMM-yyyy',   // e.g. 23-Feb-1953
-      'd-MMM-yyyy',    // e.g. 1-Feb-1953
-      'dd-MM-yyyy',    // e.g. 23-02-1953
-      'd-M-yyyy',      // e.g. 1-2-1953
-    ];
+  return {
+    success: false,
+    issue: `Invalid date format: "${value}". Expected YYYY-MM-DD, DD/MM/YYYY, or DD-Mon-YYYY.`,
+  };
+}
 
-    // Attempt to parse with each format
-    for (const fmt of formats) {
-      // parse(dateString, formatString, referenceDate)
-      const parsedDate = parse(normalizedValue, fmt, new Date());
-      
-      // isValid() checks if the date is valid (e.g. not February 30th)
-      if (isValid(parsedDate)) {
-        // Additional sanity check: 
-        // sometimes simplistic formats can match unexpectedly. 
-        // But date-fns is usually good if the format aligns.
-        // We format it to standard YYYY-MM-DD
-        return { success: true, value: format(parsedDate, 'yyyy-MM-dd') };
-      }
-    }
-
-    return {
-      success: false,
-      issue: `Invalid date format: "${value}". Expected YYYY-MM-DD, DD/MM/YYYY, or DD-Mon-YYYY.`,
-    };
+/**
+ * Robustly parses a date string into a Date object using multiple formats.
+ * Returns null if the date is invalid.
+ */
+export function parseToDate(value: string | undefined | null): Date | null {
+  if (!value) return null;
+  const result = parseDate(value);
+  if (result.success && result.value) {
+    return parse(result.value, 'yyyy-MM-dd', new Date());
+  }
+  return null;
 }
 
 export function getDifferences(

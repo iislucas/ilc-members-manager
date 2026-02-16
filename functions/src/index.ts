@@ -23,3 +23,4 @@ export {
 } from './on-member-update';
 
 export { onSchoolCreated, onSchoolUpdated } from './on-school-update';
+export { getSquarespaceContent } from './squarespace-content';

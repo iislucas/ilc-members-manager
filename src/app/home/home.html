@@ -1,5 +1,6 @@
+@if (user(); as u) {
 <div class="home-container">
-    <h1>Welcome, {{ user()?.member?.name }}!</h1>
+    <h1>Welcome, {{ u.member.name }}!</h1>
 
     <div class="section-title">Public</div>
     <div class="cards-grid">
@@ -37,7 +38,7 @@
             </div>
         </div>
 
-        @if (user()?.member?.instructorId) {
+        @if (u.member.instructorId) {
         <div class="card" (click)="navigateTo(Views.MyStudents)">
             <div class="icon-container">
                 <app-icon name="person" width="48px" height="48px"></app-icon>
@@ -49,7 +50,7 @@
         </div>
         }
 
-        @if ((user()?.schoolsManaged?.length || 0) > 0) {
+        @if (u.schoolsManaged.length > 0) {
         <div class="card" (click)="navigateTo(Views.MySchools)">
             <div class="icon-container">
                 <app-icon name="map" width="48px" height="48px"></app-icon>
@@ -62,11 +63,37 @@
         }
     </div>
 
-    @if (user()?.isAdmin || (user()?.schoolsManaged?.length || 0) > 0) {
+    <div class="separator"></div>
+    <div class="section-title">Resources</div>
+    <div class="cards-grid">
+        <div class="card" (click)="navigateTo(Views.ActiveMembers)">
+            <div class="icon-container">
+                <app-icon name="link" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+                <h2>Active Members Area</h2>
+                <p>Content and resources for active members</p>
+            </div>
+        </div>
+
+        @if (u.member.instructorId) {
+        <div class="card" (click)="navigateTo(Views.ActiveInstructors)">
+            <div class="icon-container">
+                <app-icon name="link" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+                <h2>Active Instructors Area</h2>
+                <p>Content and resources for active instructors</p>
+            </div>
+        </div>
+        }
+    </div>
+
+    @if (u.isAdmin || u.schoolsManaged.length > 0) {
     <div class="separator"></div>
     <div class="section-title">Admin</div>
     <div class="cards-grid">
-        @if (user()?.isAdmin) {
+        @if (u.isAdmin) {
         <div class="card" (click)="navigateTo(Views.ManageMembers)">
             <div class="icon-container">
                 <app-icon name="person" width="48px" height="48px"></app-icon>
@@ -78,7 +105,7 @@
         </div>
         }
 
-        @if (user()?.isAdmin || (user()?.schoolsManaged?.length || 0) > 0) {
+        @if (u.isAdmin || u.schoolsManaged.length > 0) {
         <div class="card" (click)="navigateTo(Views.ManageSchools)">
             <div class="icon-container">
                 <app-icon name="map" width="48px" height="48px"></app-icon>
@@ -90,7 +117,7 @@
         </div>
         }
 
-        @if (user()?.isAdmin) {
+        @if (u.isAdmin) {
         <div class="card" (click)="navigateTo(Views.ImportExport)">
             <div class="icon-container">
                 <app-icon name="link" width="48px" height="48px"></app-icon>
@@ -104,3 +131,4 @@
     </div>
     }
 </div>
+}

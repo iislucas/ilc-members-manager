@@ -1,8 +1,8 @@
 <div class="mapping-table">
   <h3>Map Fields</h3>
   <p>
-    Verify that the columns in your file match the correct fields. Check
-    the examples below.
+    Verify that the columns in your file match the correct fields. You can
+    map multiple CSV headers to a single field (e.g. First Name + Last Name → name).
   </p>
 
   <div class="example-navigation">
@@ -21,7 +21,7 @@
     <thead>
       <tr>
         <th>Field</th>
-        <th>CSV/JSONL Header</th>
+        <th>CSV/JSONL Headers</th>
         <th>Example Value</th>
       </tr>
     </thead>
@@ -29,19 +29,25 @@
       @for (field of fieldsToMap(); track field) {
       <tr>
         <td>{{ field }}</td>
-        <td>
-          <select (change)="setOneMappingValue(field, $event)">
-            <option value="">--Select Header--</option>
+        <td class="headers-cell">
+          @if (mapping()[field]; as mapped) {
+          @for (header of mapped; track header) {
+          <span class="header-chip">
+            {{ header }}
+            <button class="remove-btn" (click)="removeHeader(field, header)" title="Remove">×</button>
+          </span>
+          }
+          }
+          <select (change)="addHeader(field, $event)">
+            <option value="">+ Add header</option>
             @for (header of headers(); track header) {
-            <option [value]="header" [selected]="mapping()[field] === header">
-              {{ header }}
-            </option>
+            <option [value]="header">{{ header }}</option>
             }
           </select>
         </td>
         <td>
-          @if (mapping()[field]) {
-          {{ currentExampleRow()[mapping()[field]] }}
+          @if (mapping()[field]?.length) {
+          {{ getExampleValue(field) }}
           } @else {
           <span class="no-mapping">--</span>
           }

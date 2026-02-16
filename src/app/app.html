@@ -38,6 +38,14 @@
           {{ viewIdToTitle(Views.MyStudents) }}
         </div>
         }
+        <div class="menu-item" (click)="currentView.set(Views.ActiveMembers); menuOpen.set(false)">
+          {{ viewIdToTitle(Views.ActiveMembers) }}
+        </div>
+        @if (user.member.instructorId) {
+        <div class="menu-item" (click)="currentView.set(Views.ActiveInstructors); menuOpen.set(false)">
+          {{ viewIdToTitle(Views.ActiveInstructors) }}
+        </div>
+        }
 
         @if (user.isAdmin) {
         <div class="menu-seperator"></div>
@@ -101,6 +109,12 @@
     }
     @case (Views.MySchools) {
     <app-school-list [schoolSet]="dataService.mySchools"></app-school-list>
+    }
+    @case (Views.ActiveMembers) {
+    <app-squarespace-content path="/members-area" pageTitle="Active Members Area"></app-squarespace-content>
+    }
+    @case (Views.ActiveInstructors) {
+    <app-squarespace-content path="/instructors-area" pageTitle="Active Instructors Area"></app-squarespace-content>
     }
     }
     }

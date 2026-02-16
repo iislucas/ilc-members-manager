@@ -11,8 +11,8 @@ import {
   FilterStatus,
   ImportDelta,
   getDifferences,
-  ProposedChange,
-  ensureLaterDate
+  ensureLaterDate,
+  parseDate
 } from '../import-export-utils';
 
 @Component({
@@ -32,7 +32,7 @@ export class ImportSchoolsComponent {
   // Data
   public parsedData = signal<ParsedRow[]>([]);
   public headers = signal<string[]>([]);
-  public mapping = signal<Record<string, string>>({});
+  public mapping = signal<Record<string, string[]>>({});
 
   // Analysis / Preview
   public proposedChanges = signal<ImportDelta<School>>({
@@ -72,12 +72,22 @@ export class ImportSchoolsComponent {
     () => this.filteredProposedChanges()[this.previewIndex()],
   );
 
-
+  public fieldSeparators: Record<string, string> = {};
   private schoolFields = Object.keys(initSchool()) as Array<keyof School>;
 
   public fieldsToMap = computed(() => {
-    return this.schoolFields;
+    return this.schoolFields.filter(f => f !== 'id' && f !== 'lastUpdated');
   });
+
+  private static readonly SCHOOL_FIELD_ALIASES: Record<string, string[][]> = {
+    schoolId: [['School ID', 'SchoolID', 'ID']],
+    schoolName: [['School Name', 'Name', 'SchoolName']],
+    address: [['Street Address', 'Address']],
+    ownerName: [['Owner Name', 'Owner']],
+    ownerEmail: [['Owner Email', 'Email']],
+    schoolLicenseRenewalDate: [['Renewal Date', 'Last Renewal']],
+    schoolLicenseExpires: [['Expires', 'Expiration Date']],
+  };
 
   reset() {
     this.stage.set('SELECT');
@@ -101,7 +111,6 @@ export class ImportSchoolsComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
-    this.mapping.set({});
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -111,7 +120,7 @@ export class ImportSchoolsComponent {
     const onUploadComplete = (
       headers: string[],
       data: ParsedRow[],
-      mapping: Record<string, string>,
+      mapping: Record<string, string[]>,
     ) => {
       this.headers.set(headers);
       this.parsedData.set(data);
@@ -170,12 +179,27 @@ export class ImportSchoolsComponent {
     }
   }
 
-  getDefaultMapping(headers: string[]) {
+  getDefaultMapping(headers: string[]): Record<string, string[]> {
     const fields = this.fieldsToMap();
-    const mapping: Record<string, string> = {};
+    const mapping: Record<string, string[]> = {};
+    const aliases = ImportSchoolsComponent.SCHOOL_FIELD_ALIASES;
+
     fields.forEach((field) => {
       if (headers.includes(field)) {
-        mapping[field] = field;
+        mapping[field] = [field];
+        return;
+      }
+      if (aliases[field]) {
+        const matched: string[] = [];
+        for (const group of aliases[field]) {
+          const match = headers.find(h =>
+            group.some(alias => h.trim().toLowerCase() === alias.toLowerCase()),
+          );
+          if (match) matched.push(match);
+        }
+        if (matched.length > 0) {
+          mapping[field] = matched;
+        }
       }
     });
     return mapping;
@@ -216,17 +240,26 @@ export class ImportSchoolsComponent {
     index: number,
     delta: ImportDelta<School>,
   ): void {
-    const school = this.mapRowToSchool(row, this.mapping());
+    const { school, issues } = this.mapRowToSchool(row, this.mapping());
 
     // Skip if all mapped fields are empty
-    const mappedValues = Object.values(this.mapping()).map((header) =>
-      row[header]?.trim(),
-    );
+    const mappedValues = Object.values(this.mapping())
+      .flat()
+      .map((header) => row[header]?.trim());
     if (mappedValues.every((v) => !v)) {
       return;
     }
 
-    if (!school.schoolId) return; // Skip if no schoolId
+    if (!school.schoolId) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: `Row ${index + 1}`,
+        newItem: school as School,
+        diffs: [],
+        issues: ['School ID is required', ...issues],
+      });
+      return;
+    }
 
     if (delta.seenIds.has(school.schoolId)) {
       delta.issues.push({
@@ -234,7 +267,7 @@ export class ImportSchoolsComponent {
         key: school.schoolId,
         newItem: school as School,
         diffs: [],
-        issues: ['Duplicate ID in import file'],
+        issues: ['Duplicate ID in import file', ...issues],
       });
       return;
     }
@@ -244,7 +277,15 @@ export class ImportSchoolsComponent {
       .entriesMap()
       .get(school.schoolId);
 
-    if (existing) {
+    if (issues.length > 0) {
+      delta.issues.push({
+        status: 'ISSUE',
+        key: school.schoolId,
+        newItem: { ...initSchool(), ...school } as School,
+        diffs: [],
+        issues,
+      });
+    } else if (existing) {
       const newSchool = { ...existing, ...school } as School;
 
       const datesToCheck: (keyof School)[] = [
@@ -377,19 +418,34 @@ export class ImportSchoolsComponent {
 
   private mapRowToSchool(
     row: ParsedRow,
-    mapping: Record<string, string>,
-  ): Partial<School> {
+    mapping: Record<string, string[]>,
+  ): { school: Partial<School>; issues: string[] } {
     const school: Partial<School> = {};
+    const issues: string[] = [];
     for (const partialKey in mapping) {
       const key = partialKey as keyof School;
-      const csvHeader = mapping[key];
-      let value = row[csvHeader];
+      const csvHeaders = mapping[key];
+      if (!csvHeaders || csvHeaders.length === 0) continue;
+
+      // Take first header value for schools
+      let value = row[csvHeaders[0]];
 
       if (value === undefined || value === null) continue;
       value = value.trim();
       if (value === '') continue;
 
       switch (key) {
+        case 'schoolLicenseRenewalDate':
+        case 'schoolLicenseExpires': {
+          const result = parseDate(value);
+          if (result.success) {
+            (school as any)[key] = result.value;
+          } else {
+            issues.push(result.issue);
+            (school as any)[key] = value;
+          }
+          break;
+        }
         case 'managers':
           school[key] = value.split(',').map((s) => s.trim());
           break;
@@ -407,7 +463,7 @@ export class ImportSchoolsComponent {
           break;
       }
     }
-    return school;
+    return { school, issues };
   }
 
   nextPreview() {
