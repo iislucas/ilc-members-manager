@@ -77,6 +77,16 @@ export class SearchableSet<
       fields: this.fieldsToSearch,
       storeFields: [this.idField],
       idField: this.idField,
+      extractField: (document, fieldName) => {
+        // Access nested fields
+        const value = fieldName
+          .split('.')
+          .reduce((doc: any, key) => doc && doc[key], document);
+        if (Array.isArray(value)) {
+          return value.join(' ');
+        }
+        return value as string;
+      },
     });
     const entries = this.uniqueEntries();
     console.log(

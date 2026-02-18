@@ -30,6 +30,7 @@ export class FindInstructorsService {
       'publicRegionOrCity',
       'publicPhone',
       'country',
+      'tags',
     ],
     'instructorId',
   );

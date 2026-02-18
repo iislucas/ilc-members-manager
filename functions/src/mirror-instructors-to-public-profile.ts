@@ -58,6 +58,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
         publicEmail: member.publicEmail,
         publicPhone: member.publicPhone,
         instructorWebsite: member.instructorWebsite,
+        tags: member.tags || [],
       };
       // For now we copy all data
       await instructorRef.set(instructor);

@@ -29,3 +29,70 @@
   justify-content: flex-start;
   margin-top: 4px;
 }
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: center;
+}
+
+.tag-chip {
+  display: flex;
+  align-items: center;
+  background-color: #e0e0e0;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 0.9em;
+}
+
+.remove-tag-icon {
+  margin-left: 4px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.tag-input {
+  border: none;
+  border-bottom: 1px solid #ccc;
+  padding: 4px;
+  outline: none;
+  width: 150px;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.tag-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  input {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.add-tag-btn {
+  opacity: 0.6;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.add-tag-row {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 4px;
+}

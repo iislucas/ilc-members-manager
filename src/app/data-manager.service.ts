@@ -97,6 +97,7 @@ export class DataManagerService {
       'publicRegionOrCity',
       'publicCountyOrState',
       'country',
+      'tags',
     ],
     'memberId',
   );
@@ -111,6 +112,7 @@ export class DataManagerService {
       'publicCountyOrState',
       'publicPhone',
       'country',
+      'tags',
     ],
     'instructorId',
   );
@@ -126,6 +128,7 @@ export class DataManagerService {
       'publicRegionOrCity',
       'publicCountyOrState',
       'country',
+      'tags',
     ],
     'memberId',
   );

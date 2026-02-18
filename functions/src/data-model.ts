@@ -266,6 +266,9 @@ export type Member = {
   instructorLicenseType: InstructorLicenseType;
   instructorLicenseRenewalDate: string; // YYYY-MM-DD, or empty if none.
 
+  // A list of tags for the member.
+  tags: string[];
+
   // Notes only for ILC HQ.
   notes: string;
 };
@@ -313,6 +316,7 @@ export type InstructorPublicData = {
 
   publicEmail: string;
   publicPhone: string;
+  tags: string[];
 };
 
 export type InstructorPublicDataFirebaseDoc = Omit<InstructorPublicData, 'id'>;
@@ -419,6 +423,7 @@ export function initMember(): Member {
     studentLevel: StudentLevel.None, // e.g., 'Certified Instructor', 'Student Teacher'
     applicationLevel: ApplicationLevel.None, // e.g., 'Level 1', 'Level 2'
     mastersLevels: [], // a set of masters levels the person has.
+    tags: [],
 
     // Notes - information only for ILC HQ management.
     notes: '',
@@ -486,6 +491,7 @@ export function initInstructor(): InstructorPublicData {
     country: '',
     publicEmail: '',
     publicPhone: '',
+    tags: [],
   };
 }
 

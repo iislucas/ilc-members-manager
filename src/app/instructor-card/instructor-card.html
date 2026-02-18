@@ -1,14 +1,23 @@
 @let i = instructor();
 
 <div class="instructor-card-header">
-  <div class="identifier-chip">
-    <span>{{ i.memberId }}</span>
-    <span>-{{ i.instructorId }}</span>
-  </div>
   <div class="name">
+    @if (i.instructorWebsite) {
+    <a [href]="ensureUrl(i.instructorWebsite)" target="_blank">
+      {{ i.name }}
+    </a>
+    } @else {
     {{ i.name }}
+    }
   </div>
-  <div class="level">
+  <div class="identifier-subtle">
+    @if (i.tags && i.tags.length > 0) {
+    <div class="tags-display">
+      @for (tag of i.tags; track tag) {
+      <span class="identifier-chip">{{ tag }}</span>
+      }
+    </div>
+    }
     @if (i.studentLevel) {
       <span>Student {{ i.studentLevel }}, </span>
     }
@@ -24,6 +33,11 @@
       <span class="county-state">{{ i.publicCountyOrState }}, </span>
     }
     <span class="country">{{ i.country }}</span>
+    @if (getMapsUrl(); as mapsUrl) {
+    <a [href]="mapsUrl" target="_blank" class="icon-link">
+      <app-icon name="map" width="16px" height="16px"></app-icon>
+    </a>
+    }
   </div>
   @if (i.publicEmail) {
     <div class="email">
@@ -35,9 +49,11 @@
       <a [href]="'tel:' + i.publicPhone">{{ i.publicPhone }}</a>
     </div>
   }
-  @if (i.instructorWebsite) {
-    <div class="website">
-      <a [href]="i.instructorWebsite" target="_blank">Website</a>
+  @if (!i.instructorWebsite && !i.publicEmail && !i.publicPhone) {
+  <div class="search-container">
+    <a [href]="getSearchUrl()" target="_blank" class="search-button">
+      Search for Instructor
+    </a>
     </div>
   }
 </div>

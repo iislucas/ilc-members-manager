@@ -26,15 +26,7 @@
     @if (e.isAdmin) {
       <app-icon name="admin"></app-icon>
     }
-    <div class="level">
-      @if (e.studentLevel) {
-        <span>S:{{ e.studentLevel }}</span>
-      }
-      @if (e.applicationLevel) {
-        <span>A:{{ e.applicationLevel }}</span>
-      }
-    </div>
-    <div class="city-and-country">
+<div class="city-and-country meta-info">
       <!-- TODO: think about showing both in the summary view, but being clear which is public? -->
       @if (e.publicRegionOrCity) {
         <span class="city">{{ e.publicRegionOrCity }}, </span>
@@ -49,7 +41,21 @@
           <span>{{ e.countyOrState }}, </span>
         }
       }
-      {{ e.country }}
+      <span class="country">{{ e.country }}</span>
+      
+      @if (e.studentLevel) {
+      <span class="level-chip">S:{{ e.studentLevel }}</span>
+      }
+      @if (e.applicationLevel) {
+      <span class="level-chip">A:{{ e.applicationLevel }}</span>
+      }
+      @if (e.tags && e.tags.length > 0) {
+      <div class="tags-display header-tags">
+        @for (tag of e.tags; track tag) {
+        <span class="identifier-chip">{{ tag }}</span>
+        }
+      </div>
+      }
     </div>
     @if (collapsable()) {
       <div class="unfold-button">
@@ -395,6 +401,43 @@
             } @else {
             <span class="missing-identifier-chip">Not yet a master</span>
             }
+          }
+        </div>
+
+        <label for="tags">Tags</label>
+        <div class="rhs">
+          @if (userIsAdmin()) {
+          @let tagsField = form.tags();
+          @for (tag of tagsField.value(); track $index; let last = $last) {
+          <div class="tag-row">
+            <input type="text" [value]="tag" (input)="updateTag($index, $event)" placeholder="Tag name" />
+            <button type="button" class="icon-only-button" (click)="removeTag($index)" title="Remove tag">
+              <app-icon name="trash" />
+            </button>
+            @if (last) {
+            <button type="button" class="icon-only-button add-tag-btn" (click)="addTag()" title="Add another tag">
+              <app-icon name="add" />
+            </button>
+            }
+          </div>
+          }
+          @if (tagsField.value().length === 0) {
+          <div class="add-tag-row">
+            <button type="button" class="text-button" (click)="addTag()">
+              + Add Tag
+            </button>
+          </div>
+          }
+          } @else {
+          <div class="tags-display">
+            @if(e.tags && e.tags.length > 0) {
+            @for (tag of e.tags; track tag) {
+            <span class="identifier-chip">{{ tag }}</span>
+            }
+            } @else {
+            <span class="missing-identifier-chip">No tags</span>
+            }
+          </div>
           }
         </div>
 

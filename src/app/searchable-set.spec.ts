@@ -83,4 +83,28 @@ describe('SearchableSet', () => {
     expect(resultsBob.length).toBe(1);
     expect(resultsBob[0].name).toBe('Bob');
   });
+
+  it('should search within array fields', () => {
+    interface TagEntry {
+      id: string;
+      name: string;
+      tags: string[];
+    }
+    const tagSet = new SearchableSet<'id', TagEntry>(['name', 'tags'], 'id');
+    const entries = [
+      { id: '1', name: 'Alice', tags: ['expert', 'guru'] },
+      { id: '2', name: 'Bob', tags: ['novice'] },
+      { id: '3', name: 'Charlie', tags: ['expert'] },
+    ];
+    tagSet.setEntries(entries);
+
+    const checkSearch = (term: string, expectedCount: number) => {
+      const results = tagSet.search(term);
+      expect(results.length).withContext(`Searching for ${term}`).toBe(expectedCount);
+    };
+
+    checkSearch('expert', 2);
+    checkSearch('guru', 1);
+    checkSearch('novice', 1);
+  });
 });

@@ -155,6 +155,7 @@ export class MemberEditComponent {
     );
     disabled(schema.isAdmin, () => !this.userIsAdmin());
     disabled(schema.notes, () => !this.userIsAdmin());
+    disabled(schema.tags, () => !this.userIsAdmin());
   });
 
   // Sync input member to the form model.
@@ -190,22 +191,32 @@ export class MemberEditComponent {
 
   isDirty = computed(
     () =>
-      // For emails, check if they've actually changed, not just if the field is dirty
+      // For emails or tags, check if they've actually changed, not just if the field is dirty
       this.emailsChanged() ||
-      // For other fields, use the standard dirty check but exclude emails
-      (this.form().dirty() && this.hasNonEmailChanges()) ||
+      this.tagsChanged() ||
+      // For other fields, use the standard dirty check but exclude emails/tags
+      (this.form().dirty() && this.hasNonArrayChanges()) ||
       this.memberIdAssignment().kind !== AssignKind.UnchangedExistingId ||
       this.instructorIdAssignment().kind !== AssignKind.UnchangedExistingId,
   );
 
-  // Helper to check if there are dirty fields other than emails
-  private hasNonEmailChanges(): boolean {
-    // Get all form fields and check if any (except emails) are dirty
-    const formState = this.form();
-    // Since we can't easily iterate over all fields, we check the overall dirty state
-    // and trust that if emails haven't changed and this is called, other fields must be dirty
-    return true; // Simplified: if form is dirty and we're checking, assume non-email changes
+  // Check if tags have actually changed from the original
+  tagsChanged = computed(() => {
+    const currentTags = this.form.tags().value();
+    const originalTags = this.member().tags || [];
+
+    if (currentTags.length !== originalTags.length) return true;
+    // Check if contents are different (assuming order matters or mostly consistent)
+    // If order doesn't matter, we should sort, but for now strict order is fine/better for UI.
+    return currentTags.some((tag, index) => tag !== originalTags[index]);
+  });
+
+  // Helper to check if there are dirty fields other than emails/tags
+  private hasNonArrayChanges(): boolean {
+    // Simplified: if form is dirty and we're checking, assume non-array changes
+    return true; 
   }
+
   isSaving = signal(false);
   saveComplete = computed(() => {
     return this.isSaving() && !this.isDirty();
@@ -338,6 +349,23 @@ export class MemberEditComponent {
       newEmails[index] = val;
       return newEmails;
     });
+  }
+
+  addTag() {
+    this.form.tags().value.update((tags) => [...tags, '']);
+  }
+
+  updateTag(index: number, event: Event) {
+    const val = (event.target as HTMLInputElement).value;
+    this.form.tags().value.update((tags) => {
+      const newTags = [...tags];
+      newTags[index] = val;
+      return newTags;
+    });
+  }
+
+  removeTag(index: number) {
+    this.form.tags().value.update((tags) => tags.filter((_, i) => i !== index));
   }
 
   updateCountry(value: string) {
