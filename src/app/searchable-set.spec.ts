@@ -100,7 +100,7 @@ describe('SearchableSet', () => {
 
     const checkSearch = (term: string, expectedCount: number) => {
       const results = tagSet.search(term);
-      expect(results.length).withContext(`Searching for ${term}`).toBe(expectedCount);
+      expect(results.length).toBe(expectedCount);
     };
 
     checkSearch('expert', 2);

@@ -77,6 +77,7 @@ export class SearchableSet<
       fields: this.fieldsToSearch,
       storeFields: [this.idField],
       idField: this.idField,
+      /* TODO consider if this is needed.
       extractField: (document, fieldName) => {
         // Access nested fields
         const value = fieldName
@@ -86,7 +87,7 @@ export class SearchableSet<
           return value.join(' ');
         }
         return value as string;
-      },
+      },*/
     });
     const entries = this.uniqueEntries();
     console.log(
