@@ -28,7 +28,7 @@
     <span class="identifier-chip">{{ tag }}</span>
     }
     }
-    <div class="city-and-country meta-info">
+    <div class="city-and-country">
       <!-- TODO: think about showing both in the summary view, but being clear which is public? -->
       @if (e.publicRegionOrCity) {
       <span class="city">{{ e.publicRegionOrCity }}, </span>
@@ -44,7 +44,8 @@
       }
       }
       <span class="country">{{ e.country }}</span>
-
+    </div>
+    <div class="meta-info">
       @if (e.studentLevel) {
       <span class="level-chip">S:{{ e.studentLevel }}</span>
       }

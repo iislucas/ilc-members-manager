@@ -104,11 +104,11 @@ export async function assertAdminOrSchoolManager(
   // School manager/owner query
   const schoolsOwnedQuery = db
     .collection('schools')
-    .where('owner', '==', member.memberId)
+    .where('owner', '==', member.instructorId)
     .get();
   const schoolsManagedQuery = db
     .collection('schools')
-    .where('managers', 'array-contains', member.memberId)
+    .where('managers', 'array-contains', member.instructorId)
     .get();
 
   const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
