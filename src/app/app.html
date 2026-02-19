@@ -38,6 +38,11 @@
           {{ viewIdToTitle(Views.MyStudents) }}
         </div>
         }
+        @if (user.schoolsManaged.length > 0) {
+        <div class="menu-item" (click)="currentView.set(Views.MySchools); menuOpen.set(false)">
+          {{ viewIdToTitle(Views.MySchools) }}
+        </div>
+        }
         <div class="menu-item" (click)="currentView.set(Views.ActiveMembers); menuOpen.set(false)">
           {{ viewIdToTitle(Views.ActiveMembers) }}
         </div>
@@ -111,7 +116,7 @@
     <app-school-list [schoolSet]="dataService.mySchools"></app-school-list>
     }
     @case (Views.ActiveMembers) {
-    <app-squarespace-content path="/members-area" pageTitle="Active Members Area"></app-squarespace-content>
+    <app-squarespace-content path="/membersareablog" pageTitle="Active Members Area"></app-squarespace-content>
     }
     @case (Views.ActiveInstructors) {
     <app-squarespace-content path="/instructors-area" pageTitle="Active Instructors Area"></app-squarespace-content>

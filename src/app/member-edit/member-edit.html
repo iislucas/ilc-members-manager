@@ -1,594 +1,500 @@
 @let e = editableMember();
 
 <div class="edit-form">
-  <div
-    class="edit-form-header"
-    [class.can-toggle-collapse]="collapsable()"
-    (click)="collapsable() && toggleCollapseState($event)"
-  >
+  <div class="edit-form-header" [class.can-toggle-collapse]="collapsable()"
+    (click)="collapsable() && toggleCollapseState($event)">
     <div class="identifier">
       @if (e.memberId) {
-        <span>{{ e.memberId }}</span>
+      <span>{{ e.memberId }}</span>
       }
       @if (e.instructorId) {
-        <span>-{{ e.instructorId }}</span>
+      <span>-{{ e.instructorId }}</span>
       }
     </div>
     <div class="name">
       @if (e.name.trim() === "") {
-        [Name needs to be entered]
+      [Name needs to be entered]
       }
       {{ e.name }}
       @if (isDirty()) {
-        <span>*</span>
+      <span>*</span>
       }
     </div>
     @if (e.isAdmin) {
-      <app-icon name="admin"></app-icon>
+    <app-icon name="admin"></app-icon>
     }
-<div class="city-and-country meta-info">
+    @if (e.tags && e.tags.length > 0) {
+    @for (tag of e.tags; track tag) {
+    <span class="identifier-chip">{{ tag }}</span>
+    }
+    }
+    <div class="city-and-country meta-info">
       <!-- TODO: think about showing both in the summary view, but being clear which is public? -->
       @if (e.publicRegionOrCity) {
-        <span class="city">{{ e.publicRegionOrCity }}, </span>
-        @if (e.publicCountyOrState) {
-          <span>{{ e.publicCountyOrState }}, </span>
-        }
+      <span class="city">{{ e.publicRegionOrCity }}, </span>
+      @if (e.publicCountyOrState) {
+      <span>{{ e.publicCountyOrState }}, </span>
+      }
       } @else {
-        @if (e.city) {
-          <span class="city">{{ e.city }}, </span>
-        }
-        @if (e.countyOrState) {
-          <span>{{ e.countyOrState }}, </span>
-        }
+      @if (e.city) {
+      <span class="city">{{ e.city }}, </span>
+      }
+      @if (e.countyOrState) {
+      <span>{{ e.countyOrState }}, </span>
+      }
       }
       <span class="country">{{ e.country }}</span>
-      
+
       @if (e.studentLevel) {
       <span class="level-chip">S:{{ e.studentLevel }}</span>
       }
       @if (e.applicationLevel) {
       <span class="level-chip">A:{{ e.applicationLevel }}</span>
       }
-      @if (e.tags && e.tags.length > 0) {
-      <div class="tags-display header-tags">
-        @for (tag of e.tags; track tag) {
-        <span class="identifier-chip">{{ tag }}</span>
-        }
-      </div>
-      }
     </div>
     @if (collapsable()) {
-      <div class="unfold-button">
-        <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
-      </div>
+    <div class="unfold-button">
+      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+    </div>
     }
   </div>
 
   @if (!collapsed()) {
-    <form (submit)="saveMember($event)">
-      <div class="form-section">
-        <h3>Contact</h3>
-        <label for="name">Name</label>
-        <div class="rhs">
-          <input type="text" id="name" [formField]="form.name" />
-          @let nameErrors = form.name().errors();
-          @if (nameErrors.length > 0 && nameErrors[0]; as error) {
-            <div class="error-message">{{ error.message }}</div>
-          }
-        </div>
-
-        <label>Emails</label>
-        <div class="rhs">
-          @let emailsField = form.emails();
-          @let emailErrors = emailsField.errors();
-
-          @for (email of emailsField.value(); track $index; let last = $last) {
-            <div class="email-row">
-              <input
-                type="text"
-                [value]="email"
-                (input)="updateEmail($index, $event)"
-                (blur)="emailsField.dirty()"
-                placeholder="name@example.com"
-              />
-              <button
-                type="button"
-                class="icon-only-button"
-                (click)="removeEmail($index)"
-                title="Remove email"
-              >
-                <app-icon name="trash" />
-              </button>
-              @if (last) {
-                <button
-                  type="button"
-                  class="icon-only-button add-email-btn"
-                  (click)="addEmail()"
-                  title="Add another email"
-                >
-                  <app-icon name="add" />
-                </button>
-              }
-            </div>
-          }
-          @if (emailsField.value().length === 0) {
-            <div class="add-email-row">
-              <button type="button" class="text-button" (click)="addEmail()">
-                + Add Email
-              </button>
-            </div>
-          }
-
-          @if (isDupEmail()) {
-            <div class="error-message">
-              One of these emails is already in use by another member.
-            </div>
-          } @else if (emailErrors.length > 0 && emailErrors[0]; as error) {
-            <div class="error-message">{{ error.message }}</div>
-          }
-        </div>
-
-        <label for="address" class="align-top">Address</label>
-        <div class="rhs">
-          <textarea id="address" [formField]="form.address"></textarea>
-        </div>
-
-        <label for="city">City</label>
-        <div class="rhs">
-          <input type="text" id="city" [formField]="form.city" />
-        </div>
-
-        <label for="zipCode">Zip Code</label>
-        <div class="rhs">
-          <input type="text" id="zipCode" [formField]="form.zipCode" />
-        </div>
-        <label for="countyOrState">County/State</label>
-        <div class="rhs">
-          <input
-            type="text"
-            id="countyOrState"
-            [formField]="form.countyOrState"
-          />
-        </div>
-
-        <label for="country">Country</label>
-        <div class="rhs">
-          <app-autocomplete
-            [searchableSet]="membersService.countries"
-            [displayFns]="countryDisplayFns"
-            [inputBoxIsChip]="false"
-            [placeholder]="'Search for a country'"
-            [initSearchTerm]="form.country().value()"
-            (textUpdated)="updateCountry($event)"
-          ></app-autocomplete>
-          @if (countryWithCode(); as cc) {
-            <div class="identifier-chip">{{ cc.id }}</div>
-          } @else {
-            <div class="error-message">invalid country</div>
-          }
-        </div>
-
-        <label for="phone">Phone</label>
-        <div class="rhs">
-          <input type="text" id="phone" [formField]="form.phone" />
-        </div>
-
-        <label for="gender">Gender</label>
-        <div class="rhs">
-          <input type="text" id="gender" [formField]="form.gender" />
-        </div>
-
-        <label for="dateOfBirth">Date of Birth</label>
-        <div class="rhs">
-          <input
-            class="date"
-            type="date"
-            id="dateOfBirth"
-            placeholder="YYYY-MM-DD"
-            [formField]="form.dateOfBirth"
-          />
-        </div>
-
-        @if (userIsMemberOrAdmin()) {
-          <h3>
-            Primary Instructor
-            <app-icon
-              name="info"
-              (click)="showInstructorNotes.set(!showInstructorNotes())"
-              style="cursor: pointer"
-            ></app-icon>
-          </h3>
-          @if (showInstructorNotes()) {
-            <p class="note">
-              Members choose who they consider to be their primary instructor,
-              and can change it at any time. The member's choice of primary
-              instructor is visable only to the member, their current primary
-              instructor, and ILC HQ.
-            </p>
-            <p class="note">
-              The selected primary instructor can see the member's
-              <span class="section-chip">Contacts Details</span>,
-              <span class="section-chip">Membership Status & Level</span>, and
-              <span class="section-chip">Instructor Status</span> (and if this
-              member if an instructor, their
-              <span class="section-chip">Instructor Public Listing</span>). The
-              primary instructor cannot edit the any of the member's details.
-            </p>
-          }
-
-          <label for="sifuInstructorId" class="align-top"
-            >Primary Instructor ID</label
-          >
-          <div class="rhs">
-            <app-autocomplete
-              name="Primary Instructor"
-              [searchableSet]="membersService.instructors"
-              [placeholder]="'Search for an instructor'"
-              [displayFns]="instructorDisplayFns"
-              [initSearchTerm]="form.sifuInstructorId().value()"
-              (textUpdated)="updateSifuInstructorId($event)"
-            ></app-autocomplete>
-            @if (e.sifuInstructorId === "") {
-              <div class="note">No primary instructor set</div>
-            } @else if (
-              membersService.instructors.entriesMap().get(e.sifuInstructorId);
-              as sifuData
-            ) {
-              <div class="note">{{ sifuData.name }}</div>
-            } @else {
-              <div class="error-message">
-                invalid instructor ID:
-                <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
-              </div>
-            }
-          </div>
-        }
-
-        @if (userIsMemberSchoolManagerOrAdmin()) {
-          <h3>
-            Primary School
-            <app-icon
-              name="info"
-              (click)="showSchoolNotes.set(!showSchoolNotes())"
-              style="cursor: pointer"
-            ></app-icon>
-          </h3>
-
-          @if (showSchoolNotes()) {
-            <p class="note">
-              Member choose their primary school and can change it at any time.
-              A member's primary school is visible only to the member, the
-              current primary school and ILC HQ.
-            </p>
-            <p class="note">
-              Administrators of the primary school can see and edit
-              <span class="section-chip">Contacts Details</span>,
-              <span class="section-chip">Membership Status & Level</span>, and
-              <span class="section-chip">Instructor Status</span> (and if the
-              member if an instructor, their
-              <span class="section-chip">Instructor Public Listing</span>).
-            </p>
-          }
-
-          <label for="inSchoolId" class="align-top">Primary School ID</label>
-          <div class="rhs">
-            <app-autocomplete
-              [searchableSet]="membersService.schools"
-              [placeholder]="'Search for a school'"
-              [displayFns]="schoolDisplayFns"
-              [initSearchTerm]="form.managingOrgId().value()"
-              (textUpdated)="updateManagingOrgId($event)"
-            ></app-autocomplete>
-            @if (e.managingOrgId.trim() === "") {
-              <div class="note">Primary School is ILC HQ</div>
-            } @else if (
-              membersService.schools.entriesMap().get(e.managingOrgId);
-              as schoolData
-            ) {
-              <div class="note">{{ schoolData.schoolName }}</div>
-            } @else {
-              <div class="error-message">invalid school ID</div>
-            }
-          </div>
-        }
-
-        <h3>Membership Status & Level</h3>
-
-        <label for="memberId">Member ID</label>
-        <div class="rhs">
-          @if (
-            memberIdAssignment().kind === AssignKind.AssignNewAutoId &&
-            !countryWithCode()
-          ) {
-            <div>
-              <span class="error-message"
-                >Please enter a country with a valid country code above, so that
-              </span>
-            </div>
-          } @else {
-            <app-id-assignment
-              [initAssignment]="memberIdAssignment()"
-              [canBeUnset]="false"
-              [expectedNextId]="expectedNextMemberId()"
-              [canEdit]="userIsAdmin()"
-              (assignment)="handleMemberIdAssignmentChange($event)"
-            ></app-id-assignment>
-          }
-        </div>
-
-        <label for="membershipType">Type</label>
-        <div class="rhs">
-          <select id="membershipType" [formField]="form.membershipType">
-            @for (type of membershipTypes; track type) {
-              <option [value]="type">{{ type }}</option>
-            }
-          </select>
-        </div>
-
-        <label for="firstMembershipStarted">First Membership</label>
-        <div class="rhs">
-          <input
-            class="date"
-            type="date"
-            id="firstMembershipStarted"
-            placeholder="YYYY-MM-DD"
-            [formField]="form.firstMembershipStarted"
-          />
-        </div>
-
-        <label for="lastRenewalDate">Last Renewal</label>
-        <div class="rhs">
-          <input
-            class="date"
-            type="date"
-            id="lastRenewalDate"
-            placeholder="YYYY-MM-DD"
-            [formField]="form.lastRenewalDate"
-          />
-        </div>
-
-        @if (e.membershipType !== MembershipType.Life) {
-          <label for="currentMembershipExpires">Expires</label>
-          <div class="rhs">
-            <input
-              class="date"
-              type="date"
-              id="currentMembershipExpires"
-              placeholder="YYYY-MM-DD"
-              [formField]="form.currentMembershipExpires"
-            />
-          </div>
-        }
-
-        <label for="studentLevel">Student</label>
-        <div class="rhs">
-          <input
-            type="text"
-            id="studentLevel"
-            [formField]="form.studentLevel"
-          />
-        </div>
-
-        <label for="applicationLevel">Application</label>
-        <div class="rhs">
-          <input
-            type="text"
-            id="applicationLevel"
-            [formField]="form.applicationLevel"
-          />
-        </div>
-
-        <label for="masterLevels">Master</label>
-        <div class="rhs">
-          @if (userIsAdmin()) {
-            @for (level of masterLevels; track level) {
-              <div class="masterLevel">
-                <input
-                  id="masterLevels"
-                  name="masterLevels"
-                  type="checkbox"
-                  [checked]="e.mastersLevels.includes(level)"
-                  (change)="onMasterLevelChange(level, $event)"
-                />
-                {{ level }}
-              </div>
-            }
-          } @else {
-            @if(e.mastersLevels.length > 0) {
-              @for (level of e.mastersLevels; track level) {
-              <span class="identifier-chip">{{ level }}</span>
-              }
-            } @else {
-            <span class="missing-identifier-chip">Not yet a master</span>
-            }
-          }
-        </div>
-
-        <label for="tags">Tags</label>
-        <div class="rhs">
-          @if (userIsAdmin()) {
-          @let tagsField = form.tags();
-          @for (tag of tagsField.value(); track $index; let last = $last) {
-          <div class="tag-row">
-            <input type="text" [value]="tag" (input)="updateTag($index, $event)" placeholder="Tag name" />
-            <button type="button" class="icon-only-button" (click)="removeTag($index)" title="Remove tag">
-              <app-icon name="trash" />
-            </button>
-            @if (last) {
-            <button type="button" class="icon-only-button add-tag-btn" (click)="addTag()" title="Add another tag">
-              <app-icon name="add" />
-            </button>
-            }
-          </div>
-          }
-          @if (tagsField.value().length === 0) {
-          <div class="add-tag-row">
-            <button type="button" class="text-button" (click)="addTag()">
-              + Add Tag
-            </button>
-          </div>
-          }
-          } @else {
-          <div class="tags-display">
-            @if(e.tags && e.tags.length > 0) {
-            @for (tag of e.tags; track tag) {
-            <span class="identifier-chip">{{ tag }}</span>
-            }
-            } @else {
-            <span class="missing-identifier-chip">No tags</span>
-            }
-          </div>
-          }
-        </div>
-
-        @if (e.instructorId.trim() !== "" || userIsAdmin()) {
-          <h3>Instructor Status</h3>
-          <label for="instructorId">Instructor ID</label>
-          <div class="rhs">
-            <app-id-assignment name="instructorId" [initAssignment]="instructorIdAssignment()" [canBeUnset]="true"
-              [expectedNextId]="expectedNextInstructorId()" [canEdit]="userIsAdmin()"
-              (assignment)="handleInstructorIdAssignmentChange($event)"></app-id-assignment>
-            </div>
-
-          @if (
-          e.instructorId.trim() !== "" ||
-          instructorIdAssignment().kind === AssignKind.AssignNewAutoId
-          ) {
-          <label for="instructorLicenseType">License Type</label>
-          <div class="rhs">
-            <select id="instructorLicenseType" [formField]="form.instructorLicenseType">
-              @for (type of instructorLicenseTypes; track type) {
-              <option [value]="type">{{ type }}</option>
-              }
-            </select>
-          </div>
-
-            @if (
-            form.instructorLicenseType().value() ===
-            InstructorLicenseType.Annual
-            ) {
-            <label for="instructorLicenseRenewalDate">License Renewal</label>
-            <div class="rhs">
-              <input class="date" type="date" id="instructorLicenseRenewalDate" placeholder="YYYY-MM-DD"
-                [formField]="form.instructorLicenseRenewalDate" />
-            </div>
-
-              <label for="instructorLicenseExpires">License Expires</label>
-              <div class="rhs">
-                <input class="date" type="date" id="instructorLicenseExpires" placeholder="YYYY-MM-DD"
-                  [formField]="form.instructorLicenseExpires" />
-                </div>
-                }
-
-            <h3>Instructor Public Listing</h3>
-
-            <p class="note">
-              While your instructor license is active, your Member ID, instructor
-              ID, your graded levels, and the details in this section are public,
-              and listed on the ILC website.
-            </p>
-
-            <label for="instructorWebsite">Website</label>
-            <div class="rhs">
-              <input type="text" id="instructorWebsite" [formField]="form.instructorWebsite" />
-              </div>
-
-            <label for="publicEmail">Public Email</label>
-            <div class="rhs">
-              <input type="email" id="publicEmail" [formField]="form.publicEmail" />
-              </div>
-
-            <label for="publicPhone">Public Phone</label>
-            <div class="rhs">
-              <input type="text" id="publicPhone" [formField]="form.publicPhone" />
-              </div>
-
-            <label for="publicRegionOrCity">Public Region/City</label>
-            <div class="rhs">
-              <input type="text" id="publicRegionOrCity" [formField]="form.publicRegionOrCity" />
-              </div>
-
-            <label for="publicCountyOrState">Public County/State</label>
-            <div class="rhs">
-              <input type="text" id="publicCountyOrState" [formField]="form.publicCountyOrState" />
-              </div>
-          }
-        }
-
-        @if (userIsAdmin()) {
-          <h3>Admin</h3>
-          <label for="isAdmin">Is Admin</label>
-          <div class="rhs">
-            <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
-            <span class="note">(can edit all members)</span>
-          </div>
-
-          <label for="notes" class="align-top">Notes</label>
-          <div class="rhs">
-            <textarea id="notes" [formField]="form.notes"></textarea>
-          </div>
+  <form (submit)="saveMember($event)">
+    <div class="form-section">
+      <h3>Contact</h3>
+      <label for="name">Name</label>
+      <div class="rhs">
+        <input type="text" id="name" [formField]="form.name" />
+        @let nameErrors = form.name().errors();
+        @if (nameErrors.length > 0 && nameErrors[0]; as error) {
+        <div class="error-message">{{ error.message }}</div>
         }
       </div>
 
-      @if (errorMessage().length > 0) {
-        <div class="error-container">
-          <div class="error-message">
-            <ul>
-              @for (error of errorMessage(); track error) {
-                <li>{{ error }}</li>
-              }
-            </ul>
+      <label>Emails</label>
+      <div class="rhs">
+        @let emailsField = form.emails();
+        @let emailErrors = emailsField.errors();
+
+        @for (email of emailsField.value(); track $index; let last = $last) {
+        <div class="email-row">
+          <input type="text" [value]="email" (input)="updateEmail($index, $event)" (blur)="emailsField.dirty()"
+            placeholder="name@example.com" />
+          <button type="button" class="icon-only-button" (click)="removeEmail($index)" title="Remove email">
+            <app-icon name="trash" />
+          </button>
+          @if (last) {
+          <button type="button" class="icon-only-button add-email-btn" (click)="addEmail()" title="Add another email">
+            <app-icon name="add" />
+          </button>
+          }
           </div>
-          <button
-            type="button"
-            class="icon-only-button"
-            (click)="closeErrors()"
-          >
-            <app-icon name="close" />
+          }
+          @if (emailsField.value().length === 0) {
+          <div class="add-email-row">
+            <button type="button" class="text-button" (click)="addEmail()">
+              + Add Email
+            </button>
+          </div>
+          }
+
+        @if (isDupEmail()) {
+        <div class="error-message">
+          One of these emails is already in use by another member.
+        </div>
+        } @else if (emailErrors.length > 0 && emailErrors[0]; as error) {
+        <div class="error-message">{{ error.message }}</div>
+        }
+        </div>
+
+      <label for="address" class="align-top">Address</label>
+      <div class="rhs">
+        <textarea id="address" [formField]="form.address"></textarea>
+      </div>
+
+      <label for="city">City</label>
+      <div class="rhs">
+        <input type="text" id="city" [formField]="form.city" />
+      </div>
+
+      <label for="zipCode">Zip Code</label>
+      <div class="rhs">
+        <input type="text" id="zipCode" [formField]="form.zipCode" />
+      </div>
+      <label for="countyOrState">County/State</label>
+      <div class="rhs">
+        <input type="text" id="countyOrState" [formField]="form.countyOrState" />
+        </div>
+
+      <label for="country">Country</label>
+      <div class="rhs">
+        <app-autocomplete [searchableSet]="membersService.countries" [displayFns]="countryDisplayFns" [inputBoxIsChip]="false"
+          [placeholder]="'Search for a country'" [initSearchTerm]="form.country().value()"
+          (textUpdated)="updateCountry($event)"></app-autocomplete>
+        @if (countryWithCode(); as cc) {
+        <div class="identifier-chip">{{ cc.id }}</div>
+        } @else {
+        <div class="error-message">invalid country</div>
+        }
+        </div>
+
+      <label for="phone">Phone</label>
+      <div class="rhs">
+        <input type="text" id="phone" [formField]="form.phone" />
+      </div>
+
+      <label for="gender">Gender</label>
+      <div class="rhs">
+        <input type="text" id="gender" [formField]="form.gender" />
+      </div>
+
+      <label for="dateOfBirth">Date of Birth</label>
+      <div class="rhs">
+        <input class="date" type="date" id="dateOfBirth" placeholder="YYYY-MM-DD" [formField]="form.dateOfBirth" />
+        </div>
+
+      @if (userIsMemberOrAdmin()) {
+      <h3>
+        Primary Instructor
+        <app-icon name="info" (click)="showInstructorNotes.set(!showInstructorNotes())" style="cursor: pointer"></app-icon>
+        </h3>
+        @if (showInstructorNotes()) {
+        <p class="note">
+          Members choose who they consider to be their primary instructor,
+          and can change it at any time. The member's choice of primary
+          instructor is visable only to the member, their current primary
+          instructor, and ILC HQ.
+        </p>
+        <p class="note">
+          The selected primary instructor can see the member's
+          <span class="section-chip">Contacts Details</span>,
+          <span class="section-chip">Membership Status & Level</span>, and
+          <span class="section-chip">Instructor Status</span> (and if this
+          member if an instructor, their
+          <span class="section-chip">Instructor Public Listing</span>). The
+          primary instructor cannot edit the any of the member's details.
+        </p>
+        }
+
+      <label for="sifuInstructorId" class="align-top">Primary Instructor ID</label>
+      <div class="rhs">
+        <app-autocomplete name="Primary Instructor" [searchableSet]="membersService.instructors"
+          [placeholder]="'Search for an instructor'" [displayFns]="instructorDisplayFns"
+          [initSearchTerm]="form.sifuInstructorId().value()"
+          (textUpdated)="updateSifuInstructorId($event)"></app-autocomplete>
+        @if (e.sifuInstructorId === "") {
+        <div class="note">No primary instructor set</div>
+        } @else if (
+        membersService.instructors.entriesMap().get(e.sifuInstructorId);
+        as sifuData
+        ) {
+        <div class="note">{{ sifuData.name }}</div>
+        } @else {
+        <div class="error-message">
+          invalid instructor ID:
+          <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
+        </div>
+        }
+      </div>
+      }
+
+      @if (userIsMemberSchoolManagerOrAdmin()) {
+      <h3>
+        Primary School
+        <app-icon name="info" (click)="showSchoolNotes.set(!showSchoolNotes())" style="cursor: pointer"></app-icon>
+        </h3>
+
+      @if (showSchoolNotes()) {
+      <p class="note">
+        Member choose their primary school and can change it at any time.
+        A member's primary school is visible only to the member, the
+        current primary school and ILC HQ.
+      </p>
+      <p class="note">
+        Administrators of the primary school can see and edit
+        <span class="section-chip">Contacts Details</span>,
+        <span class="section-chip">Membership Status & Level</span>, and
+        <span class="section-chip">Instructor Status</span> (and if the
+        member if an instructor, their
+        <span class="section-chip">Instructor Public Listing</span>).
+      </p>
+      }
+
+      <label for="inSchoolId" class="align-top">Primary School ID</label>
+      <div class="rhs">
+        <app-autocomplete [searchableSet]="membersService.schools" [placeholder]="'Search for a school'"
+          [displayFns]="schoolDisplayFns" [initSearchTerm]="form.managingOrgId().value()"
+          (textUpdated)="updateManagingOrgId($event)"></app-autocomplete>
+        @if (e.managingOrgId.trim() === "") {
+        <div class="note">Primary School is ILC HQ</div>
+        } @else if (
+        membersService.schools.entriesMap().get(e.managingOrgId);
+        as schoolData
+        ) {
+        <div class="note">{{ schoolData.schoolName }}</div>
+        } @else {
+        <div class="error-message">invalid school ID</div>
+        }
+        </div>
+        }
+
+      <h3>Membership Status & Level</h3>
+
+      <label for="memberId">Member ID</label>
+      <div class="rhs">
+        @if (
+        memberIdAssignment().kind === AssignKind.AssignNewAutoId &&
+        !countryWithCode()
+        ) {
+        <div>
+          <span class="error-message">Please enter a country with a valid country code above, so that
+          </span>
+          </div>
+          } @else {
+        <app-id-assignment [initAssignment]="memberIdAssignment()" [canBeUnset]="false"
+          [expectedNextId]="expectedNextMemberId()" [canEdit]="userIsAdmin()"
+          (assignment)="handleMemberIdAssignmentChange($event)"></app-id-assignment>
+        }
+        </div>
+
+      <label for="membershipType">Type</label>
+      <div class="rhs">
+        <select id="membershipType" [formField]="form.membershipType">
+          @for (type of membershipTypes; track type) {
+          <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+
+      <label for="firstMembershipStarted">First Membership</label>
+      <div class="rhs">
+        <input class="date" type="date" id="firstMembershipStarted" placeholder="YYYY-MM-DD"
+          [formField]="form.firstMembershipStarted" />
+        </div>
+
+      <label for="lastRenewalDate">Last Renewal</label>
+      <div class="rhs">
+        <input class="date" type="date" id="lastRenewalDate" placeholder="YYYY-MM-DD" [formField]="form.lastRenewalDate" />
+        </div>
+
+      @if (e.membershipType !== MembershipType.Life) {
+      <label for="currentMembershipExpires">Expires</label>
+      <div class="rhs">
+        <input class="date" type="date" id="currentMembershipExpires" placeholder="YYYY-MM-DD"
+          [formField]="form.currentMembershipExpires" />
+        </div>
+        }
+
+      <label for="studentLevel">Student</label>
+      <div class="rhs">
+        <input type="text" id="studentLevel" [formField]="form.studentLevel" />
+        </div>
+
+      <label for="applicationLevel">Application</label>
+      <div class="rhs">
+        <input type="text" id="applicationLevel" [formField]="form.applicationLevel" />
+        </div>
+
+      <label for="masterLevels">Master</label>
+      <div class="rhs">
+        @if (userIsAdmin()) {
+        @for (level of masterLevels; track level) {
+        <div class="masterLevel">
+          <input id="masterLevels" name="masterLevels" type="checkbox" [checked]="e.mastersLevels.includes(level)"
+            (change)="onMasterLevelChange(level, $event)" />
+          {{ level }}
+          </div>
+          }
+          } @else {
+          @if(e.mastersLevels.length > 0) {
+          @for (level of e.mastersLevels; track level) {
+          <span class="identifier-chip">{{ level }}</span>
+          }
+          } @else {
+          <span class="missing-identifier-chip">Not yet a master</span>
+          }
+          }
+          </div>
+
+      <label for="tags">Tags</label>
+      <div class="rhs">
+        @if (userIsAdmin()) {
+        @let tagsField = form.tags();
+        @for (tag of tagsField.value(); track $index; let last = $last) {
+        <div class="tag-row">
+          <input type="text" [value]="tag" (input)="updateTag($index, $event)" placeholder="Tag name" />
+          <button type="button" class="icon-only-button" (click)="removeTag($index)" title="Remove tag">
+            <app-icon name="trash" />
+          </button>
+          @if (last) {
+          <button type="button" class="icon-only-button add-tag-btn" (click)="addTag()" title="Add another tag">
+            <app-icon name="add" />
+          </button>
+          }
+        </div>
+        }
+        @if (tagsField.value().length === 0) {
+        <div class="add-tag-row">
+          <button type="button" class="text-button" (click)="addTag()">
+            + Add Tag
           </button>
         </div>
+        }
+        } @else {
+        <div class="tags-display">
+          @if(e.tags && e.tags.length > 0) {
+          @for (tag of e.tags; track tag) {
+          <span class="identifier-chip">{{ tag }}</span>
+          }
+          } @else {
+          <span class="missing-identifier-chip">No tags</span>
+          }
+        </div>
+        }
+      </div>
+
+      @if (e.instructorId.trim() !== "" || userIsAdmin()) {
+      <h3>Instructor Status</h3>
+      <label for="instructorId">Instructor ID</label>
+      <div class="rhs">
+        <app-id-assignment name="instructorId" [initAssignment]="instructorIdAssignment()" [canBeUnset]="true"
+          [expectedNextId]="expectedNextInstructorId()" [canEdit]="userIsAdmin()"
+          (assignment)="handleInstructorIdAssignmentChange($event)"></app-id-assignment>
+      </div>
+
+      @if (
+      e.instructorId.trim() !== "" ||
+      instructorIdAssignment().kind === AssignKind.AssignNewAutoId
+      ) {
+      <label for="instructorLicenseType">License Type</label>
+      <div class="rhs">
+        <select id="instructorLicenseType" [formField]="form.instructorLicenseType">
+          @for (type of instructorLicenseTypes; track type) {
+          <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </div>
+
+      @if (
+      form.instructorLicenseType().value() ===
+      InstructorLicenseType.Annual
+      ) {
+      <label for="instructorLicenseRenewalDate">License Renewal</label>
+      <div class="rhs">
+        <input class="date" type="date" id="instructorLicenseRenewalDate" placeholder="YYYY-MM-DD"
+          [formField]="form.instructorLicenseRenewalDate" />
+      </div>
+
+      <label for="instructorLicenseExpires">License Expires</label>
+      <div class="rhs">
+        <input class="date" type="date" id="instructorLicenseExpires" placeholder="YYYY-MM-DD"
+          [formField]="form.instructorLicenseExpires" />
+      </div>
+      }
+
+      <h3>Instructor Public Listing</h3>
+
+      <p class="note">
+        While your instructor license is active, your Member ID, instructor
+        ID, your graded levels, and the details in this section are public,
+        and listed on the ILC website.
+      </p>
+
+      <label for="instructorWebsite">Website</label>
+      <div class="rhs">
+        <input type="text" id="instructorWebsite" [formField]="form.instructorWebsite" />
+      </div>
+
+      <label for="publicEmail">Public Email</label>
+      <div class="rhs">
+        <input type="email" id="publicEmail" [formField]="form.publicEmail" />
+      </div>
+
+      <label for="publicPhone">Public Phone</label>
+      <div class="rhs">
+        <input type="text" id="publicPhone" [formField]="form.publicPhone" />
+      </div>
+
+      <label for="publicRegionOrCity">Public Region/City</label>
+      <div class="rhs">
+        <input type="text" id="publicRegionOrCity" [formField]="form.publicRegionOrCity" />
+      </div>
+
+      <label for="publicCountyOrState">Public County/State</label>
+      <div class="rhs">
+        <input type="text" id="publicCountyOrState" [formField]="form.publicCountyOrState" />
+      </div>
+      }
+      }
+
+      @if (userIsAdmin()) {
+      <h3>Admin</h3>
+      <label for="isAdmin">Is Admin</label>
+      <div class="rhs">
+        <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
+        <span class="note">(can edit all members)</span>
+      </div>
+
+      <label for="notes" class="align-top">Notes</label>
+      <div class="rhs">
+        <textarea id="notes" [formField]="form.notes"></textarea>
+      </div>
+      }
+      </div>
+
+    @if (errorMessage().length > 0) {
+    <div class="error-container">
+      <div class="error-message">
+        <ul>
+          @for (error of errorMessage(); track error) {
+          <li>{{ error }}</li>
+          }
+        </ul>
+      </div>
+      <button type="button" class="icon-only-button" (click)="closeErrors()">
+        <app-icon name="close" />
+      </button>
+      </div>
       }
       <div class="form-actions">
         <div class="left-actions">
           @if (isSaving()) {
-            <app-spinner></app-spinner>
+          <app-spinner></app-spinner>
           } @else {
-            @if (isDirty()) {
-              <button
-                type="submit"
-                [disabled]="isDupEmail() || isDupMemberId() || form().invalid()"
-              >
-                Save
-              </button>
-            }
-            @if (collapsable()) {
-              <button type="button" (click)="cancel($event)">
-                @if (isDirty()) {
-                  Cancel
-                } @else {
-                  Close
-                }
-              </button>
-            } @else {
-              @if (isDirty()) {
-                <button type="button" (click)="cancel($event)">
-                  Undo changes
-                </button>
-              }
-            }
+          @if (isDirty()) {
+        <button type="submit" [disabled]="isDupEmail() || isDupMemberId() || form().invalid()">
+          Save
+        </button>
+        }
+        @if (collapsable()) {
+        <button type="button" (click)="cancel($event)">
+          @if (isDirty()) {
+          Cancel
+          } @else {
+          Close
           }
+        </button>
+        } @else {
+        @if (isDirty()) {
+        <button type="button" (click)="cancel($event)">
+          Undo changes
+        </button>
+        }
+        }
+        }
         </div>
         <div class="right-actions">
           <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
 
-          @if (collapsable() && canDelete()) {
-            <button class="delete-button" (click)="deleteMember($event)">
-              <app-icon name="trash" fill="#000" />
-              Delete
-            </button>
-          }
+        @if (collapsable() && canDelete()) {
+        <button class="delete-button" (click)="deleteMember($event)">
+          <app-icon name="trash" fill="#000" />
+          Delete
+        </button>
+        }
         </div>
-      </div>
-    </form>
+        </div>
+        </form>
   }
 </div>

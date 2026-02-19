@@ -176,10 +176,10 @@ export class DataManagerService {
       const user = this.firebaseService.user();
       if (user) {
         const allSchools = this.schools.entries();
-        const myMemberId = user.member.memberId;
+        const myInstructorId = user.member.instructorId;
         const mySchoolsList = allSchools.filter(
           (school) =>
-            school.owner === myMemberId || school.managers.includes(myMemberId),
+            school.owner === myInstructorId || school.managers.includes(myInstructorId),
         );
         this.mySchools.setEntries(mySchoolsList);
       } else {
@@ -193,8 +193,6 @@ export class DataManagerService {
   }
 
   async updateMembersSync(user: UserDetails) {
-    console.log(`updateMembersSync(${user.member.emails[0]}: UserDetails)`);
-    console.log(user);
     if (user.isAdmin) {
       const q = query(this.membersCollection, orderBy('lastUpdated', 'desc'));
       this.snapshotsToUnsubscribe.push(
@@ -218,8 +216,6 @@ export class DataManagerService {
           collection(this.db, `schools/${schoolId}/members`),
           orderBy('lastUpdated', 'desc'),
         );
-        console.log(`loading members from: schools/${schoolId}/members`);
-
         const unsubscribe = onSnapshot(
           membersQuery,
           (snapshot) => {
@@ -238,8 +234,6 @@ export class DataManagerService {
                 allMembers.set(change.doc.id, firestoreDocToMember(change.doc));
               }
             });
-            console.log('members loaded:');
-            console.log(Array.from(allMembers.values()));
             this.members.setEntries(Array.from(allMembers.values()));
           },
           (error) => {

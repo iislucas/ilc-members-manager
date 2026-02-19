@@ -21,7 +21,7 @@ export class FilteredMembersComponent {
     'memberId',
     'instructorId',
     'name',
-    'email',
+    'emails',
     'publicEmail',
     'memberId',
     'city',
@@ -29,6 +29,7 @@ export class FilteredMembersComponent {
     'publicRegionOrCity',
     'publicCountyOrState',
     'country',
+    'tags',
   ], 'memberId');
   errorMessage = computed(() => {
     return this.memberSet().error() || this.filteredMemberSet.error();
