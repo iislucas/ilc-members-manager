@@ -32,9 +32,7 @@ async function updateACL(aclUpdate: {
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
 
-  const instructorIdChanged = instructorId !== previousInstructorId;
-
-  if (added.length === 0 && removed.length === 0 && !instructorIdChanged) {
+  if (added.length === 0 && removed.length === 0) {
     return;
   }
 
@@ -63,32 +61,6 @@ async function updateACL(aclUpdate: {
         admin.firestore.FieldValue.arrayRemove(previousInstructorId);
     }
     batch.update(aclRef, update);
-  }
-
-  // If instructorId changed, update instructorIds on all existing (non-added, non-removed) emails
-  if (instructorIdChanged) {
-    const existingEmails = emails.filter(
-      (e) => e && !added.includes(e) && !removed.includes(e)
-    );
-    for (const email of existingEmails) {
-      const aclRef = db.collection('acl').doc(email);
-      // We need separate batch operations for remove and union since they
-      // can't be combined on the same field in one update.
-      if (previousInstructorId) {
-        batch.set(
-          aclRef,
-          { instructorIds: admin.firestore.FieldValue.arrayRemove(previousInstructorId) },
-          { merge: true }
-        );
-      }
-      if (instructorId) {
-        batch.set(
-          aclRef,
-          { instructorIds: admin.firestore.FieldValue.arrayUnion(instructorId) },
-          { merge: true }
-        );
-      }
-    }
   }
 
   await batch.commit();

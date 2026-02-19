@@ -10,9 +10,8 @@ import { ensureSchoolCountersAreAtLeast } from './counters';
 const db = admin.firestore();
 
 /**
- * Resolves a list of member IDs (or instructor IDs) to their primary account emails.
- * In this system, the document ID in the 'members' collection is the primary email.
- * However, we need to find the member document by their 'instructorId'.
+ * Resolves a list of instructor IDs to their primary account emails
+ * by querying the members collection directly.
  */
 async function resolveInstructorEmails(instructorIds: string[]): Promise<string[]> {
   const emails: string[] = [];
@@ -28,11 +27,13 @@ async function resolveInstructorEmails(instructorIds: string[]): Promise<string[
   }
 
   for (const chunk of chunks) {
-    const q = db.collection('acl').where('instructorIds', 'array-contains-any', chunk);
+    const q = db.collection('members').where('instructorId', 'in', chunk);
     const snapshot = await q.get();
     snapshot.forEach(doc => {
-      // The document ID of the ACL record is the user's primary account email.
-      emails.push(doc.id);
+      const member = doc.data();
+      if (member.emails && member.emails.length > 0) {
+        emails.push(member.emails[0]);
+      }
     });
   }
 
