@@ -21,9 +21,6 @@ export class SquarespaceContentComponent {
 
     /** The Squarespace path to fetch, e.g. '/members-area' */
     path = input.required<string>();
-    /** The title to display above the content */
-    pageTitle = input.required<string>();
-
     content = signal<SafeHtml | null>(null);
     loading = signal<boolean>(true);
     error = signal<string | null>(null);
@@ -140,8 +137,10 @@ export class SquarespaceContentComponent {
                     else if (data.items && Array.isArray(data.items)) {
                         htmlContent = data.items
                             .map((item: any) => {
+                                const title = item.title ? `<h2 class="sqs-title">${item.title}</h2>` : '';
+                                const image = item.assetUrl ? `<img class="sqs-image" src="${item.assetUrl}" alt="${item.title || ''}" />` : '';
                                 const body = item.body || item.content || '';
-                                return `<article class="sqs-item">${body}</article>`;
+                                return `<article class="sqs-item">\n${title}\n${image}\n${body}\n</article>`;
                             })
                             .join('<hr class="sqs-separator">');
                     }
