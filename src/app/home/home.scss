@@ -1,45 +1,30 @@
 .home-container {
-  padding: 2rem;
+  padding: 1.5rem;
   max-width: 1200px;
   margin: 0 auto;
-
-  h1 {
-    margin-bottom: 2rem;
-    color: #333;
-    font-weight: 300;
-  }
-}
-
-.section-title {
-  font-size: 1.2rem;
-  color: #666;
-  margin-bottom: 1rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .separator {
   height: 1px;
   background-color: #eee;
-  margin: 2rem 0;
+  margin: 1.5rem 0;
 }
 
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .card {
   background: white;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   transition:
     transform 0.2s,
@@ -52,7 +37,8 @@
   }
 
   .icon-container {
-    margin-bottom: 1rem;
+    margin-bottom: 0;
+    margin-right: 1.25rem;
     color: #5f6368;
 
     // Ensure icon inherits color or set it explicitly

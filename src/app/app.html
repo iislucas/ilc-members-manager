@@ -5,223 +5,320 @@
   in... } @else 
    -->
   @if (user) {
-  <div class="nav-bar">
-    <div class="title-and-menu">
-      <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-        <app-icon name="menu"></app-icon>
-      </button>
-      @if (menuOpen()) {
-      <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
-      <div class="menu">
-        <div class="menu-item" (click)="currentView.set(Views.Home); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.Home) }}
-        </div>
+    <div class="nav-bar">
+      <div class="title-and-menu">
+        <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
+          <app-icon name="menu"></app-icon>
+        </button>
+        @if (menuOpen()) {
+          <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
+          <div class="menu">
+            <div
+              class="menu-item"
+              (click)="currentView.set(Views.Home); menuOpen.set(false)"
+            >
+              <app-icon name="home" width="24px" height="24px"></app-icon>
+              <span>{{ viewIdToTitle(Views.Home) }}</span>
+            </div>
 
-        <div class="menu-seperator"></div>
+            <div class="menu-seperator"></div>
 
-        <!-- Public -->
-        <div class="menu-item" (click)="currentView.set(Views.FindSchool); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.FindSchool) }}
-        </div>
-        <div class="menu-item" (click)="currentView.set(Views.FindAnInstructor); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.FindAnInstructor) }}
-        </div>
+            <!-- Public -->
+            <div
+              class="menu-item"
+              (click)="currentView.set(Views.FindSchool); menuOpen.set(false)"
+            >
+              <app-icon name="map" width="24px" height="24px"></app-icon>
+              <span>{{ viewIdToTitle(Views.FindSchool) }}</span>
+            </div>
+            <div
+              class="menu-item"
+              (click)="
+                currentView.set(Views.FindAnInstructor); menuOpen.set(false)
+              "
+            >
+              <app-icon name="search" width="24px" height="24px"></app-icon>
+              <span>{{ viewIdToTitle(Views.FindAnInstructor) }}</span>
+            </div>
 
-        <div class="menu-seperator"></div>
+            <div class="menu-seperator"></div>
 
-        <!-- Personal -->
-        <div class="menu-item" (click)="currentView.set(Views.MyProfile); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.MyProfile) }}
-        </div>
-        @if (user.member.instructorId) {
-        <div class="menu-item" (click)="currentView.set(Views.MyStudents); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.MyStudents) }}
-        </div>
+            <!-- Personal -->
+            <div
+              class="menu-item"
+              (click)="currentView.set(Views.MyProfile); menuOpen.set(false)"
+            >
+              <app-icon name="person" width="24px" height="24px"></app-icon>
+              <span>{{ viewIdToTitle(Views.MyProfile) }}</span>
+            </div>
+            @if (user.member.instructorId) {
+              <div
+                class="menu-item"
+                (click)="currentView.set(Views.MyStudents); menuOpen.set(false)"
+              >
+                <app-icon name="person" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
+              </div>
+            }
+            @if (user.schoolsManaged.length > 0) {
+              <div
+                class="menu-item"
+                (click)="currentView.set(Views.MySchools); menuOpen.set(false)"
+              >
+                <app-icon name="map" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.MySchools) }}</span>
+              </div>
+            }
+            <div class="menu-seperator"></div>
+
+            <div
+              class="menu-item"
+              (click)="
+                currentView.set(Views.ActiveMembers); menuOpen.set(false)
+              "
+            >
+              <app-icon name="link" width="24px" height="24px"></app-icon>
+              <span>{{ viewIdToTitle(Views.ActiveMembers) }}</span>
+            </div>
+            @if (user.member.instructorId) {
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ActiveInstructors); menuOpen.set(false)
+                "
+              >
+                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.ActiveInstructors) }}</span>
+              </div>
+            }
+
+            @if (user.isAdmin) {
+              <div class="menu-seperator"></div>
+              <!-- Admin -->
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ManageMembers); menuOpen.set(false)
+                "
+              >
+                <app-icon name="person" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.ManageMembers) }}</span>
+              </div>
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ManageSchools); menuOpen.set(false)
+                "
+              >
+                <app-icon name="map" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.ManageSchools) }}</span>
+              </div>
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ImportExport); menuOpen.set(false)
+                "
+              >
+                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
+              </div>
+            }
+          </div>
         }
-        @if (user.schoolsManaged.length > 0) {
-        <div class="menu-item" (click)="currentView.set(Views.MySchools); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.MySchools) }}
-        </div>
-        }
-        <div class="menu-item" (click)="currentView.set(Views.ActiveMembers); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.ActiveMembers) }}
-        </div>
-        @if (user.member.instructorId) {
-        <div class="menu-item" (click)="currentView.set(Views.ActiveInstructors); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.ActiveInstructors) }}
-        </div>
-        }
-
-        @if (user.isAdmin) {
-        <div class="menu-seperator"></div>
-        <!-- Admin -->
-        <div class="menu-item" (click)="currentView.set(Views.ManageMembers); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.ManageMembers) }}
-        </div>
-        <div class="menu-item" (click)="currentView.set(Views.ManageSchools); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.ManageSchools) }}
-        </div>
-        <div class="menu-item" (click)="currentView.set(Views.ImportExport); menuOpen.set(false)">
-          {{ viewIdToTitle(Views.ImportExport) }}
-        </div>
-        }
+        <div class="title">ILC App <span>-</span> {{ currentViewTitle() }}</div>
       </div>
+      <app-profile-menu></app-profile-menu>
+    </div>
+    @if (logoutError(); as message) {
+      <div class="error-container">
+        Logout error: <span>{{ message }}</span>
+        <button class="icon-only-button" (click)="dismissMessages()">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
+    <main>
+      @if (dataService.loadingState() !== DataServiceState.Loaded) {
+        <app-spinner>Loading app data...</app-spinner>
+      } @else {
+        @switch (currentView()) {
+          @case (Views.Home) {
+            <app-home></app-home>
+          }
+          @case (Views.MyProfile) {
+            <app-member-edit
+              [allMembers]="dataService.members.entries()"
+              [member]="user.member"
+              [collapsable]="false"
+            ></app-member-edit>
+          }
+          @case (Views.ManageMembers) {
+            <app-filtered-members
+              [memberSet]="dataService.members"
+            ></app-filtered-members>
+          }
+          @case (Views.ImportExport) {
+            <app-import-export></app-import-export>
+          }
+          @case (Views.FindAnInstructor) {
+            <app-find-an-instructor></app-find-an-instructor>
+          }
+          @case (Views.ManageSchools) {
+            <app-school-list></app-school-list>
+          }
+          @case (Views.SchoolMembers) {
+            <app-school-members></app-school-members>
+          }
+          @case (Views.FindSchool) {
+            <app-find-school></app-find-school>
+          }
+          @case (Views.MyStudents) {
+            <app-filtered-members
+              [memberSet]="dataService.myStudents"
+            ></app-filtered-members>
+          }
+          @case (Views.MySchools) {
+            <app-school-list
+              [schoolSet]="dataService.mySchools"
+            ></app-school-list>
+          }
+          @case (Views.ActiveMembers) {
+            <app-squarespace-content
+              path="/membersareablog"
+              pageTitle="Active Members Area"
+            ></app-squarespace-content>
+          }
+          @case (Views.ActiveInstructors) {
+            <app-squarespace-content
+              path="/instructorsblog"
+              pageTitle="Active Instructors Area"
+            ></app-squarespace-content>
+          }
+        }
       }
-      <div class="title">ILC App <span>-</span> {{ currentViewTitle() }}</div>
-    </div>
-    <app-profile-menu></app-profile-menu>
-  </div>
-  @if (logoutError(); as message) {
-  <div class="error-container">
-    Logout error: <span>{{ message }}</span>
-    <button class="icon-only-button" (click)="dismissMessages()">
-      <app-icon name="close"></app-icon>
-    </button>
-  </div>
-  }
-  <main>
-    @if (dataService.loadingState() !== DataServiceState.Loaded) {
-    <app-spinner>Loading app data...</app-spinner>
-    } @else {
-    @switch (currentView()) {
-    @case (Views.Home) {
-    <app-home></app-home>
-    }
-    @case (Views.MyProfile) {
-    <app-member-edit [allMembers]="dataService.members.entries()" [member]="user.member"
-      [collapsable]="false"></app-member-edit>
-    }
-    @case (Views.ManageMembers) {
-    <app-filtered-members [memberSet]="dataService.members"></app-filtered-members>
-    }
-    @case (Views.ImportExport) {
-    <app-import-export></app-import-export>
-    }
-    @case (Views.FindAnInstructor) {
-    <app-find-an-instructor></app-find-an-instructor>
-    }
-    @case (Views.ManageSchools) {
-    <app-school-list></app-school-list>
-    }
-    @case (Views.SchoolMembers) {
-    <app-school-members></app-school-members>
-    }
-    @case (Views.FindSchool) {
-    <app-find-school></app-find-school>
-    }
-    @case (Views.MyStudents) {
-    <app-filtered-members [memberSet]="dataService.myStudents"></app-filtered-members>
-    }
-    @case (Views.MySchools) {
-    <app-school-list [schoolSet]="dataService.mySchools"></app-school-list>
-    }
-    @case (Views.ActiveMembers) {
-    <app-squarespace-content path="/membersareablog" pageTitle="Active Members Area"></app-squarespace-content>
-    }
-    @case (Views.ActiveInstructors) {
-    <app-squarespace-content path="/instructorsblog" pageTitle="Active Instructors Area"></app-squarespace-content>
-    }
-    }
-    }
-  </main>
+    </main>
   } @else {
-  <main>
-    <h1>ILC App</h1>
-    @if (
-    firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
-    ) {
-    <app-spinner>Initialising app...</app-spinner>
-    } @else if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
-    <app-spinner>Logging in... </app-spinner>
-    } @else {
-    @if (loginWithGoogleError(); as message) {
-    <div class="error-container">
-      <div>Login with Google Error:</div>
-      <div class="error-message">{{ message }}</div>
-      <button class="icon-only-button" (click)="dismissMessages()">
-        <app-icon name="close"></app-icon>
-      </button>
-    </div>
-    }
+    <main>
+      <h1>ILC App</h1>
+      @if (
+        firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
+      ) {
+        <app-spinner>Initialising app...</app-spinner>
+      } @else if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
+        <app-spinner>Logging in... </app-spinner>
+      } @else {
+        @if (loginWithGoogleError(); as message) {
+          <div class="error-container">
+            <div>Login with Google Error:</div>
+            <div class="error-message">{{ message }}</div>
+            <button class="icon-only-button" (click)="dismissMessages()">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
 
-    @if (firebaseService.loginError()) {
-    <div class="error-container">
-      <div>Login error:</div>
-      <div class="error-message">
-        {{ firebaseService.loginError() }}</div>
-      <button class="icon-only-button" (click)="dismissMessages()">
-        <app-icon name="close"></app-icon>
-      </button>
-    </div>
-    }
-    <div class="login-options">
-      <div class="card email-login">
-        <div>
-          Email:
-          <input id="email-input" autocomplete="email" #email type="email" name="email" ngModel required
-            placeholder="Email" />
-        </div>
-        <div>
-          Password:
-          <input id="password-input" autocomplete="current-password" #password type="password" name="password" ngModel
-            required placeholder="Password" />
-        </div>
-        <div class="buttons">
-          <button (click)="loginWithEmail(email.value, password.value)" [disabled]="!email.value || !password.value">
-            Login
-          </button>
-          <button (click)="signupWithEmail(email.value, password.value)" [disabled]="!email.value || !password.value">
-            Signup
-          </button>
-        </div>
+        @if (firebaseService.loginError()) {
+          <div class="error-container">
+            <div>Login error:</div>
+            <div class="error-message">
+              {{ firebaseService.loginError() }}
+            </div>
+            <button class="icon-only-button" (click)="dismissMessages()">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
+        <div class="login-options">
+          <div class="card email-login">
+            <div>
+              Email:
+              <input
+                id="email-input"
+                autocomplete="email"
+                #email
+                type="email"
+                name="email"
+                ngModel
+                required
+                placeholder="Email"
+              />
+            </div>
+            <div>
+              Password:
+              <input
+                id="password-input"
+                autocomplete="current-password"
+                #password
+                type="password"
+                name="password"
+                ngModel
+                required
+                placeholder="Password"
+              />
+            </div>
+            <div class="buttons">
+              <button
+                (click)="loginWithEmail(email.value, password.value)"
+                [disabled]="!email.value || !password.value"
+              >
+                Login
+              </button>
+              <button
+                (click)="signupWithEmail(email.value, password.value)"
+                [disabled]="!email.value || !password.value"
+              >
+                Signup
+              </button>
+            </div>
 
-        @if (signupError(); as message) {
-        <div class="error-container">
-          Signup error: <span class="error-message">{{ message }}</span>
-          <button class="icon-only-button" (click)="dismissMessages()">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-        }
-        @if (loginWithEmailError(); as message) {
-        <div class="error-container">
-          Login with email error:
-          <span class="error-message">{{ message }}</span>
-          <button class="icon-only-button" (click)="dismissMessages()">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-        }
-        @if (invalidLoginCredentials()) {
-        <p>
-          Your password is invalid. Do you want to
-          <button (click)="resetPassword(email.value)">
-            reset your password
-          </button>
-          ?
-        </p>
-        }
-        @if (resetPasswordSuccess(); as message) {
-        <div class="success">
-          <span>{{ message }}</span>
-        </div>
-        }
-        @if (resetPasswordError(); as message) {
-        <div class="error-container">
-          Reset password error: <span class="error-message">{{ message }}</span>
-          <button class="icon-only-button" (click)="dismissMessages()">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-        }
-      </div>
+            @if (signupError(); as message) {
+              <div class="error-container">
+                Signup error: <span class="error-message">{{ message }}</span>
+                <button class="icon-only-button" (click)="dismissMessages()">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+            @if (loginWithEmailError(); as message) {
+              <div class="error-container">
+                Login with email error:
+                <span class="error-message">{{ message }}</span>
+                <button class="icon-only-button" (click)="dismissMessages()">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+            @if (invalidLoginCredentials()) {
+              <p>
+                Your password is invalid. Do you want to
+                <button (click)="resetPassword(email.value)">
+                  reset your password
+                </button>
+                ?
+              </p>
+            }
+            @if (resetPasswordSuccess(); as message) {
+              <div class="success">
+                <span>{{ message }}</span>
+              </div>
+            }
+            @if (resetPasswordError(); as message) {
+              <div class="error-container">
+                Reset password error:
+                <span class="error-message">{{ message }}</span>
+                <button class="icon-only-button" (click)="dismissMessages()">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+          </div>
 
-      <div class="card google-login">
-        <button (click)="loginWithGoogle()">Login with Google</button>
-      </div>
-    </div>
-    }
-  </main>
+          <div class="card google-login">
+            <button (click)="loginWithGoogle()">Login with Google</button>
+          </div>
+        </div>
+      }
+    </main>
   }
   <app-footer></app-footer>
 </div>
