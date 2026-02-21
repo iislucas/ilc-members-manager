@@ -19,6 +19,7 @@ import {
   Timestamp,
   serverTimestamp,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import {
   Member,
@@ -599,6 +600,28 @@ export class DataManagerService {
     });
     const csv = Papa.unparse(schools);
     this.downloadFile('schools.csv', csv, 'text/csv');
+  }
+
+  async listBackups() {
+    const listBackupsFn = httpsCallable<
+      undefined,
+      { backups: { name: string; timeCreated: string; size: string; downloadUrl: string }[] }
+    >(this.functions, 'listBackups');
+    const result = await listBackupsFn();
+    return result.data.backups;
+  }
+
+  async getStaticDocs() {
+    const snapshot = await getDocs(collection(this.db, 'static'));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, data: doc.data() }));
+  }
+
+  async saveStaticDoc(id: string, data: any) {
+    return setDoc(doc(this.db, 'static', id), data);
+  }
+
+  async saveCountersRaw(data: any) {
+    return setDoc(doc(this.db, 'counters', 'singleton'), data);
   }
 
   downloadSchoolsAsJsonL() {

@@ -1,0 +1,71 @@
+<div class="control-panel">
+  <h2>Database Backups</h2>
+
+  <div style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; background-color: #f9f9f9;">
+    <h3>Manual Backup</h3>
+    <p>Click the button below to trigger a manual backup of the database to Cloud Storage.</p>
+
+    @if (isBackingUp()) {
+    <app-spinner>Backing up...</app-spinner>
+    } @else {
+    <button class="action-button" (click)="triggerBackup()">
+      Trigger Backup
+    </button>
+    }
+
+    @if (backupTriggerMessage()) {
+    <p class="status-message" style="margin-top: 10px; font-weight: bold; color: var(--primary-color);">
+      {{ backupTriggerMessage() }}
+    </p>
+    }
+  </div>
+
+  <p>List of database backups in Cloud Storage.</p>
+
+  <div style="margin-bottom: 1rem;">
+    <button class="action-button" (click)="loadBackups()" [disabled]="isLoadingBackups()">
+      Refresh List
+    </button>
+  </div>
+
+  @if (isLoadingBackups()) {
+  <div>
+    <app-spinner></app-spinner> Loading backups...
+  </div>
+  }
+
+  @if (backupsMessage()) {
+  <p class="status-message" style="color: red;">{{ backupsMessage() }}</p>
+  }
+
+  @if (backups().length > 0) {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>File Name</th>
+        <th>Created At</th>
+        <th>Size (Bytes)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (backup of backups(); track backup.name) {
+      <tr>
+        <td>{{ backup.name }}</td>
+        <td>{{ backup.timeCreated | date:'medium' }}</td>
+        <td>{{ backup.size }}</td>
+        <td>
+          <a [href]="backup.downloadUrl" target="_blank" download class="action-link">Download</a>
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+
+  @if (!isLoadingBackups() && backups().length === 0 && !backupsMessage()) {
+  <div>
+    No backups found.
+  </div>
+  }
+</div>

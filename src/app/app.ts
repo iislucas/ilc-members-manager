@@ -20,6 +20,7 @@ import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 import { GradingListComponent } from './grading-list/grading-list';
+import { SettingsComponent } from './settings/settings.component';
 
 @Component({
   selector: 'app-root',
@@ -43,6 +44,7 @@ import { GradingListComponent } from './grading-list/grading-list';
     HomeComponent,
     SquarespaceContentComponent,
     GradingListComponent,
+    SettingsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -109,6 +111,8 @@ export class App {
         return 'Manage Gradings';
       case Views.GradingsAssessed:
         return 'Gradings Assessed';
+      case Views.Settings:
+        return 'Settings';
       default:
         return 'Unknown View';
     }

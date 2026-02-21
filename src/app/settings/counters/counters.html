@@ -1,0 +1,15 @@
+<div class="control-panel">
+  <h2>Counters</h2>
+  <p>Edit the raw JSON for the counters singleton document. Be very careful to maintain correct types.</p>
+
+  <textarea [(ngModel)]="countersDataRaw" rows="15" style="width: 100%; font-family: monospace;"></textarea>
+
+  <div style="margin-top: 10px;">
+    <button class="action-button" (click)="saveCounters()" [disabled]="isSavingCounters()">
+      {{ isSavingCounters() ? 'Saving...' : 'Save Counters' }}
+    </button>
+  </div>
+  @if (countersMessage()) {
+  <p class="status-message">{{ countersMessage() }}</p>
+  }
+</div>

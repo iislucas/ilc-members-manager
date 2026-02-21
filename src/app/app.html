@@ -132,6 +132,10 @@
                 <app-icon name="mountain" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ManageGradings) }}</span>
               </div>
+              <div class="menu-item" (click)="currentView.set(Views.Settings); menuOpen.set(false)">
+                <app-icon name="admin" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.Settings) }}</span>
+              </div>
             }
           </div>
         }
@@ -209,6 +213,9 @@
           }
           @case (Views.GradingsAssessed) {
           <app-grading-list [gradingSet]="dataService.myGradingsAssessed"></app-grading-list>
+          }
+          @case (Views.Settings) {
+          <app-settings></app-settings>
           }
         }
       }

@@ -90,3 +90,51 @@ export const manualBackup = onCall(
     }
   }
 );
+
+/**
+ * Callable Cloud Function to list available backups with download URLs.
+ */
+export const listBackups = onCall(
+  { cors: allowedOrigins },
+  async (request) => {
+    logger.info('listBackups called');
+    await assertAdmin(request);
+
+    try {
+      const bucket = admin.storage().bucket();
+      const [files] = await bucket.getFiles({ prefix: 'backups/' });
+
+      const fileList = await Promise.all(
+        files
+          .filter((f) => f.name.endsWith('.json'))
+          .map(async (file) => {
+            const [metadata] = await file.getMetadata();
+
+            // Generate a signed URL that expires in 1 hour
+            const [url] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + 60 * 60 * 1000,
+            });
+
+            return {
+              name: metadata.name,
+              timeCreated: metadata.timeCreated || '',
+              size: metadata.size,
+              downloadUrl: url,
+            };
+          })
+      );
+
+      // Sort by newest first
+      fileList.sort((a, b) => {
+        return new Date(b.timeCreated || 0).getTime() - new Date(a.timeCreated || 0).getTime();
+      });
+
+      return { backups: fileList };
+    } catch (error) {
+      logger.error('Error listing backups:', error);
+      throw new HttpsError('internal', 'Failed to list backups.');
+    }
+  }
+);

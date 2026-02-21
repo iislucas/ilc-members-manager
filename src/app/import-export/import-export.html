@@ -3,7 +3,6 @@
     <button class="tab-button" [class.active]="activeTab() === 'members'" (click)="setActiveTab('members')">Members</button>
     <button class="tab-button" [class.active]="activeTab() === 'schools'" (click)="setActiveTab('schools')">Schools</button>
     <button class="tab-button" [class.active]="activeTab() === 'orders'" (click)="setActiveTab('orders')">Orders</button>
-    <button class="tab-button" [class.active]="activeTab() === 'backup'" (click)="setActiveTab('backup')">Backup</button>
   </div>
 
   <div class="tab-content" *ngIf="activeTab() === 'members'">
@@ -17,23 +16,4 @@
   <div class="tab-content" *ngIf="activeTab() === 'orders'">
     <app-import-orders></app-import-orders>
   </div>
-<div class="tab-content" *ngIf="activeTab() === 'backup'">
-  <div class="control-panel">
-    <h2>Database Backup</h2>
-    <p>Click the button below to trigger a manual backup of the database to Cloud Storage.</p>
-
-    @if (isBackingUp()) {
-    <app-spinner>Backing up...</app-spinner>
-    } @else {
-    <button class="action-button" (click)="triggerBackup()">
-      Trigger Backup
-    </button>
-    }
-
-    <p class="status-message" *ngIf="backupMessage()"
-      style="margin-top: 10px; font-weight: bold; color: var(--primary-color);">
-      {{ backupMessage() }}
-    </p>
-  </div>
-</div>
 </div>

@@ -89,6 +89,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /static/static {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /counters/singleton {
       allow read: if request.auth != null;
       allow write: if isAdmin();

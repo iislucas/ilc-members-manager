@@ -1,0 +1,26 @@
+<div class="control-panel">
+  <h2>Static Collection / Country Codes</h2>
+  <p>View and edit documents in the static collection (like country codes).</p>
+
+  @if (isLoadingStatic()) {
+  <div>
+    <app-spinner></app-spinner> Loading...
+  </div>
+  }
+
+  @for (doc of staticDocs(); track doc.id) {
+  <div class="doc-panel" style="margin-bottom: 2rem; border-top: 1px solid #ddd; padding-top: 1rem;">
+    <h3>Document: {{ doc.id }}</h3>
+    <textarea [(ngModel)]="doc.raw" rows="10"
+      style="width: 100%; font-family: monospace; margin-bottom: 10px;"></textarea>
+    <div>
+      <button class="action-button" (click)="saveStaticDoc(doc)" [disabled]="isSavingStatic()[doc.id]">
+        {{ isSavingStatic()[doc.id] ? 'Saving...' : 'Save ' + doc.id }}
+      </button>
+    </div>
+    @if (staticMessages()[doc.id]) {
+    <p class="status-message">{{ staticMessages()[doc.id] }}</p>
+    }
+  </div>
+  }
+</div>

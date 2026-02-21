@@ -1,0 +1,28 @@
+<div class="page-layout">
+  <div class="tabs">
+    <button class="tab-button" [class.active]="activeTab() === 'counters'"
+      (click)="setActiveTab('counters')">Counters</button>
+    <button class="tab-button" [class.active]="activeTab() === 'static'" (click)="setActiveTab('static')">Static
+      Collection</button>
+    <button class="tab-button" [class.active]="activeTab() === 'backups'"
+      (click)="setActiveTab('backups')">Backups</button>
+  </div>
+
+  @if (activeTab() === 'counters') {
+  <div class="tab-content">
+    <app-counters></app-counters>
+  </div>
+  }
+
+  @if (activeTab() === 'static') {
+  <div class="tab-content">
+    <app-country-codes></app-country-codes>
+  </div>
+  }
+
+  @if (activeTab() === 'backups') {
+  <div class="tab-content">
+    <app-backups></app-backups>
+  </div>
+  }
+</div>

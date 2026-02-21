@@ -25,6 +25,7 @@ export enum Views {
   ActiveInstructors = 'activeInstructors',
   ManageGradings = 'manageGradings',
   GradingsAssessed = 'gradingsAssessed',
+  Settings = 'settings',
 }
 
 export const initPathPatterns = {
@@ -45,6 +46,7 @@ export const initPathPatterns = {
   [Views.ActiveInstructors]: pathPattern`active-instructors`,
   [Views.ManageGradings]: pathPattern`gradings`,
   [Views.GradingsAssessed]: pathPattern`my-gradings-assessed`,
+  [Views.Settings]: pathPattern`settings`,
 };
 
 // Santiy check for type correctness...

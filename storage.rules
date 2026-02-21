@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/(default)/documents/acl/$(email);
+      return email != null && firestore.get(aclPath).data.isAdmin == true;
+    }
+
+    match /backups/{backupFile} {
+      // Only admins can read/write the backups
+      allow read, write: if isAdmin();
+    }
+    
+    match /{allPaths=**} {
+      // Deny by default
+      allow read, write: if false;
+    }
+  }
+}
