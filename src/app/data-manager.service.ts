@@ -324,6 +324,7 @@ export class DataManagerService {
           q,
           (snapshot) => {
             const students = snapshot.docs.map(firestoreDocToMember);
+            console.log('My students:', students);
             this.myStudents.setEntries(students);
           },
           (error) => {

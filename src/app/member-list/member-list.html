@@ -63,14 +63,7 @@
         ></app-member-edit>
       </div>
     }
-    @if (!u.isAdmin) {
-      <div class="member-card">
-        <app-member-edit
-          [member]="u.member"
-          [allMembers]="members()"
-        ></app-member-edit>
-      </div>
-    }
+
     @let membersList = members();
     @for (member of membersList; track member.id) {
       <div class="member-card">
