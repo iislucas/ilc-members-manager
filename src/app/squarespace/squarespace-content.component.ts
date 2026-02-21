@@ -80,18 +80,27 @@ export class SquarespaceContentComponent {
         const isMemberArea = path.includes('member');
         const isInstructorArea = path.includes('instructor');
 
-        let authorized = false;
-
         if (isMemberArea) {
-            authorized = this.isActiveMember();
+            if (!this.isActiveMember()) {
+                if (user.member.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date()) {
+                    this.error.set('Your membership has expired. Please renew your membership to access this content.');
+                } else {
+                    this.error.set('You must be an active member to view this content.');
+                }
+                this.loading.set(false);
+                return;
+            }
         } else if (isInstructorArea) {
-            authorized = !!user.member.instructorId;
-        }
-
-        if (!authorized) {
-            this.error.set('You do not have permission to view this content.');
-            this.loading.set(false);
-            return;
+            if (!user.member.instructorId) {
+                this.error.set('You must be an instructor to view this content.');
+                this.loading.set(false);
+                return;
+            }
+            if (user.member.instructorLicenseExpires && new Date(user.member.instructorLicenseExpires) < new Date()) {
+                this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
+                this.loading.set(false);
+                return;
+            }
         }
 
         this.loadContent(path);

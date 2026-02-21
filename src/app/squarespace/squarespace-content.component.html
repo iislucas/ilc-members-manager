@@ -7,8 +7,7 @@
     <div class="content-wrapper">
         @if (loading()) {
         <div class="loading-state">
-            <app-spinner>Fetching content from Squarespace...</app-spinner>
-            <p>Please wait while we secure your access.</p>
+            <app-spinner>Fetching content...</app-spinner>
         </div>
         } @else if (error()) {
         <div class="error-state card">
