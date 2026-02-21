@@ -30,3 +30,5 @@ export {
   onGradingUpdated,
   onGradingDeleted,
 } from './on-grading-update';
+
+export { scheduledBackup, manualBackup } from './backup';
