@@ -497,7 +497,7 @@ export type Grading = {
 
   gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
   orderId: string; // The order ID that created this grading, or '' if manual.
-  level: StudentLevel; // The level the grading is aimed for.
+  level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   assistantInstructorIds: string[]; // InstructorIds of assistant instructors.
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
@@ -526,7 +526,7 @@ export function initGrading(): Grading {
     lastUpdated: new Date().toISOString(),
     gradingPurchaseDate: '',
     orderId: '',
-    level: StudentLevel.None,
+    level: '',
     gradingInstructorId: '',
     assistantInstructorIds: [],
     schoolId: '',

@@ -24,6 +24,13 @@
   }
 }
 
+.meta-info {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
 .instructor-info {
-  margin-left: 0.5em;
+  font-size: 0.9em;
+  color: #555;
 }

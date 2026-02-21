@@ -152,6 +152,18 @@ export class GradingEditComponent {
     toName: (i: InstructorPublicData) => i.name,
   };
 
+  formatLevel(lvl: string): string {
+    if (!lvl) return '';
+    if (lvl.startsWith('Student ') || lvl.startsWith('Application ')) {
+      return lvl;
+    }
+    // Backward compatibility for data originally stored without prefix
+    if (lvl === 'Entry' || !isNaN(Number(lvl))) {
+      return 'Student ' + lvl;
+    }
+    return lvl;
+  }
+
   instructorName = computed(() => {
     const instructorId = this.editableGrading().gradingInstructorId;
     if (!instructorId) return '';

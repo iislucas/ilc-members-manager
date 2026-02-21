@@ -22,7 +22,7 @@
     </div>
     <div class="meta-info">
       @if (e.level) {
-      <span class="level-chip">Level {{ e.level }}</span>
+      <span class="level-chip">{{ formatLevel(e.level) }}</span>
       }
       @if (instructorName()) {
       <span class="instructor-info">Instructor: {{ instructorName() }}</span>
@@ -56,14 +56,14 @@
           <optgroup label="Student Levels">
             @for (level of studentLevels; track level) {
             @if (level !== '') {
-            <option [value]="level">{{ level }}</option>
+            <option [value]="'Student ' + level">Student {{ level }}</option>
             }
             }
           </optgroup>
           <optgroup label="Application Levels">
             @for (level of applicationLevels; track level) {
             @if (level !== '') {
-            <option [value]="level">App Level {{ level }}</option>
+            <option [value]="'Application ' + level">Application {{ level }}</option>
             }
             }
           </optgroup>
