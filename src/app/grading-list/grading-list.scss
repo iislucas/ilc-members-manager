@@ -1,0 +1,50 @@
+@use "../../scss_variables" as v;
+
+.search-header {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin-bottom: 1em;
+  padding: v.$card-padding;
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    flex: 1;
+
+    input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  }
+}
+
+.grading-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+}
+
+.grading-card {
+  border-bottom: 1px solid #eee;
+}
+
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 1em;
+
+  .show-more-button {
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2em;
+  color: #888;
+}

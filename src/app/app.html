@@ -59,6 +59,10 @@
                 <app-icon name="person" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
               </div>
+              <div class="menu-item" (click)="currentView.set(Views.GradingsAssessed); menuOpen.set(false)">
+                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.GradingsAssessed) }}</span>
+              </div>
             }
             @if (user.schoolsManaged.length > 0) {
               <div
@@ -121,6 +125,12 @@
               >
                 <app-icon name="link" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
+              </div>
+              <div class="menu-item" (click)="
+                                currentView.set(Views.ManageGradings); menuOpen.set(false)
+                              ">
+                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <span>{{ viewIdToTitle(Views.ManageGradings) }}</span>
               </div>
             }
           </div>
@@ -193,6 +203,12 @@
               path="/instructorsblog"
               pageTitle="Active Instructors Area"
             ></app-squarespace-content>
+          }
+          @case (Views.ManageGradings) {
+          <app-grading-list [gradingSet]="dataService.gradings"></app-grading-list>
+          }
+          @case (Views.GradingsAssessed) {
+          <app-grading-list [gradingSet]="dataService.myGradingsAssessed"></app-grading-list>
           }
         }
       }

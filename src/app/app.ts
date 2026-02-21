@@ -19,6 +19,7 @@ import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
+import { GradingListComponent } from './grading-list/grading-list';
 
 @Component({
   selector: 'app-root',
@@ -41,6 +42,7 @@ import { SquarespaceContentComponent } from './squarespace/squarespace-content.c
     FindSchoolComponent,
     HomeComponent,
     SquarespaceContentComponent,
+    GradingListComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -103,6 +105,10 @@ export class App {
         return 'Active Members Area';
       case Views.ActiveInstructors:
         return 'Active Instructors Area';
+      case Views.ManageGradings:
+        return 'Manage Gradings';
+      case Views.GradingsAssessed:
+        return 'Gradings Assessed';
       default:
         return 'Unknown View';
     }

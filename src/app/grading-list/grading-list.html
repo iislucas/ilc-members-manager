@@ -1,0 +1,46 @@
+@let u = user();
+@if (loading() || !u) {
+<app-spinner></app-spinner>
+} @else if (error()) {
+<div class="error-container">
+  <span class="error-message">{{ error() }}</span>
+</div>
+} @else {
+<div class="search-header">
+  <div class="search-box">
+    <app-icon class="search-icon" name="search"></app-icon>
+    <input type="text" placeholder="Search gradings by student, instructor, status, or level..."
+      (input)="onSearch($event)" />
+  </div>
+  @if (canMakeNewGradings()) {
+  <button (click)="onNewGrading()">New Grading</button>
+  }
+</div>
+
+<div class="grading-cards">
+  @if (isAddingGrading()) {
+  <div class="grading-card">
+    <app-grading-edit [grading]="newGrading()" [collapse]="false" (close)="onNewGradingClose()"
+      [canDelete]="false"></app-grading-edit>
+  </div>
+  }
+
+  @let gradingsList = gradings();
+  @for (grading of gradingsList; track grading.id) {
+  <div class="grading-card">
+    <app-grading-edit [grading]="grading"></app-grading-edit>
+  </div>
+  }
+  @if (gradingsList.length < totalGradings()) { <div class="show-more-container">
+    <button class="show-more-button" (click)="showAll()">
+      Show all {{ totalGradings() }} gradings
+    </button>
+</div>
+}
+@if (gradingsList.length === 0 && !isAddingGrading()) {
+<div class="empty-state">
+  <p>No gradings found.</p>
+</div>
+}
+</div>
+}

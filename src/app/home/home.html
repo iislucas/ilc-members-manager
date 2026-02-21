@@ -44,6 +44,15 @@
             <p>Manage your students</p>
           </div>
         </div>
+<div class="card" (click)="navigateTo(Views.GradingsAssessed)">
+  <div class="icon-container">
+    <app-icon name="link" width="48px" height="48px"></app-icon>
+  </div>
+  <div class="content">
+    <h2>Gradings Assessed</h2>
+    <p>View gradings you have assessed</p>
+  </div>
+</div>
       }
 
       @if (u.schoolsManaged.length > 0) {
@@ -121,6 +130,15 @@
               <p>Import or export data</p>
             </div>
           </div>
+<div class="card" (click)="navigateTo(Views.ManageGradings)">
+  <div class="icon-container">
+    <app-icon name="link" width="48px" height="48px"></app-icon>
+  </div>
+  <div class="content">
+    <h2>Manage Gradings</h2>
+    <p>Administer grading records</p>
+  </div>
+</div>
         }
       </div>
     }

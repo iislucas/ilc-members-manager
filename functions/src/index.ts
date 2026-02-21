@@ -24,3 +24,9 @@ export {
 
 export { onSchoolCreated, onSchoolUpdated } from './on-school-update';
 export { getSquarespaceContent } from './squarespace-content';
+
+export {
+  onGradingCreated,
+  onGradingUpdated,
+  onGradingDeleted,
+} from './on-grading-update';

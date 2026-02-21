@@ -1,0 +1,30 @@
+@use "../edit-form.scss" as *;
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-transform: capitalize;
+
+  &.pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  &.passed {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  &.rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+}
+
+.instructor-info {
+  font-size: 0.9em;
+  color: #555;
+}
