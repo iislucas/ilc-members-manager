@@ -163,11 +163,11 @@ export class DataManagerService {
   public counters = signal<Counters | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
   public gradings = new SearchableSet<'id', Grading>(
-    ['studentId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
+    ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
     'id',
   );
   public myGradingsAssessed = new SearchableSet<'id', Grading>(
-    ['studentId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
+    ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
     'id',
   );
 

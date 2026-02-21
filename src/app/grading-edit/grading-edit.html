@@ -40,9 +40,11 @@
     <div class="form-section">
       <h3>Grading Details</h3>
 
-      <label for="studentId">Student Doc ID</label>
+      <label for="studentMemberId">Student</label>
       <div class="rhs">
-        <input type="text" id="studentId" [formField]="form.studentId" />
+        <app-autocomplete [searchableSet]="dataService.members" [placeholder]="'Search for a member'"
+          [displayFns]="memberDisplayFns" [initSearchTerm]="form.studentMemberId().value()"
+          (textUpdated)="updateStudentMemberId($event)"></app-autocomplete>
         @if (studentName()) {
         <div class="note">{{ studentName() }}</div>
         }

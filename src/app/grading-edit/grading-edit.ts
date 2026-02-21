@@ -14,6 +14,7 @@ import {
   Grading,
   GradingStatus,
   StudentLevel,
+  Member,
   initGrading,
 } from '../../../functions/src/data-model';
 import {
@@ -27,11 +28,12 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 @Component({
   selector: 'app-grading-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, AutocompleteComponent],
   templateUrl: './grading-edit.html',
   styleUrl: './grading-edit.scss',
 })
@@ -53,7 +55,7 @@ export class GradingEditComponent {
 
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<Grading> = form(this.gradingFormModel, (schema) => {
-    required(schema.studentId, { message: 'Student ID is required.' });
+    required(schema.studentMemberId, { message: 'Student Member ID is required.' });
     required(schema.level, { message: 'Level is required.' });
 
     // Non-admin, non-instructor fields are disabled
@@ -63,7 +65,8 @@ export class GradingEditComponent {
     disabled(schema.gradingInstructorId, () => !this.userIsAdmin());
     disabled(schema.assistantInstructorIds, () => !this.userIsAdmin());
     disabled(schema.schoolId, () => !this.userIsAdmin());
-    disabled(schema.studentId, () => !this.userIsAdmin());
+    disabled(schema.studentMemberId, () => !this.userIsAdmin());
+    disabled(schema.studentMemberDocId, () => !this.userIsAdmin());
 
     // Instructor can edit status, gradingEventDate, notes
     disabled(
@@ -122,13 +125,18 @@ export class GradingEditComponent {
 
   // Resolve names for display
   studentName = computed(() => {
-    const studentId = this.editableGrading().studentId;
-    if (!studentId) return '';
+    const studentMemberId = this.editableGrading().studentMemberId;
+    if (!studentMemberId) return '';
     const member = this.dataService.members
       .entries()
-      .find((m) => m.id === studentId);
-    return member ? `${member.name} (${member.memberId})` : studentId;
+      .find((m) => m.memberId === studentMemberId);
+    return member ? `${member.name} (${member.memberId})` : studentMemberId;
   });
+
+  memberDisplayFns = {
+    toChipId: (m: Member) => m.memberId,
+    toName: (m: Member) => m.name,
+  };
 
   instructorName = computed(() => {
     const instructorId = this.editableGrading().gradingInstructorId;
@@ -173,6 +181,19 @@ export class GradingEditComponent {
     this.collapsed.set(this.collapsable());
     if (this.collapsable()) {
       this.close.emit();
+    }
+  }
+
+  updateStudentMemberId(value: string) {
+    this.form.studentMemberId().value.set(value);
+    this.form.studentMemberId().markAsDirty();
+    // Auto-populate the doc ID behind the scenes
+    const member = this.dataService.members
+      .entries()
+      .find((m) => m.memberId === value);
+    if (member) {
+      this.form.studentMemberDocId().value.set(member.id);
+      this.form.studentMemberDocId().markAsDirty();
     }
   }
 
@@ -221,8 +242,8 @@ export class GradingEditComponent {
 
   errorMessage = computed(() => {
     const errors: string[] = [];
-    if (this.form.studentId().value().trim() === '') {
-      errors.push('Student ID is required.');
+    if (this.form.studentMemberId().value().trim() === '') {
+      errors.push('Student Member ID is required.');
     }
     const asyncError = this.asyncError();
     if (asyncError) {

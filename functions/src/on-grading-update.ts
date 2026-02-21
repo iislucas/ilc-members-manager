@@ -161,6 +161,16 @@ export const onGradingCreated = onDocumentCreated(
       await mirrorGradingToSchool(gradingDocId, grading, grading.schoolId);
     }
 
+    // Add grading to the student's gradingDocIds
+    if (grading.studentMemberDocId) {
+      await db
+        .collection('members')
+        .doc(grading.studentMemberDocId)
+        .update({
+          gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingDocId),
+        });
+    }
+
     logger.info(`Grading ${gradingDocId} created and mirrored.`);
   },
 );
@@ -212,17 +222,53 @@ export const onGradingUpdated = onDocumentUpdated(
     if (
       grading.status === GradingStatus.Passed &&
       previous.status !== GradingStatus.Passed &&
-      grading.studentId &&
+      grading.studentMemberId &&
       grading.level !== StudentLevel.None
     ) {
-      const studentRef = db.collection('members').doc(grading.studentId);
-      await studentRef.update({
-        studentLevel: grading.level,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      logger.info(
-        `Student ${grading.studentId} level updated to ${grading.level} from grading ${gradingDocId}.`,
-      );
+      // Look up the student by their human-readable memberId
+      const studentQuery = await db
+        .collection('members')
+        .where('memberId', '==', grading.studentMemberId)
+        .limit(1)
+        .get();
+      if (!studentQuery.empty) {
+        const studentDoc = studentQuery.docs[0];
+        await studentDoc.ref.update({
+          studentLevel: grading.level,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info(
+          `Student ${grading.studentMemberId} level updated to ${grading.level} from grading ${gradingDocId}.`,
+        );
+      } else {
+        logger.warn(
+          `Could not find student with memberId ${grading.studentMemberId} to update level.`,
+        );
+      }
+    }
+
+    // Handle student change: update gradingDocIds on member docs
+    if (previous.studentMemberDocId !== grading.studentMemberDocId) {
+      // Remove from previous student
+      if (previous.studentMemberDocId) {
+        await db
+          .collection('members')
+          .doc(previous.studentMemberDocId)
+          .update({
+            gradingDocIds:
+              admin.firestore.FieldValue.arrayRemove(gradingDocId),
+          });
+      }
+      // Add to new student
+      if (grading.studentMemberDocId) {
+        await db
+          .collection('members')
+          .doc(grading.studentMemberDocId)
+          .update({
+            gradingDocIds:
+              admin.firestore.FieldValue.arrayUnion(gradingDocId),
+          });
+      }
     }
 
     logger.info(`Grading ${gradingDocId} updated and re-mirrored.`);
@@ -245,6 +291,16 @@ export const onGradingDeleted = onDocumentDeleted(
     // Remove from school if set
     if (grading.schoolId) {
       await removeGradingFromSchool(gradingDocId, grading.schoolId);
+    }
+
+    // Remove grading from the student's gradingDocIds
+    if (grading.studentMemberDocId) {
+      await db
+        .collection('members')
+        .doc(grading.studentMemberDocId)
+        .update({
+          gradingDocIds: admin.firestore.FieldValue.arrayRemove(gradingDocId),
+        });
     }
 
     logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);

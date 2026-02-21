@@ -47,11 +47,11 @@ describe('GradingListComponent', () => {
     for (let i = 0; i < 60; i++) {
       const g = initGrading();
       g.id = `grading-${i}`;
-      g.studentId = `student-${i}`;
+      g.studentMemberId = `student-${i}`;
       gradings.push(g);
     }
     const gradingSet = new SearchableSet<'id', Grading>(
-      ['studentId'],
+      ['studentMemberId'],
       'id',
       gradings,
     );

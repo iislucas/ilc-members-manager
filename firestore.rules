@@ -101,7 +101,7 @@ service cloud.firestore {
 
     match /gradings/{gradingId} {
       function isGradingStudent() {
-        return resource.data.studentId in getUserMemberDocIds();
+        return resource.data.studentMemberDocId in getUserMemberDocIds();
       }
       function isGradingInstructor() {
         let email = request.auth.token.email;

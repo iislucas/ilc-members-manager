@@ -500,8 +500,9 @@ export type Grading = {
   level: StudentLevel; // The level the grading is aimed for.
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   assistantInstructorIds: string[]; // InstructorIds of assistant instructors.
-  schoolId: string; // The schoolDocId where the grading was conducted. Optional.
-  studentId: string; // The memberDocId of the student being graded.
+  schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
+  studentMemberId: string; // The human-readable memberId of the student being graded.
+  studentMemberDocId: string; // The Firestore doc ID of the student member document.
   status: GradingStatus; // pending, passed, rejected.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
   notes: string; // Any notes about the grading.
@@ -529,7 +530,8 @@ export function initGrading(): Grading {
     gradingInstructorId: '',
     assistantInstructorIds: [],
     schoolId: '',
-    studentId: '',
+    studentMemberId: '',
+    studentMemberDocId: '',
     status: GradingStatus.Pending,
     gradingEventDate: '',
     notes: '',
