@@ -251,51 +251,56 @@
               <input
                 id="email-input"
                 autocomplete="email"
-                #email
                 type="email"
                 name="email"
-                ngModel
+                [ngModel]="loginEmail()"
+                (ngModelChange)="loginEmail.set($event)"
                 required
                 placeholder="Email"
               />
             </div>
-            <div>
+            <div class="password-field">
               Password:
               <input
                 id="password-input"
                 autocomplete="current-password"
-                #password
-                type="password"
+                [type]="showPassword() ? 'text' : 'password'"
                 name="password"
-                ngModel
+                [ngModel]="loginPassword()"
+                (ngModelChange)="loginPassword.set($event)"
                 required
                 placeholder="Password"
               />
+              <button class="icon-only-button" type="button" (click)="showPassword.set(!showPassword())"
+                title="{{ showPassword() ? 'Hide password' : 'Show password' }}">
+                <app-icon [name]="showPassword() ? 'visibility_off' : 'visibility'"></app-icon>
+              </button>
             </div>
             <div class="buttons">
               <button
-                (click)="loginWithEmail(email.value, password.value)"
-                [disabled]="!email.value || !password.value"
+                (click)="loginWithEmail(loginEmail(), loginPassword())"
+                [disabled]="!loginEmail() || !loginPassword()"
               >
                 Login
               </button>
               <button
-                (click)="signupWithEmail(email.value, password.value)"
-                [disabled]="!email.value || !password.value"
+                (click)="signupWithEmail(loginEmail(), loginPassword())"
+                [disabled]="!loginEmail() || !loginPassword()"
               >
                 Signup
               </button>
             </div>
 
-            @if (signupError(); as message) {
+            <div class="login-errors">
+              @if (signupError(); as message) {
               <div class="error-container">
                 Signup error: <span class="error-message">{{ message }}</span>
                 <button class="icon-only-button" (click)="dismissMessages()">
                   <app-icon name="close"></app-icon>
                 </button>
               </div>
-            }
-            @if (loginWithEmailError(); as message) {
+              }
+              @if (loginWithEmailError(); as message) {
               <div class="error-container">
                 Login with email error:
                 <span class="error-message">{{ message }}</span>
@@ -303,30 +308,38 @@
                   <app-icon name="close"></app-icon>
                 </button>
               </div>
-            }
-            @if (invalidLoginCredentials()) {
+              }
+              @if (emailAlreadyInUse()) {
+              <p>
+                You already have an account. Do you want to
+                <button class="inline-link-button" (click)="resetPassword(loginEmail())">
+                  reset your password
+                </button>?
+              </p>
+              }
+              @if (invalidLoginCredentials()) {
               <p>
                 Your password is invalid. Do you want to
-                <button (click)="resetPassword(email.value)">
-                  reset your password
-                </button>
-                ?
-              </p>
-            }
-            @if (resetPasswordSuccess(); as message) {
-              <div class="success">
-                <span>{{ message }}</span>
-              </div>
-            }
-            @if (resetPasswordError(); as message) {
-              <div class="error-container">
-                Reset password error:
-                <span class="error-message">{{ message }}</span>
-                <button class="icon-only-button" (click)="dismissMessages()">
-                  <app-icon name="close"></app-icon>
-                </button>
-              </div>
-            }
+                  <button class="inline-link-button" (click)="resetPassword(loginEmail())">
+                    reset your password
+                  </button>?
+                  </p>
+                  }
+                  @if (resetPasswordSuccess(); as message) {
+                  <div class="success">
+                    <span>{{ message }}</span>
+                  </div>
+                  }
+                  @if (resetPasswordError(); as message) {
+                  <div class="error-container">
+                    Reset password error:
+                    <span class="error-message">{{ message }}</span>
+                    <button class="icon-only-button" (click)="dismissMessages()">
+                      <app-icon name="close"></app-icon>
+                    </button>
+                  </div>
+                  }
+            </div>
           </div>
 
           <div class="card google-login">

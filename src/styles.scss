@@ -112,6 +112,29 @@ button:disabled {
   }
 }
 
+.inline-link-button {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    background-color: transparent;
+    box-shadow: none;
+    color: #004499;
+  }
+  &:active {
+    background-color: transparent;
+    box-shadow: none;
+    transform: unset;
+  }
+}
+
 // ----------------------------------------------------------------------------
 //  Card style
 // ----------------------------------------------------------------------------
