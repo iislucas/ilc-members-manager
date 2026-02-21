@@ -56,11 +56,11 @@
                 class="menu-item"
                 (click)="currentView.set(Views.MyStudents); menuOpen.set(false)"
               >
-                <app-icon name="person" width="24px" height="24px"></app-icon>
+                <app-icon name="salut" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
               </div>
               <div class="menu-item" (click)="currentView.set(Views.GradingsAssessed); menuOpen.set(false)">
-                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <app-icon name="mountain" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.GradingsAssessed) }}</span>
               </div>
             }
@@ -81,7 +81,7 @@
                 currentView.set(Views.ActiveMembers); menuOpen.set(false)
               "
             >
-              <app-icon name="link" width="24px" height="24px"></app-icon>
+              <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
               <span>{{ viewIdToTitle(Views.ActiveMembers) }}</span>
             </div>
             @if (user.member.instructorId) {
@@ -91,7 +91,7 @@
                   currentView.set(Views.ActiveInstructors); menuOpen.set(false)
                 "
               >
-                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <app-icon name="meditation" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ActiveInstructors) }}</span>
               </div>
             }
@@ -129,7 +129,7 @@
               <div class="menu-item" (click)="
                                 currentView.set(Views.ManageGradings); menuOpen.set(false)
                               ">
-                <app-icon name="link" width="24px" height="24px"></app-icon>
+                <app-icon name="mountain" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ManageGradings) }}</span>
               </div>
             }

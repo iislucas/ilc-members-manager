@@ -1,146 +1,146 @@
 @if (user(); as u) {
-  <div class="home-container">
-    <div class="cards-grid">
-      <div class="card" (click)="navigateTo(Views.FindSchool)">
-        <div class="icon-container">
-          <app-icon name="map" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Find a School</h2>
-          <p>Search for schools in your area</p>
-        </div>
+<div class="home-container">
+  <div class="cards-grid">
+    <div class="card" (click)="navigateTo(Views.FindSchool)">
+      <div class="icon-container">
+        <app-icon name="map" width="48px" height="48px"></app-icon>
       </div>
-
-      <div class="card" (click)="navigateTo(Views.FindAnInstructor)">
-        <div class="icon-container">
-          <app-icon name="search" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Find an Instructor</h2>
-          <p>Search for qualified instructors</p>
-        </div>
+      <div class="content">
+        <h2>Find a School</h2>
+        <p>Search for schools in your area</p>
       </div>
     </div>
 
-    <div class="separator"></div>
-    <div class="cards-grid">
-      <div class="card" (click)="navigateTo(Views.MyProfile)">
-        <div class="icon-container">
-          <app-icon name="person" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>My Profile</h2>
-          <p>View and edit your personal information</p>
-        </div>
+    <div class="card" (click)="navigateTo(Views.FindAnInstructor)">
+      <div class="icon-container">
+        <app-icon name="search" width="48px" height="48px"></app-icon>
       </div>
-
-      @if (u.member.instructorId) {
-        <div class="card" (click)="navigateTo(Views.MyStudents)">
-          <div class="icon-container">
-            <app-icon name="person" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>My Students</h2>
-            <p>Manage your students</p>
-          </div>
-        </div>
-<div class="card" (click)="navigateTo(Views.GradingsAssessed)">
-  <div class="icon-container">
-    <app-icon name="link" width="48px" height="48px"></app-icon>
+      <div class="content">
+        <h2>Find an Instructor</h2>
+        <p>Search for qualified instructors</p>
+      </div>
+    </div>
   </div>
-  <div class="content">
-    <h2>Gradings Assessed</h2>
-    <p>View gradings you have assessed</p>
-  </div>
-</div>
-      }
 
-      @if (u.schoolsManaged.length > 0) {
-        <div class="card" (click)="navigateTo(Views.MySchools)">
-          <div class="icon-container">
-            <app-icon name="map" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>My Schools</h2>
-            <p>Manage your schools</p>
-          </div>
-        </div>
-      }
+  <div class="separator"></div>
+  <div class="cards-grid">
+    <div class="card" (click)="navigateTo(Views.MyProfile)">
+      <div class="icon-container">
+        <app-icon name="person" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>My Profile</h2>
+        <p>View and edit your personal information</p>
+      </div>
     </div>
 
-    <div class="separator"></div>
-    <div class="cards-grid">
-      <div class="card" (click)="navigateTo(Views.ActiveMembers)">
-        <div class="icon-container">
-          <app-icon name="link" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Active Members Area</h2>
-          <p>Content and resources for active members</p>
-        </div>
+    @if (u.member.instructorId) {
+    <div class="card" (click)="navigateTo(Views.MyStudents)">
+      <div class="icon-container">
+        <app-icon name="salut" width="48px" height="48px"></app-icon>
       </div>
-
-      @if (u.member.instructorId) {
-        <div class="card" (click)="navigateTo(Views.ActiveInstructors)">
-          <div class="icon-container">
-            <app-icon name="link" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Active Instructors Area</h2>
-            <p>Content and resources for active instructors</p>
-          </div>
-        </div>
-      }
+      <div class="content">
+        <h2>My Students</h2>
+        <p>Manage your students</p>
+      </div>
     </div>
-
-    @if (u.isAdmin || u.schoolsManaged.length > 0) {
-      <div class="separator"></div>
-      <div class="cards-grid">
-        @if (u.isAdmin) {
-          <div class="card" (click)="navigateTo(Views.ManageMembers)">
-            <div class="icon-container">
-              <app-icon name="person" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Manage Members</h2>
-              <p>Administer member accounts</p>
-            </div>
-          </div>
-        }
-
-        @if (u.isAdmin || u.schoolsManaged.length > 0) {
-          <div class="card" (click)="navigateTo(Views.ManageSchools)">
-            <div class="icon-container">
-              <app-icon name="map" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Manage Schools</h2>
-              <p>Administer school details</p>
-            </div>
-          </div>
-        }
-
-        @if (u.isAdmin) {
-          <div class="card" (click)="navigateTo(Views.ImportExport)">
-            <div class="icon-container">
-              <app-icon name="link" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Import/Export</h2>
-              <p>Import or export data</p>
-            </div>
-          </div>
-<div class="card" (click)="navigateTo(Views.ManageGradings)">
-  <div class="icon-container">
-    <app-icon name="link" width="48px" height="48px"></app-icon>
-  </div>
-  <div class="content">
-    <h2>Manage Gradings</h2>
-    <p>Administer grading records</p>
-  </div>
-</div>
-        }
+    <div class="card" (click)="navigateTo(Views.GradingsAssessed)">
+      <div class="icon-container">
+        <app-icon name="mountain" width="48px" height="48px"></app-icon>
       </div>
+      <div class="content">
+        <h2>Gradings Assessed</h2>
+        <p>View gradings you have assessed</p>
+      </div>
+    </div>
+    }
+
+    @if (u.schoolsManaged.length > 0) {
+    <div class="card" (click)="navigateTo(Views.MySchools)">
+      <div class="icon-container">
+        <app-icon name="map" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>My Schools</h2>
+        <p>Manage your schools</p>
+      </div>
+    </div>
     }
   </div>
+
+  <div class="separator"></div>
+  <div class="cards-grid">
+    <div class="card" (click)="navigateTo(Views.ActiveMembers)">
+      <div class="icon-container">
+        <app-icon name="hands_lotus" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Active Members Area</h2>
+        <p>Content and resources for active members</p>
+      </div>
+    </div>
+
+    @if (u.member.instructorId) {
+    <div class="card" (click)="navigateTo(Views.ActiveInstructors)">
+      <div class="icon-container">
+        <app-icon name="meditation" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Active Instructors Area</h2>
+        <p>Content and resources for active instructors</p>
+      </div>
+    </div>
+    }
+  </div>
+
+  @if (u.isAdmin || u.schoolsManaged.length > 0) {
+  <div class="separator"></div>
+  <div class="cards-grid">
+    @if (u.isAdmin) {
+    <div class="card" (click)="navigateTo(Views.ManageMembers)">
+      <div class="icon-container">
+        <app-icon name="person" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Manage Members</h2>
+        <p>Administer member accounts</p>
+      </div>
+    </div>
+    }
+
+    @if (u.isAdmin || u.schoolsManaged.length > 0) {
+    <div class="card" (click)="navigateTo(Views.ManageSchools)">
+      <div class="icon-container">
+        <app-icon name="map" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Manage Schools</h2>
+        <p>Administer school details</p>
+      </div>
+    </div>
+    }
+
+    @if (u.isAdmin) {
+    <div class="card" (click)="navigateTo(Views.ImportExport)">
+      <div class="icon-container">
+        <app-icon name="link" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Import/Export</h2>
+        <p>Import or export data</p>
+      </div>
+    </div>
+    <div class="card" (click)="navigateTo(Views.ManageGradings)">
+      <div class="icon-container">
+        <app-icon name="mountain" width="48px" height="48px"></app-icon>
+      </div>
+      <div class="content">
+        <h2>Manage Gradings</h2>
+        <p>Administer grading records</p>
+      </div>
+    </div>
+    }
+  </div>
+  }
+</div>
 }
