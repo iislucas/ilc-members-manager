@@ -14,8 +14,11 @@ import {
   Grading,
   GradingStatus,
   StudentLevel,
+  ApplicationLevel,
   Member,
   initGrading,
+  InstructorPublicData,
+  School,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -46,6 +49,7 @@ export class GradingEditComponent {
   GradingStatus = GradingStatus;
   gradingStatuses = Object.values(GradingStatus);
   studentLevels = Object.values(StudentLevel);
+  applicationLevels = Object.values(ApplicationLevel);
 
   // The core object of interest.
   grading = input.required<Grading>();
@@ -138,6 +142,16 @@ export class GradingEditComponent {
     toName: (m: Member) => m.name,
   };
 
+  schoolDisplayFns = {
+    toChipId: (s: School) => s.schoolId,
+    toName: (s: School) => s.schoolName,
+  };
+
+  instructorDisplayFns = {
+    toChipId: (i: InstructorPublicData) => i.instructorId,
+    toName: (i: InstructorPublicData) => i.name,
+  };
+
   instructorName = computed(() => {
     const instructorId = this.editableGrading().gradingInstructorId;
     if (!instructorId) return '';
@@ -195,6 +209,16 @@ export class GradingEditComponent {
       this.form.studentMemberDocId().value.set(member.id);
       this.form.studentMemberDocId().markAsDirty();
     }
+  }
+
+  updateGradingInstructorId(value: string) {
+    this.form.gradingInstructorId().value.set(value);
+    this.form.gradingInstructorId().markAsDirty();
+  }
+
+  updateSchoolId(value: string) {
+    this.form.schoolId().value.set(value);
+    this.form.schoolId().markAsDirty();
   }
 
   async saveGrading(event: Event) {

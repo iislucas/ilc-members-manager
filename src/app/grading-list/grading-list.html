@@ -19,17 +19,13 @@
 
 <div class="grading-cards">
   @if (isAddingGrading()) {
-  <div class="grading-card">
     <app-grading-edit [grading]="newGrading()" [collapse]="false" (close)="onNewGradingClose()"
       [canDelete]="false"></app-grading-edit>
-  </div>
   }
 
   @let gradingsList = gradings();
   @for (grading of gradingsList; track grading.id) {
-  <div class="grading-card">
     <app-grading-edit [grading]="grading"></app-grading-edit>
-  </div>
   }
   @if (gradingsList.length < totalGradings()) { <div class="show-more-container">
     <button class="show-more-button" (click)="showAll()">

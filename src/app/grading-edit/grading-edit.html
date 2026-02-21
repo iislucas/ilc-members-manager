@@ -53,15 +53,29 @@
       <label for="level">Level</label>
       <div class="rhs">
         <select id="level" [formField]="form.level">
-          @for (level of studentLevels; track level) {
-          <option [value]="level">{{ level || '(None)' }}</option>
-          }
+          <optgroup label="Student Levels">
+            @for (level of studentLevels; track level) {
+            @if (level !== '') {
+            <option [value]="level">{{ level }}</option>
+            }
+            }
+          </optgroup>
+          <optgroup label="Application Levels">
+            @for (level of applicationLevels; track level) {
+            @if (level !== '') {
+            <option [value]="level">App Level {{ level }}</option>
+            }
+            }
+          </optgroup>
         </select>
       </div>
 
       <label for="gradingInstructorId">Instructor ID</label>
       <div class="rhs">
-        <input type="text" id="gradingInstructorId" [formField]="form.gradingInstructorId" />
+        <app-autocomplete name="Grading Instructor" [searchableSet]="dataService.instructors"
+          [placeholder]="'Search for an instructor'" [displayFns]="instructorDisplayFns"
+          [initSearchTerm]="form.gradingInstructorId().value()"
+          (textUpdated)="updateGradingInstructorId($event)"></app-autocomplete>
         @if (instructorName()) {
         <div class="note">{{ instructorName() }}</div>
         }
@@ -69,7 +83,9 @@
 
       <label for="schoolId">School ID</label>
       <div class="rhs">
-        <input type="text" id="schoolId" [formField]="form.schoolId" />
+        <app-autocomplete name="School" [searchableSet]="dataService.schools" [placeholder]="'Search for a school'"
+          [displayFns]="schoolDisplayFns" [initSearchTerm]="form.schoolId().value()"
+          (textUpdated)="updateSchoolId($event)"></app-autocomplete>
       </div>
 
       <h3>Status</h3>
