@@ -23,6 +23,8 @@ export enum Views {
   MySchools = 'mySchools',
   ActiveMembers = 'activeMembers',
   ActiveInstructors = 'activeInstructors',
+  ManageGradings = 'manageGradings',
+  GradingsAssessed = 'gradingsAssessed',
 }
 
 export const initPathPatterns = {
@@ -41,6 +43,8 @@ export const initPathPatterns = {
   [Views.MySchools]: pathPattern`my-schools`,
   [Views.ActiveMembers]: pathPattern`active-members`,
   [Views.ActiveInstructors]: pathPattern`active-instructors`,
+  [Views.ManageGradings]: pathPattern`gradings`,
+  [Views.GradingsAssessed]: pathPattern`my-gradings-assessed`,
 };
 
 // Santiy check for type correctness...

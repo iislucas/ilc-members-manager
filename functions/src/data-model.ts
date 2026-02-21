@@ -160,6 +160,12 @@ export enum MemberIdUpdateStatus {
   Stable = 'stable',
 }
 
+export enum GradingStatus {
+  Pending = 'pending',
+  Passed = 'passed',
+  Rejected = 'rejected',
+}
+
 // ==================================================================
 // # Schools and Members
 // ==================================================================
@@ -268,6 +274,9 @@ export type Member = {
 
   // A list of tags for the member.
   tags: string[];
+
+  // A list of grading document IDs for gradings the student has purchased.
+  gradingDocIds: string[];
 
   // Notes only for ILC HQ.
   notes: string;
@@ -424,6 +433,7 @@ export function initMember(): Member {
     applicationLevel: ApplicationLevel.None, // e.g., 'Level 1', 'Level 2'
     mastersLevels: [], // a set of masters levels the person has.
     tags: [],
+    gradingDocIds: [],
 
     // Notes - information only for ILC HQ management.
     notes: '',
@@ -472,6 +482,58 @@ export function initOrder(): Order {
     costUsd: '',
     collected: '',
     split: '',
+    notes: '',
+  };
+}
+
+// ==================================================================
+// # Gradings
+// ==================================================================
+
+// Firestore path: /gradings/{doc-id}
+export type Grading = {
+  id: string; // Firestore document ID, UNIQUE, auto-generated.
+  lastUpdated: string; // ISO string: YYYY-MM-DD; Converted from server Timestamp.
+
+  gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
+  orderId: string; // The order ID that created this grading, or '' if manual.
+  level: string; // The level the grading is aimed for ('Student X' or 'Application X').
+  gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
+  assistantInstructorIds: string[]; // InstructorIds of assistant instructors.
+  schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
+  studentMemberId: string; // The human-readable memberId of the student being graded.
+  studentMemberDocId: string; // The Firestore doc ID of the student member document.
+  status: GradingStatus; // pending, passed, rejected.
+  gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
+  notes: string; // Any notes about the grading.
+};
+
+export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'id'> & {
+  lastUpdated: Timestamp;
+};
+
+export function firestoreDocToGrading(doc: QueryDocumentSnapshot): Grading {
+  const docData = doc.data() as GradingFirebaseDoc;
+  const lastUpdated = docData.lastUpdated
+    ? docData.lastUpdated.toDate().toISOString()
+    : new Date().toISOString();
+  return { ...initGrading(), ...docData, lastUpdated, id: doc.id };
+}
+
+export function initGrading(): Grading {
+  return {
+    id: '',
+    lastUpdated: new Date().toISOString(),
+    gradingPurchaseDate: '',
+    orderId: '',
+    level: '',
+    gradingInstructorId: '',
+    assistantInstructorIds: [],
+    schoolId: '',
+    studentMemberId: '',
+    studentMemberDocId: '',
+    status: GradingStatus.Pending,
+    gradingEventDate: '',
     notes: '',
   };
 }

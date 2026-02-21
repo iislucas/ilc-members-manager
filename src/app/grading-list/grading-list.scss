@@ -1,0 +1,80 @@
+@use "../../scss_variables" as v;
+
+.search-header {
+  display: flex;
+  flex-direction: row;
+  gap: 1em;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1em;
+  padding: v.$card-padding;
+  flex-grow: 0;
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: #888;
+  }
+
+  input[type="text"] {
+    padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    transition:
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
+    flex-grow: 1;
+
+    &:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+      outline: none;
+    }
+  }
+}
+
+.grading-cards {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: stretch;
+  gap: v.$card-sep;
+  flex-grow: 1;
+}
+
+app-grading-edit {
+  display: block;
+  border-top: 1px solid #ddd;
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+
+  &:hover {
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 1em;
+
+  .show-more-button {
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2em;
+  color: #888;
+}

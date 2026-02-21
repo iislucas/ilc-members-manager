@@ -36,6 +36,10 @@ import {
   Order,
   firestoreDocToOrder,
   OrderFirebaseDoc,
+  Grading,
+  GradingFirebaseDoc,
+  firestoreDocToGrading,
+  initGrading,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -158,6 +162,14 @@ export class DataManagerService {
   );
   public counters = signal<Counters | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
+  public gradings = new SearchableSet<'id', Grading>(
+    ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
+    'id',
+  );
+  public myGradingsAssessed = new SearchableSet<'id', Grading>(
+    ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
+    'id',
+  );
 
   constructor() {
     effect(async () => {
@@ -169,6 +181,8 @@ export class DataManagerService {
       this.updateSchoolsSync();
       this.updateCountersSync();
       this.updateCountryCodesSync();
+      this.updateGradingsSync(user);
+      this.updateMyGradingsAssessedSync(user);
     });
 
     // Effect for My Schools
@@ -366,6 +380,52 @@ export class DataManagerService {
     );
   }
 
+  async updateGradingsSync(user: UserDetails) {
+    if (user.isAdmin) {
+      const gradingsCollection = collection(this.db, 'gradings');
+      const q = query(gradingsCollection, orderBy('lastUpdated', 'desc'));
+      this.snapshotsToUnsubscribe.push(
+        onSnapshot(
+          q,
+          (snapshot) => {
+            const gradingsList = snapshot.docs.map(firestoreDocToGrading);
+            this.gradings.setEntries(gradingsList);
+          },
+          (error) => {
+            console.error('Error fetching gradings:', error);
+            this.gradings.setError(error.message);
+          },
+        ),
+      );
+    } else {
+      this.gradings.setEntries([]);
+    }
+  }
+
+  async updateMyGradingsAssessedSync(user: UserDetails) {
+    if (user.member.instructorId) {
+      const q = query(
+        collection(this.db, `instructors/${user.member.id}/gradings`),
+        orderBy('lastUpdated', 'desc'),
+      );
+      this.snapshotsToUnsubscribe.push(
+        onSnapshot(
+          q,
+          (snapshot) => {
+            const gradingsList = snapshot.docs.map(firestoreDocToGrading);
+            this.myGradingsAssessed.setEntries(gradingsList);
+          },
+          (error) => {
+            console.error('Error fetching my gradings assessed:', error);
+            this.myGradingsAssessed.setError(error.message);
+          },
+        ),
+      );
+    } else {
+      this.myGradingsAssessed.setEntries([]);
+    }
+  }
+
   async addMember(member: Member): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef);
@@ -407,6 +467,29 @@ export class DataManagerService {
 
   async deleteSchool(id: string): Promise<void> {
     return deleteDoc(doc(this.db, 'schools', id));
+  }
+
+  async addGrading(grading: Grading): Promise<DocumentReference> {
+    const collectionRef = collection(this.db, 'gradings');
+    const newDocRef = doc(collectionRef);
+    const gradingWithNewTimestamp: GradingFirebaseDoc = {
+      ...grading,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(newDocRef, gradingWithNewTimestamp).then(() => newDocRef);
+  }
+
+  async updateGrading(id: string, grading: Grading): Promise<void> {
+    const docRef = doc(this.db, 'gradings', id);
+    const gradingWithNewTimestamp: GradingFirebaseDoc = {
+      ...grading,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+    return setDoc(docRef, gradingWithNewTimestamp, { merge: true });
+  }
+
+  async deleteGrading(id: string): Promise<void> {
+    return deleteDoc(doc(this.db, 'gradings', id));
   }
 
 

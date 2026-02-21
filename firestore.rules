@@ -98,5 +98,47 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
+
+    match /gradings/{gradingId} {
+      function isGradingStudent() {
+        return resource.data.studentMemberDocId in getUserMemberDocIds();
+      }
+      function isGradingInstructor() {
+        let email = request.auth.token.email;
+        let aclPath = /databases/$(database)/documents/acl/$(email);
+        let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
+        return resource.data.gradingInstructorId in instructorIds;
+      }
+      function isGradingSchoolManager() {
+        let schoolId = resource.data.schoolId;
+        let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
+        return schoolId != "" && exists(schoolPath) && (
+          request.auth.token.email == get(schoolPath).data.ownerEmail ||
+          request.auth.token.email in get(schoolPath).data.managerEmails
+        );
+      }
+      function isValidEdit() {
+        return request.resource.data.lastUpdated == request.time;
+      }
+      allow read: if isAdmin() || isGradingStudent() || isGradingInstructor() || isGradingSchoolManager();
+      allow write: if isValidEdit() && isAdmin();
+      allow delete: if isAdmin();
+      allow update: if isValidEdit() && isGradingInstructor() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['lastUpdated', 'status', 'gradingEventDate', 'notes']);
+    }
+
+    match /instructors/{instructorMemberDocId}/gradings/{gradingId} {
+      allow read: if instructorMemberDocId in getUserMemberDocIds();
+    }
+
+    match /schools/{schoolId}/gradings/{gradingId} {
+      function isSchoolManager() {
+        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
+        return request.auth.token.email == school.ownerEmail ||
+            request.auth.token.email in school.managerEmails;
+      }
+      allow read: if isAdmin() || isSchoolManager();
+    }
   }
 }

@@ -19,6 +19,7 @@ import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
+import { GradingListComponent } from './grading-list/grading-list';
 
 @Component({
   selector: 'app-root',
@@ -41,6 +42,7 @@ import { SquarespaceContentComponent } from './squarespace/squarespace-content.c
     FindSchoolComponent,
     HomeComponent,
     SquarespaceContentComponent,
+    GradingListComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -103,14 +105,24 @@ export class App {
         return 'Active Members Area';
       case Views.ActiveInstructors:
         return 'Active Instructors Area';
+      case Views.ManageGradings:
+        return 'Manage Gradings';
+      case Views.GradingsAssessed:
+        return 'Gradings Assessed';
       default:
         return 'Unknown View';
     }
   }
 
+  // Login form state
+  public showPassword = signal<boolean>(false);
+  public loginEmail = signal<string>('');
+  public loginPassword = signal<string>('');
+
   // One error/success message signal for each user action
   public loginWithEmailError = signal<string | null>(null);
   public invalidLoginCredentials = signal<boolean>(false);
+  public emailAlreadyInUse = signal<boolean>(false);
   public loginWithGoogleError = signal<string | null>(null);
   public signupError = signal<string | null>(null);
   public resetPasswordError = signal<string | null>(null);
@@ -131,11 +143,12 @@ export class App {
     const result = await this.firebaseService.loginWithEmail(pass, email);
     if (!result.success) {
       console.warn(result.errorCode);
-      this.loginWithEmailError.set(
-        `${result.errorCode}: check you are online?`,
-      );
       if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
         this.invalidLoginCredentials.set(true);
+      } else {
+        this.loginWithEmailError.set(
+          `${result.errorCode}: check you are online?`,
+        );
       }
     }
   }
@@ -145,7 +158,11 @@ export class App {
     const result = await this.firebaseService.signupWithEmail(pass, email);
     if (!result.success) {
       console.warn(result.errorCode);
-      this.signupError.set(`${result.errorCode}: check you are online?`);
+      if (result.errorCode === AuthErrorCodes.EMAIL_EXISTS) {
+        this.emailAlreadyInUse.set(true);
+      } else {
+        this.signupError.set(`${result.errorCode}: check you are online?`);
+      }
     }
   }
 
@@ -181,6 +198,7 @@ export class App {
   public dismissMessages() {
     this.loginWithEmailError.set(null);
     this.invalidLoginCredentials.set(false);
+    this.emailAlreadyInUse.set(false);
     this.loginWithGoogleError.set(null);
     this.signupError.set(null);
     this.resetPasswordError.set(null);

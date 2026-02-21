@@ -1,0 +1,181 @@
+@let e = editableGrading();
+
+<div class="edit-form">
+  <div class="edit-form-header" [class.can-toggle-collapse]="collapsable()"
+    (click)="collapsable() && toggleCollapseState($event)">
+    <div class="identifier">
+      @if (e.id) {
+      <span class="status-chip" [class.passed]="e.status === GradingStatus.Passed"
+        [class.rejected]="e.status === GradingStatus.Rejected" [class.pending]="e.status === GradingStatus.Pending">{{
+        e.status }}</span>
+      }
+    </div>
+    <div class="name">
+      @if (studentName()) {
+      {{ studentName() }}
+      } @else {
+      [New Grading]
+      }
+      @if (isDirty()) {
+      <span>*</span>
+      }
+    </div>
+    <div class="meta-info">
+      @if (e.level) {
+      <span class="level-chip">{{ formatLevel(e.level) }}</span>
+      }
+      @if (instructorName()) {
+      <span class="instructor-info">Instructor: {{ instructorName() }}</span>
+      }
+    </div>
+    @if (collapsable()) {
+    <div class="unfold-button">
+      <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
+    </div>
+    }
+  </div>
+
+  @if (!collapsed()) {
+  <form (submit)="saveGrading($event)">
+    <div class="form-section">
+      <h3>Grading Details</h3>
+
+      <label for="studentMemberId">Student</label>
+      <div class="rhs">
+        <app-autocomplete [searchableSet]="dataService.members" [placeholder]="'Search for a member'"
+          [displayFns]="memberDisplayFns" [initSearchTerm]="form.studentMemberId().value()"
+          (textUpdated)="updateStudentMemberId($event)"></app-autocomplete>
+        @if (studentName()) {
+        <div class="note">{{ studentName() }}</div>
+        }
+      </div>
+
+      <label for="level">Level</label>
+      <div class="rhs">
+        <select id="level" [formField]="form.level">
+          <optgroup label="Student Levels">
+            @for (level of studentLevels; track level) {
+            @if (level !== '') {
+            <option [value]="'Student ' + level">Student {{ level }}</option>
+            }
+            }
+          </optgroup>
+          <optgroup label="Application Levels">
+            @for (level of applicationLevels; track level) {
+            @if (level !== '') {
+            <option [value]="'Application ' + level">Application {{ level }}</option>
+            }
+            }
+          </optgroup>
+        </select>
+      </div>
+
+      <label for="gradingInstructorId">Instructor ID</label>
+      <div class="rhs">
+        <app-autocomplete name="Grading Instructor" [searchableSet]="dataService.instructors"
+          [placeholder]="'Search for an instructor'" [displayFns]="instructorDisplayFns"
+          [initSearchTerm]="form.gradingInstructorId().value()"
+          (textUpdated)="updateGradingInstructorId($event)"></app-autocomplete>
+        @if (instructorName()) {
+        <div class="note">{{ instructorName() }}</div>
+        }
+      </div>
+
+      <label for="schoolId">School ID</label>
+      <div class="rhs">
+        <app-autocomplete name="School" [searchableSet]="dataService.schools" [placeholder]="'Search for a school'"
+          [displayFns]="schoolDisplayFns" [initSearchTerm]="form.schoolId().value()"
+          (textUpdated)="updateSchoolId($event)"></app-autocomplete>
+      </div>
+
+      <h3>Status</h3>
+
+      <label for="status">Status</label>
+      <div class="rhs">
+        <select id="status" [formField]="form.status">
+          @for (status of gradingStatuses; track status) {
+          <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+
+      <label for="gradingEventDate">Grading Date</label>
+      <div class="rhs">
+        <input class="date" type="date" id="gradingEventDate" placeholder="YYYY-MM-DD"
+          [formField]="form.gradingEventDate" />
+      </div>
+
+      <label for="gradingPurchaseDate">Purchase Date</label>
+      <div class="rhs">
+        <input class="date" type="date" id="gradingPurchaseDate" placeholder="YYYY-MM-DD"
+          [formField]="form.gradingPurchaseDate" />
+      </div>
+
+      @if (e.orderId) {
+      <label for="orderId">Order ID</label>
+      <div class="rhs">
+        <input type="text" id="orderId" [formField]="form.orderId" />
+      </div>
+      }
+
+      <label for="notes" class="align-top">Notes</label>
+      <div class="rhs">
+        <textarea id="notes" [formField]="form.notes"></textarea>
+      </div>
+    </div>
+
+    @if (errorMessage().length > 0) {
+    <div class="error-container">
+      <div class="error-message">
+        <ul>
+          @for (error of errorMessage(); track error) {
+          <li>{{ error }}</li>
+          }
+        </ul>
+      </div>
+      <button type="button" class="icon-only-button" (click)="closeErrors()">
+        <app-icon name="close" />
+      </button>
+    </div>
+    }
+    <div class="form-actions">
+      <div class="left-actions">
+        @if (isSaving()) {
+        <app-spinner></app-spinner>
+        } @else {
+        @if (isDirty() && canEdit()) {
+        <button type="submit" [disabled]="form().invalid()">
+          Save
+        </button>
+        }
+        @if (collapsable()) {
+        <button type="button" (click)="cancel($event)">
+          @if (isDirty()) {
+          Cancel
+          } @else {
+          Close
+          }
+        </button>
+        } @else {
+        @if (isDirty()) {
+        <button type="button" (click)="cancel($event)">
+          Undo changes
+        </button>
+        }
+        }
+        }
+      </div>
+      <div class="right-actions">
+        <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
+
+        @if (collapsable() && canDelete() && userIsAdmin()) {
+        <button class="delete-button" (click)="deleteGrading($event)">
+          <app-icon name="trash" fill="#000" />
+          Delete
+        </button>
+        }
+      </div>
+    </div>
+  </form>
+  }
+</div>

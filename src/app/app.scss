@@ -42,6 +42,21 @@ main {
   gap: 0.5em;
 }
 
+.password-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.login-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-top: 1em;
+  max-width: 30em;
+}
+
 .nav-bar {
   display: flex;
   flex-direction: row;
