@@ -92,6 +92,13 @@ export const getSquarespaceContent = onCall<SquarespaceContentRequest>(
 
         try {
             const response = await axios.get(targetUrl);
+            logger.info('Squarespace data:', response.data);
+            logger.info('Squarespace raw response data structure:', {
+                keys: Object.keys(response.data),
+                isString: typeof response.data === 'string',
+                mainContentLength: response.data?.mainContent?.length,
+                collectionExists: !!response.data?.collection,
+            });
 
             // Return the data. We might want to filter this down to just the 'mainContent' 
             // or whatever specific part of the JSON is needed to avoid sending too much data.

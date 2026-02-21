@@ -54,6 +54,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - **Whitespace:** Trim trailing whitespace and ensure a final newline.
 - **Component Prefix:** Use `app` prefix (e.g., `<app-my-component>`).
 - **Testing:** All new items should have a `.spec.ts` file with meaningful unit tests.
+- **Styling:** Use SCSS for styling. Import using `@use`; avoid height and width of 100% unless really needed. Prefer flexbox and grid layouts.
 
 ---
 

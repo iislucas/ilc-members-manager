@@ -1,43 +1,22 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  align-self: stretch;
+}
+
 .squarespace-container {
-  padding: 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  min-height: 400px;
-
-  .header-section {
-    margin-bottom: 2.5rem;
-    position: relative;
-
-    h2 {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: var(--primary-color, #1a1a1a);
-      margin: 0;
-      letter-spacing: -0.02em;
-    }
-
-    .header-accent {
-      height: 4px;
-      width: 60px;
-      background: linear-gradient(
-        90deg,
-        var(--primary-color, #3a5af1),
-        transparent
-      );
-      margin-top: 0.75rem;
-      border-radius: 2px;
-    }
-  }
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  align-items: stretch;
 
   .content-wrapper {
+    flex-grow: 1;
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    position: relative;
-    overflow: hidden;
+    padding: 2em;
+
   }
 
   .loading-state {

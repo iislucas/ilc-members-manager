@@ -82,7 +82,7 @@ export class SquarespaceContentComponent {
 
         if (isMemberArea) {
             if (!this.isActiveMember()) {
-                if (user.member.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date()) {
+                if (!user.member.currentMembershipExpires || user.member.currentMembershipExpires && new Date(user.member.currentMembershipExpires) < new Date()) {
                     this.error.set('Your membership has expired. Please renew your membership to access this content.');
                 } else {
                     this.error.set('You must be an active member to view this content.');
@@ -112,7 +112,15 @@ export class SquarespaceContentComponent {
 
         this.squarespaceService.getSquarespaceContent(path).subscribe({
             next: (data: any) => {
-                console.log('Squarespace content received', data);
+                console.group('Squarespace Content Details');
+                console.log('Full response object:', data);
+                if (data && typeof data === 'object') {
+                    console.log('Available keys:', Object.keys(data));
+                    if (data.collection) console.log('Collection data:', data.collection);
+                    if (data.items) console.log('Items data (length):', data.items.length, data.items);
+                    if (data.mainContent) console.log('Main Content (length):', data.mainContent.length);
+                }
+                console.groupEnd();
 
                 let htmlContent = '';
                 let baseUrl = '';
