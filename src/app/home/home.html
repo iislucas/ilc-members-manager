@@ -101,64 +101,57 @@
       }
     </div>
 
-    <div class="separator"></div>
-
-    @if (u.isAdmin || u.schoolsManaged.length > 0) {
+    @if (u.isAdmin) {
       <div class="separator"></div>
+
       <div class="cards-grid">
-        @if (u.isAdmin) {
-          <div class="card" (click)="navigateTo(Views.ManageMembers)">
-            <div class="icon-container">
-              <app-icon name="person" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Manage Members</h2>
-              <p>Administer member accounts</p>
-            </div>
+        <div class="card" (click)="navigateTo(Views.ManageMembers)">
+          <div class="icon-container">
+            <app-icon name="person" width="48px" height="48px"></app-icon>
           </div>
-        }
+          <div class="content">
+            <h2>Manage Members</h2>
+            <p>Administer member accounts</p>
+          </div>
+        </div>
 
-        @if (u.isAdmin || u.schoolsManaged.length > 0) {
-          <div class="card" (click)="navigateTo(Views.ManageSchools)">
-            <div class="icon-container">
-              <app-icon name="map" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Manage Schools</h2>
-              <p>Administer school details</p>
-            </div>
+        <div class="card" (click)="navigateTo(Views.ManageSchools)">
+          <div class="icon-container">
+            <app-icon name="map" width="48px" height="48px"></app-icon>
           </div>
-        }
+          <div class="content">
+            <h2>Manage Schools</h2>
+            <p>Administer school details</p>
+          </div>
+        </div>
 
-        @if (u.isAdmin) {
-          <div class="card" (click)="navigateTo(Views.ImportExport)">
-            <div class="icon-container">
-              <app-icon name="link" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Import/Export</h2>
-              <p>Import or export data</p>
-            </div>
+        <div class="card" (click)="navigateTo(Views.ImportExport)">
+          <div class="icon-container">
+            <app-icon name="link" width="48px" height="48px"></app-icon>
           </div>
-          <div class="card" (click)="navigateTo(Views.ManageGradings)">
-            <div class="icon-container">
-              <app-icon name="mountain" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Manage Gradings</h2>
-              <p>Administer grading records</p>
-            </div>
+          <div class="content">
+            <h2>Import/Export</h2>
+            <p>Import or export data</p>
           </div>
-          <div class="card" (click)="navigateTo(Views.Settings)">
-            <div class="icon-container">
-              <app-icon name="admin" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Settings</h2>
-              <p>Manage application settings</p>
-            </div>
+        </div>
+        <div class="card" (click)="navigateTo(Views.ManageGradings)">
+          <div class="icon-container">
+            <app-icon name="mountain" width="48px" height="48px"></app-icon>
           </div>
-        }
+          <div class="content">
+            <h2>Manage Gradings</h2>
+            <p>Administer grading records</p>
+          </div>
+        </div>
+        <div class="card" (click)="navigateTo(Views.Settings)">
+          <div class="icon-container">
+            <app-icon name="admin" width="48px" height="48px"></app-icon>
+          </div>
+          <div class="content">
+            <h2>Settings</h2>
+            <p>Manage application settings</p>
+          </div>
+        </div>
       </div>
     }
   </div>
