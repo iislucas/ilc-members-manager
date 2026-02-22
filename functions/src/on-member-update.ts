@@ -32,7 +32,10 @@ async function updateACL(aclUpdate: {
   const added = emails.filter((e) => !previousEmails.includes(e));
   const removed = previousEmails.filter((e) => !emails.includes(e));
 
-  if (added.length === 0 && removed.length === 0) {
+  const isAdminChanged = member?.isAdmin !== previous?.isAdmin;
+  const instructorIdChanged = instructorId !== previousInstructorId;
+
+  if (added.length === 0 && removed.length === 0 && !isAdminChanged && !instructorIdChanged) {
     return;
   }
 
@@ -44,9 +47,6 @@ async function updateACL(aclUpdate: {
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: admin.firestore.FieldValue.arrayUnion(memberDocId),
     };
-    if (instructorId) {
-      update.instructorIds = admin.firestore.FieldValue.arrayUnion(instructorId);
-    }
     batch.set(aclRef, update, { merge: true });
   }
 
@@ -56,16 +56,14 @@ async function updateACL(aclUpdate: {
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: admin.firestore.FieldValue.arrayRemove(memberDocId),
     };
-    if (previousInstructorId) {
-      update.instructorIds =
-        admin.firestore.FieldValue.arrayRemove(previousInstructorId);
-    }
     batch.update(aclRef, update);
   }
 
-  await batch.commit();
+  if (added.length > 0 || removed.length > 0) {
+    await batch.commit();
+  }
 
-  // Recalculate isAdmin for all affected emails
+  // Recalculate isAdmin and instructorIds for all affected emails
   const allAffected = [...new Set([...emails, ...previousEmails])];
   for (const email of allAffected) {
     if (email) {
@@ -89,14 +87,30 @@ async function refreshACLAdminStatus(email: string) {
   const memberRefs = data.memberDocIds.map((memberDocId: string) =>
     db.collection('members').doc(memberDocId),
   );
-  const memberSnaps = await db.getAll(...memberRefs);
+  let memberSnaps: admin.firestore.DocumentSnapshot[] = [];
+  if (memberRefs.length > 0) {
+    memberSnaps = await db.getAll(...memberRefs);
+  }
 
   const anyAdmin = memberSnaps.some(
     (snap: admin.firestore.DocumentSnapshot) =>
       snap.exists && snap.data()?.isAdmin === true,
   );
 
-  await aclRef.update({ isAdmin: anyAdmin });
+  const newInstructorIds = new Set<string>();
+  for (const snap of memberSnaps) {
+    if (snap.exists) {
+      const instId = snap.data()?.instructorId;
+      if (instId) {
+        newInstructorIds.add(instId);
+      }
+    }
+  }
+
+  await aclRef.update({
+    isAdmin: anyAdmin,
+    instructorIds: Array.from(newInstructorIds),
+  });
 }
 
 export const onMemberCreated = onDocumentCreated(
