@@ -1,5 +1,47 @@
 @use "../../scss_variables" as v;
 
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #eee;
+
+  .tab-button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+    margin-bottom: -2px; /* Pull down to overlap the container's border */
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #333;
+    }
+
+    &.active {
+      color: #007bff;
+      border-bottom-color: #007bff;
+      font-weight: 500;
+    }
+  }
+}
+
+.student-grading-alert {
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+  padding-left: 8px;
+  background-color: #f8faff;
+  
+  app-grading-edit {
+    border-top: none;
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.15);
+    }
+  }
+}
+
 .search-header {
   display: flex;
   flex-direction: row;

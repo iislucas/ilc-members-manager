@@ -4,7 +4,8 @@ import {
   onDocumentDeleted,
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
-import { Member, ACL } from './data-model';
+import { Member, ACL, Grading } from './data-model';
+import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
@@ -113,6 +114,39 @@ async function refreshACLAdminStatus(email: string) {
   });
 }
 
+async function mirrorGradingsForSifuChange(
+  memberDocId: string,
+  previousSifu: string | undefined,
+  currentSifu: string | undefined,
+) {
+  if (previousSifu === currentSifu) return;
+  if (!previousSifu && !currentSifu) return;
+
+  const gradingsSnap = await db.collection('gradings')
+    .where('studentMemberDocId', '==', memberDocId)
+    .get();
+
+  if (gradingsSnap.empty) return;
+
+  const gradings = gradingsSnap.docs.map(d => {
+    const data = d.data() as Grading;
+    data.id = d.id;
+    return data;
+  });
+
+  for (const grading of gradings) {
+    if (previousSifu) {
+      const assessors = [grading.gradingInstructorId, ...grading.assistantInstructorIds];
+      if (!assessors.includes(previousSifu)) {
+        await removeGradingFromInstructor(grading.id, previousSifu);
+      }
+    }
+    if (currentSifu) {
+      await mirrorGradingToInstructor(grading.id, grading, currentSifu);
+    }
+  }
+}
+
 export const onMemberCreated = onDocumentCreated(
   'members/{memberId}',
   async (event) => {
@@ -145,6 +179,9 @@ export const onMemberUpdated = onDocumentUpdated(
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
     await updateInstructorPublicProfile({ previous, member });
+
+    // Move grading mirrors if Sifu changed
+    await mirrorGradingsForSifuChange(snap.after.id, previous.sifuInstructorId, member.sifuInstructorId);
 
     // Only update counters if IDs have changed/added
     if (

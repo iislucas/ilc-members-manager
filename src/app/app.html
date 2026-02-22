@@ -218,7 +218,7 @@
             <app-grading-list [gradingSet]="dataService.gradings"></app-grading-list>
           }
           @case (Views.GradingsAssessed) {
-            <app-grading-list [gradingSet]="dataService.myGradingsAssessed"></app-grading-list>
+            <app-grading-list [gradingSet]="dataService.myGradingsAssessed" viewMode="instructor"></app-grading-list>
           }
           @case (Views.Settings) {
             <app-settings></app-settings>

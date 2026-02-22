@@ -28,6 +28,9 @@ export class GradingListComponent {
     return user.isAdmin;
   });
 
+  viewMode = input<'all' | 'instructor'>('all');
+  activeTab = signal<'examined' | 'students'>('examined');
+
   gradingSet = input.required<SearchableSet<'id', Grading>>();
 
   private searchTerm = signal('');
@@ -35,16 +38,47 @@ export class GradingListComponent {
   newGrading = signal<Grading>(initGrading());
 
   limit = signal(50);
-  gradings = computed(() => {
+
+  filteredByTab = computed(() => {
     const all = this.gradingSet().search(this.searchTerm());
-    return all.slice(0, this.limit());
+    if (this.viewMode() !== 'instructor') return all;
+
+    const user = this.user();
+    if (!user || !user.member.instructorId) return all;
+
+    const myInstructorId = user.member.instructorId;
+    return all.filter(g => {
+      const isAssessor = g.gradingInstructorId === myInstructorId || g.assistantInstructorIds.includes(myInstructorId);
+      if (this.activeTab() === 'examined') {
+        return isAssessor;
+      } else {
+        return !isAssessor;
+      }
+    });
+  });
+
+  gradings = computed(() => {
+    return this.filteredByTab().slice(0, this.limit());
   });
   totalGradings = computed(
-    () => this.gradingSet().search(this.searchTerm()).length,
+    () => this.filteredByTab().length,
   );
 
   loading = computed(() => this.gradingSet().loading());
   error = computed(() => this.gradingSet().error());
+
+  setActiveTab(tab: 'examined' | 'students') {
+    this.activeTab.set(tab);
+    this.limit.set(50);
+  }
+
+  isStudentGrading(grading: Grading): boolean {
+    const user = this.user();
+    if (!user || !user.member.instructorId) return false;
+    const myInstructorId = user.member.instructorId;
+    return grading.gradingInstructorId !== myInstructorId &&
+      !grading.assistantInstructorIds.includes(myInstructorId);
+  }
 
   showAll() {
     this.limit.set(Infinity);

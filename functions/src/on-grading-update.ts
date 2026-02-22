@@ -31,7 +31,7 @@ async function findInstructorMemberDocId(
  * Mirror a grading document to an instructor's gradings sub-collection.
  * Path: /instructors/{instructorMemberDocId}/gradings/{gradingDocId}
  */
-async function mirrorGradingToInstructor(
+export async function mirrorGradingToInstructor(
   gradingDocId: string,
   grading: Grading,
   instructorId: string,
@@ -54,7 +54,7 @@ async function mirrorGradingToInstructor(
 /**
  * Remove a grading document from an instructor's gradings sub-collection.
  */
-async function removeGradingFromInstructor(
+export async function removeGradingFromInstructor(
   gradingDocId: string,
   instructorId: string,
 ): Promise<void> {
@@ -105,17 +105,28 @@ async function removeGradingFromSchool(
   await ref.delete();
 }
 
+async function getSifuInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
+  if (!memberDocId) return undefined;
+  const snap = await db.collection('members').doc(memberDocId).get();
+  if (snap.exists) {
+    return snap.data()?.sifuInstructorId;
+  }
+  return undefined;
+}
+
 /**
- * Mirror the grading to all relevant instructors (primary + assistants).
+ * Mirror the grading to all relevant instructors (primary + assistants + sifu).
  */
 async function mirrorGradingToAllInstructors(
   gradingDocId: string,
   grading: Grading,
 ): Promise<void> {
-  const instructorIds = [
+  const sifu = await getSifuInstructorId(grading.studentMemberDocId);
+  const instructorIds = new Set([
     grading.gradingInstructorId,
     ...grading.assistantInstructorIds,
-  ].filter((id) => id !== '');
+    sifu
+  ].filter((id) => id && id !== '') as string[]);
 
   for (const instructorId of instructorIds) {
     await mirrorGradingToInstructor(gradingDocId, grading, instructorId);
@@ -123,16 +134,18 @@ async function mirrorGradingToAllInstructors(
 }
 
 /**
- * Remove the grading from all relevant instructors (primary + assistants).
+ * Remove the grading from all relevant instructors (primary + assistants + sifu).
  */
 async function removeGradingFromAllInstructors(
   gradingDocId: string,
   grading: Grading,
 ): Promise<void> {
-  const instructorIds = [
+  const sifu = await getSifuInstructorId(grading.studentMemberDocId);
+  const instructorIds = new Set([
     grading.gradingInstructorId,
     ...grading.assistantInstructorIds,
-  ].filter((id) => id !== '');
+    sifu
+  ].filter((id) => id && id !== '') as string[]);
 
   for (const instructorId of instructorIds) {
     await removeGradingFromInstructor(gradingDocId, instructorId);
@@ -188,15 +201,18 @@ export const onGradingUpdated = onDocumentUpdated(
     const gradingDocId = snap.after.id;
 
     // Determine which instructor IDs changed
+    const previousSifu = await getSifuInstructorId(previous.studentMemberDocId);
+    const currentSifu = await getSifuInstructorId(grading.studentMemberDocId);
+
     const previousInstructorIds = new Set(
-      [previous.gradingInstructorId, ...previous.assistantInstructorIds].filter(
-        (id) => id !== '',
-      ),
+      [previous.gradingInstructorId, ...previous.assistantInstructorIds, previousSifu].filter(
+        (id) => id && id !== '',
+      ) as string[],
     );
     const currentInstructorIds = new Set(
-      [grading.gradingInstructorId, ...grading.assistantInstructorIds].filter(
-        (id) => id !== '',
-      ),
+      [grading.gradingInstructorId, ...grading.assistantInstructorIds, currentSifu].filter(
+        (id) => id && id !== '',
+      ) as string[],
     );
 
     // Remove from instructors no longer associated
