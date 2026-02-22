@@ -125,6 +125,7 @@ main {
   align-items: center;
   margin-bottom: 1em;
   flex-grow: 0;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
   background-color: $theme-bg-color;
   border-bottom: 2px solid $theme-border-color;
@@ -133,6 +134,22 @@ main {
   .title {
     font-size: large;
     font-weight: bold;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &.logged-out {
+    padding: 3em 1em;
+
+    .title-and-menu {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .title {
+      font-size: 2.5em;
+      text-align: center;
+      line-height: 1.2;
+    }
   }
 }
 
@@ -141,6 +158,7 @@ main {
   display: flex;
   flex-direction: row;
   align-items: center;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
   .icon-only-button {
     margin-right: 0.3em;

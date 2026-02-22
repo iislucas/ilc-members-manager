@@ -4,11 +4,11 @@
   <!-- @if(firebaseService.loggingIn()) { Logging
   in... } @else 
    -->
-  @if (user) {
-    <div class="nav-bar">
-      <div class="title-and-menu">
+  <div class="nav-bar" [class.logged-out]="!user">
+    <div class="title-and-menu">
+      @if (user) {
         <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-          <app-icon name="menu"></app-icon>
+          <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
         </button>
         @if (menuOpen()) {
           <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
@@ -158,10 +158,14 @@
             }
           </div>
         }
-        <div class="title">ILC App <span>-</span> {{ currentViewTitle() }}</div>
+      }
+      <div class="title">ILC App <span>-</span> {{ user ? currentViewTitle() : 'I Liq Chuan Members Portal' }}</div>
       </div>
+    @if (user) {
       <app-profile-menu></app-profile-menu>
-    </div>
+    }
+  </div>
+  @if (user) {
     @if (logoutError(); as message) {
       <div class="error-container">
         Logout error: <span>{{ message }}</span>
@@ -250,7 +254,6 @@
     </main>
   } @else {
     <main>
-      <h1>ILC App: I Liq Chuan Members Portal</h1>
       @if (
         firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
       ) {
