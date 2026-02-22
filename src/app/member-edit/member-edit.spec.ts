@@ -7,6 +7,7 @@ import {
   UserDetails,
   createFirebaseStateServiceMock,
 } from '../firebase-state.service';
+import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import {
   initMember,
@@ -80,6 +81,7 @@ describe('MemberEditComponent', () => {
         provideZonelessChangeDetection(),
         { provide: DataManagerService, useValue: dataManagerServiceMock },
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
+        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
       ],
     }).compileComponents();
 

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { GradingEditComponent } from './grading-edit';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
@@ -24,9 +25,9 @@ describe('GradingEditComponent', () => {
     mockDataManagerService = {
       members: new SearchableSet(['name'], 'memberId'),
       instructors: new SearchableSet(['name'], 'instructorId'),
-      addGrading: jasmine.createSpy('addGrading'),
-      updateGrading: jasmine.createSpy('updateGrading'),
-      deleteGrading: jasmine.createSpy('deleteGrading'),
+      addGrading: vi.fn(),
+      updateGrading: vi.fn(),
+      deleteGrading: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
