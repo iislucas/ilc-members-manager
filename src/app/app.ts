@@ -23,6 +23,7 @@ import { SquarespaceContentComponent } from './squarespace/squarespace-content.c
 import { GradingListComponent } from './grading-list/grading-list';
 import { SettingsComponent } from './settings/settings.component';
 import { LoginComponent } from './login/login';
+import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
 
 @Component({
   selector: 'app-root',
@@ -49,6 +50,7 @@ import { LoginComponent } from './login/login';
     GradingListComponent,
     SettingsComponent,
     LoginComponent,
+    NavigationMenuComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

@@ -1,0 +1,9 @@
+@use "../../scss_variables" as *;
+@use "../../styles" as *;
+
+.menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px); /* Position below the button with a 5px gap */
+  left: 0;
+}

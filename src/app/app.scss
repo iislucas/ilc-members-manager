@@ -91,12 +91,7 @@ main {
   }
 }
 
-.menu {
-  @extend .menu-style;
-  position: absolute;
-  top: calc(100% + 5px); /* Position below the button with a 5px gap */
-  left: 0;
-}
+
 
 .public-options {
   display: flex;
