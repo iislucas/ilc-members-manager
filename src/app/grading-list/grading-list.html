@@ -9,7 +9,7 @@
 @if (viewMode() === 'instructor') {
 <div class="tabs">
   <button class="tab-button" [class.active]="activeTab() === 'examined'" (click)="setActiveTab('examined')">Gradings
-    Examined</button>
+    as examiner</button>
   <button class="tab-button" [class.active]="activeTab() === 'students'" (click)="setActiveTab('students')">My Students
     Gradings</button>
   <button class="tab-button" [class.active]="activeTab() === 'mine'" (click)="setActiveTab('mine')">My Gradings</button>
