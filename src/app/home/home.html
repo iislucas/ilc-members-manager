@@ -42,6 +42,16 @@
           <p>Search for qualified instructors</p>
         </div>
       </div>
+
+      <div class="card" (click)="navigateTo(Views.ClassVideoLibrary)">
+        <div class="icon-container">
+          <app-icon name="video_library" width="48px" height="48px"></app-icon>
+        </div>
+        <div class="content">
+          <h2>Class Video Library</h2>
+          <p>Members saturday online class recordings</p>
+        </div>
+      </div>
     </div>
 
     <div class="separator"></div>
@@ -56,6 +66,16 @@
         </div>
       </div>
 
+      <div class="card" (click)="navigateTo(Views.MemberGradings)">
+        <div class="icon-container">
+          <app-icon name="mountain" width="48px" height="48px"></app-icon>
+        </div>
+        <div class="content">
+          <h2>Gradings</h2>
+          <p>View your gradings and current level</p>
+        </div>
+      </div>
+
       @if (u.member.instructorId) {
         <div class="card" (click)="navigateTo(Views.MyStudents)">
           <div class="icon-container">
@@ -64,15 +84,6 @@
           <div class="content">
             <h2>My Students</h2>
             <p>Manage your students</p>
-          </div>
-        </div>
-        <div class="card" (click)="navigateTo(Views.GradingsAssessed)">
-          <div class="icon-container">
-            <app-icon name="mountain" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Grading Assessments</h2>
-            <p>View gradings you have assessed</p>
           </div>
         </div>
       }

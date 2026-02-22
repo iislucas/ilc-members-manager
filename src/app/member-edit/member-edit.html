@@ -440,6 +440,19 @@
         <span class="note">(can edit all members)</span>
       </div>
 
+      <label for="classVideoLibrarySubscription">Class Video Library</label>
+      <div class="rhs">
+        <input type="checkbox" id="classVideoLibrarySubscription" [formField]="form.classVideoLibrarySubscription" />
+        <span class="note">Has access</span>
+      </div>
+
+      <label for="classVideoLibraryExpirationDate">Video Library Expires</label>
+      <div class="rhs">
+        <input class="date" type="date" id="classVideoLibraryExpirationDate" placeholder="YYYY-MM-DD"
+          [formField]="form.classVideoLibraryExpirationDate" />
+        <span class="note">Leave empty if never expires</span>
+      </div>
+
       <label for="notes" class="align-top">Notes</label>
       <div class="rhs">
         <textarea id="notes" [formField]="form.notes"></textarea>

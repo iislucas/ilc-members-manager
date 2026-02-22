@@ -18,6 +18,10 @@
         <span>{{ viewIdToTitle(Views.ActiveInstructors) }}</span>
       </div>
     }
+    <div class="menu-item" (click)="onSelect(Views.ClassVideoLibrary)">
+      <app-icon name="video_library" width="24px" height="24px"></app-icon>
+      <span>{{ viewIdToTitle(Views.ClassVideoLibrary) }}</span>
+    </div>
 
     <!-- Public -->
     <div class="menu-item" (click)="onSelect(Views.FindSchool)">
@@ -36,14 +40,14 @@
       <app-icon name="person" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.MyProfile) }}</span>
     </div>
+    <div class="menu-item" (click)="onSelect(Views.MemberGradings)">
+      <app-icon name="mountain" width="24px" height="24px"></app-icon>
+      <span>{{ viewIdToTitle(Views.MemberGradings) }}</span>
+    </div>
     @if (u.member.instructorId) {
       <div class="menu-item" (click)="onSelect(Views.MyStudents)">
         <app-icon name="salut" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.GradingsAssessed)">
-        <app-icon name="mountain" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.GradingsAssessed) }}</span>
       </div>
     }
     @if (u.schoolsManaged.length > 0) {

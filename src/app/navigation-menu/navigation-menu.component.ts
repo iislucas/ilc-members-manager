@@ -22,6 +22,10 @@ export class NavigationMenuComponent {
 
   public user = this.firebaseService.user;
 
+  get todayDateString(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
       case Views.ManageMembers: return 'Manage Members';
@@ -42,8 +46,9 @@ export class NavigationMenuComponent {
       case Views.ActiveMembers: return 'Members Area';
       case Views.ActiveInstructors: return 'Instructors Area';
       case Views.ManageGradings: return 'Manage Gradings';
-      case Views.GradingsAssessed: return 'Grading Assessments';
+      case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
+      case Views.ClassVideoLibrary: return 'Class Video Library';
       default: return 'Unknown View';
     }
   }

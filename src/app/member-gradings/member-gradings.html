@@ -1,0 +1,56 @@
+@let u = user();
+@if (u) {
+  <div class="gradings-summary">
+    <div class="summary-item">
+      <span class="label">Current Level:</span>
+      <span class="value">{{ currentLevel() || "None" }}</span>
+    </div>
+    @if (nextLevel()) {
+      <div class="summary-item">
+        <span class="label">Next Grading:</span>
+        <span class="value">{{ nextLevel() }}</span>
+      </div>
+    }
+  </div>
+
+  @if (isInstructor()) {
+    <div class="tabs">
+      <button
+        class="tab-button"
+        [class.active]="activeTab() === 'examined'"
+        (click)="setActiveTab('examined')"
+      >
+        Gradings as examiner
+      </button>
+      <button
+        class="tab-button"
+        [class.active]="activeTab() === 'students'"
+        (click)="setActiveTab('students')"
+      >
+        My Students' Gradings
+      </button>
+      <button
+        class="tab-button"
+        [class.active]="activeTab() === 'mine'"
+        (click)="setActiveTab('mine')"
+      >
+        My Gradings
+      </button>
+    </div>
+  }
+
+  <div class="grading-list-wrapper">
+    @if (isInstructor() && activeTab() !== "mine") {
+      <app-grading-list
+        [gradingSet]="dataService.myGradingsAssessed"
+        [viewMode]="'instructor'"
+        [instructorTab]="activeTab()"
+      ></app-grading-list>
+    } @else {
+      <app-grading-list
+        [gradingSet]="dataService.myGradings"
+        [viewMode]="'member'"
+      ></app-grading-list>
+    }
+  </div>
+}

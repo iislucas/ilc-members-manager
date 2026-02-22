@@ -97,15 +97,14 @@
               [gradingSet]="dataService.gradings"
             ></app-grading-list>
           }
-          @case (Views.GradingsAssessed) {
-            <app-grading-list
-              [gradingSet]="dataService.myGradingsAssessed"
-              [myPersonalGradingSet]="dataService.myGradings"
-              viewMode="instructor"
-            ></app-grading-list>
+          @case (Views.MemberGradings) {
+            <app-member-gradings></app-member-gradings>
           }
           @case (Views.Settings) {
             <app-settings></app-settings>
+          }
+          @case (Views.ClassVideoLibrary) {
+            <app-class-video-library></app-class-video-library>
           }
         }
       }

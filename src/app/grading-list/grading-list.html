@@ -6,15 +6,6 @@
   <span class="error-message">{{ error() }}</span>
 </div>
 } @else {
-@if (viewMode() === 'instructor') {
-<div class="tabs">
-  <button class="tab-button" [class.active]="activeTab() === 'examined'" (click)="setActiveTab('examined')">Gradings
-    as examiner</button>
-  <button class="tab-button" [class.active]="activeTab() === 'students'" (click)="setActiveTab('students')">My Students
-    Gradings</button>
-  <button class="tab-button" [class.active]="activeTab() === 'mine'" (click)="setActiveTab('mine')">My Gradings</button>
-</div>
-}
 
 <div class="search-header">
   <div class="search-box">
@@ -35,7 +26,7 @@
 
   @let gradingsList = gradings();
   @for (grading of gradingsList; track grading.id) {
-    @if (viewMode() === 'instructor' ? activeTab() === 'students' : isStudentGrading(grading)) {
+    @if (viewMode() === 'instructor' ? instructorTab() === 'students' : isStudentGrading(grading)) {
     <div class="student-grading-alert">
         <app-grading-edit [grading]="grading"></app-grading-edit>
       </div>
@@ -51,7 +42,7 @@
 }
 @if (gradingsList.length === 0 && !isAddingGrading()) {
 <div class="empty-state">
-  <p>No gradings found.</p>
+  <p>No gradings yet!</p>
 </div>
 }
 </div>

@@ -1,0 +1,57 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 80vh; /* gives it some height to fill the screen */
+}
+
+.subscription-prompt-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+  padding: 2rem;
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
+    max-width: 500px;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .icon-container {
+      margin-bottom: 1rem;
+      color: #0056b3;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.5;
+    }
+  }
+}

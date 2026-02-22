@@ -28,11 +28,10 @@ export class GradingListComponent {
     return user.isAdmin;
   });
 
-  viewMode = input<'all' | 'instructor'>('all');
-  activeTab = signal<'examined' | 'students' | 'mine'>('examined');
+  viewMode = input<'all' | 'instructor' | 'member'>('all');
+  instructorTab = input<'examined' | 'students' | 'mine'>('examined');
 
   gradingSet = input.required<SearchableSet<'id', Grading>>();
-  myPersonalGradingSet = input<SearchableSet<'id', Grading>>();
 
   private searchTerm = signal('');
   isAddingGrading = signal(false);
@@ -41,12 +40,6 @@ export class GradingListComponent {
   limit = signal(50);
 
   filteredByTab = computed(() => {
-    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
-      const myPersonalSet = this.myPersonalGradingSet();
-      if (!myPersonalSet) return [];
-      return myPersonalSet.search(this.searchTerm());
-    }
-
     const all = this.gradingSet().search(this.searchTerm());
     if (this.viewMode() !== 'instructor') return all;
 
@@ -56,7 +49,7 @@ export class GradingListComponent {
     const myInstructorId = user.member.instructorId;
     return all.filter(g => {
       const isAssessor = g.gradingInstructorId === myInstructorId || g.assistantInstructorIds.includes(myInstructorId);
-      if (this.activeTab() === 'examined') {
+      if (this.instructorTab() === 'examined') {
         return isAssessor;
       } else {
         return !isAssessor;
@@ -72,24 +65,13 @@ export class GradingListComponent {
   );
 
   loading = computed(() => {
-    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
-      const p = this.myPersonalGradingSet();
-      if (p) return p.loading();
-    }
     return this.gradingSet().loading();
   });
   error = computed(() => {
-    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
-      const p = this.myPersonalGradingSet();
-      if (p) return p.error();
-    }
     return this.gradingSet().error();
   });
 
-  setActiveTab(tab: 'examined' | 'students' | 'mine') {
-    this.activeTab.set(tab);
-    this.limit.set(50);
-  }
+
 
   isStudentGrading(grading: Grading): boolean {
     const user = this.user();

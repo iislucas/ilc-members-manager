@@ -24,6 +24,8 @@ import { GradingListComponent } from './grading-list/grading-list';
 import { SettingsComponent } from './settings/settings.component';
 import { LoginComponent } from './login/login';
 import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
+import { MemberGradingsComponent } from './member-gradings/member-gradings';
+import { ClassVideoLibraryComponent } from './class-video-library/class-video-library';
 
 @Component({
   selector: 'app-root',
@@ -51,6 +53,8 @@ import { NavigationMenuComponent } from './navigation-menu/navigation-menu.compo
     SettingsComponent,
     LoginComponent,
     NavigationMenuComponent,
+    ClassVideoLibraryComponent,
+    MemberGradingsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -115,15 +119,17 @@ export class App {
       case Views.MySchools:
         return 'My Schools';
       case Views.ActiveMembers:
-        return 'Active Members Area';
+        return 'Members Area';
       case Views.ActiveInstructors:
-        return 'Active Instructors Area';
+        return 'Instructors Area';
       case Views.ManageGradings:
         return 'Manage Gradings';
-      case Views.GradingsAssessed:
-        return 'Grading Assessments';
+      case Views.MemberGradings:
+        return 'Gradings';
       case Views.Settings:
         return 'Settings';
+      case Views.ClassVideoLibrary:
+        return 'Class Video Library';
       default:
         return 'Unknown View';
     }

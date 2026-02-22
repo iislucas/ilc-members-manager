@@ -1,0 +1,60 @@
+.gradings-summary {
+  display: flex;
+  gap: 24px;
+  background: var(--surface-card);
+  padding: 16px 24px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .label {
+      font-size: 0.85em;
+      color: var(--text-color-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .value {
+      font-size: 1.25em;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+  }
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-button {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-color-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--text-color);
+    background: rgba(0,0,0,0.02);
+  }
+
+  &.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+  }
+}
+
+.grading-list-wrapper {
+  margin-top: 16px;
+}

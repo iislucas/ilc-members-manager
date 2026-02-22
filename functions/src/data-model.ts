@@ -278,6 +278,10 @@ export type Member = {
   // A list of grading document IDs for gradings the student has purchased.
   gradingDocIds: string[];
 
+  // Class Video Library
+  classVideoLibrarySubscription: boolean;
+  classVideoLibraryExpirationDate: string; // YYYY-MM-DD or empty if never expires
+
   // Notes only for ILC HQ.
   notes: string;
 };
@@ -436,6 +440,10 @@ export function initMember(): Member {
     mastersLevels: [], // a set of masters levels the person has.
     tags: [],
     gradingDocIds: [],
+
+    // Class Video Library
+    classVideoLibrarySubscription: false,
+    classVideoLibraryExpirationDate: '',
 
     // Notes - information only for ILC HQ management.
     notes: '',

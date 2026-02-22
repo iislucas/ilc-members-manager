@@ -156,6 +156,8 @@ export class MemberEditComponent {
       schema.publicCountyOrState,
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
+    disabled(schema.classVideoLibrarySubscription, () => !this.userIsAdmin());
+    disabled(schema.classVideoLibraryExpirationDate, () => !this.userIsAdmin());
     disabled(schema.isAdmin, () => !this.userIsAdmin());
     disabled(schema.notes, () => !this.userIsAdmin());
     disabled(schema.tags, () => !this.userIsAdmin());

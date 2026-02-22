@@ -272,9 +272,6 @@ export class DataManagerService {
       });
     } else {
       this.members.setEntries([]);
-      // console.log(user);
-      // console.error('User is not a school manager or admin');
-      // this.members.setError(`You are not a school manager or admin.`);
     }
   }
 
@@ -346,7 +343,6 @@ export class DataManagerService {
           q,
           (snapshot) => {
             const students = snapshot.docs.map(firestoreDocToMember);
-            console.log('My students:', students);
             this.myStudents.setEntries(students);
           },
           (error) => {
