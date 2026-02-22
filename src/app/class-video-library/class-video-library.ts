@@ -19,6 +19,6 @@ export class ClassVideoLibraryComponent {
   }
 
   openVideoLibrarySubscription() {
-    window.open('https://iliqchuan.com/shop/monthly-class-video-library-subscription/', '_blank');
+    window.open('https://iliqchuan.com/product/video-library-subscriber/', '_blank');
   }
 }
