@@ -45,6 +45,12 @@ export class ImportOrdersComponent {
   // State
   public stage = signal<ImportStage>('SELECT');
   public importProgress = signal({ current: 0, total: 0 });
+  public importSummary = signal({
+    membershipExpirationsIncreased: 0,
+    lifeMembers: 0,
+    schoolLicenses: 0,
+    instructorLicenses: 0,
+  });
 
   // Data
   public parsedData = signal<ParsedRow[]>([]);
@@ -54,8 +60,8 @@ export class ImportOrdersComponent {
   // Analysis / Preview
   public proposedChanges = signal<{
     orders: ImportDelta<Order>;
-    memberUpdates: Map<string, { member: Member, oldMember: Member, diffs: { field: string; oldValue: any; newValue: any }[] }>;
-    schoolUpdates: Map<string, { school: School, oldSchool: School, diffs: { field: string; oldValue: any; newValue: any }[] }>;
+    memberUpdates: Map<string, { member: Member, oldMember: Member, diffs: { field: string; oldVal: string; newVal: string }[] }>;
+    schoolUpdates: Map<string, { school: School, oldSchool: School, diffs: { field: string; oldVal: string; newVal: string }[] }>;
   }>({
     orders: {
       issues: [],
@@ -159,6 +165,12 @@ export class ImportOrdersComponent {
     this.selectedTypeFilter.set('ALL');
     this.previewIndex.set(0);
     this.importProgress.set({ current: 0, total: 0 });
+    this.importSummary.set({
+      membershipExpirationsIncreased: 0,
+      lifeMembers: 0,
+      schoolLicenses: 0,
+      instructorLicenses: 0,
+    });
   }
 
   onFileChange(event: Event) {
@@ -633,6 +645,27 @@ export class ImportOrdersComponent {
       currentProcessed++;
       this.importProgress.set({ current: currentProcessed, total });
     }
+
+    // Compute Summary
+    let membershipExpirationsIncreased = 0;
+    for (const update of memberUpdates) {
+      const expDiff = update.diffs.find(d => d.field === 'currentMembershipExpires');
+      if (expDiff && new Date(expDiff.newVal) > new Date(expDiff.oldVal)) {
+        membershipExpirationsIncreased++;
+      }
+    }
+
+    const allOrdersToProcess = [...newOrders, ...orderUpdates].map(o => o.newItem);
+    let lifeMembers = allOrdersToProcess.filter(o => o.paidFor?.toLowerCase().includes('life')).length;
+    let schoolLicenses = allOrdersToProcess.filter(o => this.getOrderType(o) === 'SCHOOL_LICENSE').length;
+    let instructorLicenses = allOrdersToProcess.filter(o => this.getOrderType(o) === 'INSTRUCTOR_LICENSE').length;
+
+    this.importSummary.set({
+      membershipExpirationsIncreased,
+      lifeMembers,
+      schoolLicenses,
+      instructorLicenses
+    });
 
     this.stage.set('COMPLETED');
   }

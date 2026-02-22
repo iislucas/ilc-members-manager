@@ -195,9 +195,22 @@
 
   @if (stage() === 'COMPLETED') {
   <div class="stage-section completed">
-    <h3>Import Completed!</h3>
-    <p>Processed {{importProgress().total}} items successfully.</p>
-    <button (click)="reset()" class="secondary-button">Import More</button>
+    <div class="completed-content card">
+      <h3>Import Completed!</h3>
+      <p>Processed {{importProgress().total}} items successfully.</p>
+
+      <div class="summary-stats-box">
+        <h4>Import Summary</h4>
+        <ul>
+          <li><strong>{{importSummary().membershipExpirationsIncreased}}</strong> membership expirations increased</li>
+          <li><strong>{{importSummary().lifeMembers}}</strong> life members</li>
+          <li><strong>{{importSummary().schoolLicenses}}</strong> school licenses</li>
+          <li><strong>{{importSummary().instructorLicenses}}</strong> instructor licenses</li>
+        </ul>
+      </div>
+
+      <button (click)="reset()" class="secondary-button">Import More</button>
+    </div>
   </div>
   }
 </div>
