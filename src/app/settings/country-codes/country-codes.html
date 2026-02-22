@@ -1,26 +1,51 @@
 <div class="control-panel">
-  <h2>Static Collection / Country Codes</h2>
-  <p>View and edit documents in the static collection (like country codes).</p>
+  <h2>Country Codes</h2>
+  <p>Manage the list of allowed country codes.</p>
 
-  @if (isLoadingStatic()) {
+  @if (isLoading()) {
   <div>
     <app-spinner></app-spinner> Loading...
   </div>
-  }
-
-  @for (doc of staticDocs(); track doc.id) {
-  <div class="doc-panel" style="margin-bottom: 2rem; border-top: 1px solid #ddd; padding-top: 1rem;">
-    <h3>Document: {{ doc.id }}</h3>
-    <textarea [(ngModel)]="doc.raw" rows="10"
-      style="width: 100%; font-family: monospace; margin-bottom: 10px;"></textarea>
-    <div>
-      <button class="action-button" (click)="saveStaticDoc(doc)" [disabled]="isSavingStatic()[doc.id]">
-        {{ isSavingStatic()[doc.id] ? 'Saving...' : 'Save ' + doc.id }}
-      </button>
+  } @else {
+  
+  <table class="data-table" style="margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th>ISO Code (2 letters)</th>
+        <th>Country Name</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (code of countryCodes(); track $index) {
+      <tr>
+        <td>
+          <input type="text" [(ngModel)]="code.id" class="form-control" style="width: 80px;" placeholder="e.g. US">
+        </td>
+        <td>
+          <input type="text" [(ngModel)]="code.name" class="form-control" style="width: 250px;"
+            placeholder="e.g. United States">
+        </td>
+        <td>
+          <button class="action-button danger" (click)="removeCountryCode($index)">Remove</button>
+        </td>
+      </tr>
+      }
+    </tbody>
+    </table>
+    
+    <div style="margin-bottom: 20px;">
+      <button class="action-button" (click)="addCountryCode()">Add Country Code</button>
     </div>
-    @if (staticMessages()[doc.id]) {
-    <p class="status-message">{{ staticMessages()[doc.id] }}</p>
-    }
-  </div>
+
+  <div>
+    <button class="action-button primary" (click)="saveCountryCodes()" [disabled]="isSaving()">
+      {{ isSaving() ? 'Saving...' : 'Save Country Codes' }}
+    </button>
+    </div>
+  @if (statusMessage()) {
+  <p class="status-message">{{ statusMessage() }}</p>
+  }
+  
   }
 </div>

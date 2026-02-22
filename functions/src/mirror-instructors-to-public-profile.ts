@@ -8,13 +8,23 @@ import {
 
 const db = admin.firestore();
 
-function isInstructor(member: Member): boolean {
-  if (member.instructorId === '') return false;
+function isActiveInstructor(member: Member): boolean {
+  if (!member.instructorId || member.instructorId === '') return false;
+
   if (member.instructorLicenseType === InstructorLicenseType.Life) return true;
-  if (member.instructorLicenseType === InstructorLicenseType.Annual) {
-    const today = new Date().toISOString().split('T')[0];
-    return member.instructorLicenseExpires >= today;
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // If explicitly Annual license, or if they have an expiration date in the future (legacy fallback)
+  if (
+    member.instructorLicenseType === InstructorLicenseType.Annual ||
+    (!member.instructorLicenseType || member.instructorLicenseType === InstructorLicenseType.None)
+  ) {
+    if (member.instructorLicenseExpires) {
+      return member.instructorLicenseExpires >= today;
+    }
   }
+
   return false;
 }
 
@@ -32,7 +42,7 @@ export type InstructorUpdate =
 export async function updateInstructorPublicProfile(update: InstructorUpdate) {
   if (update.member) {
     const member = update.member;
-    if (isInstructor(member)) {
+    if (member.instructorId !== '') {
       if (!member.id) {
         logger.error(
           `Member ${member.name} has no ID, cannot update instructor public data`,
@@ -52,6 +62,10 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
         applicationLevel: member.applicationLevel,
         mastersLevels: member.mastersLevels,
         instructorId: member.instructorId,
+        instructorLicenseType: member.instructorLicenseType,
+        instructorLicenseExpires: member.instructorLicenseType === InstructorLicenseType.Life
+          ? '9999-12-31'
+          : member.instructorLicenseExpires,
         publicRegionOrCity: member.publicRegionOrCity,
         publicCountyOrState: member.publicCountyOrState,
         country: member.country,

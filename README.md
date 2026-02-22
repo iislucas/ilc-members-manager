@@ -164,3 +164,25 @@ CLOUD_BUCKET_NAME_AND_PATH= # .. Cloud bucket name and path....
 gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* \
   gs://${CLOUD_BUCKET_NAME_AND_PATH}
 ```
+
+## Troubleshooting
+
+### Backups: "Permission 'iam.serviceAccounts.signBlob' denied"
+
+When calling `listBackups`, the Cloud Function needs to generate a signed download URL. To do this, the Cloud Function's service account (usually the Compute Engine default service account `PROJECT_NUMBER-compute@developer.gserviceaccount.com` or App Engine default service account) needs the **Service Account Token Creator** IAM role.
+
+To fix this via a command: 
+```sh 
+export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_NAME} --format="value(projectNumber)")
+
+gcloud projects add-iam-policy-binding ${PROJECT_NAME} --member="serviceAccount:${PROJECT_NUMBER}$-compute@developer.gserviceaccount.com" --role="roles/iam.serviceAccountTokenCreator" --condition=None && gcloud projects add-iam-policy-binding ${PROJECT_NAME} --member="serviceAccount:${PROJECT_NAME}@appspot.gserviceaccount.com" --role="roles/iam.serviceAccountTokenCreator" --condition=None
+```
+
+To fix this via the Google Cloud UI:
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) -> **IAM & Admin** -> **IAM**.
+2. Find the default service account used by your Cloud Functions (e.g. Compute Engine default service account).
+3. Click the memory pencil icon (Edit principal).
+4. Click **Add Another Role**.
+5. Search for and select **Service Account Token Creator** (`roles/iam.serviceAccountTokenCreator`).
+6. Save. (It may take a minute or two to propagate).
+

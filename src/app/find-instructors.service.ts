@@ -4,7 +4,6 @@ import {
   getFirestore,
   onSnapshot,
   query,
-  orderBy,
 } from 'firebase/firestore';
 import {
   InstructorPublicData,
@@ -47,17 +46,14 @@ export class FindInstructorsService {
   }
 
   async updateInstructorsSync() {
-    const q = query(
-      this.instructorsPublicCollection,
-      orderBy('applicationLevel', 'desc'),
-    );
+    const q = query(this.instructorsPublicCollection);
     this.snapshotsToUnsubscribe.push(
       onSnapshot(
-        this.instructorsPublicCollection,
+        q,
         (snapshot) => {
           const instructors = snapshot.docs.map(
             firestoreDocToInstructorPublicData,
-          );
+          ).sort((a, b) => b.applicationLevel.localeCompare(a.applicationLevel));
           this.instructors.setEntries(instructors);
         },
         (error) => {

@@ -481,7 +481,14 @@ export class MemberEditComponent {
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
-      const member = this.editableMember();
+      // Ensure we have a separate copy, and explicitly sync the array 
+      // fields which don't use conventional two-way bindings.
+      const member = {
+        ...this.editableMember(),
+        emails: this.form.emails().value(),
+        tags: this.form.tags().value(),
+        mastersLevels: this.form.mastersLevels().value(),
+      };
       const memberIdAssignment = this.memberIdAssignment().kind;
       if (memberIdAssignment === AssignKind.AssignNewAutoId) {
         const countryCode = this.countryWithCode()?.id;

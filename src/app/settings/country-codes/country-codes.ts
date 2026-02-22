@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
 import { SpinnerComponent } from '../../spinner/spinner.component';
+import { CountryCode, CountryCodesDoc } from '../../country-codes';
 
 @Component({
   selector: 'app-country-codes',
@@ -14,40 +15,55 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 export class CountryCodes implements OnInit {
   dataManager = inject(DataManagerService);
 
-  staticDocs = signal<{ id: string, data: any, raw: string }[]>([]);
-  isLoadingStatic = signal(false);
-  isSavingStatic = signal<Record<string, boolean>>({});
-  staticMessages = signal<Record<string, string>>({});
+  countryCodes = signal<CountryCode[]>([]);
+  isLoading = signal(false);
+  isSaving = signal(false);
+  statusMessage = signal('');
 
   ngOnInit() {
-    this.loadStaticDocs();
+    this.loadCountryCodes();
   }
 
-  async loadStaticDocs() {
-    this.isLoadingStatic.set(true);
+  async loadCountryCodes() {
+    this.isLoading.set(true);
     try {
       const docs = await this.dataManager.getStaticDocs();
-      // Only keep the country codes if requested, or keep all static docs? 
-      // User said "one for country codes".
-      this.staticDocs.set(docs.map(d => ({ ...d, raw: JSON.stringify(d.data, null, 2) })));
+      const countryCodesDoc = docs.find((d: any) => d.id === 'country-codes');
+      if (countryCodesDoc && countryCodesDoc.data) {
+        this.countryCodes.set((countryCodesDoc.data as CountryCodesDoc).codes || []);
+      } else {
+        this.countryCodes.set([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
-      this.isLoadingStatic.set(false);
+      this.isLoading.set(false);
     }
   }
 
-  async saveStaticDoc(docObj: { id: string, data: any, raw: string }) {
-    this.isSavingStatic.update(m => ({ ...m, [docObj.id]: true }));
-    this.staticMessages.update(m => ({ ...m, [docObj.id]: '' }));
+  addCountryCode() {
+    this.countryCodes.update(codes => [...codes, { id: '', name: '' }]);
+  }
+
+  removeCountryCode(index: number) {
+    this.countryCodes.update(codes => {
+      const newCodes = [...codes];
+      newCodes.splice(index, 1);
+      return newCodes;
+    });
+  }
+
+  async saveCountryCodes() {
+    this.isSaving.set(true);
+    this.statusMessage.set('');
     try {
-      const parsed = JSON.parse(docObj.raw);
-      await this.dataManager.saveStaticDoc(docObj.id, parsed);
-      this.staticMessages.update(m => ({ ...m, [docObj.id]: 'Saved successfully.' }));
+      const docData: CountryCodesDoc = { codes: this.countryCodes() };
+      await this.dataManager.saveStaticDoc('country-codes', docData);
+      this.statusMessage.set('Saved successfully.');
     } catch (err: any) {
-      this.staticMessages.update(m => ({ ...m, [docObj.id]: `Error: ${err.message}` }));
+      this.statusMessage.set(`Error: ${err.message}`);
     } finally {
-      this.isSavingStatic.update(m => ({ ...m, [docObj.id]: false }));
+      this.isSaving.set(false);
     }
   }
 }

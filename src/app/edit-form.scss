@@ -74,6 +74,23 @@ h3 {
     align-self: start;
     padding-top: 8px;
   }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 0.5em;
+
+    label {
+      text-align: left;
+      padding-left: 0;
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .align-top {
+      padding-top: 0;
+    }
+  }
 }
 
 .edit-form {
@@ -121,6 +138,19 @@ h3 {
       justify-content: right;
       align-items: center;
       gap: 1em;
+    }
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1em;
+
+      .left-actions,
+      .right-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
     }
   }
 }

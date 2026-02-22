@@ -318,6 +318,8 @@ export type InstructorPublicData = {
   // This is a human-readable instructor ID, not the same as the Firebase document ID.
   // ILC HQ issued a unique instructor ID, empty = not instructor.
   instructorId: string;
+  instructorLicenseType: InstructorLicenseType;
+  instructorLicenseExpires: string; // YYYY-MM-DD or '9999-12-31' for Life
 
   publicRegionOrCity: string;
   publicCountyOrState: string;
@@ -548,6 +550,8 @@ export function initInstructor(): InstructorPublicData {
     applicationLevel: ApplicationLevel.None,
     mastersLevels: [],
     instructorId: '',
+    instructorLicenseType: InstructorLicenseType.None,
+    instructorLicenseExpires: '',
     publicRegionOrCity: '',
     publicCountyOrState: '',
     country: '',

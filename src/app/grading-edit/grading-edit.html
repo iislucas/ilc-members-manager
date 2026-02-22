@@ -40,7 +40,7 @@
     <div class="form-section">
       <h3>Grading Details</h3>
 
-      <label for="studentMemberId">Student</label>
+      <label for="studentMemberId">Student attempting the grading</label>
       <div class="rhs">
         <app-autocomplete [searchableSet]="dataService.members" [placeholder]="'Search for a member'"
           [displayFns]="memberDisplayFns" [initSearchTerm]="form.studentMemberId().value()"
@@ -50,7 +50,7 @@
         }
       </div>
 
-      <label for="level">Level</label>
+      <label for="level">Level the student is grading for</label>
       <div class="rhs">
         <select id="level" [formField]="form.level">
           <optgroup label="Student Levels">
@@ -70,7 +70,7 @@
         </select>
       </div>
 
-      <label for="gradingInstructorId">Instructor ID</label>
+      <label for="gradingInstructorId">Senior Instructor grading the student</label>
       <div class="rhs">
         <app-autocomplete name="Grading Instructor" [searchableSet]="dataService.instructors"
           [placeholder]="'Search for an instructor'" [displayFns]="instructorDisplayFns"
@@ -81,14 +81,14 @@
         }
       </div>
 
-      <label for="schoolId">School ID</label>
+      <label for="schoolId">School (optional)</label>
       <div class="rhs">
         <app-autocomplete name="School" [searchableSet]="dataService.schools" [placeholder]="'Search for a school'"
           [displayFns]="schoolDisplayFns" [initSearchTerm]="form.schoolId().value()"
           (textUpdated)="updateSchoolId($event)"></app-autocomplete>
       </div>
 
-      <h3>Status</h3>
+      <h3>Status (to be updated by the grading instructor)</h3>
 
       <label for="status">Status</label>
       <div class="rhs">
@@ -99,13 +99,13 @@
         </select>
       </div>
 
-      <label for="gradingEventDate">Grading Date</label>
+      <label for="gradingEventDate">Date of the Grading</label>
       <div class="rhs">
         <input class="date" type="date" id="gradingEventDate" placeholder="YYYY-MM-DD"
           [formField]="form.gradingEventDate" />
       </div>
 
-      <label for="gradingPurchaseDate">Purchase Date</label>
+      <label for="gradingPurchaseDate">Date the grading was purchased</label>
       <div class="rhs">
         <input class="date" type="date" id="gradingPurchaseDate" placeholder="YYYY-MM-DD"
           [formField]="form.gradingPurchaseDate" />

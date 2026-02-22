@@ -27,6 +27,21 @@ main {
   }
 }
 
+.app-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 1em auto;
+  text-align: left;
+  gap: 0.5em;
+  max-width: 35em;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 1em;
+  line-height: 1.5;
+  color: #333;
+}
+
 .login-options {
   display: flex;
   flex-direction: row;
@@ -42,14 +57,47 @@ main {
   gap: 0.5em;
 }
 
-.password-field {
+.input-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  gap: 0.5em;
+
+  label {
+    font-size: 0.9em;
+    font-weight: 500;
+    min-width: 5em;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25em;
+  }
+}
+
+.password-input-row {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 0.25em;
+  width: 100%;
+
+  input {
+    flex-grow: 1;
+    min-width: 0; // Fixes flexbox stretching past parent width on mobile
+  }
 }
 
-.login-errors {
+.card-header {
+  text-align: center;
+  width: 100%;
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
+
+.login-feedback {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
