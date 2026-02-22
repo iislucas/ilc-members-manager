@@ -53,7 +53,11 @@ export class FindInstructorsService {
         (snapshot) => {
           const instructors = snapshot.docs.map(
             firestoreDocToInstructorPublicData,
-          ).sort((a, b) => b.applicationLevel.localeCompare(a.applicationLevel));
+          ).sort((a, b) =>
+            a.country.localeCompare(b.country) ||
+            b.applicationLevel.localeCompare(a.applicationLevel) ||
+            b.studentLevel.localeCompare(a.studentLevel)
+          );
           this.instructors.setEntries(instructors);
         },
         (error) => {

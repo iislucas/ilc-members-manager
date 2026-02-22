@@ -21,7 +21,9 @@ import {
   parseToDate,
   MappingResult,
   ProposedChange,
-  ensureLaterDate
+  ensureLaterDate,
+  ensureHigherStudentLevel,
+  ensureHigherApplicationLevel
 } from '../import-export-utils';
 import { format, addYears, isValid, parse } from 'date-fns';
 
@@ -357,6 +359,29 @@ export class ImportMembersComponent {
             }
           }
         });
+
+        // Protect studentLevel
+        if (member.studentLevel !== undefined) {
+          const higherLevel = ensureHigherStudentLevel(existing.studentLevel, member.studentLevel);
+          if (higherLevel !== undefined) {
+            newMember.studentLevel = higherLevel as any;
+          }
+        }
+
+        // Protect applicationLevel
+        if (member.applicationLevel !== undefined) {
+          const higherLevel = ensureHigherApplicationLevel(existing.applicationLevel, member.applicationLevel);
+          if (higherLevel !== undefined) {
+            newMember.applicationLevel = higherLevel as any;
+          }
+        }
+
+        // Prevent removal of existing emails: merge with imported ones
+        if (member.emails !== undefined) {
+          const mergedEmails = new Set(existing.emails || []);
+          member.emails.forEach(e => mergedEmails.add(e));
+          newMember.emails = Array.from(mergedEmails);
+        }
 
         const diffs = getDifferences(newMember, existing);
         if (diffs.length > 0) {

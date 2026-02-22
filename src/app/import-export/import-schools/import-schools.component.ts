@@ -305,6 +305,13 @@ export class ImportSchoolsComponent {
         }
       });
 
+      // Prevent removal of existing managerEmails: merge with imported ones
+      if (school.managerEmails !== undefined) {
+        const mergedEmails = new Set(existing.managerEmails || []);
+        school.managerEmails.forEach(e => mergedEmails.add(e));
+        newSchool.managerEmails = Array.from(mergedEmails);
+      }
+
       const diffs = getDifferences(newSchool, existing);
       if (diffs.length > 0) {
         delta.updates.push({

@@ -1,4 +1,5 @@
 import { parse, isValid, format } from 'date-fns';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
 
 export type ParsedRow = Record<string, string>;
 
@@ -172,4 +173,35 @@ export function ensureLaterDate(oldDate: string | undefined | null, newDate: str
     return newDate;
   }
   return oldDate;
+}
+
+export function ensureHigherStudentLevel(
+  oldLevel: StudentLevel | string | undefined | null,
+  newLevel: StudentLevel | string | undefined | null
+): StudentLevel | string | undefined {
+  if (!newLevel) return oldLevel || undefined;
+  if (!oldLevel) return newLevel;
+
+  const score = (lvl: string) => {
+    if (lvl === 'Entry') return 0.5;
+    const n = parseInt(lvl, 10);
+    return isNaN(n) ? 0 : n;
+  };
+
+  return score(newLevel as string) > score(oldLevel as string) ? newLevel : oldLevel;
+}
+
+export function ensureHigherApplicationLevel(
+  oldLevel: ApplicationLevel | string | undefined | null,
+  newLevel: ApplicationLevel | string | undefined | null
+): ApplicationLevel | string | undefined {
+  if (!newLevel) return oldLevel || undefined;
+  if (!oldLevel) return newLevel;
+
+  const score = (lvl: string) => {
+    const n = parseInt(lvl, 10);
+    return isNaN(n) ? 0 : n;
+  };
+
+  return score(newLevel as string) > score(oldLevel as string) ? newLevel : oldLevel;
 }

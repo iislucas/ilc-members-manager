@@ -25,7 +25,8 @@ import {
   parseToDate,
   MappingResult,
   ProposedChange,
-  ensureLaterDate
+  ensureLaterDate,
+  ensureHigherStudentLevel
 } from '../import-export-utils';
 import { format, addYears, isValid, parse, isAfter } from 'date-fns';
 
@@ -517,8 +518,9 @@ export class ImportOrdersComponent {
       if (levelMatch) {
         const newLevel = levelMatch[1] as StudentLevel;
         // Only update if it's a higher level or different
-        if (newMember.studentLevel !== newLevel) {
-          newMember.studentLevel = newLevel;
+        const higherLevel = ensureHigherStudentLevel(newMember.studentLevel, newLevel) as StudentLevel;
+        if (higherLevel !== undefined && higherLevel !== newMember.studentLevel) {
+          newMember.studentLevel = higherLevel;
           changed = true;
         }
       }
