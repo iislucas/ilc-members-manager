@@ -56,7 +56,7 @@ describe('ImportSchoolsComponent', () => {
       ownerEmail: ['ownerEmail'],
       managerEmails: ['managerEmails'],
     };
-    const school = (component as any).mapRowToSchool(row, mapping);
+    const { school } = (component as any).mapRowToSchool(row, mapping);
     expect(school.ownerEmail).toBe('owner@test.com');
     expect(school.managerEmails).toEqual([
       'manager1@test.com',

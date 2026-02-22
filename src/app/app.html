@@ -59,9 +59,12 @@
                 <app-icon name="salut" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
               </div>
-              <div class="menu-item" (click)="
-                                currentView.set(Views.GradingsAssessed); menuOpen.set(false)
-                              ">
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.GradingsAssessed); menuOpen.set(false)
+                "
+              >
                 <app-icon name="mountain" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.GradingsAssessed) }}</span>
               </div>
@@ -83,7 +86,11 @@
                 currentView.set(Views.ActiveMembers); menuOpen.set(false)
               "
             >
-              <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
+              <app-icon
+                name="hands_lotus"
+                width="24px"
+                height="24px"
+              ></app-icon>
               <span>{{ viewIdToTitle(Views.ActiveMembers) }}</span>
             </div>
             @if (user.member.instructorId) {
@@ -93,7 +100,11 @@
                   currentView.set(Views.ActiveInstructors); menuOpen.set(false)
                 "
               >
-                <app-icon name="meditation" width="24px" height="24px"></app-icon>
+                <app-icon
+                  name="meditation"
+                  width="24px"
+                  height="24px"
+                ></app-icon>
                 <span>{{ viewIdToTitle(Views.ActiveInstructors) }}</span>
               </div>
             }
@@ -128,14 +139,19 @@
                 <app-icon name="link" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
               </div>
-              <div class="menu-item" (click)="
-                                currentView.set(Views.ManageGradings); menuOpen.set(false)
+              <div
+                class="menu-item"
+                (click)="
+                  currentView.set(Views.ManageGradings); menuOpen.set(false)
                 "
               >
                 <app-icon name="mountain" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.ManageGradings) }}</span>
               </div>
-              <div class="menu-item" (click)="currentView.set(Views.Settings); menuOpen.set(false)">
+              <div
+                class="menu-item"
+                (click)="currentView.set(Views.Settings); menuOpen.set(false)"
+              >
                 <app-icon name="admin" width="24px" height="24px"></app-icon>
                 <span>{{ viewIdToTitle(Views.Settings) }}</span>
               </div>
@@ -187,7 +203,7 @@
             <app-school-members></app-school-members>
           }
           @case (Views.InstructorStudents) {
-          <app-instructor-students></app-instructor-students>
+            <app-instructor-students></app-instructor-students>
           }
           @case (Views.FindSchool) {
             <app-find-school></app-find-school>
@@ -215,11 +231,16 @@
             ></app-squarespace-content>
           }
           @case (Views.ManageGradings) {
-            <app-grading-list [gradingSet]="dataService.gradings"></app-grading-list>
+            <app-grading-list
+              [gradingSet]="dataService.gradings"
+            ></app-grading-list>
           }
           @case (Views.GradingsAssessed) {
-            <app-grading-list [gradingSet]="dataService.myGradingsAssessed" [myPersonalGradingSet]="dataService.myGradings"
-              viewMode="instructor"></app-grading-list>
+            <app-grading-list
+              [gradingSet]="dataService.myGradingsAssessed"
+              [myPersonalGradingSet]="dataService.myGradings"
+              viewMode="instructor"
+            ></app-grading-list>
           }
           @case (Views.Settings) {
             <app-settings></app-settings>
@@ -237,149 +258,201 @@
       } @else if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
         <app-spinner>Logging in... </app-spinner>
       } @else {
-        <div class="login-options">
-          <div class="card email-login">
-            <div class="card-header">Login with email</div>
-            <div class="input-field">
-              <label for="email-input">Email:</label>
-              <input
-                id="email-input"
-                autocomplete="email"
-                type="email"
-                name="email"
-                [ngModel]="loginEmail()"
-                (ngModelChange)="loginEmail.set($event)"
-                required
-                placeholder="Email"
-              />
-            </div>
-            <div class="input-field">
-              <label for="password-input">Password:</label>
-              <div class="password-input-row">
-                <input id="password-input" autocomplete="current-password" [type]="showPassword() ? 'text' : 'password'"
-                  name="password" [ngModel]="loginPassword()" (ngModelChange)="loginPassword.set($event)" required
-                  placeholder="Password" />
-                <button class="icon-only-button" type="button" (click)="showPassword.set(!showPassword())" title="{{
-                                    showPassword() ? 'Hide password' : 'Show password'
-                                  }}">
-                  <app-icon [name]="showPassword() ? 'visibility_off' : 'visibility'"></app-icon>
-                </button>
-              </div>
-            </div>
-            <div class="buttons">
-              <button
-                (click)="loginWithEmail(loginEmail(), loginPassword())"
-                [disabled]="!loginEmail() || !loginPassword()"
-              >
-                Login
-              </button>
-              <button
-                (click)="signupWithEmail(loginEmail(), loginPassword())"
-                [disabled]="!loginEmail() || !loginPassword()"
-              >
-                Signup
-              </button>
-            </div>
+        <div class="app-info">
+          <p>
+            This is the primary hub for both the Members and Instructors to
+            manage their memberships, licenses, gradings, and other records
+            related to the practice of
+            <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>.
+          </p>
+          <p>
+            Members can login using their registered email address and password,
+            or using Google (if their account is a google account), and update
+            their profile. Licensed instructors and school managers can also
+            update their public profiles, and view their students profiles.
+          </p>
+        </div>
 
-            @if (
-            signupError() ||
-            loginWithEmailError() ||
-            emailAlreadyInUse() ||
-            invalidLoginCredentials() ||
-            resetPasswordSuccess() ||
-            resetPasswordError()
-            ) {
-            <div class="login-feedback">
-              @if (signupError(); as message) {
-              <div class="error-container">
-                    Signup error:
-                    <span class="error-message">{{ message }}</span>
-                    <button class="icon-only-button" (click)="dismissMessages()">
-                      <app-icon name="close"></app-icon>
+        @if (showFindInstructor()) {
+          <div class="public-action-bar">
+            <button (click)="showFindInstructor.set(false)" class="back-button">
+              <app-icon name="arrow_back"></app-icon> Back
+            </button>
+          </div>
+          <app-find-an-instructor></app-find-an-instructor>
+        } @else {
+          <div class="public-options">
+            <button (click)="showFindInstructor.set(true)">
+              Find an Instructor
+            </button>
+            <button (click)="showLoginOptions.set(!showLoginOptions())">
+              {{ showLoginOptions() ? "Hide Login" : "Log in / Sign up" }}
+            </button>
+          </div>
+
+          @if (showLoginOptions()) {
+            <div class="login-options">
+              <div class="card email-login">
+                <div class="card-header">Login with email</div>
+                <div class="input-field">
+                  <label for="email-input">Email:</label>
+                  <input
+                    id="email-input"
+                    autocomplete="email"
+                    type="email"
+                    name="email"
+                    [ngModel]="loginEmail()"
+                    (ngModelChange)="loginEmail.set($event)"
+                    required
+                    placeholder="Email"
+                  />
+                </div>
+                <div class="input-field">
+                  <label for="password-input">Password:</label>
+                  <div class="password-input-row">
+                    <input
+                      id="password-input"
+                      autocomplete="current-password"
+                      [type]="showPassword() ? 'text' : 'password'"
+                      name="password"
+                      [ngModel]="loginPassword()"
+                      (ngModelChange)="loginPassword.set($event)"
+                      required
+                      placeholder="Password"
+                    />
+                    <button
+                      class="icon-only-button"
+                      type="button"
+                      (click)="showPassword.set(!showPassword())"
+                      title="{{
+                        showPassword() ? 'Hide password' : 'Show password'
+                      }}"
+                    >
+                      <app-icon
+                        [name]="
+                          showPassword() ? 'visibility_off' : 'visibility'
+                        "
+                      ></app-icon>
                     </button>
-                    </div>
+                  </div>
+                </div>
+                <div class="buttons">
+                  <button
+                    (click)="loginWithEmail(loginEmail(), loginPassword())"
+                    [disabled]="!loginEmail() || !loginPassword()"
+                  >
+                    Login
+                  </button>
+                  <button
+                    (click)="signupWithEmail(loginEmail(), loginPassword())"
+                    [disabled]="!loginEmail() || !loginPassword()"
+                  >
+                    Signup
+                  </button>
+                </div>
+
+                @if (
+                  signupError() ||
+                  loginWithEmailError() ||
+                  emailAlreadyInUse() ||
+                  invalidLoginCredentials() ||
+                  resetPasswordSuccess() ||
+                  resetPasswordError()
+                ) {
+                  <div class="login-feedback">
+                    @if (signupError(); as message) {
+                      <div class="error-container">
+                        Signup error:
+                        <span class="error-message">{{ message }}</span>
+                        <button
+                          class="icon-only-button"
+                          (click)="dismissMessages()"
+                        >
+                          <app-icon name="close"></app-icon>
+                        </button>
+                      </div>
                     }
                     @if (loginWithEmailError(); as message) {
-                    <div class="error-container">
-                      Login with email error:
-                      <span class="error-message">{{ message }}</span>
-                    <button class="icon-only-button" (click)="dismissMessages()">
-                      <app-icon name="close"></app-icon>
-                    </button>
-                    </div>
+                      <div class="error-container">
+                        Login with email error:
+                        <span class="error-message">{{ message }}</span>
+                        <button
+                          class="icon-only-button"
+                          (click)="dismissMessages()"
+                        >
+                          <app-icon name="close"></app-icon>
+                        </button>
+                      </div>
                     }
                     @if (emailAlreadyInUse()) {
-                    <p>
-                      You already have an account. Do you want to
-                    <button class="inline-link-button" (click)="resetPassword(loginEmail())">
-                      reset your password</button>?
-                    </p>
+                      <p>
+                        You already have an account. Do you want to
+                        <button
+                          class="inline-link-button"
+                          (click)="resetPassword(loginEmail())"
+                        >
+                          reset your password</button
+                        >?
+                      </p>
                     }
                     @if (invalidLoginCredentials()) {
-                    <p>
-                      Your password is invalid. Do you want to
-                    <button class="inline-link-button" (click)="resetPassword(loginEmail())">
-                      reset your password</button>?
-                  </p>
-                }
-                @if (resetPasswordSuccess(); as message) {
-                  <div class="success">
-                    <span>{{ message }}</span>
+                      <p>
+                        Your password is invalid. Do you want to
+                        <button
+                          class="inline-link-button"
+                          (click)="resetPassword(loginEmail())"
+                        >
+                          reset your password</button
+                        >?
+                      </p>
+                    }
+                    @if (resetPasswordSuccess(); as message) {
+                      <div class="success">
+                        <span>{{ message }}</span>
+                      </div>
+                    }
+                    @if (resetPasswordError(); as message) {
+                      <div class="error-container">
+                        Reset password error:
+                        <span class="error-message">{{ message }}</span>
+                        <button
+                          class="icon-only-button"
+                          (click)="dismissMessages()"
+                        >
+                          <app-icon name="close"></app-icon>
+                        </button>
+                      </div>
+                    }
                   </div>
                 }
-                @if (resetPasswordError(); as message) {
-                  <div class="error-container">
-                    Reset password error:
-                    <span class="error-message">{{ message }}</span>
-                    <button class="icon-only-button" (click)="dismissMessages()">
-                      <app-icon name="close"></app-icon>
-                    </button>
-                    </div>
-                    }
-                    </div>
-                    }
-                    </div>
-                    or
-                    <div class="card google-login">
-                      <button (click)="loginWithGoogle()">Login with Google</button>
-                    </div>
-                    @if (loginWithGoogleError(); as message) {
-                    <div class="error-container">
-                      <div>Login with Google Error:</div>
-                      <div class="error-message">{{ message }}</div>
-              <button class="icon-only-button" (click)="dismissMessages()">
-                <app-icon name="close"></app-icon>
-              </button>
               </div>
+              or
+              <div class="card google-login">
+                <button (click)="loginWithGoogle()">Login with Google</button>
+              </div>
+              @if (loginWithGoogleError(); as message) {
+                <div class="error-container">
+                  <div>Login with Google Error:</div>
+                  <div class="error-message">{{ message }}</div>
+                  <button class="icon-only-button" (click)="dismissMessages()">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
               }
-@if (firebaseService.loginError()) {
-<div class="error-container">
-  <div>Login error:</div>
-  <div class="error-message">
-    {{ firebaseService.loginError() }}
-              </div>
-              <button class="icon-only-button" (click)="dismissMessages()">
-                <app-icon name="close"></app-icon>
-              </button>
+              @if (firebaseService.loginError()) {
+                <div class="error-container">
+                  <div>Login error:</div>
+                  <div class="error-message">
+                    {{ firebaseService.loginError() }}
+                  </div>
+                  <button class="icon-only-button" (click)="dismissMessages()">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
+              }
             </div>
           }
-
-          <div class="app-info">
-            <p>
-              This is the primary hub for both the Members and Instructors to
-              manage their memberships, licenses, gradings, and other records
-              related to the practice of
-              <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>.
-            </p>
-            <p>
-              Members can login using their registered email address and
-              password, or using Google (if their account is a google account),
-              and update their profile. Licensed instructors and school managers
-              can also update their public profiles, and view their students
-              profiles.
-            </p>
-          </div>
-        </div>
+        }
       }
     </main>
   }

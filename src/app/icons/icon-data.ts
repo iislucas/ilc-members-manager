@@ -8,6 +8,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  arrow_back: {
+    viewbox: '0 0 24 24',
+    fill: '#5f6368',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   calendar_today: {
     viewbox: '0 0 24 24',
     fill: '#5f6368',

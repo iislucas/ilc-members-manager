@@ -140,3 +140,31 @@ main {
   top: calc(100% + 5px); /* Position below the button with a 5px gap */
   left: 0;
 }
+
+.public-options {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 1em;
+  margin: 1.5em 0;
+  flex-wrap: wrap;
+
+  button {
+    font-size: 1.1em;
+    padding: 0.75em 1.5em;
+  }
+}
+
+.public-action-bar {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0.5em 1em;
+
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 1em;
+  }
+}

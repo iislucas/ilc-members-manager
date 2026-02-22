@@ -80,7 +80,7 @@ export class App {
     );
   });
 
-  constructor() { }
+  constructor() {}
 
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
@@ -124,6 +124,10 @@ export class App {
         return 'Unknown View';
     }
   }
+
+  // Unauthenticated view state
+  public showLoginOptions = signal<boolean>(false);
+  public showFindInstructor = signal<boolean>(false);
 
   // Login form state
   public showPassword = signal<boolean>(false);
