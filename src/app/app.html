@@ -260,16 +260,10 @@
       } @else {
         <div class="app-info">
           <p>
-            This is the primary hub for both the Members and Instructors to
-            manage their memberships, licenses, gradings, and other records
+            Welcome to the primary hub for I Liq Chuan Members and Instructors. It allows you to
+            manage your profile, membership status, licenses, gradings, and other records
             related to the practice of
             <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>.
-          </p>
-          <p>
-            Members can login using their registered email address and password,
-            or using Google (if their account is a google account), and update
-            their profile. Licensed instructors and school managers can also
-            update their public profiles, and view their students profiles.
           </p>
         </div>
 
@@ -292,7 +286,8 @@
 
           @if (showLoginOptions()) {
             <div class="login-options">
-              <div class="card email-login">
+              <div class="login-cards">
+                <div class="card email-login">
                 <div class="card-header">Login with email</div>
                 <div class="input-field">
                   <label for="email-input">Email:</label>
@@ -426,9 +421,10 @@
                   </div>
                 }
               </div>
-              or
+              <div class="or-separator">or</div>
               <div class="card google-login">
                 <button (click)="loginWithGoogle()">Login with Google</button>
+              </div>
               </div>
               @if (loginWithGoogleError(); as message) {
                 <div class="error-container">

@@ -44,11 +44,24 @@ main {
 
 .login-options {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1em;
+}
+
+.login-cards {
+  display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
   align-items: start;
   gap: 1em;
+}
+
+.or-separator {
+  display: flex;
+  align-items: center;
 }
 
 .buttons {
