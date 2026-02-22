@@ -81,6 +81,45 @@
         }
       </div>
 
+      <label>Assistant Instructors</label>
+      <div class="rhs">
+        @let assistantsField = form.assistantInstructorIds();
+        @let assistantsErrors = assistantsField.errors();
+      
+        @for (assistant of assistantsField.value(); track $index; let last = $last) {
+        <div class="assistant-row">
+          <app-autocomplete [searchableSet]="dataService.instructors" [placeholder]="'Search for an instructor'"
+            [displayFns]="instructorDisplayFns" [initSearchTerm]="assistant"
+            (textUpdated)="updateAssistantInstructorId($index, $event)"></app-autocomplete>
+          @if (resolveAssistantName(assistant)) {
+          <div class="note">{{ resolveAssistantName(assistant) }}</div>
+          }
+          @if (canEdit()) {
+          <button type="button" class="icon-only-button" aria-label="Remove assistant instructor"
+            (click)="removeAssistantInstructor($index)" [disabled]="isSaving()">
+            <app-icon name="close" />
+          </button>
+          @if (last) {
+          <button type="button" class="icon-only-button" aria-label="Add assistant instructor"
+            (click)="addAssistantInstructor()" [disabled]="isSaving()">
+            <app-icon name="add" />
+          </button>
+          }
+          }
+        </div>
+        } @empty {
+        @if (canEdit()) {
+        <button type="button" class="icon-only-button" aria-label="Add assistant instructor"
+          (click)="addAssistantInstructor()" [disabled]="isSaving()">
+          <app-icon name="add" />
+        </button>
+        }
+        }
+        @if (assistantsErrors.length > 0 && assistantsErrors[0]; as error) {
+        <div class="error-message">{{ error.message }}</div>
+        }
+      </div>
+
       <label for="schoolId">School (optional)</label>
       <div class="rhs">
         <app-autocomplete name="School" [searchableSet]="dataService.schools" [placeholder]="'Search for a school'"

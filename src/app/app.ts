@@ -110,7 +110,7 @@ export class App {
       case Views.ManageGradings:
         return 'Manage Gradings';
       case Views.GradingsAssessed:
-        return 'Gradings Assessed';
+        return 'Grading Assessments';
       case Views.Settings:
         return 'Settings';
       default:

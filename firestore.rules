@@ -112,7 +112,8 @@ service cloud.firestore {
         let email = request.auth.token.email;
         let aclPath = /databases/$(database)/documents/acl/$(email);
         let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
-        return resource.data.gradingInstructorId in instructorIds;
+        let asst = 'assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : [];
+        return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst);
       }
       function isGradingSchoolManager() {
         let schoolId = resource.data.schoolId;

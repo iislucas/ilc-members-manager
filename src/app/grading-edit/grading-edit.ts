@@ -120,7 +120,8 @@ export class GradingEditComponent {
     const user = this.firebaseState.user();
     if (!user) return false;
     const grading = this.editableGrading();
-    return user.member.instructorId === grading.gradingInstructorId;
+    return user.member.instructorId === grading.gradingInstructorId ||
+      (grading.assistantInstructorIds || []).includes(user.member.instructorId);
   });
 
   canEdit = computed(
@@ -231,6 +232,36 @@ export class GradingEditComponent {
   updateSchoolId(value: string) {
     this.form.schoolId().value.set(value);
     this.form.schoolId().markAsDirty();
+  }
+
+  resolveAssistantName(instructorId: string): string {
+    if (!instructorId) return '';
+    const instructor = this.dataService.instructors
+      .entries()
+      .find((i) => i.instructorId === instructorId);
+    return instructor
+      ? `${instructor.name} (${instructor.instructorId})`
+      : instructorId;
+  }
+
+  updateAssistantInstructorId(index: number, value: string) {
+    const assistants = [...this.form.assistantInstructorIds().value()];
+    assistants[index] = value;
+    this.form.assistantInstructorIds().value.set(assistants);
+    this.form.assistantInstructorIds().markAsDirty();
+  }
+
+  removeAssistantInstructor(index: number) {
+    const assistants = [...this.form.assistantInstructorIds().value()];
+    assistants.splice(index, 1);
+    this.form.assistantInstructorIds().value.set(assistants);
+    this.form.assistantInstructorIds().markAsDirty();
+  }
+
+  addAssistantInstructor() {
+    const assistants = [...this.form.assistantInstructorIds().value()];
+    this.form.assistantInstructorIds().value.set([...assistants, '']);
+    this.form.assistantInstructorIds().markAsDirty();
   }
 
   async saveGrading(event: Event) {

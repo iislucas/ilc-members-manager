@@ -134,6 +134,7 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  // Used for the Gradings object
   mountain: {
     viewbox: '0 0 268 238',
     fill: '#5f6368',
