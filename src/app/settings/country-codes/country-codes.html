@@ -8,35 +8,30 @@
   </div>
   } @else {
   
-  <table class="data-table" style="margin-bottom: 20px;">
-    <thead>
-      <tr>
-        <th>ISO Code (2 letters)</th>
-        <th>Country Name</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (code of countryCodes(); track $index) {
-      <tr>
-        <td>
-          <input type="text" [(ngModel)]="code.id" class="form-control" style="width: 80px;" placeholder="e.g. US">
-        </td>
-        <td>
-          <input type="text" [(ngModel)]="code.name" class="form-control" style="width: 250px;"
-            placeholder="e.g. United States">
-        </td>
-        <td>
-          <button class="action-button danger" (click)="removeCountryCode($index)">Remove</button>
-        </td>
-      </tr>
+  <div class="code-list">
+    @for (code of countryCodes(); track $index; let last = $last) {
+    <div class="code-row">
+      <input type="text" [(ngModel)]="code.id" class="form-control" style="width: 80px;" placeholder="e.g. US">
+      <input type="text" [(ngModel)]="code.name" class="form-control" style="width: 250px;"
+        placeholder="e.g. United States">
+      <button type="button" class="icon-only-button" (click)="removeCountryCode($index)" title="Remove country code">
+        <app-icon name="trash" />
+      </button>
+      @if (last) {
+      <button type="button" class="icon-only-button add-code-btn" (click)="addCountryCode()" title="Add another country code">
+        <app-icon name="add" />
+      </button>
       }
-    </tbody>
-    </table>
-    
-    <div style="margin-bottom: 20px;">
-      <button class="action-button" (click)="addCountryCode()">Add Country Code</button>
     </div>
+    }
+    @if (countryCodes().length === 0) {
+    <div class="add-code-row">
+      <button type="button" class="text-button" (click)="addCountryCode()">
+        + Add Country Code
+      </button>
+    </div>
+    }
+  </div>
 
   <div>
     <button class="action-button primary" (click)="saveCountryCodes()" [disabled]="isSaving()">

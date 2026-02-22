@@ -1,11 +1,46 @@
 <div class="control-panel">
   <h2>Counters</h2>
-  <p>Edit the raw JSON for the counters singleton document. Be very careful to maintain correct types.</p>
+  <p>Edit the system ID counters for members, instructors, and schools. Be very careful to maintain correct values.</p>
 
-  <textarea [(ngModel)]="countersDataRaw" rows="15" style="width: 100%; font-family: monospace;"></textarea>
+  <div class="counter-section">
+    <h3>Member ID Counters</h3>
+    <div class="counter-list">
+      @for (counter of memberIdCounters(); track $index; let last = $last) {
+      <div class="counter-row">
+        <input type="text" [(ngModel)]="counter.countryCode" class="form-control" style="width: 80px;" placeholder="Code: US">
+        <input type="number" [(ngModel)]="counter.value" class="form-control" style="width: 150px;" placeholder="Count">
+        <button type="button" class="icon-only-button" (click)="removeMemberIdCounter($index)" title="Remove counter">
+          <app-icon name="trash" />
+        </button>
+        @if (last) {
+        <button type="button" class="icon-only-button add-counter-btn" (click)="addMemberIdCounter()" title="Add another counter">
+          <app-icon name="add" />
+        </button>
+        }
+      </div>
+      }
+      @if (memberIdCounters().length === 0) {
+      <div class="add-counter-row">
+        <button type="button" class="text-button" (click)="addMemberIdCounter()">
+          + Add Member ID Counter
+        </button>
+      </div>
+      }
+    </div>
+  </div>
 
-  <div style="margin-top: 10px;">
-    <button class="action-button" (click)="saveCounters()" [disabled]="isSavingCounters()">
+  <div class="counter-section" style="margin-top: 20px;">
+    <h3>Instructor ID Counter</h3>
+    <input type="number" [ngModel]="instructorIdCounter()" (ngModelChange)="instructorIdCounter.set($event)" class="form-control" style="width: 150px;">
+  </div>
+
+  <div class="counter-section" style="margin-top: 20px;">
+    <h3>School ID Counter</h3>
+    <input type="number" [ngModel]="schoolIdCounter()" (ngModelChange)="schoolIdCounter.set($event)" class="form-control" style="width: 150px;">
+  </div>
+
+  <div style="margin-top: 20px;">
+    <button class="action-button primary" (click)="saveCounters()" [disabled]="isSavingCounters()">
       {{ isSavingCounters() ? 'Saving...' : 'Save Counters' }}
     </button>
   </div>

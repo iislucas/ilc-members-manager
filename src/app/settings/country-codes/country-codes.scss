@@ -1,0 +1,31 @@
+.code-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.code-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.add-code-btn {
+  opacity: 0.6;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.add-code-row {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 4px;
+}

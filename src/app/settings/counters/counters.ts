@@ -1,18 +1,23 @@
 import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
+import { IconComponent } from '../../icons/icon.component';
 
 @Component({
   selector: 'app-counters',
   standalone: true,
-  imports: [FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './counters.html',
   styleUrl: './counters.scss',
 })
 export class Counters {
   dataManager = inject(DataManagerService);
 
-  countersDataRaw = signal<string>('');
+  memberIdCounters = signal<{ countryCode: string, value: number }[]>([]);
+  instructorIdCounter = signal<number>(0);
+  schoolIdCounter = signal<number>(0);
+
   isSavingCounters = signal(false);
   countersMessage = signal('');
 
@@ -23,16 +28,43 @@ export class Counters {
   initCountersData() {
     const counters = this.dataManager.counters();
     if (counters) {
-      this.countersDataRaw.set(JSON.stringify(counters, null, 2));
+      const memberCountersArray = Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
+      this.memberIdCounters.set(memberCountersArray);
+      this.instructorIdCounter.set(counters.instructorIdCounter || 0);
+      this.schoolIdCounter.set(counters.schoolIdCounter || 0);
     }
+  }
+
+  addMemberIdCounter() {
+    this.memberIdCounters.update(counters => [...counters, { countryCode: '', value: 0 }]);
+  }
+
+  removeMemberIdCounter(index: number) {
+    this.memberIdCounters.update(counters => {
+      const newCounters = [...counters];
+      newCounters.splice(index, 1);
+      return newCounters;
+    });
   }
 
   async saveCounters() {
     this.isSavingCounters.set(true);
     this.countersMessage.set('');
     try {
-      const parsed = JSON.parse(this.countersDataRaw());
-      await this.dataManager.saveCountersRaw(parsed);
+      const memberIdMap: Record<string, number> = {};
+      for (const counter of this.memberIdCounters()) {
+        if (counter.countryCode.trim()) {
+          memberIdMap[counter.countryCode.trim()] = Number(counter.value);
+        }
+      }
+
+      const countersToSave = {
+        memberIdCounters: memberIdMap,
+        instructorIdCounter: Number(this.instructorIdCounter()),
+        schoolIdCounter: Number(this.schoolIdCounter())
+      };
+
+      await this.dataManager.saveCountersRaw(countersToSave);
       this.countersMessage.set('Counters saved successfully.');
     } catch (err: any) {
       this.countersMessage.set(`Error saving counters: ${err.message}`);

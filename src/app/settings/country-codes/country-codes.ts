@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { CountryCode, CountryCodesDoc } from '../../country-codes';
+import { IconComponent } from '../../icons/icon.component';
 
 @Component({
   selector: 'app-country-codes',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpinnerComponent],
+  imports: [CommonModule, FormsModule, SpinnerComponent, IconComponent],
   templateUrl: './country-codes.html',
   styleUrl: './country-codes.scss',
 })
