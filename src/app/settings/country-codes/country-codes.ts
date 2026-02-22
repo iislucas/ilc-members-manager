@@ -25,20 +25,22 @@ export class CountryCodes implements OnInit {
     this.loadCountryCodes();
   }
 
-  async loadCountryCodes() {
-    this.isLoading.set(true);
-    try {
-      const docs = await this.dataManager.getStaticDocs();
-      const countryCodesDoc = docs.find((d: any) => d.id === 'country-codes');
-      if (countryCodesDoc && countryCodesDoc.data) {
-        this.countryCodes.set((countryCodesDoc.data as CountryCodesDoc).codes || []);
-      } else {
-        this.countryCodes.set([]);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.isLoading.set(false);
+  loadCountryCodes() {
+    // dataManager.countries is a SearchableSet populated via sync loop.
+    const currentCodes = this.dataManager.countries.entries();
+    if (currentCodes && currentCodes.length > 0) {
+      this.countryCodes.set(currentCodes.map(c => ({ ...c })));
+    } else {
+      // Wait a moment for dataManager sync to populate
+      this.isLoading.set(true);
+      const checkInterval = setInterval(() => {
+        const codes = this.dataManager.countries.entries();
+        if (codes.length > 0) {
+          this.countryCodes.set(codes.map(c => ({ ...c })));
+          this.isLoading.set(false);
+          clearInterval(checkInterval);
+        }
+      }, 200);
     }
   }
 
