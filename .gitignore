@@ -53,3 +53,4 @@ src/environments/environment.local.ts
 .firebaserc
 firebase-debug.log
 firestore-debug.log
+secret.keys.txt

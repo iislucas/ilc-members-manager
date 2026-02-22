@@ -37,4 +37,10 @@ firebase functions:secrets:set GOOGLE_CALENDAR_API_KEY
 
 # You can preview/get the secret with
 gcloud secrets versions access 1 --secret=GOOGLE_CALENDAR_API_KEY
+
+firebase functions:secrets:set SQUARESPACE_API_KEY
+# Enter the the key from Squarespace Developer Settings > Developer API Keys
+
+# You can preview/get the secret with
+gcloud secrets versions access 1 --secret=SQUARESPACE_API_KEY
 ```

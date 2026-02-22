@@ -32,3 +32,5 @@ export {
 } from './on-grading-update';
 
 export { scheduledBackup, manualBackup, listBackups } from './backup';
+
+export { syncSquarespaceOrders, processSquarespaceOrder } from './squarespace-orders';
