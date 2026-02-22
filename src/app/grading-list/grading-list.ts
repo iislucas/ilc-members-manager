@@ -29,9 +29,10 @@ export class GradingListComponent {
   });
 
   viewMode = input<'all' | 'instructor'>('all');
-  activeTab = signal<'examined' | 'students'>('examined');
+  activeTab = signal<'examined' | 'students' | 'mine'>('examined');
 
   gradingSet = input.required<SearchableSet<'id', Grading>>();
+  myPersonalGradingSet = input<SearchableSet<'id', Grading>>();
 
   private searchTerm = signal('');
   isAddingGrading = signal(false);
@@ -40,6 +41,12 @@ export class GradingListComponent {
   limit = signal(50);
 
   filteredByTab = computed(() => {
+    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
+      const myPersonalSet = this.myPersonalGradingSet();
+      if (!myPersonalSet) return [];
+      return myPersonalSet.search(this.searchTerm());
+    }
+
     const all = this.gradingSet().search(this.searchTerm());
     if (this.viewMode() !== 'instructor') return all;
 
@@ -64,10 +71,22 @@ export class GradingListComponent {
     () => this.filteredByTab().length,
   );
 
-  loading = computed(() => this.gradingSet().loading());
-  error = computed(() => this.gradingSet().error());
+  loading = computed(() => {
+    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
+      const p = this.myPersonalGradingSet();
+      if (p) return p.loading();
+    }
+    return this.gradingSet().loading();
+  });
+  error = computed(() => {
+    if (this.viewMode() === 'instructor' && this.activeTab() === 'mine') {
+      const p = this.myPersonalGradingSet();
+      if (p) return p.error();
+    }
+    return this.gradingSet().error();
+  });
 
-  setActiveTab(tab: 'examined' | 'students') {
+  setActiveTab(tab: 'examined' | 'students' | 'mine') {
     this.activeTab.set(tab);
     this.limit.set(50);
   }

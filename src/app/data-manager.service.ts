@@ -20,6 +20,8 @@ import {
   serverTimestamp,
   orderBy,
   getDocs,
+  where,
+  documentId,
 } from 'firebase/firestore';
 import {
   Member,
@@ -171,6 +173,10 @@ export class DataManagerService {
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
     'id',
   );
+  public myGradings = new SearchableSet<'id', Grading>(
+    ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes'],
+    'id',
+  );
 
   constructor() {
     effect(async () => {
@@ -184,6 +190,7 @@ export class DataManagerService {
       this.updateCountryCodesSync();
       this.updateGradingsSync(user);
       this.updateMyGradingsAssessedSync(user);
+      this.updateMyGradingsSync(user);
     });
 
     // Effect for My Schools
@@ -424,6 +431,48 @@ export class DataManagerService {
       );
     } else {
       this.myGradingsAssessed.setEntries([]);
+    }
+  }
+
+  private myGradingsUnsubscribes: (() => void)[] = [];
+
+  async updateMyGradingsSync(user: UserDetails) {
+    this.myGradingsUnsubscribes.forEach((unsub) => unsub());
+    this.myGradingsUnsubscribes = [];
+
+    if (user.member.id && user.member.gradingDocIds && user.member.gradingDocIds.length > 0) {
+      const gradingDocIds = user.member.gradingDocIds;
+      const chunkSize = 10;
+      const gradingsMap = new Map<string, Grading>();
+
+      for (let i = 0; i < gradingDocIds.length; i += chunkSize) {
+        const chunk = gradingDocIds.slice(i, i + chunkSize);
+        const q = query(
+          collection(this.db, 'gradings'),
+          where(documentId(), 'in', chunk),
+        );
+
+        const unsub = onSnapshot(
+          q,
+          (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'removed') {
+                gradingsMap.delete(change.doc.id);
+              } else {
+                gradingsMap.set(change.doc.id, firestoreDocToGrading(change.doc));
+              }
+            });
+            this.myGradings.setEntries(Array.from(gradingsMap.values()));
+          },
+          (error) => {
+            console.error('Error fetching my gradings:', error);
+            this.myGradings.setError(error.message);
+          },
+        );
+        this.myGradingsUnsubscribes.push(unsub);
+      }
+    } else {
+      this.myGradings.setEntries([]);
     }
   }
 
