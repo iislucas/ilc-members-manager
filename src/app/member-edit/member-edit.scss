@@ -1,5 +1,12 @@
 @use "../edit-form.scss" as *;
 
+.members-link {
+  cursor: pointer;
+  font-size: small;
+  text-decoration: underline;
+  color: blue;
+}
+
 .email-row {
   width: 100%;
   display: flex;

@@ -14,6 +14,7 @@ import { ProfileMenuComponent } from './profile-menu/profile-menu';
 import { SchoolListComponent } from './school-list/school-list';
 import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
+import { InstructorStudentsComponent } from './instructor-students/instructor-students';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
@@ -36,6 +37,7 @@ import { SettingsComponent } from './settings/settings.component';
     ProfileMenuComponent,
     SchoolListComponent,
     SchoolMembersComponent,
+    InstructorStudentsComponent,
     FilteredMembersComponent,
     MemberEditComponent,
     MemberEditComponent,
@@ -64,7 +66,8 @@ export class App {
     const patternId = this.routingService.matchedPatternId();
     if (
       patternId === Views.SchoolMembers ||
-      patternId === Views.ManageMembers
+      patternId === Views.ManageMembers ||
+      patternId === Views.InstructorStudents
     ) {
       return this.routingService.signals[patternId].urlParams.memberId();
     }
@@ -93,6 +96,10 @@ export class App {
         const schoolId =
           this.routingService.signals[viewId].pathVars.schoolId();
         return `School ${schoolId} Members`;
+      case Views.InstructorStudents:
+        const instructorId =
+          this.routingService.signals[viewId].pathVars.instructorId();
+        return `Instructor ${instructorId}'s Students`;
       case Views.ImportExport:
         return 'Import/Export';
       case Views.Home:

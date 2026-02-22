@@ -18,6 +18,7 @@ export enum Views {
   FindSchool = 'findSchool',
   ManageSchools = 'schools',
   SchoolMembers = 'schoolMembers',
+  InstructorStudents = 'instructorStudents',
   Home = 'home',
   MyStudents = 'myStudents',
   MySchools = 'mySchools',
@@ -38,6 +39,10 @@ export const initPathPatterns = {
   [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['memberId']),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,
+    ['memberId'],
+  ),
+  [Views.InstructorStudents]: addUrlParams(
+    pathPattern`instructor/${pv('instructorId')}/students`,
     ['memberId'],
   ),
   [Views.MyStudents]: pathPattern`my-students`,

@@ -63,6 +63,9 @@
   @if (!collapsed()) {
   <form (submit)="saveMember($event)">
     <div class="form-section">
+      @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
+      <p class="members-link" (click)="gotoStudents()">View Students</p>
+      }
       <h3>Contact</h3>
       <label for="name">Name</label>
       <div class="rhs">

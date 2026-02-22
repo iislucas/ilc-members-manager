@@ -43,6 +43,8 @@ import {
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { CountryCode } from '../country-codes';
 import { Timestamp } from 'firebase/firestore';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-member-edit',
@@ -61,6 +63,7 @@ export class MemberEditComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public membersService = inject(DataManagerService);
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   // all values from the member service, used for dup-checking...
   // Maybe we can use membersService.members? and not need this...?
   allMembers = input.required<Member[]>();
@@ -381,6 +384,12 @@ export class MemberEditComponent {
   updateManagingOrgId(value: string) {
     this.form.managingOrgId().value.set(value);
     this.form.managingOrgId().markAsDirty();
+  }
+
+  gotoStudents() {
+    this.routingService.matchedPatternId.set(Views.InstructorStudents);
+    const signals = this.routingService.signals[Views.InstructorStudents];
+    signals.pathVars.instructorId.set(this.member().instructorId);
   }
 
   constructor() {}

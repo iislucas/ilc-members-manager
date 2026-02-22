@@ -1,0 +1,16 @@
+@let s = instructorInUrlPathStatus();
+@if (s.status === InstructorStatusKind.NoInstructorInPath) {
+  <p>No valid instructor is specified in the URL path.</p>
+} @else if (s.status === InstructorStatusKind.InstructorNotFound) {
+  <p>
+    No such instructor:
+    {{ routingService.signals[Views.InstructorStudents].pathVars.instructorId() }}
+  </p>
+} @else if (s.status === InstructorStatusKind.InstructorsLoading) {
+  <app-spinner></app-spinner>
+} @else if (s.status === InstructorStatusKind.InstructorFound) {
+  <app-filtered-members
+    [memberSet]="dataService.members"
+    [instructorId]="s.instructor.instructorId"
+  ></app-filtered-members>
+}

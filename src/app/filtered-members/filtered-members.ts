@@ -15,6 +15,7 @@ export class FilteredMembersComponent {
   memberSet = input.required<SearchableSet<'memberId', Member>>();
   schoolId = input<string>('');
   country = input<string>('');
+  instructorId = input<string>('');
   jumpToMember = input<string>('');
   // TODO: consider making that list of fields into a constant somewhere
   filteredMemberSet = new SearchableSet<'memberId', Member>([
@@ -46,6 +47,11 @@ export class FilteredMembersComponent {
         }
         if (this.country() !== '') {
           filteredSet = filteredSet.filter((m) => m.country === this.country());
+        }
+        if (this.instructorId() !== '') {
+          filteredSet = filteredSet.filter(
+            (m) => m.sifuInstructorId === this.instructorId(),
+          );
         }
         this.filteredMemberSet.setEntries(filteredSet);
       }
