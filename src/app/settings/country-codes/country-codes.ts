@@ -13,36 +13,12 @@ import { IconComponent } from '../../icons/icon.component';
   templateUrl: './country-codes.html',
   styleUrl: './country-codes.scss',
 })
-export class CountryCodes implements OnInit {
+export class CountryCodesComponent {
   dataManager = inject(DataManagerService);
 
   countryCodes = signal<CountryCode[]>([]);
-  isLoading = signal(false);
   isSaving = signal(false);
   statusMessage = signal('');
-
-  ngOnInit() {
-    this.loadCountryCodes();
-  }
-
-  loadCountryCodes() {
-    // dataManager.countries is a SearchableSet populated via sync loop.
-    const currentCodes = this.dataManager.countries.entries();
-    if (currentCodes && currentCodes.length > 0) {
-      this.countryCodes.set(currentCodes.map(c => ({ ...c })));
-    } else {
-      // Wait a moment for dataManager sync to populate
-      this.isLoading.set(true);
-      const checkInterval = setInterval(() => {
-        const codes = this.dataManager.countries.entries();
-        if (codes.length > 0) {
-          this.countryCodes.set(codes.map(c => ({ ...c })));
-          this.isLoading.set(false);
-          clearInterval(checkInterval);
-        }
-      }, 200);
-    }
-  }
 
   addCountryCode() {
     this.countryCodes.update(codes => [...codes, { id: '', name: '' }]);
@@ -60,8 +36,7 @@ export class CountryCodes implements OnInit {
     this.isSaving.set(true);
     this.statusMessage.set('');
     try {
-      const docData: CountryCodesDoc = { codes: this.countryCodes() };
-      await this.dataManager.saveStaticDoc('country-codes', docData);
+      await this.dataManager.saveCountryCodes({ codes: this.countryCodes() });
       this.statusMessage.set('Saved successfully.');
     } catch (err: any) {
       this.statusMessage.set(`Error: ${err.message}`);

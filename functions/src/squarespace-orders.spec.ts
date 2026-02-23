@@ -62,14 +62,14 @@ describe('squarespace-orders', () => {
 
       expect(parsed).toEqual({
         email: 'lucas.dixon@gmail.com',
-        currentStudentLevel: 'Student Level 6',
-        currentApplicationLevel: 'Application Level 3',
+        currentStudentLevel: 'Student 6',
+        currentApplicationLevel: 'Application 3',
         gradingInfo: {
           id: '',
           lastUpdated: expect.any(String),
           gradingPurchaseDate: '2026-02-22',
           orderId: '699b9753b4562909908cae78',
-          level: 'Student Level 7',
+          level: 'Student 7',
           gradingInstructorId: '1',
           assistantInstructorIds: [],
           schoolId: '',
@@ -81,6 +81,27 @@ describe('squarespace-orders', () => {
           gradingEvent: "Sam Chin Poland Retreat in November 2026"
         }
       });
+    });
+
+    it('should correctly map various level formats to canonical representation', () => {
+      const orderData: SquareSpaceOrder = { id: 'o1', customerEmail: 'a@b.com' };
+
+      const testLevels = [
+        { input: 'Student Level 1', expected: 'Student 1' },
+        { input: 'Application Level 2', expected: 'Application 2' },
+        { input: 'Student 3', expected: 'Student 3' },
+        { input: 'Application 4', expected: 'Application 4' },
+        { input: 'Entry', expected: 'Student Entry' },
+        { input: '5', expected: 'Student 5' },
+      ];
+
+      for (const { input, expected } of testLevels) {
+        const item: SquareSpaceLineItem = {
+          variantOptions: [{ optionName: 'Level', value: input }]
+        };
+        const parsed = parseGradingOrderInfo(orderData, item);
+        expect(parsed.gradingInfo.level).toBe(expected);
+      }
     });
 
     it('should fall back to customerEmail and productName if fields are missing', () => {
@@ -112,7 +133,7 @@ describe('squarespace-orders', () => {
           schoolId: '',
           studentMemberId: '',
           studentMemberDocId: '',
-          status: 'requiresReview',
+          status: 'in-review',
           gradingEventDate: '',
           notes: '',
           gradingEvent: ''

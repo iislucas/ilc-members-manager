@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { Counters } from './counters';
+import { CountersComponent } from './counters';
 import { DataManagerService } from '../../data-manager.service';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 
 describe('Counters', () => {
-  let component: Counters;
-  let fixture: ComponentFixture<Counters>;
+  let component: CountersComponent;
+  let fixture: ComponentFixture<CountersComponent>;
 
   beforeEach(async () => {
     const mockDataManager = {
@@ -16,14 +16,14 @@ describe('Counters', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [Counters],
+      imports: [CountersComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataManager }
       ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(Counters);
+    fixture = TestBed.createComponent(CountersComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

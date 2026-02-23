@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
 import { IconComponent } from '../../icons/icon.component';
+import { Counters } from '../../../../functions/src/data-model';
 
 @Component({
   selector: 'app-counters',
@@ -11,7 +12,7 @@ import { IconComponent } from '../../icons/icon.component';
   templateUrl: './counters.html',
   styleUrl: './counters.scss',
 })
-export class Counters {
+export class CountersComponent {
   dataManager = inject(DataManagerService);
 
   memberIdCounters = signal<{ countryCode: string, value: number }[]>([]);
@@ -62,9 +63,9 @@ export class Counters {
         memberIdCounters: memberIdMap,
         instructorIdCounter: Number(this.instructorIdCounter()),
         schoolIdCounter: Number(this.schoolIdCounter())
-      };
+      } as Counters;
 
-      await this.dataManager.saveCountersRaw(countersToSave);
+      await this.dataManager.saveCounters(countersToSave);
       this.countersMessage.set('Counters saved successfully.');
     } catch (err: any) {
       this.countersMessage.set(`Error saving counters: ${err.message}`);

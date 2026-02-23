@@ -18,9 +18,14 @@
     color: #155724;
   }
 
-  &.rejected {
-    background-color: #f8d7da;
-    color: #721c24;
+  &.not-passed {
+    background-color: #e2e3e5;
+    color: #383d41;
+  }
+
+  &.in-review {
+    background-color: #fff4e5;
+    color: #e65100;
   }
 }
 

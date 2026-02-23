@@ -11,7 +11,8 @@ import {
   InstructorLicenseType,
   MasterLevel,
   Order,
-  initOrder,
+  SheetsImportOrder,
+  initSheetsImportOrder,
   School
 } from '../../../../functions/src/data-model';
 import * as Papa from 'papaparse';
@@ -139,10 +140,10 @@ export class ImportOrdersComponent {
   public fieldSeparators: Record<string, string> = {};
 
 
-  private orderFields = Object.keys(initOrder()) as Array<keyof Order>;
+  private orderFields = Object.keys(initSheetsImportOrder()) as Array<keyof SheetsImportOrder>;
 
   public fieldsToMap = computed(() => {
-    return this.orderFields.filter(f => f !== 'id' && f !== 'lastUpdated');
+    return this.orderFields.filter(f => f !== 'id' && f !== 'lastUpdated' && f !== 'ilcAppOrderKind');
   });
 
   reset() {
@@ -332,7 +333,7 @@ export class ImportOrdersComponent {
         orderChange = {
           status: 'NEW',
           key: order.referenceNumber,
-          newItem: { ...initOrder(), ...order } as Order,
+          newItem: { ...initSheetsImportOrder(), ...order } as SheetsImportOrder,
           diffs: [],
           issues: issues.length > 0 ? issues : undefined
         };

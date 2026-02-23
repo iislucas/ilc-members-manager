@@ -11,7 +11,8 @@
         <span
           class="status-chip"
           [class.passed]="e.status === GradingStatus.Passed"
-          [class.rejected]="e.status === GradingStatus.Rejected"
+          [class.not-passed]="e.status === GradingStatus.NotPassed"
+          [class.in-review]="e.status === GradingStatus.RequiresReview"
           [class.pending]="e.status === GradingStatus.Pending"
           >{{ e.status }}</span
         >
@@ -60,8 +61,13 @@
 
         @if (e.orderId) {
           <label for="orderId">Order ID</label>
-          <div class="rhs">
+          <div class="rhs linked-field">
             <input type="text" id="orderId" [formField]="form.orderId" />
+            @if (e.orderId) {
+              <button type="button" class="icon-only-button" (click)="viewOrder(e.orderId)">
+                <app-icon name="visibility"></app-icon>
+              </button>
+            }
           </div>
         }
         

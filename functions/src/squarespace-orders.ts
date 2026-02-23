@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
 import { Member, Grading, GradingStatus, initGrading } from './data-model';
+import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from './level-utils';
 
 const squarespaceApiKey = defineSecret('SQUARESPACE_API_KEY');
 
@@ -85,11 +86,40 @@ export async function fetchAndSyncOrders(
         continue;
       }
 
+      const orderToSave = {
+        ...orderData,
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders'
+      };
+
       if (dryRun) {
-        logger.info(`[DRY RUN] Would save order ${orderId} to firestore:`, JSON.stringify(orderData, null, 2));
+        logger.info(`[DRY RUN] Would save order ${orderId} to firestore:`, JSON.stringify(orderToSave, null, 2));
       } else {
-        await db.collection('orders').doc(orderId).set(orderData, { merge: true });
-        logger.info(`Saved order ${orderId} to firestore.`);
+        // Find if order already exists
+        const existingOrderQuery = await db.collection('orders')
+          .where('orderNumber', '==', orderToSave.orderNumber)
+          .limit(1)
+          .get();
+
+        let docRef;
+        if (!existingOrderQuery.empty) {
+          docRef = existingOrderQuery.docs[0].ref;
+          await docRef.set(orderToSave, { merge: true });
+        } else {
+          // Check by orderId if orderNumber failed (idempotency check fallback)
+          const fallbackQuery = await db.collection('orders')
+            .where('id', '==', orderId)
+            .limit(1)
+            .get();
+
+          if (!fallbackQuery.empty) {
+            docRef = fallbackQuery.docs[0].ref;
+            await docRef.set(orderToSave, { merge: true });
+          } else {
+            docRef = await db.collection('orders').add(orderToSave);
+          }
+        }
+
+        logger.info(`Saved order ${orderId} to firestore document ${docRef.id}.`);
       }
     }
 
@@ -143,10 +173,12 @@ export const processSquarespaceOrder = onDocumentWritten(
       return;
     }
 
-    const orderId = event.params.orderId;
+    const docId = event.params.orderId;
+    // We pass both docId and the original Squarespace orderId
+    const orderId = orderData.id || orderData.orderNumber || docId;
     const db = admin.firestore();
 
-    logger.info(`Processing downstream logic for order ${orderId}`);
+    logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
 
     interface LineItem {
       productName?: string;
@@ -345,13 +377,14 @@ export function parseGradingOrderInfo(
   if (!level) {
     level = gradingItem.productName || 'Unknown Level';
   }
+  level = canonicalizeGradingLevel(level);
 
   const purchaseDate = orderData.createdOn ? orderData.createdOn.substring(0, 10) : new Date().toISOString().substring(0, 10);
 
   return {
     email,
-    currentStudentLevel,
-    currentApplicationLevel,
+    currentStudentLevel: canonicalizeStudentLevel(currentStudentLevel),
+    currentApplicationLevel: canonicalizeApplicationLevel(currentApplicationLevel),
     gradingInfo: {
       ...initGrading(),
       status: providedMemberId ? GradingStatus.Pending : GradingStatus.RequiresReview,
@@ -440,8 +473,13 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
 
     const emailMatches = memberEmails.includes(providedEmailLower) || publicEmail === providedEmailLower;
 
-    const studentLevelMatches = !currentStudentLevel || (memberData.studentLevel === currentStudentLevel);
-    const applicationLevelMatches = !currentApplicationLevel || (memberData.applicationLevel === currentApplicationLevel);
+    // Member levels might be stored as "1" or "Student 1". 
+    // canonicalize functions will ensure they are both in the "Student X" or "Application X" format.
+    const memberStudentLevel = canonicalizeStudentLevel(memberData.studentLevel || '');
+    const memberApplicationLevel = canonicalizeApplicationLevel(memberData.applicationLevel || '');
+
+    const studentLevelMatches = !currentStudentLevel || (memberStudentLevel === currentStudentLevel);
+    const applicationLevelMatches = !currentApplicationLevel || (memberApplicationLevel === currentApplicationLevel);
 
     if (!emailMatches || !studentLevelMatches || !applicationLevelMatches) {
       status = GradingStatus.RequiresReview;

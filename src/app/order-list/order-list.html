@@ -1,0 +1,101 @@
+<div class="order-list-container">
+  <div class="search-section">
+    <div class="input-group">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Search by Order ID, Ref #, or Email..."
+        (keyup.enter)="search()"
+      />
+      <button (click)="search()" class="primary">
+        <app-icon name="search"></app-icon>
+        Search
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <app-spinner>Loading orders...</app-spinner>
+    </div>
+  } @else if (searched() && orders().length === 0) {
+    <div class="no-results">No orders found for "{{ searchTerm() }}".</div>
+  } @else if (!searched() && orders().length === 0) {
+    <div class="no-results">No recent orders found.</div>
+  } @else if (orders().length > 0) {
+    <div class="results-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Reference / Order #</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Kind</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.id) {
+            <tr>
+              <td>{{ order.lastUpdated | date: "short" }}</td>
+              <td>
+                @if (
+                  order.ilcAppOrderKind ===
+                  "https://api.squarespace.com/1.0/commerce/orders"
+                ) {
+                  {{ order.orderNumber }}
+                } @else {
+                  {{ order.referenceNumber }}
+                }
+              </td>
+              <td>
+                @if (
+                  order.ilcAppOrderKind ===
+                  "https://api.squarespace.com/1.0/commerce/orders"
+                ) {
+                  <!-- Squarespace name usually is in some other fields, let's just show email for SS if name not easily avail -->
+                  {{ order.customerEmail }}
+                } @else {
+                  {{ order.firstName }} {{ order.lastName }}
+                }
+              </td>
+              <td>
+                @if (
+                  order.ilcAppOrderKind ===
+                  "https://api.squarespace.com/1.0/commerce/orders"
+                ) {
+                  {{ order.customerEmail }}
+                } @else {
+                  {{ order.email }}
+                }
+              </td>
+              <td>
+                <span
+                  class="kind-badge"
+                  [class.ss]="order.ilcAppOrderKind.includes('squarespace')"
+                >
+                  {{
+                    order.ilcAppOrderKind ===
+                    "https://api.squarespace.com/1.0/commerce/orders"
+                      ? "Squarespace"
+                      : "Sheets"
+                  }}
+                </span>
+              </td>
+              <td>
+                <button
+                  (click)="viewOrder(order)"
+                  class="icon-only-button"
+                  title="View Details"
+                >
+                  <app-icon name="visibility"></app-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

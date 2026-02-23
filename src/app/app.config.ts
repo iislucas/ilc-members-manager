@@ -28,6 +28,8 @@ export enum Views {
   MemberGradings = 'memberGradings',
   Settings = 'settings',
   ClassVideoLibrary = 'classVideoLibrary',
+  ManageOrders = 'manageOrders',
+  OrderView = 'orderView',
 }
 
 export const initPathPatterns = {
@@ -54,6 +56,8 @@ export const initPathPatterns = {
   [Views.MemberGradings]: pathPattern`my-gradings`,
   [Views.Settings]: pathPattern`settings`,
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
+  [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId']),
+  [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
 };
 
 // Santiy check for type correctness...

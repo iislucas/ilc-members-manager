@@ -32,6 +32,8 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 
 @Component({
   selector: 'app-grading-edit',
@@ -44,6 +46,7 @@ export class GradingEditComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
+  private routingService = inject(RoutingService<AppPathPatterns>);
 
   // Constants
   GradingStatus = GradingStatus;
@@ -322,4 +325,10 @@ export class GradingEditComponent {
     }
     return errors;
   });
+
+  viewOrder(orderId: string) {
+    if (orderId) {
+      this.routingService.navigateTo('order-view/' + orderId);
+    }
+  }
 }

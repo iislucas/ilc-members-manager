@@ -49,6 +49,10 @@ export class NavigationMenuComponent {
       case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
+      case Views.ManageOrders: return 'Manage Orders';
+      case Views.OrderView:
+        const orderId = this.routingService.signals[viewId].pathVars.orderId();
+        return `Order ${orderId}`;
       default: return 'Unknown View';
     }
   }

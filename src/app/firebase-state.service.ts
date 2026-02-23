@@ -217,6 +217,9 @@ export class FirebaseStateService {
     const currentUserDetails = this.user();
     if (!currentUserDetails || !currentUserDetails.member.id) return;
 
+    console.log('FirebaseStateService: Setting up member snapshot listener for:',
+      JSON.stringify(currentUserDetails, null, 2));
+
     const memberDocRef = doc(this.db, 'members', currentUserDetails.member.id);
     this.unsubscribeFromMember = onSnapshot(
       memberDocRef,

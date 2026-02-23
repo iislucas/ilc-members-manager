@@ -2,7 +2,7 @@
   <h2>Country Codes</h2>
   <p>Manage the list of allowed country codes.</p>
 
-  @if (isLoading()) {
+  @if (dataManager.countries.loading()) {
   <div>
     <app-spinner></app-spinner> Loading...
   </div>

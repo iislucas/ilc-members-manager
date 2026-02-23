@@ -3,7 +3,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 
 import { ImportOrdersComponent } from './import-orders.component';
 import { DataManagerService } from '../../data-manager.service';
-import { Order, Member, School, initMember, initSchool, initOrder, InstructorLicenseType } from '../../../../functions/src/data-model';
+import { Order, SheetsImportOrder, Member, School, initMember, initSchool, initSheetsImportOrder, InstructorLicenseType } from '../../../../functions/src/data-model';
 
 describe('ImportOrdersComponent', () => {
   let component: ImportOrdersComponent;
@@ -23,7 +23,7 @@ describe('ImportOrdersComponent', () => {
   ];
 
   const mockOrders: Order[] = [
-    { ...initOrder(), id: 'O1', referenceNumber: 'REF-001', externalId: 'M1', datePaid: '2023-01-01' },
+    { ...initSheetsImportOrder(), id: 'O1', referenceNumber: 'REF-001', externalId: 'M1', datePaid: '2023-01-01' } as SheetsImportOrder,
   ];
 
   beforeEach(async () => {

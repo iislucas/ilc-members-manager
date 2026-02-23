@@ -5,6 +5,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import { Grading, GradingStatus, StudentLevel } from './data-model';
+import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
@@ -249,12 +250,23 @@ export const onGradingUpdated = onDocumentUpdated(
         .get();
       if (!studentQuery.empty) {
         const studentDoc = studentQuery.docs[0];
-        await studentDoc.ref.update({
-          studentLevel: grading.level,
+        const { type, value } = extractLevelValue(grading.level);
+        const update: any = {
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        };
+
+        if (type === 'Student') {
+          update.studentLevel = value;
+        } else if (type === 'Application') {
+          update.applicationLevel = value;
+        } else {
+          // Fallback if type is null
+          update.studentLevel = grading.level;
+        }
+
+        await studentDoc.ref.update(update);
         logger.info(
-          `Student ${grading.studentMemberId} level updated to ${grading.level} from grading ${gradingDocId}.`,
+          `Student ${grading.studentMemberId} ${type || 'student'}Level updated to ${value || grading.level} from grading ${gradingDocId}.`,
         );
       } else {
         logger.warn(

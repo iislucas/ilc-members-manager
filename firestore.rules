@@ -17,10 +17,10 @@ service cloud.firestore {
       return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
     }
 
-    match /members/{memberId} {
+    match /members/{memberDocId} {
       function isOwner() {
         return (request.auth.token.email in resource.data.emails) || 
-               (memberId in getUserMemberDocIds());
+               (memberDocId in getUserMemberDocIds());
       }
       function isManagerOfMemberSchool() {
         let member = resource.data;
@@ -36,7 +36,7 @@ service cloud.firestore {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
-      allow delete: if isAdmin(); 
+      allow delete: if isAdmin();
       allow write: if isValidEdit() && (isAdmin() || isManagerOfMemberSchool());
       allow update: if isValidEdit() && isOwner() && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
@@ -70,7 +70,7 @@ service cloud.firestore {
       }
     }
 
-    match /schools/{schoolId}/members/{memberId} {
+    match /schools/{schoolId}/members/{memberDocId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
         return request.auth.token.email == school.ownerEmail || 

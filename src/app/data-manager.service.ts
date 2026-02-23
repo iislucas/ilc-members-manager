@@ -22,6 +22,7 @@ import {
   getDocs,
   where,
   documentId,
+  limit,
 } from 'firebase/firestore';
 import {
   Member,
@@ -42,7 +43,6 @@ import {
   Grading,
   GradingFirebaseDoc,
   firestoreDocToGrading,
-  initGrading,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -309,25 +309,85 @@ export class DataManagerService {
   }
 
   async updateOrdersSync() {
-    return new Promise((resolve, reject) => {
-      // Only load orders if explicitly needed or requested to save bandwidth?
-      // For now, let's load them for admins to facilitate duplicate checking
+    try {
       const q = query(this.ordersCollection, orderBy('lastUpdated', 'desc'));
-      this.snapshotsToUnsubscribe.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const orders = snapshot.docs.map(firestoreDocToOrder);
-            this.orders.setEntries(orders);
-            resolve(this.orders);
-          },
-          (error) => {
-            this.orders.setError(error.message);
-            reject(error);
-          },
-        ),
+      const snapshot = await getDocs(q);
+      const orders = snapshot.docs.map(firestoreDocToOrder);
+      this.orders.setEntries(orders);
+      return this.orders;
+    } catch (error: any) {
+      this.orders.setError(error.message);
+      throw error;
+    }
+  }
+
+  async getRecentOrders(limitCount: number = 50): Promise<Order[]> {
+    try {
+      const q = query(
+        this.ordersCollection,
+        orderBy('lastUpdated', 'desc'),
+        limit(limitCount),
       );
-    });
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(firestoreDocToOrder);
+    } catch (error: any) {
+      console.error('Failed to get recent orders', error);
+      return [];
+    }
+  }
+
+  async searchOrders(term: string): Promise<Order[]> {
+    if (!term) return [];
+
+    const results = new Map<string, Order>();
+
+    // We search across multiple fields. 
+    // In a real production app with many orders, we might use a dedicated search service.
+    // For now, these targeted queries should suffice.
+    const searchQueries = [
+      query(this.ordersCollection, where('orderNumber', '==', term)),
+      query(this.ordersCollection, where('referenceNumber', '==', term)),
+      query(this.ordersCollection, where('id', '==', term)),
+      query(this.ordersCollection, where('customerEmail', '==', term)),
+      query(this.ordersCollection, where('email', '==', term)),
+    ];
+
+    for (const q of searchQueries) {
+      const snap = await getDocs(q);
+      snap.docs.forEach((docSnap) => {
+        const order = firestoreDocToOrder(docSnap as any);
+        results.set(order.id, order);
+      });
+    }
+
+    // Also try a prefix search on lastName if it's longer than 2 chars? 
+    // Maybe too complex for now, let's stick to exact matches for ref/id/email.
+
+    return Array.from(results.values());
+  }
+
+  async getOrderByIdOrRef(idOrRef: string): Promise<Order | undefined> {
+    if (!idOrRef) return undefined;
+
+    // Try direct doc lookup
+    const directDoc = await getDoc(doc(this.db, 'orders', idOrRef));
+    if (directDoc.exists()) {
+      return firestoreDocToOrder(directDoc as any);
+    }
+
+    // Try query by id (Squarespace ID) or orderNumber or referenceNumber
+    const q1 = query(this.ordersCollection, where('id', '==', idOrRef), limit(1));
+    const q2 = query(this.ordersCollection, where('orderNumber', '==', idOrRef), limit(1));
+    const q3 = query(this.ordersCollection, where('referenceNumber', '==', idOrRef), limit(1));
+
+    for (const q of [q1, q2, q3]) {
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return firestoreDocToOrder(snap.docs[0] as any);
+      }
+    }
+
+    return undefined;
   }
 
   async updateMyStudentsSync(user: UserDetails) {
@@ -363,7 +423,11 @@ export class DataManagerService {
         if (doc.exists()) {
           this.counters.set(doc.data() as Counters);
         } else {
-          setDoc(countersRef, { memberIdCounters: {}, instructorIdCounter: 0 });
+          setDoc(countersRef, {
+            memberIdCounters: {},
+            instructorIdCounter: 100,
+            schoolIdCounter: 100,
+          });
         }
       }),
     );
@@ -374,8 +438,8 @@ export class DataManagerService {
     this.snapshotsToUnsubscribe.push(
       onSnapshot(countryCodesRef, (doc) => {
         if (doc.exists()) {
-          const countryCode = doc.data() as CountryCodesDoc;
-          this.countries.setEntries(countryCode.codes);
+          const countryCodeDoc = doc.data() as CountryCodesDoc;
+          this.countries.setEntries(countryCodeDoc.codes);
         } else {
           const countryCodes: CountryCodesDoc = { codes: countryCodeList };
           setDoc(countryCodesRef, countryCodes);
@@ -656,17 +720,12 @@ export class DataManagerService {
     return result.data.backups;
   }
 
-  async getStaticDocs() {
-    const snapshot = await getDocs(collection(this.db, 'system'));
-    return snapshot.docs.map((doc: any) => ({ id: doc.id, data: doc.data() }));
-  }
-
-  async saveStaticDoc(id: string, data: any) {
-    return setDoc(doc(this.db, 'system', id), data);
-  }
-
-  async saveCountersRaw(data: any) {
+  async saveCounters(data: Counters) {
     return setDoc(doc(this.db, 'system', 'counters'), data);
+  }
+
+  async saveCountryCodes(data: CountryCodesDoc) {
+    return setDoc(doc(this.db, 'system', 'country-codes'), data);
   }
 
   downloadSchoolsAsJsonL() {

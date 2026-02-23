@@ -26,6 +26,8 @@ import { LoginComponent } from './login/login';
 import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
 import { MemberGradingsComponent } from './member-gradings/member-gradings';
 import { ClassVideoLibraryComponent } from './class-video-library/class-video-library';
+import { OrderList } from './order-list/order-list';
+import { OrderView } from './order-view/order-view';
 
 @Component({
   selector: 'app-root',
@@ -55,6 +57,8 @@ import { ClassVideoLibraryComponent } from './class-video-library/class-video-li
     NavigationMenuComponent,
     ClassVideoLibraryComponent,
     MemberGradingsComponent,
+    OrderList,
+    OrderView,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -130,6 +134,12 @@ export class App {
         return 'Settings';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
+      case Views.ManageOrders:
+        return 'Manage Orders';
+      case Views.OrderView:
+        const orderId =
+          this.routingService.signals[viewId].pathVars.orderId();
+        return `Order ${orderId}`;
       default:
         return 'Unknown View';
     }

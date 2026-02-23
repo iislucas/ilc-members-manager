@@ -104,11 +104,6 @@ export type Counters = {
 // ==================================================================
 // # Enums & Helper Types
 // ==================================================================
-
-export type CountryCodes = {
-  codes: { [countryName: string]: string };
-};
-
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life',
@@ -167,8 +162,8 @@ export enum MemberIdUpdateStatus {
 export enum GradingStatus {
   Pending = 'pending',
   Passed = 'passed',
-  Rejected = 'rejected',
-  RequiresReview = 'requiresReview',
+  NotPassed = 'not-passed',
+  RequiresReview = 'in-review',
 }
 
 // ==================================================================
@@ -352,11 +347,19 @@ export function firestoreDocToInstructorPublicData(
 // # Orders
 // ==================================================================
 
-// Firestore path: /orders/{doc-id}
-export type Order = {
+export type OrderKind =
+  | 'https://api.squarespace.com/1.0/commerce/orders'
+  | 'ilc-2005-sheets-db-import';
+
+export type BaseOrder = {
   id: string; // Firestore ID
   lastUpdated: string; // ISO string
+  ilcAppOrderKind?: OrderKind;
+};
 
+// Firestore path: /orders/{doc-id}
+export type SheetsImportOrder = BaseOrder & {
+  ilcAppOrderKind: 'ilc-2005-sheets-db-import';
   orderType: string; // From CSV (column 'order')
   referenceNumber: string; // From CSV
   externalId: string; // From CSV (matches memberId)
@@ -376,16 +379,38 @@ export type Order = {
   notes: string; // From CSV
 };
 
-export type OrderFirebaseDoc = Omit<Order, 'lastUpdated' | 'id'> & {
+export type SquarespaceOrder = BaseOrder & {
+  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders';
+  orderNumber: string;
+  createdOn: string;
+  modifiedOn: string;
+  customerEmail: string;
+  lineItems: any[];
+  [key: string]: any; // Allows arbitrary squarespace order details
+};
+
+export type Order = SheetsImportOrder | SquarespaceOrder;
+
+export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'id'> & {
   lastUpdated: Timestamp;
 };
+
+export type SquarespaceOrderFirebaseDoc = Omit<SquarespaceOrder, 'lastUpdated' | 'id'> & {
+  lastUpdated: Timestamp;
+};
+
+export type OrderFirebaseDoc = SheetsImportOrderFirebaseDoc | SquarespaceOrderFirebaseDoc;
 
 export function firestoreDocToOrder(doc: QueryDocumentSnapshot): Order {
   const docData = doc.data() as OrderFirebaseDoc;
   const lastUpdated = docData.lastUpdated
     ? docData.lastUpdated.toDate().toISOString()
     : new Date().toISOString();
-  return { ...initOrder(), ...docData, lastUpdated, id: doc.id };
+
+  if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === 'ilc-2005-sheets-db-import') {
+    return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: 'ilc-2005-sheets-db-import', lastUpdated, id: doc.id } as SheetsImportOrder;
+  }
+  return { ...docData, lastUpdated, id: doc.id } as Order;
 }
 
 // ==================================================================
@@ -477,10 +502,11 @@ export function initSchool(): School {
   };
 }
 
-export function initOrder(): Order {
+export function initSheetsImportOrder(): SheetsImportOrder {
   return {
     id: '',
     lastUpdated: new Date().toISOString(),
+    ilcAppOrderKind: 'ilc-2005-sheets-db-import',
     orderType: '',
     referenceNumber: '',
     externalId: '',

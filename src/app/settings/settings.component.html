@@ -2,8 +2,7 @@
   <div class="tabs">
     <button class="tab-button" [class.active]="activeTab() === 'counters'"
       (click)="setActiveTab('counters')">Counters</button>
-    <button class="tab-button" [class.active]="activeTab() === 'static'" (click)="setActiveTab('static')">Static
-      Collection</button>
+    <button class="tab-button" [class.active]="activeTab() === 'country-codes'" (click)="setActiveTab('country-codes')">Country Codes</button>
     <button class="tab-button" [class.active]="activeTab() === 'backups'"
       (click)="setActiveTab('backups')">Backups</button>
   </div>
@@ -14,7 +13,7 @@
   </div>
   }
 
-  @if (activeTab() === 'static') {
+  @if (activeTab() === 'country-codes') {
   <div class="tab-content">
     <app-country-codes></app-country-codes>
   </div>
