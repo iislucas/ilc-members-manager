@@ -4,6 +4,12 @@
       <app-icon name="arrow_back"></app-icon>
       Back to Orders
     </button>
+    @if (order()?.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
+      <button (click)="reprocessOrder()" class="primary" [disabled]="reprocessing()">
+        <app-icon name="refresh"></app-icon>
+        {{ reprocessing() ? "Reprocessing..." : "Reprocess Order" }}
+      </button>
+    }
   </div>
 
   @if (loading()) {

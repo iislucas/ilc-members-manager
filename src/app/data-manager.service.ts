@@ -643,6 +643,14 @@ export class DataManagerService {
     await fn();
   }
 
+  async reprocessOrder(docId: string): Promise<void> {
+    const fn = httpsCallable<{ docId: string }, { success: boolean }>(
+      this.functions,
+      'reprocessOrder',
+    );
+    await fn({ docId });
+  }
+
   async createNextMemberId(countryCode: string): Promise<string> {
     const nextMemberId = httpsCallable<
       { countryCode: string },

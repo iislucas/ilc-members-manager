@@ -203,9 +203,39 @@ export const processSquarespaceOrder = onDocumentWritten(
     }
 
     const docId = event.params.orderId;
-    // We pass both docId and the original Squarespace orderId
-    const orderId = orderData.id || orderData.orderNumber || docId;
     const db = admin.firestore();
+
+    await executeOrderDownstreamLogic(orderData, docId, db);
+  }
+);
+
+export const reprocessOrder = onCall(
+  {
+    cors: allowedOrigins,
+  },
+  async (request) => {
+    logger.info('reprocessOrder called by user.');
+    await assertAdmin(request);
+
+    const docId = request.data.docId;
+    if (!docId) {
+      throw new HttpsError('invalid-argument', 'docId is required');
+    }
+
+    const db = admin.firestore();
+    const docSnap = await db.collection('orders').doc(docId).get();
+    if (!docSnap.exists) {
+      throw new HttpsError('not-found', 'Order not found');
+    }
+
+    await executeOrderDownstreamLogic(docSnap.data() as any, docId, db);
+    return { success: true };
+  }
+);
+
+async function executeOrderDownstreamLogic(orderData: any, docId: string, db: admin.firestore.Firestore) {
+    // We pass both docId and the original Squarespace orderId
+  const orderId = orderData.id || orderData.orderNumber || docId;
 
     logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
 
@@ -242,8 +272,7 @@ export const processSquarespaceOrder = onDocumentWritten(
     for (const gradingItem of gradingItems) {
       await processGradingOrder(orderData, orderId, gradingItem, db);
     }
-  }
-);
+}
 
 /**
  * Helper function to grant classVideoLibrarySubscription to members

@@ -22,6 +22,7 @@ export class OrderView {
   public order = signal<Order | null>(null);
   public loading = signal(false);
   public error = signal<string | null>(null);
+  public reprocessing = signal(false);
 
   constructor() {
     effect(() => {
@@ -51,5 +52,29 @@ export class OrderView {
 
   goBack() {
     this.routingService.navigateTo('orders');
+  }
+
+  async reprocessOrder() {
+    const id = this.order()?.id;
+    if (!id) return;
+
+    if (
+      !confirm(
+        'Are you sure you want to re-process this order? Existing data (like Video Library subscriptions and Pending Gradings) will be checked safely, but ensure this actually needs re-processing.',
+      )
+    ) {
+      return;
+    }
+
+    this.reprocessing.set(true);
+    try {
+      await this.dataService.reprocessOrder(id);
+      alert('Order successfully queued for reprocessing downstream!');
+      await this.fetchOrder(this.orderId());
+    } catch (e: any) {
+      alert(`Error reprocessing order: ${e.message}`);
+    } finally {
+      this.reprocessing.set(false);
+    }
   }
 }
