@@ -33,8 +33,9 @@
 /* Action Card */
 .backup-action-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.5rem;
   background: linear-gradient(145deg, #f8faff 0%, #ffffff 100%);
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -51,6 +52,7 @@
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    width: 100%;
   }
 
   .card-icon {
@@ -62,7 +64,8 @@
     background-color: #eef2ff;
     color: #4f46e5;
     border-radius: 12px;
-    
+    flex-shrink: 0;
+
     svg {
       width: 24px;
       height: 24px;
@@ -70,6 +73,8 @@
   }
 
   .card-text {
+    flex: 1;
+
     h3 {
       margin: 0 0 0.25rem 0;
       font-size: 1.1rem;
@@ -81,6 +86,13 @@
       font-size: 0.9rem;
       color: #64748b;
     }
+  }
+
+  .card-action {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f1f5f9;
   }
 }
 
@@ -346,3 +358,66 @@
     color: #0369a1;
   }
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .control-panel {
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin: 0.5rem;
+  }
+
+  .backup-action-card {
+    padding: 1.25rem;
+
+    .card-content {
+      gap: 1rem;
+    }
+
+    .card-action {
+      display: flex;
+      justify-content: flex-end;
+      button {
+        justify-content: center;
+      }
+    }
+  }
+
+  .table-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    .table-title {
+      flex: 1 1 100%;
+    }
+
+    button {
+      margin-left: auto;
+      justify-content: center;
+    }
+  }
+
+  .premium-table {
+    th, td {
+      padding: 0.75rem 0.5rem;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .file-name-cell {
+      white-space: normal;
+      word-break: break-all;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+
+      .file-icon {
+        display: none; // hide icon on mobile to save space
+      }
+    }
+  }
+}
+
