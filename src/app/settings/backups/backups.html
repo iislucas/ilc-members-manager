@@ -1,71 +1,110 @@
 <div class="control-panel">
-  <h2>Database Backups</h2>
-
-  <div style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; background-color: #f9f9f9;">
-    <h3>Manual Backup</h3>
-    <p>Click the button below to trigger a manual backup of the database to Cloud Storage.</p>
-
-    @if (isBackingUp()) {
-    <app-spinner>Backing up...</app-spinner>
-    } @else {
-    <button class="action-button" (click)="triggerBackup()">
-      Trigger Backup
-    </button>
-    }
-
-    @if (backupTriggerMessage()) {
-    <p class="status-message" style="margin-top: 10px; font-weight: bold; color: var(--primary-color);">
-      {{ backupTriggerMessage() }}
-    </p>
-    }
+  <div class="panel-header">
+    <h2>Database Backups</h2>
+    <p class="subtitle">Manage and download your Cloud Storage database backups</p>
   </div>
 
-  <p>List of database backups in Cloud Storage.</p>
-
-  <div style="margin-bottom: 1rem;">
-    <button class="action-button" (click)="loadBackups()" [disabled]="isLoadingBackups()">
-      Refresh List
-    </button>
-  </div>
-
-  @if (isLoadingBackups()) {
-  <div>
-    <app-spinner></app-spinner> Loading backups...
-  </div>
-  }
-
-  @if (backupsMessage()) {
-  <p class="status-message" style="color: red;">{{ backupsMessage() }}</p>
-  }
-
-  @if (backups().length > 0) {
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>File Name</th>
-        <th>Created At</th>
-        <th>Size (Bytes)</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (backup of backups(); track backup.name) {
-      <tr>
-        <td>{{ backup.name }}</td>
-        <td>{{ backup.timeCreated | date:'medium' }}</td>
-        <td>{{ backup.size }}</td>
-        <td>
-          <a [href]="backup.downloadUrl" target="_blank" download class="action-link">Download</a>
-        </td>
-      </tr>
+  <div class="backup-action-card">
+    <div class="card-content">
+      <div class="card-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-hard-drive"><line x1="22" y1="12" x2="2" y2="12"></line><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path><line x1="6" y1="16" x2="6.01" y2="16"></line><line x1="10" y1="16" x2="10.01" y2="16"></line></svg>
+      </div>
+      <div class="card-text">
+        <h3>Manual Backup</h3>
+        <p>Trigger a manual backup of the database to Cloud Storage immediately.</p>
+      </div>
+    </div>
+    <div class="card-action">
+      @if (isBackingUp()) {
+      <div class="spinner-wrapper">
+        <app-spinner></app-spinner>
+        <span>Backing up...</span>
+      </div>
+      } @else {
+      <button class="action-button primary-action" (click)="triggerBackup()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
+        Trigger Backup
+      </button>
       }
-    </tbody>
-  </table>
-  }
+    </div>
+  </div>
 
-  @if (!isLoadingBackups() && backups().length === 0 && !backupsMessage()) {
-  <div>
-    No backups found.
+  @if (backupTriggerMessage()) {
+  <div class="alert success-alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    {{ backupTriggerMessage() }}
   </div>
   }
+
+  <div class="table-section">
+    <div class="table-header">
+      <div class="table-title">
+        <h3>Available Backups</h3>
+        <span class="badge">{{ backups().length }}</span>
+      </div>
+      <button class="action-button secondary-action" (click)="loadBackups()" [disabled]="isLoadingBackups()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class.spinning]="isLoadingBackups()"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        Refresh
+      </button>
+    </div>
+
+    @if (isLoadingBackups()) {
+    <div class="loading-state">
+      <app-spinner></app-spinner>
+      <p>Loading your backups...</p>
+    </div>
+    }
+
+    @if (backupsMessage()) {
+    <div class="alert error-alert">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      {{ backupsMessage() }}
+    </div>
+    }
+
+    @if (backups().length > 0 && !isLoadingBackups()) {
+    <div class="table-container">
+      <table class="premium-table">
+        <thead>
+          <tr>
+            <th>File Name</th>
+            <th>Created At</th>
+            <th>Size (Bytes)</th>
+            <th class="actions-cell">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (backup of backups(); track backup.name) {
+          <tr class="table-row">
+            <td class="file-name-cell">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="file-icon"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+              {{ backup.name }}
+            </td>
+            <td class="date-cell">{{ backup.timeCreated | date:'medium' }}</td>
+            <td class="size-cell">
+              <span class="size-badge">{{ backup.size }}</span>
+            </td>
+            <td class="actions-cell">
+              <a [href]="backup.downloadUrl" target="_blank" download class="download-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download
+              </a>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+
+    @if (!isLoadingBackups() && backups().length === 0 && !backupsMessage()) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+      </div>
+      <h3>No backups found</h3>
+      <p>There are currently no database backups available in Cloud Storage.</p>
+    </div>
+    }
+  </div>
 </div>

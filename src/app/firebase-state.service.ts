@@ -179,7 +179,6 @@ export class FirebaseStateService {
         isAdmin: userDetailsResult.isAdmin,
         schoolsManaged: userDetailsResult.schoolsManaged,
       };
-      console.log('FirebaseStateService: Setting user signal to details for:', user.email);
       this.user.set(userDetails);
       this.loggedInResolverFn(userDetails);
       this.loginStatus.set(LoginStatus.SignedIn);
@@ -216,9 +215,6 @@ export class FirebaseStateService {
 
     const currentUserDetails = this.user();
     if (!currentUserDetails || !currentUserDetails.member.id) return;
-
-    console.log('FirebaseStateService: Setting up member snapshot listener for:',
-      JSON.stringify(currentUserDetails, null, 2));
 
     const memberDocRef = doc(this.db, 'members', currentUserDetails.member.id);
     this.unsubscribeFromMember = onSnapshot(
@@ -335,7 +331,6 @@ export class FirebaseStateService {
   }
 
   public async logout(): Promise<LogoutResult> {
-    console.log('logout called');
     try {
       await signOut(this.auth);
       return { success: true };

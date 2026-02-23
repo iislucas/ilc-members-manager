@@ -401,7 +401,6 @@ export class MemberEditComponent {
   }
 
   handleInstructorIdAssignmentChange(assignment: Assignment) {
-    console.log('handleInstructorIdAssignmentChange', assignment);
     this.instructorIdAssignment.set(assignment);
     if (
       assignment.kind === AssignKind.UnchangedExistingId ||
@@ -418,7 +417,6 @@ export class MemberEditComponent {
   }
 
   handleMemberIdAssignmentChange(assignment: Assignment) {
-    console.log('handleMemberIdAssignmentChange', assignment);
     this.memberIdAssignment.set(assignment);
     if (
       assignment.kind === AssignKind.UnchangedExistingId ||
@@ -523,10 +521,8 @@ export class MemberEditComponent {
       }
 
       if (member.id) {
-        console.log('Updating member', member);
         await this.membersService.updateMember(member.id, member);
       } else {
-        console.log('Adding member', member);
         await this.membersService.addMember(member);
       }
 

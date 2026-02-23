@@ -443,7 +443,7 @@ export class DataManagerService {
       onSnapshot(countryCodesRef, (doc) => {
         if (doc.exists()) {
           const countryCodeDoc = doc.data() as CountryCodesDoc;
-          this.countries.setEntries(countryCodeDoc.codes || []);
+          this.countries.setEntries(countryCodeDoc.codes);
         } else {
           // If the doc doesn't exist, provide a default list so it doesn't hang.
           const countryCodes: CountryCodesDoc = { codes: countryCodeList };

@@ -79,11 +79,6 @@ export class SearchableSet<
       idField: this.idField,
     });
     const entries = this.uniqueEntries();
-    console.log(
-      'membersMiniSearch computed, adding',
-      entries.length,
-      'entries',
-    );
     miniSearch.addAll(entries);
     return miniSearch;
   });
