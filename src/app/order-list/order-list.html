@@ -11,6 +11,10 @@
         <app-icon name="search"></app-icon>
         Search
       </button>
+      <button (click)="manualSync()" class="primary" [disabled]="syncing()">
+        <app-icon name="refresh"></app-icon>
+        {{ syncing() ? "Syncing..." : "Sync Squarespace" }}
+      </button>
     </div>
   </div>
 

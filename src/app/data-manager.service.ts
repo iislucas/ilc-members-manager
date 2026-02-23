@@ -160,7 +160,7 @@ export class DataManagerService {
     'schoolId',
   );
   public orders = new SearchableSet<'id', Order>(
-    ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId'],
+    ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId', 'orderNumber', 'customerEmail'],
     'id',
   );
   public counters = signal<Counters | null>(null);
@@ -321,7 +321,7 @@ export class DataManagerService {
     }
   }
 
-  async getRecentOrders(limitCount: number = 50): Promise<Order[]> {
+  async getRecentOrders(limitCount: number = 1000): Promise<Order[]> {
     try {
       const q = query(
         this.ordersCollection,
@@ -633,6 +633,14 @@ export class DataManagerService {
       lastUpdated: serverTimestamp() as Timestamp,
     };
     return setDoc(docRef, orderWithNewTimestamp, { merge: true });
+  }
+
+  async syncSquarespaceOrders(): Promise<void> {
+    const fn = httpsCallable<undefined, { success: boolean }>(
+      this.functions,
+      'manualSquarespaceSync',
+    );
+    await fn();
   }
 
   async createNextMemberId(countryCode: string): Promise<string> {

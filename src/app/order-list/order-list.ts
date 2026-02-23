@@ -23,6 +23,20 @@ export class OrderList implements OnInit {
   public orders = signal<Order[]>([]);
   public loading = signal(false);
   public searched = signal(false); // Indicates if A search was performed, although by default we also load recent.
+  public syncing = signal(false);
+
+  async manualSync() {
+    this.syncing.set(true);
+    try {
+      await this.dataService.syncSquarespaceOrders();
+      await this.loadRecentOrders();
+    } catch (e) {
+      console.error('Error manual syncing:', e);
+      alert('Error triggering sync: ' + e);
+    } finally {
+      this.syncing.set(false);
+    }
+  }
 
   ngOnInit() {
     this.loadRecentOrders();

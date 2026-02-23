@@ -353,6 +353,8 @@ export type OrderKind =
 
 export type BaseOrder = {
   id: string; // Firestore ID
+  // lastUpdated tracks when the order was created or generated (e.g. datePaid for old sheets, createdOn for Squarespace).
+  // It is used for chronological sorting of orders across both old Google Sheets imports and Squarespace webhooks.
   lastUpdated: string; // ISO string
   ilcAppOrderKind?: OrderKind;
 };

@@ -1,11 +1,13 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { Member, Grading, GradingStatus, initGrading } from './data-model';
+import { Member, Grading, GradingStatus, initGrading, initMember } from './data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from './level-utils';
+import { assertAdmin, allowedOrigins } from './common';
 
 const squarespaceApiKey = defineSecret('SQUARESPACE_API_KEY');
 
@@ -88,6 +90,7 @@ export async function fetchAndSyncOrders(
 
       const orderToSave = {
         ...orderData,
+        lastUpdated: admin.firestore.Timestamp.fromDate(new Date(orderData.createdOn || orderData.modifiedOn || new Date())),
         ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders'
       };
 
@@ -155,6 +158,32 @@ export const syncSquarespaceOrders = onSchedule(
     const db = admin.firestore();
     const apiKey = squarespaceApiKey.value();
     await fetchAndSyncOrders(db, apiKey);
+  }
+);
+
+/**
+ * Callable Cloud Function that allows admins to trigger a sync manually.
+ */
+export const manualSquarespaceSync = onCall(
+  {
+    cors: allowedOrigins,
+    secrets: [squarespaceApiKey],
+  },
+  async (request) => {
+    logger.info('manualSquarespaceSync called by user.');
+
+    // Ensure only admins can trigger the sync
+    await assertAdmin(request);
+
+    try {
+      const db = admin.firestore();
+      const apiKey = squarespaceApiKey.value();
+      await fetchAndSyncOrders(db, apiKey);
+      return { success: true };
+    } catch (error) {
+      logger.error('manualSquarespaceSync failed:', error);
+      throw new HttpsError('internal', 'Manual Squarespace sync failed.');
+    }
   }
 );
 
@@ -446,7 +475,7 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
       .get();
     if (!emailQuery.empty) {
       memberDocRef = emailQuery.docs[0].ref;
-      memberData = emailQuery.docs[0].data() as Partial<Member>;
+      memberData = emailQuery.docs[0].data() as Member;
     } else {
       const publicEmailQuery = await db.collection('members')
         .where('publicEmail', '==', email)
@@ -454,14 +483,17 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
         .get();
       if (!publicEmailQuery.empty) {
         memberDocRef = publicEmailQuery.docs[0].ref;
-        memberData = publicEmailQuery.docs[0].data() as Partial<Member>;
+        memberData = publicEmailQuery.docs[0].data() as Member;
       }
     }
   }
 
   if (!memberDocRef) {
-    logger.error(`[Grading] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.`);
-    return;
+    logger.warn(`[Grading] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.`);
+    memberData = initMember();
+    memberData.emails = [email.toLowerCase()];
+    memberData.publicEmail = email;
+    memberData.memberId = providedMemberId;
   }
 
   let status = GradingStatus.Pending;
@@ -490,21 +522,23 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
   const newGrading: Grading = {
     ...gradingInfo,
     status,
-    studentMemberDocId: memberDocRef.id,
+    studentMemberDocId: memberDocRef ? memberDocRef.id : '',
   };
 
   const gradingRef = db.collection('gradings').doc();
   newGrading.id = gradingRef.id;
 
-  logger.info(`[Grading] Creating new grading doc ${gradingRef.id} for member ${memberDocRef.id} based on order ${orderId}.`);
+  logger.info(`[Grading] Creating new grading doc ${gradingRef.id} for member based on order ${orderId}.`);
 
   await gradingRef.set({
     ...newGrading,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  // Add the new grading to the member's gradingDocIds array
-  await memberDocRef.update({
-    gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingRef.id)
-  });
+  if (memberDocRef) {
+    // Add the new grading to the member's gradingDocIds array
+    await memberDocRef.update({
+      gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingRef.id)
+    });
+  }
 }
