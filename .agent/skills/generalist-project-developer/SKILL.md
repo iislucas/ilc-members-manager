@@ -1,6 +1,6 @@
 ---
 name: generalist-developer
-description: Coding standards, tech stack, and best practices, including pnpm usage over npm and npx.
+description: Already read this; it contains the coding standards, tech stack, and best practices for this project, including pnpm (never npm or npx).
 ---
 
 # ILC Members Manager Developer Guide

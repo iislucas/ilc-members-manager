@@ -1,6 +1,6 @@
 ---
 name: angular-developer
-description: Comprehensive guide for Angular 21+ development, focusing on Signals, Standalone Components, and modern best practices.
+description: Angular 21+ development, focusing on Signals, Standalone Components, and modern best practices; read this whenever you see you are using angular for something. Skip if you are just writing firebase functions.
 ---
 
 # Angular 21+ Developer Skill
