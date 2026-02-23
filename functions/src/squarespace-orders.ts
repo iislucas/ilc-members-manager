@@ -4,7 +4,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { Member } from './data-model';
+import { Member, Grading, GradingStatus, initGrading } from './data-model';
 
 const squarespaceApiKey = defineSecret('SQUARESPACE_API_KEY');
 
@@ -173,7 +173,14 @@ export const processSquarespaceOrder = onDocumentWritten(
     // if (someConditionForLicenses) { await processInstructorLicense(orderData, db); }
 
     // Handle gradings creation etc.
-    // if (someConditionForGradings) { await processGradingOrder(orderData, db); }
+    const gradingItems = lineItems.filter((item) => {
+      const title = item.productName || item.title || '';
+      return title.toLowerCase().includes('grading');
+    });
+
+    for (const gradingItem of gradingItems) {
+      await processGradingOrder(orderData, orderId, gradingItem, db);
+    }
   }
 );
 
@@ -260,5 +267,138 @@ async function processVideoLibraryAccess(orderData: any, orderId: string, db: ad
   logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}.`);
   await memberDocRef.update({
     classVideoLibrarySubscription: true,
+  });
+}
+
+/**
+ * Helper function to create Grading documents when a grading is purchased
+ */
+export async function processGradingOrder(orderData: any, orderId: string, gradingItem: any, db: admin.firestore.Firestore) {
+  interface CustomFormField {
+    label?: string;
+    value?: string;
+  }
+
+  const customizations: CustomFormField[] = gradingItem.customizations || [];
+
+  let providedMemberId = '';
+  let providedEmail = '';
+  let gradingInstructorId = '';
+  let notes = '';
+
+  for (const field of customizations) {
+    if (!field.label || !field.value) continue;
+    const labelLower = field.label.toLowerCase();
+
+    if (labelLower.includes('member id')) {
+      providedMemberId = field.value.trim();
+    } else if (labelLower.includes('email')) {
+      providedEmail = field.value.trim();
+    } else if (labelLower.includes('instructorid') || labelLower.includes('instructor id')) {
+      gradingInstructorId = field.value.trim();
+    } else if (labelLower.includes('where / when') || labelLower.includes('planning to grade')) {
+      notes += `Proposed Event: ${field.value.trim()}\n`;
+    } else if (labelLower.includes('evaluating instructor')) {
+      notes += `Evaluating Instructor Name: ${field.value.trim()}\n`;
+    }
+  }
+
+  const email = providedEmail || orderData.customerEmail;
+
+  let level = '';
+  const variantOptions = gradingItem.variantOptions || [];
+  for (const opt of variantOptions) {
+    if (opt.optionName && opt.optionName.toLowerCase() === 'level') {
+      level = opt.value || '';
+      break;
+    }
+  }
+  if (!level) {
+    level = gradingItem.productName || 'Unknown Level';
+  }
+
+  // Idempotency check: see if we already processed this order + level
+  const existingGradingsQuery = await db.collection('gradings')
+    .where('orderId', '==', orderId)
+    .where('level', '==', level)
+    .limit(1)
+    .get();
+
+  if (!existingGradingsQuery.empty) {
+    logger.info(`[Grading] Grading for order ${orderId} and level ${level} already exists. Skipping.`);
+    return;
+  }
+
+  let memberDocRef: admin.firestore.DocumentReference | null = null;
+  let memberData: Partial<Member> | null = null;
+
+  // Try finding by Member ID first
+  if (providedMemberId) {
+    logger.info(`[Grading] Looking for member with ID: ${providedMemberId} for order ${orderId}`);
+    const memberIdQuery = await db.collection('members')
+      .where('memberId', '==', providedMemberId)
+      .limit(1)
+      .get();
+    if (!memberIdQuery.empty) {
+      memberDocRef = memberIdQuery.docs[0].ref;
+      memberData = memberIdQuery.docs[0].data() as Partial<Member>;
+    } else {
+      logger.warn(`[Grading] Member ID ${providedMemberId} not found in database. Falling back to email.`);
+    }
+  }
+
+  // Fallback to searching by email if Member ID was not provided or not found
+  if (!memberDocRef && email) {
+    logger.info(`[Grading] Looking for member with email: ${email} for order ${orderId}`);
+    const emailQuery = await db.collection('members')
+      .where('emails', 'array-contains', email.toLowerCase())
+      .limit(1)
+      .get();
+    if (!emailQuery.empty) {
+      memberDocRef = emailQuery.docs[0].ref;
+      memberData = emailQuery.docs[0].data() as Partial<Member>;
+    } else {
+      const publicEmailQuery = await db.collection('members')
+        .where('publicEmail', '==', email)
+        .limit(1)
+        .get();
+      if (!publicEmailQuery.empty) {
+        memberDocRef = publicEmailQuery.docs[0].ref;
+        memberData = publicEmailQuery.docs[0].data() as Partial<Member>;
+      }
+    }
+  }
+
+  if (!memberDocRef) {
+    logger.error(`[Grading] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.`);
+    return;
+  }
+
+  const purchaseDate = orderData.createdOn ? orderData.createdOn.substring(0, 10) : new Date().toISOString().substring(0, 10);
+
+  const newGrading: Grading = {
+    ...initGrading(),
+    gradingPurchaseDate: purchaseDate,
+    orderId: orderId,
+    level: level,
+    gradingInstructorId: gradingInstructorId,
+    studentMemberId: memberData?.memberId || providedMemberId,
+    studentMemberDocId: memberDocRef.id,
+    notes: notes.trim(),
+  };
+
+  const gradingRef = db.collection('gradings').doc();
+  newGrading.id = gradingRef.id;
+
+  logger.info(`[Grading] Creating new grading doc ${gradingRef.id} for member ${memberDocRef.id} based on order ${orderId}.`);
+
+  await gradingRef.set({
+    ...newGrading,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  // Add the new grading to the member's gradingDocIds array
+  await memberDocRef.update({
+    gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingRef.id)
   });
 }
