@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect, untracked } from '@angular/core';
+import { Component, inject, signal, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
@@ -15,26 +15,17 @@ import { Counters } from '../../../../functions/src/data-model';
 export class CountersComponent {
   dataManager = inject(DataManagerService);
 
-  memberIdCounters = signal<{ countryCode: string, value: number }[]>([]);
-  instructorIdCounter = signal<number>(0);
-  schoolIdCounter = signal<number>(0);
+  memberIdCounters = linkedSignal<{ countryCode: string, value: number }[]>(() => {
+    const counters = this.dataManager.counters();
+    if (!counters) return [];
+    return Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
+  });
+
+  instructorIdCounter = linkedSignal<number>(() => this.dataManager.counters()?.instructorIdCounter || 0);
+  schoolIdCounter = linkedSignal<number>(() => this.dataManager.counters()?.schoolIdCounter || 0);
 
   isSavingCounters = signal(false);
   countersMessage = signal('');
-
-  constructor() {
-    effect(() => {
-      const counters = this.dataManager.counters();
-      if (counters) {
-        untracked(() => {
-          const memberCountersArray = Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
-          this.memberIdCounters.set(memberCountersArray);
-          this.instructorIdCounter.set(counters.instructorIdCounter || 0);
-          this.schoolIdCounter.set(counters.schoolIdCounter || 0);
-        });
-      }
-    });
-  }
 
   addMemberIdCounter() {
     this.memberIdCounters.update(counters => [...counters, { countryCode: '', value: 0 }]);

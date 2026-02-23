@@ -66,6 +66,17 @@ describe('SearchableSet', () => {
     expect(results[0].id).toBe('2');
   });
 
+  it('Setting the entries should result in the set going from false to true', () => {
+    const entries = [
+      { id: '1', name: 'Alice' },
+      { id: '2', name: 'Bob' },
+      { id: '1', name: 'Alice Duplicate' },
+    ];
+    expect(searchableSet.loaded()).toBe(false);
+    searchableSet.setEntries(entries);
+    expect(searchableSet.loaded()).toBe(true);
+  });
+
   it('should perform search only on unique entries', () => {
     const entries = [
       { id: '1', name: 'Alice' },

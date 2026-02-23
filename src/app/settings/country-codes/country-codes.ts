@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect, untracked } from '@angular/core';
+import { Component, inject, signal, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
@@ -16,22 +16,9 @@ import { IconComponent } from '../../icons/icon.component';
 export class CountryCodesComponent {
   dataManager = inject(DataManagerService);
 
-  countryCodes = signal<CountryCode[]>([]);
+  countryCodes = linkedSignal<CountryCode[]>(() => [...this.dataManager.countries.entries()]);
   isSaving = signal(false);
   statusMessage = signal('');
-
-  constructor() {
-    // Populate the country codes from the data manager once loaded.
-    effect(() => {
-      const loaded = !this.dataManager.countries.loading();
-      const entries = this.dataManager.countries.entries();
-      if (loaded) {
-        untracked(() => {
-          this.countryCodes.set(JSON.parse(JSON.stringify(entries)));
-        });
-      }
-    });
-  }
 
   addCountryCode() {
     this.countryCodes.update(codes => [...codes, { id: '', name: '' }]);

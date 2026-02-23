@@ -6,6 +6,10 @@
   <div>
     <app-spinner></app-spinner> Loading...
   </div>
+  } @else if (dataManager.countries.error()) {
+    <div class="status-message" style="color: red; margin-bottom: 10px;">
+      Error loading country codes: {{ dataManager.countries.error() }}
+    </div>
   } @else {
   
   <div class="code-list">

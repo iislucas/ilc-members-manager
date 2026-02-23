@@ -516,7 +516,9 @@ export class ImportOrdersComponent {
       if (!renewalDateObj || !isValid(renewalDateObj)) {
         renewalDateObj = paidDate;
       }
-      const newExpiryObj = addYears(renewalDateObj, 1);
+      // We add an extra day to the expiry date to account for the fact that the license is valid 
+      // for a year from the renewal date, and order processing may take a little time.
+      const newExpiryObj = addDays(addYears(renewalDateObj, 1), 1);
 
       const prevExpiryObj = parseToDate(oldMember.instructorLicenseExpires);
       const prevExpiryTime = (prevExpiryObj && isValid(prevExpiryObj)) ? prevExpiryObj.getTime() : 0;

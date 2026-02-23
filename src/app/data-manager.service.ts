@@ -429,6 +429,10 @@ export class DataManagerService {
             schoolIdCounter: 100,
           });
         }
+      }, (error) => {
+        console.error('Error fetching counters:', error);
+        // Counters is a regular signal, not a SearchableSet, but we could handle the error somehow, 
+        // e.g. setting an error symbol or empty counters if needed to avoid hanging.
       }),
     );
   }
@@ -439,11 +443,19 @@ export class DataManagerService {
       onSnapshot(countryCodesRef, (doc) => {
         if (doc.exists()) {
           const countryCodeDoc = doc.data() as CountryCodesDoc;
-          this.countries.setEntries(countryCodeDoc.codes);
+          this.countries.setEntries(countryCodeDoc.codes || []);
         } else {
+          // If the doc doesn't exist, provide a default list so it doesn't hang.
           const countryCodes: CountryCodesDoc = { codes: countryCodeList };
-          setDoc(countryCodesRef, countryCodes);
+          this.countries.setEntries(countryCodeList);
+          // Try to init the doc for the whole system, but gracefully ignore if permission denied
+          setDoc(countryCodesRef, countryCodes).catch((e) => {
+            console.warn('Could not initialize country-codes document (possibly not admin).', e);
+          });
         }
+      }, (error) => {
+        console.error('Error fetching country codes:', error);
+        this.countries.setError(error.message);
       }),
     );
   }
