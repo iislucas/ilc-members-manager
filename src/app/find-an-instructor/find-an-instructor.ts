@@ -33,6 +33,8 @@ export class FindAnInstructorComponent {
   searchTerm = signal('');
 
   filteredInstructors = computed(() => {
-    return this.findInstructorsService.instructors.search(this.searchTerm());
+    return this.findInstructorsService.instructors
+      .search(this.searchTerm())
+      .filter((i) => i.instructorLicenseType !== 'None' && (i.instructorLicenseType as string) !== '');
   });
 }

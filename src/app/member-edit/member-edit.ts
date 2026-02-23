@@ -85,7 +85,7 @@ export class MemberEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<Member> = form(this.memberFormModel, (schema) => {
     required(schema.name, { message: 'Name is required.' });
-    required(schema.emails, { message: 'An email must be provided.' });
+    // Email no longer required
     // TODO: email validation for array...
     required(schema.membershipType, {
       message: 'Membership type is required.',
@@ -496,8 +496,8 @@ export class MemberEditComponent {
       // fields which don't use conventional two-way bindings.
       const member = {
         ...this.editableMember(),
-        emails: this.form.emails().value(),
-        tags: this.form.tags().value(),
+        emails: this.form.emails().value().filter((e) => e.trim() !== ''),
+        tags: this.form.tags().value().filter((t) => t.trim() !== ''),
         mastersLevels: this.form.mastersLevels().value(),
       };
       const memberIdAssignment = this.memberIdAssignment().kind;
@@ -588,9 +588,7 @@ export class MemberEditComponent {
     if (this.isDupEmail()) {
       errors.push('This email address is already in use.');
     }
-    if (this.form.emails && this.form.emails().value().length === 0) {
-      errors.push('An email must be provided.');
-    }
+    // Removed email requirement
     if (this.isDupMemberId()) {
       errors.push('This member ID is already in use.');
     }

@@ -28,7 +28,7 @@ import {
   ensureLaterDate,
   ensureHigherStudentLevel
 } from '../import-export-utils';
-import { format, addYears, isValid, parse, isAfter } from 'date-fns';
+import { format, addYears, addDays, isValid, parse, isAfter } from 'date-fns';
 
 export type OrderType = 'ALL' | 'MEMBERSHIP' | 'SCHOOL_LICENSE' | 'INSTRUCTOR_LICENSE' | 'GRADING' | 'OTHER';
 
@@ -504,20 +504,31 @@ export class ImportOrdersComponent {
 
     if (isInstructorLicense) {
       const potentialInstRenewal = ensureLaterDate(newMember.instructorLicenseRenewalDate, order.datePaid);
+      let updatedRenewalDate = newMember.instructorLicenseRenewalDate;
       if (potentialInstRenewal && potentialInstRenewal !== newMember.instructorLicenseRenewalDate) {
         newMember.instructorLicenseRenewalDate = potentialInstRenewal;
+        updatedRenewalDate = potentialInstRenewal;
         changed = true;
       }
 
-      const finalExpiry = this.calculateNewExpiry(newMember.instructorLicenseExpires, paidDate, order.startDate);
+      let renewalDateObj = parseToDate(updatedRenewalDate);
+      if (!renewalDateObj || !isValid(renewalDateObj)) {
+        renewalDateObj = paidDate;
+      }
+      const newExpiryObj = addDays(addYears(renewalDateObj, 1), 1);
 
-      const finalExpiryStr = format(finalExpiry, 'yyyy-MM-dd');
+      const prevExpiryObj = parseToDate(oldMember.instructorLicenseExpires);
+      const prevExpiryTime = (prevExpiryObj && isValid(prevExpiryObj)) ? prevExpiryObj.getTime() : 0;
+
+      const finalExpiryTime = Math.max(prevExpiryTime, newExpiryObj.getTime());
+      const finalExpiryStr = format(finalExpiryTime, 'yyyy-MM-dd');
+
       if (finalExpiryStr !== newMember.instructorLicenseExpires) {
         newMember.instructorLicenseExpires = finalExpiryStr;
         changed = true;
       }
 
-      if (newMember.instructorLicenseType === InstructorLicenseType.None) {
+      if (newMember.instructorLicenseType !== InstructorLicenseType.Annual) {
         newMember.instructorLicenseType = InstructorLicenseType.Annual;
         changed = true;
       }
