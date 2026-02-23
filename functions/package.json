@@ -15,6 +15,8 @@
     "admin": "ts-node scripts/admin.ts",
     "dedupe-members": "ts-node scripts/dedupe-members.ts",
     "recalculate-licenses": "ts-node scripts/recalculate-licenses.ts",
+    "sync-squarespace-orders": "ts-node scripts/sync-squarespace-orders.ts",
+    "migrate-system": "ts-node scripts/migrate-system-collection.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

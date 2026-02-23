@@ -357,7 +357,7 @@ export class DataManagerService {
   }
 
   async updateCountersSync() {
-    const countersRef = doc(this.db, 'counters', 'singleton');
+    const countersRef = doc(this.db, 'system', 'counters');
     this.snapshotsToUnsubscribe.push(
       onSnapshot(countersRef, (doc) => {
         if (doc.exists()) {
@@ -370,7 +370,7 @@ export class DataManagerService {
   }
 
   async updateCountryCodesSync() {
-    const countryCodesRef = doc(this.db, 'static', 'country-codes');
+    const countryCodesRef = doc(this.db, 'system', 'country-codes');
     this.snapshotsToUnsubscribe.push(
       onSnapshot(countryCodesRef, (doc) => {
         if (doc.exists()) {
@@ -657,16 +657,16 @@ export class DataManagerService {
   }
 
   async getStaticDocs() {
-    const snapshot = await getDocs(collection(this.db, 'static'));
+    const snapshot = await getDocs(collection(this.db, 'system'));
     return snapshot.docs.map((doc: any) => ({ id: doc.id, data: doc.data() }));
   }
 
   async saveStaticDoc(id: string, data: any) {
-    return setDoc(doc(this.db, 'static', id), data);
+    return setDoc(doc(this.db, 'system', id), data);
   }
 
   async saveCountersRaw(data: any) {
-    return setDoc(doc(this.db, 'counters', 'singleton'), data);
+    return setDoc(doc(this.db, 'system', 'counters'), data);
   }
 
   downloadSchoolsAsJsonL() {

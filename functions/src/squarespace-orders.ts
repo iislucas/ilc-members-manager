@@ -12,7 +12,105 @@ const squarespaceApiKey = defineSecret('SQUARESPACE_API_KEY');
 const SQUARESPACE_ORDERS_API = 'https://api.squarespace.com/1.0/commerce/orders';
 
 // The systemInfo document where we keep track of the last time we synced orders
-const SYNC_STATE_DOC = 'systemInfo/squarespaceSync';
+const SYNC_STATE_DOC = 'system/squarespaceSync';
+
+/**
+ * Core logic to fetch from Squarespace API and sync to Firestore.
+ * Placed in an exportable function so standalone scripts can call it.
+ */
+export async function fetchAndSyncOrders(
+  db: admin.firestore.Firestore,
+  apiKey: string,
+  options: { dryRun?: boolean; forceTimestamp?: string } = {}
+) {
+  const { dryRun = false, forceTimestamp } = options;
+
+  if (!apiKey) {
+    logger.error('Squarespace API key is not configured.');
+    return;
+  }
+
+  // 1. Determine the timestamp to query from
+  const syncDocRef = db.doc(SYNC_STATE_DOC);
+  const syncDoc = await syncDocRef.get();
+
+  let modifiedAfterStr: string;
+
+  if (forceTimestamp) {
+    modifiedAfterStr = forceTimestamp;
+    logger.info(`Using forced timestamp: ${modifiedAfterStr}`);
+  } else if (syncDoc.exists && syncDoc.data()?.lastSyncTimestamp) {
+    modifiedAfterStr = syncDoc.data()!.lastSyncTimestamp;
+  } else {
+  // If we've never synced before, default to 1 day ago
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    modifiedAfterStr = yesterday.toISOString();
+    logger.info(`No sync state found. Defaulting to sync orders modified after ${modifiedAfterStr}`);
+  }
+
+  try {
+  // 2. Fetch trailing orders from the Squarespace Orders API
+    const modifiedBeforeStr = new Date().toISOString();
+    logger.info(`Fetching orders modified after ${modifiedAfterStr} up to ${modifiedBeforeStr} ${dryRun ? '(DRY RUN)' : ''}`);
+    const orderResponse = await axios.get(SQUARESPACE_ORDERS_API, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'User-Agent': 'ILC-Members-Manager/1.0',
+      },
+      params: {
+        modifiedAfter: modifiedAfterStr,
+        modifiedBefore: modifiedBeforeStr,
+      }
+    });
+
+    const orders = orderResponse.data.result || [];
+    logger.info(`Successfully fetched ${orders.length} orders updated after ${modifiedAfterStr} from Squarespace`);
+
+    if (orders.length === 0) {
+      return;
+    }
+
+    let latestModifiedOn = modifiedAfterStr;
+
+    // 3. Process each order by saving it to Firestore
+    for (const orderData of orders) {
+      if (orderData.modifiedOn && orderData.modifiedOn > latestModifiedOn) {
+        latestModifiedOn = orderData.modifiedOn;
+      }
+
+      const orderId = orderData.id || orderData.orderNumber;
+      if (!orderId) {
+        logger.warn('Order without ID retrieved, skipping over it.');
+        continue;
+      }
+
+      if (dryRun) {
+        logger.info(`[DRY RUN] Would save order ${orderId} to firestore:`, JSON.stringify(orderData, null, 2));
+      } else {
+        await db.collection('orders').doc(orderId).set(orderData, { merge: true });
+        logger.info(`Saved order ${orderId} to firestore.`);
+      }
+    }
+
+    // 4. Update the sync state document so we don't process these orders again.
+    if (dryRun) {
+      logger.info(`[DRY RUN] Would update sync state to track orders modified after ${latestModifiedOn}.`);
+    } else {
+      await syncDocRef.set({
+        lastSyncTimestamp: latestModifiedOn,
+        lastRunAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      logger.info(`Sync complete. State updated to track orders modified after ${latestModifiedOn}.`);
+    }
+
+  } catch (error: unknown) {
+    logger.error('Error fetching/processing Squarespace orders:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      logger.error('Squarespace API responded with:', error.response.data);
+    }
+  }
+}
 
 /**
  * Scheduled function that polls the Squarespace API for new or updated orders.
@@ -26,81 +124,7 @@ export const syncSquarespaceOrders = onSchedule(
   async (event) => {
     const db = admin.firestore();
     const apiKey = squarespaceApiKey.value();
-
-    if (!apiKey) {
-      logger.error('Squarespace API key is not configured.');
-      return;
-    }
-
-    // 1. Determine the timestamp to query from
-    const syncDocRef = db.doc(SYNC_STATE_DOC);
-    const syncDoc = await syncDocRef.get();
-
-    let modifiedAfterStr: string;
-
-    if (syncDoc.exists && syncDoc.data()?.lastSyncTimestamp) {
-      modifiedAfterStr = syncDoc.data()!.lastSyncTimestamp;
-    } else {
-      // If we've never synced before, default to 1 day ago
-      // We don't want to pull ALL historical orders.
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      modifiedAfterStr = yesterday.toISOString();
-      logger.info(`No sync state found. Defaulting to sync orders modified after ${modifiedAfterStr}`);
-    }
-
-    try {
-      // 2. Fetch trailing orders from the Squarespace Orders API
-      const orderResponse = await axios.get(SQUARESPACE_ORDERS_API, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'User-Agent': 'ILC-Members-Manager/1.0',
-        },
-        params: {
-          modifiedAfter: modifiedAfterStr,
-        }
-      });
-
-      // The API returns typed objects or any, replacing with unknown/safe types
-      const orders = orderResponse.data.result || [];
-      logger.info(`Successfully fetched ${orders.length} orders updated after ${modifiedAfterStr} from Squarespace`);
-
-      if (orders.length === 0) {
-        return;
-      }
-
-      let latestModifiedOn = modifiedAfterStr;
-
-      // 3. Process each order by saving it to Firestore
-      for (const orderData of orders) {
-        if (orderData.modifiedOn && orderData.modifiedOn > latestModifiedOn) {
-          latestModifiedOn = orderData.modifiedOn;
-        }
-
-        const orderId = orderData.id || orderData.orderNumber;
-        if (!orderId) {
-          logger.warn('Order without ID retrieved, skipping over it.');
-          continue;
-        }
-
-        await db.collection('orders').doc(orderId).set(orderData, { merge: true });
-        logger.info(`Saved order ${orderId} to firestore.`);
-      }
-
-      // 4. Update the sync state document so we don't process these orders again.
-      await syncDocRef.set({
-        lastSyncTimestamp: latestModifiedOn,
-        lastRunAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-
-      logger.info(`Sync complete. State updated to track orders modified after ${latestModifiedOn}.`);
-
-    } catch (error: unknown) {
-      logger.error('Error fetching/processing Squarespace orders:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        logger.error('Squarespace API responded with:', error.response.data);
-      }
-    }
+    await fetchAndSyncOrders(db, apiKey);
   }
 );
 

@@ -13,7 +13,7 @@ import {
 } from './common';
 import { DocumentData, DocumentSnapshot } from 'firebase-admin/firestore';
 
-const COUNTERS_DOC_PATH = 'counters/singleton';
+const COUNTERS_DOC_PATH = 'system/counters';
 const COUNTERS_MIN_DEFAULT = 100;
 
 function initialCounters(): Counters {

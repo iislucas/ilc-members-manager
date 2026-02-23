@@ -57,13 +57,17 @@ This allows for efficient queries of by an instrutcor of all their students.
 Both {instructorMemberDocId} and {studentMemberDocId} should correspond to 
 entries in the /members/{memberDocId}.
 
-## /counters/singleton : Counters
+## /system/counters : Counters
 
 These counters are used to generate unique IDs for new members and instructors.
 
-## /countries/singleton : CountryCodes
+## /system/country-codes : CountryCodes
 
 This document contains a map of country names to their 2-letter ISO codes.
+
+## /system/squarespaceSync : SquarespaceSync
+
+This document contains the sync timestamp for the squarespace orders poller.
 
 # Namespaces for IDs: 
 
@@ -86,7 +90,7 @@ This document contains a map of country names to their 2-letter ISO codes.
 // # COUNTERS
 // ==================================================================
 // All counters are stored in a single document for atomic updates.
-// Firestore path: /counters/singleton
+// Firestore path: /system/counters
 //
 export type Counters = {
   // A map from 2-letter country code to the last assigned member ID number.

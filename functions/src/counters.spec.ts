@@ -83,7 +83,7 @@ describe('Counters', () => {
         let transactionSetSpy: Mock;
 
         beforeEach(() => {
-            const mockDocRef = { path: 'counters/singleton' };
+            const mockDocRef = { path: 'system/counters' };
             docSpy = vi.fn().mockReturnValue(mockDocRef);
 
             transactionGetSpy = vi.fn();
@@ -166,7 +166,7 @@ describe('Counters', () => {
         let transactionSetSpy: Mock;
 
         beforeEach(() => {
-            const mockDocRef = { path: 'counters/singleton' };
+            const mockDocRef = { path: 'system/counters' };
             docSpy = vi.fn().mockReturnValue(mockDocRef);
 
             transactionGetSpy = vi.fn();
