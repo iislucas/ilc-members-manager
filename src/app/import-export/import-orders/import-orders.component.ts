@@ -516,7 +516,7 @@ export class ImportOrdersComponent {
       if (!renewalDateObj || !isValid(renewalDateObj)) {
         renewalDateObj = paidDate;
       }
-      const newExpiryObj = addDays(addYears(renewalDateObj, 1), 1);
+      const newExpiryObj = addYears(renewalDateObj, 1);
 
       const prevExpiryObj = parseToDate(oldMember.instructorLicenseExpires);
       const prevExpiryTime = (prevExpiryObj && isValid(prevExpiryObj)) ? prevExpiryObj.getTime() : 0;

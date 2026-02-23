@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
@@ -23,17 +23,17 @@ export class CountersComponent {
   countersMessage = signal('');
 
   constructor() {
-    this.initCountersData();
-  }
-
-  initCountersData() {
-    const counters = this.dataManager.counters();
-    if (counters) {
-      const memberCountersArray = Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
-      this.memberIdCounters.set(memberCountersArray);
-      this.instructorIdCounter.set(counters.instructorIdCounter || 0);
-      this.schoolIdCounter.set(counters.schoolIdCounter || 0);
-    }
+    effect(() => {
+      const counters = this.dataManager.counters();
+      if (counters) {
+        untracked(() => {
+          const memberCountersArray = Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
+          this.memberIdCounters.set(memberCountersArray);
+          this.instructorIdCounter.set(counters.instructorIdCounter || 0);
+          this.schoolIdCounter.set(counters.schoolIdCounter || 0);
+        });
+      }
+    });
   }
 
   addMemberIdCounter() {

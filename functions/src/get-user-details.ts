@@ -39,8 +39,9 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
     }
 
-    const aclData = aclDoc.data() as { memberDocIds: string[] };
+    const aclData = aclDoc.data() as { memberDocIds: string[], isAdmin: boolean };
     const memberDocIds = aclData.memberDocIds || [];
+    const isAclAdmin = aclData.isAdmin === true;
 
     const memberRefs = memberDocIds.map((id) => db.collection('members').doc(id));
     const memberDocs =
@@ -58,7 +59,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       });
 
     if (userMemberProfiles.length === 0) {
-      return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
+      return { userMemberProfiles: [], isAdmin: isAclAdmin, schoolsManaged: [] };
     }
 
     // For simplicity, we use the first profile to determine "primary" permissions
@@ -90,7 +91,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     return {
       userMemberProfiles,
       schoolsManaged: [...schoolIds],
-      isAdmin: primaryMember.isAdmin,
+      isAdmin: isAclAdmin,
     };
   } catch (error: unknown) {
     logger.error('Error getting members:', error);

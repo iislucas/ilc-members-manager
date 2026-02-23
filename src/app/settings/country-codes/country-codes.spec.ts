@@ -11,7 +11,7 @@ describe('CountryCodes', () => {
 
   beforeEach(async () => {
     const mockDataManager = {
-      countries: { entries: vi.fn().mockReturnValue([]), loaded: signal(true) },
+      countries: { entries: vi.fn().mockReturnValue([]), loaded: signal(true), loading: signal(false) },
       saveCountriesRaw: vi.fn(),
       getStaticDocs: vi.fn().mockResolvedValue([]),
     };

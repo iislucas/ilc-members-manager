@@ -28,8 +28,8 @@ service cloud.firestore {
         let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
         let school = get(schoolPath).data;
         return schoolId != "" && exists(schoolPath) && (
-          request.auth.token.email == school.ownerEmail || 
-          request.auth.token.email in school.managerEmails
+          request.auth.token.email == school.get('ownerEmail', '') || 
+          request.auth.token.email in school.get('managerEmails', [])
         );
       }
       function isValidEdit() {
@@ -48,8 +48,8 @@ service cloud.firestore {
     match /schools/{schoolId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.ownerEmail || 
-            request.auth.token.email in school.managerEmails;
+        return request.auth.token.email == school.get('ownerEmail', '') || 
+            request.auth.token.email in school.get('managerEmails', []);
       }
       function isValidEdit() {
         return request.resource.data.lastUpdated == request.time;
@@ -73,8 +73,8 @@ service cloud.firestore {
     match /schools/{schoolId}/members/{memberDocId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.ownerEmail || 
-            request.auth.token.email in school.managerEmails;
+        return request.auth.token.email == school.get('ownerEmail', '') || 
+            request.auth.token.email in school.get('managerEmails', []);
       }
       allow read: if isAdmin() || isSchoolManager();
     }
@@ -131,8 +131,8 @@ service cloud.firestore {
     match /schools/{schoolId}/gradings/{gradingId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.ownerEmail ||
-            request.auth.token.email in school.managerEmails;
+        return request.auth.token.email == school.get('ownerEmail', '') ||
+            request.auth.token.email in school.get('managerEmails', []);
       }
       allow read: if isAdmin() || isSchoolManager();
     }
