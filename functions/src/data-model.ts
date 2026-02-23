@@ -168,6 +168,7 @@ export enum GradingStatus {
   Pending = 'pending',
   Passed = 'passed',
   Rejected = 'rejected',
+  RequiresReview = 'requiresReview',
 }
 
 // ==================================================================
@@ -519,6 +520,7 @@ export type Grading = {
   studentMemberDocId: string; // The Firestore doc ID of the student member document.
   status: GradingStatus; // pending, passed, rejected.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
+  gradingEvent: string; // Text string for event/location/date of the grading.
   notes: string; // Any notes about the grading.
 };
 
@@ -548,6 +550,7 @@ export function initGrading(): Grading {
     studentMemberDocId: '',
     status: GradingStatus.Pending,
     gradingEventDate: '',
+    gradingEvent: '',
     notes: '',
   };
 }

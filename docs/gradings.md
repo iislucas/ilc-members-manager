@@ -17,7 +17,7 @@ A `grading` document should contain the following information:
 - `assistantInstructorIds`: A list of IDs of the assistant instructors who are helping conduct the grading.
 - `schoolId`: The ID of the school where the grading was conducted. Optional.
 - `studentId`: The ID of the student who was graded.
-- `status`: The status of the grading (e.g. `pending`, `passed`, `rejected`).
+- `status`: The status of the grading (e.g. `pending`, `passed`, `rejected`, `requiresReview`). The `requiresReview` status is automatically assigned if the submitted order properties (such as Email, Current Student Level, or Current Application Level) do not explicitly match the current data on the linked `member` document.
 - `gradingEventDate`: The date of the grading. Initially not set. Should be set when the grading is conducted, and its status is changed to `passed` or `rejected`.
 - `lastUpdated`: The last date this grading record was updated. 
 - `notes`: Any notes about the grading.

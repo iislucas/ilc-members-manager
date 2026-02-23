@@ -85,6 +85,10 @@ export class GradingEditComponent {
       schema.notes,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
+    disabled(
+      schema.gradingEvent,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
   });
 
   // Sync input grading to the form model.

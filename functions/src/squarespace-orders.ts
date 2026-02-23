@@ -42,7 +42,7 @@ export async function fetchAndSyncOrders(
   } else if (syncDoc.exists && syncDoc.data()?.lastSyncTimestamp) {
     modifiedAfterStr = syncDoc.data()!.lastSyncTimestamp;
   } else {
-  // If we've never synced before, default to 1 day ago
+    // If we've never synced before, default to 1 day ago
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     modifiedAfterStr = yesterday.toISOString();
@@ -50,7 +50,7 @@ export async function fetchAndSyncOrders(
   }
 
   try {
-  // 2. Fetch trailing orders from the Squarespace Orders API
+    // 2. Fetch trailing orders from the Squarespace Orders API
     const modifiedBeforeStr = new Date().toISOString();
     logger.info(`Fetching orders modified after ${modifiedAfterStr} up to ${modifiedBeforeStr} ${dryRun ? '(DRY RUN)' : ''}`);
     const orderResponse = await axios.get(SQUARESPACE_ORDERS_API, {
@@ -270,21 +270,46 @@ async function processVideoLibraryAccess(orderData: any, orderId: string, db: ad
   });
 }
 
-/**
- * Helper function to create Grading documents when a grading is purchased
- */
-export async function processGradingOrder(orderData: any, orderId: string, gradingItem: any, db: admin.firestore.Firestore) {
-  interface CustomFormField {
-    label?: string;
-    value?: string;
-  }
+export interface SquareSpaceCustomization {
+  label?: string;
+  value?: string;
+}
 
-  const customizations: CustomFormField[] = gradingItem.customizations || [];
+export interface SquareSpaceVariantOption {
+  optionName?: string;
+  value?: string;
+}
+
+export interface SquareSpaceLineItem {
+  id?: string;
+  productId?: string;
+  productName?: string;
+  variantOptions?: SquareSpaceVariantOption[];
+  customizations?: SquareSpaceCustomization[];
+}
+
+export interface SquareSpaceOrder {
+  id?: string;
+  orderNumber?: string;
+  createdOn?: string;
+  modifiedOn?: string;
+  customerEmail?: string;
+  lineItems?: SquareSpaceLineItem[];
+}
+
+export function parseGradingOrderInfo(
+  orderData: SquareSpaceOrder,
+  gradingItem: SquareSpaceLineItem
+): { email: string; currentStudentLevel: string; currentApplicationLevel: string; gradingInfo: Grading } {
+  const customizations: SquareSpaceCustomization[] = gradingItem.customizations || [];
 
   let providedMemberId = '';
   let providedEmail = '';
   let gradingInstructorId = '';
   let notes = '';
+  let gradingEvent = '';
+  let currentStudentLevel = '';
+  let currentApplicationLevel = '';
 
   for (const field of customizations) {
     if (!field.label || !field.value) continue;
@@ -297,13 +322,17 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
     } else if (labelLower.includes('instructorid') || labelLower.includes('instructor id')) {
       gradingInstructorId = field.value.trim();
     } else if (labelLower.includes('where / when') || labelLower.includes('planning to grade')) {
-      notes += `Proposed Event: ${field.value.trim()}\n`;
+      gradingEvent = field.value.trim();
     } else if (labelLower.includes('evaluating instructor')) {
       notes += `Evaluating Instructor Name: ${field.value.trim()}\n`;
+    } else if (labelLower.includes('current student level')) {
+      currentStudentLevel = field.value.trim();
+    } else if (labelLower.includes('current application level')) {
+      currentApplicationLevel = field.value.trim();
     }
   }
 
-  const email = providedEmail || orderData.customerEmail;
+  const email = providedEmail || orderData.customerEmail || '';
 
   let level = '';
   const variantOptions = gradingItem.variantOptions || [];
@@ -316,6 +345,33 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
   if (!level) {
     level = gradingItem.productName || 'Unknown Level';
   }
+
+  const purchaseDate = orderData.createdOn ? orderData.createdOn.substring(0, 10) : new Date().toISOString().substring(0, 10);
+
+  return {
+    email,
+    currentStudentLevel,
+    currentApplicationLevel,
+    gradingInfo: {
+      ...initGrading(),
+      status: providedMemberId ? GradingStatus.Pending : GradingStatus.RequiresReview,
+      gradingPurchaseDate: purchaseDate,
+      orderId: orderData.id || '',
+      level,
+      gradingInstructorId,
+      studentMemberId: providedMemberId,
+      notes: notes.trim(),
+      gradingEvent
+    }
+  };
+}
+
+/**
+ * Helper function to create Grading documents when a grading is purchased
+ */
+export async function processGradingOrder(orderData: any, orderId: string, gradingItem: any, db: admin.firestore.Firestore) {
+  const { email, currentStudentLevel, currentApplicationLevel, gradingInfo } = parseGradingOrderInfo(orderData, gradingItem);
+  const level = gradingInfo.level || '';
 
   // Idempotency check: see if we already processed this order + level
   const existingGradingsQuery = await db.collection('gradings')
@@ -331,6 +387,7 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
 
   let memberDocRef: admin.firestore.DocumentReference | null = null;
   let memberData: Partial<Member> | null = null;
+  const providedMemberId = gradingInfo.studentMemberId;
 
   // Try finding by Member ID first
   if (providedMemberId) {
@@ -374,17 +431,28 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
     return;
   }
 
-  const purchaseDate = orderData.createdOn ? orderData.createdOn.substring(0, 10) : new Date().toISOString().substring(0, 10);
+  let status = GradingStatus.Pending;
+
+  if (memberData) {
+    const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
+    const publicEmail = (memberData.publicEmail || '').toLowerCase();
+    const providedEmailLower = email.toLowerCase();
+
+    const emailMatches = memberEmails.includes(providedEmailLower) || publicEmail === providedEmailLower;
+
+    const studentLevelMatches = !currentStudentLevel || (memberData.studentLevel === currentStudentLevel);
+    const applicationLevelMatches = !currentApplicationLevel || (memberData.applicationLevel === currentApplicationLevel);
+
+    if (!emailMatches || !studentLevelMatches || !applicationLevelMatches) {
+      status = GradingStatus.RequiresReview;
+      logger.info(`[Grading] Order ${orderId} required review due to mismatch: emailMatches=${emailMatches}, studentLevelMatches=${studentLevelMatches}, applicationLevelMatches=${applicationLevelMatches}`);
+    }
+  }
 
   const newGrading: Grading = {
-    ...initGrading(),
-    gradingPurchaseDate: purchaseDate,
-    orderId: orderId,
-    level: level,
-    gradingInstructorId: gradingInstructorId,
-    studentMemberId: memberData?.memberId || providedMemberId,
+    ...gradingInfo,
+    status,
     studentMemberDocId: memberDocRef.id,
-    notes: notes.trim(),
   };
 
   const gradingRef = db.collection('gradings').doc();
