@@ -5,6 +5,7 @@ import { SquarespaceService } from './squarespace.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MembershipType } from '../../../functions/src/data-model';
+import { SquareSpaceBlogsResponse } from './blog-types';
 
 @Component({
     selector: 'app-squarespace-content',
@@ -108,7 +109,9 @@ export class SquarespaceContentComponent {
         this.error.set(null);
 
         this.squarespaceService.getSquarespaceContent(path).subscribe({
-            next: (data: any) => {
+            next: (data: SquareSpaceBlogsResponse) => {
+                console.log('Squarespace content loaded:', data);
+
                 let htmlContent = '';
                 let baseUrl = '';
 
@@ -119,12 +122,7 @@ export class SquarespaceContentComponent {
                         baseUrl = 'https:' + (baseUrl.startsWith('//') ? '' : '//') + baseUrl;
                     }
 
-                    // 1. Try mainContent (standard for Pages)
-                    if (data.mainContent) {
-                        htmlContent = data.mainContent;
-                    }
-                    // 2. Try items (standard for Blogs, Events, etc.)
-                    else if (data.items && Array.isArray(data.items)) {
+                    if (data.items && Array.isArray(data.items)) {
                         htmlContent = data.items
                             .map((item: any) => {
                                 const title = item.title ? `<h2 class="sqs-title">${item.title}</h2>` : '';
