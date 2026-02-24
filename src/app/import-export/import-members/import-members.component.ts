@@ -94,7 +94,7 @@ export class ImportMembersComponent {
   private static readonly MEMBER_FIELD_ALIASES: Record<string, string[][]> = {
     notes: [['Notes']],
     memberId: [['Member ID', 'MemberID', 'ID', 'Member Number', 'Membership Number']],
-    sifuInstructorId: [['Student Of', 'Sifu']],
+    primaryInstructorId: [['Student Of', 'Sifu']],
     membershipType: [['Membership Type', 'MembershipType', 'Plan']],
     membershipStatus: [['Membership Status', 'Status']],
     firstMembershipStarted: [['Start Date', 'Date Joined', 'Year Joined', 'Join Date']],
@@ -122,7 +122,7 @@ export class ImportMembersComponent {
   private memberFields = Object.keys(initMember()) as Array<keyof Member>;
 
   public fieldsToMap = computed(() => {
-    return this.memberFields.filter(f => f !== 'id' && f !== 'lastUpdated');
+    return this.memberFields.filter(f => f !== 'docId' && f !== 'lastUpdated');
   });
 
   reset() {
@@ -438,7 +438,7 @@ export class ImportMembersComponent {
     for (const change of updates) {
       try {
         await this.membersService.updateMember(
-          change.oldItem?.id || change.key,
+          change.oldItem?.docId || change.key,
           change.newItem,
         );
       } catch (err) {

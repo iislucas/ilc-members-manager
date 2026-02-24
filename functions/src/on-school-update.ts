@@ -41,8 +41,8 @@ async function resolveInstructorEmails(instructorIds: string[]): Promise<string[
 }
 
 async function updateSchoolEmails(schoolId: string, school: School) {
-  const ownerEmails = await resolveInstructorEmails([school.owner]);
-  const managerEmails = await resolveInstructorEmails(school.managers || []);
+  const ownerEmails = await resolveInstructorEmails([school.ownerInstructorId]);
+  const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
 
   const ownerEmail = ownerEmails.length > 0 ? ownerEmails[0] : '';
   
@@ -79,8 +79,8 @@ export const onSchoolUpdated = onDocumentUpdated(
     const schoolAfter = snap.after.data() as School;
     const schoolBefore = snap.before.data() as School;
 
-    if (schoolAfter.owner !== schoolBefore.owner ||
-        JSON.stringify(schoolAfter.managers) !== JSON.stringify(schoolBefore.managers) ||
+    if (schoolAfter.ownerInstructorId !== schoolBefore.ownerInstructorId ||
+      JSON.stringify(schoolAfter.managerInstructorIds) !== JSON.stringify(schoolBefore.managerInstructorIds) ||
         !schoolAfter.ownerEmail ||
         !schoolAfter.managerEmails) {
       await updateSchoolEmails(snap.after.id, schoolAfter);

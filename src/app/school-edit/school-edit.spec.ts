@@ -21,8 +21,8 @@ describe('SchoolEditComponent', () => {
     id: 'school-id',
     schoolName: 'Test School',
     schoolId: 'S001',
-    owner: 'instructor-1',
-    managers: [],
+    ownerInstructorId: 'instructor-1',
+    managerInstructorIds: [],
   };
 
   beforeEach(async () => {

@@ -38,7 +38,7 @@
             Please resolve these duplicate member IDs to ensure data integrity.
           </p>
           <div class="member-cards">
-            @for (member of duplicateMemberIdEntries(); track member.id) {
+            @for (member of duplicateMemberIdEntries(); track member.docId) {
               <div class="member-card duplicate">
                 <app-member-edit
                   [member]="member"
@@ -70,7 +70,7 @@
             Please resolve these duplicate instructor IDs to ensure data integrity.
           </p>
           <div class="member-cards">
-            @for (member of duplicateInstructorIdEntries(); track member.id) {
+            @for (member of duplicateInstructorIdEntries(); track member.docId) {
               <div class="member-card duplicate">
                 <app-member-edit
                   [member]="member"
@@ -97,7 +97,7 @@
     }
 
     @let membersList = members();
-    @for (member of membersList; track member.id) {
+    @for (member of membersList; track member.docId) {
       <div class="member-card">
         <app-member-edit
           [member]="member"

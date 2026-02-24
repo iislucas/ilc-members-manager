@@ -9,7 +9,7 @@
     <app-spinner></app-spinner>
     } @else {
     @if (filteredSchools().length > 0) {
-    @for (school of filteredSchools(); track school.id) {
+    @for (school of filteredSchools(); track school.docId) {
     <div class="school-card">
       <div class="school-header">
         <h3>{{ school.schoolName }}</h3>
@@ -30,7 +30,7 @@
         </div>
         }
 
-        @if (dataManager.instructors.entriesMap().get(school.owner); as owner) {
+        @if (dataManager.instructors.entriesMap().get(school.ownerInstructorId); as owner) {
         <div class="detail-row">
           <app-icon name="person"></app-icon>
           <span>School Owner: {{ owner.name }}</span>

@@ -76,7 +76,7 @@ export class ImportSchoolsComponent {
   private schoolFields = Object.keys(initSchool()) as Array<keyof School>;
 
   public fieldsToMap = computed(() => {
-    return this.schoolFields.filter(f => f !== 'id' && f !== 'lastUpdated');
+    return this.schoolFields.filter(f => f !== 'docId' && f !== 'lastUpdated');
   });
 
   private static readonly SCHOOL_FIELD_ALIASES: Record<string, string[][]> = {

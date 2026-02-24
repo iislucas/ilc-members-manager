@@ -43,19 +43,19 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
   if (update.member) {
     const member = update.member;
     if (member.instructorId !== '') {
-      if (!member.id) {
+      if (!member.docId) {
         logger.error(
           `Member ${member.name} has no ID, cannot update instructor public data`,
         );
         return;
       }
-      const instructorRef = db.collection('instructors').doc(member.id);
+      const instructorRef = db.collection('instructors').doc(member.docId);
 
       logger.info(
-        `Updating instructorId(${member.instructorId}) for member with Doc ${member.id}`,
+        `Updating instructorId(${member.instructorId}) for member with Doc ${member.docId}`,
       );
       const instructor: InstructorPublicData = {
-        id: member.id, // The ID of this document matches the Member Document ID
+        docId: member.docId, // The ID of this document matches the Member Document ID
         name: member.name,
         memberId: member.memberId,
         studentLevel: member.studentLevel,
@@ -80,18 +80,18 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       // If they were an instructor and now are not, we should delete the public record.
       // We check if the record exists first? Or just delete it.
       // `delete()` is idempotent if it doesn't exist.
-      if (member.id) {
-        await db.collection('instructors').doc(member.id).delete();
+      if (member.docId) {
+        await db.collection('instructors').doc(member.docId).delete();
       }
     }
   } else if (update.previous) {
     // Member was deleted
     const prev = update.previous;
-    if (prev.id) {
+    if (prev.docId) {
       logger.info(
-        `Removing instructor public data for deleted member ${prev.id}`,
+        `Removing instructor public data for deleted member ${prev.docId}`,
       );
-      await db.collection('instructors').doc(prev.id).delete();
+      await db.collection('instructors').doc(prev.docId).delete();
     }
   }
 }

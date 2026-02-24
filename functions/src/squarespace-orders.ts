@@ -238,7 +238,7 @@ export const reprocessOrder = onCall(
 
 async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore) {
   // We pass both docId and the original Squarespace orderId
-  const orderId = orderData.id || orderData.orderNumber || docId;
+  const orderId = orderData.docId || orderData.orderNumber || docId;
 
   // If the order has already been processed, do nothing
   if (orderData.ilcAppOrderStatus) {
@@ -454,7 +454,7 @@ export function parseGradingOrderInfo(
       ...initGrading(),
       status: providedMemberId ? GradingStatus.Pending : GradingStatus.RequiresReview,
       gradingPurchaseDate: purchaseDate,
-      orderId: orderData.id || '',
+      orderId: orderData.docId || '',
       level,
       gradingInstructorId,
       studentMemberId: providedMemberId,
@@ -546,7 +546,7 @@ export async function processGradingOrder(
   }
 
   const gradingRef = db.collection('gradings').doc();
-  newGrading.id = gradingRef.id;
+  newGrading.docId = gradingRef.id;
 
   logger.info(`[Grading] Creating new grading doc ${gradingRef.id} for member based on order ${orderId}.`);
 

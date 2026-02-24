@@ -21,18 +21,18 @@ const PROJECT_ID = 'ilc-members-manager-tests';
 // ============================================================================
 
 async function setupSchool(db: Firestore, school: School) {
-  await db.collection('schools').doc(school.id).set(school);
+  await db.collection('schools').doc(school.docId).set(school);
 }
 
 async function setupMember(db: Firestore, member: Member) {
-  await db.collection('members').doc(member.id).set(member);
+  await db.collection('members').doc(member.docId).set(member);
   // Auto-create ACL
   for (const email of member.emails) {
     await db
       .collection('acl')
       .doc(email)
       .set({
-        memberDocIds: [member.id],
+        memberDocIds: [member.docId],
         isAdmin: false,
       });
   }
@@ -42,7 +42,7 @@ async function setupInstructor(
   db: Firestore,
   instructor: InstructorPublicData,
 ) {
-  await db.collection('instructors').doc(instructor.id).set(instructor);
+  await db.collection('instructors').doc(instructor.docId).set(instructor);
   // 2. Create Member Profile
   await setupMember(db, instructor as Member);
 }
@@ -52,12 +52,11 @@ async function setupStudentWithSifu(db: Firestore, student: Member) {
   await setupMember(db, student);
 
   // 2. Cache student data in Instructor's subcollection
-  // Note: This matches /instructors/{instructorDocId}/members/{studentDocId}
   await db
     .collection('instructors')
-    .doc(student.sifuInstructorId)
+    .doc(student.primaryInstructorId)
     .collection('members')
-    .doc(student.id)
+    .doc(student.docId)
     .set(student);
 }
 
@@ -99,25 +98,25 @@ describe('Firestore Rules', () => {
       await setupAdmin(db, 'admin@ilc.com');
 
       await setupSchool(db, {
-        id: 'FirestoreDocID-school1',
+        docId: 'FirestoreDocID-school1',
         schoolId: 'SCH-001',
-        owner: 'MEM-OWNER',
+        ownerInstructorId: 'MEM-OWNER',
         ownerEmail: 'school_owner@ilc.com',
-        managers: ['MEM-MANAGER'],
+        managerInstructorIds: ['MEM-MANAGER'],
         managerEmails: ['school_manager@ilc.com'],
       } as School);
 
       // Member 1 (Regular)
       await setupMember(db, {
-        id: 'FirestoreDocID-member1',
+        docId: 'FirestoreDocID-member1',
         memberId: 'MEM-001',
         emails: ['member1@ilc.com'],
-        managingOrgId: 'hq',
+        primarySchoolId: 'hq',
       } as Member);
 
       // Instructor 1 (Public Instructor)
       await setupInstructor(db, {
-        id: 'FirestoreDocID-instructor1',
+        docId: 'FirestoreDocID-instructor1',
         instructorId: 'INST-001',
         memberId: 'MEM-INST1',
         emails: ['instructor1@ilc.com'],
@@ -126,7 +125,7 @@ describe('Firestore Rules', () => {
 
       // Instructor 2
       await setupInstructor(db, {
-        id: 'FirestoreDocID-instructor2',
+        docId: 'FirestoreDocID-instructor2',
         instructorId: 'INST-002',
         memberId: 'MEM-INST2',
         emails: ['instructor2@ilc.com'],
@@ -135,20 +134,20 @@ describe('Firestore Rules', () => {
 
       // Member 2 (Student of Instructor 1, Managed by School 1)
       await setupStudentWithSifu(db, {
-        id: 'FirestoreDocID-student1',
+        docId: 'FirestoreDocID-student1',
         memberId: 'MEM-002',
         emails: ['student1@ilc.com'],
-        sifuInstructorId: 'INST-001',
-        managingOrgId: 'FirestoreDocID-school1',
+        primaryInstructorId: 'INST-001',
+        primarySchoolId: 'FirestoreDocID-school1',
       } as Member);
 
       // Member 3 (Student of Instructor 2)
       await setupStudentWithSifu(db, {
-        id: 'FirestoreDocID-student2',
+        docId: 'FirestoreDocID-student2',
         memberId: 'MEM-003',
         emails: ['student2@ilc.com'],
-        sifuInstructorId: 'INST-002',
-        managingOrgId: 'hq',
+        primaryInstructorId: 'INST-002',
+        primarySchoolId: 'hq',
       } as Member);
     });
   });
@@ -349,7 +348,7 @@ describe('Firestore Rules', () => {
           .doc('new-student')
           .set({
             memberId: 'MEM-NEW',
-            managingOrgId: 'FirestoreDocID-school1',
+            primarySchoolId: 'FirestoreDocID-school1',
             emails: ['new@test.com'],
             lastUpdated: serverTimestamp(),
           }),

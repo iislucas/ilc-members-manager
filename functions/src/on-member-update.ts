@@ -23,7 +23,7 @@ async function updateACL(aclUpdate: {
     logger.error(`updateACL called without member or previous member`);
     return;
   }
-  const memberDocId = member?.id || previous?.id;
+  const memberDocId = member?.docId || previous?.docId;
 
   const emails = member?.emails || [];
   const instructorId = member?.instructorId;
@@ -130,7 +130,7 @@ async function mirrorGradingsForSifuChange(
 
   const gradings = gradingsSnap.docs.map(d => {
     const data = d.data() as Grading;
-    data.id = d.id;
+    data.docId = d.id;
     return data;
   });
 
@@ -138,11 +138,11 @@ async function mirrorGradingsForSifuChange(
     if (previousSifu) {
       const assessors = [grading.gradingInstructorId, ...grading.assistantInstructorIds];
       if (!assessors.includes(previousSifu)) {
-        await removeGradingFromInstructor(grading.id, previousSifu);
+        await removeGradingFromInstructor(grading.docId, previousSifu);
       }
     }
     if (currentSifu) {
-      await mirrorGradingToInstructor(grading.id, grading, currentSifu);
+      await mirrorGradingToInstructor(grading.docId, grading, currentSifu);
     }
   }
 }
@@ -155,7 +155,7 @@ export const onMemberCreated = onDocumentCreated(
       return;
     }
     const member = snap.data() as Member;
-    member.id = snap.id; // Ensure ID is present
+    member.docId = snap.id; // Ensure ID is present
 
     await updateMemberViewForSchoolAndInstrucor(snap.id, member);
     await updateInstructorPublicProfile({ previous: undefined, member });
@@ -172,16 +172,16 @@ export const onMemberUpdated = onDocumentUpdated(
       return;
     }
     const member = snap.after.data() as Member;
-    member.id = snap.after.id;
+    member.docId = snap.after.id;
 
     const previous = snap.before.data() as Member;
-    previous.id = snap.before.id;
+    previous.docId = snap.before.id;
 
     await updateMemberViewForSchoolAndInstrucor(snap.after.id, member, previous);
     await updateInstructorPublicProfile({ previous, member });
 
     // Move grading mirrors if Sifu changed
-    await mirrorGradingsForSifuChange(snap.after.id, previous.sifuInstructorId, member.sifuInstructorId);
+    await mirrorGradingsForSifuChange(snap.after.id, previous.primaryInstructorId, member.primaryInstructorId);
 
     // Only update counters if IDs have changed/added
     if (
@@ -203,7 +203,7 @@ export const onMemberDeleted = onDocumentDeleted(
       return;
     }
     const member = snap.data() as Member;
-    member.id = snap.id;
+    member.docId = snap.id;
 
     await updateMemberViewForSchoolAndInstrucor(snap.id, undefined, member);
     await updateInstructorPublicProfile({ previous: member, member: undefined });

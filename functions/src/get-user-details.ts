@@ -53,7 +53,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
         return {
           ...data,
           lastUpdated: data.lastUpdated.toDate().toISOString(),
-          id: doc.id,
+          docId: doc.id,
         } as Member;
       });
 
@@ -84,8 +84,8 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     ]);
 
     const schoolIds = new Set<string>();
-    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
-    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
+    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
+    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
 
     return {
       userMemberProfiles,

@@ -42,7 +42,7 @@ export class FilteredMembersComponent {
         let filteredSet = this.memberSet().entries();
         if (this.schoolId() !== '') {
           filteredSet = filteredSet.filter(
-            (m) => m.managingOrgId === this.schoolId(),
+            (m) => m.primarySchoolId === this.schoolId(),
           );
         }
         if (this.country() !== '') {
@@ -50,7 +50,7 @@ export class FilteredMembersComponent {
         }
         if (this.instructorId() !== '') {
           filteredSet = filteredSet.filter(
-            (m) => m.sifuInstructorId === this.instructorId(),
+            (m) => m.primaryInstructorId === this.instructorId(),
           );
         }
         this.filteredMemberSet.setEntries(filteredSet);

@@ -172,7 +172,7 @@ export enum GradingStatus {
 
 // Firestore path: /school/{doc-id}
 export type School = {
-  id: string; // Document ID, UNIQUE, firebase managed.
+  docId: string; // Document ID, UNIQUE, firebase managed.
   lastUpdated: string; // ISO string: YYYY-MM-DD; Converted to/from Timestamp on server.
 
   schoolId: string; // ILC HQ issued School Id
@@ -184,11 +184,11 @@ export type School = {
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
 
-  // The `memberId` (human readable) of the owner of this school; can set the managers, and
+  // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
-  owner: string;
-  // The `memberId`s (human readable) of people allowed to manage people within this school.
-  managers: string[];
+  ownerInstructorId: string;
+  // The `instructorId`s (human readable) of people allowed to manage people within this school.
+  managerInstructorIds: string[];
 
   // Redundant email addresses for firestore rules.
   ownerEmail: string;
@@ -199,25 +199,32 @@ export type School = {
   schoolLicenseExpires: string; // YYYY-MM-DD
 };
 
-export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'id'> & {
+export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
 
 export function firestoreDocToSchool(doc: QueryDocumentSnapshot): School {
-  const docData = doc.data() as SchoolFirebaseDoc;
+  const docData = doc.data() as SchoolFirebaseDoc & {
+    owner?: string;
+    managers?: string[];
+  };
   // There's a short time after a write happens where
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
   const lastUpdated = docData.lastUpdated
     ? docData.lastUpdated.toDate().toISOString()
     : new Date().toISOString();
-  return { ...initSchool(), ...docData, lastUpdated, id: doc.id };
+
+  const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
+  const managerInstructorIds = docData.managerInstructorIds || docData.managers || [];
+
+  return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, lastUpdated, docId: doc.id };
 }
 
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   // Note this is needed by SearchableSet.
-  id: string; // Firestore document ID, UNIQUE, auto-generated.
+  docId: string; // Firestore document ID, UNIQUE, auto-generated.
 
   lastUpdated: string; // ISO string: YYYY-MM-DD ; Converted from server Timestamp;
 
@@ -227,9 +234,9 @@ export type Member = {
   memberId: string; // ILC Member Id (human readable): UNIQUE
   // Note: This is NOT the document ID.
 
-  sifuInstructorId: string; // ILC issues Instructor ID of the member's Sifu
+  primaryInstructorId: string; // ILC issues Instructor ID of the member's Sifu
   // SchoolID managing this member. If empty, managed by HQ.
-  managingOrgId: string;
+  primarySchoolId: string;
 
   membershipType: MembershipType;
   firstMembershipStarted: string; // YYYY-MM-DD, or empty if unknown.
@@ -286,26 +293,33 @@ export type Member = {
   notes: string;
 };
 
-export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'id'> & {
+export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
 
 export function firestoreDocToMember(doc: QueryDocumentSnapshot): Member {
-  const docData = doc.data() as MemberFirestoreDoc;
+  const docData = doc.data() as MemberFirestoreDoc & {
+    managingOrgId?: string;
+    sifuInstructorId?: string;
+  };
   // There's a short time after a write happens where
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
   const lastUpdated = docData.lastUpdated
     ? docData.lastUpdated.toDate().toISOString()
     : new Date().toISOString();
-  return { ...initMember(), ...docData, lastUpdated, id: doc.id };
+
+  const primarySchoolId = docData.primarySchoolId || docData.managingOrgId || '';
+  const primaryInstructorId = docData.primaryInstructorId || docData.sifuInstructorId || '';
+
+  return { ...initMember(), ...docData, primarySchoolId, primaryInstructorId, lastUpdated, docId: doc.id };
 }
 
 // Public information about instructors; mirrored from the member data into
 // firestore path /instructors/{instructorId}
 export type InstructorPublicData = {
   // Note this is needed by SearchableSet.
-  id: string; // Firebase document ID. Unique. This is not the same as instructorId.
+  docId: string; // Firebase document ID. Unique. This is not the same as instructorId.
 
   name: string; // Full name
   memberId: string; // ILC Member Id: UNIQUE
@@ -334,13 +348,13 @@ export type InstructorPublicData = {
   tags: string[];
 };
 
-export type InstructorPublicDataFirebaseDoc = Omit<InstructorPublicData, 'id'>;
+export type InstructorPublicDataFirebaseDoc = Omit<InstructorPublicData, 'docId'>;
 
 export function firestoreDocToInstructorPublicData(
   doc: QueryDocumentSnapshot,
 ): InstructorPublicData {
   const docData = doc.data() as InstructorPublicDataFirebaseDoc;
-  return { ...initInstructor(), ...docData, id: doc.id };
+  return { ...initInstructor(), ...docData, docId: doc.id };
 }
 
 // ==================================================================
@@ -354,7 +368,7 @@ export type OrderKind =
   | 'ilc-2005-sheets-db-import';
 
 export type BaseOrder = {
-  id: string; // Firestore ID
+  docId: string; // Firestore ID
   // lastUpdated tracks when the order was created or generated (e.g. datePaid for old sheets, createdOn for Squarespace).
   // It is used for chronological sorting of orders across both old Google Sheets imports and Squarespace webhooks.
   lastUpdated: string; // ISO string
@@ -411,7 +425,6 @@ export interface SquareSpaceLineItem {
 
 export type SquareSpaceOrder = BaseOrder & {
   ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders';
-  id: string;
   orderNumber: string;
   createdOn: string;
   modifiedOn: string;
@@ -435,11 +448,11 @@ export type SquareSpaceOrder = BaseOrder & {
 
 export type Order = SheetsImportOrder | SquareSpaceOrder;
 
-export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'id'> & {
+export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
 
-export type SquarespaceOrderFirebaseDoc = Omit<SquareSpaceOrder, 'lastUpdated' | 'id'> & {
+export type SquarespaceOrderFirebaseDoc = Omit<SquareSpaceOrder, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
 
@@ -452,9 +465,9 @@ export function firestoreDocToOrder(doc: QueryDocumentSnapshot): Order {
     : new Date().toISOString();
 
   if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === 'ilc-2005-sheets-db-import') {
-    return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: 'ilc-2005-sheets-db-import', lastUpdated, id: doc.id } as SheetsImportOrder;
+    return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: 'ilc-2005-sheets-db-import', lastUpdated, docId: doc.id } as SheetsImportOrder;
   }
-  return { ...docData, lastUpdated, id: doc.id } as Order;
+  return { ...docData, lastUpdated, docId: doc.id } as Order;
 }
 
 // ==================================================================
@@ -464,7 +477,7 @@ export function firestoreDocToOrder(doc: QueryDocumentSnapshot): Order {
 export function initMember(): Member {
   return {
     // Firestore auto-generated document ID.
-    id: '',
+    docId: '',
     lastUpdated: new Date().toISOString(), // ISO string...
 
     isAdmin: false,
@@ -490,8 +503,8 @@ export function initMember(): Member {
 
     // Student membership status
     memberId: '',
-    sifuInstructorId: '', // ILC Member Number of the member's Sifu
-    managingOrgId: '', // Default to HQ
+    primaryInstructorId: '', // ILC Member Number of the member's Sifu
+    primarySchoolId: '', // Default to HQ
 
     membershipType: MembershipType.Annual,
     firstMembershipStarted: '', // YYYY-MM-DD, or empty if unknown.
@@ -526,7 +539,7 @@ export function initMember(): Member {
 
 export function initSchool(): School {
   return {
-    id: '',
+    docId: '',
     lastUpdated: new Date().toISOString(), // // ISO string...
 
     schoolId: '',
@@ -537,8 +550,8 @@ export function initSchool(): School {
     schoolCountyOrState: '',
     schoolCountry: '',
     schoolWebsite: '',
-    owner: '',
-    managers: [],
+    ownerInstructorId: '',
+    managerInstructorIds: [],
     ownerEmail: '',
     managerEmails: [],
     schoolLicenseRenewalDate: '',
@@ -548,7 +561,7 @@ export function initSchool(): School {
 
 export function initSheetsImportOrder(): SheetsImportOrder {
   return {
-    id: '',
+    docId: '',
     lastUpdated: new Date().toISOString(),
     ilcAppOrderKind: 'ilc-2005-sheets-db-import',
     orderType: '',
@@ -577,7 +590,7 @@ export function initSheetsImportOrder(): SheetsImportOrder {
 
 // Firestore path: /gradings/{doc-id}
 export type Grading = {
-  id: string; // Firestore document ID, UNIQUE, auto-generated.
+  docId: string; // Firestore document ID, UNIQUE, auto-generated.
   lastUpdated: string; // ISO string: YYYY-MM-DD; Converted from server Timestamp.
 
   gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
@@ -594,7 +607,7 @@ export type Grading = {
   notes: string; // Any notes about the grading.
 };
 
-export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'id'> & {
+export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
 
@@ -603,12 +616,12 @@ export function firestoreDocToGrading(doc: QueryDocumentSnapshot): Grading {
   const lastUpdated = docData.lastUpdated
     ? docData.lastUpdated.toDate().toISOString()
     : new Date().toISOString();
-  return { ...initGrading(), ...docData, lastUpdated, id: doc.id };
+  return { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
 }
 
 export function initGrading(): Grading {
   return {
-    id: '',
+    docId: '',
     lastUpdated: new Date().toISOString(),
     gradingPurchaseDate: '',
     orderId: '',
@@ -627,7 +640,7 @@ export function initGrading(): Grading {
 
 export function initInstructor(): InstructorPublicData {
   return {
-    id: '',
+    docId: '',
     name: '',
     memberId: '',
     instructorWebsite: '',

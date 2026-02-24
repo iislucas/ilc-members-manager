@@ -34,13 +34,13 @@ describe('SchoolListComponent', () => {
     const schools: School[] = [];
     for (let i = 0; i < 60; i++) {
       const s = initSchool();
-      s.id = `school-${i}`;
+      s.docId = `school-${i}`;
       s.schoolName = `School ${i}`;
       schools.push(s);
     }
-    const schoolSet = new SearchableSet<'id', School>(
+    const schoolSet = new SearchableSet<'docId', School>(
       ['schoolName'],
-      'id',
+      'docId',
       schools,
     );
 

@@ -75,6 +75,6 @@ export class OrderList implements OnInit {
   }
 
   viewOrder(order: Order) {
-    this.routingService.navigateTo('order-view/' + order.id);
+    this.routingService.navigateTo('order-view/' + order.docId);
   }
 }

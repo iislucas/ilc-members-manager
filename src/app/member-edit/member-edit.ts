@@ -108,10 +108,10 @@ export class MemberEditComponent {
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(
-      schema.sifuInstructorId,
+      schema.primaryInstructorId,
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
-    disabled(schema.managingOrgId, () => !this.userIsMemberOrAdmin());
+    disabled(schema.primarySchoolId, () => !this.userIsMemberOrAdmin());
     disabled(schema.membershipType, () => !this.userIsSchoolManagerOrAdmin());
     disabled(
       schema.firstMembershipStarted,
@@ -257,7 +257,7 @@ export class MemberEditComponent {
     toName: (c: { id: string; name: string }) => c.name,
   };
   schoolDisplayFns = {
-    toChipId: (s: School) => s.id,
+    toChipId: (s: School) => s.schoolId,
     toName: (s: School) => s.schoolName,
   };
   instructorDisplayFns = {
@@ -299,7 +299,7 @@ export class MemberEditComponent {
     if (!user) return false;
     if (user.isAdmin) return true;
     const member = this.member();
-    return user.schoolsManaged.includes(member.managingOrgId);
+    return user.schoolsManaged.includes(member.primarySchoolId);
   });
   userIsAdmin = computed(() => {
     const user = this.firebaseState.user();
@@ -319,7 +319,7 @@ export class MemberEditComponent {
     return (
       user.isAdmin ||
       emails.includes(user.firebaseUser.email || '') ||
-      user.schoolsManaged.includes(this.member().managingOrgId)
+      user.schoolsManaged.includes(this.member().primarySchoolId)
     );
   });
 
@@ -378,14 +378,14 @@ export class MemberEditComponent {
     this.form.country().markAsDirty();
   }
 
-  updateSifuInstructorId(value: string) {
-    this.form.sifuInstructorId().value.set(value);
-    this.form.sifuInstructorId().markAsDirty();
+  updatePrimaryInstructorId(value: string) {
+    this.form.primaryInstructorId().value.set(value);
+    this.form.primaryInstructorId().markAsDirty();
   }
 
-  updateManagingOrgId(value: string) {
-    this.form.managingOrgId().value.set(value);
-    this.form.managingOrgId().markAsDirty();
+  updatePrimarySchoolId(value: string) {
+    this.form.primarySchoolId().value.set(value);
+    this.form.primarySchoolId().markAsDirty();
   }
 
   gotoStudents() {
@@ -467,7 +467,7 @@ export class MemberEditComponent {
     }
     const currentEmails = (member.emails || []).map((e) => e.toLowerCase());
     return this.allMembers().some((m) => {
-      if (m.id === member.id) return false;
+      if (m.docId === member.docId) return false;
       const otherEmails = (m.emails || []).map((e) => e.toLowerCase());
       return currentEmails.some((e) => otherEmails.includes(e));
     });
@@ -481,7 +481,7 @@ export class MemberEditComponent {
     return this.allMembers().some(
       (m) =>
         m.memberId.toLowerCase() === member.memberId.toLowerCase() &&
-        m.id !== member.id,
+        m.docId !== member.docId,
     );
   });
 
@@ -520,8 +520,8 @@ export class MemberEditComponent {
         ).toString();
       }
 
-      if (member.id) {
-        await this.membersService.updateMember(member.id, member);
+      if (member.docId) {
+        await this.membersService.updateMember(member.docId, member);
       } else {
         await this.membersService.addMember(member);
       }
@@ -550,9 +550,9 @@ export class MemberEditComponent {
     const member = this.editableMember();
     if (confirm(`Are you sure you want to delete ${member.name}?`)) {
       this.asyncError.set(null);
-      if (member.id) {
+      if (member.docId) {
         try {
-          await this.membersService.deleteMember(member.id);
+          await this.membersService.deleteMember(member.docId);
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);

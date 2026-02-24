@@ -6,6 +6,7 @@ import { DataManagerService } from '../data-manager.service';
 import { signal } from '@angular/core';
 import { initGrading } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
+import { RoutingService } from '../routing.service';
 
 describe('GradingEditComponent', () => {
   let component: GradingEditComponent;
@@ -33,6 +34,7 @@ describe('GradingEditComponent', () => {
     await TestBed.configureTestingModule({
       imports: [GradingEditComponent],
       providers: [
+        { provide: RoutingService, useValue: { navigateTo: vi.fn(), matchedPatternId: signal(''), signals: {} } },
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
         { provide: DataManagerService, useValue: mockDataManagerService },
       ],
@@ -40,7 +42,9 @@ describe('GradingEditComponent', () => {
 
     fixture = TestBed.createComponent(GradingEditComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('grading', initGrading());
+    const g = initGrading();
+    g.docId = 'test-grading';
+    fixture.componentRef.setInput('grading', g);
     fixture.detectChanges();
   });
 

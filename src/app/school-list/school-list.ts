@@ -37,7 +37,7 @@ export class SchoolListComponent {
     () => this.targetSchoolSet().search(this.searchTerm()).length,
   );
 
-  duplicateEntries = computed(() => this.targetSchoolSet().duplicateEntries());
+  duplicateEntries = computed(() => this.targetSchoolSet().duplicateEntries().sort((a, b) => a.schoolId.localeCompare(b.schoolId)));
   errorsExist = computed(() => this.duplicateEntries().length > 0);
   showErrors = signal(false);
   loading = computed(() => this.targetSchoolSet().loading());

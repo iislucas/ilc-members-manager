@@ -33,7 +33,7 @@ export async function getMemberByEmail(
       const memberRef = db.collection('members').doc(memberDocId);
       const memberDoc = await memberRef.get();
       if (memberDoc.exists) {
-        return { ...memberDoc.data(), id: memberDoc.id } as Member;
+        return { ...memberDoc.data(), docId: memberDoc.id } as Member;
       }
     }
   }
@@ -48,7 +48,7 @@ export async function getMemberByEmail(
 
   if (!membersSnapshot.empty) {
     const doc = membersSnapshot.docs[0];
-    return { ...doc.data(), id: doc.id } as Member;
+    return { ...doc.data(), docId: doc.id } as Member;
   }
 
   throw new HttpsError('not-found', 'Member not found');

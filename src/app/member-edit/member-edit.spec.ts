@@ -28,7 +28,7 @@ describe('MemberEditComponent', () => {
 
   const mockMember: Member = {
     ...initMember(),
-    id: 'test-id',
+    docId: 'test-id',
     name: 'Test Member',
     emails: ['test@example.com'],
     memberId: 'US001',
@@ -104,7 +104,7 @@ describe('MemberEditComponent', () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
-      mockMember.id,
+      mockMember.docId,
       expect.objectContaining({ name: 'Test Member' }),
     );
   });

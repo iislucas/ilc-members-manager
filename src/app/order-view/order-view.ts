@@ -55,7 +55,7 @@ export class OrderView {
   }
 
   async reprocessOrder() {
-    const id = this.order()?.id;
+    const id = this.order()?.docId;
     if (!id) return;
 
     if (

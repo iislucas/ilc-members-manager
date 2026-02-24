@@ -7,7 +7,7 @@
     (click)="collapsable() && toggleCollapseState($event)"
   >
     <div class="identifier">
-      @if (e.id) {
+      @if (e.docId) {
         <span
           class="status-chip"
           [class.passed]="e.status === GradingStatus.Passed"

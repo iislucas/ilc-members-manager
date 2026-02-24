@@ -11,7 +11,7 @@ import { Member } from '../src/data-model';
  *    For these, it creates a new doc with a Firestore-generated ID, copies the data, and deletes the old doc.
  * 2. Populates `instructors/{instructorMemberDocId}` with public instructor data for ALL members that have an `instructorId`, regardless of license status.
  * 3. Deletes any old `instructors/{instructorId}` documents, as they were keyed incorrectly by the string ID instead of the Firestore member DocID.
- * 4. Finds all members with a sifuInstructorId (students).
+ * 4. Finds all members with a primaryInstructorId (students).
  * 5. Writes the student under the correct path (instructors/{instructorMemberDocId}/members/...)
  * 6. Removes any entries under the old incorrect path (instructors/{instructorId}/members/...)
  * 7. Scans all `instructors/{docId}/members` to remove stray entries where the member is no longer a student of that instructor.
@@ -61,7 +61,7 @@ async function run() {
 
   for (const doc of membersSnap.docs) {
     const data = doc.data() as Member & { _oldId?: string };
-    data.id = doc.id;
+    data.docId = doc.id;
 
     // Check if doc is keyed by memberId
     if (data.memberId && doc.id === data.memberId) {
@@ -70,18 +70,18 @@ async function run() {
       if (!argv['dry-run']) {
         const newDocRef = db.collection('members').doc();
         // Update id to the new generated one
-        data.id = newDocRef.id;
+        data.docId = newDocRef.id;
 
         // Remove internal tracker field before saving data
         const { _oldId, ...saveData } = data;
 
         await newDocRef.set(saveData);
         await doc.ref.delete();
-        console.log(`  ✓ Moved to new docId: ${data.id}`);
+        console.log(`  ✓ Moved to new docId: ${data.docId}`);
       } else {
         console.log(`  ✓ (Dry run) Would move to new auto-generated docId`);
         // For dry run, we simulate the ID change so rest of script functions correctly
-        data.id = 'dry_run_generated_id_' + data.memberId;
+        data.docId = 'dry_run_generated_id_' + data.memberId;
       }
       memberIdDocKeyFixCount++;
     }
@@ -95,7 +95,7 @@ async function run() {
   const instructorIdToDocId = new Map<string, string>();
   for (const member of members) {
     if (member.instructorId) {
-      instructorIdToDocId.set(member.instructorId, member.id);
+      instructorIdToDocId.set(member.instructorId, member.docId);
     }
   }
   console.log(`Found ${instructorIdToDocId.size} members with an instructorId.`);
@@ -107,7 +107,7 @@ async function run() {
     if (!member.instructorId) continue;
 
     // We want all instructors to have a basic public doc regardless of expired license.
-    const correctInstructorDocRef = db.collection('instructors').doc(member.id);
+    const correctInstructorDocRef = db.collection('instructors').doc(member.docId);
     const instructorData = {
       name: member.name,
       memberId: member.memberId,
@@ -124,13 +124,13 @@ async function run() {
       tags: member.tags || [],
     };
 
-    console.log(`  ✓ Instructor "${member.name}" (${member.id}) -> instructors/${member.id} populated.`);
+    console.log(`  ✓ Instructor "${member.name}" (${member.docId}) -> instructors/${member.docId} populated.`);
     if (!argv['dry-run']) {
       await correctInstructorDocRef.set(instructorData);
     }
     instructorDocsFixedCount++;
 
-    if (member.instructorId !== member.id) {
+    if (member.instructorId !== member.docId) {
       const oldInstructorIdRef = db.collection('instructors').doc(member.instructorId);
       const oldInstructorSnap = await oldInstructorIdRef.get();
       if (oldInstructorSnap.exists) {
@@ -142,7 +142,7 @@ async function run() {
       }
     }
 
-    if (member._oldId && member._oldId !== member.id && member._oldId !== member.instructorId) {
+    if (member._oldId && member._oldId !== member.docId && member._oldId !== member.instructorId) {
       const oldIdRef = db.collection('instructors').doc(member._oldId);
       const oldIdSnap = await oldIdRef.get();
       if (oldIdSnap.exists) {
@@ -159,7 +159,7 @@ async function run() {
   const validInstructorDocIds = new Set<string>();
   for (const member of members) {
     if (member.instructorId) {
-      validInstructorDocIds.add(member.id);
+      validInstructorDocIds.add(member.docId);
     }
   }
 
@@ -174,22 +174,22 @@ async function run() {
     }
   }
 
-  // Find students (members with sifuInstructorId set)
-  const studentsWithSifu = members.filter((m) => m.sifuInstructorId);
-  console.log(`Found ${studentsWithSifu.length} members with a sifuInstructorId.`);
+  // Find students (members with primaryInstructorId set)
+  const studentsWithPrimaryInstructor = members.filter((m) => m.primaryInstructorId);
+  console.log(`Found ${studentsWithPrimaryInstructor.length} members with a primaryInstructorId.`);
 
   let fixedCount = 0;
   let skippedCount = 0;
   let removedOldCount = 0;
   let missingInstructorCount = 0;
 
-  for (const student of studentsWithSifu) {
-    const sifuInstructorId = student.sifuInstructorId;
-    const instructorDocId = instructorIdToDocId.get(sifuInstructorId);
+  for (const student of studentsWithPrimaryInstructor) {
+    const primaryInstructorId = student.primaryInstructorId;
+    const instructorDocId = instructorIdToDocId.get(primaryInstructorId);
 
     if (!instructorDocId) {
       console.warn(
-        `  ⚠ Student "${student.name}" (${student.id}) has sifuInstructorId="${sifuInstructorId}" but no member with that instructorId was found. Skipping.`,
+        `  ⚠ Student "${student.name}" (${student.docId}) has primaryInstructorId="${primaryInstructorId}" but no member with that instructorId was found. Skipping.`,
       );
       missingInstructorCount++;
       continue;
@@ -200,11 +200,11 @@ async function run() {
       .collection('instructors')
       .doc(instructorDocId)
       .collection('members')
-      .doc(student.id);
+      .doc(student.docId);
 
     // Write to the correct path
     console.log(
-      `  ✓ "${student.name}" (${student.id}) -> instructors/${instructorDocId}/members/${student.id}`,
+      `  ✓ "${student.name}" (${student.docId}) -> instructors/${instructorDocId}/members/${student.docId}`,
     );
     if (!argv['dry-run']) {
       // Remove internal tracking field before saving
@@ -216,15 +216,15 @@ async function run() {
     // Remove the old incorrect entry if it was stored by instructorId
     const oldInstructorIdRef = db
       .collection('instructors')
-      .doc(sifuInstructorId)
+      .doc(primaryInstructorId)
       .collection('members')
-      .doc(student._oldId || student.id);
+      .doc(student._oldId || student.docId);
 
-    if (sifuInstructorId !== instructorDocId) {
+    if (primaryInstructorId !== instructorDocId) {
       const oldSnap = await oldInstructorIdRef.get();
       if (oldSnap.exists) {
         console.log(
-          `  ✗ Removing old entry at instructors/${sifuInstructorId}/members/${student._oldId || student.id}`,
+          `  ✗ Removing old entry at instructors/${primaryInstructorId}/members/${student._oldId || student.docId}`,
         );
         if (!argv['dry-run']) {
           await oldInstructorIdRef.delete();
@@ -261,7 +261,7 @@ async function run() {
 
   const membersById = new Map<string, Member>();
   for (const m of members) {
-    membersById.set(m.id, m);
+    membersById.set(m.docId, m);
   }
 
   const instructorsSnap = await db.collection('instructors').get();
@@ -278,11 +278,11 @@ async function run() {
       if (!actualStudent) {
         // Student doesn't exist anymore
         shouldDelete = true;
-      } else if (!actualStudent.sifuInstructorId) {
-        // Student has no sifuInstructorId
+      } else if (!actualStudent.primaryInstructorId) {
+        // Student has no primaryInstructorId
         shouldDelete = true;
       } else {
-        const expectedInstructorDocId = instructorIdToDocId.get(actualStudent.sifuInstructorId);
+        const expectedInstructorDocId = instructorIdToDocId.get(actualStudent.primaryInstructorId);
         if (expectedInstructorDocId !== instructorDocId) {
           shouldDelete = true; // Belongs to a different instructor or none if not found
         }

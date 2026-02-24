@@ -31,7 +31,7 @@
     }
 
     @let gradingsList = gradings();
-    @for (grading of gradingsList; track grading.id) {
+    @for (grading of gradingsList; track grading.docId) {
       <app-grading-edit [grading]="grading"></app-grading-edit>
     }
     @if (gradingsList.length < totalGradings()) {

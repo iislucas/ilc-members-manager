@@ -142,7 +142,7 @@ export class ImportOrdersComponent {
   private orderFields = Object.keys(initSheetsImportOrder()) as Array<keyof SheetsImportOrder>;
 
   public fieldsToMap = computed(() => {
-    return this.orderFields.filter(f => f !== 'id' && f !== 'lastUpdated' && f !== 'ilcAppOrderKind');
+    return this.orderFields.filter(f => f !== 'docId' && f !== 'lastUpdated' && f !== 'ilcAppOrderKind');
   });
 
   reset() {
@@ -632,7 +632,7 @@ export class ImportOrdersComponent {
 
     for (const change of orderUpdates) {
       try {
-        await this.dataService.updateOrder(change.oldItem!.id, change.newItem);
+        await this.dataService.updateOrder(change.oldItem!.docId, change.newItem);
       } catch (err) {
         console.error('Failed to update order', change.key, err);
       }
@@ -643,7 +643,7 @@ export class ImportOrdersComponent {
     // 2. Process Side Effects - Members
     for (const update of memberUpdates) {
       try {
-        await this.dataService.updateMember(update.member.id, update.member);
+        await this.dataService.updateMember(update.member.docId, update.member);
       } catch (err) {
         console.error('Failed to update member from order', update.member.memberId, err);
       }

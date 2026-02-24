@@ -106,11 +106,11 @@ async function removeGradingFromSchool(
   await ref.delete();
 }
 
-async function getSifuInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
+async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
   if (!memberDocId) return undefined;
   const snap = await db.collection('members').doc(memberDocId).get();
   if (snap.exists) {
-    return snap.data()?.sifuInstructorId;
+    return snap.data()?.primaryInstructorId;
   }
   return undefined;
 }
@@ -122,11 +122,11 @@ async function mirrorGradingToAllInstructors(
   gradingDocId: string,
   grading: Grading,
 ): Promise<void> {
-  const sifu = await getSifuInstructorId(grading.studentMemberDocId);
+  const primaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
   const instructorIds = new Set([
     grading.gradingInstructorId,
     ...grading.assistantInstructorIds,
-    sifu
+    primaryInstructor
   ].filter((id) => id && id !== '') as string[]);
 
   for (const instructorId of instructorIds) {
@@ -141,11 +141,11 @@ async function removeGradingFromAllInstructors(
   gradingDocId: string,
   grading: Grading,
 ): Promise<void> {
-  const sifu = await getSifuInstructorId(grading.studentMemberDocId);
+  const primaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
   const instructorIds = new Set([
     grading.gradingInstructorId,
     ...grading.assistantInstructorIds,
-    sifu
+    primaryInstructor
   ].filter((id) => id && id !== '') as string[]);
 
   for (const instructorId of instructorIds) {
@@ -164,7 +164,7 @@ export const onGradingCreated = onDocumentCreated(
     if (!snap) return;
 
     const grading = snap.data() as Grading;
-    grading.id = snap.id;
+    grading.docId = snap.id;
     const gradingDocId = snap.id;
 
     // Mirror to all instructors (primary + assistants)
@@ -196,22 +196,22 @@ export const onGradingUpdated = onDocumentUpdated(
     if (!snap) return;
 
     const grading = snap.after.data() as Grading;
-    grading.id = snap.after.id;
+    grading.docId = snap.after.id;
     const previous = snap.before.data() as Grading;
-    previous.id = snap.before.id;
+    previous.docId = snap.before.id;
     const gradingDocId = snap.after.id;
 
     // Determine which instructor IDs changed
-    const previousSifu = await getSifuInstructorId(previous.studentMemberDocId);
-    const currentSifu = await getSifuInstructorId(grading.studentMemberDocId);
+    const previousPrimaryInstructor = await getPrimaryInstructorId(previous.studentMemberDocId);
+    const currentPrimaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
 
     const previousInstructorIds = new Set(
-      [previous.gradingInstructorId, ...previous.assistantInstructorIds, previousSifu].filter(
+      [previous.gradingInstructorId, ...previous.assistantInstructorIds, previousPrimaryInstructor].filter(
         (id) => id && id !== '',
       ) as string[],
     );
     const currentInstructorIds = new Set(
-      [grading.gradingInstructorId, ...grading.assistantInstructorIds, currentSifu].filter(
+      [grading.gradingInstructorId, ...grading.assistantInstructorIds, currentPrimaryInstructor].filter(
         (id) => id && id !== '',
       ) as string[],
     );
@@ -310,7 +310,7 @@ export const onGradingDeleted = onDocumentDeleted(
     if (!snap) return;
 
     const grading = snap.data() as Grading;
-    grading.id = snap.id;
+    grading.docId = snap.id;
     const gradingDocId = snap.id;
 
     // Remove from all instructors

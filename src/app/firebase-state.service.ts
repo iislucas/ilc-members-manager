@@ -193,7 +193,7 @@ export class FirebaseStateService {
     if (!currentUserDetails) return;
 
     const newProfile = currentUserDetails.memberProfiles.find(
-      (p) => p.id === memberDocId,
+      (p) => p.docId === memberDocId,
     );
     if (newProfile) {
       this.user.set({
@@ -214,20 +214,20 @@ export class FirebaseStateService {
     }
 
     const currentUserDetails = this.user();
-    if (!currentUserDetails || !currentUserDetails.member.id) return;
+    if (!currentUserDetails || !currentUserDetails.member.docId) return;
 
-    const memberDocRef = doc(this.db, 'members', currentUserDetails.member.id);
+    const memberDocRef = doc(this.db, 'members', currentUserDetails.member.docId);
     this.unsubscribeFromMember = onSnapshot(
       memberDocRef,
       (doc) => {
         if (!doc.exists()) {
-          console.warn(`FirebaseStateService: Member doc snapshot says NOT EXISTS for ${currentUserDetails.member.id}`);
+          console.warn(`FirebaseStateService: Member doc snapshot says NOT EXISTS for ${currentUserDetails.member.docId}`);
           const status = this.loginStatus();
           if (status === LoginStatus.SignedIn) {
             console.warn('FirebaseStateService: Signing out because doc no longer exists in SignedIn state.');
             this.loginStatus.set(LoginStatus.SignedOut);
             console.warn(
-              `The users membership doc (${currentUserDetails.member.id}) was removed while they were signed in, and they've been signed out.`,
+              `The users membership doc (${currentUserDetails.member.docId}) was removed while they were signed in, and they've been signed out.`,
             );
             this.logout();
           }
@@ -242,7 +242,7 @@ export class FirebaseStateService {
             isAdmin: updatedMember.isAdmin,
             // Update the profile in the list as well
             memberProfiles: updatedDetails.memberProfiles.map((p) =>
-              p.id === updatedMember.id ? updatedMember : p,
+              p.docId === updatedMember.docId ? updatedMember : p,
             ),
           });
         }

@@ -72,7 +72,7 @@ export class SchoolEditComponent {
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<School> = form(this.schoolFormModel, (schema) => {
     required(schema.schoolName, { message: 'School Name is required.' });
-    required(schema.owner, { message: 'School must have an owner.' });
+    required(schema.ownerInstructorId, { message: 'School must have an owner.' });
     required(schema.schoolId, { message: 'School ID is required.' });
 
     disabled(schema.schoolName, () => !this.userIsAdmin());
@@ -95,9 +95,9 @@ export class SchoolEditComponent {
       schema.schoolWebsite,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
-    disabled(schema.owner, () => !this.userIsAdmin());
+    disabled(schema.ownerInstructorId, () => !this.userIsAdmin());
     disabled(
-      schema.managers,
+      schema.managerInstructorIds,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
   });
@@ -131,12 +131,12 @@ export class SchoolEditComponent {
     const school = this.school();
     if (!school) return false;
     return (
-      member.instructorId === school.owner ||
-      school.managers.includes(member.instructorId)
+      member.instructorId === school.ownerInstructorId ||
+      school.managerInstructorIds.includes(member.instructorId)
     );
   });
 
-  isNewSchool = computed(() => !this.school()?.id);
+  isNewSchool = computed(() => !this.school()?.docId);
 
   expectedNextSchoolId = computed(() => {
     const counters = this.membersService.counters();
@@ -162,12 +162,12 @@ export class SchoolEditComponent {
   );
 
   owner = computed(() => {
-    const ownerMemId = this.editableSchool().owner;
+    const ownerMemId = this.editableSchool().ownerInstructorId;
     const owner = this.membersService.instructors.entriesMap().get(ownerMemId);
     return owner || null;
   });
   managers = computed(() => {
-    const managerMemIds = this.editableSchool().managers;
+    const managerMemIds = this.editableSchool().managerInstructorIds;
     return managerMemIds.map(
       (memberDocId) =>
         this.membersService.instructors.entriesMap().get(memberDocId) || null,
@@ -222,31 +222,31 @@ export class SchoolEditComponent {
     const currentManagers = this.managers();
     const newManagers = [...currentManagers];
     newManagers.splice(index, 1);
-    this.form.managers().value.update((managers: string[]) => {
+    this.form.managerInstructorIds().value.update((managers: string[]) => {
       const newManagers = [...managers];
       newManagers.splice(index, 1);
       return newManagers;
     });
-    this.form.managers().markAsDirty();
+    this.form.managerInstructorIds().markAsDirty();
   }
 
   updateManagerId(index: number, memberDocId: string) {
-    this.form.managers().value.update((managers: string[]) => {
+    this.form.managerInstructorIds().value.update((managers: string[]) => {
       const newManagers = [...managers];
       newManagers[index] = memberDocId;
       return newManagers;
     });
-    this.form.managers().markAsDirty();
+    this.form.managerInstructorIds().markAsDirty();
   }
 
   addManager() {
-    this.form.managers().value.update((m) => [...m, '']);
-    this.form.managers().markAsDirty();
+    this.form.managerInstructorIds().value.update((m) => [...m, '']);
+    this.form.managerInstructorIds().markAsDirty();
   }
 
   updateOwner(memberDocId: string) {
-    this.form.owner().value.set(memberDocId);
-    this.form.owner().markAsDirty();
+    this.form.ownerInstructorId().value.set(memberDocId);
+    this.form.ownerInstructorId().markAsDirty();
   }
 
   cancel($event: Event) {
@@ -279,7 +279,7 @@ export class SchoolEditComponent {
     return this.allSchools().some(
       (s) =>
         s.schoolId?.toLowerCase() === school.schoolId?.toLowerCase() &&
-        s.id !== school.id,
+        s.docId !== school.docId,
     );
   });
 
@@ -317,9 +317,9 @@ export class SchoolEditComponent {
         `Are you sure you want to delete ${this.editableSchool().schoolName}?`,
       )
     ) {
-      if (this.editableSchool().id) {
+      if (this.editableSchool().docId) {
         try {
-          await this.membersService.deleteSchool(this.editableSchool().id);
+          await this.membersService.deleteSchool(this.editableSchool().docId);
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);
@@ -340,7 +340,7 @@ export class SchoolEditComponent {
     // TODO: should we do a single asignement for all params, that way we don't
     // miss any? This means a single signal for all path params at once. Path
     // params are not optional. Url Params can keep the same pattern;
-    signals.pathVars.schoolId.set(this.school().id);
+    signals.pathVars.schoolId.set(this.school().schoolId);
   }
 
   asyncError = signal<Error | null>(null);
@@ -361,7 +361,7 @@ export class SchoolEditComponent {
     ) {
       errors.push(schoolNameErrors[0].message ?? 'School Name is invalid.');
     }
-    if (this.form.owner().value().trim() === '') {
+    if (this.form.ownerInstructorId().value().trim() === '') {
       errors.push('School must have an owner.');
     }
     if (

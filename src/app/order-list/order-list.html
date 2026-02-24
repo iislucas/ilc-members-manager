@@ -40,7 +40,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (order of orders(); track order.id) {
+          @for (order of orders(); track order.docId) {
             <tr>
               <td>{{ order.lastUpdated | date: "short" }}</td>
               <td>

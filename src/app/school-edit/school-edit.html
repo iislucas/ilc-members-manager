@@ -122,30 +122,30 @@
                 [searchableSet]="membersService.instructors"
                 [placeholder]="'Search instructor for owner'"
                 [displayFns]="instructorDisplayFns"
-                [initSearchTerm]="form.owner().value()"
+                [initSearchTerm]="form.ownerInstructorId().value()"
                 (textUpdated)="updateOwner($event)"
               ></app-autocomplete>
             } @else {
-              <span class="identifier-chip">{{ s.owner }}</span>
+              <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
             }
-            @if (s.owner === "") {
+            @if (s.ownerInstructorId === "") {
               <div class="error-message">No owner set</div>
             } @else if (
-              membersService.instructors.entriesMap().get(s.owner);
+              membersService.instructors.entriesMap().get(s.ownerInstructorId);
               as ownerData
             ) {
               <div class="note">{{ ownerData.name }}</div>
             } @else {
               <div class="error-message">
                 Invalid Owner (Instructor) ID:
-                <span class="identifier-chip">{{ s.owner }}</span>
+                <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
               </div>
             }
           </div>
 
           <label class="align-top" for="managers">Managers</label>
           <div class="rhs">
-            @for (managerMemberId of s.managers; track $index; let i = $index) {
+            @for (managerMemberId of s.managerInstructorIds; track $index; let i = $index) {
               <div class="member-search-with-details" id="managers">
                 @if (userIsAdmin() || userIsSchoolManager()) {
                   <div class="oneLine">
@@ -154,7 +154,7 @@
                       [searchableSet]="membersService.instructors"
                       [placeholder]="'Search instructor for owner'"
                       [displayFns]="instructorDisplayFns"
-                      [initSearchTerm]="s.managers[i]"
+                      [initSearchTerm]="s.managerInstructorIds[i]"
                       (textUpdated)="updateManagerId(i, $event)"
                     ></app-autocomplete>
                     <button
@@ -166,22 +166,22 @@
                     </button>
                   </div>
                 }
-                @if (s.managers[i] === "") {
+                @if (s.managerInstructorIds[i] === "") {
                   <div class="error-message">No manager set</div>
                 } @else if (
-                  membersService.instructors.entriesMap().get(s.managers[i]);
+                  membersService.instructors.entriesMap().get(s.managerInstructorIds[i]);
                   as managerData
                 ) {
                   <div class="note">
                     @if (!userIsAdmin() && !userIsSchoolManager()) {
-                      <span class="identifier-chip">{{ s.managers[i] }}</span>
+                      <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
                     }
                     {{ managerData.name }}
                   </div>
                 } @else {
                   <div class="error-message">
                     Invalid Owner (Instructor) ID:
-                    <span class="identifier-chip">{{ s.managers[i] }}</span>
+                    <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
                   </div>
                 }
               </div>

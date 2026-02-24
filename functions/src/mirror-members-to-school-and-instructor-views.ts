@@ -9,11 +9,12 @@ export async function updateMemberViewForSchoolAndInstrucor(
   member: Member | undefined,
   previousMember?: Member,
 ) {
-  const schoolDocId = member?.managingOrgId;
-  const previousSchoolDocId = previousMember?.managingOrgId;
+  // TODO: fix this: primarySchoolId is not a DocID, it's a school ID. something is wrong here. 
+  const schoolDocId = member?.primarySchoolId;
+  const previousSchoolDocId = previousMember?.primarySchoolId;
 
-  const sifuInstructorId = member?.sifuInstructorId;
-  const previousSifuInstructorId = previousMember?.sifuInstructorId;
+  const primaryInstructorId = member?.primaryInstructorId;
+  const previousPrimaryInstructorId = previousMember?.primaryInstructorId;
 
   if (previousSchoolDocId && previousSchoolDocId !== schoolDocId) {
     logger.info(`Removing member ${memberDocId} from school ${previousSchoolDocId}`);
@@ -39,13 +40,13 @@ export async function updateMemberViewForSchoolAndInstrucor(
   // The instructors collection is keyed by the instructor's member docId,
   // not the instructorId string.
   if (
-    previousSifuInstructorId &&
-    previousSifuInstructorId !== sifuInstructorId
+    previousPrimaryInstructorId &&
+    previousPrimaryInstructorId !== primaryInstructorId
   ) {
-    const previousInstructorDocId = await findInstructorMemberDocId(previousSifuInstructorId);
+    const previousInstructorDocId = await findInstructorMemberDocId(previousPrimaryInstructorId);
     if (previousInstructorDocId) {
       logger.info(
-        `Removing member ${memberDocId} from instructor doc ${previousInstructorDocId} (instructorId: ${previousSifuInstructorId})`,
+        `Removing member ${memberDocId} from instructor doc ${previousInstructorDocId} (instructorId: ${previousPrimaryInstructorId})`,
       );
       const previousMemberRef = db
         .collection('instructors')
@@ -55,16 +56,16 @@ export async function updateMemberViewForSchoolAndInstrucor(
       await previousMemberRef.delete();
     } else {
       logger.warn(
-        `Could not find instructor member doc for instructorId ${previousSifuInstructorId} to remove student ${memberDocId}`,
+        `Could not find instructor member doc for instructorId ${previousPrimaryInstructorId} to remove student ${memberDocId}`,
       );
     }
   }
 
-  if (sifuInstructorId) {
-    const instructorDocId = await findInstructorMemberDocId(sifuInstructorId);
+  if (primaryInstructorId) {
+    const instructorDocId = await findInstructorMemberDocId(primaryInstructorId);
     if (instructorDocId) {
       logger.info(
-        `Adding member ${memberDocId} under instructor doc ${instructorDocId} (instructorId: ${sifuInstructorId})`,
+        `Adding member ${memberDocId} under instructor doc ${instructorDocId} (instructorId: ${primaryInstructorId})`,
       );
       const memberRef = db
         .collection('instructors')
@@ -74,7 +75,7 @@ export async function updateMemberViewForSchoolAndInstrucor(
       await memberRef.set(member as Member);
     } else {
       logger.warn(
-        `Could not find instructor member doc for instructorId ${sifuInstructorId} to add student ${memberDocId}`,
+        `Could not find instructor member doc for instructorId ${primaryInstructorId} to add student ${memberDocId}`,
       );
     }
   }

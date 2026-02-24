@@ -37,7 +37,7 @@
             Please resolve these duplicate IDs to ensure data integrity.
           </p>
           <div class="member-cards">
-            @for (school of duplicateEntries(); track school.id) {
+            @for (school of duplicateEntries(); track school.docId) {
               <div class="member-card duplicate">
                 <app-school-edit
                   [school]="school"
@@ -62,7 +62,7 @@
         ></app-school-edit>
       </div>
     }
-    @for (school of schools(); track school.id) {
+    @for (school of schools(); track school.docId) {
       <div class="member-card">
         <app-school-edit
           [school]="school"

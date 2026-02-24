@@ -22,17 +22,17 @@
           <div class="profile-switcher">
             <div class="switcher-header">Switch Profile</div>
             <div class="profile-list">
-              @for (profile of user.memberProfiles; track profile.id) {
+              @for (profile of user.memberProfiles; track profile.docId) {
                 <div
                   class="profile-item"
-                  [class.selected]="profile.id === user.member.id"
-                  (click)="firebaseService.selectProfile(profile.id)"
+                  [class.selected]="profile.docId === user.member.docId"
+                  (click)="firebaseService.selectProfile(profile.docId)"
                 >
                   <div class="profile-name">{{ profile.name }}</div>
                   @if (profile.isAdmin) {
                     <span class="admin-badge">Admin</span>
                   }
-                  @if (profile.id === user.member.id) {
+                  @if (profile.docId === user.member.docId) {
                     <app-icon name="check" class="check-icon"></app-icon>
                   }
                 </div>

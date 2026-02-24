@@ -47,7 +47,7 @@ describe('MemberListComponent', () => {
     const members: Member[] = [];
     for (let i = 0; i < 60; i++) {
       const m = initMember();
-      m.id = `member-${i}`;
+      m.docId = `member-${i}`;
       m.memberId = `member-${i}`;
       m.name = `Member ${i}`;
       members.push(m);

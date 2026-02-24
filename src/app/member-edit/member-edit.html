@@ -181,23 +181,23 @@
         </p>
         }
 
-      <label for="sifuInstructorId" class="align-top">Primary Instructor ID</label>
+      <label for="primaryInstructorId" class="align-top">Primary Instructor ID</label>
       <div class="rhs">
         <app-autocomplete name="Primary Instructor" [searchableSet]="membersService.instructors"
           [placeholder]="'Search for an instructor'" [displayFns]="instructorDisplayFns"
-          [initSearchTerm]="form.sifuInstructorId().value()"
-          (textUpdated)="updateSifuInstructorId($event)"></app-autocomplete>
-        @if (e.sifuInstructorId === "") {
+          [initSearchTerm]="form.primaryInstructorId().value()"
+          (textUpdated)="updatePrimaryInstructorId($event)"></app-autocomplete>
+        @if (e.primaryInstructorId === "") {
         <div class="note">No primary instructor set</div>
         } @else if (
-        membersService.instructors.entriesMap().get(e.sifuInstructorId);
+        membersService.instructors.entriesMap().get(e.primaryInstructorId);
         as sifuData
         ) {
         <div class="note">{{ sifuData.name }}</div>
         } @else {
         <div class="error-message">
           invalid instructor ID:
-          <span class="identifier-chip">{{ e.sifuInstructorId }}</span>
+          <span class="identifier-chip">{{ e.primaryInstructorId }}</span>
         </div>
         }
       </div>
@@ -228,12 +228,12 @@
       <label for="inSchoolId" class="align-top">Primary School ID</label>
       <div class="rhs">
         <app-autocomplete [searchableSet]="membersService.schools" [placeholder]="'Search for a school'"
-          [displayFns]="schoolDisplayFns" [initSearchTerm]="form.managingOrgId().value()"
-          (textUpdated)="updateManagingOrgId($event)"></app-autocomplete>
-        @if (e.managingOrgId.trim() === "") {
+          [displayFns]="schoolDisplayFns" [initSearchTerm]="form.primarySchoolId().value()"
+          (textUpdated)="updatePrimarySchoolId($event)"></app-autocomplete>
+        @if (e.primarySchoolId.trim() === "") {
         <div class="note">Primary School is ILC HQ</div>
         } @else if (
-        membersService.schools.entriesMap().get(e.managingOrgId);
+        membersService.schools.entriesMap().get(e.primarySchoolId);
         as schoolData
         ) {
         <div class="note">{{ schoolData.schoolName }}</div>

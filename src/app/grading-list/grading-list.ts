@@ -31,7 +31,7 @@ export class GradingListComponent {
   viewMode = input<'all' | 'instructor' | 'member'>('all');
   instructorTab = input<'examined' | 'students' | 'mine'>('examined');
 
-  gradingSet = input.required<SearchableSet<'id', Grading>>();
+  gradingSet = input.required<SearchableSet<'docId', Grading>>();
 
   private searchTerm = signal('');
   isAddingGrading = signal(false);

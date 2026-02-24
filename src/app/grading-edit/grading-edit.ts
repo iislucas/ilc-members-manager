@@ -226,7 +226,7 @@ export class GradingEditComponent {
       .entries()
       .find((m) => m.memberId === value);
     if (member) {
-      this.form.studentMemberDocId().value.set(member.id);
+      this.form.studentMemberDocId().value.set(member.docId);
       this.form.studentMemberDocId().markAsDirty();
     }
   }
@@ -277,8 +277,8 @@ export class GradingEditComponent {
     this.asyncError.set(null);
     try {
       const grading = this.editableGrading();
-      if (grading.id) {
-        await this.dataService.updateGrading(grading.id, grading);
+      if (grading.docId) {
+        await this.dataService.updateGrading(grading.docId, grading);
       } else {
         await this.dataService.addGrading(grading);
       }
@@ -299,9 +299,9 @@ export class GradingEditComponent {
     const grading = this.editableGrading();
     if (confirm('Are you sure you want to delete this grading?')) {
       this.asyncError.set(null);
-      if (grading.id) {
+      if (grading.docId) {
         try {
-          await this.dataService.deleteGrading(grading.id);
+          await this.dataService.deleteGrading(grading.docId);
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);

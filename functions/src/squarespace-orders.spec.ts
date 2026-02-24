@@ -7,7 +7,7 @@ describe('squarespace-orders', () => {
   describe('parseGradingOrderInfo', () => {
     it('should correctly parse a grading order line item based on a real example', () => {
       const orderData = {
-        id: "699b9753b4562909908cae78",
+        docId: "699b9753b4562909908cae78",
         orderNumber: "14",
         createdOn: "2026-02-22T23:54:59.673Z",
         modifiedOn: "2026-02-22T23:54:59.953Z",
@@ -68,7 +68,7 @@ describe('squarespace-orders', () => {
         currentStudentLevel: 'Student 6',
         currentApplicationLevel: 'Application 3',
         gradingInfo: {
-          id: '',
+          docId: '',
           lastUpdated: expect.any(String),
           gradingPurchaseDate: '2026-02-22',
           orderId: '699b9753b4562909908cae78',
@@ -87,7 +87,7 @@ describe('squarespace-orders', () => {
     });
 
     it('should correctly map various level formats to canonical representation', () => {
-      const orderData = { id: 'o1', customerEmail: 'a@b.com', lastUpdated: '2026-02-22' } as SquareSpaceOrder;
+      const orderData = { docId: 'o1', customerEmail: 'a@b.com', lastUpdated: '2026-02-22' } as SquareSpaceOrder;
 
       const testLevels = [
         { input: 'Student Level 1', expected: 'Student 1' },
@@ -109,7 +109,7 @@ describe('squarespace-orders', () => {
 
     it('should fall back to customerEmail and productName if fields are missing', () => {
       const orderData = {
-        id: '123',
+        docId: '123',
         customerEmail: "test@example.com",
         createdOn: "2024-05-01T12:00:00Z",
         lastUpdated: "2024-05-01T12:00:00Z"
@@ -127,7 +127,7 @@ describe('squarespace-orders', () => {
         currentStudentLevel: '',
         currentApplicationLevel: '',
         gradingInfo: {
-          id: '',
+          docId: '',
           lastUpdated: expect.any(String),
           gradingPurchaseDate: '2024-05-01',
           orderId: '123',

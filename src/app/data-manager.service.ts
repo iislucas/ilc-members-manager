@@ -139,7 +139,7 @@ export class DataManagerService {
     ],
     'memberId',
   );
-  public mySchools = new SearchableSet<'id', School>(
+  public mySchools = new SearchableSet<'schoolId', School>(
     [
       'schoolName',
       'schoolId',
@@ -147,9 +147,9 @@ export class DataManagerService {
       'schoolCountyOrState',
       'schoolCountry',
     ],
-    'id',
+    'schoolId',
   );
-  public schools = new SearchableSet<'id', School>(
+  public schools = new SearchableSet<'schoolId', School>(
     [
       'schoolName',
       'schoolId',
@@ -157,25 +157,25 @@ export class DataManagerService {
       'schoolCountyOrState',
       'schoolCountry',
     ],
-    'id',
+    'schoolId',
   );
-  public orders = new SearchableSet<'id', Order>(
+  public orders = new SearchableSet<'docId', Order>(
     ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId', 'orderNumber', 'customerEmail'],
-    'id',
+    'docId',
   );
   public counters = signal<Counters | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
-  public gradings = new SearchableSet<'id', Grading>(
+  public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
-    'id',
+    'docId',
   );
-  public myGradingsAssessed = new SearchableSet<'id', Grading>(
+  public myGradingsAssessed = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
-    'id',
+    'docId',
   );
-  public myGradings = new SearchableSet<'id', Grading>(
+  public myGradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
-    'id',
+    'docId',
   );
 
   constructor() {
@@ -201,7 +201,7 @@ export class DataManagerService {
         const myInstructorId = user.member.instructorId;
         const mySchoolsList = allSchools.filter(
           (school) =>
-            school.owner === myInstructorId || school.managers.includes(myInstructorId),
+            school.ownerInstructorId === myInstructorId || school.managerInstructorIds.includes(myInstructorId),
         );
         this.mySchools.setEntries(mySchoolsList);
       } else {
@@ -249,7 +249,7 @@ export class DataManagerService {
                 // old school, which, without this check would remove them from
                 // the global set.
                 const mem = allMembers.get(change.doc.id);
-                if (mem?.managingOrgId === schoolId) {
+                if (mem?.primarySchoolId === schoolId) {
                   allMembers.delete(change.doc.id);
                 }
               } else {
@@ -356,7 +356,7 @@ export class DataManagerService {
       const snap = await getDocs(q);
       snap.docs.forEach((docSnap) => {
         const order = firestoreDocToOrder(docSnap as any);
-        results.set(order.id, order);
+        results.set(order.docId, order);
       });
     }
 
@@ -395,7 +395,7 @@ export class DataManagerService {
     // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.
     if (user.member.instructorId) {
       const q = query(
-        collection(this.db, `instructors/${user.member.id}/members`),
+        collection(this.db, `instructors/${user.member.docId}/members`),
         orderBy('name', 'asc'),
       );
       this.snapshotsToUnsubscribe.push(
@@ -485,7 +485,7 @@ export class DataManagerService {
   async updateMyGradingsAssessedSync(user: UserDetails) {
     if (user.member.instructorId) {
       const q = query(
-        collection(this.db, `instructors/${user.member.id}/gradings`),
+        collection(this.db, `instructors/${user.member.docId}/gradings`),
         orderBy('lastUpdated', 'desc'),
       );
       this.snapshotsToUnsubscribe.push(
@@ -512,7 +512,7 @@ export class DataManagerService {
     this.myGradingsUnsubscribes.forEach((unsub) => unsub());
     this.myGradingsUnsubscribes = [];
 
-    if (user.member.id && user.member.gradingDocIds && user.member.gradingDocIds.length > 0) {
+    if (user.member.docId && user.member.gradingDocIds && user.member.gradingDocIds.length > 0) {
       const gradingDocIds = user.member.gradingDocIds;
       const chunkSize = 10;
       const gradingsMap = new Map<string, Grading>();
@@ -579,8 +579,8 @@ export class DataManagerService {
     };
 
     let docRef: DocumentReference;
-    if (school.id) {
-      docRef = doc(this.db, 'schools', school.id);
+    if (school.docId) {
+      docRef = doc(this.db, 'schools', school.docId);
     } else {
       docRef = doc(collection(this.db, 'schools'));
     }
@@ -731,8 +731,8 @@ export class DataManagerService {
       for (const key of schoolFields) {
         (school as any)[key] = s[key];
       }
-      if (s.managers) {
-        (school as any).managers = s.managers.join(',');
+      if (s.managerInstructorIds) {
+        (school as any).managerInstructorIds = s.managerInstructorIds.join(',');
       }
       return school;
     });
