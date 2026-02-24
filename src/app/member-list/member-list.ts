@@ -50,14 +50,40 @@ export class MemberListComponent {
     () => this.memberSet().search(this.searchTerm()).length,
   );
 
-  duplicateEntries = computed(() => this.memberSet().duplicateEntries());
-  errorsExist = computed(() => this.duplicateEntries().length > 0);
+  duplicateMemberIdEntries = computed(() => {
+    const dups = this.memberSet().duplicateEntries();
+    // optionally ignore empty memberIds but let's just use what SearchableSet does
+    return dups;
+  });
+  errorsExist = computed(() => this.duplicateMemberIdEntries().length > 0);
   showErrors = signal(false);
+
+  duplicateInstructorIdEntries = computed(() => {
+    const entries = this.memberSet().entries();
+    const seen = new Set<string>();
+    const dups = new Set<string>();
+    for (const entry of entries) {
+      const id = entry.instructorId;
+      if (!id) continue;
+      if (seen.has(id)) {
+        dups.add(id);
+      }
+      seen.add(id);
+    }
+    return entries.filter((e) => e.instructorId && dups.has(e.instructorId));
+  });
+  instructorErrorsExist = computed(() => this.duplicateInstructorIdEntries().length > 0);
+  showInstructorErrors = signal(false);
+
   loading = computed(() => this.memberSet().loading());
   error = computed(() => this.memberSet().error());
 
   toggleErrors() {
     this.showErrors.set(!this.showErrors());
+  }
+
+  toggleInstructorErrors() {
+    this.showInstructorErrors.set(!this.showInstructorErrors());
   }
 
   showAll() {

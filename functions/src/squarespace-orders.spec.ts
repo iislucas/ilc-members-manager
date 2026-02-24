@@ -1,18 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { parseGradingOrderInfo, SquareSpaceOrder, SquareSpaceLineItem } from './squarespace-orders';
+
+import { parseGradingOrderInfo } from './squarespace-orders';
+import { SquareSpaceOrder, SquareSpaceLineItem } from './data-model';
 
 describe('squarespace-orders', () => {
   describe('parseGradingOrderInfo', () => {
     it('should correctly parse a grading order line item based on a real example', () => {
-      const orderData: SquareSpaceOrder = {
+      const orderData = {
         id: "699b9753b4562909908cae78",
         orderNumber: "14",
         createdOn: "2026-02-22T23:54:59.673Z",
         modifiedOn: "2026-02-22T23:54:59.953Z",
         customerEmail: "lucas.dixon@iliqchuan.com",
-      };
+        lastUpdated: "2026-02-22T23:54:59.953Z",
+      } as SquareSpaceOrder;
 
-      const gradingItem: SquareSpaceLineItem = {
+      const gradingItem = {
         id: "699b970af7cf551e039ed675",
         productId: "68abe24c78e7345c36e3d386",
         productName: "GRADING : Student Levels",
@@ -56,7 +59,7 @@ describe('squarespace-orders', () => {
             value: "1"
           }
         ],
-      };
+      } as SquareSpaceLineItem;
 
       const parsed = parseGradingOrderInfo(orderData, gradingItem);
 
@@ -84,7 +87,7 @@ describe('squarespace-orders', () => {
     });
 
     it('should correctly map various level formats to canonical representation', () => {
-      const orderData: SquareSpaceOrder = { id: 'o1', customerEmail: 'a@b.com' };
+      const orderData = { id: 'o1', customerEmail: 'a@b.com', lastUpdated: '2026-02-22' } as SquareSpaceOrder;
 
       const testLevels = [
         { input: 'Student Level 1', expected: 'Student 1' },
@@ -96,25 +99,26 @@ describe('squarespace-orders', () => {
       ];
 
       for (const { input, expected } of testLevels) {
-        const item: SquareSpaceLineItem = {
+        const item = {
           variantOptions: [{ optionName: 'Level', value: input }]
-        };
+        } as SquareSpaceLineItem;
         const parsed = parseGradingOrderInfo(orderData, item);
         expect(parsed.gradingInfo.level).toBe(expected);
       }
     });
 
     it('should fall back to customerEmail and productName if fields are missing', () => {
-      const orderData: SquareSpaceOrder = {
+      const orderData = {
         id: '123',
         customerEmail: "test@example.com",
-        createdOn: "2024-05-01T12:00:00Z"
-      };
+        createdOn: "2024-05-01T12:00:00Z",
+        lastUpdated: "2024-05-01T12:00:00Z"
+      } as SquareSpaceOrder;
 
-      const gradingItem: SquareSpaceLineItem = {
+      const gradingItem = {
         productName: "Generic Grading",
         customizations: []
-      };
+      } as unknown as SquareSpaceLineItem;
 
       const parsed = parseGradingOrderInfo(orderData, gradingItem);
 
