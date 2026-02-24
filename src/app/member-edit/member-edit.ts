@@ -257,7 +257,7 @@ export class MemberEditComponent {
     toName: (c: { id: string; name: string }) => c.name,
   };
   schoolDisplayFns = {
-    toChipId: (s: School) => s.schoolId,
+    toChipId: (s: School) => s.id,
     toName: (s: School) => s.schoolName,
   };
   instructorDisplayFns = {

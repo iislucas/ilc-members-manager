@@ -84,8 +84,8 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     ]);
 
     const schoolIds = new Set<string>();
-    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
-    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
+    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
+    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
 
     return {
       userMemberProfiles,

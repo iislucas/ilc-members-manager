@@ -139,7 +139,7 @@ export class DataManagerService {
     ],
     'memberId',
   );
-  public mySchools = new SearchableSet<'schoolId', School>(
+  public mySchools = new SearchableSet<'id', School>(
     [
       'schoolName',
       'schoolId',
@@ -147,9 +147,9 @@ export class DataManagerService {
       'schoolCountyOrState',
       'schoolCountry',
     ],
-    'schoolId',
+    'id',
   );
-  public schools = new SearchableSet<'schoolId', School>(
+  public schools = new SearchableSet<'id', School>(
     [
       'schoolName',
       'schoolId',
@@ -157,7 +157,7 @@ export class DataManagerService {
       'schoolCountyOrState',
       'schoolCountry',
     ],
-    'schoolId',
+    'id',
   );
   public orders = new SearchableSet<'id', Order>(
     ['referenceNumber', 'lastName', 'firstName', 'email', 'externalId', 'orderNumber', 'customerEmail'],
@@ -578,13 +578,14 @@ export class DataManagerService {
       lastUpdated: serverTimestamp() as Timestamp,
     };
 
-    return setDoc(
-      doc(this.db, 'schools', school.schoolId),
-      schoolWithNewTimestamp,
-      {
-        merge: true,
-      },
-    );
+    let docRef: DocumentReference;
+    if (school.id) {
+      docRef = doc(this.db, 'schools', school.id);
+    } else {
+      docRef = doc(collection(this.db, 'schools'));
+    }
+
+    return setDoc(docRef, schoolWithNewTimestamp, { merge: true });
   }
 
   async deleteSchool(id: string): Promise<void> {

@@ -9,27 +9,27 @@ export async function updateMemberViewForSchoolAndInstrucor(
   member: Member | undefined,
   previousMember?: Member,
 ) {
-  const schoolId = member?.managingOrgId;
-  const previousSchoolId = previousMember?.managingOrgId;
+  const schoolDocId = member?.managingOrgId;
+  const previousSchoolDocId = previousMember?.managingOrgId;
 
   const sifuInstructorId = member?.sifuInstructorId;
   const previousSifuInstructorId = previousMember?.sifuInstructorId;
 
-  if (previousSchoolId && previousSchoolId !== schoolId) {
-    logger.info(`Removing member ${memberDocId} from school ${previousSchoolId}`);
+  if (previousSchoolDocId && previousSchoolDocId !== schoolDocId) {
+    logger.info(`Removing member ${memberDocId} from school ${previousSchoolDocId}`);
     const previousMemberRef = db
       .collection('schools')
-      .doc(previousSchoolId)
+      .doc(previousSchoolDocId)
       .collection('members')
       .doc(memberDocId);
     await previousMemberRef.delete();
   }
 
-  if (schoolId) {
-    logger.info(`Updating member ${memberDocId} in school ${schoolId}`);
+  if (schoolDocId) {
+    logger.info(`Updating member ${memberDocId} in school ${schoolDocId}`);
     const memberRef = db
       .collection('schools')
-      .doc(schoolId)
+      .doc(schoolDocId)
       .collection('members')
       .doc(memberDocId);
     await memberRef.set(member as Member);

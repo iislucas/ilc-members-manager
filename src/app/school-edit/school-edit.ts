@@ -340,7 +340,7 @@ export class SchoolEditComponent {
     // TODO: should we do a single asignement for all params, that way we don't
     // miss any? This means a single signal for all path params at once. Path
     // params are not optional. Url Params can keep the same pattern;
-    signals.pathVars.schoolId.set(this.school().schoolId);
+    signals.pathVars.schoolId.set(this.school().id);
   }
 
   asyncError = signal<Error | null>(null);
