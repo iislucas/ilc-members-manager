@@ -347,6 +347,8 @@ export function firestoreDocToInstructorPublicData(
 // # Orders
 // ==================================================================
 
+export type OrderStatus = 'processed' | 'error';
+
 export type OrderKind =
   | 'https://api.squarespace.com/1.0/commerce/orders'
   | 'ilc-2005-sheets-db-import';
@@ -357,6 +359,8 @@ export type BaseOrder = {
   // It is used for chronological sorting of orders across both old Google Sheets imports and Squarespace webhooks.
   lastUpdated: string; // ISO string
   ilcAppOrderKind?: OrderKind;
+  ilcAppOrderStatus?: OrderStatus;
+  ilcAppOrderIssues?: string[];
 };
 
 // Firestore path: /orders/{doc-id}
@@ -381,23 +385,61 @@ export type SheetsImportOrder = BaseOrder & {
   notes: string; // From CSV
 };
 
-export type SquarespaceOrder = BaseOrder & {
+export interface SquareSpaceCustomization {
+  label?: string;
+  value?: string;
+}
+
+export interface SquareSpaceVariantOption {
+  optionName?: string;
+  value?: string;
+}
+
+export interface SquareSpaceLineItem {
+  id: string;
+  sku: string;
+  productId?: string;
+  productName?: string;
+  variantOptions?: SquareSpaceVariantOption[];
+  customizations?: SquareSpaceCustomization[];
+  quantity: string;
+  unitPricePaid: { value: string; }
+  // ILC App processing fields added to SquarespaceLineItem.
+  ilcAppProcessingStatus?: 'processed' | 'error';
+  ilcAppProcessingIssue?: string;
+}
+
+export type SquareSpaceOrder = BaseOrder & {
   ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders';
+  id: string;
   orderNumber: string;
   createdOn: string;
   modifiedOn: string;
   customerEmail: string;
-  lineItems: any[];
-  [key: string]: any; // Allows arbitrary squarespace order details
-};
+  billingAddress?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  // This is the squarespace fullfillment status.
+  fulfillmentStatus: 'FULFILLED' | 'PENDING' | 'CANCELED';
+  lineItems?: SquareSpaceLineItem[];
+}
 
-export type Order = SheetsImportOrder | SquarespaceOrder;
+export type Order = SheetsImportOrder | SquareSpaceOrder;
 
 export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'id'> & {
   lastUpdated: Timestamp;
 };
 
-export type SquarespaceOrderFirebaseDoc = Omit<SquarespaceOrder, 'lastUpdated' | 'id'> & {
+export type SquarespaceOrderFirebaseDoc = Omit<SquareSpaceOrder, 'lastUpdated' | 'id'> & {
   lastUpdated: Timestamp;
 };
 

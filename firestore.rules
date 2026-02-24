@@ -40,9 +40,9 @@ service cloud.firestore {
       allow write: if isValidEdit() && (isAdmin() || isManagerOfMemberSchool());
       allow update: if isValidEdit() && isOwner() && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-          ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 
-           'publicEmail', 'publicPhone', 'address', 'zipCode', 'country', 'phone', 
-           'emails', 'gender', 'dateOfBirth', 'sifuInstructorId']);
+          ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicCountyOrState',
+           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
+           'emails', 'gender', 'dateOfBirth', 'sifuInstructorId', 'managingOrgId']);
     }
 
     match /schools/{schoolId} {

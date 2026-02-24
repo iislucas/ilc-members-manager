@@ -5,7 +5,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { Member, Grading, GradingStatus, initGrading, initMember } from './data-model';
+import { Member, Grading, GradingStatus, initGrading, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization, OrderStatus, Order } from './data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from './level-utils';
 import { assertAdmin, allowedOrigins } from './common';
 
@@ -193,9 +193,12 @@ export const manualSquarespaceSync = onCall(
  * This is where domain-specific downstream logic belongs.
  */
 export const processSquarespaceOrder = onDocumentWritten(
-  'orders/{orderId}',
+  {
+    document: 'orders/{orderId}',
+    secrets: [squarespaceApiKey],
+  },
   async (event) => {
-    const orderData = event.data?.after.data();
+    const orderData = event.data?.after.data() as SquareSpaceOrder;
 
     // If the document was deleted, do nothing
     if (!orderData) {
@@ -228,79 +231,127 @@ export const reprocessOrder = onCall(
       throw new HttpsError('not-found', 'Order not found');
     }
 
-    await executeOrderDownstreamLogic(docSnap.data() as any, docId, db);
+    await executeOrderDownstreamLogic(docSnap.data() as SquareSpaceOrder, docId, db);
     return { success: true };
   }
 );
 
-async function executeOrderDownstreamLogic(orderData: any, docId: string, db: admin.firestore.Firestore) {
-    // We pass both docId and the original Squarespace orderId
+async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore) {
+  // We pass both docId and the original Squarespace orderId
   const orderId = orderData.id || orderData.orderNumber || docId;
 
-    logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
+  // If the order has already been processed, do nothing
+  if (orderData.ilcAppOrderStatus) {
+    logger.info(`Order ${orderId} has already been processed. Skipping.`);
+    return;
+  }
 
-    interface LineItem {
-      productName?: string;
-      title?: string;
+  logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
+
+  const lineItems: SquareSpaceLineItem[] = orderData.lineItems || [];
+  let orderStatus: OrderStatus = 'processed';
+  const ilcAppOrderIssues: string[] = [];
+
+  let allItemsFulfilled = true;
+
+  for (const lineItem of lineItems) {
+    if (lineItem.ilcAppProcessingStatus === 'processed') {
+      continue;
     }
+    if (lineItem.sku === 'VID-LIBRARY') {
+      const issue = await processVideoLibraryAccess(orderData, orderId, lineItem, db);
+      if (issue) {
+        ilcAppOrderIssues.push(issue);
+        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingIssue = issue;
+        orderStatus = 'error';
+        allItemsFulfilled = false;
+      } else {
+        lineItem.ilcAppProcessingStatus = 'processed';
+      }
+    } else if (lineItem.sku?.startsWith('GRA-')) {
+      const issue = await processGradingOrder(orderData, orderId, lineItem, db);
+      if (issue) {
+        ilcAppOrderIssues.push(issue);
+        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingIssue = issue;
+        orderStatus = 'error';
+        allItemsFulfilled = false;
+      } else {
+        lineItem.ilcAppProcessingStatus = 'processed';
+      }
+    } else {
+      // --- Placeholders for Future Logics ---
+      // Handle specific logic for membership renewals
+      // if (someConditionForRenewals) { await processMembershipRenewal(orderData, db); }
 
-    const lineItems: LineItem[] = orderData.lineItems || [];
-
-    // Handle the specific logic for "Online Class Video Library" accesses
-    const hasVideoLibrary = lineItems.some((item) => {
-      const title = item.productName || item.title || '';
-      return title.toLowerCase().includes('online class video library');
-    });
-
-    if (hasVideoLibrary) {
-      await processVideoLibraryAccess(orderData, orderId, db);
+      // Handle specific logic for instructor licenses
+      // if (someConditionForLicenses) { await processInstructorLicense(orderData, db); }
+      allItemsFulfilled = false;
     }
+  }
 
-    // --- Placeholders for Future Logics ---
-    // Handle specific logic for membership renewals
-    // if (someConditionForRenewals) { await processMembershipRenewal(orderData, db); }
-
-    // Handle specific logic for instructor licenses
-    // if (someConditionForLicenses) { await processInstructorLicense(orderData, db); }
-
-    // Handle gradings creation etc.
-    const gradingItems = lineItems.filter((item) => {
-      const title = item.productName || item.title || '';
-      return title.toLowerCase().includes('grading');
-    });
-
-    for (const gradingItem of gradingItems) {
-      await processGradingOrder(orderData, orderId, gradingItem, db);
+  if (allItemsFulfilled) {
+    try {
+      const apiKey = squarespaceApiKey.value();
+      const url = `https://api.squarespace.com/1.0/commerce/orders/${orderId}/fulfillments`;
+      await axios.post(url, {
+        shouldSendNotification: false // Typically don't need shipment notification for digital fulfillment
+      }, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'ILC-Members-Manager/1.0',
+        }
+      });
+      logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
+    } catch (error) {
+      orderStatus = 'error';
+      ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
+      logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
+      if (axios.isAxiosError(error) && error.response) {
+        logger.error('Squarespace API responded with:', error.response.data);
+      }
     }
+  }
+
+  const updateData: Partial<SquareSpaceOrder | { lastUpdated: admin.firestore.FieldValue }> = {
+    lineItems,
+    ilcAppOrderStatus: orderStatus,
+    ilcAppOrderIssues: ilcAppOrderIssues,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  };
+  await db.collection('orders').doc(docId).update(updateData);
 }
 
 /**
  * Helper function to grant classVideoLibrarySubscription to members
  * based on order custom forms or user email.
+ * 
+ * Returns error string or null if no error.
  */
-async function processVideoLibraryAccess(orderData: any, orderId: string, db: admin.firestore.Firestore) {
-  const email = orderData.customerEmail;
+async function processVideoLibraryAccess(orderData: SquareSpaceOrder, orderId: string,
+  videoItem: SquareSpaceLineItem, db: admin.firestore.Firestore
+): Promise<string | null> {
+  let email = orderData.customerEmail;
   let providedMemberId = '';
+  let providedEmail = '';
 
-  interface CustomFormField {
-    label?: string;
-    value?: string;
-  }
+  const customizations: SquareSpaceCustomization[] = videoItem.customizations || [];
+  for (const field of customizations) {
+    if (!field.label || !field.value) continue;
+    const labelLower = field.label.toLowerCase();
 
-  interface CustomForm {
-    fields?: CustomFormField[];
-  }
-
-  if (orderData.customForms && Array.isArray(orderData.customForms)) {
-    for (const form of orderData.customForms as CustomForm[]) {
-      const memberIdField = form.fields?.find((f) =>
-        f.label && typeof f.label === 'string' && f.label.toLowerCase().includes('member id')
-      );
-      if (memberIdField && memberIdField.value) {
-        providedMemberId = memberIdField.value.trim();
-        break;
-      }
+    if (labelLower.includes('email')) {
+      providedEmail = field.value.trim();
+    } else if (labelLower.includes('member id')) {
+      providedMemberId = field.value.trim();
     }
+  }
+
+  // Use provided email from form if available
+  if (providedEmail) {
+    email = providedEmail;
   }
 
   let memberDocRef: admin.firestore.DocumentReference | null = null;
@@ -321,70 +372,26 @@ async function processVideoLibraryAccess(orderData: any, orderId: string, db: ad
     }
   }
 
-  // Fallback to searching by email if Member ID was not provided or not found
-  if (!memberDocRef && email) {
-    logger.info(`[Video Library] Looking for member with email: ${email} for order ${orderId}`);
-    const emailQuery = await db.collection('members')
-      .where('emails', 'array-contains', email.toLowerCase())
-      .limit(1)
-      .get();
-    if (!emailQuery.empty) {
-      memberDocRef = emailQuery.docs[0].ref;
-      memberData = emailQuery.docs[0].data() as Partial<Member>;
-    } else {
-      const publicEmailQuery = await db.collection('members')
-        .where('publicEmail', '==', email)
-        .limit(1)
-        .get();
-      if (!publicEmailQuery.empty) {
-        memberDocRef = publicEmailQuery.docs[0].ref;
-        memberData = publicEmailQuery.docs[0].data() as Partial<Member>;
-      }
-    }
-  }
-
   if (!memberDocRef) {
-    logger.error(`[Video Library] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to grant video library access.`);
-    return;
+    const issue = `[Video Library] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to grant video library access.`;
+    logger.warn(issue);
+    return issue;
   }
 
   // Ensure idempotency for Video Library Access
   if (memberData && memberData.classVideoLibrarySubscription === true) {
-    logger.info(`[Video Library] Member ${memberDocRef.id} already has video library subscription. No action needed.`);
-    return;
+    const issue = `[Video Library] Member ${memberDocRef.id} already has video library subscription. No action needed.`;
+    logger.warn(issue);
+    return issue;
   }
 
   logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}.`);
   await memberDocRef.update({
     classVideoLibrarySubscription: true,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
-}
 
-export interface SquareSpaceCustomization {
-  label?: string;
-  value?: string;
-}
-
-export interface SquareSpaceVariantOption {
-  optionName?: string;
-  value?: string;
-}
-
-export interface SquareSpaceLineItem {
-  id?: string;
-  productId?: string;
-  productName?: string;
-  variantOptions?: SquareSpaceVariantOption[];
-  customizations?: SquareSpaceCustomization[];
-}
-
-export interface SquareSpaceOrder {
-  id?: string;
-  orderNumber?: string;
-  createdOn?: string;
-  modifiedOn?: string;
-  customerEmail?: string;
-  lineItems?: SquareSpaceLineItem[];
+  return null;
 }
 
 export function parseGradingOrderInfo(
@@ -459,8 +466,13 @@ export function parseGradingOrderInfo(
 
 /**
  * Helper function to create Grading documents when a grading is purchased
+ * 
+ * Returns error string, or null if successful.
  */
-export async function processGradingOrder(orderData: any, orderId: string, gradingItem: any, db: admin.firestore.Firestore) {
+export async function processGradingOrder(
+  orderData: SquareSpaceOrder, orderId: string, gradingItem: SquareSpaceLineItem,
+  db: admin.firestore.Firestore
+): Promise<string | null> {
   const { email, currentStudentLevel, currentApplicationLevel, gradingInfo } = parseGradingOrderInfo(orderData, gradingItem);
   const level = gradingInfo.level || '';
 
@@ -472,8 +484,9 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
     .get();
 
   if (!existingGradingsQuery.empty) {
-    logger.info(`[Grading] Grading for order ${orderId} and level ${level} already exists. Skipping.`);
-    return;
+    const issue = `[Grading] Grading for order ${orderId} and level ${level} already exists. Skipping.`;
+    logger.warn(issue);
+    return issue;
   }
 
   let memberDocRef: admin.firestore.DocumentReference | null = null;
@@ -491,41 +504,25 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
       memberDocRef = memberIdQuery.docs[0].ref;
       memberData = memberIdQuery.docs[0].data() as Partial<Member>;
     } else {
-      logger.warn(`[Grading] Member ID ${providedMemberId} not found in database. Falling back to email.`);
-    }
-  }
-
-  // Fallback to searching by email if Member ID was not provided or not found
-  if (!memberDocRef && email) {
-    logger.info(`[Grading] Looking for member with email: ${email} for order ${orderId}`);
-    const emailQuery = await db.collection('members')
-      .where('emails', 'array-contains', email.toLowerCase())
-      .limit(1)
-      .get();
-    if (!emailQuery.empty) {
-      memberDocRef = emailQuery.docs[0].ref;
-      memberData = emailQuery.docs[0].data() as Member;
-    } else {
-      const publicEmailQuery = await db.collection('members')
-        .where('publicEmail', '==', email)
-        .limit(1)
-        .get();
-      if (!publicEmailQuery.empty) {
-        memberDocRef = publicEmailQuery.docs[0].ref;
-        memberData = publicEmailQuery.docs[0].data() as Member;
-      }
+      const issue = `[Grading] Member ID ${providedMemberId} not found in database.`;
+      logger.warn(issue);
+      return issue;
     }
   }
 
   if (!memberDocRef) {
-    logger.warn(`[Grading] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.`);
-    memberData = initMember();
-    memberData.emails = [email.toLowerCase()];
-    memberData.publicEmail = email;
-    memberData.memberId = providedMemberId;
+    const issue = `[Grading] Could not find a member document for order ${orderId} `
+      + `(Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.` +
+      ` Please create and associate a grading with a member manually.`
+    logger.warn(issue);
+    return issue;
   }
 
-  let status = GradingStatus.Pending;
+  const newGrading: Grading = {
+    ...gradingInfo,
+    status: GradingStatus.Pending,
+    studentMemberDocId: memberDocRef.id,
+  };
 
   if (memberData) {
     const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
@@ -543,16 +540,10 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
     const applicationLevelMatches = !currentApplicationLevel || (memberApplicationLevel === currentApplicationLevel);
 
     if (!emailMatches || !studentLevelMatches || !applicationLevelMatches) {
-      status = GradingStatus.RequiresReview;
-      logger.info(`[Grading] Order ${orderId} required review due to mismatch: emailMatches=${emailMatches}, studentLevelMatches=${studentLevelMatches}, applicationLevelMatches=${applicationLevelMatches}`);
+      newGrading.status = GradingStatus.RequiresReview;
+      logger.warn(`[Grading] Order ${orderId} required review due to mismatch: emailMatches=${emailMatches}, studentLevelMatches=${studentLevelMatches}, applicationLevelMatches=${applicationLevelMatches}`);
     }
   }
-
-  const newGrading: Grading = {
-    ...gradingInfo,
-    status,
-    studentMemberDocId: memberDocRef ? memberDocRef.id : '',
-  };
 
   const gradingRef = db.collection('gradings').doc();
   newGrading.id = gradingRef.id;
@@ -570,4 +561,6 @@ export async function processGradingOrder(orderData: any, orderId: string, gradi
       gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingRef.id)
     });
   }
+
+  return null;
 }

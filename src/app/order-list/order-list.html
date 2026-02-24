@@ -33,9 +33,9 @@
           <tr>
             <th>Date</th>
             <th>Reference / Order #</th>
-            <th>Name</th>
-            <th>Email</th>
+            <th>Name / Email</th>
             <th>Kind</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -58,20 +58,11 @@
                   order.ilcAppOrderKind ===
                   "https://api.squarespace.com/1.0/commerce/orders"
                 ) {
-                  <!-- Squarespace name usually is in some other fields, let's just show email for SS if name not easily avail -->
-                  {{ order.customerEmail }}
+                  <div>{{ order.billingAddress?.firstName }} {{ order.billingAddress?.lastName }}</div>
+                  <div class="small-text">{{ order.customerEmail }}</div>
                 } @else {
-                  {{ order.firstName }} {{ order.lastName }}
-                }
-              </td>
-              <td>
-                @if (
-                  order.ilcAppOrderKind ===
-                  "https://api.squarespace.com/1.0/commerce/orders"
-                ) {
-                  {{ order.customerEmail }}
-                } @else {
-                  {{ order.email }}
+                  <div>{{ order.firstName }} {{ order.lastName }}</div>
+                  <div class="small-text">{{ order['email'] }}</div>
                 }
               </td>
               <td>
@@ -86,6 +77,18 @@
                       : "Sheets"
                   }}
                 </span>
+              </td>
+              <td>
+                @if (
+                  order.ilcAppOrderKind ===
+                  "https://api.squarespace.com/1.0/commerce/orders"
+                ) {
+                  <span class="status-badge" [class.fulfilled]="order['fulfillmentStatus'] === 'FULFILLED'">
+                    {{ order['fulfillmentStatus'] || 'PENDING' }}
+                  </span>
+                } @else {
+                  <span class="status-badge fulfilled">FULFILLED</span>
+                }
               </td>
               <td>
                 <button

@@ -10,7 +10,6 @@ import {
   StudentLevel,
   InstructorLicenseType,
   MasterLevel,
-  Order,
   SheetsImportOrder,
   initSheetsImportOrder,
   School
@@ -60,7 +59,7 @@ export class ImportOrdersComponent {
 
   // Analysis / Preview
   public proposedChanges = signal<{
-    orders: ImportDelta<Order>;
+    orders: ImportDelta<SheetsImportOrder>;
     memberUpdates: Map<string, { member: Member, oldMember: Member, diffs: { field: string; oldVal: string; newVal: string }[] }>;
     schoolUpdates: Map<string, { school: School, oldSchool: School, diffs: { field: string; oldVal: string; newVal: string }[] }>;
   }>({
@@ -84,7 +83,7 @@ export class ImportOrdersComponent {
     const filterStatus = this.selectedStatusFilter();
     const filterType = this.selectedTypeFilter();
 
-    let items: ProposedChange<Order>[] = [];
+    let items: ProposedChange<SheetsImportOrder>[] = [];
 
     switch (filterStatus) {
       case 'NEW':
@@ -265,7 +264,7 @@ export class ImportOrdersComponent {
   }
 
   private analyzeOrders() {
-    const delta: ImportDelta<Order> = {
+    const delta: ImportDelta<SheetsImportOrder> = {
       issues: [],
       updates: [],
       unchanged: [],
@@ -276,14 +275,17 @@ export class ImportOrdersComponent {
     const schoolUpdates = new Map<string, { school: School, oldSchool: School, diffs: any[] }>();
 
     const data = this.parsedData();
-    const existingOrders = this.dataService.orders.entries();
+    const allExistingOrders = this.dataService.orders.entries();
+    const existingOrders = allExistingOrders.filter((o) => {
+      return o.ilcAppOrderKind !== 'https://api.squarespace.com/1.0/commerce/orders';
+    });
     const ordersMap = new Map(existingOrders.map(o => [o.referenceNumber, o]));
     const members = this.dataService.members.entries();
     const schools = this.dataService.schools.entries();
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const { order, issues } = this.mapRowToOrder(row, this.mapping());
+      const { order, issues } = this.mapRowToSheetsImportOrder(row, this.mapping());
 
       if (!order.referenceNumber) {
         // Skip empty rows or rows without reference number
@@ -294,7 +296,7 @@ export class ImportOrdersComponent {
         delta.issues.push({
           status: 'ISSUE',
           key: order.referenceNumber,
-          newItem: order as Order,
+          newItem: order as SheetsImportOrder,
           diffs: [],
           issues: [`Duplicate Reference Number (${order.referenceNumber}) in import file`, ...issues],
         });
@@ -304,7 +306,7 @@ export class ImportOrdersComponent {
 
       // Find Existing Order
       const existingOrder = ordersMap.get(order.referenceNumber);
-      let orderChange: ProposedChange<Order> | undefined;
+      let orderChange: ProposedChange<SheetsImportOrder> | undefined;
 
       if (existingOrder) {
         const diffs = getDifferences(order, existingOrder);
@@ -312,7 +314,7 @@ export class ImportOrdersComponent {
           orderChange = {
             status: 'UPDATE',
             key: order.referenceNumber,
-            newItem: { ...existingOrder, ...order } as Order,
+            newItem: { ...existingOrder, ...order } as SheetsImportOrder,
             oldItem: existingOrder,
             diffs: diffs,
             issues: issues.length > 0 ? issues : undefined
@@ -322,7 +324,7 @@ export class ImportOrdersComponent {
           orderChange = {
             status: 'UNCHANGED',
             key: order.referenceNumber,
-            newItem: existingOrder as Order,
+            newItem: existingOrder as SheetsImportOrder,
             oldItem: existingOrder,
             diffs: [],
             issues: undefined
@@ -354,7 +356,7 @@ export class ImportOrdersComponent {
       }
 
       // SIDE EFFECTS
-      this.calculateSideEffects(order as Order, members, schools, memberUpdates, schoolUpdates, issues);
+      this.calculateSideEffects(order as SheetsImportOrder, members, schools, memberUpdates, schoolUpdates, issues);
 
       // If side effects generated new issues (e.g. Ambiguous Email), add to Order Issues
       if (issues.length > 0) {
@@ -372,7 +374,7 @@ export class ImportOrdersComponent {
   }
 
   private calculateSideEffects(
-    order: Order,
+    order: SheetsImportOrder,
     members: Member[],
     schools: School[],
     memberUpdates: Map<string, { member: Member, oldMember: Member, diffs: any[] }>,
@@ -571,14 +573,14 @@ export class ImportOrdersComponent {
     }
   }
 
-  private mapRowToOrder(
+  private mapRowToSheetsImportOrder(
     row: ParsedRow,
     mapping: Record<string, string[]>,
-  ): { order: Partial<Order>; issues: string[] } {
-    const order: Partial<Order> = {};
+  ): { order: Partial<SheetsImportOrder>; issues: string[] } {
+    const order: SheetsImportOrder = initSheetsImportOrder();
     const issues: string[] = [];
     for (const partialKey in mapping) {
-      const key = partialKey as keyof Order;
+      const key = partialKey as keyof SheetsImportOrder;
       const csvHeaders = mapping[key];
       if (!csvHeaders || csvHeaders.length === 0) continue;
 
@@ -592,7 +594,7 @@ export class ImportOrdersComponent {
       if (['datePaid', 'startDate', 'lastUpdated'].includes(key)) {
         const result = parseDate(value);
         if (result.success) {
-          order[key] = result.value;
+          (order as any)[key] = result.value;
         } else {
           issues.push(result.issue);
           (order as any)[key] = value;
@@ -708,7 +710,7 @@ export class ImportOrdersComponent {
     this.previewIndex.set(0);
   }
 
-  getOrderType(order: Order): OrderType {
+  getOrderType(order: SheetsImportOrder): OrderType {
     if (!order.paidFor) return 'OTHER';
     const paymentType = order.paidFor.trim();
 

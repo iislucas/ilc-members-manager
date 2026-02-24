@@ -66,12 +66,11 @@
         @if (o.ilcAppOrderKind === "ilc-2005-sheets-db-import") {
           <div class="fields-grid">
             <div class="field">
-              <label>Customer Name</label>
-              <div class="value">{{ o.firstName }} {{ o.lastName }}</div>
-            </div>
-            <div class="field">
-              <label>Email Address</label>
-              <div class="value">{{ o.email }}</div>
+              <label>Customer Name / Email</label>
+              <div class="value">
+                <div>{{ o.firstName }} {{ o.lastName }}</div>
+                <div class="small">{{ o.email }}</div>
+              </div>
             </div>
             <div class="field">
               <label>Member ID (External)</label>
@@ -108,8 +107,15 @@
         ) {
           <div class="fields-grid">
             <div class="field">
-              <label>Customer Email</label>
-              <div class="value">{{ o.customerEmail }}</div>
+              <label>Customer</label>
+              <div class="value">
+                <div>{{ o.billingAddress?.firstName }} {{ o.billingAddress?.lastName }}</div>
+                <div class="small">{{ o.customerEmail }}</div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Fulfillment Status</label>
+              <div class="value">{{ o['fulfillmentStatus'] || 'PENDING' }}</div>
             </div>
             <div class="field">
               <label>Items Purchased</label>
