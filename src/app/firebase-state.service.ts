@@ -157,10 +157,14 @@ export class FirebaseStateService {
         return;
       }
 
-      const profiles = userDetailsResult.userMemberProfiles.map((p) => ({
-        ...initMember(),
-        ...p,
-      }));
+      const profiles = userDetailsResult.userMemberProfiles.map((p) => {
+        // TODO: Remove this hack when we fix the data model.
+        const member = { ...initMember(), ...p } as Member & { id?: string };
+        if (member.id && !member.docId) {
+          member.docId = member.id;
+        }
+        return member;
+      });
 
       if (!profiles || profiles.length === 0) {
         console.warn('No profiles found for user', user.email);

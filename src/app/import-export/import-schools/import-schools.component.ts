@@ -453,7 +453,7 @@ export class ImportSchoolsComponent {
           }
           break;
         }
-        case 'managers':
+        case 'managerInstructorIds':
           school[key] = value.split(',').map((s) => s.trim());
           break;
         case 'ownerEmail':

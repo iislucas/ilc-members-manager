@@ -10,6 +10,7 @@ import {
   FetchUserDetailsResult,
   Member,
   MemberFirestoreDoc,
+  firestoreDocToMember,
 } from './data-model';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
@@ -48,14 +49,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
 
     const userMemberProfiles: Member[] = memberDocs
       .filter((doc) => doc.exists)
-      .map((doc) => {
-        const data = doc.data() as MemberFirestoreDoc;
-        return {
-          ...data,
-          lastUpdated: data.lastUpdated.toDate().toISOString(),
-          docId: doc.id,
-        } as Member;
-      });
+      .map(firestoreDocToMember);
 
     if (userMemberProfiles.length === 0) {
       return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
