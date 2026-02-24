@@ -1,11 +1,16 @@
-import { Component, effect, inject, input, ViewEncapsulation, signal } from '@angular/core';
+import { Component, effect, inject, input, ViewEncapsulation, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SquarespaceService } from './squarespace.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MembershipType } from '../../../functions/src/data-model';
-import { SquareSpaceBlogsResponse } from './blog-types';
+import { SquareSpaceBlogsResponse, SquareSpaceBlogEntry } from './blog-types';
+
+export interface ProcessedBlogEntry extends SquareSpaceBlogEntry {
+    safeBody: SafeHtml;
+    safeExcerpt: SafeHtml;
+}
 
 @Component({
     selector: 'app-squarespace-content',
@@ -22,9 +27,22 @@ export class SquarespaceContentComponent {
 
     /** The Squarespace path to fetch, e.g. '/members-area' */
     path = input.required<string>();
-    content = signal<SafeHtml | null>(null);
+
+    blogEntries = signal<ProcessedBlogEntry[]>([]);
+    categories = signal<string[]>([]);
+    selectedCategory = signal<string>('All');
+    fallbackContent = signal<SafeHtml | null>(null);
+    expandedIds = signal<Set<string>>(new Set<string>());
+
     loading = signal<boolean>(true);
     error = signal<string | null>(null);
+
+    filteredEntries = computed(() => {
+        const cat = this.selectedCategory();
+        const entries = this.blogEntries();
+        if (cat === 'All') return entries;
+        return entries.filter(e => e.categories && e.categories.includes(cat));
+    });
 
     constructor() {
         effect(() => {
@@ -36,6 +54,20 @@ export class SquarespaceContentComponent {
                 this.loading.set(false);
             }
         });
+    }
+
+    toggleExpanded(id: string) {
+        const current = new Set(this.expandedIds());
+        if (current.has(id)) {
+            current.delete(id);
+        } else {
+            current.add(id);
+        }
+        this.expandedIds.set(current);
+    }
+
+    isExpanded(id: string): boolean {
+        return this.expandedIds().has(id);
     }
 
     private isActiveMember(): boolean {
@@ -123,43 +155,64 @@ export class SquarespaceContentComponent {
                     }
 
                     if (data.items && Array.isArray(data.items)) {
-                        htmlContent = data.items
-                            .map((item: any) => {
-                                const title = item.title ? `<h2 class="sqs-title">${item.title}</h2>` : '';
-                                const image = item.assetUrl ? `<img class="sqs-image" src="${item.assetUrl}" alt="${item.title || ''}" />` : '';
-                                const body = item.body || item.content || '';
-                                return `<article class="sqs-item">\n${title}\n${image}\n${body}\n</article>`;
-                            })
-                            .join('<hr class="sqs-separator">');
+                        const processed: ProcessedBlogEntry[] = data.items.map((item: any) => {
+                            let assetUrl = item.assetUrl ? String(item.assetUrl).trim() : '';
+
+                            // Squarespace placeholder URLs often end with a slash without an actual image filename, 
+                            // which then redirects to 'no-image.png'.
+                            if (assetUrl === "undefined" || assetUrl === "null" || assetUrl.includes('no-image.png') || assetUrl.endsWith('/')) {
+                                assetUrl = '';
+                            }
+
+                            if (assetUrl && !assetUrl.startsWith('http') && !assetUrl.startsWith('//')) {
+                                assetUrl = baseUrl + (assetUrl.startsWith('/') ? '' : '/') + assetUrl;
+                            }
+
+                            return {
+                                ...item,
+                                assetUrl,
+                                safeBody: this.sanitizer.bypassSecurityTrustHtml(this.processHtml(item.body || item.content || '', baseUrl)),
+                                safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(this.processHtml(item.excerpt || '', baseUrl)),
+                            };
+                        });
+
+                        this.blogEntries.set(processed);
+
+                        const allCategories = new Set<string>();
+                        processed.forEach(item => {
+                            if (item.categories) {
+                                item.categories.forEach((c: string) => allCategories.add(c));
+                            }
+                        });
+                        this.categories.set(['All', ...Array.from(allCategories).sort()]);
+                        this.fallbackContent.set(null);
+                        this.loading.set(false);
+                        return;
                     }
-                    // 3. Try collection description as fallback
-                    else if (data.collection?.description) {
+
+                    let htmlContent = '';
+                    if (data.collection?.description) {
                         htmlContent = data.collection.description;
-                    }
-                    // 4. If data is just a string, it might be the HTML directly
-                    else if (typeof data === 'string') {
+                    } else if (typeof data === 'string') {
                         htmlContent = data;
+                    } else if (data.sections && Array.isArray(data.sections)) {
+                        htmlContent = data.sections.map((s: any) => s.html || '').join('');
                     }
-                    // 5. Check for sections (common in 7.1)
-                    else if (data.sections && Array.isArray(data.sections)) {
-                        htmlContent = data.sections
-                            .map((s: any) => s.html || '')
-                            .join('');
+
+                    if (!htmlContent || htmlContent.trim() === '') {
+                        console.warn('No content found in Squarespace response', data);
+                        const title = data?.collection?.title || 'this page';
+                        htmlContent = `<div class="empty-content-warning">
+                            <p>No content was found for <strong>${title}</strong>.</p>
+                            <p>This may be because the page is empty or requires direct login.</p>
+                        </div>`;
                     }
-                }
 
-                if (!htmlContent || htmlContent.trim() === '') {
-                    console.warn('No content found in Squarespace response', data);
-                    const title = data?.collection?.title || 'this page';
-                    htmlContent = `<div class="empty-content-warning">
-                        <p>No content was found for <strong>${title}</strong>.</p>
-                        <p>This may be because the page is empty or requires direct login.</p>
-                    </div>`;
+                    // Process the HTML to ensure it works outside Squarespace
+                    const processedHtml = this.processHtml(htmlContent, baseUrl);
+                    this.fallbackContent.set(this.sanitizer.bypassSecurityTrustHtml(processedHtml));
+                    this.blogEntries.set([]);
                 }
-
-                // Process the HTML to ensure it works outside Squarespace
-                const processedHtml = this.processHtml(htmlContent, baseUrl);
-                this.content.set(this.sanitizer.bypassSecurityTrustHtml(processedHtml));
                 this.loading.set(false);
             },
             error: (err) => {

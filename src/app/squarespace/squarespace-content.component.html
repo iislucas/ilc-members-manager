@@ -13,8 +13,72 @@
                 Try Again
             </button>
         </div>
-        } @else {
-        <div class="content fade-in" [innerHTML]="content()"></div>
+        } @else if (blogEntries().length > 0) {
+        
+        @if (categories().length > 1) {
+        <div class="category-tabs">
+            @for (cat of categories(); track cat) {
+            <button 
+              class="tab-btn" 
+              [class.active]="selectedCategory() === cat"
+              (click)="selectedCategory.set(cat)">
+              {{ cat }}
+            </button>
+            }
+        </div>
+        }
+
+        <div class="blog-grid fade-in">
+            @for (entry of filteredEntries(); track entry.id) {
+            <article class="blog-card" [class.expanded]="isExpanded(entry.id)">
+                @if (entry.assetUrl) {
+                <div class="blog-image">
+                    <img [src]="entry.assetUrl" [alt]="entry.title">
+                </div>
+                }
+                
+                <div class="blog-content">
+                    <div class="blog-header-meta">
+                        @if (entry.categories && entry.categories.length) {
+                        <div class="blog-categories">
+                            @for (cat of entry.categories; track cat) {
+                            <span class="category-tag">{{ cat }}</span>
+                            }
+                        </div>
+                        }
+                        <span class="blog-date">{{ (entry.publishOn || entry.addedOn) | date:'longDate' }}</span>
+                    </div>
+
+                    <h2 class="sqs-title">{{ entry.title }}</h2>
+                    
+                    @if (entry.excerpt) {
+                    <div class="blog-excerpt" [innerHTML]="entry.safeExcerpt"></div>
+                    }
+                    
+                    @if (entry.tags && entry.tags.length) {
+                    <div class="blog-tags">
+                        @for (tag of entry.tags; track tag) {
+                        <span class="tag">#{{ tag }}</span>
+                        }
+                    </div>
+                    }
+
+                    <div class="read-more-container">
+                        <button class="read-more-link" (click)="toggleExpanded(entry.id)">
+                            {{ isExpanded(entry.id) ? 'Read less' : 'Read more' }}
+                            <span class="arrow" [class.up]="isExpanded(entry.id)"></span>
+                        </button>
+                    </div>
+
+                    @if (isExpanded(entry.id)) {
+                    <div class="blog-body fade-in" [innerHTML]="entry.safeBody"></div>
+                    }
+                </div>
+            </article>
+            }
+        </div>
+        } @else if (fallbackContent()) {
+        <div class="content fade-in" [innerHTML]="fallbackContent()"></div>
         }
     </div>
 </div>
