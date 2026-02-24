@@ -585,7 +585,7 @@ export class DataManagerService {
       docRef = doc(collection(this.db, 'schools'));
     }
 
-    return setDoc(docRef, schoolWithNewTimestamp, { merge: true });
+    await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
   }
 
   async deleteSchool(id: string): Promise<void> {

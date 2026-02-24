@@ -14,6 +14,7 @@
     "logs": "firebase functions:log",
     "admin": "ts-node scripts/admin.ts",
     "sync-squarespace-orders": "ts-node scripts/sync-squarespace-orders.ts",
+    "migrate-old-fields": "ts-node scripts/migrate-old-fields.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

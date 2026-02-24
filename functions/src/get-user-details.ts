@@ -71,11 +71,11 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     // Let's check across the primary for now as per current app logic.
     const schoolsOwnedQuery = db
       .collection('schools')
-      .where('owner', '==', primaryMember.instructorId)
+      .where('ownerInstructorId', '==', primaryMember.instructorId)
       .get();
     const schoolsManagedQuery = db
       .collection('schools')
-      .where('managers', 'array-contains', primaryMember.instructorId)
+      .where('managerInstructorIds', 'array-contains', primaryMember.instructorId)
       .get();
 
     const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
@@ -84,8 +84,8 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
     ]);
 
     const schoolIds = new Set<string>();
-    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
-    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.data().schoolId));
+    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
+    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
 
     return {
       userMemberProfiles,

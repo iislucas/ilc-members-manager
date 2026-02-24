@@ -9,36 +9,40 @@ export async function updateMemberViewForSchoolAndInstrucor(
   member: Member | undefined,
   previousMember?: Member,
 ) {
-  // TODO: fix this: primarySchoolId is not a DocID, it's a school ID. something is wrong here. 
-  const schoolDocId = member?.primarySchoolId;
-  const previousSchoolDocId = previousMember?.primarySchoolId;
+  const schoolId = member?.primarySchoolId;
+  const previousSchoolId = previousMember?.primarySchoolId;
 
+  // Remove from previous school if it changed
+  if (previousSchoolId && previousSchoolId !== schoolId) {
+    logger.info(`Removing member ${memberDocId} from school ${previousSchoolId}`);
+    const previousSchoolDocId = await findSchoolDocId(previousSchoolId);
+    if (previousSchoolDocId) {
+      const previousMemberRef = db
+        .collection('schools')
+        .doc(previousSchoolDocId)
+        .collection('members')
+        .doc(memberDocId);
+      await previousMemberRef.delete();
+    }
+  }
+
+  // Add to new school if it changed
+  if (schoolId && previousSchoolId !== schoolId) {
+    logger.info(`Updating member ${memberDocId} in school ${schoolId}`);
+    const schoolDocId = await findSchoolDocId(schoolId);
+    if (schoolDocId) {
+      const memberRef = db
+        .collection('schools')
+        .doc(schoolDocId)
+        .collection('members')
+        .doc(memberDocId);
+      await memberRef.set(member as Member);
+    }
+  }
+
+  // Remove from previous instructor if it changed.
   const primaryInstructorId = member?.primaryInstructorId;
   const previousPrimaryInstructorId = previousMember?.primaryInstructorId;
-
-  if (previousSchoolDocId && previousSchoolDocId !== schoolDocId) {
-    logger.info(`Removing member ${memberDocId} from school ${previousSchoolDocId}`);
-    const previousMemberRef = db
-      .collection('schools')
-      .doc(previousSchoolDocId)
-      .collection('members')
-      .doc(memberDocId);
-    await previousMemberRef.delete();
-  }
-
-  if (schoolDocId) {
-    logger.info(`Updating member ${memberDocId} in school ${schoolDocId}`);
-    const memberRef = db
-      .collection('schools')
-      .doc(schoolDocId)
-      .collection('members')
-      .doc(memberDocId);
-    await memberRef.set(member as Member);
-  }
-
-  // Look up the instructor's member docId from their instructorId.
-  // The instructors collection is keyed by the instructor's member docId,
-  // not the instructorId string.
   if (
     previousPrimaryInstructorId &&
     previousPrimaryInstructorId !== primaryInstructorId
@@ -61,7 +65,8 @@ export async function updateMemberViewForSchoolAndInstrucor(
     }
   }
 
-  if (primaryInstructorId) {
+  // Add to new instructor if it changed.
+  if (primaryInstructorId && previousPrimaryInstructorId !== primaryInstructorId) {
     const instructorDocId = await findInstructorMemberDocId(primaryInstructorId);
     if (instructorDocId) {
       logger.info(
@@ -89,6 +94,22 @@ async function findInstructorMemberDocId(instructorId: string): Promise<string |
   const snap = await db
     .collection('members')
     .where('instructorId', '==', instructorId)
+    .limit(1)
+    .get();
+  if (snap.empty) {
+    return undefined;
+  }
+  return snap.docs[0].id;
+}
+
+/**
+ * Given a schoolId (e.g. "SCH-XXX"), find the school document that has
+ * that schoolId and return its Firestore doc ID.
+ */
+async function findSchoolDocId(schoolId: string): Promise<string | undefined> {
+  const snap = await db
+    .collection('schools')
+    .where('schoolId', '==', schoolId)
     .limit(1)
     .get();
   if (snap.empty) {

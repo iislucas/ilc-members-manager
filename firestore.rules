@@ -24,10 +24,10 @@ service cloud.firestore {
       }
       function isManagerOfMemberSchool() {
         let member = resource.data;
-        let schoolId = member.primarySchoolId;
-        let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
+        let schoolDocId = member.primarySchoolDocId;
+        let schoolPath = /databases/$(database)/documents/schools/$(schoolDocId);
         let school = get(schoolPath).data;
-        return schoolId != "" && exists(schoolPath) && (
+        return schoolDocId != "" && exists(schoolPath) && (
           request.auth.token.email == school.get('ownerEmail', '') || 
           request.auth.token.email in school.get('managerEmails', [])
         );
@@ -42,7 +42,7 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
-           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId']);
+           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
     }
 
     match /schools/{schoolId} {
