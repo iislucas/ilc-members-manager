@@ -16,5 +16,5 @@ export const environment = {
   googleCalendar: {
     calendarId: '06se06gf82c428olklnjagbt6c@group.calendar.google.com',
   },
-  adminEmail: 'admin@iliqchuan.com',
+  adminEmail: 'web-helper-team@iliqchuan.com',
 };

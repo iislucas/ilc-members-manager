@@ -1,19 +1,21 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FirebaseStateService } from '../firebase-state.service';
+import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import { AuthErrorCodes } from 'firebase/auth';
 import { IconComponent } from '../icons/icon.component';
+import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
   templateUrl: './login.html',
   styleUrl: './login.scss'
 })
 export class LoginComponent {
   public firebaseService = inject(FirebaseStateService);
+  public LoginStatus = LoginStatus;
 
   // Login form state
   public showPassword = signal<boolean>(false);

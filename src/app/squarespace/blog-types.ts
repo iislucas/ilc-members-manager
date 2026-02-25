@@ -200,8 +200,8 @@ export type SquareSpaceBlogsResponse = {
     },
     "isCookieBannerEnabled": false,
     "isVisitorDataRestricted": false,
-    "contactEmail": "admin@iliqchuan.com",
-    "contactPhoneNumber": ""
+    "contactEmail": string,
+    "contactPhoneNumber": string
   },
   "collection": {
     "id": string,
