@@ -167,12 +167,10 @@ gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* \
 
 In order for the web-component to be loaded from the cloud bucket, you need to set the CORS configuration for the bucket to include the server that will be hosting the web-component. For example, if you are hosting the web-component on Squarespace, you need to set the CORS configuration for the bucket to include the Squarespace domain. 
 
-An example config is in `functions/src/environment/gcloud-cors-config.json`. To then set/check the CORS configuration for the bucket run:
+The CORS configuration is managed in code via `CORS_CONFIG` in `functions/src/environment/environment.ts` (and its `.template.ts`). Both the web component deployment and the CORS setting updates are handled automatically when you run:
 
 ```sh
-BUCKET_NAME=resources.zxd.fr
-gsutil cors set src/environments/gcloud-cors-config.json gs://${BUCKET_NAME}
-gsutil cors get gs://${BUCKET_NAME}
+pnpm run deploy:wc
 ```
 
 ## Troubleshooting
