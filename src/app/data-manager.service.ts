@@ -575,14 +575,22 @@ export class DataManagerService {
       lastUpdated: serverTimestamp() as Timestamp,
     };
 
-    const q = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
-    const snap = await getDocs(q);
+    const qOld = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
+    const snapOld = await getDocs(qOld);
+
+    const qNew = query(this.membersCollection, where('primaryInstructorId', '==', member.instructorId));
+    const snapNew = await getDocs(qNew);
 
     const batch = writeBatch(this.db);
     batch.set(docRef, memberWithNewTimestamp, { merge: true });
 
-    snap.docs.forEach((d) => {
+    snapOld.docs.forEach((d) => {
       batch.update(d.ref, { primaryInstructorId: member.instructorId, lastUpdated: serverTimestamp() });
+    });
+
+    snapNew.docs.forEach((d) => {
+      const subDocRef = doc(this.db, 'instructors', id, 'members', d.id);
+      batch.set(subDocRef, { ...d.data(), primaryInstructorId: member.instructorId, lastUpdated: serverTimestamp() }, { merge: true });
     });
 
     await batch.commit();
@@ -622,14 +630,22 @@ export class DataManagerService {
       schoolDocRef = doc(collection(this.db, 'schools'));
     }
 
-    const q = query(this.membersCollection, where('primarySchoolId', '==', oldSchoolId));
-    const snap = await getDocs(q);
+    const qOld = query(this.membersCollection, where('primarySchoolId', '==', oldSchoolId));
+    const snapOld = await getDocs(qOld);
+
+    const qNew = query(this.membersCollection, where('primarySchoolId', '==', school.schoolId));
+    const snapNew = await getDocs(qNew);
 
     const batch = writeBatch(this.db);
     batch.set(schoolDocRef, schoolWithNewTimestamp, { merge: true });
 
-    snap.docs.forEach((d) => {
+    snapOld.docs.forEach((d) => {
       batch.update(d.ref, { primarySchoolId: school.schoolId, lastUpdated: serverTimestamp() });
+    });
+
+    snapNew.docs.forEach((d) => {
+      const subDocRef = doc(this.db, 'schools', schoolDocRef.id, 'members', d.id);
+      batch.set(subDocRef, { ...d.data(), primarySchoolId: school.schoolId, lastUpdated: serverTimestamp() }, { merge: true });
     });
 
     await batch.commit();
@@ -692,10 +708,30 @@ export class DataManagerService {
     return setDoc(docRef, orderWithNewTimestamp, { merge: true });
   }
 
+  async clearSchoolMembers(schoolDocId: string): Promise<void> {
+    const membersRef = collection(this.db, 'schools', schoolDocId, 'members');
+    const membersSnap = await getDocs(membersRef);
+    if (!membersSnap.empty) {
+      const batch = writeBatch(this.db);
+      membersSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
   async countMembersWithSchoolId(schoolId: string): Promise<number> {
     const q = query(this.membersCollection, where('primarySchoolId', '==', schoolId));
     const snap = await getDocs(q);
     return snap.size;
+  }
+
+  async clearInstructorMembers(instructorDocId: string): Promise<void> {
+    const membersRef = collection(this.db, 'instructors', instructorDocId, 'members');
+    const membersSnap = await getDocs(membersRef);
+    if (!membersSnap.empty) {
+      const batch = writeBatch(this.db);
+      membersSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
   }
 
   async countMembersWithInstructorId(instructorId: string): Promise<number> {

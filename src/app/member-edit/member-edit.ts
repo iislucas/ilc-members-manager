@@ -544,6 +544,9 @@ export class MemberEditComponent {
         if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && member.instructorId && origId !== member.instructorId) {
           await this.membersService.updateMemberAndStudentInstructorIds(member.docId, member, origId);
         } else {
+          if (origId && member.instructorId && origId !== member.instructorId && member.docId) {
+            await this.membersService.clearInstructorMembers(member.docId);
+          }
           await this.membersService.updateMember(member.docId, member);
         }
       } else {

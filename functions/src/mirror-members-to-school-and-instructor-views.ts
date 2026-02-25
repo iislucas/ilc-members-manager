@@ -26,9 +26,8 @@ export async function updateMemberViewForSchoolAndInstrucor(
     }
   }
 
-  // Add to new school if it changed
-  if (schoolId && previousSchoolId !== schoolId) {
-    logger.info(`Updating member ${memberDocId} in school ${schoolId}`);
+  // Update/Add to current school
+  if (schoolId) {
     const schoolDocId = await findSchoolDocId(schoolId);
     if (schoolDocId) {
       const memberRef = db
@@ -36,7 +35,11 @@ export async function updateMemberViewForSchoolAndInstrucor(
         .doc(schoolDocId)
         .collection('members')
         .doc(memberDocId);
-      await memberRef.set(member as Member);
+      if (member) {
+        await memberRef.set(member as Member);
+      } else {
+        await memberRef.delete();
+      }
     }
   }
 
@@ -65,19 +68,20 @@ export async function updateMemberViewForSchoolAndInstrucor(
     }
   }
 
-  // Add to new instructor if it changed.
-  if (primaryInstructorId && previousPrimaryInstructorId !== primaryInstructorId) {
+  // Update/Add to current instructor
+  if (primaryInstructorId) {
     const instructorDocId = await findInstructorMemberDocId(primaryInstructorId);
     if (instructorDocId) {
-      logger.info(
-        `Adding member ${memberDocId} under instructor doc ${instructorDocId} (instructorId: ${primaryInstructorId})`,
-      );
       const memberRef = db
         .collection('instructors')
         .doc(instructorDocId)
         .collection('members')
         .doc(memberDocId);
-      await memberRef.set(member as Member);
+      if (member) {
+        await memberRef.set(member as Member);
+      } else {
+        await memberRef.delete();
+      }
     } else {
       logger.warn(
         `Could not find instructor member doc for instructorId ${primaryInstructorId} to add student ${memberDocId}`,

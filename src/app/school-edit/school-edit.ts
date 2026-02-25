@@ -316,6 +316,9 @@ export class SchoolEditComponent {
       if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && school.schoolId && origId !== school.schoolId) {
         await this.membersService.setSchoolAndUpdateMembers(school, origId);
       } else {
+        if (origId && school.schoolId && origId !== school.schoolId && school.docId) {
+          await this.membersService.clearSchoolMembers(school.docId);
+        }
         await this.membersService.setSchool(school);
       }
 
