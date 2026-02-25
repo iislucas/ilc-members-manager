@@ -568,6 +568,26 @@ export class DataManagerService {
     return setDoc(docRef, memberWithNewTimestamp, { merge: true });
   }
 
+  async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {
+    const docRef = doc(this.db, 'members', id);
+    const memberWithNewTimestamp: MemberFirestoreDoc = {
+      ...member,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+
+    const q = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
+    const snap = await getDocs(q);
+
+    const batch = writeBatch(this.db);
+    batch.set(docRef, memberWithNewTimestamp, { merge: true });
+
+    snap.docs.forEach((d) => {
+      batch.update(d.ref, { primaryInstructorId: member.instructorId, lastUpdated: serverTimestamp() });
+    });
+
+    await batch.commit();
+  }
+
   async deleteMember(emailId: string): Promise<void> {
     const docRef = doc(this.db, 'members', emailId);
     return deleteDoc(docRef);
@@ -587,6 +607,32 @@ export class DataManagerService {
     }
 
     await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
+  }
+
+  async setSchoolAndUpdateMembers(school: School, oldSchoolId: string): Promise<void> {
+    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
+      ...school,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
+
+    let schoolDocRef: DocumentReference;
+    if (school.docId) {
+      schoolDocRef = doc(this.db, 'schools', school.docId);
+    } else {
+      schoolDocRef = doc(collection(this.db, 'schools'));
+    }
+
+    const q = query(this.membersCollection, where('primarySchoolId', '==', oldSchoolId));
+    const snap = await getDocs(q);
+
+    const batch = writeBatch(this.db);
+    batch.set(schoolDocRef, schoolWithNewTimestamp, { merge: true });
+
+    snap.docs.forEach((d) => {
+      batch.update(d.ref, { primarySchoolId: school.schoolId, lastUpdated: serverTimestamp() });
+    });
+
+    await batch.commit();
   }
 
   async deleteSchool(id: string, onProgress?: (msg: string) => void): Promise<void> {
@@ -652,30 +698,10 @@ export class DataManagerService {
     return snap.size;
   }
 
-  async updateSchoolIdForMembers(oldSchoolId: string, newSchoolId: string): Promise<void> {
-    const q = query(this.membersCollection, where('primarySchoolId', '==', oldSchoolId));
-    const snap = await getDocs(q);
-    const batch = writeBatch(this.db);
-    snap.docs.forEach((doc) => {
-      batch.update(doc.ref, { primarySchoolId: newSchoolId, lastUpdated: serverTimestamp() });
-    });
-    await batch.commit();
-  }
-
   async countMembersWithInstructorId(instructorId: string): Promise<number> {
     const q = query(this.membersCollection, where('primaryInstructorId', '==', instructorId));
     const snap = await getDocs(q);
     return snap.size;
-  }
-
-  async updateInstructorIdForMembers(oldInstructorId: string, newInstructorId: string): Promise<void> {
-    const q = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
-    const snap = await getDocs(q);
-    const batch = writeBatch(this.db);
-    snap.docs.forEach((doc) => {
-      batch.update(doc.ref, { primaryInstructorId: newInstructorId, lastUpdated: serverTimestamp() });
-    });
-    await batch.commit();
   }
 
   async syncSquarespaceOrders(): Promise<void> {

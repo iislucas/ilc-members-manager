@@ -541,12 +541,10 @@ export class MemberEditComponent {
 
       if (member.docId) {
         const origId = this.member().instructorId;
-        await this.membersService.updateMember(member.docId, member);
-
-        if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0) {
-          if (origId && member.instructorId && origId !== member.instructorId) {
-            await this.membersService.updateInstructorIdForMembers(origId, member.instructorId);
-          }
+        if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && member.instructorId && origId !== member.instructorId) {
+          await this.membersService.updateMemberAndStudentInstructorIds(member.docId, member, origId);
+        } else {
+          await this.membersService.updateMember(member.docId, member);
         }
       } else {
         await this.membersService.addMember(member);

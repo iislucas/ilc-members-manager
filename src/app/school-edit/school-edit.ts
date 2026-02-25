@@ -312,12 +312,11 @@ export class SchoolEditComponent {
       }
 
       const origId = this.school().schoolId;
-      await this.membersService.setSchool(school);
 
-      if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0) {
-        if (origId && school.schoolId && origId !== school.schoolId) {
-          await this.membersService.updateSchoolIdForMembers(origId, school.schoolId);
-        }
+      if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && school.schoolId && origId !== school.schoolId) {
+        await this.membersService.setSchoolAndUpdateMembers(school, origId);
+      } else {
+        await this.membersService.setSchool(school);
       }
 
       this.form().reset();
