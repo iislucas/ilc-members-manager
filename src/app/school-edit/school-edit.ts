@@ -126,6 +126,9 @@ export class SchoolEditComponent {
       this.schoolIdAssignment().kind !== AssignKind.UnchangedExistingId,
   );
 
+  updateStudentsCheckbox = signal<boolean>(true);
+  studentsToUpdateCount = signal<number>(0);
+
   userIsAdmin = computed(() => this.stateService.user()?.isAdmin ?? false);
   userIsSchoolManager = computed(() => {
     const member = this.stateService.user()?.member;
@@ -196,6 +199,16 @@ export class SchoolEditComponent {
       const collapse = this.collapse();
       if (collapse !== null) {
         this.collapsed.set(collapse);
+      }
+    });
+    effect(async () => {
+      const orig = this.school()?.schoolId;
+      const current = this.editableSchool()?.schoolId;
+      if (orig && current && orig !== current) {
+        const count = await this.membersService.countMembersWithSchoolId(orig);
+        this.studentsToUpdateCount.set(count);
+      } else {
+        this.studentsToUpdateCount.set(0);
       }
     });
   }
@@ -298,7 +311,15 @@ export class SchoolEditComponent {
         throw new Error(`School ID cannot be empty.`);
       }
 
+      const origId = this.school().schoolId;
       await this.membersService.setSchool(school);
+
+      if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0) {
+        if (origId && school.schoolId && origId !== school.schoolId) {
+          await this.membersService.updateSchoolIdForMembers(origId, school.schoolId);
+        }
+      }
+
       this.form().reset();
       this.isSaving.set(false);
       this.collapsed.set(true);

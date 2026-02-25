@@ -265,6 +265,9 @@ export class MemberEditComponent {
     toName: (i: InstructorPublicData) => i.name,
   };
 
+  updateStudentsCheckbox = signal<boolean>(true);
+  studentsToUpdateCount = signal<number>(0);
+
   // Local state, for assigning new instructors...
   initInstructorIdAssignment(): Assignment {
     return {
@@ -399,7 +402,18 @@ export class MemberEditComponent {
     signals.pathVars.instructorId.set(this.member().instructorId);
   }
 
-  constructor() {}
+  constructor() {
+    effect(async () => {
+      const orig = this.member()?.instructorId;
+      const current = this.editableMember()?.instructorId;
+      if (orig && current && orig !== current) {
+        const count = await this.membersService.countMembersWithInstructorId(orig);
+        this.studentsToUpdateCount.set(count);
+      } else {
+        this.studentsToUpdateCount.set(0);
+      }
+    });
+  }
 
   updateMember() {
     // No longer needed with signalGroup as it's reactive
@@ -526,7 +540,14 @@ export class MemberEditComponent {
       }
 
       if (member.docId) {
+        const origId = this.member().instructorId;
         await this.membersService.updateMember(member.docId, member);
+
+        if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0) {
+          if (origId && member.instructorId && origId !== member.instructorId) {
+            await this.membersService.updateInstructorIdForMembers(origId, member.instructorId);
+          }
+        }
       } else {
         await this.membersService.addMember(member);
       }

@@ -23,6 +23,7 @@ import {
   where,
   documentId,
   limit,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   Member,
@@ -643,6 +644,38 @@ export class DataManagerService {
       lastUpdated: serverTimestamp() as Timestamp,
     };
     return setDoc(docRef, orderWithNewTimestamp, { merge: true });
+  }
+
+  async countMembersWithSchoolId(schoolId: string): Promise<number> {
+    const q = query(this.membersCollection, where('primarySchoolId', '==', schoolId));
+    const snap = await getDocs(q);
+    return snap.size;
+  }
+
+  async updateSchoolIdForMembers(oldSchoolId: string, newSchoolId: string): Promise<void> {
+    const q = query(this.membersCollection, where('primarySchoolId', '==', oldSchoolId));
+    const snap = await getDocs(q);
+    const batch = writeBatch(this.db);
+    snap.docs.forEach((doc) => {
+      batch.update(doc.ref, { primarySchoolId: newSchoolId, lastUpdated: serverTimestamp() });
+    });
+    await batch.commit();
+  }
+
+  async countMembersWithInstructorId(instructorId: string): Promise<number> {
+    const q = query(this.membersCollection, where('primaryInstructorId', '==', instructorId));
+    const snap = await getDocs(q);
+    return snap.size;
+  }
+
+  async updateInstructorIdForMembers(oldInstructorId: string, newInstructorId: string): Promise<void> {
+    const q = query(this.membersCollection, where('primaryInstructorId', '==', oldInstructorId));
+    const snap = await getDocs(q);
+    const batch = writeBatch(this.db);
+    snap.docs.forEach((doc) => {
+      batch.update(doc.ref, { primaryInstructorId: newInstructorId, lastUpdated: serverTimestamp() });
+    });
+    await batch.commit();
   }
 
   async syncSquarespaceOrders(): Promise<void> {

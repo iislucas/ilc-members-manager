@@ -15,6 +15,11 @@
           <span>*</span>
         }
       </div>
+      @if (owner(); as o) {
+        <div class="primary-instructor">
+          {{ o.name }}
+        </div>
+      }
       <div class="city-or-country">
         <span class="city">{{ s.schoolCity }}, </span>
         @if (s.schoolCountyOrState) {
@@ -57,6 +62,14 @@
               [canEdit]="userIsAdmin()"
               (assignment)="handleSchoolIdAssignmentChange($event)"
             ></app-id-assignment>
+            @if (studentsToUpdateCount() > 0 && schoolIdAssignment().kind !== AssignKind.UnchangedExistingId) {
+              <div class="note">
+                <input type="checkbox" id="updateStudents" [checked]="updateStudentsCheckbox()" (change)="updateStudentsCheckbox.set(!updateStudentsCheckbox())" />
+                <label for="updateStudents" style="display:inline; font-weight:normal; font-size: 0.9em; margin-left: 4px;">
+                  Update all {{ studentsToUpdateCount() }} students to have the new school ID
+                </label>
+              </div>
+            }
             @if (isDupSchoolId()) {
               <div class="error-message">This school ID is already in use.</div>
             }
