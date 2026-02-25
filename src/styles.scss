@@ -245,6 +245,14 @@ textarea:disabled {
   font-family: monospace;
   border: 1px solid $theme-chip-border-color;
   padding: 0.2em;
+
+  &.expired-recent {
+    background-color: #FF9999;
+  }
+
+  &.expired-old {
+    background-color: #EEEEEE;
+  }
 }
 
 .missing-identifier-chip {

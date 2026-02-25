@@ -114,6 +114,30 @@ export class SchoolEditComponent {
   // Get an editable version of the school for save (it's the same as the model).
   editableSchool = computed<School>(() => this.schoolFormModel());
 
+  todayIsoString = signal(new Date().toISOString().split('T')[0]);
+
+  isSchoolLicenseExpired = computed(() => {
+    const expires = this.school().schoolLicenseExpires;
+    if (!expires || expires >= this.todayIsoString()) return null;
+
+    const expireDate = new Date(expires);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+  });
+
+  isOwnerLicenseExpired = computed(() => {
+    const o = this.owner();
+    if (!o) return null;
+    const expires = o.instructorLicenseExpires;
+    if (!expires || o.instructorLicenseType === 'Life' || expires >= this.todayIsoString()) return null;
+
+    const expireDate = new Date(expires);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+  });
+
   isSaving = signal(false);
   isDeleting = signal(false);
   deleteProgress = signal('');

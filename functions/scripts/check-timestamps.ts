@@ -1,16 +1,16 @@
+/*
+Script to check all lastUpdated fields in all top-level collections
+(and explicitly subcollections if needed) to ensure they are
+Firestore Timestamps, and not strings.
+
+Usage:
+cd functions
+pnpm run check-timestamps --fix --project <YOUR_PROJECT_ID>
+
+*/
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-
-/**
- * Script to check all lastUpdated fields in all top-level collections
- * (and explicitly subcollections if needed) to ensure they are
- * Firestore Timestamps, and not strings.
- * 
- * Usage:
- *   cd functions
- *   pnpm run check-timestamps --fix --project <YOUR_PROJECT_ID>
- */
 
 const argv = yargs(hideBin(process.argv))
   .option('project', {

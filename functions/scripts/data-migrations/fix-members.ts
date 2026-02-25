@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { Member } from '../src/data-model';
+import { Member } from '../../src/data-model';
 
 /**
  * Script to fix various member data issues.

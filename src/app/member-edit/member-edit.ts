@@ -174,6 +174,31 @@ export class MemberEditComponent {
   editableMember = computed<Member>(() => this.memberFormModel());
 
   // Visual state
+  todayIsoString = signal(new Date().toISOString().split('T')[0]);
+
+  isMemberLicenseExpired = computed(() => {
+    const expires = this.member().currentMembershipExpires;
+    if (!expires || this.member().membershipType === MembershipType.Life) return null;
+    if (expires >= this.todayIsoString()) return null;
+
+    // Check if within last 6 months
+    const expireDate = new Date(expires);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+  });
+
+  isInstructorLicenseExpired = computed(() => {
+    const expires = this.member().instructorLicenseExpires;
+    if (!expires || this.member().instructorLicenseType === InstructorLicenseType.Life) return null;
+    if (expires >= this.todayIsoString()) return null;
+
+    const expireDate = new Date(expires);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+  });
+
   collapsable = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();

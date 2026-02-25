@@ -23,6 +23,24 @@
         <span>*</span>
       }
     </div>
+    @if (isMemberLicenseExpired()) {
+      <span class="identifier-chip" [class.expired-recent]="isMemberLicenseExpired() === 'recent'" [class.expired-old]="isMemberLicenseExpired() === 'expired'">
+        @if (isMemberLicenseExpired() === 'recent') {
+          recently expired membership
+        } @else {
+          membership expired
+        }
+      </span>
+    }
+    @if (isInstructorLicenseExpired()) {
+      <span class="identifier-chip" [class.expired-recent]="isInstructorLicenseExpired() === 'recent'" [class.expired-old]="isInstructorLicenseExpired() === 'expired'">
+        @if (isInstructorLicenseExpired() === 'recent') {
+          recently expired instructor license
+        } @else {
+          instructor license expired
+        }
+      </span>
+    }
     @if (e.isAdmin) {
       <app-icon name="admin"></app-icon>
     }

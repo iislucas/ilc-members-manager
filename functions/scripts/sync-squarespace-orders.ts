@@ -5,8 +5,8 @@ NOTE: GOOGLE_APPLICATION_CREDENTIALS should be set in your environment if not us
 SQUARESPACE_API_KEY must be set in your environment.
 
 pnpm run sync-squarespace-orders [--project <PROJECT_ID>] [--dry-run] [--force-timestamp <ISO_DATE_STRING>]
-*/
 
+*/
 import * as admin from 'firebase-admin';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { fetchAndSyncOrders } from '../src/squarespace-orders';

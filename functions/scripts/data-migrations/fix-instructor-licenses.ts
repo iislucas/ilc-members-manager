@@ -36,8 +36,8 @@ if (!projectId) {
 admin.initializeApp({ projectId });
 
 // Import after init so db is ready
-import { updateInstructorPublicProfile } from '../src/mirror-instructors-to-public-profile';
-import { Member } from '../src/data-model';
+import { updateInstructorPublicProfile } from '../../src/mirror-instructors-to-public-profile';
+import { Member } from '../../src/data-model';
 
 async function run() {
   console.log(`Fixing instructor licenses for project: ${projectId}`);

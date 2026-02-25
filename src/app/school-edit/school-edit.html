@@ -15,9 +15,27 @@
           <span>*</span>
         }
       </div>
+      @if (isSchoolLicenseExpired()) {
+        <span class="identifier-chip" [class.expired-recent]="isSchoolLicenseExpired() === 'recent'" [class.expired-old]="isSchoolLicenseExpired() === 'expired'">
+          @if (isSchoolLicenseExpired() === 'recent') {
+            recently expired school license
+          } @else {
+            school license expired
+          }
+        </span>
+      }
       @if (owner(); as o) {
         <div class="primary-instructor">
           {{ o.name }}
+          @if (isOwnerLicenseExpired()) {
+            <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === 'recent'" [class.expired-old]="isOwnerLicenseExpired() === 'expired'" style="margin-left: 8px;">
+              @if (isOwnerLicenseExpired() === 'recent') {
+                owner license recently expired
+              } @else {
+                owner license expired
+              }
+            </span>
+          }
         </div>
       }
       <div class="city-or-country">

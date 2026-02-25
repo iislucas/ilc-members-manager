@@ -1,0 +1,15 @@
+[
+  {
+    "origin": [
+      "https://app.zxd.fr",
+      "https://iliqchuan.com",
+      "http://www.iliqchuan.com",
+      "https://storage.googleapis.com",
+      "https://localhost:4200",
+      "https://lute-denim-99n2.squarespace.com"
+    ],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 300
+  }
+]

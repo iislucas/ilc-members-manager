@@ -165,6 +165,16 @@ gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* \
   gs://${CLOUD_BUCKET_NAME_AND_PATH}
 ```
 
+In order for the web-component to be loaded from the cloud bucket, you need to set the CORS configuration for the bucket to include the server that will be hosting the web-component. For example, if you are hosting the web-component on Squarespace, you need to set the CORS configuration for the bucket to include the Squarespace domain. 
+
+An example config is in `functions/src/environment/gcloud-cors-config.json`. To then set/check the CORS configuration for the bucket run:
+
+```sh
+BUCKET_NAME=resources.zxd.fr
+gsutil cors set src/environments/gcloud-cors-config.json gs://${BUCKET_NAME}
+gsutil cors get gs://${BUCKET_NAME}
+```
+
 ## Troubleshooting
 
 ### Backups: "Permission 'iam.serviceAccounts.signBlob' denied"
