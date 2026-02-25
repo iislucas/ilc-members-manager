@@ -60,6 +60,25 @@ async function updateSchoolEmails(schoolId: string, school: School) {
   });
 }
 
+async function populateSchoolMembers(schoolDocId: string, schoolId: string) {
+  if (!schoolId) return;
+  const snapshot = await db.collection('members').where('primarySchoolId', '==', schoolId).get();
+
+  const chunks: admin.firestore.WriteBatch[] = [];
+  let i = 0;
+  snapshot.docs.forEach((doc) => {
+    if (i % 500 === 0) chunks.push(db.batch());
+    const batch = chunks[chunks.length - 1];
+    const ref = db.collection('schools').doc(schoolDocId).collection('members').doc(doc.id);
+    batch.set(ref, doc.data());
+    i++;
+  });
+
+  for (const batch of chunks) {
+    await batch.commit();
+  }
+}
+
 export const onSchoolCreated = onDocumentCreated(
   'schools/{schoolId}',
   async (event) => {
@@ -68,6 +87,10 @@ export const onSchoolCreated = onDocumentCreated(
     const school = snap.data() as School;
     await updateSchoolEmails(snap.id, school);
     await ensureSchoolCountersAreAtLeast(school);
+
+    if (school.schoolId) {
+      await populateSchoolMembers(snap.id, school.schoolId);
+    }
   }
 );
 
@@ -87,6 +110,9 @@ export const onSchoolUpdated = onDocumentUpdated(
     }
 
     if (schoolAfter.schoolId !== schoolBefore.schoolId) {
+      if (schoolAfter.schoolId) {
+        await populateSchoolMembers(snap.after.id, schoolAfter.schoolId);
+      }
       await ensureSchoolCountersAreAtLeast(schoolAfter);
     }
   }

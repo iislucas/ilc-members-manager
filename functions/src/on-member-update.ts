@@ -147,6 +147,25 @@ async function mirrorGradingsForSifuChange(
   }
 }
 
+async function populateInstructorMembers(instructorDocId: string, instructorId: string) {
+  if (!instructorId) return;
+  const snapshot = await db.collection('members').where('primaryInstructorId', '==', instructorId).get();
+
+  const chunks: admin.firestore.WriteBatch[] = [];
+  let i = 0;
+  snapshot.docs.forEach((doc) => {
+    if (i % 500 === 0) chunks.push(db.batch());
+    const batch = chunks[chunks.length - 1];
+    const ref = db.collection('instructors').doc(instructorDocId).collection('members').doc(doc.id);
+    batch.set(ref, doc.data());
+    i++;
+  });
+
+  for (const batch of chunks) {
+    await batch.commit();
+  }
+}
+
 export const onMemberCreated = onDocumentCreated(
   'members/{memberId}',
   async (event) => {
@@ -161,6 +180,10 @@ export const onMemberCreated = onDocumentCreated(
     await updateInstructorPublicProfile({ previous: undefined, member });
     await ensureCountersAreAtLeast(member);
     await updateACL({ previous: undefined, member: member });
+
+    if (member.instructorId) {
+      await populateInstructorMembers(snap.id, member.instructorId);
+    }
   },
 );
 
@@ -188,6 +211,9 @@ export const onMemberUpdated = onDocumentUpdated(
       member.memberId !== previous.memberId ||
       member.instructorId !== previous.instructorId
     ) {
+      if (member.instructorId && member.instructorId !== previous.instructorId) {
+        await populateInstructorMembers(snap.after.id, member.instructorId);
+      }
       await ensureCountersAreAtLeast(member);
     }
 
