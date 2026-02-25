@@ -48,6 +48,17 @@ async function run() {
     console.log('--- DRY RUN MODE: No changes will be saved ---');
   }
 
+  let batch = db.batch();
+  let batchCount = 0;
+
+  async function commitBatchIfNeeded(force = false) {
+    if (batchCount > 0 && (force || batchCount >= 500)) {
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    }
+  }
+
   // 1. Migrate schools
   console.log('\n--- Migrating Schools ---');
   const schoolsSnap = await db.collection('schools').get();
@@ -102,23 +113,34 @@ async function run() {
       if (!argv['dry-run']) {
         delete update.owner;
         delete update.managers;
-        await newDocRef.set(update);
+        batch.set(newDocRef, update);
+        batchCount++;
+        await commitBatchIfNeeded();
 
         // Copy the 'members' subcollection
         const membersSubSnap = await doc.ref.collection('members').get();
         for (const subDoc of membersSubSnap.docs) {
-          await newDocRef.collection('members').doc(subDoc.id).set(subDoc.data());
-          await subDoc.ref.delete();
+          batch.set(newDocRef.collection('members').doc(subDoc.id), subDoc.data());
+          batchCount++;
+          await commitBatchIfNeeded();
+
+          batch.delete(subDoc.ref);
+          batchCount++;
+          await commitBatchIfNeeded();
         }
 
         // Delete the original legacy doc
-        await doc.ref.delete();
+        batch.delete(doc.ref);
+        batchCount++;
+        await commitBatchIfNeeded();
       }
       migratedSchools++;
     } else if (needsUpdate) {
       console.log(`Migrating fields for school ${doc.id}`);
       if (!argv['dry-run']) {
-        await doc.ref.update(update);
+        batch.update(doc.ref, update);
+        batchCount++;
+        await commitBatchIfNeeded();
       }
       migratedSchools++;
     }
@@ -183,10 +205,17 @@ async function run() {
     if (needsUpdate) {
       console.log(`Migrating member ${doc.id}`);
       if (!argv['dry-run']) {
-        await doc.ref.update(update);
+        batch.update(doc.ref, update);
+        batchCount++;
+        await commitBatchIfNeeded();
       }
       migratedMembers++;
     }
+  }
+
+  if (!argv['dry-run']) {
+    console.log('Committing final batch...');
+    await commitBatchIfNeeded(true);
   }
 
   console.log('\nDone!');

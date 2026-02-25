@@ -212,7 +212,7 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
   const lastUpdated = docData.lastUpdated
-    ? docData.lastUpdated.toDate().toISOString()
+    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
 
   const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
@@ -309,7 +309,7 @@ export function firestoreDocToMember(doc: GenericFirestoreDoc): Member {
   // memberData.lastUpdated is full before the server timestamp gets
   // the actual data back.
   const lastUpdated = docData.lastUpdated
-    ? docData.lastUpdated.toDate().toISOString()
+    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
 
   const primarySchoolId = docData.primarySchoolId || docData.managingOrgId || '';
@@ -464,7 +464,7 @@ export type OrderFirebaseDoc = SheetsImportOrderFirebaseDoc | SquarespaceOrderFi
 export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
   const docData = doc.data() as OrderFirebaseDoc;
   const lastUpdated = docData.lastUpdated
-    ? docData.lastUpdated.toDate().toISOString()
+    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
 
   if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === 'ilc-2005-sheets-db-import') {
@@ -618,7 +618,7 @@ export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
 export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
   const docData = doc.data() as GradingFirebaseDoc;
   const lastUpdated = docData.lastUpdated
-    ? docData.lastUpdated.toDate().toISOString()
+    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
   return { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
 }
