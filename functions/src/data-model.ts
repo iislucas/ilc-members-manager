@@ -50,8 +50,8 @@ instructors, e.g. their contact information.
 ## /instructors/{instructorMemberDocId}/members/{studentMemberDocId}: Member
 
 This document is cached member information (from /members/{memberDocId})
-that are have listed the instructor as their primary instructor. 
-This allows for efficient queries of by an instrutcor of all their students.
+that has listed the instructor as their primary instructor. 
+This allows for efficient queries by an instructor of all their students.
 Both {instructorMemberDocId} and {studentMemberDocId} should correspond to 
 entries in the /members/{memberDocId}.
 
