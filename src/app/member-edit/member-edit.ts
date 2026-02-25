@@ -542,15 +542,35 @@ export class MemberEditComponent {
       if (member.docId) {
         const origId = this.member().instructorId;
         if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && member.instructorId && origId !== member.instructorId) {
-          await this.membersService.updateMemberAndStudentInstructorIds(member.docId, member, origId);
+          try {
+            await this.membersService.updateMemberAndStudentInstructorIds(member.docId, member, origId);
+          } catch (e) {
+            console.error('Error updating member and student instructor IDs:', e);
+            throw new Error(`Failed to update member and move students to the new instructor: ${(e as Error).message}`);
+          }
         } else {
           if (origId && member.instructorId && origId !== member.instructorId && member.docId) {
-            await this.membersService.clearInstructorMembers(member.docId);
+            try {
+              await this.membersService.clearInstructorMembers(member.docId);
+            } catch (e) {
+              console.error('Error clearing old instructor members subcollection:', e);
+              throw new Error(`Failed to clean up the member's old instructor subcollection: ${(e as Error).message}`);
+            }
           }
-          await this.membersService.updateMember(member.docId, member);
+          try {
+            await this.membersService.updateMember(member.docId, member);
+          } catch (e) {
+            console.error('Error updating member document:', e);
+            throw new Error(`Failed to save updated member details: ${(e as Error).message}`);
+          }
         }
       } else {
-        await this.membersService.addMember(member);
+        try {
+          await this.membersService.addMember(member);
+        } catch (e) {
+          console.error('Error creating new member:', e);
+          throw new Error(`Failed to create new member: ${(e as Error).message}`);
+        }
       }
 
       this.form().reset();

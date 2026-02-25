@@ -11,6 +11,7 @@ service cloud.firestore {
       let aclPath = /databases/$(database)/documents/acl/$(email);
       return email != null && exists(aclPath) && get(aclPath).data.isAdmin == true;
     }
+
     function getUserMemberDocIds() {
       let email = request.auth.token.email;
       let aclPath = /databases/$(database)/documents/acl/$(email);
@@ -45,9 +46,24 @@ service cloud.firestore {
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
     }
 
-    match /schools/{schoolId} {
+    match /instructors/{instructorMemberDocId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      
+      match /members/{studentMemberDocId} {
+        allow read: if isAdmin() || instructorMemberDocId in getUserMemberDocIds();
+        allow write: if isAdmin();
+      }
+      
+      match /gradings/{gradingId} {
+        allow read: if isAdmin() || instructorMemberDocId in getUserMemberDocIds();
+        allow write: if isAdmin();
+      }
+    }
+
+    match /schools/{schoolDocId} {
       function isSchoolManager() {
-        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
+        let school = get(/databases/$(database)/documents/schools/$(schoolDocId)).data;
         return request.auth.token.email == school.get('ownerEmail', '') || 
             request.auth.token.email in school.get('managerEmails', []);
       }
@@ -60,23 +76,16 @@ service cloud.firestore {
       allow update: if isValidEdit() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managerInstructorIds']);
-    }
-
-    match /instructors/{instructorMemberDocId} {
-      allow read: if true;
-      
-      match /members/{studentMemberDocId} {
-        allow read: if instructorMemberDocId in getUserMemberDocIds();
+    
+      match /members/{memberDocId} {
+        allow read: if isAdmin() || isSchoolManager();
+        allow write: if isAdmin();
       }
-    }
 
-    match /schools/{schoolId}/members/{memberDocId} {
-      function isSchoolManager() {
-        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.get('ownerEmail', '') || 
-            request.auth.token.email in school.get('managerEmails', []);
+      match /gradings/{gradingId} {
+        allow read: if isAdmin() || isSchoolManager();
+        allow write: if isAdmin();
       }
-      allow read: if isAdmin() || isSchoolManager();
     }
 
     match /acl/{email} {
@@ -122,19 +131,6 @@ service cloud.firestore {
       allow update: if isValidEdit() && isGradingInstructor() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEventDate', 'notes']);
-    }
-
-    match /instructors/{instructorMemberDocId}/gradings/{gradingId} {
-      allow read: if instructorMemberDocId in getUserMemberDocIds();
-    }
-
-    match /schools/{schoolId}/gradings/{gradingId} {
-      function isSchoolManager() {
-        let school = get(/databases/$(database)/documents/schools/$(schoolId)).data;
-        return request.auth.token.email == school.get('ownerEmail', '') ||
-            request.auth.token.email in school.get('managerEmails', []);
-      }
-      allow read: if isAdmin() || isSchoolManager();
     }
   }
 }

@@ -408,7 +408,7 @@ export class DataManagerService {
           },
           (error) => {
             console.error('Error fetching my students:', error);
-            this.myStudents.setError(error.message);
+            this.myStudents.setError(`Error fetching students: ${error.message}`);
           },
         ),
       );
