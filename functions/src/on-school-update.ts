@@ -79,6 +79,21 @@ async function populateSchoolMembers(schoolDocId: string, schoolId: string) {
   }
 }
 
+async function removeAllSchoolMembers(schoolDocId: string) {
+  const snapshot = await db.collection('schools').doc(schoolDocId).collection('members').get();
+  const chunks: admin.firestore.WriteBatch[] = [];
+  let i = 0;
+  snapshot.docs.forEach((doc) => {
+    if (i % 500 === 0) chunks.push(db.batch());
+    const batch = chunks[chunks.length - 1];
+    batch.delete(doc.ref);
+    i++;
+  });
+  for (const batch of chunks) {
+    await batch.commit();
+  }
+}
+
 export const onSchoolCreated = onDocumentCreated(
   'schools/{schoolId}',
   async (event) => {
@@ -110,6 +125,9 @@ export const onSchoolUpdated = onDocumentUpdated(
     }
 
     if (schoolAfter.schoolId !== schoolBefore.schoolId) {
+      if (schoolBefore.schoolId) {
+        await removeAllSchoolMembers(snap.after.id);
+      }
       if (schoolAfter.schoolId) {
         await populateSchoolMembers(snap.after.id, schoolAfter.schoolId);
       }

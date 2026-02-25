@@ -166,6 +166,21 @@ async function populateInstructorMembers(instructorDocId: string, instructorId: 
   }
 }
 
+async function removeAllInstructorMembers(instructorDocId: string) {
+  const snapshot = await db.collection('instructors').doc(instructorDocId).collection('members').get();
+  const chunks: admin.firestore.WriteBatch[] = [];
+  let i = 0;
+  snapshot.docs.forEach((doc) => {
+    if (i % 500 === 0) chunks.push(db.batch());
+    const batch = chunks[chunks.length - 1];
+    batch.delete(doc.ref);
+    i++;
+  });
+  for (const batch of chunks) {
+    await batch.commit();
+  }
+}
+
 export const onMemberCreated = onDocumentCreated(
   'members/{memberId}',
   async (event) => {
@@ -211,6 +226,9 @@ export const onMemberUpdated = onDocumentUpdated(
       member.memberId !== previous.memberId ||
       member.instructorId !== previous.instructorId
     ) {
+      if (previous.instructorId && member.instructorId !== previous.instructorId) {
+        await removeAllInstructorMembers(snap.after.id);
+      }
       if (member.instructorId && member.instructorId !== previous.instructorId) {
         await populateInstructorMembers(snap.after.id, member.instructorId);
       }
