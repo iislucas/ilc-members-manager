@@ -588,7 +588,16 @@ export class DataManagerService {
     await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
   }
 
-  async deleteSchool(id: string): Promise<void> {
+  async deleteSchool(id: string, onProgress?: (msg: string) => void): Promise<void> {
+    const membersRef = collection(this.db, 'schools', id, 'members');
+    const membersSnap = await getDocs(membersRef);
+    if (!membersSnap.empty) {
+      if (onProgress) onProgress(`Deleting ${membersSnap.docs.length} members from school...`);
+      for (const mDoc of membersSnap.docs) {
+        await deleteDoc(mDoc.ref);
+      }
+    }
+    if (onProgress) onProgress('Deleting school...');
     return deleteDoc(doc(this.db, 'schools', id));
   }
 

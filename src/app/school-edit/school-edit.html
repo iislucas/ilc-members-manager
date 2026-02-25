@@ -234,7 +234,12 @@
           </div>
           <div class="right-actions">
             <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
-            @if (canDelete() && userIsAdmin()) {
+            @if (isDeleting()) {
+              <div class="deleting-status">
+                <app-spinner></app-spinner>
+                <span class="progress-message">{{ deleteProgress() }}</span>
+              </div>
+            } @else if (canDelete() && userIsAdmin()) {
               <button class="delete-button" (click)="deleteSchool($event)">
                 <app-icon name="trash" fill="#000" />
                 Delete

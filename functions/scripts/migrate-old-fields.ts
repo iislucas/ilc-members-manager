@@ -66,6 +66,16 @@ async function run() {
     // We don't save docId explicitly inside SchoolFirebaseDoc per the data-model
     delete update.docId;
 
+    // Restore lastUpdated as a Timestamp, fixing it if it was accidentally converted to a string
+    if (typeof rawData.lastUpdated === 'string') {
+      update.lastUpdated = admin.firestore.Timestamp.fromDate(new Date(rawData.lastUpdated));
+      needsUpdate = true;
+    } else if (rawData.lastUpdated) {
+      update.lastUpdated = rawData.lastUpdated;
+    } else {
+      update.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
+    }
+
     if (rawData.owner !== undefined) {
       update.owner = admin.firestore.FieldValue.delete();
       needsUpdate = true;
@@ -90,6 +100,8 @@ async function run() {
       legacySchoolDocIdMap.set(doc.id, newDocRef.id);
 
       if (!argv['dry-run']) {
+        delete update.owner;
+        delete update.managers;
         await newDocRef.set(update);
 
         // Copy the 'members' subcollection
@@ -124,6 +136,16 @@ async function run() {
     let needsUpdate = false;
     const update: any = { ...member };
     delete update.docId; // Not explicitly saved in DB
+
+    // Restore lastUpdated as a Timestamp, fixing it if it was accidentally converted to a string
+    if (typeof rawData.lastUpdated === 'string') {
+      update.lastUpdated = admin.firestore.Timestamp.fromDate(new Date(rawData.lastUpdated));
+      needsUpdate = true;
+    } else if (rawData.lastUpdated) {
+      update.lastUpdated = rawData.lastUpdated;
+    } else {
+      update.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
+    }
 
     if (rawData.sifuInstructorId !== undefined) {
       update.sifuInstructorId = admin.firestore.FieldValue.delete();

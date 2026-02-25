@@ -115,6 +115,8 @@ export class SchoolEditComponent {
   editableSchool = computed<School>(() => this.schoolFormModel());
 
   isSaving = signal(false);
+  isDeleting = signal(false);
+  deleteProgress = signal('');
   collapsed = linkedSignal<boolean>(() => {
     return this.collapse() ?? true;
   });
@@ -319,10 +321,17 @@ export class SchoolEditComponent {
     ) {
       if (this.editableSchool().docId) {
         try {
-          await this.membersService.deleteSchool(this.editableSchool().docId);
+          this.isDeleting.set(true);
+          await this.membersService.deleteSchool(
+            this.editableSchool().docId,
+            (msg) => this.deleteProgress.set(msg)
+          );
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);
+        } finally {
+          this.isDeleting.set(false);
+          this.deleteProgress.set('');
         }
       }
     }

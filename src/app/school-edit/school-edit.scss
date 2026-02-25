@@ -18,3 +18,15 @@
   flex-wrap: nowrap;
   align-items: center;
 }
+
+.deleting-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+}
+
+.progress-message {
+  font-size: small;
+  font-style: italic;
+}
