@@ -632,7 +632,7 @@ export class DataManagerService {
       changes.lastUpdated = serverTimestamp() as Timestamp;
       return setDoc(docRef, changes, { merge: true });
     } else {
-    // Fallback if no old member is found
+      // Fallback if no old member is found
       const memberWithNewTimestamp: MemberFirestoreDoc = {
         ...newMember,
         lastUpdated: serverTimestamp() as Timestamp,
@@ -675,12 +675,7 @@ export class DataManagerService {
     return deleteDoc(docRef);
   }
 
-  async setSchool(school: School): Promise<void> {
-    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
-      ...school,
-      lastUpdated: serverTimestamp() as Timestamp,
-    };
-
+  async setSchool(school: School, oldSchool?: School): Promise<void> {
     let docRef: DocumentReference;
     if (school.docId) {
       docRef = doc(this.db, 'schools', school.docId);
@@ -688,6 +683,27 @@ export class DataManagerService {
       docRef = doc(collection(this.db, 'schools'));
     }
 
+    // When we have the original school, only send changed fields.
+    // This is necessary for school managers who are restricted by
+    // firestore rules to only update specific fields via affectedKeys().hasOnly(...).
+    if (oldSchool) {
+      const changes: Partial<SchoolFirebaseDoc> = {};
+      for (const key of Object.keys(school) as Array<keyof School>) {
+        if (key === 'docId' || key === 'lastUpdated') continue;
+        if (!deepObjEq(school[key], oldSchool[key])) {
+          // @ts-ignore
+          changes[key] = school[key];
+        }
+      }
+      changes.lastUpdated = serverTimestamp() as Timestamp;
+      return setDoc(docRef, changes, { merge: true });
+    }
+
+    // Fallback: send everything (for new schools or when no original is available)
+    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
+      ...school,
+      lastUpdated: serverTimestamp() as Timestamp,
+    };
     await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
   }
 

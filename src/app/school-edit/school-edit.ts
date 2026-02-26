@@ -343,7 +343,7 @@ export class SchoolEditComponent {
         if (origId && school.schoolId && origId !== school.schoolId && school.docId) {
           await this.membersService.clearSchoolMembers(school.docId);
         }
-        await this.membersService.setSchool(school);
+        await this.membersService.setSchool(school, this.school());
       }
 
       this.form().reset();
