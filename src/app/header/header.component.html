@@ -1,0 +1,40 @@
+<div class="nav-bar" [class.logged-out]="!isLoggedIn()">
+  <div class="title-and-menu">
+    @if (isLoggedIn()) {
+      <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
+        <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
+      </button>
+      @if (menuOpen()) {
+        <app-navigation-menu
+          (closeMenu)="menuOpen.set(false)"
+        ></app-navigation-menu>
+      }
+    }
+
+    <div class="title">
+      <div class="breadcrumb-container">
+        @for (crumb of breadcrumbs(); track $index; let last = $last) {
+          <span class="crumb">
+            @let text =
+              !last && abbreviateParents()
+                ? crumb.shortLabel || crumb.label
+                : crumb.label;
+            @if (!last && crumb.url) {
+              <a [href]="crumb.url" class="crumb-link">{{ text }}</a>
+            } @else {
+              <span class="crumb-label" [class.current-title]="last">{{
+                text
+              }}</span>
+            }
+            @if (!last) {
+              <span class="crumb-separator">&gt;</span>
+            }
+          </span>
+        }
+      </div>
+    </div>
+  </div>
+  @if (isLoggedIn()) {
+    <app-profile-menu></app-profile-menu>
+  }
+</div>

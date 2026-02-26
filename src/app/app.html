@@ -4,25 +4,12 @@
   <!-- @if(firebaseService.loggingIn()) { Logging
   in... } @else 
    -->
-  <div class="nav-bar" [class.logged-out]="!user">
-    <div class="title-and-menu">
-      @if (user) {
-        <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-          <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
-        </button>
-        @if (menuOpen()) {
-          <app-navigation-menu (closeMenu)="menuOpen.set(false)"></app-navigation-menu>
-        }
-      }
-      <div class="title">
-        ILC App <span>-</span>
-        {{ user ? currentViewTitle() : "I Liq Chuan Members Portal" }}
-      </div>
-    </div>
-    @if (user) {
-      <app-profile-menu></app-profile-menu>
-    }
-  </div>
+  <app-header
+    [breadcrumbs]="breadcrumbs()"
+    [abbreviateParents]="currentView() !== Views.Home"
+    [isLoggedIn]="!!user"
+    [(menuOpen)]="menuOpen"
+  ></app-header>
   @if (user) {
     @if (logoutError(); as message) {
       <div class="error-container">

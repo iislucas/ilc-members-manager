@@ -28,6 +28,7 @@ import { MemberGradingsComponent } from './member-gradings/member-gradings';
 import { ClassVideoLibraryComponent } from './class-video-library/class-video-library';
 import { OrderList } from './order-list/order-list';
 import { OrderView } from './order-view/order-view';
+import { HeaderComponent, Breadcrumb } from './header/header.component';
 
 @Component({
   selector: 'app-root',
@@ -40,7 +41,6 @@ import { OrderView } from './order-view/order-view';
     ImportExportComponent,
     SpinnerComponent,
     FindAnInstructorComponent,
-    ProfileMenuComponent,
     SchoolListComponent,
     SchoolMembersComponent,
     InstructorStudentsComponent,
@@ -54,11 +54,11 @@ import { OrderView } from './order-view/order-view';
     GradingListComponent,
     SettingsComponent,
     LoginComponent,
-    NavigationMenuComponent,
     ClassVideoLibraryComponent,
     MemberGradingsComponent,
     OrderList,
     OrderView,
+    HeaderComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -70,6 +70,21 @@ export class App {
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public menuOpen = signal(false);
+  public breadcrumbs = computed<Breadcrumb[]>(() => {
+    const isLoggedOut = !this.firebaseService.user();
+    const baseBreadcrumbs: Breadcrumb[] = [
+      { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
+    ];
+    baseBreadcrumbs.push({ label: 'Members Portal App', shortLabel: 'App', url: '#/' });
+    if (isLoggedOut) {
+      return baseBreadcrumbs;
+    }
+    const view = this.currentView();
+    if (view !== Views.Home && view) {
+      baseBreadcrumbs.push({ label: this.currentViewTitle() });
+    }
+    return baseBreadcrumbs;
+  });
   public currentView = this.routingService.matchedPatternId;
   public Views = Views;
   public LoginStatus = LoginStatus;

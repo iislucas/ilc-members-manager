@@ -44,52 +44,7 @@ main {
 
 
 
-.nav-bar {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1em;
-  flex-grow: 0;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
-  background-color: $theme-bg-color;
-  border-bottom: 2px solid $theme-border-color;
-  padding: 0.5em 0.5em;
-
-  .title {
-    font-size: large;
-    font-weight: bold;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  &.logged-out {
-    padding: 1em 1em;
-
-    .title-and-menu {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .title {
-      font-size: 2em;
-      text-align: center;
-      line-height: 1.2;
-    }
-  }
-}
-
-.title-and-menu {
-  position: relative; /* Establish a positioning context for the menu */
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-
-  .icon-only-button {
-    margin-right: 0.3em;
-  }
-}
 
 
 
