@@ -27,19 +27,18 @@ service cloud.firestore {
         let member = resource.data;
         let schoolDocId = member.primarySchoolDocId;
         let schoolPath = /databases/$(database)/documents/schools/$(schoolDocId);
-        let school = get(schoolPath).data;
         return schoolDocId != "" && exists(schoolPath) && (
-          request.auth.token.email == school.get('ownerEmail', '') || 
-          request.auth.token.email in school.get('managerEmails', [])
+          request.auth.token.email == get(schoolPath).data.get('ownerEmail', '') || 
+          request.auth.token.email in get(schoolPath).data.get('managerEmails', [])
         );
       }
-      function isValidEdit() {
+      function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
       allow delete: if isAdmin();
-      allow write: if isValidEdit() && (isAdmin() || isManagerOfMemberSchool());
-      allow update: if isValidEdit() && isOwner() && 
+      allow write: if hasValidEditUpdate() && (isAdmin() || isManagerOfMemberSchool());
+      allow update: if hasValidEditUpdate() && isOwner() && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
@@ -67,13 +66,13 @@ service cloud.firestore {
         return request.auth.token.email == school.get('ownerEmail', '') || 
             request.auth.token.email in school.get('managerEmails', []);
       }
-      function isValidEdit() {
+      function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if true;
-      allow write: if isValidEdit() && isAdmin();
+      allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if isValidEdit() && isSchoolManager() && 
+      allow update: if hasValidEditUpdate() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managerInstructorIds']);
     
@@ -122,13 +121,13 @@ service cloud.firestore {
           request.auth.token.email in get(schoolPath).data.managerEmails
         );
       }
-      function isValidEdit() {
+      function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
       allow read: if isAdmin() || isGradingStudent() || isGradingInstructor() || isGradingSchoolManager();
-      allow write: if isValidEdit() && isAdmin();
+      allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if isValidEdit() && isGradingInstructor() &&
+      allow update: if hasValidEditUpdate() && isGradingInstructor() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEventDate', 'notes']);
     }

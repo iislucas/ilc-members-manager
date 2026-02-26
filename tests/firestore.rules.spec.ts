@@ -6,6 +6,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import * as fs from 'fs';
 import { serverTimestamp } from 'firebase/firestore';
+import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import type {
   Member,
   School,
@@ -70,7 +71,7 @@ async function setupAdmin(db: Firestore, email: string) {
 describe('Firestore Rules', () => {
   let testEnv: RulesTestEnvironment;
 
-  before(async () => {
+  beforeAll(async () => {
     // Load rules from the file
     const rules = fs.readFileSync('firestore.rules', 'utf8');
     testEnv = await initializeTestEnvironment({
@@ -83,7 +84,7 @@ describe('Firestore Rules', () => {
     });
   });
 
-  after(async () => {
+  afterAll(async () => {
     await testEnv.cleanup();
   });
 

@@ -643,7 +643,7 @@ export class ImportOrdersComponent {
     // 2. Process Side Effects - Members
     for (const update of memberUpdates) {
       try {
-        await this.dataService.updateMember(update.member.docId, update.member);
+        await this.dataService.updateMember(update.member.docId, update.member, update.oldMember);
       } catch (err) {
         console.error('Failed to update member from order', update.member.memberId, err);
       }

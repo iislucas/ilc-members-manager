@@ -1,0 +1,148 @@
+[
+  {
+    "email": "brett.drinkwater@iliqchuan.com",
+    "acl": {
+      "memberDocIds": [
+        "mSUDPNATSQa8uB55Oaq6"
+      ],
+      "isAdmin": false,
+      "instructorIds": [
+        "263"
+      ]
+    },
+    "members": [
+      {
+        "docId": "mSUDPNATSQa8uB55Oaq6",
+        "data": {
+          "isAdmin": false,
+          "name": "Brett Drinkwater",
+          "address": "3 Brockham Close, London",
+          "city": "",
+          "zipCode": "SW19 7EQ",
+          "countyOrState": "",
+          "country": "United Kingdom",
+          "phone": "",
+          "gender": "male",
+          "dateOfBirth": "",
+          "memberId": "UK28",
+          "membershipType": "Life",
+          "currentMembershipExpires": "",
+          "mastersLevels": [],
+          "notes": "",
+          "id": "mSUDPNATSQa8uB55Oaq6",
+          "lastRenewalDate": "2019-02-21",
+          "instructorLicenseType": "Annual",
+          "instructorLicenseExpires": "2026-11-12",
+          "instructorLicenseRenewalDate": "2025-08-25",
+          "firstMembershipStarted": "2019-02-21",
+          "studentLevel": "4",
+          "gradingDocIds": [],
+          "classVideoLibraryExpirationDate": "",
+          "applicationLevel": "2",
+          "classVideoLibrarySubscription": false,
+          "tags": [],
+          "instructorWebsite": "www.facebook.com/martialartofawarenessuk",
+          "publicPhone": "(770) 629-5107",
+          "publicCountyOrState": "Surrey",
+          "publicRegionOrCity": "Tongham",
+          "publicEmail": "brett@tian-yi.co.uk",
+          "instructorId": "263",
+          "primarySchoolDocId": "",
+          "primaryInstructorId": "105",
+          "primarySchoolId": "",
+          "emails": [
+            "awakenedmonki0@gmail.com",
+            "brett.drinkwater@iliqchuan.com"
+          ],
+          "lastUpdated": "2026-02-25T08:28:48.508Z",
+          "docId": "mSUDPNATSQa8uB55Oaq6"
+        }
+      }
+    ],
+    "schools": []
+  },
+  {
+    "email": "moilucasdixon@gmail.com",
+    "acl": {
+      "isAdmin": false,
+      "memberDocIds": [
+        "hUr2Qv3Q9hpx8KjlvkHy"
+      ],
+      "instructorIds": [
+        "foo-1"
+      ]
+    },
+    "members": [
+      {
+        "docId": "hUr2Qv3Q9hpx8KjlvkHy",
+        "data": {
+          "isAdmin": false,
+          "memberId": "FR102",
+          "membershipType": "Annual",
+          "firstMembershipStarted": "",
+          "lastRenewalDate": "",
+          "currentMembershipExpires": "",
+          "instructorLicenseExpires": "",
+          "instructorLicenseRenewalDate": "",
+          "studentLevel": "",
+          "applicationLevel": "",
+          "mastersLevels": [],
+          "id": "hUr2Qv3Q9hpx8KjlvkHy",
+          "instructorLicenseType": "Life",
+          "tags": [],
+          "notes": "a change.",
+          "gradingDocIds": [],
+          "classVideoLibraryExpirationDate": "",
+          "docId": "hUr2Qv3Q9hpx8KjlvkHy",
+          "classVideoLibrarySubscription": true,
+          "instructorId": "foo-1",
+          "phone": "+33 648136124",
+          "emails": [
+            "moilucasdixon+test@gmail.com",
+            "moilucasdixon@gmail.com"
+          ],
+          "country": "United States",
+          "zipCode": "93500",
+          "gender": "male",
+          "city": "Pantin",
+          "countyOrState": "Ile de France",
+          "name": "moi ld",
+          "dateOfBirth": "2026-01-24",
+          "primaryInstructorId": "2",
+          "publicEmail": "moilucasdixon+test@gmail.com",
+          "publicPhone": "+33 (0) 648136124",
+          "publicRegionOrCity": "Pantin",
+          "publicCountyOrState": "",
+          "instructorWebsite": "https://www.zxd.fr",
+          "address": "new personal adresssss",
+          "lastUpdated": "2026-02-26T22:13:52.340Z",
+          "primarySchoolDocId": "8JbQZ3KbNDQPfI5QpbC2",
+          "primarySchoolId": "SCH-101"
+        }
+      }
+    ],
+    "schools": [
+      {
+        "docId": "8JbQZ3KbNDQPfI5QpbC2",
+        "data": {
+          "schoolLicenseExpires": "",
+          "schoolCity": "PANTIN",
+          "ownerInstructorId": "197",
+          "managerInstructorIds": [],
+          "schoolLicenseRenewalDate": "",
+          "managerEmails": [],
+          "schoolCountry": "France",
+          "schoolAddress": "8 Rue Eugène et Marie-Louise Cornet\nApt 4",
+          "schoolWebsite": "www.zxd.fr",
+          "schoolCountyOrState": "Ile de France",
+          "schoolZipCode": "93500",
+          "schoolName": "Zhong Xin Dao Paris",
+          "ownerEmail": "lucas.dixon@gmail.com",
+          "docId": "8JbQZ3KbNDQPfI5QpbC2",
+          "lastUpdated": "2026-02-25T00:48:46.732Z",
+          "schoolId": "SCH-101"
+        }
+      }
+    ]
+  }
+]

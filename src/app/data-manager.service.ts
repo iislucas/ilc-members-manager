@@ -11,6 +11,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   DocumentReference,
   getFirestore,
@@ -50,6 +51,7 @@ import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { deepObjEq } from './utils';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -604,13 +606,40 @@ export class DataManagerService {
     return setDoc(newDocRef, memberWithNewTimestamp).then(() => newDocRef);
   }
 
-  async updateMember(id: string, member: Member): Promise<void> {
+  async updateMember(id: string, newMember: Member, oldMember?: Member): Promise<void> {
     const docRef = doc(this.db, 'members', id);
-    const memberWithNewTimestamp: MemberFirestoreDoc = {
-      ...member,
-      lastUpdated: serverTimestamp() as Timestamp,
-    };
-    return setDoc(docRef, memberWithNewTimestamp, { merge: true });
+    let originalMember = oldMember;
+    if (!originalMember) {
+      originalMember = this.members.entriesMap().get(newMember.docId);
+    }
+
+    // If the member is found in the current list of members, only update the 
+    // fields that have changed. This is more efficient than updating the entire
+    // member document, and also it is necessary to stop small oddnesses in 
+    // the firestore database content (e.g. old field names, etc.) from breaking 
+    // member updates to themselves. By only asking to update fields that changed, 
+    // we avoid firestore rules from rejecting the update due to the precense of 
+    // fields that are not allowed.
+    if (originalMember) {
+      const changes: Partial<MemberFirestoreDoc> = {};
+      for (const key of Object.keys(newMember) as Array<keyof Member>) {
+        if (key === 'docId' || key === 'lastUpdated') continue;
+        if (!deepObjEq(newMember[key], originalMember[key])) {
+          // @ts-ignore
+          changes[key] = newMember[key];
+        }
+      }
+      changes.lastUpdated = serverTimestamp() as Timestamp;
+      return setDoc(docRef, changes, { merge: true });
+    } else {
+    // Fallback if no old member is found
+      const memberWithNewTimestamp: MemberFirestoreDoc = {
+        ...newMember,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
+      delete (memberWithNewTimestamp as { docId?: string }).docId;
+      return setDoc(docRef, memberWithNewTimestamp, { merge: true });
+    }
   }
 
   async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {

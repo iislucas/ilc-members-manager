@@ -440,6 +440,7 @@ export class ImportMembersComponent {
         await this.membersService.updateMember(
           change.oldItem?.docId || change.key,
           change.newItem,
+          change.oldItem
         );
       } catch (err) {
         console.error('Failed to update member', change.key, err);

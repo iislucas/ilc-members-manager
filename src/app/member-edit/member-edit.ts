@@ -244,7 +244,7 @@ export class MemberEditComponent {
   // Helper to check if there are dirty fields other than emails/tags
   private hasNonArrayChanges(): boolean {
     // Simplified: if form is dirty and we're checking, assume non-array changes
-    return true; 
+    return true;
   }
 
   isSaving = signal(false);
@@ -440,10 +440,6 @@ export class MemberEditComponent {
     });
   }
 
-  updateMember() {
-    // No longer needed with signalGroup as it's reactive
-  }
-
   handleInstructorIdAssignmentChange(assignment: Assignment) {
     this.instructorIdAssignment.set(assignment);
     if (
@@ -583,7 +579,7 @@ export class MemberEditComponent {
             }
           }
           try {
-            await this.membersService.updateMember(member.docId, member);
+            await this.membersService.updateMember(member.docId, member, this.member());
           } catch (e) {
             console.error('Error updating member document:', e);
             throw new Error(`Failed to save updated member details: ${(e as Error).message}`);
