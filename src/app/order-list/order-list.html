@@ -1,20 +1,64 @@
 <div class="order-list-container">
   <div class="search-section">
     <div class="input-group">
-      <input
-        type="text"
-        [(ngModel)]="searchTerm"
-        placeholder="Search by Order ID, Ref #, or Email..."
-        (keyup.enter)="search()"
-      />
-      <button (click)="search()" class="primary">
-        <app-icon name="search"></app-icon>
-        Search
-      </button>
-      <button (click)="manualSync()" class="primary" [disabled]="syncing()">
-        <app-icon name="refresh"></app-icon>
-        {{ syncing() ? "Syncing..." : "Sync Squarespace" }}
-      </button>
+      <div class="search-mode-toggle">
+        <button [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
+        <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
+        <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Order Date</button>
+      </div>
+      
+      @if (searchMode() === 'term') {
+        <select [(ngModel)]="searchField" class="field-select">
+          <option value="email">Member Email</option>
+          <option value="lastName">Member Last Name</option>
+          <option value="customerEmail">Billing Email</option>
+          <option value="billingAddress.lastName">Billing Last Name</option>
+          <option value="orderNumber">Squarespace Order #</option>
+          <option value="referenceNumber">Sheets Ref #</option>
+          <option value="id">Squarespace ID</option>
+        </select>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search within selected field..."
+          (keyup.enter)="search()"
+        />
+        <button (click)="search()" class="primary">
+          <app-icon name="search"></app-icon>
+          Search
+        </button>
+      } @else if (searchMode() === 'date') {
+        <input
+          type="date"
+          title="Start Date"
+          [(ngModel)]="startDate"
+        />
+        <span>to</span>
+        <input
+          type="date"
+          title="End Date"
+          [(ngModel)]="endDate"
+        />
+        <button (click)="search()" class="primary">
+          <app-icon name="search"></app-icon>
+          Search
+        </button>
+      }
+
+      <!-- Config Menu -->
+      <div class="menu-container">
+        <button (click)="toggleMenu()" class="icon-only-button secondary">
+          <app-icon name="more_vert"></app-icon>
+        </button>
+        @if (menuOpen()) {
+          <div class="menu-dropdown">
+            <button (click)="manualSync()" [disabled]="syncing()">
+              <app-icon name="refresh"></app-icon>
+              {{ syncing() ? "Syncing..." : "Sync Squarespace" }}
+            </button>
+          </div>
+        }
+      </div>
     </div>
   </div>
 
@@ -34,6 +78,7 @@
             <th>Date</th>
             <th>Reference / Order #</th>
             <th>Name / Email</th>
+            <th>Description</th>
             <th>Kind</th>
             <th>Status</th>
             <th>Actions</th>
@@ -42,7 +87,13 @@
         <tbody>
           @for (order of orders(); track order.docId) {
             <tr>
-              <td>{{ order.lastUpdated | date: "short" }}</td>
+              <td>
+                @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
+                  {{ order.createdOn | date: "yyyy-MM-dd" }}
+                } @else {
+                  {{ order.datePaid | date: "yyyy-MM-dd" }}
+                }
+              </td>
               <td>
                 @if (
                   order.ilcAppOrderKind ===
@@ -63,6 +114,22 @@
                 } @else {
                   <div>{{ order.firstName }} {{ order.lastName }}</div>
                   <div class="small-text">{{ order['email'] }}</div>
+                }
+              </td>
+              <td>
+                @if (
+                  order.ilcAppOrderKind ===
+                  "https://api.squarespace.com/1.0/commerce/orders"
+                ) {
+                  @for (item of order.lineItems; track item.id) {
+                    <div class="small-text">&bull; {{ item.quantity }}x {{ item.productName || item.sku }}</div>
+                  }
+                } @else {
+                  <div>{{ order['paidFor'] }}</div>
+                  <div class="small-text">{{ order['orderType'] }}</div>
+                  @if (order['notes']) {
+                    <div class="small-text"><i style="opacity: 0.7">{{ order['notes'] }}</i></div>
+                  }
                 }
               </td>
               <td>

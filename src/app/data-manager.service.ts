@@ -66,6 +66,28 @@ export enum DataServiceState {
   Loaded = 'Loaded',
 }
 
+export function sortOrdersByDateDesc(orders: Order[]): Order[] {
+  return orders.sort((a, b) => {
+    const dateA = a.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders' ? a.createdOn : a.datePaid;
+    const dateB = b.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders' ? b.createdOn : b.datePaid;
+    return (dateB || '').localeCompare(dateA || '');
+  });
+}
+
+export type OrderSearchCriteriaTerm = {
+  kind: 'term';
+  searchField: 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
+  term: string;
+};
+
+export type OrderSearchCriteriaDateRange = {
+  kind: 'date';
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+};
+
+export type OrderSearchCriteria = OrderSearchCriteriaTerm | OrderSearchCriteriaDateRange;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -313,7 +335,7 @@ export class DataManagerService {
     try {
       const q = query(this.ordersCollection, orderBy('lastUpdated', 'desc'));
       const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(firestoreDocToOrder);
+      const orders = sortOrdersByDateDesc(snapshot.docs.map(firestoreDocToOrder));
       this.orders.setEntries(orders);
       return this.orders;
     } catch (error: any) {
@@ -330,41 +352,64 @@ export class DataManagerService {
         limit(limitCount),
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(firestoreDocToOrder);
+      return sortOrdersByDateDesc(snapshot.docs.map(firestoreDocToOrder));
     } catch (error: any) {
       console.error('Failed to get recent orders', error);
       return [];
     }
   }
 
-  async searchOrders(term: string): Promise<Order[]> {
-    if (!term) return [];
+  async searchOrders(criteria: OrderSearchCriteria): Promise<Order[]> {
+    if (criteria.kind === 'term') {
+      const term = criteria.term.trim();
+      const field = criteria.searchField;
+      if (!term) return [];
 
-    const results = new Map<string, Order>();
+      const results = new Map<string, Order>();
 
-    // We search across multiple fields. 
-    // In a real production app with many orders, we might use a dedicated search service.
-    // For now, these targeted queries should suffice.
-    const searchQueries = [
-      query(this.ordersCollection, where('orderNumber', '==', term)),
-      query(this.ordersCollection, where('referenceNumber', '==', term)),
-      query(this.ordersCollection, where('id', '==', term)),
-      query(this.ordersCollection, where('customerEmail', '==', term)),
-      query(this.ordersCollection, where('email', '==', term)),
-    ];
-
-    for (const q of searchQueries) {
+      // Search only the specifically requested field
+      const q = query(this.ordersCollection, where(field, '==', term));
       const snap = await getDocs(q);
       snap.docs.forEach((docSnap) => {
         const order = firestoreDocToOrder(docSnap as any);
         results.set(order.docId, order);
       });
+
+      return sortOrdersByDateDesc(Array.from(results.values()));
+    } else if (criteria.kind === 'date') {
+      let qSquareSpace = query(this.ordersCollection);
+      let qSheetsImport = query(this.ordersCollection);
+
+      if (criteria.startDate) {
+        qSquareSpace = query(qSquareSpace, where('createdOn', '>=', criteria.startDate));
+        qSheetsImport = query(qSheetsImport, where('datePaid', '>=', criteria.startDate));
+      }
+
+      if (criteria.endDate) {
+        // createdOn is an ISO string, so we append the end of the day
+        qSquareSpace = query(qSquareSpace, where('createdOn', '<=', criteria.endDate + 'T23:59:59.999Z'));
+        // datePaid is YYYY-MM-DD
+        qSheetsImport = query(qSheetsImport, where('datePaid', '<=', criteria.endDate));
+      }
+
+      qSquareSpace = query(qSquareSpace, orderBy('createdOn', 'desc'), limit(500));
+      qSheetsImport = query(qSheetsImport, orderBy('datePaid', 'desc'), limit(500));
+
+      try {
+        const [snapS, snapH] = await Promise.all([getDocs(qSquareSpace), getDocs(qSheetsImport)]);
+        const results: Order[] = [];
+
+        snapS.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
+        snapH.docs.forEach((docSnap) => results.push(firestoreDocToOrder(docSnap as any)));
+
+        return sortOrdersByDateDesc(results);
+      } catch (error) {
+        console.error('Error searching orders by date bounds:', error);
+        return [];
+      }
     }
 
-    // Also try a prefix search on lastName if it's longer than 2 chars? 
-    // Maybe too complex for now, let's stick to exact matches for ref/id/email.
-
-    return Array.from(results.values());
+    return [];
   }
 
   async getOrderByIdOrRef(idOrRef: string): Promise<Order | undefined> {
