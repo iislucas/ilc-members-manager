@@ -97,84 +97,12 @@
         <div class="divider"></div>
 
         @if (o.ilcAppOrderKind === "ilc-2005-sheets-db-import") {
-          <div class="fields-grid">
-            <div class="field">
-              <label>Customer Name / Email</label>
-              <div class="value">
-                <div>{{ o.firstName }} {{ o.lastName }}</div>
-                <div class="small">{{ o.email }}</div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Member ID (External)</label>
-              <div class="value">{{ o.externalId }}</div>
-            </div>
-            <div class="field">
-              <label>Order Type / Sub-Type</label>
-              <div class="value">{{ o.orderType }}</div>
-            </div>
-            <div class="field">
-              <label>Service / Item Paid For</label>
-              <div class="value">{{ o.paidFor }}</div>
-            </div>
-            <div class="field">
-              <label>Payment Date</label>
-              <div class="value">{{ o.datePaid }}</div>
-            </div>
-            <div class="field">
-              <label>Valid From</label>
-              <div class="value">{{ o.startDate }}</div>
-            </div>
-            <div class="field">
-              <label>Amount (USD)</label>
-              <div class="value">${{ o.costUsd }}</div>
-            </div>
-            <div class="field span-2">
-              <label>Internal Notes</label>
-              <div class="value notes-box">{{ o.notes || "(None)" }}</div>
-            </div>
-          </div>
+          <app-sheet-order-view [order]="o"></app-sheet-order-view>
         } @else if (
           o.ilcAppOrderKind ===
           "https://api.squarespace.com/1.0/commerce/orders"
         ) {
-          <div class="fields-grid">
-            <div class="field">
-              <label>Customer</label>
-              <div class="value">
-                <div>
-                  {{ o.billingAddress?.firstName }}
-                  {{ o.billingAddress?.lastName }}
-                </div>
-                <div class="small">{{ o.customerEmail }}</div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Fulfillment Status</label>
-              <div class="value">{{ o["fulfillmentStatus"] || "PENDING" }}</div>
-            </div>
-            <div class="field">
-              <label>Items Purchased</label>
-              <div class="value line-items">
-                <ul>
-                  @for (item of o.lineItems; track item.id) {
-                    <li>
-                      <strong>{{ item.productName }}</strong>
-                      <span class="qty">x{{ item.quantity }}</span> - ${{
-                        item.unitPricePaid.value
-                      }}
-                    </li>
-                  }
-                </ul>
-              </div>
-            </div>
-            <div class="field span-2">
-              <label>Raw Squarespace Data Dump</label>
-              <div class="raw-data-scroll">
-                <pre>{{ o | json }}</pre>
-              </div>
-            </div>
-          </div>
+          <app-squarespace-order-view [order]="o"></app-squarespace-order-view>
         }
       </div>
     </div>

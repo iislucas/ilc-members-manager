@@ -1,0 +1,49 @@
+<div class="fields-grid ss-grid">
+  <div class="field">
+    <label>Customer</label>
+    <div class="value">
+      <div>
+        {{ order().billingAddress?.firstName }}
+        {{ order().billingAddress?.lastName }}
+      </div>
+      <div class="small">{{ order().customerEmail }}</div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Fulfillment Status</label>
+    <div class="value">{{ order().fulfillmentStatus || "PENDING" }}</div>
+  </div>
+
+  <div class="field span-2">
+    <label>Items Purchased</label>
+    <div class="line-items-container">
+      @for (item of order().lineItems; track item.id) {
+        <div class="item-card">
+          <div class="item-header">
+            <strong>{{ item.quantity }}x {{ item.productName }}</strong>
+            <span class="price">\${{ item.unitPricePaid.value }}</span>
+          </div>
+          @if (item.customizations && item.customizations.length > 0) {
+            <table class="customizations-table">
+              <tbody>
+                @for (custom of item.customizations; track custom.label) {
+                  <tr>
+                    <td class="custom-label">{{ custom.label }}</td>
+                    <td class="custom-value">{{ custom.value }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="field span-2">
+    <label>Raw Squarespace Data Dump</label>
+    <div class="raw-data-scroll">
+      <pre>{{ order() | json }}</pre>
+    </div>
+  </div>
+</div>

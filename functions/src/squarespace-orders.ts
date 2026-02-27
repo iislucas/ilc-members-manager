@@ -5,7 +5,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { Member, MembershipType, Grading, GradingStatus, initGrading, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization, OrderStatus, Order } from './data-model';
+import { Member, MembershipType, InstructorLicenseType, Grading, GradingStatus, initGrading, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization, OrderStatus, Order } from './data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from './level-utils';
 import { assertAdmin, allowedOrigins } from './common';
 import { assignNextMemberId } from './counters';
@@ -256,7 +256,10 @@ export function clearOrderProcessingState(orderData: SquareSpaceOrder): void {
   }
 }
 
-async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore) {
+export async function executeOrderDownstreamLogic(
+  orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore,
+  options: { apiKeyOverride?: string; skipFulfillment?: boolean } = {}
+) {
   // Human-readable order identifier for logging/issues.
   const orderId = orderData.orderNumber || docId;
   // The Squarespace UUID needed for API endpoint URLs (e.g. fulfillments).
@@ -313,22 +316,36 @@ async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: s
       } else {
         lineItem.ilcAppProcessingStatus = 'processed';
       }
+    } else if (lineItem.sku?.startsWith('LIC-')) {
+      const issue = await processInstructorLicense(orderData, orderId, lineItem, db);
+      if (issue) {
+        ilcAppOrderIssues.push(issue);
+        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingIssue = issue;
+        orderStatus = 'error';
+        allItemsFulfilled = false;
+      } else {
+        lineItem.ilcAppProcessingStatus = 'processed';
+      }
     } else {
-      // --- Placeholders for Future Logics ---
-      // Handle specific logic for instructor licenses
-      // if (someConditionForLicenses) { await processInstructorLicense(orderData, db); }
       allItemsFulfilled = false;
     }
   }
 
   if (allItemsFulfilled) {
-    if (!squarespaceId) {
+    if (options.skipFulfillment) {
+      logger.info(`Order ${orderId}: skipFulfillment is set. Skipping Squarespace fulfillment API call.`);
+    } else if (orderData.fulfillmentStatus === 'FULFILLED') {
+      // Order is already fulfilled on Squarespace (e.g. from a previous processing run).
+      // No need to call the fulfillments API again.
+      logger.info(`Order ${orderId} is already fulfilled on Squarespace. Skipping fulfillment API call.`);
+    } else if (!squarespaceId) {
       orderStatus = 'error';
       ilcAppOrderIssues.push(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field). The order may need to be re-synced.`);
       logger.error(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field).`);
     } else {
       try {
-        const apiKey = squarespaceApiKey.value();
+        const apiKey = options.apiKeyOverride || squarespaceApiKey.value();
         const url = `https://api.squarespace.com/1.0/commerce/orders/${squarespaceId}/fulfillments`;
         await axios.post(url, {
           shouldSendNotification: false // Typically don't need shipment notification for digital fulfillment
@@ -341,11 +358,17 @@ async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: s
         });
         logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
       } catch (error) {
-        orderStatus = 'error';
-        ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
-        logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
-        if (axios.isAxiosError(error) && error.response) {
-          logger.error('Squarespace API responded with:', error.response.data);
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          // 403 on fulfillment usually means the order is already fulfilled on Squarespace
+          // but the local fulfillmentStatus field wasn't up to date.
+          logger.warn(`Got 403 trying to fulfill order ${orderId}. This likely means the order is already fulfilled on Squarespace. Treating as success.`);
+        } else {
+          orderStatus = 'error';
+          ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
+          logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
+          if (axios.isAxiosError(error) && error.response) {
+            logger.error('Squarespace API responded with:', error.response.data);
+          }
         }
       }
     }
@@ -617,6 +640,39 @@ export async function processGradingOrder(
 }
 
 // ==================================================================
+// Shared date computation for annual renewals
+// ==================================================================
+
+/**
+ * Compute renewal and expiration dates for annual subscriptions.
+ *
+ * The new renewal date is the later of the current expiration date or the
+ * order date (so that early renewals extend from the current expiration,
+ * while late renewals start from the order date).
+ *
+ * The new expiration date is exactly 1 year after the new renewal date.
+ *
+ * @param currentExpiration - YYYY-MM-DD of the current expiration, or empty.
+ * @param orderDate - YYYY-MM-DD of the order / purchase date.
+ * @returns { renewalDate, expirationDate } both in YYYY-MM-DD.
+ */
+export function computeRenewalAndExpiration(
+  currentExpiration: string,
+  orderDate: string
+): { renewalDate: string; expirationDate: string } {
+  // Renewal date is the later of the current expiration or the order date.
+  let renewalDate = orderDate;
+  if (currentExpiration && currentExpiration > orderDate) {
+    renewalDate = currentExpiration;
+  }
+  // Expiration is exactly 1 year after the renewal date.
+  const renewalDateObj = new Date(renewalDate + 'T00:00:00Z');
+  renewalDateObj.setUTCFullYear(renewalDateObj.getUTCFullYear() + 1);
+  const expirationDate = renewalDateObj.toISOString().substring(0, 10);
+  return { renewalDate, expirationDate };
+}
+
+// ==================================================================
 // Membership Renewal Processing
 // ==================================================================
 
@@ -772,11 +828,18 @@ export async function processMembershipRenewal(
     return issue;
   }
 
+  // Compute the actual renewal and expiration dates considering the
+  // member's current expiration (so early renewals extend from expiry).
+  const { renewalDate, expirationDate } = computeRenewalAndExpiration(
+    memberData.currentMembershipExpires || '',
+    info.renewalDate
+  );
+
   // Check if the member's current expiration is already beyond the new one
   // (would indicate a duplicate / already processed renewal)
-  if (memberData.currentMembershipExpires && memberData.currentMembershipExpires >= info.expirationDate) {
+  if (memberData.currentMembershipExpires && memberData.currentMembershipExpires >= expirationDate) {
     const issue = `[Membership] Member ${info.memberId} already has membership expiring on `
-      + `${memberData.currentMembershipExpires}, which is at or after the new expiration ${info.expirationDate}. `
+      + `${memberData.currentMembershipExpires}, which is at or after the new expiration ${expirationDate}. `
       + `This may be a duplicate renewal. No update made.`;
     logger.warn(issue);
     return issue;
@@ -784,11 +847,11 @@ export async function processMembershipRenewal(
 
   // Update the member's renewal date and expiration
   logger.info(`[Membership] Updating member ${info.memberId} (doc ${memberDocRef.id}): `
-    + `lastRenewalDate=${info.renewalDate}, currentMembershipExpires=${info.expirationDate}`);
+    + `lastRenewalDate=${renewalDate}, currentMembershipExpires=${expirationDate}`);
 
   await memberDocRef.update({
-    lastRenewalDate: info.renewalDate,
-    currentMembershipExpires: info.expirationDate,
+    lastRenewalDate: renewalDate,
+    currentMembershipExpires: expirationDate,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
@@ -859,6 +922,129 @@ async function processNewMemberRegistration(
 
   await memberDocRef.set({
     ...newMember,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return null;
+}
+
+// ==================================================================
+// Instructor / Group Leader License Processing
+// ==================================================================
+
+export interface InstructorLicenseInfo {
+  memberId: string;
+  email: string;
+  orderDate: string; // YYYY-MM-DD, from order createdOn
+}
+
+/**
+ * Parse instructor / group leader license info from a line item's
+ * customization fields. Pure function for easy testing.
+ */
+export function parseInstructorLicenseInfo(
+  orderData: SquareSpaceOrder,
+  lineItem: SquareSpaceLineItem
+): InstructorLicenseInfo {
+  const customizations: SquareSpaceCustomization[] = lineItem.customizations || [];
+
+  let memberId = '';
+  let email = '';
+
+  for (const field of customizations) {
+    if (!field.label || !field.value) continue;
+    const labelLower = field.label.toLowerCase();
+
+    if (labelLower.includes('member id')) {
+      memberId = field.value.trim();
+    } else if (labelLower.includes('email')) {
+      email = field.value.trim();
+    }
+  }
+
+  if (!email) {
+    email = orderData.customerEmail || '';
+  }
+
+  const orderDate = orderData.createdOn
+    ? orderData.createdOn.substring(0, 10)
+    : new Date().toISOString().substring(0, 10);
+
+  return { memberId, email, orderDate };
+}
+
+/**
+ * Process an instructor / group leader license renewal line item:
+ * find the member by memberId, validate, update instructorLicenseRenewalDate
+ * and instructorLicenseExpires.
+ *
+ * Returns an error string, or null if successful.
+ */
+export async function processInstructorLicense(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  lineItem: SquareSpaceLineItem,
+  db: admin.firestore.Firestore
+): Promise<string | null> {
+  const info = parseInstructorLicenseInfo(orderData, lineItem);
+
+  if (!info.memberId) {
+    const issue = `[License] Order ${orderId} is missing a Member ID in the form response. `
+      + `Cannot process license renewal without a Member ID.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  // Look up the member by memberId
+  logger.info(`[License] Looking for member with ID: ${info.memberId} for order ${orderId}`);
+  const memberQuery = await db.collection('members')
+    .where('memberId', '==', info.memberId)
+    .limit(1)
+    .get();
+
+  if (memberQuery.empty) {
+    const issue = `[License] Member ID ${info.memberId} not found in database for order ${orderId}.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  const memberDocRef = memberQuery.docs[0].ref;
+  const memberData = memberQuery.docs[0].data() as Partial<Member>;
+
+  // Validate email
+  if (info.email) {
+    const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
+    const providedEmailLower = info.email.toLowerCase();
+    if (!memberEmails.includes(providedEmailLower)) {
+      const issue = `[License] Order ${orderId}: email mismatch for member ${info.memberId}: `
+        + `order provided "${info.email}" but member has emails [${memberData.emails?.join(', ')}]`;
+      logger.warn(issue);
+      return issue;
+    }
+  }
+
+  // Compute the actual renewal and expiration dates
+  const { renewalDate, expirationDate } = computeRenewalAndExpiration(
+    memberData.instructorLicenseExpires || '',
+    info.orderDate
+  );
+
+  // Idempotency: check if the member already has a license expiring at or after new expiration
+  if (memberData.instructorLicenseExpires && memberData.instructorLicenseExpires >= expirationDate) {
+    const issue = `[License] Member ${info.memberId} already has instructor license expiring on `
+      + `${memberData.instructorLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
+      + `This may be a duplicate renewal. No update made.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  logger.info(`[License] Updating member ${info.memberId} (doc ${memberDocRef.id}): `
+    + `instructorLicenseRenewalDate=${renewalDate}, instructorLicenseExpires=${expirationDate}`);
+
+  await memberDocRef.update({
+    instructorLicenseRenewalDate: renewalDate,
+    instructorLicenseExpires: expirationDate,
+    instructorLicenseType: InstructorLicenseType.Annual,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 

@@ -15,6 +15,7 @@
     "admin": "ts-node scripts/admin.ts",
     "sync-squarespace-orders": "ts-node scripts/sync-squarespace-orders.ts",
     "sync-acl-emails": "ts-node scripts/sync-acl-emails.ts",
+    "reprocess-order": "ts-node scripts/reprocess-order.ts",
     "check-timestamps": "ts-node scripts/check-timestamps.ts",
     "test": "vitest run --no-color"
   },

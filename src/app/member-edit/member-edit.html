@@ -654,9 +654,6 @@
               [formField]="form.classVideoLibraryExpirationDate"
             />
             <span class="note">Leave empty if never expires</span>
-            @if (videoLibraryDateMismatch(); as warning) {
-              <div class="warning-message">⚠ {{ warning }}</div>
-            }
           </div>
 
           <label for="notes" class="align-top">Notes</label>

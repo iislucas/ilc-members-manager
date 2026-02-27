@@ -6,11 +6,13 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { SquarespaceOrderView } from './squarespace-order-view/squarespace-order-view';
+import { SheetOrderView } from './sheet-order-view/sheet-order-view';
 
 @Component({
   selector: 'app-order-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })

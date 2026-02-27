@@ -1,0 +1,35 @@
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+@media (max-width: 600px) {
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.field.span-2 {
+  grid-column: span 2;
+}
+label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.value {
+  background: var(--surface-variant, #f5f5f5);
+  padding: 0.75rem;
+  border-radius: 4px;
+  min-height: 1.2rem;
+}
+.small {
+  font-size: 0.85rem;
+  color: #888;
+}
+.notes-box {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}

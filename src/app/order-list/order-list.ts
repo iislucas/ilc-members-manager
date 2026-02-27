@@ -30,6 +30,34 @@ export class OrderList implements OnInit {
   public searched = signal(false); // Indicates if A search was performed, although by default we also load recent.
   public syncing = signal(false);
   public menuOpen = signal(false);
+  public openMenuId = signal<string | null>(null);
+
+  toggleOrderMenu(docId: string, event: Event) {
+    event.stopPropagation();
+    if (this.openMenuId() === docId) {
+      this.openMenuId.set(null);
+    } else {
+      this.openMenuId.set(docId);
+    }
+  }
+
+  async markAsFulfilled(order: Order, event: Event) {
+    event.stopPropagation();
+    this.openMenuId.set(null);
+    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+      const updatedOrder = { ...order, fulfillmentStatus: 'FULFILLED' as const };
+      await this.dataService.updateOrder(order.docId, updatedOrder);
+      this.orders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
+    }
+  }
+
+  async markAsIgnored(order: Order, event: Event) {
+    event.stopPropagation();
+    this.openMenuId.set(null);
+    const updatedOrder = { ...order, ilcAppOrderStatus: 'processed' as const, ilcAppOrderIssues: [] };
+    await this.dataService.updateOrder(order.docId, updatedOrder);
+    this.orders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
+  }
 
   async setSearchMode(mode: 'recent' | 'term' | 'date') {
     this.searchMode.set(mode);

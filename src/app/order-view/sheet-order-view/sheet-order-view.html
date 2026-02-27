@@ -1,0 +1,37 @@
+<div class="fields-grid">
+  <div class="field">
+    <label>Customer Name / Email</label>
+    <div class="value">
+      <div>{{ order().firstName }} {{ order().lastName }}</div>
+      <div class="small">{{ order().email }}</div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Member ID (External)</label>
+    <div class="value">{{ order().externalId }}</div>
+  </div>
+  <div class="field">
+    <label>Order Type / Sub-Type</label>
+    <div class="value">{{ order().orderType }}</div>
+  </div>
+  <div class="field">
+    <label>Service / Item Paid For</label>
+    <div class="value">{{ order().paidFor }}</div>
+  </div>
+  <div class="field">
+    <label>Payment Date</label>
+    <div class="value">{{ order().datePaid }}</div>
+  </div>
+  <div class="field">
+    <label>Valid From</label>
+    <div class="value">{{ order().startDate }}</div>
+  </div>
+  <div class="field">
+    <label>Amount (USD)</label>
+    <div class="value">\${{ order().costUsd }}</div>
+  </div>
+  <div class="field span-2">
+    <label>Internal Notes</label>
+    <div class="value notes-box">{{ order().notes || "(None)" }}</div>
+  </div>
+</div>

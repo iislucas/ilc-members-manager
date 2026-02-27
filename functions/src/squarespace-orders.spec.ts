@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
-import { parseGradingOrderInfo, parseMembershipRenewalInfo, clearOrderProcessingState } from './squarespace-orders';
+import {
+  parseGradingOrderInfo,
+  parseMembershipRenewalInfo,
+  clearOrderProcessingState,
+  computeRenewalAndExpiration,
+  parseInstructorLicenseInfo,
+} from './squarespace-orders';
 import { SquareSpaceOrder, SquareSpaceLineItem } from './data-model';
 import { resolveCountryCode } from './country-codes';
 
@@ -452,6 +458,95 @@ describe('squarespace-orders', () => {
       expect(order.orderNumber).toBe('789');
       expect(order.lineItems![0].sku).toBe('MEM-YEAR-REG');
       expect(order.ilcAppOrderStatus).toBeUndefined();
+    });
+  });
+
+  describe('computeRenewalAndExpiration', () => {
+    it('should extend from current expiration when renewed early (before expiry)', () => {
+      // Member expires 2027-06-15, order placed 2027-03-01.
+      // Renewal should start from the expiration.
+      const result = computeRenewalAndExpiration('2027-06-15', '2027-03-01');
+      expect(result.renewalDate).toBe('2027-06-15');
+      expect(result.expirationDate).toBe('2028-06-15');
+    });
+
+    it('should use order date when renewed after expiration (lapsed)', () => {
+      // Member expired 2026-01-01, order placed 2026-05-10.
+      // Renewal should start from the order date since they lapsed.
+      const result = computeRenewalAndExpiration('2026-01-01', '2026-05-10');
+      expect(result.renewalDate).toBe('2026-05-10');
+      expect(result.expirationDate).toBe('2027-05-10');
+    });
+
+    it('should use order date when there is no prior expiration', () => {
+      const result = computeRenewalAndExpiration('', '2026-02-27');
+      expect(result.renewalDate).toBe('2026-02-27');
+      expect(result.expirationDate).toBe('2027-02-27');
+    });
+
+    it('should handle leap day renewals correctly', () => {
+      // Renewal on Feb 29 of a leap year → expiration shifts to Mar 1 in non-leap year.
+      const result = computeRenewalAndExpiration('', '2024-02-29');
+      expect(result.renewalDate).toBe('2024-02-29');
+      expect(result.expirationDate).toBe('2025-03-01');
+    });
+
+    it('should use order date when expiration equals order date', () => {
+      // Edge case: renewal right on the expiry day.
+      const result = computeRenewalAndExpiration('2026-03-15', '2026-03-15');
+      expect(result.renewalDate).toBe('2026-03-15');
+      expect(result.expirationDate).toBe('2027-03-15');
+    });
+  });
+
+  describe('parseInstructorLicenseInfo', () => {
+    const baseOrderData = {
+      docId: 'order-doc-1',
+      orderNumber: '100',
+      createdOn: '2026-06-15T10:00:00Z',
+      customerEmail: 'customer@example.com',
+      lastUpdated: '2026-06-15T10:00:00Z',
+    } as SquareSpaceOrder;
+
+    it('should parse member ID and email from customizations', () => {
+      const lineItem = {
+        sku: 'LIC-INST',
+        customizations: [
+          { label: 'Member ID', value: 'US101' },
+          { label: 'Email', value: 'instructor@example.com' },
+        ],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
+      expect(parsed).toEqual({
+        memberId: 'US101',
+        email: 'instructor@example.com',
+        orderDate: '2026-06-15',
+      });
+    });
+
+    it('should fall back to customerEmail when no email in customizations', () => {
+      const lineItem = {
+        sku: 'LIC-INST',
+        customizations: [
+          { label: 'Member ID', value: 'US102' },
+        ],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
+      expect(parsed.email).toBe('customer@example.com');
+    });
+
+    it('should handle empty customizations', () => {
+      const lineItem = {
+        sku: 'LIC-INST',
+        customizations: [],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
+      expect(parsed.memberId).toBe('');
+      expect(parsed.email).toBe('customer@example.com');
+      expect(parsed.orderDate).toBe('2026-06-15');
     });
   });
 });

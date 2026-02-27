@@ -1,0 +1,93 @@
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+@media (max-width: 600px) {
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.field.span-2 {
+  grid-column: span 2;
+}
+label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.value {
+  background: var(--surface-variant, #f5f5f5);
+  padding: 0.75rem;
+  border-radius: 4px;
+  min-height: 1.2rem;
+}
+.small {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.line-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.item-card {
+  background: var(--surface-variant, #f5f5f5);
+  border-radius: 6px;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+}
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+}
+.price {
+  font-weight: bold;
+  color: #2e7d32;
+}
+.customizations-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.customizations-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.95rem;
+}
+.customizations-table tr:last-child td {
+  border-bottom: none;
+}
+.custom-label {
+  font-weight: 600;
+  color: #555;
+  width: 40%;
+  background: #fafafa;
+  vertical-align: top;
+}
+.custom-value {
+  color: #333;
+  white-space: pre-wrap;
+}
+.raw-data-scroll {
+  max-height: 400px;
+  overflow: auto;
+  background: #282c34;
+  color: #abb2bf;
+  padding: 1rem;
+  border-radius: 4px;
+  pre {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}

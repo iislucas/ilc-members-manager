@@ -344,4 +344,8 @@ textarea:disabled {
   justify-content: center;
   align-items: center;
   z-index: 50;
+
+  &.transparent {
+    background-color: transparent;
+  }
 }

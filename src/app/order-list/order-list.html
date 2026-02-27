@@ -48,14 +48,15 @@
       <!-- Config Menu -->
       <div class="menu-container">
         <button (click)="toggleMenu()" class="icon-only-button secondary">
-          <app-icon name="more_vert"></app-icon>
+          <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
         </button>
         @if (menuOpen()) {
-          <div class="menu-dropdown">
-            <button (click)="manualSync()" [disabled]="syncing()">
+          <div class="menu-overlay transparent" (click)="menuOpen.set(false)"></div>
+          <div class="menu">
+            <div class="menu-item" (click)="!syncing() && manualSync()" [class.disabled]="syncing()">
               <app-icon name="refresh"></app-icon>
-              {{ syncing() ? "Syncing..." : "Sync Squarespace" }}
-            </button>
+              <span>{{ syncing() ? "Syncing..." : "Sync Squarespace" }}</span>
+            </div>
           </div>
         }
       </div>
@@ -177,13 +178,31 @@
                 }
               </td>
               <td>
-                <button
-                  (click)="viewOrder(order)"
-                  class="icon-only-button"
-                  title="View Details"
-                >
-                  <app-icon name="visibility"></app-icon>
-                </button>
+                <div class="menu-container inline-menu-container">
+                  <button
+                    (click)="toggleOrderMenu(order.docId, $event)"
+                    class="icon-only-button"
+                    title="Order Actions"
+                  >
+                    <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                  </button>
+                  @if (openMenuId() === order.docId) {
+                    <div class="menu-overlay transparent" (click)="openMenuId.set(null); $event.stopPropagation()"></div>
+                    <div class="menu right-aligned">
+                      <div class="menu-item" (click)="viewOrder(order)">
+                        <app-icon name="visibility"></app-icon> <span>View details</span>
+                      </div>
+                      @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders" && order['fulfillmentStatus'] !== 'FULFILLED') {
+                        <div class="menu-item" (click)="markAsFulfilled(order, $event)">
+                          <app-icon name="check"></app-icon> <span>Mark as fulfilled</span>
+                        </div>
+                      }
+                      <div class="menu-item" (click)="markAsIgnored(order, $event)">
+                        <app-icon name="close"></app-icon> <span>Mark as to be ignored</span>
+                      </div>
+                    </div>
+                  }
+                </div>
               </td>
             </tr>
           }
