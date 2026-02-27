@@ -59,7 +59,29 @@
             <label>Database ID</label>
             <div class="value small">{{ o.docId }}</div>
           </div>
+          @if (o.ilcAppOrderStatus) {
+            <div class="info-item">
+              <label>App Status</label>
+              <div class="value app-status" [class.error]="o.ilcAppOrderStatus === 'error'" [class.processed]="o.ilcAppOrderStatus === 'processed'">
+                {{ o.ilcAppOrderStatus | uppercase }}
+              </div>
+            </div>
+          }
         </div>
+
+        @if (o.ilcAppOrderIssues && o.ilcAppOrderIssues.length > 0) {
+          <div class="issues-banner">
+            <div class="issues-header">
+              <app-icon name="error"></app-icon>
+              <h4>Processing Issues ({{ o.ilcAppOrderIssues.length }})</h4>
+            </div>
+            <ul>
+              @for (issue of o.ilcAppOrderIssues; track issue) {
+                <li>{{ issue }}</li>
+              }
+            </ul>
+          </div>
+        }
 
         <div class="divider"></div>
 

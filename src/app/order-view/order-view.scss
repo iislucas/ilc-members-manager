@@ -61,6 +61,64 @@
             font-size: 0.85rem;
             color: #888;
           }
+          &.app-status {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 0.2rem;
+            
+            &.processed {
+              background-color: #e3f2fd;
+              color: #1565c0;
+            }
+            &.error {
+              background-color: #ffebee;
+              color: #c62828;
+            }
+          }
+        }
+      }
+    }
+
+    .issues-banner {
+      background-color: #ffebee;
+      border-left: 4px solid #c62828;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+
+      .issues-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #c62828;
+        margin-bottom: 0.5rem;
+
+        h4 {
+          margin: 0;
+          font-size: 1rem;
+        }
+
+        app-icon {
+          font-size: 1.25rem;
+          width: 1.25rem;
+          height: 1.25rem;
+        }
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 1.5rem;
+        color: #c62828;
+        font-size: 0.95rem;
+
+        li {
+          margin-bottom: 0.25rem;
+          &:last-child {
+            margin-bottom: 0;
+          }
         }
       }
     }

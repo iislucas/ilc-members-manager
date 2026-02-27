@@ -62,6 +62,11 @@
     </div>
   </div>
 
+  @if (syncing()) {
+    <div class="sync-status">
+      <app-spinner>Syncing with Squarespace...</app-spinner>
+    </div>
+  }
   @if (loading()) {
     <div class="loading-state">
       <app-spinner>Loading orders...</app-spinner>
@@ -145,16 +150,30 @@
                   }}
                 </span>
               </td>
-              <td>
-                @if (
-                  order.ilcAppOrderKind ===
-                  "https://api.squarespace.com/1.0/commerce/orders"
-                ) {
-                  <span class="status-badge" [class.fulfilled]="order['fulfillmentStatus'] === 'FULFILLED'">
-                    {{ order['fulfillmentStatus'] || 'PENDING' }}
-                  </span>
-                } @else {
-                  <span class="status-badge fulfilled">FULFILLED</span>
+              <td class="status-column">
+                <div class="badges">
+                  @if (
+                    order.ilcAppOrderKind ===
+                    "https://api.squarespace.com/1.0/commerce/orders"
+                  ) {
+                    <span class="status-badge" [class.fulfilled]="order['fulfillmentStatus'] === 'FULFILLED'">
+                      {{ order['fulfillmentStatus'] || 'PENDING' }}
+                    </span>
+                  } @else {
+                    <span class="status-badge fulfilled">FULFILLED</span>
+                  }
+                  
+                  @if (order.ilcAppOrderStatus) {
+                    <span class="status-badge app-status" [class.error]="order.ilcAppOrderStatus === 'error'" [class.processed]="order.ilcAppOrderStatus === 'processed'">
+                      APP: {{ order.ilcAppOrderStatus | uppercase }}
+                    </span>
+                  }
+                </div>
+                @if (order.ilcAppOrderIssues && order.ilcAppOrderIssues.length > 0) {
+                  <div class="issues-text" [title]="order.ilcAppOrderIssues.join('\n')">
+                    <app-icon name="error"></app-icon>
+                    <span>{{ order.ilcAppOrderIssues.length }} issue(s)</span>
+                  </div>
                 }
               </td>
               <td>

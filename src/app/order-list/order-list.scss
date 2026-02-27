@@ -129,6 +129,59 @@
         color: var(--text-primary, #333);
       }
 
+      .status-column {
+        .badges {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          align-items: flex-start;
+        }
+
+        .status-badge {
+          font-size: 0.75rem;
+          padding: 0.2rem 0.5rem;
+          border-radius: 4px;
+          font-weight: 600;
+          background-color: var(--surface-variant, #eee);
+          color: var(--text-secondary, #666);
+
+          &.fulfilled {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+          }
+
+          &.app-status {
+            background-color: #fce4ec;
+            color: #c2185b;
+            
+            &.processed {
+              background-color: #e3f2fd;
+              color: #1565c0;
+            }
+
+            &.error {
+              background-color: #ffebee;
+              color: #c62828;
+            }
+          }
+        }
+
+        .issues-text {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          margin-top: 0.5rem;
+          color: #c62828;
+          font-size: 0.8rem;
+          
+          app-icon {
+            font-size: 1rem;
+            width: 1rem;
+            height: 1rem;
+          }
+        }
+      }
+
       .kind-badge {
         font-size: 0.75rem;
         padding: 0.2rem 0.5rem;

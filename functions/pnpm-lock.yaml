@@ -21,8 +21,8 @@ importers:
         specifier: ^13.4.0
         version: 13.6.0
       firebase-functions:
-        specifier: ^7.0.5
-        version: 7.0.5(firebase-admin@13.6.0)
+        specifier: ^7.0.6
+        version: 7.0.6(firebase-admin@13.6.0)
     devDependencies:
       '@google-cloud/secret-manager':
         specifier: ^6.0.1
@@ -985,8 +985,8 @@ packages:
     resolution: {integrity: sha512-GdPA/t0+Cq8p1JnjFRBmxRxAGvF/kl2yfdhALl38PrRp325YxyQ5aNaHui0XmaKcKiGRFIJ/EgBNWFoDP0onjw==}
     engines: {node: '>=18'}
 
-  firebase-functions@7.0.5:
-    resolution: {integrity: sha512-uG2dR5AObLuUrWWjj/de5XxNHCVi+Ehths0DSRcLjHJdgw1TSejwoZZ5na6gVrl3znNjRdBRy5Br5UlhaIU3Ww==}
+  firebase-functions@7.0.6:
+    resolution: {integrity: sha512-RZLxrY4wkL0c9YuwU/NyBa3XzsFkWZjMC7Q1PEyKl9F+VTTeiLuukjfSu2G+E2nbbxZcokDTB5z7anc8e9mSBA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
@@ -2374,7 +2374,7 @@ snapshots:
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
-      '@types/node': 22.19.7
+      '@types/node': 25.0.9
 
   '@types/long@4.0.2':
     optional: true
@@ -2400,7 +2400,7 @@ snapshots:
   '@types/request@2.48.13':
     dependencies:
       '@types/caseless': 0.12.5
-      '@types/node': 22.19.7
+      '@types/node': 25.0.9
       '@types/tough-cookie': 4.0.5
       form-data: 2.5.5
     optional: true
@@ -2951,7 +2951,7 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@7.0.5(firebase-admin@13.6.0):
+  firebase-functions@7.0.6(firebase-admin@13.6.0):
     dependencies:
       '@types/cors': 2.8.19
       '@types/express': 4.17.25
