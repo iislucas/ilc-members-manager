@@ -273,6 +273,8 @@ export async function executeOrderDownstreamLogic(
 
   logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
 
+  let shouldUpdateFulfillmentStatus = false;
+
   const lineItems: SquareSpaceLineItem[] = orderData.lineItems || [];
   let orderStatus: OrderStatus = 'processed';
   const ilcAppOrderIssues: string[] = [];
@@ -357,18 +359,13 @@ export async function executeOrderDownstreamLogic(
           }
         });
         logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
+        shouldUpdateFulfillmentStatus = true;
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 403) {
-          // 403 on fulfillment usually means the order is already fulfilled on Squarespace
-          // but the local fulfillmentStatus field wasn't up to date.
-          logger.warn(`Got 403 trying to fulfill order ${orderId}. This likely means the order is already fulfilled on Squarespace. Treating as success.`);
-        } else {
-          orderStatus = 'error';
-          ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
-          logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
-          if (axios.isAxiosError(error) && error.response) {
-            logger.error('Squarespace API responded with:', error.response.data);
-          }
+        orderStatus = 'error';
+        ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
+        logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
+        if (axios.isAxiosError(error) && error.response) {
+          logger.error('Squarespace API responded with:', error.response.data);
         }
       }
     }
@@ -380,6 +377,11 @@ export async function executeOrderDownstreamLogic(
     ilcAppOrderIssues: ilcAppOrderIssues,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   };
+
+  if (shouldUpdateFulfillmentStatus) {
+    (updateData as SquareSpaceOrder).fulfillmentStatus = 'FULFILLED';
+  }
+
   await db.collection('orders').doc(docId).update(updateData);
 }
 

@@ -166,7 +166,7 @@
                   
                   @if (order.ilcAppOrderStatus) {
                     <span class="status-badge app-status" [class.error]="order.ilcAppOrderStatus === 'error'" [class.processed]="order.ilcAppOrderStatus === 'processed'">
-                      APP: {{ order.ilcAppOrderStatus | uppercase }}
+                      {{ order.ilcAppOrderStatus | uppercase }}
                     </span>
                   }
                 </div>
