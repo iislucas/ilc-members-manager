@@ -399,6 +399,26 @@
         a { color: var(--primary-color, #3a5af1); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.2s; &:hover { border-bottom-color: currentColor; } }
         ul, ol { margin-bottom: 1.5rem; padding-left: 1.5rem; li { margin-bottom: 0.5rem; } }
         blockquote { border-left: 4px solid var(--primary-color, #3a5af1); padding-left: 1.5rem; font-style: italic; margin: 2.5rem 0; color: #4b5563; background: #f9fafb; padding: 1.5rem; border-radius: 0 8px 8px 0; }
+        
+        .ilc-video-container {
+          position: relative;
+          width: 100%;
+          padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+          height: 0;
+          overflow: hidden;
+          margin: 1.5rem 0;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+          iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            border: 0;
+          }
+        }
       }
     }
   }

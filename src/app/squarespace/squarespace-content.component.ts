@@ -238,16 +238,48 @@ export class SquarespaceContentComponent {
             processed = processed.replace(/(src|href)="\/([^/])/g, `$1="${base}/$2`);
         }
 
-        // 3. Fix Squarespace lazy-loaded images
-        // Squarespace images often use data-src and no src, and require their JS to load.
-        // We force them to load by swapping data-src to src.
-        processed = processed.replace(/data-src=/g, 'src=');
+        // 3. Fix Squarespace images safely without creating duplicate attributes
+        processed = processed.replace(/<img([^>]*)>/gi, (match) => {
+            let newImg = match;
 
-        // Remove 'loading' class that might hide images via Squarespace's default CSS
-        processed = processed.replace(/class="loading"/g, 'class=""');
+            if (newImg.includes('data-src=')) {
+                const dataSrcMatch = newImg.match(/data-src="([^"]+)"/);
+                if (dataSrcMatch) {
+                    let realSrc = dataSrcMatch[1];
+                    // Append format if missing so Squarespace CDN returns the actual image
+                    if (!realSrc.includes('format=')) {
+                        realSrc += (realSrc.includes('?') ? '&' : '?') + 'format=1000w';
+                    }
+                    // Remove existing src attributes to avoid clash
+                    newImg = newImg.replace(/\s+src="[^"]*"/g, '');
+                    // Sub in the real src
+                    newImg = newImg.replace(/data-src="[^"]*"/, `src="${realSrc}"`);
+                }
+            }
 
-        // 4. Ensure images don't have broken srcset/sizes if we're not using their JS
-        processed = processed.replace(/data-srcset=/g, 'srcset=');
+            if (newImg.includes('data-srcset=')) {
+                newImg = newImg.replace(/\s+srcset="[^"]*"/g, '');
+                newImg = newImg.replace(/data-srcset=/g, 'srcset=');
+            }
+
+            // Remove loading class that might hide images
+            newImg = newImg.replace(/class="([^"]*)loading([^"]*)"/gi, 'class="$1$2"');
+
+            return newImg;
+        });
+
+        // 4. Fix Squarespace video blocks
+        processed = processed.replace(
+            /<div[^>]*class="[^"]*sqs-video-wrapper[^"]*"[^>]*data-html="([^"]+)"[^>]*>.*?<\/div>/gi,
+            (_match, dataHtml) => {
+                const unescaped = dataHtml
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&amp;/g, '&');
+                return `<div class="ilc-video-container">${unescaped}</div>`;
+            }
+        );
 
         return processed;
     }
