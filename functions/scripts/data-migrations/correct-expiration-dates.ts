@@ -7,7 +7,7 @@ import { Member, School, firestoreDocToOrder } from '../../src/data-model';
  * Script to review orders and correct the membership, instructor license, and school license
  * expiration dates.
  * 
- * The expiration date for annual licenses will be set to 1 year and 1 day after the last purchase date.
+ * The expiration date for annual licenses will be set to exactly 1 year after the last purchase date.
  * 
  * Usage:
  *   GOOGLE_APPLICATION_CREDENTIALS=./path/to/credentials.json \
@@ -41,13 +41,12 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 
-function addOneYearAndOneDay(dateStr: string): string {
-  // Parses a YYYY-MM-DD or ISO string, adds 1 year and 1 day, returns YYYY-MM-DD
+function addOneYear(dateStr: string): string {
+  // Parses a YYYY-MM-DD or ISO string, adds exactly 1 year, returns YYYY-MM-DD
   const dateStrClean = dateStr.includes('T') ? dateStr.substring(0, 10) : dateStr;
   const date = new Date(dateStrClean);
-  // Using setFullYear and setDate ensures leap years and overflows are handled correctly.
+  // Using setFullYear ensures leap years and overflows are handled correctly.
   date.setUTCFullYear(date.getUTCFullYear() + 1);
-  date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().substring(0, 10);
 }
 
@@ -206,7 +205,7 @@ async function run() {
         if (d && d > latestMemDate) latestMemDate = d;
       }
       if (latestMemDate) {
-        const newExpiry = addOneYearAndOneDay(latestMemDate);
+        const newExpiry = addOneYear(latestMemDate);
         if (member.currentMembershipExpires !== newExpiry) {
           console.log(`  [Member Exp] ${member.name} (${member.docId || doc.id}): ${member.currentMembershipExpires} -> ${newExpiry}`);
           updates.currentMembershipExpires = newExpiry;
@@ -223,7 +222,7 @@ async function run() {
         if (d && d > latestInstDate) latestInstDate = d;
       }
       if (latestInstDate) {
-        const newExpiry = addOneYearAndOneDay(latestInstDate);
+        const newExpiry = addOneYear(latestInstDate);
         if (member.instructorLicenseExpires !== newExpiry) {
           console.log(`  [Instructor Exp] ${member.name} (${member.docId || doc.id}): ${member.instructorLicenseExpires} -> ${newExpiry}`);
           updates.instructorLicenseExpires = newExpiry;
@@ -270,7 +269,7 @@ async function run() {
       if (d && d > latestSchoolDate) latestSchoolDate = d;
     }
     if (latestSchoolDate) {
-      const newExpiry = addOneYearAndOneDay(latestSchoolDate);
+      const newExpiry = addOneYear(latestSchoolDate);
       if (school.schoolLicenseExpires !== newExpiry) {
         console.log(`  [School Exp] ${school.schoolName} (${school.docId || doc.id}): ${school.schoolLicenseExpires} -> ${newExpiry}`);
         updates.schoolLicenseExpires = newExpiry;

@@ -628,7 +628,7 @@ export interface MembershipRenewalInfo {
   country: string; // Raw country value from form (name or code)
   isNewMember: boolean;
   renewalDate: string; // YYYY-MM-DD, from order createdOn
-  expirationDate: string; // YYYY-MM-DD, renewalDate + 1 year + 1 day
+  expirationDate: string; // YYYY-MM-DD, renewalDate + 1 year
 }
 
 /**
@@ -678,7 +678,7 @@ export function parseMembershipRenewalInfo(
   }
 
   // Compute renewal and expiration dates from order creation date.
-  // Memberships are annual; expiration is treated as valid through EOD anywhere on earth.
+  // Memberships are annual; expiration is exactly 1 year from the renewal date.
   const renewalDate = orderData.createdOn
     ? orderData.createdOn.substring(0, 10)
     : new Date().toISOString().substring(0, 10);

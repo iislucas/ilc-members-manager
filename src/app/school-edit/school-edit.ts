@@ -132,6 +132,22 @@ export class SchoolEditComponent {
     return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
   });
 
+  /** Warn when school license expiration doesn't match renewalDate + 1 year. */
+  schoolLicenseDateMismatch = computed(() => {
+    const s = this.editableSchool();
+    if (!s.schoolLicenseRenewalDate || !s.schoolLicenseExpires) return null;
+    const expected = this.addYears(s.schoolLicenseRenewalDate, 1);
+    if (s.schoolLicenseExpires === expected) return null;
+    return `Expected expiration ${expected} (1 year after renewal ${s.schoolLicenseRenewalDate}), but got ${s.schoolLicenseExpires}.`;
+  });
+
+  /** Add N years to a YYYY-MM-DD date string, returning a YYYY-MM-DD string. */
+  private addYears(dateStr: string, years: number): string {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCFullYear(d.getUTCFullYear() + years);
+    return d.toISOString().substring(0, 10);
+  }
+
   isOwnerLicenseExpired = computed(() => {
     const o = this.owner();
     if (!o) return null;

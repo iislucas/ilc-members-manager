@@ -379,6 +379,9 @@
               placeholder="YYYY-MM-DD"
               [formField]="form.currentMembershipExpires"
             />
+            @if (membershipDateMismatch(); as warning) {
+              <div class="warning-message">⚠ {{ warning }}</div>
+            }
           </div>
         }
 
@@ -559,6 +562,9 @@
                   placeholder="YYYY-MM-DD"
                   [formField]="form.instructorLicenseExpires"
                 />
+                @if (instructorLicenseDateMismatch(); as warning) {
+                  <div class="warning-message">⚠ {{ warning }}</div>
+                }
               </div>
             }
 
@@ -648,6 +654,9 @@
               [formField]="form.classVideoLibraryExpirationDate"
             />
             <span class="note">Leave empty if never expires</span>
+            @if (videoLibraryDateMismatch(); as warning) {
+              <div class="warning-message">⚠ {{ warning }}</div>
+            }
           </div>
 
           <label for="notes" class="align-top">Notes</label>

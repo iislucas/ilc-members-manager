@@ -240,7 +240,7 @@ describe('ImportOrdersComponent', () => {
 
       expect(update.member.instructorLicenseRenewalDate).toBe('2023-06-01');
       // No previous license expiry set in mock, so it should be datePaid + 1yr
-      expect(update.member.instructorLicenseExpires).toBe('2024-06-02');
+      expect(update.member.instructorLicenseExpires).toBe('2024-06-01');
       expect(update.member.instructorLicenseType).toBe(InstructorLicenseType.Annual);
     });
 

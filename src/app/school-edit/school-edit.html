@@ -24,6 +24,9 @@
           }
         </span>
       }
+      @if (schoolLicenseDateMismatch(); as warning) {
+        <span class="warning-message" style="font-size: small;">⚠ {{ warning }}</span>
+      }
       @if (owner(); as o) {
         <div class="primary-instructor">
           {{ o.name }}

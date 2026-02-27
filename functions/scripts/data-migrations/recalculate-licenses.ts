@@ -260,7 +260,7 @@ async function main() {
         if (!renewalDateObj || !isValid(renewalDateObj)) {
           renewalDateObj = paidDate;
         }
-        const newExpiryObj = addDays(addYears(renewalDateObj, 1), 1);
+        const newExpiryObj = addYears(renewalDateObj, 1);
 
         const prevExpiryObj = parseToDate(member.instructorLicenseExpires);
         const prevExpiryTime = (prevExpiryObj && isValid(prevExpiryObj)) ? prevExpiryObj.getTime() : 0;

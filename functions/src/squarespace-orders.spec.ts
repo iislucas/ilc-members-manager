@@ -237,7 +237,7 @@ describe('squarespace-orders', () => {
         country: 'France',
         isNewMember: false,
         renewalDate: '2026-02-27',
-        expirationDate: '2027-02-28',
+        expirationDate: '2027-02-27',
       });
     });
 
@@ -317,7 +317,7 @@ describe('squarespace-orders', () => {
       // Order on Feb 27, 2026 → expires Feb 28, 2027
       const parsed = parseMembershipRenewalInfo(realOrderData, realLineItem);
       expect(parsed.renewalDate).toBe('2026-02-27');
-      expect(parsed.expirationDate).toBe('2027-02-28');
+      expect(parsed.expirationDate).toBe('2027-02-27');
 
       // Order on a leap day
       const leapDayOrder = {
@@ -326,8 +326,8 @@ describe('squarespace-orders', () => {
       } as unknown as SquareSpaceOrder;
       const leapParsed = parseMembershipRenewalInfo(leapDayOrder, realLineItem);
       expect(leapParsed.renewalDate).toBe('2024-02-29');
-      // Feb 29 + 1 year = Mar 1 (2025 is not a leap year), + 1 day = Mar 2
-      expect(leapParsed.expirationDate).toBe('2025-03-02');
+      // Feb 29 + 1 year = Mar 1 (2025 is not a leap year)
+      expect(leapParsed.expirationDate).toBe('2025-03-01');
 
       // Order on Dec 31
       const yearEndOrder = {
@@ -336,7 +336,7 @@ describe('squarespace-orders', () => {
       } as unknown as SquareSpaceOrder;
       const yearEndParsed = parseMembershipRenewalInfo(yearEndOrder, realLineItem);
       expect(yearEndParsed.renewalDate).toBe('2026-12-31');
-      expect(yearEndParsed.expirationDate).toBe('2028-01-01');
+      expect(yearEndParsed.expirationDate).toBe('2027-12-31');
     });
 
     it('should parse country from form customizations with "Country" label', () => {

@@ -199,6 +199,51 @@ export class MemberEditComponent {
     return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
   });
 
+  // --- Date-mismatch warnings (informational, do not block save) ---
+
+  /** Warn when annual membership expiration doesn't match lastRenewalDate + 1 year. */
+  membershipDateMismatch = computed(() => {
+    const m = this.editableMember();
+    if (m.membershipType !== MembershipType.Annual) return null;
+    if (!m.lastRenewalDate || !m.currentMembershipExpires) return null;
+    const expected = this.addYears(m.lastRenewalDate, 1);
+    if (m.currentMembershipExpires === expected) return null;
+    return `Expected expiration ${expected} (1 year after renewal ${m.lastRenewalDate}), but got ${m.currentMembershipExpires}.`;
+  });
+
+  /** Warn when annual instructor license expiration doesn't match renewal + 1 year. */
+  instructorLicenseDateMismatch = computed(() => {
+    const m = this.editableMember();
+    if (m.instructorLicenseType !== InstructorLicenseType.Annual) return null;
+    if (!m.instructorLicenseRenewalDate || !m.instructorLicenseExpires) return null;
+    const expected = this.addYears(m.instructorLicenseRenewalDate, 1);
+    if (m.instructorLicenseExpires === expected) return null;
+    return `Expected expiration ${expected} (1 year after renewal ${m.instructorLicenseRenewalDate}), but got ${m.instructorLicenseExpires}.`;
+  });
+
+  /** Warn when video library expiration doesn't match lastRenewalDate + 1 month. */
+  videoLibraryDateMismatch = computed(() => {
+    const m = this.editableMember();
+    if (!m.classVideoLibraryExpirationDate || !m.lastRenewalDate) return null;
+    const expected = this.addMonths(m.lastRenewalDate, 1);
+    if (m.classVideoLibraryExpirationDate === expected) return null;
+    return `Expected expiration ${expected} (1 month after renewal ${m.lastRenewalDate}), but got ${m.classVideoLibraryExpirationDate}.`;
+  });
+
+  /** Add N years to a YYYY-MM-DD date string, returning a YYYY-MM-DD string. */
+  private addYears(dateStr: string, years: number): string {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCFullYear(d.getUTCFullYear() + years);
+    return d.toISOString().substring(0, 10);
+  }
+
+  /** Add N months to a YYYY-MM-DD date string, returning a YYYY-MM-DD string. */
+  private addMonths(dateStr: string, months: number): string {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() + months);
+    return d.toISOString().substring(0, 10);
+  }
+
   collapsable = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
