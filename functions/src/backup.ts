@@ -10,7 +10,7 @@ const BACKUP_COLLECTIONS = [
   'gradings',
   'orders',
   'acl',
-  'counters',
+  'system',
 ];
 
 /**

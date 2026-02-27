@@ -37,34 +37,44 @@ function initDataFromCountersDoc(
   return data as Counters;
 }
 
+/**
+ * Assigns the next member ID for a given country code using an atomic
+ * Firestore transaction. This is the core logic, callable from any
+ * server-side code without requiring an HTTP request.
+ */
+export async function assignNextMemberId(
+  countryCode: string,
+  db: admin.firestore.Firestore,
+): Promise<string> {
+  if (!countryCode || countryCode.length < 2) {
+    throw new Error('The country code must be at least 2 letters.');
+  }
+
+  const countersRef = db.doc(COUNTERS_DOC_PATH);
+  const newId = await db.runTransaction(async (transaction) => {
+    const countersDoc = await transaction.get(countersRef);
+    const counters = initDataFromCountersDoc(countersDoc);
+    const nextId = Math.max(
+      (counters.memberIdCounters[countryCode.toUpperCase()] || 0) + 1,
+      COUNTERS_MIN_DEFAULT,
+    );
+    counters.memberIdCounters[countryCode.toUpperCase()] = nextId;
+    transaction.set(countersRef, counters);
+    return nextId;
+  });
+  return `${countryCode.toUpperCase()}${newId}`;
+}
+
 async function nextMemberIdHelper(
   request: CallableRequest<{ countryCode: string }>,
 ) {
   await assertAdminOrSchoolManager(request);
   const countryCode = request.data.countryCode;
-  if (!countryCode || countryCode.length < 2) {
-    throw new HttpsError(
-      'invalid-argument',
-      'The country code must be at least 2 letters.',
-    );
-  }
 
   const db = admin.firestore();
-  const countersRef = db.doc(COUNTERS_DOC_PATH);
-
   try {
-    const newId = await db.runTransaction(async (transaction) => {
-      const countersDoc = await transaction.get(countersRef);
-      const counters = initDataFromCountersDoc(countersDoc);
-      const nextId = Math.max(
-        (counters.memberIdCounters[countryCode.toUpperCase()] || 0) + 1,
-        COUNTERS_MIN_DEFAULT,
-      );
-      counters.memberIdCounters[countryCode.toUpperCase()] = nextId;
-      transaction.set(countersRef, counters);
-      return nextId;
-    });
-    return { newId: `${countryCode.toUpperCase()}${newId}` };
+    const newId = await assignNextMemberId(countryCode, db);
+    return { newId };
   } catch (e) {
     console.error('Transaction failure:', e);
     throw new HttpsError('internal', 'Transaction failure');
