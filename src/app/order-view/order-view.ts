@@ -69,10 +69,10 @@ export class OrderView {
     this.reprocessing.set(true);
     try {
       await this.dataService.reprocessOrder(id);
-      alert('Order successfully queued for reprocessing downstream!');
+      // Refresh the order to show the updated processing status
       await this.fetchOrder(this.orderId());
-    } catch (e: any) {
-      alert(`Error reprocessing order: ${e.message}`);
+    } catch (e: unknown) {
+      alert(`Error reprocessing order: ${(e as Error).message}`);
     } finally {
       this.reprocessing.set(false);
     }

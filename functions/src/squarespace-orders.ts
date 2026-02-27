@@ -217,6 +217,7 @@ export const processSquarespaceOrder = onDocumentWritten(
 export const reprocessOrder = onCall(
   {
     cors: allowedOrigins,
+    secrets: [squarespaceApiKey],
   },
   async (request) => {
     logger.info('reprocessOrder called by user.');
@@ -233,7 +234,20 @@ export const reprocessOrder = onCall(
       throw new HttpsError('not-found', 'Order not found');
     }
 
-    await executeOrderDownstreamLogic(docSnap.data() as SquareSpaceOrder, docId, db);
+    const orderData = docSnap.data() as SquareSpaceOrder;
+
+    // Clear previous processing status so executeOrderDownstreamLogic
+    // will actually re-run all the logic instead of skipping.
+    delete orderData.ilcAppOrderStatus;
+    delete orderData.ilcAppOrderIssues;
+    if (orderData.lineItems) {
+      for (const lineItem of orderData.lineItems) {
+        delete lineItem.ilcAppProcessingStatus;
+        delete lineItem.ilcAppProcessingIssue;
+      }
+    }
+
+    await executeOrderDownstreamLogic(orderData, docId, db);
     return { success: true };
   }
 );
