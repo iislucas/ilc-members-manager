@@ -6,6 +6,7 @@ import {
   clearOrderProcessingState,
   computeRenewalAndExpiration,
   parseInstructorLicenseInfo,
+  parseSchoolLicenseInfo,
 } from './squarespace-orders';
 import { SquareSpaceOrder, SquareSpaceLineItem } from './data-model';
 import { resolveCountryCode } from './country-codes';
@@ -500,53 +501,166 @@ describe('squarespace-orders', () => {
   });
 
   describe('parseInstructorLicenseInfo', () => {
-    const baseOrderData = {
-      docId: 'order-doc-1',
-      orderNumber: '100',
-      createdOn: '2026-06-15T10:00:00Z',
-      customerEmail: 'customer@example.com',
-      lastUpdated: '2026-06-15T10:00:00Z',
-    } as SquareSpaceOrder;
+    // Real example order data from an actual Group Leader license purchase.
+    const glOrderData = {
+      docId: 'mrhJpRgv4socezNglQMO',
+      orderNumber: '61803',
+      createdOn: '2026-02-27T09:55:25.017Z',
+      modifiedOn: '2026-02-27T14:54:32.094Z',
+      customerEmail: 'lucas.dixon@gmail.com',
+      lastUpdated: '2026-02-27T09:55:25.017Z',
+      fulfillmentStatus: 'FULFILLED' as const,
+    } as unknown as SquareSpaceOrder;
 
-    it('should parse member ID and email from customizations', () => {
-      const lineItem = {
-        sku: 'LIC-INST',
-        customizations: [
-          { label: 'Member ID', value: 'US101' },
-          { label: 'Email', value: 'instructor@example.com' },
-        ],
-      } as unknown as SquareSpaceLineItem;
+    const glLineItem = {
+      id: '69a169f9f42e9720c07e1786',
+      productId: '68ab8406c1bfc45b6dc2798a',
+      variantId: '1e02c605-5c79-4b45-a487-8c36d8373c24',
+      productName: 'LICENSE : Instructor + Group Leader',
+      sku: 'LIS-YEAR-GL',
+      lineItemType: 'SERVICE',
+      quantity: 1,
+      unitPricePaid: { value: '150.00', currency: 'USD' },
+      variantOptions: [
+        { optionName: 'Type', value: 'Group Leader : $150 Yearly' },
+      ],
+      customizations: [
+        { value: 'Lucas Dixon', label: 'Name' },
+        { value: 'lucas.dixon@gmail.com', label: 'Email ' },
+        { value: 'US402', label: 'Member ID' },
+      ],
+    } as unknown as SquareSpaceLineItem;
 
-      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
+    it('should correctly parse a group leader license order from real example data', () => {
+      const parsed = parseInstructorLicenseInfo(glOrderData, glLineItem);
       expect(parsed).toEqual({
-        memberId: 'US101',
-        email: 'instructor@example.com',
-        orderDate: '2026-06-15',
+        memberId: 'US402',
+        email: 'lucas.dixon@gmail.com',
+        orderDate: '2026-02-27',
       });
     });
 
     it('should fall back to customerEmail when no email in customizations', () => {
       const lineItem = {
-        sku: 'LIC-INST',
+        ...glLineItem,
         customizations: [
           { label: 'Member ID', value: 'US102' },
         ],
       } as unknown as SquareSpaceLineItem;
 
-      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
-      expect(parsed.email).toBe('customer@example.com');
+      const parsed = parseInstructorLicenseInfo(glOrderData, lineItem);
+      expect(parsed.email).toBe('lucas.dixon@gmail.com');
     });
 
     it('should handle empty customizations', () => {
       const lineItem = {
-        sku: 'LIC-INST',
+        ...glLineItem,
         customizations: [],
       } as unknown as SquareSpaceLineItem;
 
-      const parsed = parseInstructorLicenseInfo(baseOrderData, lineItem);
+      const parsed = parseInstructorLicenseInfo(glOrderData, lineItem);
       expect(parsed.memberId).toBe('');
-      expect(parsed.email).toBe('customer@example.com');
-      expect(parsed.orderDate).toBe('2026-06-15');
+      expect(parsed.email).toBe('lucas.dixon@gmail.com');
+      expect(parsed.orderDate).toBe('2026-02-27');
+    });
+  });
+
+  describe('parseSchoolLicenseInfo', () => {
+    // Real example order data from an actual school license purchase.
+    const schoolOrderData = {
+      docId: 'AdS1T7ELbxXFHcWAD5MJ',
+      orderNumber: '61802',
+      createdOn: '2026-02-27T09:43:05.004Z',
+      modifiedOn: '2026-02-27T09:43:05.453Z',
+      customerEmail: 'lucas.dixon@gmail.com',
+      lastUpdated: '2026-02-27T09:43:05.004Z',
+      fulfillmentStatus: 'PENDING' as const,
+    } as unknown as SquareSpaceOrder;
+
+    const schoolLineItem = {
+      productId: '6999404b0ccc755adde0f466',
+      variantId: '524bd3d8-f231-4ea3-bb7b-cced3920731f',
+      productName: 'LICENSE : School',
+      sku: 'LIS-YEAR-SCH',
+      id: '69a167094848b23b8876b07c',
+      lineItemType: 'SERVICE',
+      quantity: 1,
+      unitPricePaid: { value: '600.00', currency: 'USD' },
+      customizations: [
+        { label: 'Name', value: 'Lucas Dixon' },
+        { label: 'Email ', value: 'lucas.dixon@gmail.com' },
+        { value: '402', label: 'MemberID' },
+        { label: 'School ID', value: 'SCH-101' },
+        { label: 'Name of the School', value: 'Zhong Xin Dao Paris' },
+      ],
+    } as unknown as SquareSpaceLineItem;
+
+    it('should correctly parse a school license order from real example data', () => {
+      const parsed = parseSchoolLicenseInfo(schoolOrderData, schoolLineItem);
+
+      expect(parsed).toEqual({
+        schoolId: 'SCH-101',
+        email: 'lucas.dixon@gmail.com',
+        memberId: '402',
+        orderDate: '2026-02-27',
+      });
+    });
+
+    it('should fall back to customerEmail when no email in customizations', () => {
+      const lineItem = {
+        ...schoolLineItem,
+        customizations: [
+          { label: 'School ID', value: 'SCH-200' },
+          { value: '100', label: 'MemberID' },
+        ],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseSchoolLicenseInfo(schoolOrderData, lineItem);
+      expect(parsed.email).toBe('lucas.dixon@gmail.com');
+      expect(parsed.schoolId).toBe('SCH-200');
+    });
+
+    it('should handle "Member ID" label with space', () => {
+      const lineItem = {
+        ...schoolLineItem,
+        customizations: [
+          { label: 'School ID', value: 'SCH-300' },
+          { label: 'Member ID', value: '555' },
+          { label: 'Email', value: 'test@example.com' },
+        ],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseSchoolLicenseInfo(schoolOrderData, lineItem);
+      expect(parsed.memberId).toBe('555');
+      expect(parsed.schoolId).toBe('SCH-300');
+      expect(parsed.email).toBe('test@example.com');
+    });
+
+    it('should return empty schoolId when School ID is missing', () => {
+      const lineItem = {
+        ...schoolLineItem,
+        customizations: [
+          { label: 'Name', value: 'Someone' },
+          { label: 'Email', value: 'someone@test.com' },
+          { value: '100', label: 'MemberID' },
+        ],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseSchoolLicenseInfo(schoolOrderData, lineItem);
+      expect(parsed.schoolId).toBe('');
+    });
+
+    it('should handle empty customizations gracefully', () => {
+      const lineItem = {
+        ...schoolLineItem,
+        customizations: [],
+      } as unknown as SquareSpaceLineItem;
+
+      const parsed = parseSchoolLicenseInfo(schoolOrderData, lineItem);
+      expect(parsed.schoolId).toBe('');
+      expect(parsed.memberId).toBe('');
+      expect(parsed.email).toBe('lucas.dixon@gmail.com');
+      expect(parsed.orderDate).toBe('2026-02-27');
     });
   });
 });

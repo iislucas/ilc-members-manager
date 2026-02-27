@@ -5,7 +5,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { Member, MembershipType, InstructorLicenseType, Grading, GradingStatus, initGrading, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization, OrderStatus, Order } from './data-model';
+import { Member, MembershipType, InstructorLicenseType, Grading, GradingStatus, initGrading, initMember, School, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization, OrderStatus, Order } from './data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from './level-utils';
 import { assertAdmin, allowedOrigins } from './common';
 import { assignNextMemberId } from './counters';
@@ -18,6 +18,16 @@ const SQUARESPACE_ORDERS_API = 'https://api.squarespace.com/1.0/commerce/orders'
 
 // The systemInfo document where we keep track of the last time we synced orders
 const SYNC_STATE_DOC = 'system/squarespaceSync';
+
+// ==================================================================
+// Recognized Squarespace SKU prefixes / values and their handlers:
+//
+//   VID-LIBRARY     → processVideoLibraryAccess  (monthly video library subscription)
+//   GRA-*           → processGradingOrder         (student / application grading)
+//   MEM-*           → processMembershipRenewal    (annual membership renewal or new member)
+//   LIS-YEAR-GL     → processInstructorLicense    (annual instructor / group leader license)
+//   LIS-YEAR-SCH    → processSchoolLicense        (annual school license)
+// ==================================================================
 
 /**
  * Core logic to fetch from Squarespace API and sync to Firestore.
@@ -318,7 +328,18 @@ export async function executeOrderDownstreamLogic(
       } else {
         lineItem.ilcAppProcessingStatus = 'processed';
       }
-    } else if (lineItem.sku?.startsWith('LIS-YEAR')) {
+    } else if (lineItem.sku === 'LIS-YEAR-SCH') {
+      const issue = await processSchoolLicense(orderData, orderId, lineItem, db);
+      if (issue) {
+        ilcAppOrderIssues.push(issue);
+        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingIssue = issue;
+        orderStatus = 'error';
+        allItemsFulfilled = false;
+      } else {
+        lineItem.ilcAppProcessingStatus = 'processed';
+      }
+    } else if (lineItem.sku === 'LIS-YEAR-GL') {
       const issue = await processInstructorLicense(orderData, orderId, lineItem, db);
       if (issue) {
         ilcAppOrderIssues.push(issue);
@@ -931,7 +952,7 @@ async function processNewMemberRegistration(
 }
 
 // ==================================================================
-// Instructor / Group Leader License Processing
+// Instructor / Group Leader License Processing (SKU: LIS-YEAR-GL)
 // ==================================================================
 
 export interface InstructorLicenseInfo {
@@ -1047,6 +1068,120 @@ export async function processInstructorLicense(
     instructorLicenseRenewalDate: renewalDate,
     instructorLicenseExpires: expirationDate,
     instructorLicenseType: InstructorLicenseType.Annual,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return null;
+}
+
+// ==================================================================
+// School License Processing (SKU: LIS-YEAR-SCH)
+// ==================================================================
+
+export interface SchoolLicenseInfo {
+  schoolId: string;
+  email: string;
+  memberId: string;
+  orderDate: string; // YYYY-MM-DD, from order createdOn
+}
+
+/**
+ * Parse school license info from a line item's customization fields.
+ * Pure function for easy testing.
+ */
+export function parseSchoolLicenseInfo(
+  orderData: SquareSpaceOrder,
+  lineItem: SquareSpaceLineItem
+): SchoolLicenseInfo {
+  const customizations: SquareSpaceCustomization[] = lineItem.customizations || [];
+
+  let schoolId = '';
+  let email = '';
+  let memberId = '';
+
+  for (const field of customizations) {
+    if (!field.label || !field.value) continue;
+    const labelLower = field.label.toLowerCase();
+
+    if (labelLower.includes('school id')) {
+      schoolId = field.value.trim();
+    } else if (labelLower.includes('member id') || labelLower === 'memberid') {
+      memberId = field.value.trim();
+    } else if (labelLower.includes('email')) {
+      email = field.value.trim();
+    }
+  }
+
+  if (!email) {
+    email = orderData.customerEmail || '';
+  }
+
+  const orderDate = orderData.createdOn
+    ? orderData.createdOn.substring(0, 10)
+    : new Date().toISOString().substring(0, 10);
+
+  return { schoolId, email, memberId, orderDate };
+}
+
+/**
+ * Process a school license renewal line item:
+ * find the school by schoolId, validate, update schoolLicenseRenewalDate
+ * and schoolLicenseExpires.
+ *
+ * Returns an error string, or null if successful.
+ */
+export async function processSchoolLicense(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  lineItem: SquareSpaceLineItem,
+  db: admin.firestore.Firestore
+): Promise<string | null> {
+  const info = parseSchoolLicenseInfo(orderData, lineItem);
+
+  if (!info.schoolId) {
+    const issue = `[School License] Order ${orderId} is missing a School ID in the form response. `
+      + `Cannot process school license renewal without a School ID.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  // Look up the school by schoolId
+  logger.info(`[School License] Looking for school with ID: ${info.schoolId} for order ${orderId}`);
+  const schoolQuery = await db.collection('schools')
+    .where('schoolId', '==', info.schoolId)
+    .limit(1)
+    .get();
+
+  if (schoolQuery.empty) {
+    const issue = `[School License] School ID ${info.schoolId} not found in database for order ${orderId}.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  const schoolDocRef = schoolQuery.docs[0].ref;
+  const schoolData = schoolQuery.docs[0].data() as Partial<School>;
+
+  // Compute the actual renewal and expiration dates
+  const { renewalDate, expirationDate } = computeRenewalAndExpiration(
+    schoolData.schoolLicenseExpires || '',
+    info.orderDate
+  );
+
+  // Idempotency: check if the school already has a license expiring at or after new expiration
+  if (schoolData.schoolLicenseExpires && schoolData.schoolLicenseExpires >= expirationDate) {
+    const issue = `[School License] School ${info.schoolId} already has school license expiring on `
+      + `${schoolData.schoolLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
+      + `This may be a duplicate renewal. No update made.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  logger.info(`[School License] Updating school ${info.schoolId} (doc ${schoolDocRef.id}): `
+    + `schoolLicenseRenewalDate=${renewalDate}, schoolLicenseExpires=${expirationDate}`);
+
+  await schoolDocRef.update({
+    schoolLicenseRenewalDate: renewalDate,
+    schoolLicenseExpires: expirationDate,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
