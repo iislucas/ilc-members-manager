@@ -414,16 +414,31 @@ async function processVideoLibraryAccess(orderData: SquareSpaceOrder, orderId: s
     return issue;
   }
 
-  // Ensure idempotency for Video Library Access
-  if (memberData && memberData.classVideoLibrarySubscription === true) {
-    const issue = `[Video Library] Member ${memberDocRef.id} already has video library subscription. No action needed.`;
+  // Compute expiration date: 1 month from order creation date.
+  // Video library subscriptions are monthly.
+  const purchaseDate = orderData.createdOn
+    ? orderData.createdOn.substring(0, 10)
+    : new Date().toISOString().substring(0, 10);
+  const expirationDateObj = new Date(purchaseDate + 'T00:00:00Z');
+  expirationDateObj.setUTCMonth(expirationDateObj.getUTCMonth() + 1);
+  const expirationDate = expirationDateObj.toISOString().substring(0, 10);
+
+  // Idempotency: skip if the member already has a subscription expiring at or after
+  // this new expiration (indicates a duplicate or already-processed order).
+  if (memberData && memberData.classVideoLibrarySubscription === true
+    && memberData.classVideoLibraryExpirationDate
+    && memberData.classVideoLibraryExpirationDate >= expirationDate) {
+    const issue = `[Video Library] Member ${memberDocRef.id} already has video library subscription `
+      + `expiring ${memberData.classVideoLibraryExpirationDate}, which is at or after ${expirationDate}. No action needed.`;
     logger.warn(issue);
     return issue;
   }
 
-  logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}.`);
+  logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}, `
+    + `expires ${expirationDate}.`);
   await memberDocRef.update({
     classVideoLibrarySubscription: true,
+    classVideoLibraryExpirationDate: expirationDate,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
@@ -662,14 +677,14 @@ export function parseMembershipRenewalInfo(
     country = orderData.billingAddress.country;
   }
 
-  // Compute renewal and expiration dates from order creation date
+  // Compute renewal and expiration dates from order creation date.
+  // Memberships are annual; expiration is treated as valid through EOD anywhere on earth.
   const renewalDate = orderData.createdOn
     ? orderData.createdOn.substring(0, 10)
     : new Date().toISOString().substring(0, 10);
 
   const renewalDateObj = new Date(renewalDate + 'T00:00:00Z');
   renewalDateObj.setUTCFullYear(renewalDateObj.getUTCFullYear() + 1);
-  renewalDateObj.setUTCDate(renewalDateObj.getUTCDate() + 1);
   const expirationDate = renewalDateObj.toISOString().substring(0, 10);
 
   return {
