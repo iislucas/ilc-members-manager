@@ -338,7 +338,7 @@ $danger-color: $theme-error-text-color;
         transition: all 0.2s;
 
         &:hover {
-          background-color: darken($success-color, 8%);
+          background-color: color.adjust($success-color, $lightness: -8%);
         }
       }
     }

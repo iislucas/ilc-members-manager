@@ -30,7 +30,7 @@
               "src/privacy.html"
             ],
             "styles": ["src/styles.scss"],
-            "allowedCommonJsDependencies": ["papaparse"]
+            "allowedCommonJsDependencies": ["papaparse", "fast-deep-equal"]
           },
           "configurations": {
             "production": {
@@ -42,7 +42,7 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
+                  "maximumWarning": "12kB",
                   "maximumError": "16kB"
                 }
               ],
@@ -113,7 +113,7 @@
             "inlineStyleLanguage": "scss",
             "assets": [],
             "styles": ["src/styles.scss"],
-            "allowedCommonJsDependencies": ["papaparse"]
+            "allowedCommonJsDependencies": ["papaparse", "fast-deep-equal"]
           },
           "configurations": {
             "production": {
@@ -125,7 +125,7 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
+                  "maximumWarning": "12kB",
                   "maximumError": "16kB"
                 }
               ],
