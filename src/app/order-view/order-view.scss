@@ -4,6 +4,9 @@
   margin: 0 auto;
 
   .header-actions {
+    display: flex;
+    
+
     margin-bottom: 1.5rem;
 
     .back-link {
@@ -14,6 +17,8 @@
   }
 
   .order-details-card {
+    background-color: white; // Override default pink
+    
     .card-header {
       display: flex;
       justify-content: space-between;

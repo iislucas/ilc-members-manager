@@ -1,6 +1,6 @@
 <div class="order-view-container">
   <div class="header-actions">
-    <button (click)="goBack()" class="secondary-button back-link">
+    <button (click)="goBack()" class="subtle-button back-link">
       <app-icon name="arrow_back"></app-icon>
       Back to Orders
     </button>
@@ -10,7 +10,7 @@
     ) {
       <button
         (click)="reprocessOrder()"
-        class="primary"
+        class="subtle-button"
         [disabled]="reprocessing()"
       >
         <app-icon name="refresh"></app-icon>
@@ -29,9 +29,8 @@
       {{ error() }}
     </div>
   } @else if (order(); as o) {
-    <div class="order-details-card card">
+    <div class="order-details-card">
       <div class="card-header">
-        <h3>Order Record</h3>
         <div
           class="kind-tag"
           [class.ss]="o.ilcAppOrderKind.includes('squarespace')"
@@ -68,7 +67,7 @@
           </div>
           @if (o.ilcAppOrderStatus) {
             <div class="info-item">
-              <label>App Status</label>
+              <label>Processing Status</label>
               <div
                 class="value app-status"
                 [class.error]="o.ilcAppOrderStatus === 'error'"

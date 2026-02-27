@@ -10,7 +10,7 @@
     </div>
   </div>
   <div class="field">
-    <label>Fulfillment Status</label>
+    <label>Squarespace Fulfillment Status</label>
     <div class="value">{{ order().fulfillmentStatus || "PENDING" }}</div>
   </div>
 
@@ -21,7 +21,7 @@
         <div class="item-card">
           <div class="item-header">
             <strong>{{ item.quantity }}x {{ item.productName }}</strong>
-            <span class="price">\${{ item.unitPricePaid.value }}</span>
+            <span class="price">${{ item.unitPricePaid.value }}</span>
           </div>
           @if (item.customizations && item.customizations.length > 0) {
             <table class="customizations-table">

@@ -81,6 +81,9 @@ export class App {
     }
     const view = this.currentView();
     if (view !== Views.Home && view) {
+      if (view === Views.OrderView) {
+        baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
+      }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
     return baseBreadcrumbs;
