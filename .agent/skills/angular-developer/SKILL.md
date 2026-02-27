@@ -41,9 +41,32 @@ Pure transformations of other signals.
 const doubleCount = computed(() => count() * 2);
 ```
 
+### Derived Writable State (`linkedSignal`)
+
+Prefer `linkedSignal` over `effect` when you need to write a signal value derived from another signal. `linkedSignal` is a writable signal that re-derives from its source when the source changes, but can also be written to independently. Only use `effect` for writing signal values when `linkedSignal` does not work (e.g. when you need to guard against re-derivation based on form dirty state).
+
+```typescript
+// Re-derives when source changes, but can be independently written to.
+const editable = linkedSignal(() => structuredClone(source()));
+
+// With source comparison to avoid unnecessary re-derivation:
+const editable = linkedSignal({
+  source: sourceSignal,
+  computation: (newVal, previous) => {
+    if (previous && deepEqual(newVal, previous.source)) {
+      return previous.value;
+    }
+    return structuredClone(newVal);
+  },
+});
+```
+
 ### Side Effects (`effect`)
 
-Use sparingly for logging, manual DOM manipulation, or syncing with external APIs.
+Use sparingly for logging, manual DOM manipulation, syncing with external APIs, or cases where `linkedSignal` cannot express the required guard logic (e.g. checking form dirty state before syncing).
+
+> [!IMPORTANT]
+> **Do NOT use `effect` to write signal values when `linkedSignal` can do the job.** Writing signals inside effects should be a last resort.
 
 ```typescript
 effect(() => {

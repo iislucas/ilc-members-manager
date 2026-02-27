@@ -4,8 +4,15 @@
       <app-icon name="arrow_back"></app-icon>
       Back to Orders
     </button>
-    @if (order()?.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
-      <button (click)="reprocessOrder()" class="primary" [disabled]="reprocessing()">
+    @if (
+      order()?.ilcAppOrderKind ===
+      "https://api.squarespace.com/1.0/commerce/orders"
+    ) {
+      <button
+        (click)="reprocessOrder()"
+        class="primary"
+        [disabled]="reprocessing()"
+      >
         <app-icon name="refresh"></app-icon>
         {{ reprocessing() ? "Reprocessing..." : "Reprocess Order" }}
       </button>
@@ -62,7 +69,11 @@
           @if (o.ilcAppOrderStatus) {
             <div class="info-item">
               <label>App Status</label>
-              <div class="value app-status" [class.error]="o.ilcAppOrderStatus === 'error'" [class.processed]="o.ilcAppOrderStatus === 'processed'">
+              <div
+                class="value app-status"
+                [class.error]="o.ilcAppOrderStatus === 'error'"
+                [class.processed]="o.ilcAppOrderStatus === 'processed'"
+              >
                 {{ o.ilcAppOrderStatus | uppercase }}
               </div>
             </div>
@@ -131,13 +142,16 @@
             <div class="field">
               <label>Customer</label>
               <div class="value">
-                <div>{{ o.billingAddress?.firstName }} {{ o.billingAddress?.lastName }}</div>
+                <div>
+                  {{ o.billingAddress?.firstName }}
+                  {{ o.billingAddress?.lastName }}
+                </div>
                 <div class="small">{{ o.customerEmail }}</div>
               </div>
             </div>
             <div class="field">
               <label>Fulfillment Status</label>
-              <div class="value">{{ o['fulfillmentStatus'] || 'PENDING' }}</div>
+              <div class="value">{{ o["fulfillmentStatus"] || "PENDING" }}</div>
             </div>
             <div class="field">
               <label>Items Purchased</label>

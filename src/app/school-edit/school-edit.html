@@ -249,7 +249,7 @@
               @if (isDirty()) {
                 <button
                   type="submit"
-                  [disabled]="isDupSchoolId() || form().invalid()"
+                  [disabled]="isDupSchoolId() || form().invalid() || hasOwnerAsManager()"
                 >
                   Save
                 </button>

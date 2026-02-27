@@ -67,13 +67,28 @@ export class SchoolEditComponent {
   AssignKind = AssignKind;
 
   // The signal holding the data model for the form.
+  // Uses a signal + effect pattern because linkedSignal always re-derives
+  // from its source, which would wipe user edits when the parent re-renders
+  // with new object references. The effect guards against this by only
+  // syncing when the form has no unsaved edits.
   schoolFormModel = signal<School>(initSchool());
+  private _syncSchoolToForm = effect(() => {
+    const s = this.school();
+    if (this.form().dirty()) {
+      return;
+    }
+    this.schoolFormModel.set(structuredClone(s));
+  });
 
   // Use form() to create a FieldTree for validation and state tracking.
   form: FieldTree<School> = form(this.schoolFormModel, (schema) => {
     required(schema.schoolName, { message: 'School Name is required.' });
     required(schema.ownerInstructorId, { message: 'School must have an owner.' });
-    required(schema.schoolId, { message: 'School ID is required.' });
+    required(schema.schoolId, {
+      message: 'School ID is required.',
+      when: () =>
+        this.schoolIdAssignment().kind !== AssignKind.AssignNewAutoId,
+    });
 
     disabled(schema.schoolName, () => !this.userIsAdmin());
     disabled(schema.schoolId, () => !this.userIsAdmin());
@@ -100,15 +115,6 @@ export class SchoolEditComponent {
       schema.managerInstructorIds,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
-  });
-
-  // Sync input school to the form model.
-  private _sync = effect(() => {
-    const s = this.school();
-    // We deep clone to ensure the form model has its own copy.
-    const editable = structuredClone(s);
-    editable.lastUpdated = s.lastUpdated;
-    this.schoolFormModel.set(editable);
   });
 
   // Get an editable version of the school for save (it's the same as the model).
@@ -201,6 +207,18 @@ export class SchoolEditComponent {
       (memberDocId) =>
         this.membersService.instructors.entriesMap().get(memberDocId) || null,
     );
+  });
+
+  /** Returns true when a given manager ID is the same as the owner ID. */
+  isManagerAlsoOwner(managerId: string): boolean {
+    const ownerId = this.editableSchool().ownerInstructorId;
+    return ownerId !== '' && managerId !== '' && managerId === ownerId;
+  }
+
+  /** Computed: true when any manager in the list is also the owner. */
+  hasOwnerAsManager = computed(() => {
+    const school = this.editableSchool();
+    return school.managerInstructorIds.some((id) => this.isManagerAlsoOwner(id));
   });
 
   instructorDisplayFns = {
@@ -425,6 +443,9 @@ export class SchoolEditComponent {
       this.schoolIdAssignment().kind !== AssignKind.AssignNewAutoId
     ) {
       errors.push('School ID cannot be empty for a new school.');
+    }
+    if (this.hasOwnerAsManager()) {
+      errors.push('The owner is already considered a manager — no need to list them as a manager too.');
     }
     const asyncError = this.asyncError();
     if (asyncError) {
