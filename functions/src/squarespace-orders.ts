@@ -318,7 +318,7 @@ export async function executeOrderDownstreamLogic(
       } else {
         lineItem.ilcAppProcessingStatus = 'processed';
       }
-    } else if (lineItem.sku?.startsWith('LIC-')) {
+    } else if (lineItem.sku?.startsWith('LIS-YEAR')) {
       const issue = await processInstructorLicense(orderData, orderId, lineItem, db);
       if (issue) {
         ilcAppOrderIssues.push(issue);

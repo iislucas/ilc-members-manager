@@ -138,6 +138,39 @@ export class ImportOrdersComponent {
 
   public fieldSeparators: Record<string, string> = {};
 
+  /** Human-readable labels for order fields shown in the preview UI. */
+  readonly fieldLabels: Record<string, string> = {
+    externalId: 'Member ID',
+    referenceNumber: 'Reference Number',
+    paidFor: 'Paid For',
+    orderType: 'Order Type',
+    datePaid: 'Date Paid',
+    startDate: 'Start Date',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    email: 'Email',
+    country: 'Country',
+    state: 'State',
+    costUsd: 'Cost (USD)',
+    studentOf: 'Student Of',
+    newRenew: 'New/Renew',
+    collected: 'Collected',
+    split: 'Split',
+    notes: 'Notes',
+  };
+
+  /** Fields the user can edit inline in the import preview. */
+  readonly editableFields = new Set(['externalId', 'firstName', 'lastName', 'email']);
+
+  getFieldLabel(key: string): string {
+    return this.fieldLabels[key] || key;
+  }
+
+  /**
+   * Whether the currently loaded file is in the WooCommerce TSV format
+   * (detected by presence of `line_items` and `order_number_formatted` headers).
+   */
+  private isWooCommerceFormat = false;
 
   private orderFields = Object.keys(initSheetsImportOrder()) as Array<keyof SheetsImportOrder>;
 
@@ -150,6 +183,7 @@ export class ImportOrdersComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
+    this.isWooCommerceFormat = false;
     this.proposedChanges.set({
       orders: {
         issues: [],
@@ -177,7 +211,7 @@ export class ImportOrdersComponent {
     this.parsedData.set([]);
     this.headers.set([]);
     this.mapping.set({});
-    this.mapping.set({});
+    this.isWooCommerceFormat = false;
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) {
@@ -195,18 +229,45 @@ export class ImportOrdersComponent {
       this.stage.set('MAPPING');
     };
 
-    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-      Papa.parse<ParsedRow>(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (result) => {
-          onUploadComplete(
-            result.meta.fields ?? [],
-            result.data,
-            this.getDefaultMapping(result.meta.fields ?? []),
-          );
-        },
-      });
+    const isTsv = file.name.endsWith('.tsv') || file.type === 'text/tab-separated-values';
+    const isCsv = file.type === 'text/csv' || file.name.endsWith('.csv');
+
+    if (isCsv || isTsv) {
+      // Read file as text first so we can retry with a different delimiter if needed.
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        if (!text) return;
+
+        // First attempt: use tab for TSV, auto-detect for CSV
+        let result = Papa.parse<ParsedRow>(text, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter: isTsv ? '\t' : undefined,
+        });
+        let headers = result.meta.fields ?? [];
+
+        // If auto-detection produced mangled headers (a header name contains a tab),
+        // the file is likely tab-separated content saved with a .csv extension.
+        // Retry with tab delimiter.
+        if (!isTsv && headers.some(h => h.includes('\t'))) {
+          result = Papa.parse<ParsedRow>(text, {
+            header: true,
+            skipEmptyLines: true,
+            delimiter: '\t',
+          });
+          headers = result.meta.fields ?? [];
+        }
+
+        // Detect WooCommerce format by its distinctive headers
+        this.isWooCommerceFormat = headers.includes('line_items') && headers.includes('order_number_formatted');
+        onUploadComplete(
+          headers,
+          result.data,
+          this.getDefaultMapping(headers),
+        );
+      };
+      reader.readAsText(file);
     }
   }
 
@@ -217,18 +278,18 @@ export class ImportOrdersComponent {
     // Map based on partial matches or exact matches
     const knownMappings: Record<string, string[]> = {
       'orderType': ['order', 'type', 'entry type'],
-      'referenceNumber': ['Reference Number', 'ref', 'Order #', 'Order ID', 'Reference'],
+      'referenceNumber': ['Reference Number', 'ref', 'Order #', 'Order ID', 'Reference', 'order_number_formatted', 'transaction ID'],
       'externalId': ['External ID', 'ext', 'Member ID', 'Customer ID', 'Student ID', 'Student Member ID'],
       'studentOf': ['Student Of', 'instructor'],
-      'paidFor': ['Paid For', 'Product', 'Item', 'Description'],
+      'paidFor': ['Paid For', 'Product', 'Item', 'Description', 'membership type', 'member type'],
       'newRenew': ['New/Renew', 'status'],
-      'datePaid': ['Date Paid', 'Payment Date', 'Date'],
+      'datePaid': ['Date Paid', 'Payment Date', 'Date', 'order_date'],
       'startDate': ['Start Date'],
-      'lastName': ['Last Name', 'Surname'],
-      'firstName': ['First Name', 'Forename', 'Given Name'],
-      'email': ['Email', 'Email Address'],
-      'country': ['Country'],
-      'state': ['State', 'Region'],
+      'lastName': ['Last Name', 'Surname', 'last_name'],
+      'firstName': ['First Name', 'Forename', 'Given Name', 'first_name'],
+      'email': ['Email', 'Email Address', 'billing_email'],
+      'country': ['Country', 'billing_country'],
+      'state': ['State', 'Region', 'billing_state'],
       'costUsd': ['Cost USD', 'Price', 'Amount'],
       'collected': ['Collected'],
       'split': ['Split'],
@@ -285,7 +346,18 @@ export class ImportOrdersComponent {
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const { order, issues } = this.mapRowToSheetsImportOrder(row, this.mapping());
+      let order: Partial<SheetsImportOrder>;
+      let issues: string[];
+
+      if (this.isWooCommerceFormat) {
+        const result = this.mapWooCommerceRowToSheetsImportOrder(row);
+        order = result.order;
+        issues = result.issues;
+      } else {
+        const result = this.mapRowToSheetsImportOrder(row, this.mapping());
+        order = result.order;
+        issues = result.issues;
+      }
 
       if (!order.referenceNumber) {
         // Skip empty rows or rows without reference number
@@ -442,9 +514,9 @@ export class ImportOrdersComponent {
     // 1. Try External ID
     if (order.externalId) {
       member = members.find(m => m.memberId === order.externalId);
-      if (!member && !order.email) {
-        outIssues.push(`Member not found with ID: ${order.externalId}`);
-        return;
+      if (!member) {
+        outIssues.push(`Member ID "${order.externalId}" not found`);
+      // Continue to try email/name fallback below
       }
     }
 
@@ -456,20 +528,36 @@ export class ImportOrdersComponent {
       } else if (matchedMembers.length > 1) {
         outIssues.push(`Ambiguous Email: ${order.email} matches ${matchedMembers.length} members`);
         return;
-      } else {
-        // 0 matches
-        if (order.externalId) {
-          outIssues.push(`Member not found with ID: ${order.externalId} OR Email: ${order.email}`);
-        } else {
-          outIssues.push(`Member not found with Email: ${order.email}`);
+      }
+    }
+
+    // 3. Try Name if email also failed
+    if (!member && (order.firstName || order.lastName)) {
+      const fullName = `${order.firstName} ${order.lastName}`.trim().toLowerCase();
+      if (fullName) {
+        const byName = members.filter(m => m.name.toLowerCase() === fullName);
+        if (byName.length === 1) {
+          member = byName[0];
+        } else if (byName.length > 1) {
+          outIssues.push(`Ambiguous Name: "${fullName}" matches ${byName.length} members`);
+          return;
         }
-        return;
       }
     }
 
     if (!member) {
+      const identifiers = [
+        order.externalId ? `ID: ${order.externalId}` : '',
+        order.email ? `Email: ${order.email}` : '',
+        (order.firstName || order.lastName) ? `Name: ${order.firstName} ${order.lastName}`.trim() : '',
+      ].filter(Boolean).join(', ');
+      outIssues.push(`Member not found (${identifiers || 'no identifying info'})`);
       return;
     }
+
+    // Update order.externalId to the matched member's ID so the
+    // member changes preview can look it up.
+    order.externalId = member.memberId;
 
     // Apply Updates to Member
     const oldMember = member;
@@ -482,14 +570,24 @@ export class ImportOrdersComponent {
       'Member Dues - Life (Partner)',
       'Member Dues - Senior',
       'Member Dues - Student',
-      'Member Dues - Minor'
-    ].some(t => paymentType === t || paymentType === 'Member Dues - Annual');
+      'Member Dues - Minor',
+      'Student Membership - Lifetime',
+      'Student Membership - Senior Lifetime',
+    ].some(t => paymentType === t);
+
+    const isLifeMembership = isMembership && paymentType.includes('Life');
 
 
     const isInstructorLicense = paymentType.includes("Instructor's License") || paymentType === 'Instructor License';
 
 
-    if (isMembership && !paymentType.includes('Life')) { // Life members don't expire
+    if (isLifeMembership) {
+      // Life members don't expire — just set the membership type
+      if (newMember.membershipType !== MembershipType.Life) {
+        newMember.membershipType = MembershipType.Life;
+        changed = true;
+      }
+    } else if (isMembership) {
       const potentialNewRenewal = ensureLaterDate(newMember.lastRenewalDate, order.datePaid);
       if (potentialNewRenewal && potentialNewRenewal !== newMember.lastRenewalDate) {
         newMember.lastRenewalDate = potentialNewRenewal;
@@ -602,7 +700,186 @@ export class ImportOrdersComponent {
         (order as any)[key] = value;
       }
     }
+
+    // Fallback: if datePaid is empty but startDate is set, use startDate as datePaid
+    if (!order.datePaid && order.startDate) {
+      order.datePaid = order.startDate;
+    }
+
     return { order, issues };
+  }
+
+  // ─── WooCommerce TSV format support ──────────────────────────────
+
+  /**
+   * Parse the WooCommerce `line_items` field.
+   *
+   * Example value:
+   *   id:368|name:Student Membership - Lifetime|product_id:2898|sku:|quantity:1
+   *   |subtotal:500.00|...|meta:Membership Level=Lifetime,Member Number=aus-wa-014,
+   *   Student Of=Shane ODonnell,...
+   *
+   * Returns a flat key→value map of the top-level pipe fields *and*
+   * the comma-separated meta entries (prefixed with `meta.`).
+   */
+  private parseWooCommerceLineItems(lineItems: string): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (!lineItems) return result;
+
+    // Split on `|` but be aware that meta values can contain commas
+    // and backslash-escaped commas within address fields.
+    // Handle multiple line items separated by ';' — parse only the first item
+    // (the membership item) for order-level fields.
+    const firstItem = lineItems.split(';')[0].trim();
+
+    // Strategy: find the `meta:` portion first, then parse the rest.
+    const metaIndex = firstItem.indexOf('|meta:');
+    let topPart: string;
+    let metaPart = '';
+
+    if (metaIndex !== -1) {
+      topPart = firstItem.substring(0, metaIndex);
+      metaPart = firstItem.substring(metaIndex + 6); // skip "|meta:"
+    } else {
+      topPart = firstItem;
+    }
+
+    // Parse top-level pipe-separated fields
+    for (const segment of topPart.split('|')) {
+      const colonIdx = segment.indexOf(':');
+      if (colonIdx === -1) continue;
+      const key = segment.substring(0, colonIdx).trim();
+      const value = segment.substring(colonIdx + 1).trim();
+      result[key] = value;
+    }
+
+    // Parse meta: comma-separated key=value pairs.
+    // Values can contain backslash-escaped commas (\,) inside addresses,
+    // so we split only on commas NOT preceded by a backslash.
+    if (metaPart) {
+      // Replace escaped commas with a placeholder
+      const placeholder = '\x00';
+      const safeMeta = metaPart.replace(/\\,/g, placeholder);
+      for (const entry of safeMeta.split(',')) {
+        const eqIdx = entry.indexOf('=');
+        if (eqIdx === -1) continue;
+        const key = entry.substring(0, eqIdx).trim();
+        const value = entry.substring(eqIdx + 1).trim().replace(new RegExp(placeholder, 'g'), ',');
+        result['meta.' + key] = value;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Map a row from the WooCommerce-style TSV export into a SheetsImportOrder.
+   * The `externalId` (member ID) is set from the `Member Number` in line_items
+   * meta. If that's absent, we fall back to email lookup. The actual member
+   * validation is handled later by `calculateSideEffects`.
+   */
+  private mapWooCommerceRowToSheetsImportOrder(
+    row: ParsedRow,
+  ): { order: Partial<SheetsImportOrder>; issues: string[] } {
+    const order: SheetsImportOrder = initSheetsImportOrder();
+    const issues: string[] = [];
+
+    // Reference number
+    order.referenceNumber = (row['order_number_formatted'] || row['order_number'] || '').trim();
+
+    // Date paid
+    const rawDate = (row['order_date'] || '').trim();
+    if (rawDate) {
+      // The format is "2018-01-06 16:50:00" — strip time portion for date parsing
+      const dateOnly = rawDate.split(' ')[0];
+      const result = parseDate(dateOnly);
+      if (result.success) {
+        order.datePaid = result.value;
+      } else {
+        issues.push(result.issue);
+        order.datePaid = rawDate;
+      }
+    }
+
+    // Column-level fallback fields (used if meta doesn't have them)
+    const colFirstName = (row['first_name'] || '').trim();
+    const colLastName = (row['last_name'] || '').trim();
+    const colEmail = (row['billing_email'] || '').trim();
+    order.country = (row['billing_country'] || '').trim();
+    order.state = (row['billing_state'] || '').trim();
+
+    // Parse line_items for rich metadata
+    const lineItemsRaw = (row['line_items'] || '').trim();
+    if (lineItemsRaw) {
+      const li = this.parseWooCommerceLineItems(lineItemsRaw);
+
+      // Product name → paidFor
+      if (li['name']) {
+        order.paidFor = li['name'];
+      }
+
+      // Store the full raw line_items into notes so nothing is lost
+      order.notes = lineItemsRaw;
+
+      // Cost
+      if (li['total']) {
+        order.costUsd = li['total'];
+      } else if (li['subtotal']) {
+        order.costUsd = li['subtotal'];
+      }
+
+      // Student Of from meta
+      if (li['meta.Student Of']) {
+        order.studentOf = li['meta.Student Of'];
+      }
+
+      // ─── Name: prefer meta "Name" or "Your Name" over billing columns ───
+      const metaName = (li['meta.Name'] || li['meta.Your Name'] || '').trim();
+      if (metaName) {
+        // Split "First Last" into firstName and lastName
+        const parts = metaName.split(/\s+/);
+        order.firstName = parts[0] || '';
+        order.lastName = parts.slice(1).join(' ') || '';
+      } else {
+        order.firstName = colFirstName;
+        order.lastName = colLastName;
+      }
+
+      // ─── Email: prefer meta Email over billing column ───
+      const metaEmail = (li['meta.Email'] || '').trim();
+      order.email = metaEmail || colEmail;
+
+      // Membership Level → orderType
+      const membershipLevel = li['meta.Membership Level'] || '';
+      if (membershipLevel) {
+        order.orderType = `Membership: ${membershipLevel}`;
+      }
+
+      // ─── Set externalId (member ID) ───────────────────────
+      const memberNumber = (li['meta.Member Number'] || '').trim();
+      if (memberNumber && memberNumber !== 'N/A' && memberNumber !== 'NA') {
+        order.externalId = this.cleanMemberId(memberNumber);
+      }
+    } else {
+      // No line_items — use column values directly
+      order.firstName = colFirstName;
+      order.lastName = colLastName;
+      order.email = colEmail;
+    }
+
+    return { order, issues };
+  }
+
+  /**
+   * Clean up a member ID by extracting the canonical pattern:
+   * 1–3 letters followed by digits. Anything after the digits that is
+   * not a digit indicates the end of the member ID.
+   * E.g. "PL62WLKP89" → "PL62", "US431-71" → "US431", "US318AZ" → "US318".
+   * If the pattern doesn't match (e.g. "aus-wa-014"), returns the original string.
+   */
+  private cleanMemberId(raw: string): string {
+    const match = raw.match(/^([A-Za-z]{1,3}\d+)/);
+    return match ? match[1].toUpperCase() : raw;
   }
 
   async executeImportOrders() {
@@ -695,6 +972,169 @@ export class ImportOrdersComponent {
     this.previewIndex.update((i) => Math.max(i - 1, 0));
   }
 
+  onFieldEdit(orderKey: string, field: string, event: Event) {
+    const newValue = (event.target as HTMLInputElement).value.trim();
+    this.proposedChanges.update(pc => {
+      // Update in the 'new' map
+      const newEntry = pc.orders.new.get(orderKey);
+      if (newEntry) {
+        (newEntry.newItem as any)[field] = newValue;
+      }
+      // Update in the 'issues' list
+      const issueEntry = pc.orders.issues.find(i => i.key === orderKey);
+      if (issueEntry) {
+        (issueEntry.newItem as any)[field] = newValue;
+      }
+      // Update in the 'updates' list
+      const updateEntry = pc.orders.updates.find(u => u.key === orderKey);
+      if (updateEntry) {
+        (updateEntry.newItem as any)[field] = newValue;
+      }
+      return { ...pc };
+    });
+  }
+
+  /**
+   * Pure validation: checks if the order's member ID, email, or name
+   * matches a real member/school. Returns issues and the matched member ID.
+   */
+  private validateOrder(order: Partial<SheetsImportOrder>): {
+    issues: string[];
+    matched: boolean;
+    matchedMemberId?: string;
+  } {
+    const members = this.dataService.members.entries();
+    const schools = this.dataService.schools.entries();
+    const issues: string[] = [];
+    let matched = false;
+    let matchedMemberId: string | undefined;
+
+    // 1. Try Member ID
+    if (order.externalId) {
+      const memberById = members.find(m => m.memberId === order.externalId);
+      const schoolById = schools.find(s => s.schoolId === order.externalId);
+      if (memberById || schoolById) {
+        matched = true;
+        matchedMemberId = order.externalId;
+      } else {
+        issues.push(`Member ID "${order.externalId}" not found`);
+      }
+    }
+
+    // 2. Try Email
+    if (!matched && order.email) {
+      const byEmail = members.filter(m =>
+        m.emails.some(e => e.toLowerCase() === order.email!.toLowerCase())
+      );
+      if (byEmail.length === 1) {
+        matched = true;
+        matchedMemberId = byEmail[0].memberId;
+        issues.length = 0; // Clear earlier "ID not found" — matched by email
+      } else if (byEmail.length > 1) {
+        issues.push(`Ambiguous email: ${order.email} matches ${byEmail.length} members`);
+      }
+    }
+
+    // 3. Try Name
+    if (!matched && (order.firstName || order.lastName)) {
+      const fullName = `${order.firstName} ${order.lastName}`.trim().toLowerCase();
+      if (fullName) {
+        const byName = members.filter(m => m.name.toLowerCase() === fullName);
+        if (byName.length === 1) {
+          matched = true;
+          matchedMemberId = byName[0].memberId;
+          issues.length = 0; // Clear earlier issues — matched by name
+        } else if (byName.length > 1) {
+          issues.push(`Ambiguous name: "${fullName}" matches ${byName.length} members`);
+        } else {
+          issues.push(`No member found matching name "${fullName}"`);
+        }
+      }
+    }
+
+    if (!matched && issues.length === 0) {
+      issues.push('No Member ID, email, or name — cannot match to a member');
+    }
+
+    return { issues, matched, matchedMemberId };
+  }
+
+  /**
+   * Re-validate the current order after the user edits fields.
+   * Updates the displayed issues and match status WITHOUT moving
+   * the order between categories. Use `acceptMatch` to actually move it.
+   */
+  revalidateOrder(orderKey: string) {
+    this.proposedChanges.update(pc => {
+      const entry = pc.orders.new.get(orderKey)
+        || pc.orders.issues.find(i => i.key === orderKey)
+        || pc.orders.updates.find(u => u.key === orderKey);
+      if (!entry) return pc;
+
+      const order = entry.newItem as SheetsImportOrder;
+      const result = this.validateOrder(order);
+
+      // Update the entry's issues in-place, but don't move categories
+      entry.issues = result.issues.length > 0 ? result.issues : undefined;
+
+      // If matched, update externalId so member changes preview works
+      if (result.matched && result.matchedMemberId) {
+        order.externalId = result.matchedMemberId;
+        // Add informational message if matched by email/name (not by ID)
+        if (!entry.issues) {
+          entry.issues = [`✓ Matched to member ${result.matchedMemberId}`];
+        }
+      }
+
+      return { ...pc };
+    });
+  }
+
+  /**
+   * Accept the current match and move the order from issues → new/update.
+   * Only call this after validation passes.
+   */
+  acceptMatch(orderKey: string) {
+    this.proposedChanges.update(pc => {
+      const entry = pc.orders.issues.find(i => i.key === orderKey);
+      if (!entry) return pc;
+
+      const order = entry.newItem as SheetsImportOrder;
+      const result = this.validateOrder(order);
+      if (!result.matched) return pc; // safety: don't move if still invalid
+
+      if (result.matchedMemberId) {
+        order.externalId = result.matchedMemberId;
+      }
+
+      // Remove from issues
+      pc.orders.issues = pc.orders.issues.filter(i => i.key !== orderKey);
+
+      // Check if it's an update to an existing order
+      let existingOrder: SheetsImportOrder | undefined;
+      this.dataService.orders.entriesMap().forEach(o => {
+        if ((o as SheetsImportOrder).referenceNumber === orderKey) {
+          existingOrder = o as SheetsImportOrder;
+        }
+      });
+
+      const newEntry: ProposedChange<SheetsImportOrder> = {
+        ...entry,
+        issues: undefined,
+        status: existingOrder ? 'UPDATE' : 'NEW',
+      };
+
+      if (existingOrder) {
+        newEntry.diffs = getDifferences(order, existingOrder);
+        pc.orders.updates.push(newEntry);
+      } else {
+        pc.orders.new.set(orderKey, newEntry);
+      }
+
+      return { ...pc };
+    });
+  }
+
   setFilter(status: FilterStatus) {
     if (this.selectedStatusFilter() === status) {
       this.selectedStatusFilter.set('ISSUE');
@@ -722,8 +1162,10 @@ export class ImportOrdersComponent {
       'Member Dues - Life (Partner)',
       'Member Dues - Senior',
       'Member Dues - Student',
-      'Member Dues - Minor'
-    ].some(t => paymentType === t || paymentType === 'Member Dues - Annual');
+      'Member Dues - Minor',
+      'Student Membership - Lifetime',
+      'Student Membership - Senior Lifetime',
+    ].some(t => paymentType === t);
 
     if (isMembership) return 'MEMBERSHIP';
 

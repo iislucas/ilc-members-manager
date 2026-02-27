@@ -3,11 +3,11 @@
   <div class="stage-section file-select">
     <div class="instructions">
       <h3>Import Orders</h3>
-      <p>Upload a CSV file containing order data. The file should have headers like "Reference Number", "Amount", "Paid
-        For", etc.</p>
+      <p>Upload a CSV or TSV file containing order data. Supports the standard ILC sheets format (with headers like
+        "Reference Number", "Paid For", etc.) and WooCommerce exports (with <code>line_items</code> metadata).</p>
       <p><strong>Note:</strong> This will also update associated Member/School license and membership dates.</p>
     </div>
-    <input type="file" (change)="onFileChange($event)" accept=".csv" class="file-input" />
+    <input type="file" (change)="onFileChange($event)" accept=".csv,.tsv" class="file-input" />
   </div>
   }
 
@@ -133,15 +133,38 @@
           </thead>
           <tbody>
             @for (key of fieldsToMap(); track key) {
-            @if (change.newItem[key]) {
+            @if (editableFields.has(key) || change.newItem[key]) {
             <tr>
-              <td>{{key}}</td>
-              <td>{{change.newItem[key]}}</td>
+              <td>{{getFieldLabel(key)}}</td>
+              <td>
+                @if (editableFields.has(key)) {
+                <div class="inline-edit">
+                  <input type="text"
+                    [value]="change.newItem[key] || ''"
+                    (input)="onFieldEdit(change.key, key, $event)"
+                    [placeholder]="'Enter ' + getFieldLabel(key) + '…'"
+                    class="inline-edit-input" />
+                </div>
+                } @else {
+                {{change.newItem[key]}}
+                }
+              </td>
             </tr>
             }
             }
           </tbody>
         </table>
+
+        <div class="revalidate-actions">
+          <button class="secondary-button" (click)="revalidateOrder(change.key)">
+            Re-validate
+          </button>
+          @if (change.issues?.[0]?.startsWith('✓')) {
+          <button class="primary-button" (click)="acceptMatch(change.key)">
+            Accept Match
+          </button>
+          }
+        </div>
         }
 
         <!-- Updates -->
@@ -157,7 +180,7 @@
           <tbody>
             @for (diff of change.diffs; track diff.field) {
             <tr>
-              <td>{{ diff.field }}</td>
+              <td>{{ getFieldLabel(diff.field) }}</td>
               <td class="old-val">{{ diff.oldVal }}</td>
               <td class="new-val">{{ diff.newVal }}</td>
             </tr>
@@ -166,6 +189,34 @@
         </table>
         } @else {
         <p>No changes detected for this record.</p>
+        }
+
+        <!-- Member Changes Preview -->
+        @if (change.newItem.externalId) {
+          @let memberUpdate = proposedChanges().memberUpdates.get(change.newItem.externalId);
+          @if (memberUpdate) {
+          <div class="member-changes card">
+            <h5>Member Changes ({{change.newItem.externalId}}):</h5>
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (diff of memberUpdate.diffs; track diff.field) {
+                <tr>
+                  <td>{{ diff.field }}</td>
+                  <td class="old-val">{{ diff.oldVal }}</td>
+                  <td class="new-val">{{ diff.newVal }}</td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          }
         }
       </div>
     </div>

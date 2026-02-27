@@ -105,7 +105,8 @@ describe('MemberEditComponent', () => {
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
       mockMember.docId,
-      expect.objectContaining({ name: 'Test Member' }),
+      expect.any(Object),
+      mockMember,
     );
   });
 

@@ -306,6 +306,54 @@ $danger-color: $theme-error-text-color;
             padding-left: 1.5rem;
         }
     }
+
+    .revalidate-actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.5rem;
+
+      .secondary-button {
+        padding: 0.4rem 1rem;
+        border: 1px solid $primary-color;
+        background-color: white;
+        color: $primary-color;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: rgba($primary-color, 0.1);
+        }
+      }
+
+      .primary-button {
+        padding: 0.4rem 1rem;
+        border: 1px solid $success-color;
+        background-color: $success-color;
+        color: white;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: darken($success-color, 8%);
+        }
+      }
+    }
+
+    .member-changes {
+      margin-top: 1rem;
+      background-color: rgba($info-color, 0.05);
+      border: 1px solid rgba($info-color, 0.2);
+
+      h5 {
+        color: color.adjust($info-color, $lightness: -10%);
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+      }
+    }
   }
 }
 
@@ -335,4 +383,32 @@ $danger-color: $theme-error-text-color;
     h4 {
         margin-top: 0;
     }
+}
+
+.inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .inline-edit-input {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid $border-color;
+    border-radius: 0.25rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    width: 100%;
+    max-width: 20rem;
+    transition: border-color 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 2px rgba($primary-color, 0.15);
+    }
+
+    &::placeholder {
+      color: $text-muted;
+      font-style: italic;
+    }
+  }
 }
