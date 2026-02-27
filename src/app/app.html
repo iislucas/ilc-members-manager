@@ -79,6 +79,18 @@
               pageTitle="Active Instructors Area"
             ></app-squarespace-content>
           }
+          @case (Views.ActiveMemberPost) {
+            <app-squarespace-article
+              collection="/membersareablog"
+              [articleId]="routingService.signals[Views.ActiveMemberPost].pathVars.articleId()"
+            ></app-squarespace-article>
+          }
+          @case (Views.ActiveInstructorPost) {
+            <app-squarespace-article
+              collection="/instructorsblog"
+              [articleId]="routingService.signals[Views.ActiveInstructorPost].pathVars.articleId()"
+            ></app-squarespace-article>
+          }
           @case (Views.ManageGradings) {
             <app-grading-list
               [gradingSet]="dataService.gradings"

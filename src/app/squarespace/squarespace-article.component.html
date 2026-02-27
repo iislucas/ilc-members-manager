@@ -1,0 +1,51 @@
+<div class="squarespace-container">
+    <div class="content-wrapper">
+        @if (loading()) {
+        <div class="loading-state">
+            <app-spinner>Fetching article...</app-spinner>
+        </div>
+        } @else if (error()) {
+        <div class="error-state card">
+            <div class="error-icon">⚠️</div>
+            <h3>Unable to Load Content</h3>
+            <p>{{ error() }}</p>
+            <button class="retry-button" (click)="checkAccessAndLoad(collection(), articleId())">
+                Try Again
+            </button>
+        </div>
+        } @else if (entry(); as currentEntry) {
+        <article class="blog-card expanded article-view fade-in">
+            @if (currentEntry.assetUrl) {
+            <div class="blog-image">
+                <img [src]="currentEntry.assetUrl" [alt]="currentEntry.title">
+            </div>
+            }
+            
+            <div class="blog-content">
+                <div class="blog-header-meta">
+                    @if (currentEntry.categories && currentEntry.categories.length) {
+                    <div class="blog-categories">
+                        @for (cat of currentEntry.categories; track cat) {
+                        <span class="category-tag">{{ cat }}</span>
+                        }
+                    </div>
+                    }
+                    <span class="blog-date">{{ (currentEntry.publishOn || currentEntry.addedOn) | date:'longDate' }}</span>
+                </div>
+
+                <h1 class="sqs-title">{{ currentEntry.title }}</h1>
+                
+                @if (currentEntry.tags && currentEntry.tags.length) {
+                <div class="blog-tags">
+                    @for (tag of currentEntry.tags; track tag) {
+                    <span class="tag">#{{ tag }}</span>
+                    }
+                </div>
+                }
+
+                <div class="blog-body fade-in" [innerHTML]="currentEntry.safeBody"></div>
+            </div>
+        </article>
+        }
+    </div>
+</div>

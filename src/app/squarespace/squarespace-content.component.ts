@@ -4,8 +4,11 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SquarespaceService } from './squarespace.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 import { MembershipType } from '../../../functions/src/data-model';
 import { SquareSpaceBlogsResponse, SquareSpaceBlogEntry } from './blog-types';
+import { IconComponent } from '../icons/icon.component';
 
 export interface ProcessedBlogEntry extends SquareSpaceBlogEntry {
     safeBody: SafeHtml;
@@ -15,7 +18,7 @@ export interface ProcessedBlogEntry extends SquareSpaceBlogEntry {
 @Component({
     selector: 'app-squarespace-content',
     standalone: true,
-    imports: [CommonModule, SpinnerComponent],
+    imports: [CommonModule, SpinnerComponent, IconComponent],
     templateUrl: './squarespace-content.component.html',
     styleUrls: ['./squarespace-content.component.scss'],
     encapsulation: ViewEncapsulation.None,
@@ -24,8 +27,9 @@ export class SquarespaceContentComponent {
     private squarespaceService = inject(SquarespaceService);
     private sanitizer = inject(DomSanitizer);
     public firebaseService = inject(FirebaseStateService);
+    private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
-    /** The Squarespace path to fetch, e.g. '/members-area' */
+    /** The Squarespace path to fetch, e.g. '/membersareablog' */
     path = input.required<string>();
 
     blogEntries = signal<ProcessedBlogEntry[]>([]);
@@ -56,18 +60,12 @@ export class SquarespaceContentComponent {
         });
     }
 
-    toggleExpanded(id: string) {
-        const current = new Set(this.expandedIds());
-        if (current.has(id)) {
-            current.delete(id);
-        } else {
-            current.add(id);
+    navigateToArticle(entry: ProcessedBlogEntry) {
+        if (this.path().includes('member')) {
+            this.routingService.navigateTo('members-area/' + entry.urlId);
+        } else if (this.path().includes('instructor')) {
+            this.routingService.navigateTo('instructors-area/' + entry.urlId);
         }
-        this.expandedIds.set(current);
-    }
-
-    isExpanded(id: string): boolean {
-        return this.expandedIds().has(id);
     }
 
     private isActiveMember(): boolean {

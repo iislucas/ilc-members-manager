@@ -123,7 +123,10 @@ export class RoutingService<T extends PathPatterns> {
   }
 
   private handleUrlChange() {
-    const hashlessUrlPart = window.location.hash.substring(1);
+    let hashlessUrlPart = window.location.hash.substring(1);
+    if (hashlessUrlPart.startsWith('/')) {
+      hashlessUrlPart = hashlessUrlPart.substring(1);
+    }
     const match = matchUrl(hashlessUrlPart, this.config.validPathPatterns);
     if (match) {
       this.matchedPatternId.set(match.patternId);
@@ -141,7 +144,11 @@ export class RoutingService<T extends PathPatterns> {
   }
 
   navigateTo(pathAndParams: string) {
-    window.location.hash = `#${pathAndParams}`;
+    if (pathAndParams.startsWith('/')) {
+      window.location.hash = `#${pathAndParams}`;
+    } else {
+      window.location.hash = `#/${pathAndParams}`;
+    }
   }
 
   navigateToParts(parts: string[]) {

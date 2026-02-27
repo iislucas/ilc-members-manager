@@ -30,7 +30,7 @@
 
         <div class="blog-grid fade-in">
             @for (entry of filteredEntries(); track entry.id) {
-            <article class="blog-card" [class.expanded]="isExpanded(entry.id)">
+            <article class="blog-card fade-in">
                 @if (entry.assetUrl) {
                 <div class="blog-image">
                     <img [src]="entry.assetUrl" [alt]="entry.title">
@@ -64,15 +64,11 @@
                     }
 
                     <div class="read-more-container">
-                        <button class="read-more-link" (click)="toggleExpanded(entry.id)">
-                            {{ isExpanded(entry.id) ? 'Read less' : 'Read more' }}
-                            <span class="arrow" [class.up]="isExpanded(entry.id)"></span>
+                        <button class="subtle-button" (click)="navigateToArticle(entry)">
+                            Read more
+                            <app-icon name="arrow_forward"></app-icon>
                         </button>
                     </div>
-
-                    @if (isExpanded(entry.id)) {
-                    <div class="blog-body fade-in" [innerHTML]="entry.safeBody"></div>
-                    }
                 </div>
             </article>
             }

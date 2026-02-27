@@ -30,6 +30,8 @@ export enum Views {
   ClassVideoLibrary = 'classVideoLibrary',
   ManageOrders = 'manageOrders',
   OrderView = 'orderView',
+  ActiveMemberPost = 'activeMemberPost',
+  ActiveInstructorPost = 'activeInstructorPost',
 }
 
 export const initPathPatterns = {
@@ -58,6 +60,8 @@ export const initPathPatterns = {
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
   [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId']),
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
+  [Views.ActiveMemberPost]: pathPattern`members-area/${pv('articleId')}`,
+  [Views.ActiveInstructorPost]: pathPattern`instructors-area/${pv('articleId')}`,
 };
 
 // Santiy check for type correctness...

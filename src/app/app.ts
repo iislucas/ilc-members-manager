@@ -20,6 +20,7 @@ import { MemberEditComponent } from './member-edit/member-edit';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
+import { SquarespaceArticleComponent } from './squarespace/squarespace-article.component';
 import { GradingListComponent } from './grading-list/grading-list';
 import { SettingsComponent } from './settings/settings.component';
 import { LoginComponent } from './login/login';
@@ -51,6 +52,7 @@ import { HeaderComponent, Breadcrumb } from './header/header.component';
     FindSchoolComponent,
     HomeComponent,
     SquarespaceContentComponent,
+    SquarespaceArticleComponent,
     GradingListComponent,
     SettingsComponent,
     LoginComponent,
@@ -83,6 +85,12 @@ export class App {
     if (view !== Views.Home && view) {
       if (view === Views.OrderView) {
         baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
+      }
+      if (view === Views.ActiveMemberPost) {
+        baseBreadcrumbs.push({ label: 'Members Area', url: '#/active-members' });
+      }
+      if (view === Views.ActiveInstructorPost) {
+        baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/active-instructors' });
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -158,6 +166,9 @@ export class App {
         const orderId =
           this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;
+      case Views.ActiveMemberPost:
+      case Views.ActiveInstructorPost:
+        return 'Article';
       default:
         return 'Unknown View';
     }
