@@ -400,6 +400,22 @@
         ul, ol { margin-bottom: 1.5rem; padding-left: 1.5rem; li { margin-bottom: 0.5rem; } }
         blockquote { border-left: 4px solid var(--primary-color, #3a5af1); padding-left: 1.5rem; font-style: italic; margin: 2.5rem 0; color: #4b5563; background: #f9fafb; padding: 1.5rem; border-radius: 0 8px 8px 0; }
         
+        /* Fix Squarespace Image Spacing Bug */
+        .sqs-image-shape-container-element {
+          &.has-aspect-ratio {
+            position: relative;
+            
+            img {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              margin: 0; /* Remove default margin to prevent pushed containers */
+            }
+          }
+        }
+        
         .ilc-video-container {
           position: relative;
           width: 100%;
