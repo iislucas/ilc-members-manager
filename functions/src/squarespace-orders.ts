@@ -235,26 +235,32 @@ export const reprocessOrder = onCall(
     }
 
     const orderData = docSnap.data() as SquareSpaceOrder;
-
-    // Clear previous processing status so executeOrderDownstreamLogic
-    // will actually re-run all the logic instead of skipping.
-    delete orderData.ilcAppOrderStatus;
-    delete orderData.ilcAppOrderIssues;
-    if (orderData.lineItems) {
-      for (const lineItem of orderData.lineItems) {
-        delete lineItem.ilcAppProcessingStatus;
-        delete lineItem.ilcAppProcessingIssue;
-      }
-    }
+    clearOrderProcessingState(orderData);
 
     await executeOrderDownstreamLogic(orderData, docId, db);
     return { success: true };
   }
 );
+/**
+ * Clear all ilcApp processing state from an order so it can be re-processed.
+ * Removes order-level and line-item-level processing status fields.
+ */
+export function clearOrderProcessingState(orderData: SquareSpaceOrder): void {
+  delete orderData.ilcAppOrderStatus;
+  delete orderData.ilcAppOrderIssues;
+  if (orderData.lineItems) {
+    for (const lineItem of orderData.lineItems) {
+      delete lineItem.ilcAppProcessingStatus;
+      delete lineItem.ilcAppProcessingIssue;
+    }
+  }
+}
 
 async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore) {
-  // We pass both docId and the original Squarespace orderId
-  const orderId = orderData.docId || orderData.orderNumber || docId;
+  // Human-readable order identifier for logging/issues.
+  const orderId = orderData.orderNumber || docId;
+  // The Squarespace UUID needed for API endpoint URLs (e.g. fulfillments).
+  const squarespaceId = orderData.id;
 
   // If the order has already been processed, do nothing
   if (orderData.ilcAppOrderStatus) {
@@ -316,25 +322,31 @@ async function executeOrderDownstreamLogic(orderData: SquareSpaceOrder, docId: s
   }
 
   if (allItemsFulfilled) {
-    try {
-      const apiKey = squarespaceApiKey.value();
-      const url = `https://api.squarespace.com/1.0/commerce/orders/${orderId}/fulfillments`;
-      await axios.post(url, {
-        shouldSendNotification: false // Typically don't need shipment notification for digital fulfillment
-      }, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'ILC-Members-Manager/1.0',
-        }
-      });
-      logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
-    } catch (error) {
+    if (!squarespaceId) {
       orderStatus = 'error';
-      ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
-      logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
-      if (axios.isAxiosError(error) && error.response) {
-        logger.error('Squarespace API responded with:', error.response.data);
+      ilcAppOrderIssues.push(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field). The order may need to be re-synced.`);
+      logger.error(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field).`);
+    } else {
+      try {
+        const apiKey = squarespaceApiKey.value();
+        const url = `https://api.squarespace.com/1.0/commerce/orders/${squarespaceId}/fulfillments`;
+        await axios.post(url, {
+          shouldSendNotification: false // Typically don't need shipment notification for digital fulfillment
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'ILC-Members-Manager/1.0',
+          }
+        });
+        logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
+      } catch (error) {
+        orderStatus = 'error';
+        ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
+        logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
+        if (axios.isAxiosError(error) && error.response) {
+          logger.error('Squarespace API responded with:', error.response.data);
+        }
       }
     }
   }

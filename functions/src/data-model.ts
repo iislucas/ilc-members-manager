@@ -428,6 +428,7 @@ export interface SquareSpaceLineItem {
 
 export type SquareSpaceOrder = BaseOrder & {
   ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders';
+  id: string; // Squarespace UUID — used in API endpoint URLs (e.g. /orders/{id}/fulfillments)
   orderNumber: string;
   createdOn: string;
   modifiedOn: string;
