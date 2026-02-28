@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MemberListComponent } from './member-list';
 import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import { Member, initMember } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
@@ -21,20 +23,25 @@ class MockMemberEditComponent {
 describe('MemberListComponent', () => {
   let component: MemberListComponent;
   let fixture: ComponentFixture<MemberListComponent>;
-  let mockFirebaseStateService: any;
+  let mockFirebaseStateService: FirebaseStateService;
+  let mockRoutingService: RoutingService<AppPathPatterns>;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
       user: signal({ isAdmin: true, schoolsManaged: [] }),
-    };
+    } as never as FirebaseStateService;
+    mockRoutingService = {
+      matchedPatternId: signal('members'),
+      signals: { members: { urlParams: { q: signal(''), memberId: signal('') } } }
+    } as never as RoutingService<AppPathPatterns>;
 
     await TestBed.configureTestingModule({
       imports: [MemberListComponent, MockMemberEditComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
+        { provide: RoutingService, useValue: mockRoutingService }
       ],
-    })
-      .overrideComponent(MemberListComponent, {
+    }).overrideComponent(MemberListComponent, {
         remove: { imports: [MemberEditComponent] },
         add: { imports: [MockMemberEditComponent] },
       })

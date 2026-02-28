@@ -11,8 +11,8 @@ import { RoutingService } from '../routing.service';
 describe('GradingEditComponent', () => {
   let component: GradingEditComponent;
   let fixture: ComponentFixture<GradingEditComponent>;
-  let mockFirebaseStateService: any;
-  let mockDataManagerService: any;
+  let mockFirebaseStateService: FirebaseStateService;
+  let mockDataManagerService: DataManagerService;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
@@ -21,7 +21,7 @@ describe('GradingEditComponent', () => {
         schoolsManaged: [],
         member: { instructorId: '' },
       }),
-    };
+    } as never as FirebaseStateService;
 
     mockDataManagerService = {
       members: new SearchableSet(['name'], 'memberId'),
@@ -29,7 +29,7 @@ describe('GradingEditComponent', () => {
       addGrading: vi.fn(),
       updateGrading: vi.fn(),
       deleteGrading: vi.fn(),
-    };
+    } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
       imports: [GradingEditComponent],

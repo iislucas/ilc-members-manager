@@ -72,9 +72,11 @@ describe('App', () => {
 
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+    const app = fixture.componentInstance;
+    app.routingService.matchedPatternId.set(Views.Home);
+    fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.title')?.textContent).toContain('I Liq Chuan');
+    expect(compiled.querySelector('.title')?.textContent).toContain('Members Portal App');
   });
 
   it('should redirect logged-out users on Home to login', async () => {

@@ -7,12 +7,13 @@
   <div class="search-header">
     <div class="search-box">
       <app-icon class="search-icon" name="search"></app-icon>
-      <input
-        id="search-input"
-        type="text"
-        placeholder="Search schools by name, ID, city or country..."
-        (input)="onSearch($event)"
-      />
+        <input
+          id="search-input"
+          type="text"
+          [value]="searchTerm()"
+          placeholder="Search schools by name, ID, city or country..."
+          (input)="onSearch($event)"
+        />
     </div>
     @if (u.isAdmin) {
       <button (click)="onNewSchool()">New School</button>
@@ -67,7 +68,9 @@
         <app-school-edit
           [school]="school"
           [allSchools]="schools()"
-          (close)="($event)"
+          [collapse]="school.docId !== urlSchoolId() && school.schoolId !== urlSchoolId()"
+          (opened)="setExpandedSchool(school.schoolId)"
+          (close)="setExpandedSchool('')"
         ></app-school-edit>
       </div>
     }

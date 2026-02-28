@@ -59,7 +59,7 @@ describe('RoutingService', () => {
     service.matchedPatternId.set(Views.SchoolMembers);
     service.signals[Views.SchoolMembers].pathVars['schoolId'].set('S1');
     await fixture.whenStable();
-    expect(window.location.hash).toBe(`#school/S1/members?memberId=`);
+    expect(window.location.hash).toBe(`#school/S1/members?memberId=&q=`);
   });
 
   it('should update the URL when a url param signal changes', async () => {
@@ -68,17 +68,20 @@ describe('RoutingService', () => {
     service.matchedPatternId.set(Views.ManageMembers);
     service.signals[Views.ManageMembers].urlParams['memberId'].set('456');
     await fixture.whenStable();
-    expect(window.location.hash).toBe(`#members?memberId=456`);
+    expect(window.location.hash).toBe(`#members?memberId=456&q=`);
   });
 
   it('should update signals from the URL', async () => {
     await configureTestBed(testConfig);
 
-    window.location.hash = `#members?memberId=789`;
+    window.location.hash = `#members?memberId=789&q=`;
     window.dispatchEvent(new HashChangeEvent('hashchange'));
     await fixture.whenStable();
     expect(service.signals[Views.ManageMembers].urlParams['memberId']()).toBe(
       '789',
+    );
+    expect(service.signals[Views.ManageMembers].urlParams['q']()).toBe(
+      '',
     );
   });
 });

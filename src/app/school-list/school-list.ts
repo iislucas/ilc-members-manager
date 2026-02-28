@@ -2,6 +2,7 @@ import { Component, computed, inject, signal, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { RoutingService } from '../routing.service';
 import { SearchableSet } from '../searchable-set';
 import { initSchool, School } from '../../../functions/src/data-model';
 import { SchoolEditComponent } from '../school-edit/school-edit';
@@ -17,16 +18,31 @@ import { FirebaseStateService } from '../firebase-state.service';
   styleUrls: ['./school-list.scss'],
 })
 export class SchoolListComponent {
+  routingService = inject(RoutingService<AppPathPatterns>);
   stateService = inject(FirebaseStateService);
   private dataManager = inject(DataManagerService);
-  private searchTerm = signal('');
+
+  searchTerm = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return '';
+    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+    return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
+  });
+
+  urlSchoolId = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return '';
+    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+    return sigs?.urlParams?.schoolId ? sigs.urlParams.schoolId() : '';
+  });
+
   isAddingSchool = signal(false);
   newSchool = signal<School>(initSchool());
 
   // Expose signals from the service to the template
   @Input() schoolSet: SearchableSet<'schoolId', School> | null = null;
 
-  targetSchoolSet = computed(() => this.schoolSet || this.dataManager.schools);
+  targetSchoolSet = computed<SearchableSet<'schoolId', School>>(() => this.schoolSet || this.dataManager.schools);
 
   limit = signal(50);
   schools = computed(() => {
@@ -52,8 +68,25 @@ export class SchoolListComponent {
   }
 
   onSearch(event: Event) {
-    this.searchTerm.set((event.target as HTMLInputElement).value);
+    const value = (event.target as HTMLInputElement).value;
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      if (sigs?.urlParams?.q) {
+        sigs.urlParams.q.set(value);
+      }
+    }
     this.limit.set(50);
+  }
+
+  setExpandedSchool(schoolId: string) {
+    const match = this.routingService.matchedPatternId();
+    if (match && schoolId) {
+      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      if (sigs?.urlParams?.schoolId) {
+        sigs.urlParams.schoolId.set(schoolId);
+      }
+    }
   }
 
   onNewSchool() {

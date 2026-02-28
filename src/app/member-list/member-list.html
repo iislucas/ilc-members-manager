@@ -11,6 +11,7 @@
       <app-icon class="search-icon" name="search"></app-icon>
       <input
         type="text"
+        [value]="searchTerm()"
         placeholder="Search members by name, member ID, email, or city..."
         (input)="onSearch($event)"
       />
@@ -102,6 +103,8 @@
         <app-member-edit
           [member]="member"
           [allMembers]="members()"
+          [collapse]="member.docId !== urlMemberId() && member.memberId !== urlMemberId()"
+          (opened)="setExpandedMember(member.memberId)"
         ></app-member-edit>
       </div>
     }

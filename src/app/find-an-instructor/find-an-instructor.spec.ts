@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FindAnInstructorComponent } from './find-an-instructor';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { FindInstructorsService } from '../find-instructors.service';
+import { RoutingService } from '../routing.service';
 
 describe('FindAnInstructorComponent', () => {
   let component: FindAnInstructorComponent;
@@ -27,6 +28,13 @@ describe('FindAnInstructorComponent', () => {
           provide: FindInstructorsService,
           useValue: findInstructorsServiceMock,
         },
+        {
+          provide: RoutingService,
+          useValue: {
+            matchedPatternId: signal('findAnInstructor'),
+            signals: { findAnInstructor: { urlParams: { q: signal(''), instructorId: signal('') } } }
+          }
+        }
       ],
     }).compileComponents();
 

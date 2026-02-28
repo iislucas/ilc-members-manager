@@ -62,6 +62,7 @@ export class SchoolEditComponent {
   canDelete = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
+  opened = output<void>();
 
   // Constants
   AssignKind = AssignKind;
@@ -342,6 +343,9 @@ export class SchoolEditComponent {
       return;
     }
     this.collapsed.set(!this.collapsed());
+    if (!this.collapsed()) {
+      this.opened.emit();
+    }
   }
 
   isDupSchoolId = computed(() => {

@@ -128,3 +128,4 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - To run tests for firebase functions: `pnpm test:functions`
   - To run a specific firebase function test: `pnpm exec ts-node --project functions/tsconfig.json functions/src/tests/<function-test-file>.ts`
 - Requirement: All new items should have a `.spec.ts` file with meaningful unit tests.
+- Mocks: In tests, for mocks, we should treat them as the type they intend to mock. Only when we initialise them, we may use the `as never as TypeName` pattern if we cannot directly specify the `TypeName`. Do not use `any`.

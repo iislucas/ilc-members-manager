@@ -9,8 +9,8 @@ import { OrderList } from './order-list';
 describe('OrderList', () => {
   let component: OrderList;
   let fixture: ComponentFixture<OrderList>;
-  let mockDataManager: any;
-  let mockRoutingService: any;
+  let mockDataManager: DataManagerService;
+  let mockRoutingService: RoutingService<any>;
 
   beforeEach(async () => {
     mockDataManager = {
@@ -19,11 +19,11 @@ describe('OrderList', () => {
         entries: () => [],
       },
       getRecentOrders: vi.fn().mockResolvedValue([]),
-    };
+    } as never as DataManagerService;
 
     mockRoutingService = {
       navigateTo: vi.fn(),
-    };
+    } as never as RoutingService<any>;
 
     await TestBed.configureTestingModule({
       imports: [OrderList],

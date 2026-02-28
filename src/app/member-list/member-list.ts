@@ -13,6 +13,8 @@ import { MemberEditComponent } from '../member-edit/member-edit';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 
 @Component({
   selector: 'app-member-list',
@@ -22,6 +24,7 @@ import { FirebaseStateService } from '../firebase-state.service';
   styleUrl: './member-list.scss',
 })
 export class MemberListComponent {
+  routingService = inject(RoutingService<AppPathPatterns>);
   firebaseStateService = inject(FirebaseStateService);
   user = this.firebaseStateService.user;
   canMakeNewMembers = computed(() => {
@@ -36,7 +39,20 @@ export class MemberListComponent {
   memberSet = input.required<SearchableSet<'memberId', Member>>();
   jumpToMember = input<string>('');
 
-  private searchTerm = signal('');
+  searchTerm = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return '';
+    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+    return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
+  });
+
+  urlMemberId = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return '';
+    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+    return sigs?.urlParams?.memberId ? sigs.urlParams.memberId() : '';
+  });
+
   isAddingMember = signal(false);
   newMember = signal<Member>(initMember());
 
@@ -99,8 +115,25 @@ export class MemberListComponent {
   }
 
   onSearch(event: Event) {
-    this.searchTerm.set((event.target as HTMLInputElement).value);
+    const value = (event.target as HTMLInputElement).value;
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      if (sigs?.urlParams?.q) {
+        sigs.urlParams.q.set(value);
+      }
+    }
     this.limit.set(50);
+  }
+
+  setExpandedMember(memberId: string) {
+    const match = this.routingService.matchedPatternId();
+    if (match && memberId) {
+      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      if (sigs?.urlParams?.memberId) {
+        sigs.urlParams.memberId.set(memberId);
+      }
+    }
   }
 
   onNewMember() {

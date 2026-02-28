@@ -6,7 +6,7 @@ import { signal } from '@angular/core';
 describe('FindSchoolComponent', () => {
   let component: FindSchoolComponent;
   let fixture: ComponentFixture<FindSchoolComponent>;
-  let mockDataManagerService: any;
+  let mockDataManagerService: DataManagerService;
 
   beforeEach(async () => {
     mockDataManagerService = {
@@ -17,7 +17,7 @@ describe('FindSchoolComponent', () => {
       instructors: {
         entriesMap: () => new Map(),
       }
-    };
+    } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
       imports: [FindSchoolComponent],

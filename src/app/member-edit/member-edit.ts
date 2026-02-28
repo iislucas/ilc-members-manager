@@ -231,6 +231,7 @@ export class MemberEditComponent {
   collapsable = input<boolean>(true);
   collapse = input<boolean | null>(null);
   close = output();
+  opened = output<void>();
   collapsed = linkedSignal<boolean>(() => {
     return this.collapsable() && (this.collapse() ?? true);
   });
@@ -527,6 +528,9 @@ export class MemberEditComponent {
       return;
     }
     this.collapsed.set(!this.collapsed());
+    if (!this.collapsed()) {
+      this.opened.emit();
+    }
   }
 
   isDupEmail = computed(() => {

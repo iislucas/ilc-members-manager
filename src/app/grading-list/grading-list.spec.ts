@@ -20,12 +20,12 @@ class MockGradingEditComponent {
 describe('GradingListComponent', () => {
   let component: GradingListComponent;
   let fixture: ComponentFixture<GradingListComponent>;
-  let mockFirebaseStateService: any;
+  let mockFirebaseStateService: FirebaseStateService;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
       user: signal({ isAdmin: true, schoolsManaged: [], member: { instructorId: '' } }),
-    };
+    } as never as FirebaseStateService;
 
     await TestBed.configureTestingModule({
       imports: [GradingListComponent, MockGradingEditComponent],
@@ -46,13 +46,13 @@ describe('GradingListComponent', () => {
     const gradings: Grading[] = [];
     for (let i = 0; i < 60; i++) {
       const g = initGrading();
-      g.id = `grading-${i}`;
+      g.docId = `grading-${i}`;
       g.studentMemberId = `student-${i}`;
       gradings.push(g);
     }
-    const gradingSet = new SearchableSet<'id', Grading>(
+    const gradingSet = new SearchableSet<'docId', Grading>(
       ['studentMemberId'],
-      'id',
+      'docId',
       gradings,
     );
 

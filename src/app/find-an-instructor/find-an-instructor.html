@@ -4,7 +4,8 @@
     <input
       id="search-input"
       type="text"
-      [(ngModel)]="searchTerm"
+      [value]="searchTerm()"
+      (input)="onSearch($event)"
       placeholder="Search by name, city, or country..."
     />
   </div>

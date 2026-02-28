@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SchoolListComponent } from './school-list';
 import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { School, initSchool } from '../../../functions/src/data-model';
@@ -22,13 +24,14 @@ class MockSchoolEditComponent {
 describe('SchoolListComponent', () => {
   let component: SchoolListComponent;
   let fixture: ComponentFixture<SchoolListComponent>;
-  let mockFirebaseStateService: any;
-  let mockDataManagerService: any;
+  let mockFirebaseStateService: FirebaseStateService;
+  let mockDataManagerService: DataManagerService;
+  let mockRoutingService: RoutingService<AppPathPatterns>;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
       user: signal({ isAdmin: true, schoolsManaged: [] }),
-    };
+    } as never as FirebaseStateService;
 
     // Create a set of 60 schools
     const schools: School[] = [];
@@ -46,13 +49,20 @@ describe('SchoolListComponent', () => {
 
     mockDataManagerService = {
       schools: schoolSet,
-    };
+    } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
       imports: [SchoolListComponent, MockSchoolEditComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
         { provide: DataManagerService, useValue: mockDataManagerService },
+        {
+          provide: RoutingService,
+          useValue: {
+            matchedPatternId: signal('schools'),
+            signals: { schools: { urlParams: { q: signal(''), schoolId: signal('') } } }
+          }
+        }
       ],
     })
       .overrideComponent(SchoolListComponent, {
