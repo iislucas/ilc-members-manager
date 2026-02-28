@@ -44,7 +44,7 @@
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
   .icon-only-button {
-    margin-right: 0.3em;
+    margin-right: 0.5em;
   }
 }
 
@@ -59,10 +59,14 @@
   flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 0.6em; /* Smaller than the title size (which is 'large' or 2em) */
+  font-size: 0.75em; /* Larger chip size */
   font-weight: normal;
   color: #666;
-  margin-bottom: 0.2em;
+  margin-bottom: 0.4em;
+  /* Matches the breadcrumb left/right-padding; enables breadcrumb text to start 
+     flush left with title text.
+     TODO: factor this out into a variable so that the relationship is clearer */
+  margin-left: -0.6em; 
 
   .crumb {
     display: flex;
@@ -72,9 +76,21 @@
   .crumb-link {
     text-decoration: none;
     color: inherit;
+    padding: 0.2em 0.6em;
+    border-radius: 12px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    transition: all 0.2s ease-in-out;
 
     &:hover {
-      text-decoration: underline;
+      text-decoration: none;
+      background-color: $menu-item-hover-color;
+      border: 1px solid #ccc;
+      color: #333;
+    }
+
+    &:active {
+      transform: translateY(1px);
     }
   }
 
@@ -89,4 +105,5 @@
   margin: 0;
   padding: 0;
   line-height: 1;
+  font-size: 0.9em; /* slightly smaller than the inherited 'large' */
 }
