@@ -21,7 +21,7 @@ export class SquarespaceArticleComponent {
     public firebaseService = inject(FirebaseStateService);
 
     collection = input.required<string>();
-    articleId = input.required<string>();
+    blogPostPath = input.required<string>();
 
     entry = signal<ProcessedBlogEntry | null>(null);
 
@@ -31,9 +31,9 @@ export class SquarespaceArticleComponent {
     constructor() {
         effect(() => {
             const collection = this.collection();
-            const articleId = this.articleId();
-            if (collection && articleId) {
-                this.checkAccessAndLoad(collection, articleId);
+            const blogPostPath = this.blogPostPath();
+            if (collection && blogPostPath) {
+                this.checkAccessAndLoad(collection, blogPostPath);
             } else {
                 this.error.set('Configuration error: No article specified.');
                 this.loading.set(false);
@@ -65,7 +65,7 @@ export class SquarespaceArticleComponent {
         return new Date(member.currentMembershipExpires) > new Date();
     }
 
-    public checkAccessAndLoad(collection: string, articleId: string) {
+    public checkAccessAndLoad(collection: string, blogPostPath: string) {
         const user = this.firebaseService.user();
 
         if (!user) {
@@ -100,7 +100,7 @@ export class SquarespaceArticleComponent {
             }
         }
 
-        this.loadContent(`${collection}/${articleId}`);
+        this.loadContent(`${collection}/${blogPostPath}`);
     }
 
     private loadContent(fullPath: string) {

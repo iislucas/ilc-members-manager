@@ -32,10 +32,12 @@ export enum Views {
   OrderView = 'orderView',
   ActiveMemberPost = 'activeMemberPost',
   ActiveInstructorPost = 'activeInstructorPost',
+  Login = 'login',
 }
 
 export const initPathPatterns = {
   [Views.Home]: pathPattern``,
+  [Views.Login]: pathPattern`login`,
   [Views.ImportExport]: pathPattern`import-export`,
   [Views.FindAnInstructor]: pathPattern`find-an-instructor`,
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId']),
@@ -52,16 +54,16 @@ export const initPathPatterns = {
   ),
   [Views.MyStudents]: pathPattern`my-students`,
   [Views.MySchools]: pathPattern`my-schools`,
-  [Views.ActiveMembers]: pathPattern`active-members`,
-  [Views.ActiveInstructors]: pathPattern`active-instructors`,
+  [Views.ActiveMembers]: pathPattern`members-area`,
+  [Views.ActiveInstructors]: pathPattern`instructors-area`,
   [Views.ManageGradings]: pathPattern`gradings`,
   [Views.MemberGradings]: pathPattern`my-gradings`,
   [Views.Settings]: pathPattern`settings`,
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
   [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId']),
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
-  [Views.ActiveMemberPost]: pathPattern`members-area/${pv('articleId')}`,
-  [Views.ActiveInstructorPost]: pathPattern`instructors-area/${pv('articleId')}`,
+  [Views.ActiveMemberPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
+  [Views.ActiveInstructorPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
 };
 
 // Santiy check for type correctness...

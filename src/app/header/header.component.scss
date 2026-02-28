@@ -48,11 +48,21 @@
   }
 }
 
-.breadcrumb-container {
+.title-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.breadcrumb-parents {
   display: flex;
   flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
+  font-size: 0.6em; /* Smaller than the title size (which is 'large' or 2em) */
+  font-weight: normal;
+  color: #666;
+  margin-bottom: 0.2em;
 
   .crumb {
     display: flex;
@@ -72,6 +82,11 @@
     margin: 0 0.5em;
     font-weight: normal;
     color: #888;
-    font-size: 0.9em;
   }
+}
+
+.current-page-title {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
 }

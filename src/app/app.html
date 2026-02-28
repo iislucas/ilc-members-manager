@@ -6,7 +6,7 @@
    -->
   <app-header
     [breadcrumbs]="breadcrumbs()"
-    [abbreviateParents]="currentView() !== Views.Home"
+    [abbreviateParents]="currentView() !== Views.Home && currentView() !== Views.Login"
     [isLoggedIn]="!!user"
     [(menuOpen)]="menuOpen"
   ></app-header>
@@ -82,13 +82,13 @@
           @case (Views.ActiveMemberPost) {
             <app-squarespace-article
               collection="/membersareablog"
-              [articleId]="routingService.signals[Views.ActiveMemberPost].pathVars.articleId()"
+              [blogPostPath]="routingService.signals[Views.ActiveMemberPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }
           @case (Views.ActiveInstructorPost) {
             <app-squarespace-article
               collection="/instructorsblog"
-              [articleId]="routingService.signals[Views.ActiveInstructorPost].pathVars.articleId()"
+              [blogPostPath]="routingService.signals[Views.ActiveInstructorPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }
           @case (Views.ManageGradings) {
@@ -121,34 +121,32 @@
       ) {
         <app-spinner>Initialising app...</app-spinner>
       } @else {
-        <div class="app-info">
-          <p>
-            Welcome to the ILC App for Management of Members and Instructors of
-            <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
-            acts as a portal for members to manage their profile, membership
-            status, licenses, gradings, public instructor listing, and other
-            records related to the practice.
-          </p>
-        </div>
+        @switch (currentView()) {
+          @case (Views.FindAnInstructor) {
+            <div class="public-action-bar">
+              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
+                <app-icon name="arrow_back"></app-icon> Back to Login
+              </button>
+            </div>
+            <app-find-an-instructor></app-find-an-instructor>
+          }
+          @default {
+            <div class="app-info">
+              <p>
+                Welcome to the ILC App for Management of Members and Instructors of
+                <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
+                acts as a portal for members to manage their profile, membership
+                status, licenses, gradings, public instructor listing, and other
+                records related to the practice.
+              </p>
+            </div>
 
-        @if (showFindInstructor()) {
-          <div class="public-action-bar">
-            <button (click)="showFindInstructor.set(false)" class="back-button">
-              <app-icon name="arrow_back"></app-icon> Back
-            </button>
-          </div>
-          <app-find-an-instructor></app-find-an-instructor>
-        } @else {
-          <div class="public-options">
-            <button (click)="showFindInstructor.set(true)">
-              Find an Instructor
-            </button>
-            <button (click)="showLoginOptions.set(!showLoginOptions())">
-              {{ showLoginOptions() ? "Hide Login" : "Log in / Sign up" }}
-            </button>
-          </div>
+            <div class="public-options">
+              <button (click)="routingService.navigateToParts(['find-an-instructor'])">
+                Find an Instructor
+              </button>
+            </div>
 
-          @if (showLoginOptions()) {
             <app-login></app-login>
           }
         }

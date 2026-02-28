@@ -62,9 +62,9 @@ export class SquarespaceContentComponent {
 
     navigateToArticle(entry: ProcessedBlogEntry) {
         if (this.path().includes('member')) {
-            this.routingService.navigateTo('members-area/' + entry.urlId);
+            this.routingService.navigateTo('members-area/post/' + entry.urlId);
         } else if (this.path().includes('instructor')) {
-            this.routingService.navigateTo('instructors-area/' + entry.urlId);
+            this.routingService.navigateTo('instructors-area/post/' + entry.urlId);
         }
     }
 

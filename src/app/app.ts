@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, effect } from '@angular/core';
 import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthErrorCodes } from 'firebase/auth';
@@ -73,24 +73,20 @@ export class App {
     inject(RoutingService);
   public menuOpen = signal(false);
   public breadcrumbs = computed<Breadcrumb[]>(() => {
-    const isLoggedOut = !this.firebaseService.user();
     const baseBreadcrumbs: Breadcrumb[] = [
       { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
+      { label: 'Members Portal App', shortLabel: 'App', url: '#/' },
     ];
-    baseBreadcrumbs.push({ label: 'Members Portal App', shortLabel: 'App', url: '#/' });
-    if (isLoggedOut) {
-      return baseBreadcrumbs;
-    }
     const view = this.currentView();
     if (view !== Views.Home && view) {
       if (view === Views.OrderView) {
         baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
       }
       if (view === Views.ActiveMemberPost) {
-        baseBreadcrumbs.push({ label: 'Members Area', url: '#/active-members' });
+        baseBreadcrumbs.push({ label: 'Members Area', url: '#/members-area' });
       }
       if (view === Views.ActiveInstructorPost) {
-        baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/active-instructors' });
+        baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/instructors-area' });
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -118,7 +114,22 @@ export class App {
     );
   });
 
-  constructor() {}
+  constructor() {
+    effect(() => {
+      const isLoggedOut =
+        this.firebaseService.loginStatus() === LoginStatus.SignedOut;
+      const isLoggedIn =
+        this.firebaseService.loginStatus() === LoginStatus.SignedIn;
+      const view = this.currentView();
+
+      if (isLoggedOut && (!view || view === Views.Home)) {
+        this.routingService.navigateToParts(['login']);
+      } else if (isLoggedIn && view === Views.Login) {
+        // Redirect to Home
+        this.routingService.navigateToParts(['']);
+      }
+    });
+  }
 
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
@@ -169,14 +180,12 @@ export class App {
       case Views.ActiveMemberPost:
       case Views.ActiveInstructorPost:
         return 'Article';
+      case Views.Login:
+        return 'Login';
       default:
         return 'Unknown View';
     }
   }
-
-  // Unauthenticated view state
-  public showLoginOptions = signal<boolean>(false);
-  public showFindInstructor = signal<boolean>(false);
 
   public logoutError = signal<string | null>(null);
 

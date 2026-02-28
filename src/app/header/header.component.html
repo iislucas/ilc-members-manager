@@ -11,27 +11,28 @@
       }
     }
 
-    <div class="title">
-      <div class="breadcrumb-container">
-        @for (crumb of breadcrumbs(); track $index; let last = $last) {
+    <div class="title-container">
+      <div class="breadcrumb-parents">
+        @for (crumb of breadcrumbs().slice(0, -1); track $index) {
           <span class="crumb">
             @let text =
-              !last && abbreviateParents()
+              abbreviateParents()
                 ? crumb.shortLabel || crumb.label
                 : crumb.label;
-            @if (!last && crumb.url) {
+            @if (crumb.url) {
               <a [href]="crumb.url" class="crumb-link">{{ text }}</a>
             } @else {
-              <span class="crumb-label" [class.current-title]="last">{{
-                text
-              }}</span>
+              <span class="crumb-label">{{ text }}</span>
             }
-            @if (!last) {
-              <span class="crumb-separator">&gt;</span>
-            }
+            <span class="crumb-separator">&gt;</span>
           </span>
         }
       </div>
+      @if (breadcrumbs().length > 0) {
+        <div class="title current-page-title">
+          {{ breadcrumbs()[breadcrumbs().length - 1].label }}
+        </div>
+      }
     </div>
   </div>
   @if (isLoggedIn()) {
