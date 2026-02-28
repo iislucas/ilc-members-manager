@@ -30,13 +30,6 @@
   }
 }
 
-.add-email-row {
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 4px;
-}
-
 .tags-container {
   display: flex;
   flex-wrap: wrap;
@@ -91,15 +84,15 @@
 }
 
 .add-tag-btn {
+  cursor: pointer;
   opacity: 0.6;
   &:hover {
     opacity: 1;
   }
 }
 
-.add-tag-row {
-  width: 100%;
+.add-new-row {
+  font-size: small;
   display: flex;
   justify-content: flex-start;
-  margin-top: 4px;
 }

@@ -28,9 +28,9 @@
         </div>
         }
 
-        <div class="blog-grid fade-in">
+        <div class="blog-grid">
             @for (entry of filteredEntries(); track entry.id) {
-            <article class="blog-card fade-in">
+            <article class="blog-card">
                 @if (entry.assetUrl) {
                 <div class="blog-image">
                     <img [src]="entry.assetUrl" [alt]="entry.title">
@@ -74,7 +74,7 @@
             }
         </div>
         } @else if (fallbackContent()) {
-        <div class="content fade-in" [innerHTML]="fallbackContent()"></div>
+        <div class="content" [innerHTML]="fallbackContent()"></div>
         }
     </div>
 </div>

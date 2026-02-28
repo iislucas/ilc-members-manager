@@ -37,6 +37,7 @@
           @case (Views.ManageMembers) {
             <app-filtered-members
               [memberSet]="dataService.members"
+              basePath="members"
             ></app-filtered-members>
           }
           @case (Views.ImportExport) {
@@ -60,6 +61,7 @@
           @case (Views.MyStudents) {
             <app-filtered-members
               [memberSet]="dataService.myStudents"
+              basePath="my-students"
             ></app-filtered-members>
           }
           @case (Views.MySchools) {
@@ -68,16 +70,32 @@
             ></app-school-list>
           }
           @case (Views.ManageMemberView) {
-            <app-member-view></app-member-view>
+            <app-member-view
+              [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
+              basePath="members"
+              backLabel="Members List"
+            ></app-member-view>
           }
           @case (Views.SchoolMemberView) {
-            <app-member-view></app-member-view>
+            <app-member-view
+              [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
+              [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
+              [backLabel]="'School ' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + ' Members'"
+            ></app-member-view>
           }
           @case (Views.InstructorStudentView) {
-            <app-member-view></app-member-view>
+            <app-member-view
+              [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
+              [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
+              backLabel="Students List"
+            ></app-member-view>
           }
           @case (Views.MyStudentView) {
-            <app-member-view></app-member-view>
+            <app-member-view
+              [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
+              basePath="my-students"
+              backLabel="My Students"
+            ></app-member-view>
           }
           @case (Views.MembersAreaCategory) {
             <app-squarespace-content

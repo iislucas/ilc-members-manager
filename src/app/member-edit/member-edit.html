@@ -132,8 +132,8 @@
             </div>
           }
           @if (emailsField.value().length === 0) {
-            <div class="add-email-row">
-              <button type="button" class="text-button" (click)="addEmail()">
+            <div class="add-new-row">
+              <button type="button" class="subtle-button" (click)="addEmail()">
                 + Add Email
               </button>
             </div>
@@ -462,9 +462,9 @@
               </div>
             }
             @if (tagsField.value().length === 0) {
-              <div class="add-tag-row">
-                <button type="button" class="text-button" (click)="addTag()">
-                  + Add Tag
+              <div class="add-new-row">
+                <button type="button" class="subtle-button" (click)="addTag()">
+                  + add a tag
                 </button>
               </div>
             }

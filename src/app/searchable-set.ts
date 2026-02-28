@@ -91,6 +91,10 @@ export class SearchableSet<
     return map;
   });
 
+  get(id: string): T | null {
+    return this.entriesMap().get(id) || null;
+  }
+
   setEntries(entries: T[]) {
     this.state.update((state) => ({ ...state, entries, loading: false }));
   }

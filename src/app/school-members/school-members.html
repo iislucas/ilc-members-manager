@@ -12,5 +12,6 @@
   <app-filtered-members
     [memberSet]="dataService.members"
     [schoolId]="s.school.schoolId"
+    [basePath]="'school/' + s.school.schoolId + '/members'"
   ></app-filtered-members>
 }

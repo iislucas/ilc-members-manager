@@ -1,22 +1,21 @@
-@let ctx = viewContext();
-@if (ctx) {
-  <div class="member-view-actions">
-    <button class="back-link subtle-button" (click)="goBack()">
-      <app-icon name="arrow_back"></app-icon> <span>Back to {{ ctx.backLabel }}</span>
-    </button>
-  </div>
-  
-  <div class="member-view-content">
-    @if (ctx.member) {
-      <app-member-edit
-        [member]="ctx.member"
-        [allMembers]="dataService.members.entries()"
-        [collapse]="false"
-      ></app-member-edit>
-    } @else {
-      <div class="not-found">
-        Member not found.
-      </div>
-    }
-  </div>
-}
+<div class="member-view-actions">
+  <button class="back-link subtle-button" (click)="goBack()">
+    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+  </button>
+</div>
+
+<div class="member-view-content">
+  @let m = member();
+  @if (m) {
+    <app-member-edit
+      [member]="m"
+      [allMembers]="dataService.members.entries()"
+      [collapse]="false"
+      [collapsable]="false"
+    ></app-member-edit>
+  } @else {
+    <div class="not-found">
+      Member not found.
+    </div>
+  }
+</div>

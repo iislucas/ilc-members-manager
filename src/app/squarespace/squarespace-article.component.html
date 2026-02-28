@@ -14,7 +14,7 @@
             </button>
         </div>
         } @else if (entry(); as currentEntry) {
-        <article class="blog-card expanded article-view fade-in">
+        <article class="blog-card expanded article-view">
             @if (currentEntry.assetUrl) {
             <div class="blog-image">
                 <img [src]="currentEntry.assetUrl" [alt]="currentEntry.title">
@@ -43,7 +43,7 @@
                 </div>
                 }
 
-                <div class="blog-body fade-in" [innerHTML]="currentEntry.safeBody"></div>
+                <div class="blog-body" [innerHTML]="currentEntry.safeBody"></div>
             </div>
         </article>
         }
