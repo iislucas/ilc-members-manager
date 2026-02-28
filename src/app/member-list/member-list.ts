@@ -14,7 +14,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns } from '../app.config';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-member-list',
@@ -46,11 +46,9 @@ export class MemberListComponent {
     return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
   });
 
+  // urlMemberId is no longer used for expansion, we use jumpTo for scrolling
   urlMemberId = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.memberId ? sigs.urlParams.memberId() : '';
+    return '';
   });
 
   isAddingMember = signal(false);
@@ -106,10 +104,27 @@ export class MemberListComponent {
     this.limit.set(Infinity);
   }
 
+  jumpToMemberRoute = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return '';
+    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+    return sigs?.urlParams?.jumpTo ? sigs.urlParams.jumpTo() : '';
+  });
+
   constructor() {
     effect(() => {
-      const jumpTo = this.jumpToMember();
-      if (jumpTo !== '') {
+      // jumpToMember could come from Input or route
+      const jumpTo = this.jumpToMemberRoute() || this.jumpToMember();
+      if (jumpTo && jumpTo !== '') {
+        // Find the element and scroll smoothly to it
+        setTimeout(() => {
+          const el = document.getElementById('member-' + jumpTo);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('jump-highlight');
+            setTimeout(() => el.classList.remove('jump-highlight'), 2000);
+          }
+        }, 100);
       }
     });
   }
@@ -128,11 +143,19 @@ export class MemberListComponent {
 
   setExpandedMember(memberId: string) {
     const match = this.routingService.matchedPatternId();
-    if (match && memberId) {
-      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-      if (sigs?.urlParams?.memberId) {
-        sigs.urlParams.memberId.set(memberId);
-      }
+    if (!match || !memberId) return;
+
+    // Instead of expanding inline, we navigate to the view route.
+    if (match === Views.ManageMembers) {
+      this.routingService.navigateToParts(['members', memberId]);
+    } else if (match === Views.SchoolMembers) {
+      const schoolId = (this.routingService.signals as any)[match].pathVars.schoolId();
+      this.routingService.navigateToParts(['school', schoolId, 'members', memberId]);
+    } else if (match === Views.InstructorStudents) {
+      const instructorId = (this.routingService.signals as any)[match].pathVars.instructorId();
+      this.routingService.navigateToParts(['instructor', instructorId, 'students', memberId]);
+    } else if (match === Views.MyStudents) {
+      this.routingService.navigateToParts(['my-students', memberId]);
     }
   }
 

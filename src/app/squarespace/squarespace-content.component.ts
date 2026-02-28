@@ -58,6 +58,46 @@ export class SquarespaceContentComponent {
                 this.loading.set(false);
             }
         });
+
+        effect(() => {
+            const patternId = this.routingService.matchedPatternId();
+            if (patternId === Views.ActiveMembers || patternId === Views.ActiveInstructors || patternId === Views.ActiveMembersCategory || patternId === Views.ActiveInstructorsCategory) {
+                let urlCat = '';
+                if (patternId === Views.ActiveMembers) {
+                    urlCat = 'All';
+                } else if (patternId === Views.ActiveMembersCategory) {
+                    urlCat = this.routingService.signals[Views.ActiveMembersCategory].pathVars.category();
+                } else if (patternId === Views.ActiveInstructors) {
+                    urlCat = 'All';
+                } else if (patternId === Views.ActiveInstructorsCategory) {
+                    urlCat = this.routingService.signals[Views.ActiveInstructorsCategory].pathVars.category();
+                }
+
+                urlCat = decodeURIComponent(urlCat || 'All');
+
+                if (urlCat) {
+                    if (urlCat !== this.selectedCategory()) {
+                        this.selectedCategory.set(urlCat);
+                    }
+                } else {
+                    if (this.selectedCategory() !== 'All') {
+                        this.selectedCategory.set('All');
+                    }
+                }
+            }
+        });
+    }
+
+    selectCategory(cat: string) {
+        this.selectedCategory.set(cat);
+        const patternId = this.routingService.matchedPatternId();
+        const encodedCat = encodeURIComponent(cat);
+
+        if (patternId === Views.ActiveMembers || patternId === Views.ActiveMembersCategory) {
+            this.routingService.navigateToParts(cat === 'All' ? ['members-area'] : ['members-area', encodedCat]);
+        } else if (patternId === Views.ActiveInstructors || patternId === Views.ActiveInstructorsCategory) {
+            this.routingService.navigateToParts(cat === 'All' ? ['instructors-area'] : ['instructors-area', encodedCat]);
+        }
     }
 
     navigateToArticle(entry: ProcessedBlogEntry) {

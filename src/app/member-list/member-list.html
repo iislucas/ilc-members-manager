@@ -99,11 +99,14 @@
 
     @let membersList = members();
     @for (member of membersList; track member.docId) {
-      <div class="member-card">
+      <div class="member-card" [id]="'member-' + member.memberId">
+        <!-- We make the app-member-edit act as a summary, 
+             and since inline editing is disabled, clicks go to full screen.
+             Notice we keep collapse=true so it doesn't open inline. -->
         <app-member-edit
           [member]="member"
           [allMembers]="members()"
-          [collapse]="member.docId !== urlMemberId() && member.memberId !== urlMemberId()"
+          [collapse]="true"
           (opened)="setExpandedMember(member.memberId)"
         ></app-member-edit>
       </div>

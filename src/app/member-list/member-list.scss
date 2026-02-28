@@ -132,3 +132,22 @@ app-member-edit {
     }
   }
 }
+
+@keyframes flashHighlight {
+  0% {
+    background-color: var(--color-primary-base);
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  100% {
+    background-color: var(--color-card-bg);
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+.jump-highlight {
+  animation: flashHighlight 2s ease-out;
+  border-radius: 8px;
+  background-color: var(--color-card-bg);
+}

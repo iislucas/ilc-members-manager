@@ -1,143 +1,22 @@
-@let m = member();
-
-<div class="view-form">
-  <div class="view-form-header">
-    <div class="identifier">
-      @if (m.memberId) {
-        <span>{{ m.memberId }}</span>
-      }
-      @if (m.instructorId) {
-        <span>-{{ m.instructorId }}</span>
-      }
-    </div>
-    <div class="name">
-      {{ m.name }}
-    </div>
-    @if (m.isAdmin) {
-      <app-icon name="admin"></app-icon>
-    }
-    <div class="level">
-      @if (m.studentLevel) {
-        <span>S:{{ m.studentLevel }}</span>
-      }
-      @if (m.applicationLevel) {
-        <span>A:{{ m.applicationLevel }}</span>
-      }
-    </div>
-    <div class="country">{{ m.country }}</div>
+@let ctx = viewContext();
+@if (ctx) {
+  <div class="member-view-actions">
+    <button class="back-link subtle-button" (click)="goBack()">
+      <app-icon name="arrow_back"></app-icon> <span>Back to {{ ctx.backLabel }}</span>
+    </button>
   </div>
-
-  <div class="form-section">
-    <h3>Contact</h3>
-    <label>Name</label>
-    <div class="value">{{ m.name }}</div>
-
-    <label>Email(s)</label>
-    <div class="value">{{ m.emails.join(", ") }}</div>
-
-    <label class="align-top">Address</label>
-    <div class="value">{{ m.address }}</div>
-
-    <label>City</label>
-    <div class="value">{{ m.city }}</div>
-
-    <label>Zip Code</label>
-    <div class="value">{{ m.zipCode }}</div>
-
-    <label>County/State</label>
-    <div class="value">{{ m.countyOrState }}</div>
-
-    <label>Country</label>
-    <div class="value">{{ m.country }}</div>
-
-    <label>Phone</label>
-    <div class="value">{{ m.phone }}</div>
-
-    <label>Gender</label>
-    <div class="value">{{ m.gender }}</div>
-
-    <label>Date of Birth</label>
-    <div class="value">{{ m.dateOfBirth }}</div>
-
-    <h3>Member</h3>
-    <label>Member ID</label>
-    <div class="value">{{ m.memberId }}</div>
-
-    <label>Primary Instructor</label>
-    <div class="value">{{ m.primaryInstructorId }}</div>
-
-    <label>Primary School</label>
-    <div class="value">{{ m.primarySchoolId }}</div>
-
-    <label>Membership Type</label>
-    <div class="value">{{ m.membershipType }}</div>
-
-    <label>First Membership Started</label>
-    <div class="value">{{ m.firstMembershipStarted }}</div>
-
-    @if (m.membershipType !== MembershipType.Life) {
-      <label>Last Renewal Date</label>
-      <div class="value">{{ m.lastRenewalDate }}</div>
-
-      <label>Current Membership Expires</label>
-      <div class="value">{{ m.currentMembershipExpires }}</div>
+  
+  <div class="member-view-content">
+    @if (ctx.member) {
+      <app-member-edit
+        [member]="ctx.member"
+        [allMembers]="dataService.members.entries()"
+        [collapse]="false"
+      ></app-member-edit>
+    } @else {
+      <div class="not-found">
+        Member not found.
+      </div>
     }
-
-    <h3>Level</h3>
-    <label>Student Level</label>
-    <div class="value">{{ m.studentLevel }}</div>
-
-    <label>Application Level</label>
-    <div class="value">{{ m.applicationLevel }}</div>
-
-    <label>Masters Levels</label>
-    <div class="value">
-      @for (level of m.mastersLevels; track level) {
-        <span class="identifier-chip">{{ level }}</span>
-      }
-    </div>
-
-    <h3>Instructor</h3>
-    <label>Instructor ID</label>
-    <div class="value">{{ m.instructorId }}</div>
-
-    @if (m.instructorId) {
-      <label>Instructor License Type</label>
-      <div class="value">{{ m.instructorLicenseType }}</div>
-
-      @if (m.instructorLicenseType === "Annual") {
-        <label>Instructor License Renewal</label>
-        <div class="value">{{ m.instructorLicenseRenewalDate }}</div>
-
-        <label>Instructor License Expires</label>
-        <div class="value">{{ m.instructorLicenseExpires }}</div>
-      }
-
-      <h3>Instructor Public Listing Details</h3>
-
-      <p>
-        Member ID, instructor ID, and graded levels and these details are listed
-        on the ILC website.
-      </p>
-
-      <label>Public Contact Email</label>
-      <div class="value">{{ m.publicEmail }}</div>
-
-      <label>Public Contact Phone</label>
-      <div class="value">{{ m.publicPhone }}</div>
-
-      <label>Public Region/City</label>
-      <div class="value">{{ m.publicRegionOrCity }}</div>
-
-      <label>Public County/State</label>
-      <div class="value">{{ m.publicCountyOrState }}</div>
-
-      <label>Instructor's Public ILC Website</label>
-      <div class="value">{{ m.instructorWebsite }}</div>
-    }
-
-    <h3>Admin</h3>
-    <label>Is Admin</label>
-    <div class="value">{{ m.isAdmin ? "Yes" : "No" }}</div>
   </div>
-</div>
+}

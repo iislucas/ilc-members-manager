@@ -30,6 +30,7 @@ import { ClassVideoLibraryComponent } from './class-video-library/class-video-li
 import { OrderList } from './order-list/order-list';
 import { OrderView } from './order-view/order-view';
 import { HeaderComponent, Breadcrumb } from './header/header.component';
+import { MemberViewComponent } from './member-view/member-view';
 
 @Component({
   selector: 'app-root',
@@ -47,8 +48,6 @@ import { HeaderComponent, Breadcrumb } from './header/header.component';
     InstructorStudentsComponent,
     FilteredMembersComponent,
     MemberEditComponent,
-    MemberEditComponent,
-    MemberEditComponent,
     FindSchoolComponent,
     HomeComponent,
     SquarespaceContentComponent,
@@ -61,6 +60,7 @@ import { HeaderComponent, Breadcrumb } from './header/header.component';
     OrderList,
     OrderView,
     HeaderComponent,
+    MemberViewComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -81,12 +81,20 @@ export class App {
     if (view !== Views.Home && view) {
       if (view === Views.OrderView) {
         baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
-      }
-      if (view === Views.ActiveMemberPost) {
+      } else if (view === Views.ActiveMemberPost) {
         baseBreadcrumbs.push({ label: 'Members Area', url: '#/members-area' });
-      }
-      if (view === Views.ActiveInstructorPost) {
+      } else if (view === Views.ActiveInstructorPost) {
         baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/instructors-area' });
+      } else if (view === Views.ManageMemberView) {
+        baseBreadcrumbs.push({ label: 'Manage Members', url: '#/members' });
+      } else if (view === Views.SchoolMemberView) {
+        const schoolId = this.routingService.signals[Views.SchoolMemberView].pathVars.schoolId();
+        baseBreadcrumbs.push({ label: `School ${schoolId} Members`, url: `#/school/${schoolId}/members` });
+      } else if (view === Views.InstructorStudentView) {
+        const instructorId = this.routingService.signals[Views.InstructorStudentView].pathVars.instructorId();
+        baseBreadcrumbs.push({ label: `Instructor ${instructorId}'s Students`, url: `#/instructor/${instructorId}/students` });
+      } else if (view === Views.MyStudentView) {
+        baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -101,9 +109,10 @@ export class App {
     if (
       patternId === Views.SchoolMembers ||
       patternId === Views.ManageMembers ||
-      patternId === Views.InstructorStudents
+      patternId === Views.InstructorStudents ||
+      patternId === Views.MyStudents
     ) {
-      return this.routingService.signals[patternId].urlParams.memberId();
+      return this.routingService.signals[patternId].urlParams.jumpTo();
     }
     return '';
   });
@@ -160,8 +169,10 @@ export class App {
       case Views.MySchools:
         return 'My Schools';
       case Views.ActiveMembers:
+      case Views.ActiveMembersCategory:
         return 'Members Area';
       case Views.ActiveInstructors:
+      case Views.ActiveInstructorsCategory:
         return 'Instructors Area';
       case Views.ManageGradings:
         return 'Manage Gradings';
@@ -175,13 +186,23 @@ export class App {
         return 'Manage Orders';
       case Views.OrderView:
         const orderId =
-          this.routingService.signals[viewId].pathVars.orderId();
+          this.routingService.signals[viewId].pathVars['orderId']();
         return `Order ${orderId}`;
       case Views.ActiveMemberPost:
       case Views.ActiveInstructorPost:
         return 'Article';
       case Views.Login:
         return 'Login';
+      case Views.ManageMemberView:
+      case Views.SchoolMemberView:
+      case Views.InstructorStudentView:
+      case Views.MyStudentView:
+        const memberIdToName = (memberId: string) => {
+          const m = this.dataService.members.entries().find(m => m.memberId === memberId || m.docId === memberId);
+          return m ? m.name : 'Unknown Member';
+        };
+        const mId = (this.routingService.signals as any)[viewId].pathVars.memberId();
+        return `${mId}: ${memberIdToName(mId)}`;
       default:
         return 'Unknown View';
     }

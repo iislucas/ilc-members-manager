@@ -3,8 +3,9 @@ import { SquarespaceContentComponent, ProcessedBlogEntry } from './squarespace-c
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { SquarespaceService } from './squarespace.service';
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { vi } from 'vitest';
+import { Views } from '../app.config';
 
 describe('SquarespaceContentComponent', () => {
     let component: SquarespaceContentComponent;
@@ -14,7 +15,14 @@ describe('SquarespaceContentComponent', () => {
     beforeEach(async () => {
         routingServiceMock = {
             navigateTo: vi.fn(),
-        };
+            matchedPatternId: signal(null),
+            signals: {
+                [Views.ActiveMembers]: {},
+                [Views.ActiveMembersCategory]: { pathVars: { category: signal('') } },
+                [Views.ActiveInstructors]: {},
+                [Views.ActiveInstructorsCategory]: { pathVars: { category: signal('') } }
+            }
+        } as unknown as RoutingService<any>;
 
         const squarespaceSvcMock = {
             getSquarespaceContent: vi.fn(),

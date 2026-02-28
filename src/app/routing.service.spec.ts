@@ -45,7 +45,7 @@ describe('RoutingService', () => {
 
   beforeEach(() => {
     // Reset window hash before each test
-    window.location.hash = '';
+    window.location.hash = '#/';
   });
 
   it('should be created', async () => {
@@ -59,25 +59,25 @@ describe('RoutingService', () => {
     service.matchedPatternId.set(Views.SchoolMembers);
     service.signals[Views.SchoolMembers].pathVars['schoolId'].set('S1');
     await fixture.whenStable();
-    expect(window.location.hash).toBe(`#school/S1/members?memberId=&q=`);
+    expect(window.location.hash).toBe(`#/school/S1/members?jumpTo=&q=`);
   });
 
   it('should update the URL when a url param signal changes', async () => {
     await configureTestBed(testConfig);
 
     service.matchedPatternId.set(Views.ManageMembers);
-    service.signals[Views.ManageMembers].urlParams['memberId'].set('456');
+    service.signals[Views.ManageMembers].urlParams['jumpTo'].set('456');
     await fixture.whenStable();
-    expect(window.location.hash).toBe(`#members?memberId=456&q=`);
+    expect(window.location.hash).toBe(`#/members?jumpTo=456&q=`);
   });
 
   it('should update signals from the URL', async () => {
     await configureTestBed(testConfig);
 
-    window.location.hash = `#members?memberId=789&q=`;
+    window.location.hash = `#members?jumpTo=789&q=`;
     window.dispatchEvent(new HashChangeEvent('hashchange'));
     await fixture.whenStable();
-    expect(service.signals[Views.ManageMembers].urlParams['memberId']()).toBe(
+    expect(service.signals[Views.ManageMembers].urlParams['jumpTo']()).toBe(
       '789',
     );
     expect(service.signals[Views.ManageMembers].urlParams['q']()).toBe(

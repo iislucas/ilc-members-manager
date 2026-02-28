@@ -67,13 +67,37 @@
               [schoolSet]="dataService.mySchools"
             ></app-school-list>
           }
+          @case (Views.ManageMemberView) {
+            <app-member-view></app-member-view>
+          }
+          @case (Views.SchoolMemberView) {
+            <app-member-view></app-member-view>
+          }
+          @case (Views.InstructorStudentView) {
+            <app-member-view></app-member-view>
+          }
+          @case (Views.MyStudentView) {
+            <app-member-view></app-member-view>
+          }
           @case (Views.ActiveMembers) {
             <app-squarespace-content
               path="/membersareablog"
               pageTitle="Active Members Area"
             ></app-squarespace-content>
           }
+          @case (Views.ActiveMembersCategory) {
+            <app-squarespace-content
+              path="/membersareablog"
+              pageTitle="Active Members Area"
+            ></app-squarespace-content>
+          }
           @case (Views.ActiveInstructors) {
+            <app-squarespace-content
+              path="/instructorsblog"
+              pageTitle="Active Instructors Area"
+            ></app-squarespace-content>
+          }
+          @case (Views.ActiveInstructorsCategory) {
             <app-squarespace-content
               path="/instructorsblog"
               pageTitle="Active Instructors Area"

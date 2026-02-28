@@ -133,7 +133,8 @@ export class RoutingService<T extends PathPatterns> {
     effect(() => {
       const path = this.constructPath();
       const query = this.constructQuery();
-      const newHash = `${path}${query}`;
+      const pathWithSlash = path.startsWith('/') ? path : `/${path}`;
+      const newHash = `${pathWithSlash}${query}`;
       if (window.location.hash.substring(1) !== newHash) {
         window.location.hash = newHash;
       }

@@ -1,15 +1,28 @@
-@use "../edit-form.scss" as *;
+@use '../../styles/mixins' as mixins;
 
+:host {
+  display: block;
+}
 
-.view-form {
-  .view-form-header {
-    @extend .form-header;
+.member-view-actions {
+  margin-bottom: 2rem;
+  
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    margin-left: -0.75rem; /* align correctly */
+    
+    span {
+      display: inline-block;
+      margin-top: 2px;
+    }
   }
+}
 
-  .value {
-    font-weight: normal;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+.member-view-content {
+  max-width: 800px;
+  margin: 0 auto;
 }

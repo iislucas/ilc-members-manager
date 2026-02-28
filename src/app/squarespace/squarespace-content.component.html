@@ -21,7 +21,7 @@
             <button 
               class="tab-btn" 
               [class.active]="selectedCategory() === cat"
-              (click)="selectedCategory.set(cat)">
+              (click)="selectCategory(cat)">
               {{ cat }}
             </button>
             }
