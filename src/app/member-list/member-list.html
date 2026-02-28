@@ -40,7 +40,38 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateMemberIdEntries(); track member.docId) {
-              <div class="member-card duplicate" (click)="gotoMemberSubview(member.memberId)">
+              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
+                <app-member-row-header
+                  [member]="member"
+                ></app-member-row-header>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (missingMemberErrorsExist()) {
+    <div class="error-box">
+      <div class="error-box-header" (click)="toggleMissingMemberErrors()">
+        <app-icon
+          [name]="showMissingMemberErrors() ? 'expand_more' : 'expand_less'"
+        ></app-icon>
+        <span
+          >There are entries with missing member IDs ({{
+            missingMemberIdEntries().length
+          }})</span
+        >
+      </div>
+      @if (showMissingMemberErrors()) {
+        <div class="error-box-content">
+          <p class="error-hint">
+            Please assign member IDs to these entries.
+          </p>
+          <div class="member-cards">
+            @for (member of missingMemberIdEntries(); track member.docId) {
+              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
                 <app-member-row-header
                   [member]="member"
                 ></app-member-row-header>
@@ -71,7 +102,7 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateInstructorIdEntries(); track member.docId) {
-              <div class="member-card duplicate" (click)="gotoMemberSubview(member.memberId)">
+              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
                 <app-member-row-header
                   [member]="member"
                 ></app-member-row-header>
@@ -96,7 +127,7 @@
 
     @let membersList = members();
     @for (member of membersList; track member.docId) {
-      <div class="member-card" [id]="'member-' + member.memberId" (click)="gotoMemberSubview(member.memberId)">
+      <div class="member-card" [id]="'member-' + (member.memberId || member.docId)" (click)="gotoMemberSubview(member)">
         <app-member-row-header
           [member]="member"
         ></app-member-row-header>

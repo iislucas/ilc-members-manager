@@ -69,6 +69,16 @@ export class MemberListComponent {
   errorsExist = computed(() => this.duplicateMemberIdEntries().length > 0);
   showErrors = signal(false);
 
+  missingMemberIdEntries = computed(() => {
+    return this.memberSet().missingIdEntries();
+  });
+  missingMemberErrorsExist = computed(() => this.missingMemberIdEntries().length > 0);
+  showMissingMemberErrors = signal(false);
+
+  toggleMissingMemberErrors() {
+    this.showMissingMemberErrors.set(!this.showMissingMemberErrors());
+  }
+
   duplicateInstructorIdEntries = computed(() => {
     const entries = this.memberSet().entries();
     const seen = new Set<string>();
@@ -138,12 +148,16 @@ export class MemberListComponent {
     this.limit.set(50);
   }
 
-  gotoMemberSubview(memberId: string) {
-    if (!memberId) return;
+  gotoMemberSubview(member: Member) {
+    if (!member) return;
 
     const base = this.basePath();
     if (base) {
-      this.routingService.navigateToParts([base, memberId]);
+      const hasDups = this.duplicateMemberIdEntries().some(m => m.memberId === member.memberId);
+      const isMissing = !member.memberId;
+      const idToRoute = (hasDups || isMissing) ? member.docId : member.memberId;
+
+      this.routingService.navigateToParts([base, idToRoute]);
     } else {
       console.warn('gotoMemberSubview called but no basePath was provided to member-list component.');
     }

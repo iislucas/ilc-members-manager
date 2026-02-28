@@ -29,7 +29,7 @@ export class SearchableSet<
     const duplicateIds = this.duplicateIds();
     for (const entry of entries) {
       const id = entry[this.idField];
-      if (!duplicateIds.has(id)) {
+      if (id && !duplicateIds.has(id)) {
         unique.push(entry);
       }
     }
@@ -42,6 +42,7 @@ export class SearchableSet<
     const dups = new Set<string>();
     for (const entry of entries) {
       const id = entry[this.idField];
+      if (!id) continue;
       if (seen.has(id)) {
         dups.add(id);
       }
@@ -62,6 +63,17 @@ export class SearchableSet<
     return dups;
   });
 
+  missingIdEntries = computed(() => {
+    const entries = this.entries();
+    const missing = [];
+    for (const entry of entries) {
+      if (!entry[this.idField]) {
+        missing.push(entry);
+      }
+    }
+    return missing;
+  });
+
   constructor(
     public fieldsToSearch: string[],
     public idField: ID,
@@ -76,7 +88,7 @@ export class SearchableSet<
     const miniSearch = new MiniSearch<T>({
       fields: this.fieldsToSearch,
       storeFields: [this.idField],
-      idField: this.idField,
+      idField: this.idField as string,
     });
     const entries = this.uniqueEntries();
     miniSearch.addAll(entries);

@@ -77,7 +77,7 @@
   border: 1px solid #ffcccc;
   border-radius: 8px;
   overflow: hidden;
-  background-color: #fff5f5;
+  background-color: hsl(0, 100%, 98%);
 
   .error-box-header {
     display: flex;
@@ -110,7 +110,7 @@
   }
 
   .member-card.duplicate {
-    border-color: #fecaca;
+    border-left: none;
   }
 }
 

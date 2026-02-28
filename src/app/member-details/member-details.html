@@ -268,7 +268,7 @@
           </div>
           <div class="duplicate-warning-list">
             @for (dup of duplicateMembersForMemberId(); track dup.docId) {
-              <div class="duplicate-warning-item" (click)="gotoMember(dup.memberId)">
+              <div class="duplicate-warning-item" (click)="gotoMember(dup.docId)">
                 <app-member-row-header [member]="dup"></app-member-row-header>
               </div>
             }
@@ -460,7 +460,7 @@
             <div>Warning: This instructor ID is also used by:</div>
             <div class="duplicate-warning-list">
               @for (dup of duplicateMembersForInstructorId(); track dup.docId) {
-                <div class="duplicate-warning-item" (click)="gotoMember(dup.memberId)">
+                <div class="duplicate-warning-item" (click)="gotoMember(dup.docId)">
                   <app-member-row-header [member]="dup"></app-member-row-header>
                 </div>
               }
