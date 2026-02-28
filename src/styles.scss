@@ -309,12 +309,13 @@ textarea:disabled {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
+  align-items: start;
   gap: 0.5em;
   border: 1px solid $theme-error-border-color;
   background-color: $theme-error-bg-color;
   border-radius: 4px;
   font-size: 0.9em;
+  padding: 0.5em;
 }
 
 .error-message {

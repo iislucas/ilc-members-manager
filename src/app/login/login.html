@@ -106,7 +106,7 @@
             }
             @if (invalidLoginCredentials()) {
               <p>
-                Your password is invalid. Do you want to
+                That password is invalid. Do you want to
                 <button
                   class="inline-link-button"
                   (click)="resetPassword(loginEmail())"
@@ -121,7 +121,7 @@
               </div>
             }
             @if (resetPasswordError(); as message) {
-              <div class="error-container">
+              <div>
                 Reset password error:
                 <span class="error-message">{{ message }}</span>
                 <button class="icon-only-button" (click)="dismissMessages()">
@@ -132,7 +132,6 @@
           </div>
         }
       </div>
-      <div class="or-separator">or</div>
       <div class="card google-login">
         <button
           (click)="loginWithGoogle()"
@@ -144,7 +143,7 @@
     }
   </div>
   @if (loginWithGoogleError(); as message) {
-    <div class="error-container">
+    <div class="error-container inner-page-width">
       <div>Login with Google Error:</div>
       <div class="error-message">{{ message }}</div>
       <button class="icon-only-button" (click)="dismissMessages()">
@@ -153,7 +152,7 @@
     </div>
   }
   @if (firebaseService.loginError()) {
-    <div class="error-container">
+    <div class="error-container inner-page-width">
       <div>Login error:</div>
       <div class="error-message">
         {{ firebaseService.loginError() }}

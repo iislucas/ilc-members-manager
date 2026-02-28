@@ -160,21 +160,23 @@
             <app-find-an-instructor></app-find-an-instructor>
           }
           @default {
-            <div class="app-info">
-              <p>
-                Welcome to the ILC App for Management of Members and Instructors of
-                <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
-                acts as a portal for members to manage their profile, membership
-                status, licenses, gradings, public instructor listing, and other
-                records related to the practice.
-              </p>
-            </div>
+            @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
+              <div class="app-info">
+                <p>
+                  Welcome to the ILC App for Management of Members and Instructors of
+                  <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
+                  acts as a portal for members to manage their profile, membership
+                  status, licenses, gradings, public instructor listing, and other
+                  records related to the practice.
+                </p>
+              </div>
 
-            <div class="public-options">
-              <button class="subtle-button" (click)="routingService.navigateToParts(['find-an-instructor'])">
-                Find an Instructor
-              </button>
-            </div>
+              <div class="public-options">
+                <button (click)="routingService.navigateToParts(['find-an-instructor'])">
+                  Find an Instructor
+                </button>
+              </div>
+            }
 
             <app-login></app-login>
           }

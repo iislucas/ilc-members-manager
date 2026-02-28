@@ -16,6 +16,10 @@
   justify-content: center;
   align-items: start;
   gap: 1em;
+
+  input {
+    background-color: #FFF;
+  }
 }
 
 .or-separator {
@@ -75,4 +79,8 @@
   gap: 0.5em;
   margin-top: 1em;
   max-width: 30em;
+}
+
+.inner-page-width {
+  max-width: 35em;
 }
