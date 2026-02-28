@@ -55,6 +55,8 @@
 }
 
 .breadcrumb-parents {
+  $crumb-side-padding: 0.6em;
+
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -64,9 +66,8 @@
   color: #666;
   margin-bottom: 0.4em;
   /* Matches the breadcrumb left/right-padding; enables breadcrumb text to start 
-     flush left with title text.
-     TODO: factor this out into a variable so that the relationship is clearer */
-  margin-left: -0.6em; 
+     flush left with title text. */
+  margin-left: -$crumb-side-padding; 
 
   .crumb {
     display: flex;
@@ -76,7 +77,7 @@
   .crumb-link {
     text-decoration: none;
     color: inherit;
-    padding: 0.2em 0.6em;
+    padding: 0.2em $crumb-side-padding;
     border-radius: 12px;
     background-color: transparent;
     border: 1px solid transparent;
