@@ -58,21 +58,17 @@
 
 .member-card {
   display: block;
-  border-bottom: 1px solid #ebebeb;
-  border-left: 4px solid transparent; // prevent layout shift on hover
+  border-bottom: 1px solid v.$row-border-color;
+  @include v.row-highlight-base;
   cursor: pointer;
   padding: 0.2em;
-  transition:
-    background-color 0.2s ease,
-    border-left-color 0.2s ease;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background-color: #f4f9ff; // subtle light blue background
-    border-left-color: #4da3ff; // light blue highlight
+    @include v.row-highlight-active;
   }
 }
 
@@ -140,8 +136,7 @@
 
 @keyframes flashHighlight {
   0%, 50% {
-    background-color: #f4f9ff;
-    border-left-color: #4da3ff;
+    @include v.row-highlight-active;
   }
   100% {
     background-color: transparent;

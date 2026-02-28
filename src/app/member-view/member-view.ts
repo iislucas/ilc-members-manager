@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RoutingService } from '../routing.service';
 import { DataManagerService } from '../data-manager.service';
@@ -13,13 +13,17 @@ import { IconComponent } from '../icons/icon.component';
   templateUrl: './member-view.html',
   styleUrl: './member-view.scss',
 })
-export class MemberViewComponent {
+export class MemberViewComponent implements OnInit {
   routingService = inject(RoutingService<AppPathPatterns>);
   dataService = inject(DataManagerService);
 
   memberId = input.required<string>();
   basePath = input.required<string>();
   backLabel = input.required<string>();
+
+  ngOnInit() {
+    window.scrollTo(0, 0);
+  }
 
   member = computed(() => {
     return this.dataService.members.get(this.memberId());

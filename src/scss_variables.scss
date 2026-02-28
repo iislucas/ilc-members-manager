@@ -26,3 +26,20 @@ $theme-error-border-color: #c99;
 
 $card-padding: 10px;
 $card-sep: 0.75em;
+
+// List styling
+$row-border-color: #ebebeb;
+$row-highlight-bg: #f4f9ff;
+$row-highlight-border: #4da3ff;
+
+@mixin row-highlight-base {
+  border-left: 4px solid transparent;
+  transition:
+    background-color 0.2s ease,
+    border-left-color 0.2s ease;
+}
+
+@mixin row-highlight-active {
+  background-color: $row-highlight-bg;
+  border-left-color: $row-highlight-border;
+}

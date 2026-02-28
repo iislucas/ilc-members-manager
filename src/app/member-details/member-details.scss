@@ -1,9 +1,12 @@
 @use "../edit-form.scss" as *;
+@use "../../scss_variables.scss" as v;
 
 app-member-row-header {
   display: block;
-  border-top: 1px solid #ebebeb;
   padding-top: 0.5em;
+  @include v.row-highlight-base;
+  @include v.row-highlight-active;
+  padding: 0.2em;
 }
 
 .members-link {
