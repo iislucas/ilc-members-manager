@@ -1,3 +1,55 @@
+/*
+RoutingService: A Strongly-Typed, Signal-Based Router
+
+Key Principles:
+
+1. Configuration-Based: Valid routes (PathPatterns) are defined centrally (e.g., in
+   app.config.ts) and injected into this service via the ROUTING_CONFIG token.
+
+2. Strongly Typed: The router leverages TypeScript template literal types and generics to
+   ensure complete type safety. Path variables (e.g., `/:memberId`) and URL query parameters
+   are rigorously statically typed. This provides compile-time validation and autocompletion
+   when accessing or updating routing parameters.
+
+3. Signal-Driven: State management uses Angular Signals (WritableSignal) instead of
+   Observables. This provides a modern, synchronous-feeling reactive API that integrates
+   seamlessly with Angular's `computed` and `effect` primitives and Zoneless Change Detection.
+
+4. Two-Way Synchronization: The service guarantees a bidirectional binding between the browser's
+   URL (using the hash fragment) and the internal Signal state. Mutating a routing Signal
+   automatically updates the browser URL, and navigation events instantly reflect back into the
+   Signals.
+
+Example Usage:
+
+// 1. Define routes (typically in app.config.ts)
+export const myRoutes = {
+  home: pathPattern``,
+  // `pv('userId')` declares a strongly-typed path variable that matches `user/:userId`.
+  // `['tab']` declares a strongly-typed, optional URL query parameter `?tab=value`.
+  profile: addUrlParams(pathPattern`user/${pv('userId')}`, ['tab']),
+};
+export type MyRoutes = typeof myRoutes;
+
+// 2. Inject and use in a component
+export class ProfileComponent {
+  constructor(private router: RoutingService<MyRoutes>) {
+    // Read parameters reactively with complete type safety
+    effect(() => {
+      if (this.router.matchedPatternId() === 'profile') {
+        // Autocomplete knows exactly what pathVars and urlParams exist!
+        const userId = this.router.signals.profile.pathVars.userId();
+        const tab = this.router.signals.profile.urlParams.tab();
+        console.log(`Viewing user ${userId}, tab: ${tab}`);
+      }
+    });
+  }
+
+  navigate(id: string) {
+    this.router.navigateToParts(['user', id]); // Updates hash, reflecting back into signals
+  }
+}
+*/
 import {
   Injectable,
   signal,
