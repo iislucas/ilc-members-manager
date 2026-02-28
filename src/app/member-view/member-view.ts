@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { RoutingService } from '../routing.service';
 import { DataManagerService } from '../data-manager.service';
 import { AppPathPatterns } from '../app.config';
-import { MemberEditComponent } from '../member-edit/member-edit';
+import { MemberDetailsComponent } from '../member-details/member-details';
 import { IconComponent } from '../icons/icon.component';
 
 @Component({
   selector: 'app-member-view',
   standalone: true,
-  imports: [CommonModule, MemberEditComponent, IconComponent],
+  imports: [CommonModule, MemberDetailsComponent, IconComponent],
   templateUrl: './member-view.html',
   styleUrl: './member-view.scss',
 })

@@ -53,21 +53,26 @@
   flex-direction: column;
   justify-content: start;
   align-items: stretch;
-  gap: v.$card-sep;
   flex-grow: 1;
 }
 
-app-member-edit {
+.member-card {
   display: block;
-  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ebebeb;
+  border-left: 4px solid transparent; // prevent layout shift on hover
+  cursor: pointer;
+  padding: 0.2em;
   transition:
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+    background-color 0.2s ease,
+    border-left-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    //box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #f4f9ff; // subtle light blue background
+    border-left-color: #4da3ff; // light blue highlight
   }
 }
 
@@ -134,20 +139,16 @@ app-member-edit {
 }
 
 @keyframes flashHighlight {
-  0% {
-    background-color: var(--color-primary-base);
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  0%, 50% {
+    background-color: #f4f9ff;
+    border-left-color: #4da3ff;
   }
   100% {
-    background-color: var(--color-card-bg);
-    transform: scale(1);
-    box-shadow: none;
+    background-color: transparent;
+    border-left-color: transparent;
   }
 }
 
 .jump-highlight {
   animation: flashHighlight 2s ease-out;
-  border-radius: 8px;
-  background-color: var(--color-card-bg);
 }

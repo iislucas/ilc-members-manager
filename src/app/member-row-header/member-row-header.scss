@@ -1,0 +1,33 @@
+@use "../../scss_variables" as v;
+
+.edit-form-header {
+  padding: v.$card-padding;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .summary-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1em;
+    flex-grow: 1;
+
+    .identifier {
+      width: 6em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .name {
+      font-weight: bold;
+    }
+  }
+
+  .actions {
+    margin-left: auto;
+  }
+}

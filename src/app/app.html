@@ -28,11 +28,10 @@
             <app-home></app-home>
           }
           @case (Views.MyProfile) {
-            <app-member-edit
+            <app-member-details
               [allMembers]="dataService.members.entries()"
               [member]="user.member"
-              [collapsable]="false"
-            ></app-member-edit>
+            ></app-member-details>
           }
           @case (Views.ManageMembers) {
             <app-filtered-members

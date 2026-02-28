@@ -9,7 +9,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { initMember, Member } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
-import { MemberEditComponent } from '../member-edit/member-edit';
+import { MemberDetailsComponent } from '../member-details/member-details';
+import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -19,7 +20,7 @@ import { AppPathPatterns, Views } from '../app.config';
 @Component({
   selector: 'app-member-list',
   standalone: true,
-  imports: [CommonModule, MemberEditComponent, IconComponent, SpinnerComponent],
+  imports: [CommonModule, MemberRowHeaderComponent, MemberDetailsComponent, IconComponent, SpinnerComponent],
   templateUrl: './member-list.html',
   styleUrl: './member-list.scss',
 })

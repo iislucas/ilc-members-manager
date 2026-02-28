@@ -6,18 +6,29 @@ import { AppPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import { Member, initMember } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
-import { MemberEditComponent } from '../member-edit/member-edit';
+import { MemberDetailsComponent } from '../member-details/member-details';
+import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 
 @Component({
-  selector: 'app-member-edit',
+  selector: 'app-member-details',
   standalone: true,
   template: '',
 })
-class MockMemberEditComponent {
+class MockMemberDetailsComponent {
   @Input() member: any;
   @Input() allMembers: any;
-  @Input() collapse: any;
+  @Input() collapsable: any;
   @Input() canDelete: any;
+}
+
+@Component({
+  selector: 'app-member-row-header',
+  standalone: true,
+  template: '',
+})
+class MockMemberRowHeaderComponent {
+  @Input() member: any;
+  @Input() isDirty: any;
 }
 
 describe('MemberListComponent', () => {
@@ -36,14 +47,14 @@ describe('MemberListComponent', () => {
     } as never as RoutingService<AppPathPatterns>;
 
     await TestBed.configureTestingModule({
-      imports: [MemberListComponent, MockMemberEditComponent],
+      imports: [MemberListComponent, MockMemberDetailsComponent, MockMemberRowHeaderComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
         { provide: RoutingService, useValue: mockRoutingService }
       ],
     }).overrideComponent(MemberListComponent, {
-        remove: { imports: [MemberEditComponent] },
-        add: { imports: [MockMemberEditComponent] },
+      remove: { imports: [MemberDetailsComponent, MemberRowHeaderComponent] },
+      add: { imports: [MockMemberDetailsComponent, MockMemberRowHeaderComponent] },
       })
       .compileComponents();
 

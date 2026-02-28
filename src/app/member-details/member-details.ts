@@ -45,9 +45,10 @@ import { CountryCode } from '../country-codes';
 import { Timestamp } from 'firebase/firestore';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 
 @Component({
-  selector: 'app-member-edit',
+  selector: 'app-member-details',
   standalone: true,
   imports: [
     FormField,
@@ -55,11 +56,12 @@ import { AppPathPatterns, Views } from '../app.config';
     SpinnerComponent,
     IdAssignmentComponent,
     AutocompleteComponent,
+    MemberRowHeaderComponent,
   ],
-  templateUrl: './member-edit.html',
-  styleUrl: './member-edit.scss',
+  templateUrl: './member-details.html',
+  styleUrl: './member-details.scss',
 })
-export class MemberEditComponent {
+export class MemberDetailsComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public membersService = inject(DataManagerService);
@@ -173,31 +175,7 @@ export class MemberEditComponent {
   // Get an editable version of the member for save (it's the same as the model).
   editableMember = computed<Member>(() => this.memberFormModel());
 
-  // Visual state
-  todayIsoString = signal(new Date().toISOString().split('T')[0]);
-
-  isMemberLicenseExpired = computed(() => {
-    const expires = this.member().currentMembershipExpires;
-    if (!expires || this.member().membershipType === MembershipType.Life) return null;
-    if (expires >= this.todayIsoString()) return null;
-
-    // Check if within last 6 months
-    const expireDate = new Date(expires);
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
-  });
-
-  isInstructorLicenseExpired = computed(() => {
-    const expires = this.member().instructorLicenseExpires;
-    if (!expires || this.member().instructorLicenseType === InstructorLicenseType.Life) return null;
-    if (expires >= this.todayIsoString()) return null;
-
-    const expireDate = new Date(expires);
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
-  });
+  close = output();
 
   // --- Date-mismatch warnings (informational, do not block save) ---
 
@@ -228,13 +206,6 @@ export class MemberEditComponent {
     return d.toISOString().substring(0, 10);
   }
 
-  collapsable = input<boolean>(true);
-  collapse = input<boolean | null>(null);
-  close = output();
-  opened = output<void>();
-  collapsed = linkedSignal<boolean>(() => {
-    return this.collapsable() && (this.collapse() ?? true);
-  });
   showInstructorNotes = signal(false);
   showSchoolNotes = signal(false);
 
@@ -384,11 +355,7 @@ export class MemberEditComponent {
   // Erro handling.
   asyncError = signal<Error | null>(null);
 
-  // CSS host handyness.
-  @HostBinding('class.is-open')
-  get isOpen() {
-    return !this.collapsed();
-  }
+
 
   @HostBinding('class.is-dirty')
   get isDirtyClass() {
@@ -511,26 +478,7 @@ export class MemberEditComponent {
     this.memberFormModel.set(structuredClone(this.member()));
     this.instructorIdAssignment.set(this.initInstructorIdAssignment());
     this.memberIdAssignment.set(this.initMemberIdAssignment());
-    this.collapsed.set(this.collapsable());
-    if (this.collapsable()) {
-      this.close.emit();
-    }
-  }
-
-  toggleCollapseState($event: Event) {
-    $event.preventDefault();
-    $event.stopPropagation();
-    if (this.isDirty() && !this.collapsed()) {
-      this.elementRef.nativeElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
-      return;
-    }
-    this.collapsed.set(!this.collapsed());
-    if (!this.collapsed()) {
-      this.opened.emit();
-    }
+    this.close.emit();
   }
 
   isDupEmail = computed(() => {
@@ -636,7 +584,6 @@ export class MemberEditComponent {
 
       // Now we can update the isSaving state and close the being edited member.
       this.isSaving.set(false);
-      this.collapsed.set(this.collapsable());
       this.close.emit();
     } catch (e: unknown) {
       console.error(e);

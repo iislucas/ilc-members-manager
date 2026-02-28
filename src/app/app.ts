@@ -16,7 +16,7 @@ import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
 import { InstructorStudentsComponent } from './instructor-students/instructor-students';
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
-import { MemberEditComponent } from './member-edit/member-edit';
+import { MemberDetailsComponent } from './member-details/member-details';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
@@ -47,7 +47,7 @@ import { MemberViewComponent } from './member-view/member-view';
     SchoolMembersComponent,
     InstructorStudentsComponent,
     FilteredMembersComponent,
-    MemberEditComponent,
+    MemberDetailsComponent,
     FindSchoolComponent,
     HomeComponent,
     SquarespaceContentComponent,

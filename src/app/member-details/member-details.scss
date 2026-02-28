@@ -1,5 +1,11 @@
 @use "../edit-form.scss" as *;
 
+app-member-row-header {
+  display: block;
+  border-top: 1px solid #ebebeb;
+  padding-top: 0.5em;
+}
+
 .members-link {
   cursor: pointer;
   font-size: small;

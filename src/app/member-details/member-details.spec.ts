@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Mock } from 'vitest';
-import { MemberEditComponent } from './member-edit';
+import { MemberDetailsComponent } from './member-details';
 import { DataManagerService, DataServiceState } from '../data-manager.service';
 import {
   FirebaseStateService,
@@ -20,9 +20,9 @@ import { SearchableSet } from '../searchable-set';
 import { CountryCode } from '../country-codes';
 import { User } from 'firebase/auth';
 
-describe('MemberEditComponent', () => {
-  let component: MemberEditComponent;
-  let fixture: ComponentFixture<MemberEditComponent>;
+describe('MemberDetailsComponent', () => {
+  let component: MemberDetailsComponent;
+  let fixture: ComponentFixture<MemberDetailsComponent>;
   let dataManagerServiceMock: DataManagerService;
   let firebaseStateServiceMock: FirebaseStateService;
 
@@ -76,7 +76,7 @@ describe('MemberEditComponent', () => {
     } as UserDetails);
 
     await TestBed.configureTestingModule({
-      imports: [MemberEditComponent],
+      imports: [MemberDetailsComponent],
       providers: [
         provideZonelessChangeDetection(),
         { provide: DataManagerService, useValue: dataManagerServiceMock },
@@ -85,7 +85,7 @@ describe('MemberEditComponent', () => {
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(MemberEditComponent);
+    fixture = TestBed.createComponent(MemberDetailsComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('member', mockMember);
     fixture.componentRef.setInput('allMembers', [mockMember]);

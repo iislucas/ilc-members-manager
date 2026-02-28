@@ -41,10 +41,10 @@
           <div class="member-cards">
             @for (member of duplicateMemberIdEntries(); track member.docId) {
               <div class="member-card duplicate">
-                <app-member-edit
+                <app-member-details
                   [member]="member"
                   [allMembers]="members()"
-                ></app-member-edit>
+                ></app-member-details>
               </div>
             }
           </div>
@@ -73,10 +73,10 @@
           <div class="member-cards">
             @for (member of duplicateInstructorIdEntries(); track member.docId) {
               <div class="member-card duplicate">
-                <app-member-edit
+                <app-member-details
                   [member]="member"
                   [allMembers]="members()"
-                ></app-member-edit>
+                ></app-member-details>
               </div>
             }
           </div>
@@ -87,28 +87,21 @@
   <div class="member-cards">
     @if (isAddingMember()) {
       <div class="member-card">
-        <app-member-edit
+        <app-member-details
           [member]="newMember()"
           [allMembers]="members()"
-          [collapse]="false"
           (close)="onNewMemberClose()"
           [canDelete]="false"
-        ></app-member-edit>
+        ></app-member-details>
       </div>
     }
 
     @let membersList = members();
     @for (member of membersList; track member.docId) {
-      <div class="member-card" [id]="'member-' + member.memberId">
-        <!-- We make the app-member-edit act as a summary, 
-             and since inline editing is disabled, clicks go to full screen.
-             Notice we keep collapse=true so it doesn't open inline. -->
-        <app-member-edit
+      <div class="member-card" [id]="'member-' + member.memberId" (click)="gotoMemberSubview(member.memberId)">
+        <app-member-row-header
           [member]="member"
-          [allMembers]="members()"
-          [collapse]="true"
-          (opened)="gotoMemberSubview(member.memberId)"
-        ></app-member-edit>
+        ></app-member-row-header>
       </div>
     }
     @if (membersList.length < totalMembers()) {

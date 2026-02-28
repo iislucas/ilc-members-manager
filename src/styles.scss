@@ -275,7 +275,8 @@ textarea:disabled {
   padding: 0.2em;
 
   &.expired-recent {
-    background-color: #FF9999;
+    background-color: $theme-chip-bg-color;
+    border-color: $theme-chip-border-color;
   }
 
   &.expired-old {

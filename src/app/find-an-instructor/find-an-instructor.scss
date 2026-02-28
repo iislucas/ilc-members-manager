@@ -36,7 +36,9 @@
     padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
     border: 1px solid #ccc;
     border-radius: 20px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition:
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
     flex-grow: 1;
     width: 100%;
 
@@ -47,13 +49,24 @@
     }
   }
 
+  app-instructor-card {
+    display: block;
+    border-top: 1px solid #ebebeb;
+    padding: v.$card-padding;
+    padding-bottom: calc(v.$card-padding + v.$card-sep);
+    transition: background-color 0.2s ease;
+    flex-grow: 1;
+
+    &:hover {
+      background-color: #fcfcfc;
+    }
+  }
+
   .results-container {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: start;
-
-    gap: v.$card-sep;
 
     p {
       text-align: center;

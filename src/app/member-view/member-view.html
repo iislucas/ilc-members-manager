@@ -7,12 +7,10 @@
 <div class="member-view-content">
   @let m = member();
   @if (m) {
-    <app-member-edit
+    <app-member-details
       [member]="m"
       [allMembers]="dataService.members.entries()"
-      [collapse]="false"
-      [collapsable]="false"
-    ></app-member-edit>
+    ></app-member-details>
   } @else {
     <div class="not-found">
       Member not found.
