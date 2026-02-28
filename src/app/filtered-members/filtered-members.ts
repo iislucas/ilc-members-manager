@@ -17,6 +17,7 @@ export class FilteredMembersComponent {
   country = input<string>('');
   instructorId = input<string>('');
   jumpToMember = input<string>('');
+  basePath = input<string>('');
   // TODO: consider making that list of fields into a constant somewhere
   filteredMemberSet = new SearchableSet<'memberId', Member>([
     'memberId',

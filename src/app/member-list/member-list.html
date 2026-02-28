@@ -107,7 +107,7 @@
           [member]="member"
           [allMembers]="members()"
           [collapse]="true"
-          (opened)="setExpandedMember(member.memberId)"
+          (opened)="gotoMemberSubview(member.memberId)"
         ></app-member-edit>
       </div>
     }

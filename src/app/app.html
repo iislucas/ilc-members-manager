@@ -79,40 +79,28 @@
           @case (Views.MyStudentView) {
             <app-member-view></app-member-view>
           }
-          @case (Views.ActiveMembers) {
+          @case (Views.MembersAreaCategory) {
             <app-squarespace-content
               path="/membersareablog"
               pageTitle="Active Members Area"
             ></app-squarespace-content>
           }
-          @case (Views.ActiveMembersCategory) {
-            <app-squarespace-content
-              path="/membersareablog"
-              pageTitle="Active Members Area"
-            ></app-squarespace-content>
-          }
-          @case (Views.ActiveInstructors) {
+          @case (Views.InstructorsAreaCategory) {
             <app-squarespace-content
               path="/instructorsblog"
               pageTitle="Active Instructors Area"
             ></app-squarespace-content>
           }
-          @case (Views.ActiveInstructorsCategory) {
-            <app-squarespace-content
-              path="/instructorsblog"
-              pageTitle="Active Instructors Area"
-            ></app-squarespace-content>
-          }
-          @case (Views.ActiveMemberPost) {
+          @case (Views.MembersAreaPost) {
             <app-squarespace-article
               collection="/membersareablog"
-              [blogPostPath]="routingService.signals[Views.ActiveMemberPost].pathVars.blogPostPath()"
+              [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }
-          @case (Views.ActiveInstructorPost) {
+          @case (Views.InstructorsAreaPost) {
             <app-squarespace-article
               collection="/instructorsblog"
-              [blogPostPath]="routingService.signals[Views.ActiveInstructorPost].pathVars.blogPostPath()"
+              [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }
           @case (Views.ManageGradings) {

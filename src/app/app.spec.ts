@@ -144,8 +144,8 @@ describe('App', () => {
     } as unknown as UserDetails);
 
     // Simulate routing to a post
-    app.routingService.matchedPatternId.set(Views.ActiveMemberPost);
-    app.routingService.signals[Views.ActiveMemberPost].pathVars.blogPostPath.set('my-test-post');
+    app.routingService.matchedPatternId.set(Views.MembersAreaPost);
+    app.routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath.set('my-test-post');
 
     fixture.detectChanges();
     await fixture.whenStable();

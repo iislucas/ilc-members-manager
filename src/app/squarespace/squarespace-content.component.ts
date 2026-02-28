@@ -61,16 +61,19 @@ export class SquarespaceContentComponent {
 
         effect(() => {
             const patternId = this.routingService.matchedPatternId();
-            if (patternId === Views.ActiveMembers || patternId === Views.ActiveInstructors || patternId === Views.ActiveMembersCategory || patternId === Views.ActiveInstructorsCategory) {
+            if (patternId === Views.MembersArea
+                || patternId === Views.InstructorsArea
+                || patternId === Views.MembersAreaCategory
+                || patternId === Views.InstructorsAreaCategory) {
                 let urlCat = '';
-                if (patternId === Views.ActiveMembers) {
+                if (patternId === Views.MembersArea) {
                     urlCat = 'All';
-                } else if (patternId === Views.ActiveMembersCategory) {
-                    urlCat = this.routingService.signals[Views.ActiveMembersCategory].pathVars.category();
-                } else if (patternId === Views.ActiveInstructors) {
+                } else if (patternId === Views.MembersAreaCategory) {
+                    urlCat = this.routingService.signals[Views.MembersAreaCategory].pathVars.category();
+                } else if (patternId === Views.InstructorsArea) {
                     urlCat = 'All';
-                } else if (patternId === Views.ActiveInstructorsCategory) {
-                    urlCat = this.routingService.signals[Views.ActiveInstructorsCategory].pathVars.category();
+                } else if (patternId === Views.InstructorsAreaCategory) {
+                    urlCat = this.routingService.signals[Views.InstructorsAreaCategory].pathVars.category();
                 }
 
                 urlCat = decodeURIComponent(urlCat || 'All');
@@ -93,10 +96,10 @@ export class SquarespaceContentComponent {
         const patternId = this.routingService.matchedPatternId();
         const encodedCat = encodeURIComponent(cat);
 
-        if (patternId === Views.ActiveMembers || patternId === Views.ActiveMembersCategory) {
-            this.routingService.navigateToParts(cat === 'All' ? ['members-area'] : ['members-area', encodedCat]);
-        } else if (patternId === Views.ActiveInstructors || patternId === Views.ActiveInstructorsCategory) {
-            this.routingService.navigateToParts(cat === 'All' ? ['instructors-area'] : ['instructors-area', encodedCat]);
+        if (patternId === Views.MembersArea || patternId === Views.MembersAreaCategory) {
+            this.routingService.navigateToParts(cat === 'All' ? ['members-area', 'category', 'All'] : ['members-area', 'category', encodedCat]);
+        } else if (patternId === Views.InstructorsArea || patternId === Views.InstructorsAreaCategory) {
+            this.routingService.navigateToParts(cat === 'All' ? ['instructors-area', 'category', 'All'] : ['instructors-area', 'category', encodedCat]);
         }
     }
 

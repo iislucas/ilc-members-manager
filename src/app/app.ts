@@ -81,9 +81,9 @@ export class App {
     if (view !== Views.Home && view) {
       if (view === Views.OrderView) {
         baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
-      } else if (view === Views.ActiveMemberPost) {
+      } else if (view === Views.MembersAreaPost) {
         baseBreadcrumbs.push({ label: 'Members Area', url: '#/members-area' });
-      } else if (view === Views.ActiveInstructorPost) {
+      } else if (view === Views.InstructorsAreaPost) {
         baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/instructors-area' });
       } else if (view === Views.ManageMemberView) {
         baseBreadcrumbs.push({ label: 'Manage Members', url: '#/members' });
@@ -100,7 +100,12 @@ export class App {
     }
     return baseBreadcrumbs;
   });
-  public currentView = this.routingService.matchedPatternId;
+  public currentView = computed(() => {
+    const view = this.routingService.matchedPatternId() as Views | null;
+    if (view === Views.MembersArea) return Views.MembersAreaCategory;
+    if (view === Views.InstructorsArea) return Views.InstructorsAreaCategory;
+    return view;
+  });
   public Views = Views;
   public LoginStatus = LoginStatus;
   public DataServiceState = DataServiceState;
@@ -129,13 +134,19 @@ export class App {
         this.firebaseService.loginStatus() === LoginStatus.SignedOut;
       const isLoggedIn =
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
-      const view = this.currentView();
+      const view = this.routingService.matchedPatternId();
 
       if (isLoggedOut && (!view || view === Views.Home)) {
         this.routingService.navigateToParts(['login']);
-      } else if (isLoggedIn && view === Views.Login) {
-        // Redirect to Home
-        this.routingService.navigateToParts(['']);
+      } else if (isLoggedIn) {
+        if (view === Views.Login) {
+          // Redirect to Home
+          this.routingService.navigateToParts(['']);
+        } else if (view === Views.MembersArea) {
+          this.routingService.navigateToParts(['members-area', 'category', 'All']);
+        } else if (view === Views.InstructorsArea) {
+          this.routingService.navigateToParts(['instructors-area', 'category', 'All']);
+        }
       }
     });
   }
@@ -168,11 +179,11 @@ export class App {
         return 'My Students';
       case Views.MySchools:
         return 'My Schools';
-      case Views.ActiveMembers:
-      case Views.ActiveMembersCategory:
+      case Views.MembersArea:
+      case Views.MembersAreaCategory:
         return 'Members Area';
-      case Views.ActiveInstructors:
-      case Views.ActiveInstructorsCategory:
+      case Views.InstructorsArea:
+      case Views.InstructorsAreaCategory:
         return 'Instructors Area';
       case Views.ManageGradings:
         return 'Manage Gradings';
@@ -188,8 +199,8 @@ export class App {
         const orderId =
           this.routingService.signals[viewId].pathVars['orderId']();
         return `Order ${orderId}`;
-      case Views.ActiveMemberPost:
-      case Views.ActiveInstructorPost:
+      case Views.MembersAreaPost:
+      case Views.InstructorsAreaPost:
         return 'Article';
       case Views.Login:
         return 'Login';

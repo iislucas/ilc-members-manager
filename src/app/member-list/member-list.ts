@@ -38,17 +38,13 @@ export class MemberListComponent {
 
   memberSet = input.required<SearchableSet<'memberId', Member>>();
   jumpToMember = input<string>('');
+  basePath = input<string>('');
 
   searchTerm = computed(() => {
     const match = this.routingService.matchedPatternId();
     if (!match) return '';
     const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
     return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
-  });
-
-  // urlMemberId is no longer used for expansion, we use jumpTo for scrolling
-  urlMemberId = computed(() => {
-    return '';
   });
 
   isAddingMember = signal(false);
@@ -141,21 +137,14 @@ export class MemberListComponent {
     this.limit.set(50);
   }
 
-  setExpandedMember(memberId: string) {
-    const match = this.routingService.matchedPatternId();
-    if (!match || !memberId) return;
+  gotoMemberSubview(memberId: string) {
+    if (!memberId) return;
 
-    // Instead of expanding inline, we navigate to the view route.
-    if (match === Views.ManageMembers) {
-      this.routingService.navigateToParts(['members', memberId]);
-    } else if (match === Views.SchoolMembers) {
-      const schoolId = (this.routingService.signals as any)[match].pathVars.schoolId();
-      this.routingService.navigateToParts(['school', schoolId, 'members', memberId]);
-    } else if (match === Views.InstructorStudents) {
-      const instructorId = (this.routingService.signals as any)[match].pathVars.instructorId();
-      this.routingService.navigateToParts(['instructor', instructorId, 'students', memberId]);
-    } else if (match === Views.MyStudents) {
-      this.routingService.navigateToParts(['my-students', memberId]);
+    const base = this.basePath();
+    if (base) {
+      this.routingService.navigateToParts([base, memberId]);
+    } else {
+      console.warn('gotoMemberSubview called but no basePath was provided to member-list component.');
     }
   }
 

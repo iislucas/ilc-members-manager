@@ -1,6 +1,7 @@
 <app-member-list
   [memberSet]="filteredMemberSet"
   [jumpToMember]="jumpToMember()"
+  [basePath]="basePath()"
 ></app-member-list>
 @if(errorMessage()) {
 <div class="error-container">
