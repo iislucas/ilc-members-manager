@@ -169,8 +169,9 @@ export class FirebaseStateService {
       if (!profiles || profiles.length === 0) {
         console.warn('No profiles found for user', user.email);
         this.loginStatus.set(LoginStatus.SignedOut);
-        this.loginError.set(`We could not find your profile. ` +
-          `Please contact ${environment.adminEmail} to ensure your account is setup.`);
+        this.loginError.set(`We could not find your profile linked to that email address. ` +
+          `Might you have used a different email address previously? ` +
+          `Please contact ${environment.adminEmail} if you continue to have problems.`);
         console.warn('Logging out because no member profiles were found.');
         this.logout();
         return;

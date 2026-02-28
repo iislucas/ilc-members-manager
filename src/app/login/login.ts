@@ -5,6 +5,7 @@ import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import { AuthErrorCodes } from 'firebase/auth';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { environment } from '../../environments/environment.local';
 
 @Component({
   selector: 'app-login',
@@ -75,7 +76,8 @@ export class LoginComponent {
     }
     const result = await this.firebaseService.resetPassword(email);
     if (result.success) {
-      this.resetPasswordSuccess.set('A password reset link has been sent to your email.');
+      this.resetPasswordSuccess.set(`A password reset link has been sent to ${email}`
+        + ` from ${environment.passwordResetEmailSender}.`);
     } else {
       console.warn(result.errorMessage);
       this.resetPasswordError.set(result.errorMessage);
