@@ -66,6 +66,13 @@ describe('Routing Utils', () => {
       const result = matchUrlPartsToPathParts(urlParts, pathParts);
       expect(result).toBeNull();
     });
+
+    it('should decode url encoded path variables', () => {
+      const urlParts = ['members', 'Row%201561'];
+      const pathParts = ['members', ':memberId'];
+      const result = matchUrlPartsToPathParts(urlParts, pathParts);
+      expect(result).toEqual({ memberId: 'Row 1561' });
+    });
   });
 
   describe('mergeSubsts', () => {

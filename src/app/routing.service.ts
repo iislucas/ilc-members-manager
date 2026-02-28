@@ -150,9 +150,10 @@ export class RoutingService<T extends PathPatterns> {
     const substParts = parts.map((part) => {
       if (part.startsWith(':')) {
         const paramName = part.substring(1);
-        return this.signals[patternId].pathVars[
+        const val = this.signals[patternId].pathVars[
           paramName as keyof T[keyof T]['pathVars'] & string
         ]();
+        return encodeURIComponent(val ?? '');
       } else {
         return part;
       }

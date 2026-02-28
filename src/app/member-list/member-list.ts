@@ -148,8 +148,8 @@ export class MemberListComponent {
     this.limit.set(50);
   }
 
-  gotoMemberSubview(member: Member) {
-    if (!member) return;
+  memberLink(member: Member): string | null {
+    if (!member) return null;
 
     const base = this.basePath();
     if (base) {
@@ -157,9 +157,10 @@ export class MemberListComponent {
       const isMissing = !member.memberId;
       const idToRoute = (hasDups || isMissing) ? member.docId : member.memberId;
 
-      this.routingService.navigateToParts([base, idToRoute]);
+      return `#/${base}/${idToRoute}`;
     } else {
-      console.warn('gotoMemberSubview called but no basePath was provided to member-list component.');
+      console.warn('memberLink called but no basePath was provided to member-list component.');
+      return null;
     }
   }
 

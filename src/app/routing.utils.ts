@@ -261,9 +261,21 @@ export function matchUrlPartsToPathParts(
   for (let i = 0; i < pathParts.length; i++) {
     if (pathParts[i].startsWith(':')) {
       const paramName = pathParts[i].substring(1);
-      params[paramName] = urlParts[i];
-    } else if (pathParts[i] !== urlParts[i]) {
-      return null;
+      try {
+        params[paramName] = decodeURIComponent(urlParts[i]);
+      } catch (e) {
+        params[paramName] = urlParts[i];
+      }
+    } else {
+      let decodedUrlPart = urlParts[i];
+      try {
+        decodedUrlPart = decodeURIComponent(urlParts[i]);
+      } catch (e) {
+        decodedUrlPart = urlParts[i];
+      }
+      if (pathParts[i] !== urlParts[i] && pathParts[i] !== decodedUrlPart) {
+        return null;
+      }
     }
   }
   return params;

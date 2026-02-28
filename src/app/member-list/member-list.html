@@ -40,11 +40,11 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateMemberIdEntries(); track member.docId) {
-              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
+              <a class="member-card duplicate" [href]="memberLink(member)">
                 <app-member-row-header
                   [member]="member"
                 ></app-member-row-header>
-              </div>
+              </a>
             }
           </div>
         </div>
@@ -71,11 +71,11 @@
           </p>
           <div class="member-cards">
             @for (member of missingMemberIdEntries(); track member.docId) {
-              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
+              <a class="member-card duplicate" [href]="memberLink(member)">
                 <app-member-row-header
                   [member]="member"
                 ></app-member-row-header>
-              </div>
+              </a>
             }
           </div>
         </div>
@@ -102,11 +102,11 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateInstructorIdEntries(); track member.docId) {
-              <div class="member-card duplicate" (click)="gotoMemberSubview(member)">
+              <a class="member-card duplicate" [href]="memberLink(member)">
                 <app-member-row-header
                   [member]="member"
                 ></app-member-row-header>
-              </div>
+              </a>
             }
           </div>
         </div>
@@ -127,11 +127,11 @@
 
     @let membersList = members();
     @for (member of membersList; track member.docId) {
-      <div class="member-card" [id]="'member-' + (member.memberId || member.docId)" (click)="gotoMemberSubview(member)">
+      <a class="member-card" [id]="'member-' + (member.memberId || member.docId)" [href]="memberLink(member)">
         <app-member-row-header
           [member]="member"
         ></app-member-row-header>
-      </div>
+      </a>
     }
     @if (membersList.length < totalMembers()) {
       <div class="show-more-container">
