@@ -260,6 +260,22 @@
         }
       </div>
 
+      @if (duplicateMembersForMemberId().length > 0) {
+        <label></label>
+        <div class="error-message duplicate-warning">
+          <div>
+            Warning: This member ID is also used by:
+          </div>
+          <div class="duplicate-warning-list">
+            @for (dup of duplicateMembersForMemberId(); track dup.docId) {
+              <div class="duplicate-warning-item" (click)="gotoMember(dup.memberId)">
+                <app-member-row-header [member]="dup"></app-member-row-header>
+              </div>
+            }
+          </div>
+        </div>  
+        }
+
       <label for="membershipType">Type</label>
       <div class="rhs">
         <select id="membershipType" [formField]="form.membershipType">
@@ -437,6 +453,20 @@
             </div>
           }
         </div>
+
+        @if (duplicateMembersForInstructorId().length > 0) {
+          <label></label>
+          <div class="rhs error-message duplicate-warning">
+            <div>Warning: This instructor ID is also used by:</div>
+            <div class="duplicate-warning-list">
+              @for (dup of duplicateMembersForInstructorId(); track dup.docId) {
+                <div class="duplicate-warning-item" (click)="gotoMember(dup.memberId)">
+                  <app-member-row-header [member]="dup"></app-member-row-header>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         @if (
           e.instructorId.trim() !== "" ||

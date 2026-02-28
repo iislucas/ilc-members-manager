@@ -40,11 +40,10 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateMemberIdEntries(); track member.docId) {
-              <div class="member-card duplicate">
-                <app-member-details
+              <div class="member-card duplicate" (click)="gotoMemberSubview(member.memberId)">
+                <app-member-row-header
                   [member]="member"
-                  [allMembers]="members()"
-                ></app-member-details>
+                ></app-member-row-header>
               </div>
             }
           </div>
@@ -72,11 +71,10 @@
           </p>
           <div class="member-cards">
             @for (member of duplicateInstructorIdEntries(); track member.docId) {
-              <div class="member-card duplicate">
-                <app-member-details
+              <div class="member-card duplicate" (click)="gotoMemberSubview(member.memberId)">
+                <app-member-row-header
                   [member]="member"
-                  [allMembers]="members()"
-                ></app-member-details>
+                ></app-member-row-header>
               </div>
             }
           </div>

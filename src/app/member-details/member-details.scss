@@ -105,3 +105,27 @@ app-member-row-header {
   display: flex;
   justify-content: flex-start;
 }
+
+.duplicate-warning {
+  margin-top: 8px;
+  
+  .duplicate-warning-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.duplicate-warning-item {
+  cursor: pointer;
+  border: 1px solid v.$theme-error-border-color;
+  border-radius: 4px;
+  padding: 4px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: v.$theme-error-bg-color;
+  }
+}
+

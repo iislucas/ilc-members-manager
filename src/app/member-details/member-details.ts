@@ -494,17 +494,45 @@ export class MemberDetailsComponent {
     });
   });
 
-  isDupMemberId = computed(() => {
+  duplicateMembersForMemberId = computed(() => {
     const member = this.editableMember();
-    if (!this.allMembers || !member) {
-      return false;
+    if (!this.allMembers || !member || !member.memberId || member.memberId.trim() === '') {
+      return [];
     }
-    return this.allMembers().some(
+    return this.allMembers().filter(
       (m) =>
         m.memberId.toLowerCase() === member.memberId.toLowerCase() &&
         m.docId !== member.docId,
     );
   });
+
+  duplicateMembersForInstructorId = computed(() => {
+    const member = this.editableMember();
+    if (!this.allMembers || !member || !member.instructorId || member.instructorId.trim() === '') {
+      return [];
+    }
+    return this.allMembers().filter(
+      (m) =>
+        m.instructorId.toLowerCase() === member.instructorId.toLowerCase() &&
+        m.docId !== member.docId,
+    );
+  });
+
+  isDupMemberId = computed(() => this.duplicateMembersForMemberId().length > 0);
+
+  gotoMember(memberId: string) {
+    if (!memberId) return;
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const signals = this.routingService.signals[match as keyof AppPathPatterns] as any;
+      if (signals?.pathVars?.memberId) {
+        signals.pathVars.memberId.set(memberId);
+        return;
+      }
+    }
+    // Fallback
+    this.routingService.navigateToParts(['members', memberId]);
+  }
 
   async saveMember(event: Event) {
     event.preventDefault();
