@@ -116,6 +116,8 @@ export class SchoolEditComponent {
       schema.managerInstructorIds,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
+    disabled(schema.schoolLicenseRenewalDate, () => !this.userIsAdmin());
+    disabled(schema.schoolLicenseExpires, () => !this.userIsAdmin());
   });
 
   // Get an editable version of the school for save (it's the same as the model).
