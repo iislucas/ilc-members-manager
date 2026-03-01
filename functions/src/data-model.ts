@@ -107,10 +107,8 @@ export type Counters = {
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life',
-  LifePartner = 'LifeByPartner', // spouse of a Life member.
   Senior = 'Senior',
-  Student = 'Student',
-  Minor = 'Minor',
+  Under21 = 'Under21',
   Deceased = 'Deceased',
   Inactive = 'Inactive',
 }

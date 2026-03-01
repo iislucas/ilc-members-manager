@@ -17,6 +17,7 @@
     "sync-acl-emails": "ts-node scripts/sync-acl-emails.ts",
     "reprocess-order": "ts-node scripts/reprocess-order.ts",
     "check-timestamps": "ts-node scripts/check-timestamps.ts",
+    "update-life-members": "ts-node scripts/update-life-members.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",
