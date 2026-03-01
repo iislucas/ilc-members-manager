@@ -31,6 +31,7 @@ import { OrderList } from './order-list/order-list';
 import { OrderView } from './order-view/order-view';
 import { HeaderComponent, Breadcrumb } from './header/header.component';
 import { MemberViewComponent } from './member-view/member-view';
+import { MemberCreateComponent } from './member-create/member-create';
 
 @Component({
   selector: 'app-root',
@@ -61,6 +62,7 @@ import { MemberViewComponent } from './member-view/member-view';
     OrderView,
     HeaderComponent,
     MemberViewComponent,
+    MemberCreateComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -95,6 +97,17 @@ export class App {
         baseBreadcrumbs.push({ label: `Instructor ${instructorId}'s Students`, url: `#/instructor/${instructorId}/students` });
       } else if (view === Views.MyStudentView) {
         baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
+      } else if (view === Views.NewMember) {
+        const basePath = this.routingService.signals[Views.NewMember].urlParams.basePath();
+        if (basePath === 'members') {
+          baseBreadcrumbs.push({ label: 'Manage Members', url: '#/members' });
+        } else if (basePath?.startsWith('school/')) {
+          baseBreadcrumbs.push({ label: 'School Members', url: `#/${basePath}` });
+        } else if (basePath?.startsWith('instructor/')) {
+          baseBreadcrumbs.push({ label: 'Students', url: `#/${basePath}` });
+        } else if (basePath === 'my-students') {
+          baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
+        }
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -204,6 +217,8 @@ export class App {
         return 'Article';
       case Views.Login:
         return 'Login';
+      case Views.NewMember:
+        return 'New Member';
       case Views.ManageMemberView:
       case Views.SchoolMemberView:
       case Views.InstructorStudentView:

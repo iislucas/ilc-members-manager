@@ -7,9 +7,9 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { initMember, Member } from '../../../functions/src/data-model';
+import { Member } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
-import { MemberDetailsComponent } from '../member-details/member-details';
+
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -20,7 +20,7 @@ import { AppPathPatterns, Views } from '../app.config';
 @Component({
   selector: 'app-member-list',
   standalone: true,
-  imports: [CommonModule, MemberRowHeaderComponent, MemberDetailsComponent, IconComponent, SpinnerComponent],
+  imports: [CommonModule, MemberRowHeaderComponent, IconComponent, SpinnerComponent],
   templateUrl: './member-list.html',
   styleUrl: './member-list.scss',
 })
@@ -48,8 +48,6 @@ export class MemberListComponent {
     return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
   });
 
-  isAddingMember = signal(false);
-  newMember = signal<Member>(initMember());
 
   // Expose signals from the service to the template
   limit = signal(50);
@@ -164,12 +162,13 @@ export class MemberListComponent {
     }
   }
 
-  onNewMember() {
-    this.newMember.set(initMember());
-    this.isAddingMember.set(true);
+  newMember() {
+    const base = this.basePath();
+    if (base) {
+      this.routingService.navigateTo(`new-member?basePath=${encodeURIComponent(base)}`);
+    } else {
+      console.warn('newMember called but no basePath was provided to member-list component.');
+    }
   }
 
-  onNewMemberClose() {
-    this.isAddingMember.set(false);
-  }
 }

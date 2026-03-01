@@ -48,7 +48,6 @@ export class SquarespaceArticleComponent {
 
         const nonExpiringTypes: MembershipType[] = [
             MembershipType.Life,
-            MembershipType.LifePartner,
         ];
         if (nonExpiringTypes.includes(member.membershipType)) {
             return true;

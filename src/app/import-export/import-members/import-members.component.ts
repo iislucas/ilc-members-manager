@@ -617,15 +617,15 @@ export class ImportMembersComponent {
       normalized.includes('life (partner)') ||
       normalized.includes('life partner')
     )
-      return { success: true, value: MembershipType.LifePartner };
+      return { success: true, value: MembershipType.Life };
     if (normalized.includes('life'))
       return { success: true, value: MembershipType.Life };
     if (normalized.includes('senior'))
       return { success: true, value: MembershipType.Senior };
-    if (normalized.includes('student'))
-      return { success: true, value: MembershipType.Student };
+    if (normalized.includes('student') || normalized.includes('under21'))
+      return { success: true, value: MembershipType.Under21 };
     if (normalized.includes('minor'))
-      return { success: true, value: MembershipType.Minor };
+      return { success: true, value: MembershipType.Under21 };
     if (normalized.includes('inactive'))
       return { success: true, value: MembershipType.Inactive };
     if (normalized.includes('deceased'))

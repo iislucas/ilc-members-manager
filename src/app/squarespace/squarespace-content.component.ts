@@ -119,7 +119,6 @@ export class SquarespaceContentComponent {
         // Life, LifePartner, Senior memberships don't expire
         const nonExpiringTypes: MembershipType[] = [
             MembershipType.Life,
-            MembershipType.LifePartner,
         ];
         if (nonExpiringTypes.includes(member.membershipType)) {
             return true;

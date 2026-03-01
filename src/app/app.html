@@ -68,6 +68,11 @@
               [schoolSet]="dataService.mySchools"
             ></app-school-list>
           }
+          @case (Views.NewMember) {
+            <app-member-create
+              [basePath]="routingService.signals[Views.NewMember].urlParams.basePath() || 'members'"
+            ></app-member-create>
+          }
           @case (Views.ManageMemberView) {
             <app-member-view
               [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"

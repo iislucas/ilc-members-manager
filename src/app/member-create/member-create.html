@@ -1,0 +1,14 @@
+<div class="member-view-actions">
+  <button class="back-link subtle-button" (click)="goBack()">
+    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+  </button>
+</div>
+
+<div class="member-view-content">
+  <app-member-details
+    [member]="newMember()"
+    [allMembers]="dataService.members.entries()"
+    (close)="goBack()"
+    [canDelete]="false"
+  ></app-member-details>
+</div>

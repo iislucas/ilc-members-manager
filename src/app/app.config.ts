@@ -39,6 +39,7 @@ export enum Views {
   SchoolMembers = 'schoolMembers',
   SchoolMemberView = 'schoolMemberView',
   Settings = 'settings',
+  NewMember = 'newMember',
 }
 
 export const initPathPatterns = {
@@ -76,6 +77,7 @@ export const initPathPatterns = {
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
   [Views.MembersAreaPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
+  [Views.NewMember]: addUrlParams(pathPattern`new-member`, ['basePath']),
 };
 
 // Santiy check for type correctness...

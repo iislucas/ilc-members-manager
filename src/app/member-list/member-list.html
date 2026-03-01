@@ -17,7 +17,7 @@
       />
     </div>
     @if (canMakeNewMembers()) {
-      <button (click)="onNewMember()">New Member</button>
+      <button class="button" (click)="newMember()">New Member</button>
     }
   </div>
 
@@ -66,9 +66,7 @@
       </div>
       @if (showMissingMemberErrors()) {
         <div class="error-box-content">
-          <p class="error-hint">
-            Please assign member IDs to these entries.
-          </p>
+          <p class="error-hint">Please assign member IDs to these entries.</p>
           <div class="member-cards">
             @for (member of missingMemberIdEntries(); track member.docId) {
               <a class="member-card duplicate" [href]="memberLink(member)">
@@ -98,10 +96,14 @@
       @if (showInstructorErrors()) {
         <div class="error-box-content">
           <p class="error-hint">
-            Please resolve these duplicate instructor IDs to ensure data integrity.
+            Please resolve these duplicate instructor IDs to ensure data
+            integrity.
           </p>
           <div class="member-cards">
-            @for (member of duplicateInstructorIdEntries(); track member.docId) {
+            @for (
+              member of duplicateInstructorIdEntries();
+              track member.docId
+            ) {
               <a class="member-card duplicate" [href]="memberLink(member)">
                 <app-member-row-header
                   [member]="member"
@@ -114,23 +116,14 @@
     </div>
   }
   <div class="member-cards">
-    @if (isAddingMember()) {
-      <div class="member-card">
-        <app-member-details
-          [member]="newMember()"
-          [allMembers]="members()"
-          (close)="onNewMemberClose()"
-          [canDelete]="false"
-        ></app-member-details>
-      </div>
-    }
-
     @let membersList = members();
     @for (member of membersList; track member.docId) {
-      <a class="member-card" [id]="'member-' + (member.memberId || member.docId)" [href]="memberLink(member)">
-        <app-member-row-header
-          [member]="member"
-        ></app-member-row-header>
+      <a
+        class="member-card"
+        [id]="'member-' + (member.memberId || member.docId)"
+        [href]="memberLink(member)"
+      >
+        <app-member-row-header [member]="member"></app-member-row-header>
       </a>
     }
     @if (membersList.length < totalMembers()) {
