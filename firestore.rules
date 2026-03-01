@@ -28,7 +28,7 @@ service cloud.firestore {
         let schoolDocId = member.primarySchoolDocId;
         let schoolPath = /databases/$(database)/documents/schools/$(schoolDocId);
         return schoolDocId != "" && exists(schoolPath) && (
-          request.auth.token.email == get(schoolPath).data.get('ownerEmail', '') || 
+          request.auth.token.email in get(schoolPath).data.get('ownerEmails', []) || 
           request.auth.token.email in get(schoolPath).data.get('managerEmails', [])
         );
       }
@@ -63,7 +63,8 @@ service cloud.firestore {
     match /schools/{schoolDocId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolDocId)).data;
-        return request.auth.token.email == school.get('ownerEmail', '') || 
+        return 
+            request.auth.token.email in school.get('ownerEmails', []) || 
             request.auth.token.email in school.get('managerEmails', []);
       }
       function hasValidEditUpdate() {
@@ -74,7 +75,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managerInstructorIds']);
+            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'managerInstructorIds']);
     
       match /members/{memberDocId} {
         allow read: if isAdmin() || isSchoolManager();
@@ -117,7 +118,7 @@ service cloud.firestore {
         let schoolId = resource.data.schoolId;
         let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
         return schoolId != "" && exists(schoolPath) && (
-          request.auth.token.email == get(schoolPath).data.ownerEmail ||
+          request.auth.token.email in get(schoolPath).data.ownerEmails ||
           request.auth.token.email in get(schoolPath).data.managerEmails
         );
       }

@@ -84,7 +84,7 @@ export class ImportSchoolsComponent {
     schoolName: [['School Name', 'Name', 'SchoolName']],
     address: [['Street Address', 'Address']],
     ownerName: [['Owner Name', 'Owner']],
-    ownerEmail: [['Owner Email', 'Email']],
+    ownerEmails: [['Owner Email', 'Email']],
     schoolLicenseRenewalDate: [['Renewal Date', 'Last Renewal']],
     schoolLicenseExpires: [['Expires', 'Expiration Date']],
   };
@@ -456,8 +456,11 @@ export class ImportSchoolsComponent {
         case 'managerInstructorIds':
           school[key] = value.split(',').map((s) => s.trim());
           break;
-        case 'ownerEmail':
-          school[key] = value.toLowerCase();
+        case 'ownerEmails':
+          school[key] = value
+            .split(/[,\s\n]+/)
+            .map((s) => s.trim().toLowerCase())
+            .filter((e) => !!e);
           break;
         case 'managerEmails':
           school[key] = value

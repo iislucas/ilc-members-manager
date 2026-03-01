@@ -32,7 +32,7 @@ async function resolveInstructorEmails(instructorIds: string[]): Promise<string[
     snapshot.forEach(doc => {
       const member = doc.data();
       if (member.emails && member.emails.length > 0) {
-        emails.push(member.emails[0]);
+        emails.push(...member.emails);
       }
     });
   }
@@ -44,18 +44,16 @@ async function updateSchoolEmails(schoolId: string, school: School) {
   const ownerEmails = await resolveInstructorEmails([school.ownerInstructorId]);
   const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
 
-  const ownerEmail = ownerEmails.length > 0 ? ownerEmails[0] : '';
-  
-  logger.info(`Updating school ${schoolId} with ownerEmail: ${ownerEmail} and ${managerEmails.length} managerEmails.`);
+  logger.info(`Updating school ${schoolId} with ${ownerEmails.length} ownerEmails and ${managerEmails.length} managerEmails.`);
 
-  if (school.ownerEmail === ownerEmail && 
+  if (JSON.stringify(school.ownerEmails) === JSON.stringify(ownerEmails) && 
       JSON.stringify(school.managerEmails) === JSON.stringify(managerEmails)) {
     logger.info(`Emails for school ${schoolId} are already up to date.`);
     return;
   }
 
   await db.collection('schools').doc(schoolId).update({
-    ownerEmail,
+    ownerEmails,
     managerEmails
   });
 }
@@ -106,7 +104,7 @@ export const onSchoolUpdated = onDocumentUpdated(
 
     if (schoolAfter.ownerInstructorId !== schoolBefore.ownerInstructorId ||
       JSON.stringify(schoolAfter.managerInstructorIds) !== JSON.stringify(schoolBefore.managerInstructorIds) ||
-        !schoolAfter.ownerEmail ||
+      !schoolAfter.ownerEmails ||
         !schoolAfter.managerEmails) {
       await updateSchoolEmails(snap.after.id, schoolAfter);
     }

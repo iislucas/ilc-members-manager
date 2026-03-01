@@ -91,7 +91,7 @@ export class SchoolEditComponent {
         this.schoolIdAssignment().kind !== AssignKind.AssignNewAutoId,
     });
 
-    disabled(schema.schoolName, () => !this.userIsAdmin());
+    disabled(schema.schoolName, () => !this.userIsAdmin() && !this.userIsSchoolManager());
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.schoolCity, () => !this.userIsAdmin());
     disabled(schema.schoolCountry, () => !this.userIsAdmin());

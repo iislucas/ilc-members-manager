@@ -49,15 +49,15 @@ describe('ImportSchoolsComponent', () => {
 
   it('should lowercase school emails during parsing', () => {
     const row = {
-      ownerEmail: 'Owner@Test.com',
+      ownerEmails: 'Owner@Test.com',
       managerEmails: 'Manager1@Test.com, MANAGER2@test.com',
     };
     const mapping = {
-      ownerEmail: ['ownerEmail'],
+      ownerEmails: ['ownerEmails'],
       managerEmails: ['managerEmails'],
     };
     const { school } = (component as any).mapRowToSchool(row, mapping);
-    expect(school.ownerEmail).toBe('owner@test.com');
+    expect(school.ownerEmails).toEqual(['owner@test.com']);
     expect(school.managerEmails).toEqual([
       'manager1@test.com',
       'manager2@test.com',

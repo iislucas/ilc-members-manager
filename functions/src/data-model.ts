@@ -189,7 +189,7 @@ export type School = {
   managerInstructorIds: string[];
 
   // Redundant email addresses for firestore rules.
-  ownerEmail: string;
+  ownerEmails: string[];
   managerEmails: string[];
 
   // School License
@@ -205,6 +205,7 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
   const docData = doc.data() as SchoolFirebaseDoc & {
     owner?: string;
     managers?: string[];
+    ownerEmail?: string;
   };
   // There's a short time after a write happens where
   // memberData.lastUpdated is full before the server timestamp gets
@@ -215,8 +216,10 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
 
   const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
   const managerInstructorIds = docData.managerInstructorIds || docData.managers || [];
+  // TODO: legacy: remove once full migration to ownerEmails is complete
+  const ownerEmails = docData.ownerEmails && docData.ownerEmails.length > 0 ? docData.ownerEmails : (docData.ownerEmail ? [docData.ownerEmail] : []);
 
-  return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, lastUpdated, docId: doc.id };
+  return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
 }
 
 // Members are in firestore path /member/{email} (they use email as the doc id).
@@ -555,7 +558,7 @@ export function initSchool(): School {
     schoolWebsite: '',
     ownerInstructorId: '',
     managerInstructorIds: [],
-    ownerEmail: '',
+    ownerEmails: [],
     managerEmails: [],
     schoolLicenseRenewalDate: '',
     schoolLicenseExpires: '',

@@ -286,7 +286,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('admin-only fields should be disabled', () => {
-      expect(component.form.schoolName().disabled()).toBe(true);
       expect(component.form.schoolId().disabled()).toBe(true);
       expect(component.form.schoolCity().disabled()).toBe(true);
       expect(component.form.schoolCountry().disabled()).toBe(true);
@@ -294,6 +293,7 @@ describe('SchoolEditComponent', () => {
     });
 
     it('manager-editable fields should be enabled', () => {
+      expect(component.form.schoolName().disabled()).toBe(false);
       expect(component.form.schoolAddress().disabled()).toBe(false);
       expect(component.form.schoolZipCode().disabled()).toBe(false);
       expect(component.form.schoolCountyOrState().disabled()).toBe(false);
@@ -427,11 +427,6 @@ describe('SchoolEditComponent', () => {
       component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
-
-      const schoolNameInput: HTMLInputElement | null =
-        fixture.nativeElement.querySelector('#schoolName');
-      expect(schoolNameInput).toBeTruthy();
-      expect(schoolNameInput!.disabled).toBe(true);
 
       const schoolCityInput: HTMLInputElement | null =
         fixture.nativeElement.querySelector('#schoolCity');
