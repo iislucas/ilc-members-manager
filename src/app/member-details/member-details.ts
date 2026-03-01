@@ -260,21 +260,23 @@ export class MemberDetailsComponent {
         .find((c) => c.name === countryName) || null
     );
   });
+
   // TODO: add error checking, expectedNextMemberId should not be empty!
   expectedNextMemberId = computed(() => {
     const counters = this.membersService.counters();
     if (!counters) return '...loading...';
     const code = this.countryWithCode()?.id;
     if (!code) return 'specified once valid country is selected above';
-    const nextId = (counters.memberIdCounters[code] || 0) + 1;
+    const nextId = Math.max((counters.memberIdCounters[code] || 0) + 1, 100);
     return `${code}${nextId}`;
   });
+
   // TODO: add error checking, expectedNextMemberId should not be empty if
   // this.assignInstructorIdOnSave() is true.
   expectedNextInstructorId = computed(() => {
     const counters = this.membersService.counters();
     if (!counters) return '';
-    return (counters.instructorIdCounter + 1).toString();
+    return Math.max((counters.instructorIdCounter || 0) + 1, 100).toString();
   });
 
   // For auto-completes, how we show stuff
