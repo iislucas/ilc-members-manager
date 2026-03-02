@@ -92,7 +92,7 @@
         </thead>
         <tbody>
           @for (order of orders(); track order.docId) {
-            <tr>
+            <tr [class.ignored]="order.ilcAppOrderStatus === 'ignore'">
               <td>
                 @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
                   {{ order.createdOn | date: "yyyy-MM-dd" }}
@@ -165,8 +165,17 @@
                   }
                   
                   @if (order.ilcAppOrderStatus) {
-                    <span class="status-badge app-status" [class.error]="order.ilcAppOrderStatus === 'error'" [class.processed]="order.ilcAppOrderStatus === 'processed'">
-                      {{ order.ilcAppOrderStatus | uppercase }}
+                    <span class="status-badge app-status"
+                      [class.error]="order.ilcAppOrderStatus === 'error'"
+                      [class.processed]="order.ilcAppOrderStatus === 'processed'"
+                      [class.needs-manual]="order.ilcAppOrderStatus === 'needs-manual-processing'"
+                      [class.ignore]="order.ilcAppOrderStatus === 'ignore'"
+                    >
+                      @switch (order.ilcAppOrderStatus) {
+                        @case ('needs-manual-processing') { TODO }
+                        @case ('ignore') { IGNORE }
+                        @default { {{ order.ilcAppOrderStatus | uppercase }} }
+                      }
                     </span>
                   }
                 </div>
@@ -197,8 +206,11 @@
                           <app-icon name="check"></app-icon> <span>Mark as fulfilled</span>
                         </div>
                       }
+                      <div class="menu-item" (click)="markAsTodo(order, $event)">
+                        <app-icon name="schedule"></app-icon> <span>Mark as TODO</span>
+                      </div>
                       <div class="menu-item" (click)="markAsIgnored(order, $event)">
-                        <app-icon name="close"></app-icon> <span>Mark as to be ignored</span>
+                        <app-icon name="close"></app-icon> <span>Mark as ignored</span>
                       </div>
                     </div>
                   }

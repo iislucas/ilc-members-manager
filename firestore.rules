@@ -130,7 +130,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isGradingInstructor() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingEventDate', 'notes']);
+            ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'notes']);
+      allow update: if hasValidEditUpdate() && isGradingStudent() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['lastUpdated', 'gradingEvent', 'gradingInstructorId']);
     }
   }
 }

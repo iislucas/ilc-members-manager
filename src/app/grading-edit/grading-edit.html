@@ -59,17 +59,19 @@
           />
         </div>
 
-        @if (e.orderId) {
-          <label for="orderId">Order ID</label>
-          <div class="rhs linked-field">
+        <label for="orderId">Order ID</label>
+        <div class="rhs linked-field">
+          @if (userIsAdmin()) {
             <input type="text" id="orderId" [formField]="form.orderId" />
             @if (e.orderId) {
-              <button type="button" class="icon-only-button" (click)="viewOrder(e.orderId)">
+              <a class="icon-only-button" [href]="'#/order-view/' + e.orderId">
                 <app-icon name="visibility"></app-icon>
-              </button>
+              </a>
             }
-          </div>
-        }
+          } @else {
+            <span class="readonly-value" id="orderId">{{ e.orderId || '—' }}</span>
+          }
+        </div>
         
         <label for="studentMemberId">The student who is grading</label>
         <div class="rhs">

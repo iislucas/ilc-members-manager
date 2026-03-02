@@ -32,8 +32,8 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
-import { RoutingService } from '../routing.service';
-import { AppPathPatterns } from '../app.config';
+import { deepObjEq } from '../utils';
+
 
 @Component({
   selector: 'app-grading-edit',
@@ -46,7 +46,7 @@ export class GradingEditComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
+
 
   // Constants
   GradingStatus = GradingStatus;
@@ -69,7 +69,7 @@ export class GradingEditComponent {
     disabled(schema.gradingPurchaseDate, () => !this.userIsAdmin());
     disabled(schema.orderId, () => !this.userIsAdmin());
     disabled(schema.level, () => !this.userIsAdmin());
-    disabled(schema.gradingInstructorId, () => !this.userIsAdmin());
+    disabled(schema.gradingInstructorId, () => !this.userIsAdmin() && !this.userIsStudent());
     disabled(schema.assistantInstructorIds, () => !this.userIsAdmin());
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.studentMemberId, () => !this.userIsAdmin());
@@ -88,9 +88,10 @@ export class GradingEditComponent {
       schema.notes,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
+    // Instructor or student can edit gradingEvent (where/when the grading will take place)
     disabled(
       schema.gradingEvent,
-      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsStudent(),
     );
   });
 
@@ -113,7 +114,26 @@ export class GradingEditComponent {
 
   canDelete = input<boolean>(true);
 
-  isDirty = computed(() => this.form().dirty());
+  isDirty = computed(() => {
+    const original = this.grading();
+    // Read directly from form field values rather than the model signal,
+    // because Angular signal forms don't always write back to the model
+    // for programmatically-set fields (e.g. autocomplete .value.set()).
+    return (
+      this.form.gradingPurchaseDate().value() !== original.gradingPurchaseDate ||
+      this.form.orderId().value() !== original.orderId ||
+      this.form.level().value() !== original.level ||
+      this.form.gradingInstructorId().value() !== original.gradingInstructorId ||
+      !deepObjEq(this.form.assistantInstructorIds().value(), original.assistantInstructorIds) ||
+      this.form.schoolId().value() !== original.schoolId ||
+      this.form.studentMemberId().value() !== original.studentMemberId ||
+      this.form.studentMemberDocId().value() !== original.studentMemberDocId ||
+      this.form.status().value() !== original.status ||
+      this.form.gradingEventDate().value() !== original.gradingEventDate ||
+      this.form.gradingEvent().value() !== original.gradingEvent ||
+      this.form.notes().value() !== original.notes
+    );
+  });
   isSaving = signal(false);
   asyncError = signal<Error | null>(null);
 
@@ -131,8 +151,15 @@ export class GradingEditComponent {
       (grading.assistantInstructorIds || []).includes(user.member.instructorId);
   });
 
+  userIsStudent = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    const grading = this.editableGrading();
+    return grading.studentMemberDocId === user.member.docId;
+  });
+
   canEdit = computed(
-    () => this.userIsAdmin() || this.userIsGradingInstructor(),
+    () => this.userIsAdmin() || this.userIsGradingInstructor() || this.userIsStudent(),
   );
 
   // Resolve names for display
@@ -276,9 +303,29 @@ export class GradingEditComponent {
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
-      const grading = this.editableGrading();
+      // Build from the original grading, overriding with current form field
+      // values. We use the original as the base (not the model signal) to
+      // ensure no unexpected transformed fields leak into the diff.
+      const grading: Grading = {
+        ...this.grading(),
+        gradingPurchaseDate: this.form.gradingPurchaseDate().value(),
+        orderId: this.form.orderId().value(),
+        level: this.form.level().value(),
+        gradingInstructorId: this.form.gradingInstructorId().value(),
+        assistantInstructorIds: this.form.assistantInstructorIds().value(),
+        schoolId: this.form.schoolId().value(),
+        studentMemberId: this.form.studentMemberId().value(),
+        studentMemberDocId: this.form.studentMemberDocId().value(),
+        status: this.form.status().value(),
+        gradingEventDate: this.form.gradingEventDate().value(),
+        gradingEvent: this.form.gradingEvent().value(),
+        notes: this.form.notes().value(),
+      };
       if (grading.docId) {
-        await this.dataService.updateGrading(grading.docId, grading);
+        // Pass original grading for diff-based update so only changed
+        // fields are sent. This is critical for non-admin users whose
+        // Firestore rules restrict updates to certain fields.
+        await this.dataService.updateGrading(grading.docId, grading, this.grading());
       } else {
         await this.dataService.addGrading(grading);
       }
@@ -326,9 +373,4 @@ export class GradingEditComponent {
     return errors;
   });
 
-  viewOrder(orderId: string) {
-    if (orderId) {
-      this.routingService.navigateTo('order-view/' + orderId);
-    }
-  }
 }

@@ -288,7 +288,9 @@ export async function executeOrderDownstreamLogic(
     return;
   }
 
-  logger.info(`Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`);
+  // JSON round-trip strips `undefined` values which would cause firebase-functions/logger
+  // to silently drop the structured jsonPayload and fall back to a plain textPayload string.
+  logger.info(`executeOrderDownstreamLogic: Processing downstream logic for order doc ${docId} (SS ID: ${orderId})`, JSON.parse(JSON.stringify(orderData)));
 
   let shouldUpdateFulfillmentStatus = false;
 
@@ -372,6 +374,8 @@ export async function executeOrderDownstreamLogic(
       }
     } else {
       allItemsFulfilled = false;
+      lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
+      orderStatus = 'needs-manual-processing';
     }
   }
 

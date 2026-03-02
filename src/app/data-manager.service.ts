@@ -215,6 +215,13 @@ export class DataManagerService {
       this.updateCountryCodesSync();
       this.updateGradingsSync(user);
       this.updateMyGradingsAssessedSync(user);
+    });
+
+    // Reactive effect for My Gradings: re-subscribes whenever the member's
+    // gradingDocIds list changes (e.g. when a new grading is created by a
+    // Firebase trigger and the member doc is updated with arrayUnion).
+    effect(() => {
+      const user = this.firebaseService.user();
       this.updateMyGradingsSync(user);
     });
 
@@ -556,12 +563,16 @@ export class DataManagerService {
 
   private myGradingsUnsubscribes: (() => void)[] = [];
 
-  async updateMyGradingsSync(user: UserDetails) {
+  // Called reactively from an effect whenever the user's member data changes.
+  // Re-subscribes to gradings whenever the member's gradingDocIds list changes.
+  updateMyGradingsSync(user: UserDetails | null) {
     this.myGradingsUnsubscribes.forEach((unsub) => unsub());
     this.myGradingsUnsubscribes = [];
 
-    if (user.member.docId && user.member.gradingDocIds && user.member.gradingDocIds.length > 0) {
-      const gradingDocIds = user.member.gradingDocIds;
+    const memberDocId = user?.member?.docId ?? '';
+    const gradingDocIds = user?.member?.gradingDocIds ?? [];
+
+    if (memberDocId && gradingDocIds.length > 0) {
       const chunkSize = 10;
       const gradingsMap = new Map<string, Grading>();
 
@@ -764,13 +775,41 @@ export class DataManagerService {
     return setDoc(newDocRef, gradingWithNewTimestamp).then(() => newDocRef);
   }
 
-  async updateGrading(id: string, grading: Grading): Promise<void> {
+  async updateGrading(id: string, newGrading: Grading, oldGrading?: Grading): Promise<void> {
     const docRef = doc(this.db, 'gradings', id);
-    const gradingWithNewTimestamp: GradingFirebaseDoc = {
-      ...grading,
-      lastUpdated: serverTimestamp() as Timestamp,
-    };
-    return setDoc(docRef, gradingWithNewTimestamp, { merge: true });
+    let originalGrading = oldGrading;
+    if (!originalGrading) {
+      originalGrading = this.gradings.entriesMap().get(id)
+        ?? this.myGradings.entriesMap().get(id)
+        ?? this.myGradingsAssessed.entriesMap().get(id);
+    }
+
+    // Only send changed fields. This is critical for non-admin users (e.g.
+    // instructors) whose Firestore rules restrict updates to a subset of
+    // fields. Sending unchanged fields would cause rule violations.
+    if (originalGrading) {
+      const changes: Partial<GradingFirebaseDoc> = {};
+      for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
+        if (key === 'docId' || key === 'lastUpdated') continue;
+        if (!deepObjEq(newGrading[key], originalGrading[key])) {
+          console.log(`updateGrading diff: field "${key}" changed:`,
+            JSON.stringify(originalGrading[key]), '→', JSON.stringify(newGrading[key]));
+          // @ts-ignore
+          changes[key] = newGrading[key];
+        }
+      }
+      changes.lastUpdated = serverTimestamp() as Timestamp;
+      console.log('updateGrading: sending changes:', Object.keys(changes));
+      return setDoc(docRef, changes, { merge: true });
+    } else {
+    // Fallback: send everything (for new gradings or when no original is available)
+      const gradingWithNewTimestamp: GradingFirebaseDoc = {
+        ...newGrading,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
+      delete (gradingWithNewTimestamp as { docId?: string }).docId;
+      return setDoc(docRef, gradingWithNewTimestamp, { merge: true });
+    }
   }
 
   async deleteGrading(id: string): Promise<void> {

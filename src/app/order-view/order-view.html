@@ -72,8 +72,14 @@
                 class="value app-status"
                 [class.error]="o.ilcAppOrderStatus === 'error'"
                 [class.processed]="o.ilcAppOrderStatus === 'processed'"
+                [class.needs-manual]="o.ilcAppOrderStatus === 'needs-manual-processing'"
+                [class.ignore]="o.ilcAppOrderStatus === 'ignore'"
               >
-                {{ o.ilcAppOrderStatus | uppercase }}
+                @switch (o.ilcAppOrderStatus) {
+                  @case ('needs-manual-processing') { TODO }
+                  @case ('ignore') { IGNORE }
+                  @default { {{ o.ilcAppOrderStatus | uppercase }} }
+                }
               </div>
             </div>
           }

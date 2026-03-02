@@ -365,7 +365,7 @@ export function firestoreDocToInstructorPublicData(
 // # Orders
 // ==================================================================
 
-export type OrderStatus = 'processed' | 'error';
+export type OrderStatus = 'processed' | 'needs-manual-processing' | 'error' | 'ignore';
 
 export type OrderKind =
   | 'https://api.squarespace.com/1.0/commerce/orders'
@@ -423,7 +423,7 @@ export interface SquareSpaceLineItem {
   quantity: string;
   unitPricePaid: { value: string; }
   // ILC App processing fields added to SquarespaceLineItem.
-  ilcAppProcessingStatus?: 'processed' | 'error';
+  ilcAppProcessingStatus?: OrderStatus;
   ilcAppProcessingIssue?: string;
 }
 

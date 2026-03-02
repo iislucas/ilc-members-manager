@@ -91,6 +91,10 @@
         color: var(--text-primary, #333);
       }
 
+      tr.ignored td:not(:last-child) {
+        opacity: 0.5;
+      }
+
       .status-column {
         .badges {
           display: flex;
@@ -124,6 +128,16 @@
             &.error {
               background-color: #ffebee;
               color: #c62828;
+            }
+
+            &.needs-manual {
+              background-color: #fff3e0;
+              color: #e65100;
+            }
+
+            &.ignore {
+              background-color: #f5f5f5;
+              color: #9e9e9e;
             }
           }
         }
