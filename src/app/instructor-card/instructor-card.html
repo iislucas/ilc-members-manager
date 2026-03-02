@@ -1,59 +1,58 @@
 @let i = instructor();
-
-<div class="instructor-card-header">
-  <div class="name">
-    @if (i.instructorWebsite) {
-    <a [href]="ensureUrl(i.instructorWebsite)" target="_blank">
+<div class="instructor-card">
+  <div class="row">
+    <div class="name">
       {{ i.name }}
-    </a>
-    } @else {
-    {{ i.name }}
+    </div>
+    @if (
+      (i.tags && i.tags.length > 0) || i.studentLevel || i.applicationLevel
+    ) {
+      <div class="level-info">
+        @if (i.tags && i.tags.length > 0) {
+          @for (tag of i.tags; track tag) {
+            <div class="tag-chip">{{ tag }}</div>
+          }
+        }
+        @if (i.studentLevel) {
+          <div class="level-chip">Student {{ i.studentLevel }}</div>
+        }
+        @if (i.applicationLevel) {
+          <div class="level-chip">Application {{ i.applicationLevel }}</div>
+        }
+      </div>
     }
-  </div>
-  <div class="identifier-subtle">
-    @if (i.tags && i.tags.length > 0) {
-    <div class="tags-display">
-      @for (tag of i.tags; track tag) {
-      <span class="identifier-chip">{{ tag }}</span>
+    <div class="city-and-country">
+      @if (i.publicRegionOrCity) {
+        <span class="city">{{ i.publicRegionOrCity }}, </span>
+      }
+      @if (i.publicCountyOrState) {
+        <span class="county-state">{{ i.publicCountyOrState }}, </span>
+      }
+      <span class="country">{{ i.country }}</span>
+      @if (getMapsUrl(); as mapsUrl) {
+        <a [href]="mapsUrl" target="_blank" class="icon-link">
+          <app-icon name="map" width="16px" height="16px"></app-icon>
+        </a>
       }
     </div>
+  </div>
+  <div class="row">
+    @if (i.instructorWebsite) {
+      <a class="link" [href]="ensureUrl(i.instructorWebsite)" target="_blank">{{
+        stripUrlPrefix(i.instructorWebsite)
+      }}</a>
+    } @else {
+      <a class="link" [href]="getSearchUrl()" target="_blank">search</a>
     }
-    @if (i.studentLevel) {
-      <span>Student {{ i.studentLevel }}, </span>
+    @if (i.publicEmail) {
+      <div class="email">
+        <a [href]="'mailto:' + i.publicEmail">{{ i.publicEmail }}</a>
+      </div>
     }
-    @if (i.applicationLevel) {
-      <span>Application {{ i.applicationLevel }}</span>
+    @if (i.publicPhone) {
+      <div class="phone">
+        <a [href]="'tel:' + i.publicPhone">{{ i.publicPhone }}</a>
+      </div>
     }
   </div>
-  <div class="city-and-country">
-    @if (i.publicRegionOrCity) {
-      <span class="city">{{ i.publicRegionOrCity }}, </span>
-    }
-    @if (i.publicCountyOrState) {
-      <span class="county-state">{{ i.publicCountyOrState }}, </span>
-    }
-    <span class="country">{{ i.country }}</span>
-    @if (getMapsUrl(); as mapsUrl) {
-    <a [href]="mapsUrl" target="_blank" class="icon-link">
-      <app-icon name="map" width="16px" height="16px"></app-icon>
-    </a>
-    }
-  </div>
-  @if (i.publicEmail) {
-    <div class="email">
-      <a [href]="'mailto:' + i.publicEmail">{{ i.publicEmail }}</a>
-    </div>
-  }
-  @if (i.publicPhone) {
-    <div class="phone">
-      <a [href]="'tel:' + i.publicPhone">{{ i.publicPhone }}</a>
-    </div>
-  }
-  @if (!i.instructorWebsite && !i.publicEmail && !i.publicPhone) {
-  <div class="search-container">
-    <a [href]="getSearchUrl()" target="_blank" class="search-button">
-      Search for Instructor
-    </a>
-    </div>
-  }
 </div>

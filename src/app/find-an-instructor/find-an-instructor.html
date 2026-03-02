@@ -10,10 +10,12 @@
     />
   </div>
 
-  <div class="results-container">
-    @if (findInstructorsService.instructors.loading()) {
+  @if (findInstructorsService.instructors.loading()) {
+    <div class="center">
       <app-spinner></app-spinner>
-    } @else {
+    </div>
+  } @else {
+    <div class="results-container">
       @if (filteredInstructors().length > 0) {
         @for (instructor of filteredInstructors(); track instructor.docId) {
           <app-instructor-card [instructor]="instructor"> </app-instructor-card>
@@ -21,6 +23,6 @@
       } @else {
         <p>No instructors found.</p>
       }
-    }
-  </div>
+    </div>
+  }
 </div>

@@ -52,4 +52,14 @@ export class InstructorCardComponent {
     const query = encodeURIComponent(parts.join(', '));
     return `https://www.google.com/maps/search/?api=1&query=${query}`;
   }
+
+  stripUrlPrefix(url: string): string {
+    if (url.startsWith('https://')) {
+      return url.substring(8);
+    }
+    if (url.startsWith('http://')) {
+      return url.substring(7);
+    }
+    return url;
+  }
 }

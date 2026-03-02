@@ -10,7 +10,7 @@
 }
 
 .instructor-search-container {
-  padding: 20px;
+  padding: 0.5em;
   flex-grow: 1;
 
   h2 {
@@ -62,14 +62,16 @@
     }
   }
 
+  .center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .results-container {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: start;
-
-    p {
-      text-align: center;
-    }
   }
 }
