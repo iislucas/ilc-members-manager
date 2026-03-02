@@ -23,6 +23,18 @@ describe('OrderList', () => {
 
     mockRoutingService = {
       navigateTo: vi.fn(),
+      signals: {
+        manageOrders: {
+          urlParams: {
+            orderId: signal(''),
+            searchMode: signal(''),
+            searchField: signal(''),
+            q: signal(''),
+            startDate: signal(''),
+            endDate: signal(''),
+          },
+        },
+      },
     } as never as RoutingService<any>;
 
     await TestBed.configureTestingModule({

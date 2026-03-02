@@ -1,12 +1,18 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../data-manager.service';
 import { Order } from '../../../functions/src/data-model';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns } from '../app.config';
+import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+
+type SearchMode = 'recent' | 'term' | 'date';
+type SearchField = 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
+
+const VALID_SEARCH_MODES: SearchMode[] = ['recent', 'term', 'date'];
+const VALID_SEARCH_FIELDS: SearchField[] = ['orderNumber', 'referenceNumber', 'id', 'customerEmail', 'email', 'lastName', 'billingAddress.lastName'];
 
 @Component({
   selector: 'app-order-list',
@@ -15,12 +21,13 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   templateUrl: './order-list.html',
   styleUrl: './order-list.scss',
 })
-export class OrderList implements OnInit {
+export class OrderList {
   private dataService = inject(DataManagerService);
   private routingService = inject(RoutingService<AppPathPatterns>);
+  private orderSignals = this.routingService.signals[Views.ManageOrders];
 
-  public searchMode = signal<'recent' | 'term' | 'date'>('recent');
-  public searchField = signal<'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName'>('email');
+  public searchMode = signal<SearchMode>('recent');
+  public searchField = signal<SearchField>('email');
   public searchTerm = signal('');
   public startDate = signal<string>('');
   public endDate = signal<string>('');
@@ -31,6 +38,49 @@ export class OrderList implements OnInit {
   public syncing = signal(false);
   public menuOpen = signal(false);
   public openMenuId = signal<string | null>(null);
+
+  private initialised = false;
+
+  constructor() {
+    // Read URL params on init and trigger the appropriate search.
+    effect(() => {
+      const urlMode = this.orderSignals.urlParams['searchMode']() as SearchMode;
+      const urlField = this.orderSignals.urlParams['searchField']() as SearchField;
+      const urlQ = this.orderSignals.urlParams['q']();
+      const urlStart = this.orderSignals.urlParams['startDate']();
+      const urlEnd = this.orderSignals.urlParams['endDate']();
+
+      // Only apply URL → local signals on first run.
+      if (this.initialised) return;
+      this.initialised = true;
+
+      const mode: SearchMode = VALID_SEARCH_MODES.includes(urlMode) ? urlMode : 'recent';
+      const field: SearchField = VALID_SEARCH_FIELDS.includes(urlField) ? urlField : 'email';
+
+      this.searchMode.set(mode);
+      this.searchField.set(field);
+      this.searchTerm.set(urlQ || '');
+      this.startDate.set(urlStart || '');
+      this.endDate.set(urlEnd || '');
+
+      if (mode === 'term' && urlQ) {
+        this.search();
+      } else if (mode === 'date' && (urlStart || urlEnd)) {
+        this.search();
+      } else {
+        this.loadRecentOrders();
+      }
+    });
+  }
+
+  /** Write current search state into URL params so the URL is shareable. */
+  private syncUrlParams() {
+    this.orderSignals.urlParams['searchMode'].set(this.searchMode());
+    this.orderSignals.urlParams['searchField'].set(this.searchField());
+    this.orderSignals.urlParams['q'].set(this.searchTerm());
+    this.orderSignals.urlParams['startDate'].set(this.startDate());
+    this.orderSignals.urlParams['endDate'].set(this.endDate());
+  }
 
   toggleOrderMenu(docId: string, event: Event) {
     event.stopPropagation();
@@ -59,16 +109,20 @@ export class OrderList implements OnInit {
     this.orders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
   }
 
-  async setSearchMode(mode: 'recent' | 'term' | 'date') {
+  async setSearchMode(mode: SearchMode) {
     this.searchMode.set(mode);
     if (mode === 'recent') {
       this.searchTerm.set('');
       this.startDate.set('');
       this.endDate.set('');
       this.searched.set(false);
+      this.syncUrlParams();
       await this.loadRecentOrders();
     } else if (mode === 'date') {
+      this.syncUrlParams();
       await this.search();
+    } else {
+      this.syncUrlParams();
     }
   }
 
@@ -88,10 +142,6 @@ export class OrderList implements OnInit {
     } finally {
       this.syncing.set(false);
     }
-  }
-
-  ngOnInit() {
-    this.loadRecentOrders();
   }
 
   async loadRecentOrders() {
@@ -115,17 +165,20 @@ export class OrderList implements OnInit {
 
     if (mode === 'recent') {
       this.searched.set(false);
+      this.syncUrlParams();
       await this.loadRecentOrders();
       return;
     }
     if (mode === 'term' && !term) {
       this.searched.set(false);
+      this.syncUrlParams();
       await this.loadRecentOrders();
       return;
     }
 
     this.loading.set(true);
     this.searched.set(true);
+    this.syncUrlParams();
     try {
       let results: Order[] = [];
       if (mode === 'term') {

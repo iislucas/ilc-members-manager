@@ -73,7 +73,7 @@ export const initPathPatterns = {
   [Views.MemberGradings]: pathPattern`my-gradings`,
   [Views.Settings]: pathPattern`settings`,
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
-  [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId']),
+  [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId', 'searchMode', 'searchField', 'q', 'startDate', 'endDate']),
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
   [Views.MembersAreaPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
