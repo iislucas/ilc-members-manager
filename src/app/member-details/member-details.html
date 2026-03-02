@@ -337,83 +337,79 @@
         />
       </div>
 
-      <label for="masterLevels">Master</label>
-      <div class="rhs">
-        @if (userIsAdmin()) {
-          @for (level of masterLevels; track level) {
-            <div class="masterLevel">
-              <input
-                id="masterLevels"
-                name="masterLevels"
-                type="checkbox"
-                [checked]="e.mastersLevels.includes(level)"
-                (change)="onMasterLevelChange(level, $event)"
-              />
-              {{ level }}
-            </div>
-          }
-        } @else {
-          @if (e.mastersLevels.length > 0) {
+      @if (userIsAdmin() || e.mastersLevels.length > 0) {
+        <label for="masterLevels">Master</label>
+        <div class="rhs">
+          @if (userIsAdmin()) {
+            @for (level of masterLevels; track level) {
+              <div class="masterLevel">
+                <input
+                  id="masterLevels"
+                  name="masterLevels"
+                  type="checkbox"
+                  [checked]="e.mastersLevels.includes(level)"
+                  (change)="onMasterLevelChange(level, $event)"
+                />
+                {{ level }}
+              </div>
+            }
+          } @else {
             @for (level of e.mastersLevels; track level) {
               <span class="identifier-chip">{{ level }}</span>
             }
-          } @else {
-            <span class="missing-identifier-chip">Not yet a master</span>
           }
-        }
-      </div>
+        </div>
+      }
 
-      <label for="tags">Tags</label>
-      <div class="rhs">
-        @if (userIsAdmin()) {
-          @let tagsField = form.tags();
-          @for (tag of tagsField.value(); track $index; let last = $last) {
-            <div class="tag-row">
-              <input
-                type="text"
-                [value]="tag"
-                (input)="updateTag($index, $event)"
-                placeholder="Tag name"
-              />
-              <button
-                type="button"
-                class="icon-only-button"
-                (click)="removeTag($index)"
-                title="Remove tag"
-              >
-                <app-icon name="trash" />
-              </button>
-              @if (last) {
+      @if (userIsAdmin() || (e.tags && e.tags.length > 0)) {
+        <label for="tags">Tags</label>
+        <div class="rhs">
+          @if (userIsAdmin()) {
+            @let tagsField = form.tags();
+            @for (tag of tagsField.value(); track $index; let last = $last) {
+              <div class="tag-row">
+                <input
+                  type="text"
+                  [value]="tag"
+                  (input)="updateTag($index, $event)"
+                  placeholder="Tag name"
+                />
                 <button
                   type="button"
-                  class="icon-only-button add-tag-btn"
-                  (click)="addTag()"
-                  title="Add another tag"
+                  class="icon-only-button"
+                  (click)="removeTag($index)"
+                  title="Remove tag"
                 >
-                  <app-icon name="add" />
+                  <app-icon name="trash" />
                 </button>
-              }
-            </div>
-          }
-          @if (tagsField.value().length === 0) {
-            <div class="add-new-row">
-              <button type="button" class="subtle-button" (click)="addTag()">
-                + add a tag
-              </button>
-            </div>
-          }
-        } @else {
-          <div class="tags-display">
-            @if (e.tags && e.tags.length > 0) {
+                @if (last) {
+                  <button
+                    type="button"
+                    class="icon-only-button add-tag-btn"
+                    (click)="addTag()"
+                    title="Add another tag"
+                  >
+                    <app-icon name="add" />
+                  </button>
+                }
+              </div>
+            }
+            @if (tagsField.value().length === 0) {
+              <div class="add-new-row">
+                <button type="button" class="subtle-button" (click)="addTag()">
+                  + add a tag
+                </button>
+              </div>
+            }
+          } @else {
+            <div class="tags-display">
               @for (tag of e.tags; track tag) {
                 <span class="identifier-chip">{{ tag }}</span>
               }
-            } @else {
-              <span class="missing-identifier-chip">No tags</span>
-            }
-          </div>
-        }
-      </div>
+            </div>
+          }
+        </div>
+      }
 
       @if (e.instructorId.trim() !== "" || userIsAdmin()) {
         <h3>Instructor Status</h3>

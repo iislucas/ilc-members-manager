@@ -69,12 +69,12 @@
       }
       <span class="country">{{ e.country }}</span>
     </div>
-    <div class="meta-info">
+    <div class="level-info">
       @if (e.studentLevel) {
-        <span class="level-chip">S:{{ e.studentLevel }}</span>
+        <div class="level-chip">Student {{ e.studentLevel }}</div>
       }
       @if (e.applicationLevel) {
-        <span class="level-chip">A:{{ e.applicationLevel }}</span>
+        <div class="level-chip">Application {{ e.applicationLevel }}</div>
       }
     </div>
   </div>
