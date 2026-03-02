@@ -66,6 +66,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - Prefer type inference.
 - DO NOT USE `any` types; use appropriate types from. Use `unknown` where appropriate.
 - Prefer taking arguments that are existing object types rather than making special inline types for parts of an object. Types should capture the key conceptual components, and we should take these as arguments.
+- Don't use explicit boolean === value checks. Just use the boolean value directly. e.g. don't use `if (isNew === true)` use `if (isNew)`.
 
 ### Angular
 
@@ -129,3 +130,12 @@ The current Firebase project ID can be found in the file: `src/environments/envi
   - To run a specific firebase function test: `pnpm exec ts-node --project functions/tsconfig.json functions/src/tests/<function-test-file>.ts`
 - Requirement: All new items should have a `.spec.ts` file with meaningful unit tests.
 - Mocks: In tests, for mocks, we should treat them as the type they intend to mock. Only when we initialise them, we may use the `as never as TypeName` pattern if we cannot directly specify the `TypeName`. Do not use `any`.
+
+---
+
+## 8. Comments
+
+- Comments should be provided for all aspects of a functions specification that are not obvious from types. e.g. if a function returns a string, the comment should explain what the string represents.
+- All comments should be in **English**.
+- Don't use /** ... */ style comments. Use // for function and inline comments. Use /* ... */ for multi-line comments. 
+- The header of every file should have a /* ... */ comment describing the file and its purpose, and key aspects of how to use it. If the file is a script, the header comment should also include instructions on how to run it, with an example command line.

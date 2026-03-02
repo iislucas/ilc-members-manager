@@ -445,6 +445,7 @@ export type SquareSpaceOrder = BaseOrder & {
     state?: string;
     postalCode?: string;
     country?: string;
+    countryCode?: string;
   };
   // This is the squarespace fullfillment status.
   fulfillmentStatus: 'FULFILLED' | 'PENDING' | 'CANCELED';

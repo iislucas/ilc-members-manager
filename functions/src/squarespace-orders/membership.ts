@@ -1,0 +1,212 @@
+/*
+Annual Membership Renewal Processing (SKU: MEM-YEAR-*)
+
+Handles parsing membership renewal info, processing renewals for
+existing members, and registering brand-new members.
+*/
+
+import * as admin from 'firebase-admin';
+import * as logger from 'firebase-functions/logger';
+import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { resolveCountryCode } from '../country-codes';
+import { assignNextMemberId } from '../counters';
+import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration } from './common';
+
+export interface MembershipRenewalInfo {
+  member: MembershipPurchaseInfo;
+  renewalDate: string; // YYYY-MM-DD, from order createdOn
+  expirationDate: string; // YYYY-MM-DD, renewalDate + 1 year
+}
+
+// Parse membership renewal info from a line item's customization fields.
+// This is a pure function (no side effects) for easy testing.
+export function parseMembershipRenewalInfo(
+  orderData: SquareSpaceOrder,
+  lineItem: SquareSpaceLineItem
+): MembershipRenewalInfo {
+  const customizations: SquareSpaceCustomization[] = lineItem.customizations || [];
+
+  const member = parseMembershipPurchaseInfo(customizations, orderData, '');
+
+  // Compute renewal and expiration dates from order creation date.
+  // Memberships are annual; expiration is exactly 1 year from the renewal date.
+  const renewalDate = orderData.createdOn
+    ? orderData.createdOn.substring(0, 10)
+    : new Date().toISOString().substring(0, 10);
+
+  const renewalDateObj = new Date(renewalDate + 'T00:00:00Z');
+  renewalDateObj.setUTCFullYear(renewalDateObj.getUTCFullYear() + 1);
+  const expirationDate = renewalDateObj.toISOString().substring(0, 10);
+
+  return {
+    member,
+    renewalDate,
+    expirationDate,
+  };
+}
+
+// Process a membership renewal line item: find the member, validate,
+// update lastRenewalDate and currentMembershipExpires.
+// Returns an error string, or null if successful.
+export async function processMembershipRenewal(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  lineItem: SquareSpaceLineItem,
+  db: admin.firestore.Firestore
+): Promise<string | null> {
+  const info = parseMembershipRenewalInfo(orderData, lineItem);
+
+  if (info.member.isNewMember) {
+    return await processNewMemberRegistration(orderData, orderId, info, db);
+  }
+
+  if (!info.member.memberId) {
+    const issue = `[Membership] Order ${orderId} is missing a Member ID in the form response. `
+      + `Cannot process renewal without a Member ID.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  // Look up the member by memberId
+  logger.info(`[Membership] Looking for member with ID: ${info.member.memberId} for order ${orderId}`);
+  const memberQuery = await db.collection('members')
+    .where('memberId', '==', info.member.memberId)
+    .limit(1)
+    .get();
+
+  // TODO: set limit to 2 and add a check for multiple members, fail is we find multiple members.
+
+  if (memberQuery.empty) {
+    const issue = `[Membership] Member ID ${info.member.memberId} not found in database for order ${orderId}.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  const memberDocRef = memberQuery.docs[0].ref;
+  const memberData = memberQuery.docs[0].data() as Partial<Member>;
+
+  // Validate that the member matches the order details
+  const validationIssues: string[] = [];
+
+  if (info.member.email) {
+    const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
+    const providedEmailLower = info.member.email.toLowerCase();
+    if (!memberEmails.includes(providedEmailLower)) {
+      validationIssues.push(
+        `Email mismatch: order provided "${info.member.email}" but member ${info.member.memberId} has emails [${memberData.emails?.join(', ')}]`
+      );
+    }
+  }
+
+  if (info.member.name) {
+    const memberNameLower = (memberData.name || '').toLowerCase().trim();
+    const providedNameLower = info.member.name.toLowerCase().trim();
+    if (memberNameLower !== providedNameLower) {
+      validationIssues.push(
+        `Name mismatch: order provided "${info.member.name}" but member ${info.member.memberId} has name "${memberData.name}"`
+      );
+    }
+  }
+
+  if (validationIssues.length > 0) {
+    const issue = `[Membership] Order ${orderId} validation issues for member ${info.member.memberId}: `
+      + validationIssues.join('; ');
+    logger.warn(issue);
+    return issue;
+  }
+
+  // Compute the actual renewal and expiration dates considering the
+  // member's current expiration (so early renewals extend from expiry).
+  const { renewalDate, expirationDate } = computeRenewalAndExpiration(
+    memberData.currentMembershipExpires || '',
+    info.renewalDate
+  );
+
+  // Check if the member's current expiration is already beyond the new one
+  // (would indicate a duplicate / already processed renewal)
+  if (memberData.currentMembershipExpires && memberData.currentMembershipExpires >= expirationDate) {
+    const issue = `[Membership] Member ${info.member.memberId} already has membership expiring on `
+      + `${memberData.currentMembershipExpires}, which is at or after the new expiration ${expirationDate}. `
+      + `This may be a duplicate renewal. No update made.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  // Update the member's renewal date and expiration
+  logger.info(`[Membership] Updating member ${info.member.memberId} (doc ${memberDocRef.id}): `
+    + `lastRenewalDate=${renewalDate}, currentMembershipExpires=${expirationDate}`);
+
+  await memberDocRef.update({
+    lastRenewalDate: renewalDate,
+    currentMembershipExpires: expirationDate,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return null;
+}
+
+// Create a new member document when a membership order is for a new member.
+// Uses initMember() as the base and populates fields from the order form.
+// Auto-assigns a member ID based on the country code.
+// Returns an error string, or null if successful.
+async function processNewMemberRegistration(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  info: MembershipRenewalInfo,
+  db: admin.firestore.Firestore
+): Promise<string | null> {
+  const pInfo = info.member;
+
+  if (!pInfo.name) {
+    const issue = `[Membership] Order ${orderId} is for a new member but name is missing. Cannot register.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  if (!pInfo.country) {
+    const issue = `[Membership] Order ${orderId} is for a new member but country is missing. Cannot register.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  const countryCode = resolveCountryCode(pInfo.country);
+  if (!countryCode) {
+    const issue = `[Membership] Order ${orderId} is for a new member but country "${pInfo.country}" could not be resolved to a country code. Please register manually.`;
+    logger.warn(issue);
+    return issue;
+  }
+
+  let newMemberId: string;
+  try {
+    newMemberId = await assignNextMemberId(countryCode, db);
+  } catch (e) {
+    const issue = `[Membership] Failed to assign ID for new member in country ${countryCode} for order ${orderId}: ${e}`;
+    logger.error(issue);
+    return issue;
+  }
+
+  const newMember: Member = {
+    ...initMember(),
+    memberId: newMemberId,
+    name: pInfo.name,
+    country: pInfo.country,
+    emails: pInfo.email ? [pInfo.email] : [],
+    dateOfBirth: pInfo.dateOfBirth,
+    membershipType: MembershipType.Annual,
+    firstMembershipStarted: info.renewalDate,
+    lastRenewalDate: info.renewalDate,
+    currentMembershipExpires: info.expirationDate,
+  };
+
+  const docRef = db.collection('members').doc();
+  newMember.docId = docRef.id;
+
+  logger.info(`[Membership] Creating new member ${newMemberId} (doc ${docRef.id}) for order ${orderId}: name=${pInfo.name}`);
+
+  await docRef.set({
+    ...newMember,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return null;
+}

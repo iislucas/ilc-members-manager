@@ -98,10 +98,8 @@ All components must be **Standalone**.
   standalone: true, // Default in v19+
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgOptimizedImage],
-  template: `
-    <h2>{{ name() }}</h2>
-    <p>Status: {{ status() }}</p>
-  `,
+  templateUrl: './user.component.html',
+  styleUrl: './user.component.scss',
 })
 export class UserComponent {
   // Inputs
@@ -113,6 +111,31 @@ export class UserComponent {
 
   // Host Bindings
   // Use 'host' property in component metadata
+}
+```
+
+### Templates and Styles
+
+Templates should **always** be in a separate file (e.g., `component.html`), as should SCSS styles (`component.scss`). Avoid inline templates or styles unless the component is completely trivial.
+
+### Declarative Checks in Templates
+
+Avoid rewriting the same signal many times with optional chaining and checks. Instead, sensibly bind the signal's value using `@let`.
+
+**❌ Bad:**
+```html
+@if (order().billingAddress) {
+  <div class="small">{{ order().billingAddress?.phone }}</div>
+  <div class="small">{{ order().billingAddress?.email }}</div>
+}
+```
+
+**✅ Good:**
+```html
+@let billingAddress = order().billingAddress;
+@if (billingAddress) {
+    <div class="small">{{ billingAddress.phone }}</div>
+    <div class="small">{{ billingAddress.email }}</div>
 }
 ```
 

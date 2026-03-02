@@ -1,12 +1,31 @@
 <div class="fields-grid ss-grid">
   <div class="field">
-    <label>Customer</label>
+    <label>Purchaser Details</label>
     <div class="value">
-      <div>
-        {{ order().billingAddress?.firstName }}
-        {{ order().billingAddress?.lastName }}
-      </div>
-      <div class="small">{{ order().customerEmail }}</div>
+      @let billingAddr = order().billingAddress;
+      @if (billingAddr) {
+        <div class="bold">
+          {{ billingAddr.firstName }}
+          {{ billingAddr.lastName }}
+        </div>
+        <div>{{ order().customerEmail }}</div>
+        @if (billingAddr.phone) {
+          <div class="small">{{ billingAddr.phone }}</div>
+        }
+        @if (billingAddr.address1 || billingAddr.address2 || billingAddr.city || billingAddr.country || billingAddr.countryCode) {
+          <div class="small" style="margin-top: 0.5rem; color: #555;">
+            @if (billingAddr.address1) { <div>{{ billingAddr.address1 }}</div> }
+            @if (billingAddr.address2) { <div>{{ billingAddr.address2 }}</div> }
+            <div>
+              {{ billingAddr.city }}{{ billingAddr.city && billingAddr.state ? ', ' : '' }}{{ billingAddr.state }}
+              {{ billingAddr.postalCode }}
+            </div>
+            <div>{{ billingAddr.country || billingAddr.countryCode }}</div>
+          </div>
+        }
+      } @else {
+        <div>{{ order().customerEmail }}</div>
+      }
     </div>
   </div>
   <div class="field">
@@ -23,7 +42,11 @@
             <strong>{{ item.quantity }}x {{ item.productName }}</strong>
             <span class="price">${{ item.unitPricePaid.value }}</span>
           </div>
+          <div class="sku-label text-sm text-gray-500" style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #666;">
+            SKU: {{ item.sku }}
+          </div>
           @if (item.customizations && item.customizations.length > 0) {
+            <div class="form-info-label" style="font-weight: 600; font-size: 0.9rem; margin-top: 1rem; color: #444;">Form Information</div>
             <table class="customizations-table">
               <tbody>
                 @for (custom of item.customizations; track custom.label) {
