@@ -134,7 +134,7 @@
                   <div>{{ order['paidFor'] }}</div>
                   <div class="small-text">{{ order['orderType'] }}</div>
                   @if (order['notes']) {
-                    <div class="small-text"><i style="opacity: 0.7">{{ order['notes'] }}</i></div>
+                    <div class="small-text notes-truncated" [title]="order['notes']"><i style="opacity: 0.7">{{ order['notes'] }}</i></div>
                   }
                 }
               </td>
