@@ -3,19 +3,13 @@
 }
 
 .member-view-actions {
-  margin-bottom: 2rem;
-
+  margin-bottom: 1rem;
+  
   .back-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
-    padding: 0.5rem 0.75rem;
-    margin-left: -0.75rem;
-
-    span {
-      display: inline-block;
-      margin-top: 2px;
-    }
+    padding: 0.5rem 0.5rem;
   }
 }

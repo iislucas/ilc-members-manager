@@ -6,11 +6,15 @@
     [isDirty]="isDirty()"
   ></app-member-row-header>
 
+  @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
+    <div class="nav-buttons">
+      <a class="subtle-button" href="#/instructor/{{ e.instructorId }}/students" (click)="gotoStudents(); $event.preventDefault()">
+        <app-icon name="salut" /> Students</a>
+    </div>
+  }
+
   <form (submit)="saveMember($event)">
     <div class="form-section">
-      @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
-        <p class="members-link" (click)="gotoStudents()">View Students</p>
-      }
       <h3>Contact</h3>
       <label for="name">Name</label>
       <div class="rhs">

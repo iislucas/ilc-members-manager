@@ -74,6 +74,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - Implement lazy loading for feature routes.
 - Put host bindings inside the `host` object of the decorator.
 - Use `NgOptimizedImage` for static images.
+- We use a custom router for handling URLs (see `src/app/routing.service.ts`), which is configured by `src/app/app.config.ts`.
 
 #### Avoid
 
