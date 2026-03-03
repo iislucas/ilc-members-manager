@@ -63,10 +63,19 @@
           </div>
         }
 
-        @if (isDupEmail()) {
-          <div class="error-message">
-            One of these emails is already in use by another member.
-          </div>
+        @if (duplicateMembersForEmail(); as dupEmailMembers) {
+          @if (dupEmailMembers.length > 0) {
+            <div class="warning-message">
+              ⚠ One of these emails is also used by:
+              @if (userIsAdmin()) {
+                @for (dup of dupEmailMembers; track dup.docId; let last = $last) {
+                  <a class="inline-link-button" href="#/members/{{ dup.docId }}">{{ dup.name }} ({{ dup.memberId }})</a>@if (!last) {,}
+                }
+              } @else {
+                another member.
+              }
+            </div>
+          }
         } @else if (emailErrors.length > 0 && emailErrors[0]; as error) {
           <div class="error-message">{{ error.message }}</div>
         }
@@ -283,6 +292,9 @@
             <option [value]="type">{{ type }}</option>
           }
         </select>
+        @if (membershipAgeCategory(); as ageCategory) {
+          <span class="note">({{ ageCategory }})</span>
+        }
       </div>
 
       <label for="firstMembershipStarted">First Membership</label>
@@ -627,16 +639,16 @@
           @if (isDirty()) {
             <button
               type="submit"
-              [disabled]="isDupEmail() || isDupMemberId() || form().invalid()"
+              [disabled]="isDupMemberId() || form().invalid()"
             >
               Save
             </button>
           }
           <button type="button" (click)="cancel($event)">
             @if (isDirty()) {
-              Cancel
+              Undo changes
             } @else {
-              Close
+              Close and go back
             }
           </button>
         }

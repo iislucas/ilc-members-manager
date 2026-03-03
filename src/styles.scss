@@ -306,6 +306,12 @@ textarea:disabled {
   &.expired-old {
     background-color: #EEEEEE;
   }
+
+  &.status-issue {
+    background-color: #fff3cd;
+    border-color: #d4a843;
+    color: #856404;
+  }
 }
 
 .missing-identifier-chip {

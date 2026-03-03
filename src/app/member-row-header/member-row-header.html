@@ -19,26 +19,33 @@
         <span>*</span>
       }
     </div>
-    @if (isMemberLicenseExpired()) {
+    @if (isMemberLicenseExpired() !== ExpiryStatus.Valid) {
       <span
         class="identifier-chip"
-        [class.expired-recent]="isMemberLicenseExpired() === 'recent'"
-        [class.expired-old]="isMemberLicenseExpired() === 'expired'"
+        [class.expired-recent]="isMemberLicenseExpired() === ExpiryStatus.Recent"
+        [class.expired-old]="isMemberLicenseExpired() === ExpiryStatus.Expired"
+        [class.status-issue]="isMemberLicenseExpired() === ExpiryStatus.Issue"
       >
-        @if (isMemberLicenseExpired() === "recent") {
-          recently expired membership
-        } @else {
-          membership expired
+        @switch (isMemberLicenseExpired()) {
+          @case (ExpiryStatus.Recent) {
+            recently expired membership
+          }
+          @case (ExpiryStatus.Issue) {
+            ⚠ membership issue
+          }
+          @default {
+            membership expired
+          }
         }
       </span>
     }
-    @if (isInstructorLicenseExpired()) {
+    @if (isInstructorLicenseExpired() !== ExpiryStatus.Valid) {
       <span
         class="identifier-chip"
-        [class.expired-recent]="isInstructorLicenseExpired() === 'recent'"
-        [class.expired-old]="isInstructorLicenseExpired() === 'expired'"
+        [class.expired-recent]="isInstructorLicenseExpired() === ExpiryStatus.Recent"
+        [class.expired-old]="isInstructorLicenseExpired() === ExpiryStatus.Expired"
       >
-        @if (isInstructorLicenseExpired() === "recent") {
+        @if (isInstructorLicenseExpired() === ExpiryStatus.Recent) {
           recently expired instructor license
         } @else {
           instructor license expired

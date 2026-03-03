@@ -107,10 +107,23 @@ export type Counters = {
 export enum MembershipType {
   Annual = 'Annual',
   Life = 'Life',
-  Senior = 'Senior',
-  Under21 = 'Under21',
   Deceased = 'Deceased',
   Inactive = 'Inactive',
+}
+
+/** Status of a membership or license expiry. */
+export enum ExpiryStatus {
+  Valid = 'valid',
+  Recent = 'recent',
+  Expired = 'expired',
+  Issue = 'issue',
+}
+
+/** Age-based membership category, inferred from date of birth. */
+export enum AgeCategory {
+  None = '',
+  Under21 = 'Under 21',
+  Senior = 'Senior',
 }
 
 export enum StudentLevel {

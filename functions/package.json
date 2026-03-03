@@ -18,6 +18,7 @@
     "reprocess-order": "ts-node scripts/reprocess-order.ts",
     "check-timestamps": "ts-node scripts/check-timestamps.ts",
     "update-life-members": "ts-node scripts/update-life-members.ts",
+    "grant-video-library-access": "ts-node scripts/grant-video-library-access.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

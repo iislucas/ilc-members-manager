@@ -19,6 +19,7 @@ import {
   School,
   InstructorPublicData,
   InstructorLicenseType,
+  AgeCategory,
   initMember,
 } from '../../../functions/src/data-model';
 import {
@@ -62,13 +63,13 @@ import { MemberRowHeaderComponent } from '../member-row-header/member-row-header
   styleUrl: './member-details.scss',
 })
 export class MemberDetailsComponent {
-  private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public membersService = inject(DataManagerService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   // all values from the member service, used for dup-checking...
   // Maybe we can use membersService.members? and not need this...?
   allMembers = input.required<Member[]>();
+  close = output();
 
   // Constants
   AssignKind = AssignKind;
@@ -175,8 +176,6 @@ export class MemberDetailsComponent {
   // Get an editable version of the member for save (it's the same as the model).
   editableMember = computed<Member>(() => this.memberFormModel());
 
-  close = output();
-
   // --- Date-mismatch warnings (informational, do not block save) ---
 
   /** Warn when annual membership expiration doesn't match lastRenewalDate + 1 year. */
@@ -208,6 +207,23 @@ export class MemberDetailsComponent {
 
   showInstructorNotes = signal(false);
   showSchoolNotes = signal(false);
+
+  /** Infer membership age category from date of birth. */
+  membershipAgeCategory = computed((): AgeCategory => {
+    const dob = this.editableMember().dateOfBirth;
+    if (!dob) return AgeCategory.None;
+    const birthDate = new Date(dob + 'T00:00:00Z');
+    if (isNaN(birthDate.getTime())) return AgeCategory.None;
+    const today = new Date();
+    let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
+    const monthDiff = today.getUTCMonth() - birthDate.getUTCMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < birthDate.getUTCDate())) {
+      age--;
+    }
+    if (age < 21) return AgeCategory.Under21;
+    if (age >= 65) return AgeCategory.Senior;
+    return AgeCategory.None;
+  });
 
   // Check if emails have actually changed from the original
   emailsChanged = computed(() => {
@@ -474,27 +490,35 @@ export class MemberDetailsComponent {
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
-    this.form().reset();
+    // If dirty, we show "undo changes"
+    if (this.isDirty()) {
     // Reset the form model to a fresh clone of the original member
     // This will trigger the effect to sync all fields including emails and autocomplete values
-    this.memberFormModel.set(structuredClone(this.member()));
-    this.instructorIdAssignment.set(this.initInstructorIdAssignment());
-    this.memberIdAssignment.set(this.initMemberIdAssignment());
-    this.close.emit();
+      this.form().reset();
+      this.memberFormModel.set(structuredClone(this.member()));
+      this.instructorIdAssignment.set(this.initInstructorIdAssignment());
+      this.memberIdAssignment.set(this.initMemberIdAssignment());
+    } else {
+      // if not dirty, we show "close"
+      this.close.emit();
+    }
   }
 
-  isDupEmail = computed(() => {
+  duplicateMembersForEmail = computed(() => {
     const member = this.editableMember();
     if (!this.allMembers || !member) {
-      return false;
+      return [];
     }
     const currentEmails = (member.emails || []).map((e) => e.toLowerCase());
-    return this.allMembers().some((m) => {
+    if (currentEmails.length === 0) return [];
+    return this.allMembers().filter((m) => {
       if (m.docId === member.docId) return false;
       const otherEmails = (m.emails || []).map((e) => e.toLowerCase());
       return currentEmails.some((e) => otherEmails.includes(e));
     });
   });
+
+  isDupEmail = computed(() => this.duplicateMembersForEmail().length > 0);
 
   duplicateMembersForMemberId = computed(() => {
     const member = this.editableMember();
@@ -631,6 +655,7 @@ export class MemberDetailsComponent {
       if (member.docId) {
         try {
           await this.membersService.deleteMember(member.docId);
+          this.close.emit();
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);
@@ -659,9 +684,7 @@ export class MemberDetailsComponent {
   errorMessage = computed(() => {
     const errors: string[] = [];
     const member = this.editableMember();
-    if (this.isDupEmail()) {
-      errors.push('This email address is already in use.');
-    }
+    // Duplicate email is now a warning, not an error (does not block save).
     // Removed email requirement
     if (this.isDupMemberId()) {
       errors.push('This member ID is already in use.');

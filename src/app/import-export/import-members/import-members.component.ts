@@ -621,11 +621,11 @@ export class ImportMembersComponent {
     if (normalized.includes('life'))
       return { success: true, value: MembershipType.Life };
     if (normalized.includes('senior'))
-      return { success: true, value: MembershipType.Senior };
+      return { success: true, value: MembershipType.Annual };
     if (normalized.includes('student') || normalized.includes('under21'))
-      return { success: true, value: MembershipType.Under21 };
+      return { success: true, value: MembershipType.Annual };
     if (normalized.includes('minor'))
-      return { success: true, value: MembershipType.Under21 };
+      return { success: true, value: MembershipType.Annual };
     if (normalized.includes('inactive'))
       return { success: true, value: MembershipType.Inactive };
     if (normalized.includes('deceased'))

@@ -15,9 +15,9 @@
           <span>*</span>
         }
       </div>
-      @if (isSchoolLicenseExpired()) {
-        <span class="identifier-chip" [class.expired-recent]="isSchoolLicenseExpired() === 'recent'" [class.expired-old]="isSchoolLicenseExpired() === 'expired'">
-          @if (isSchoolLicenseExpired() === 'recent') {
+      @if (isSchoolLicenseExpired() !== ExpiryStatus.Valid) {
+        <span class="identifier-chip" [class.expired-recent]="isSchoolLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isSchoolLicenseExpired() === ExpiryStatus.Expired">
+          @if (isSchoolLicenseExpired() === ExpiryStatus.Recent) {
             recently expired school license
           } @else {
             school license expired
@@ -30,12 +30,12 @@
       @if (owner(); as o) {
         <div class="primary-instructor">
           {{ o.name }}
-          @if (isOwnerLicenseExpired()) {
-            <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === 'recent'" [class.expired-old]="isOwnerLicenseExpired() === 'expired'" style="margin-left: 8px;">
-              @if (isOwnerLicenseExpired() === 'recent') {
-                owner license recently expired
+          @if (isOwnerLicenseExpired() !== ExpiryStatus.Valid) {
+            <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isOwnerLicenseExpired() === ExpiryStatus.Expired" style="margin-left: 8px;">
+              @if (isOwnerLicenseExpired() === ExpiryStatus.Recent) {
+                owner's instructor license recently expired
               } @else {
-                owner license expired
+                owner's instructor license expired
               }
             </span>
           }
@@ -56,8 +56,8 @@
     @if (!collapsed()) {
       <form (submit)="saveSchool($event)">
         <div class="form-section">
-          @if (userIsSchoolManager()) {
-            <p class="members-link" (click)="gotoMembers()">Manage Members</p>
+          @if (userIsAdmin() || userIsSchoolManager()) {
+            <button type="button" class="subtle-button" (click)="gotoMembers()">Manage students</button>
           }
           <h3>School Details</h3>
           <label for="schoolName">School Name</label>

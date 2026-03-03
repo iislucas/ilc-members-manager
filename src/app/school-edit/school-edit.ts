@@ -16,6 +16,7 @@ import {
   Member,
   InstructorPublicData,
   initSchool,
+  ExpiryStatus,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -66,6 +67,7 @@ export class SchoolEditComponent {
 
   // Constants
   AssignKind = AssignKind;
+  ExpiryStatus = ExpiryStatus;
 
   // The signal holding the data model for the form.
   // Uses a signal + effect pattern because linkedSignal always re-derives
@@ -125,14 +127,14 @@ export class SchoolEditComponent {
 
   todayIsoString = signal(new Date().toISOString().split('T')[0]);
 
-  isSchoolLicenseExpired = computed(() => {
+  isSchoolLicenseExpired = computed((): ExpiryStatus => {
     const expires = this.school().schoolLicenseExpires;
-    if (!expires || expires >= this.todayIsoString()) return null;
+    if (!expires || expires >= this.todayIsoString()) return ExpiryStatus.Valid;
 
     const expireDate = new Date(expires);
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+    return expireDate >= sixMonthsAgo ? ExpiryStatus.Recent : ExpiryStatus.Expired;
   });
 
   /** Warn when school license expiration doesn't match renewalDate + 1 year. */
@@ -151,16 +153,16 @@ export class SchoolEditComponent {
     return d.toISOString().substring(0, 10);
   }
 
-  isOwnerLicenseExpired = computed(() => {
+  isOwnerLicenseExpired = computed((): ExpiryStatus => {
     const o = this.owner();
-    if (!o) return null;
+    if (!o) return ExpiryStatus.Valid;
     const expires = o.instructorLicenseExpires;
-    if (!expires || o.instructorLicenseType === 'Life' || expires >= this.todayIsoString()) return null;
+    if (!expires || o.instructorLicenseType === 'Life' || expires >= this.todayIsoString()) return ExpiryStatus.Valid;
 
     const expireDate = new Date(expires);
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    return expireDate >= sixMonthsAgo ? 'recent' : 'expired';
+    return expireDate >= sixMonthsAgo ? ExpiryStatus.Recent : ExpiryStatus.Expired;
   });
 
   isSaving = signal(false);
