@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { AuthErrorCodes } from 'firebase/auth';
 import { CommonModule } from '@angular/common';
 import { FooterComponent } from './footer/footer';
 import { IconComponent } from './icons/icon.component';

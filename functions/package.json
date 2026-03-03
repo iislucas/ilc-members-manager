@@ -19,6 +19,7 @@
     "check-timestamps": "ts-node scripts/check-timestamps.ts",
     "update-life-members": "ts-node scripts/update-life-members.ts",
     "grant-video-library-access": "ts-node scripts/grant-video-library-access.ts",
+    "normalize-members-schools": "ts-node scripts/data-migrations/normalize-members-schools.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

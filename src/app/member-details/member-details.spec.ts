@@ -106,7 +106,9 @@ describe('MemberDetailsComponent', () => {
     expect(dataManagerServiceMock.updateMember).toHaveBeenCalledWith(
       mockMember.docId,
       expect.any(Object),
-      mockMember,
+      // Admins skip the diff optimization (oldMember is undefined) so that
+      // all initMember() defaults are written to Firestore.
+      undefined,
     );
   });
 

@@ -217,7 +217,9 @@ describe('SchoolEditComponent', () => {
           schoolName: 'Updated School',
           schoolAddress: '789 Oak Ave',
         }),
-        expect.anything(),
+        // Admins skip the diff optimization (oldSchool is undefined) so that
+        // all initSchool() defaults are written to Firestore.
+        undefined,
       );
     });
 

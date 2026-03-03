@@ -389,7 +389,12 @@ export class SchoolEditComponent {
         if (origId && school.schoolId && origId !== school.schoolId && school.docId) {
           await this.membersService.clearSchoolMembers(school.docId);
         }
-        await this.membersService.setSchool(school, this.school());
+        // For admins, skip the diff optimization (don't pass oldSchool) so that
+        // all initSchool() defaults get written to Firestore, backfilling any
+        // missing fields. Non-admins (school managers) need the diff to stay
+        // within the Firestore rules' affectedKeys().hasOnly(...) constraint.
+        const oldSchoolForDiff = this.userIsAdmin() ? undefined : this.school();
+        await this.membersService.setSchool(school, oldSchoolForDiff);
       }
 
       this.form().reset();

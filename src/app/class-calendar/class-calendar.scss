@@ -1,3 +1,21 @@
+.calendar-actions {
+  margin-bottom: 0.5rem;
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    margin-left: -0.75rem;
+
+    span {
+      display: inline-block;
+      margin-top: 2px;
+    }
+  }
+}
+
 .calendar-container {
   position: relative;
   padding: 20px;

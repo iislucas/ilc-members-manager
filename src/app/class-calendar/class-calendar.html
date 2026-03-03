@@ -1,3 +1,10 @@
+@if (backLabel()) {
+  <div class="calendar-actions">
+    <button class="back-link subtle-button" (click)="goBack()">
+      <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+    </button>
+  </div>
+}
 <div class="calendar-container">
   <div class="calendar-header">
     <div class="date-picker-container">

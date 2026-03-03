@@ -618,7 +618,12 @@ export class MemberDetailsComponent {
             }
           }
           try {
-            await this.membersService.updateMember(member.docId, member, this.member());
+            // For admins, skip the diff optimization (don't pass oldMember) so that
+            // all initMember() defaults get written to Firestore, backfilling any
+            // missing fields. Non-admins need the diff to stay within the Firestore
+            // rules' affectedKeys().hasOnly(...) constraint.
+            const oldMemberForDiff = this.userIsAdmin() ? undefined : this.member();
+            await this.membersService.updateMember(member.docId, member, oldMemberForDiff);
           } catch (e) {
             console.error('Error updating member document:', e);
             throw new Error(`Failed to save updated member details: ${(e as Error).message}`);

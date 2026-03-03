@@ -61,12 +61,16 @@
             <app-class-calendar
               [calendarId]="instructorCalendarId()"
               [calendarOwnerName]="instructorCalendarOwnerName()"
+              backLabel="Find an Instructor"
+              backUrl="find-an-instructor"
             ></app-class-calendar>
           }
           @case (Views.SchoolCalendarView) {
             <app-class-calendar
               [calendarId]="schoolCalendarId()"
               [calendarOwnerName]="schoolCalendarOwnerName()"
+              backLabel="Find a School"
+              backUrl="find-school"
             ></app-class-calendar>
           }
           @case (Views.MyStudents) {
@@ -188,25 +192,19 @@
             <app-find-school></app-find-school>
           }
           @case (Views.ClassCalendarView) {
-            <div class="public-action-bar">
-              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
-                <app-icon name="arrow_back"></app-icon> Back to Login
-              </button>
-            </div>
             <app-class-calendar
               [calendarId]="instructorCalendarId()"
               [calendarOwnerName]="instructorCalendarOwnerName()"
+              backLabel="Find an Instructor"
+              backUrl="find-an-instructor"
             ></app-class-calendar>
           }
           @case (Views.SchoolCalendarView) {
-            <div class="public-action-bar">
-              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
-                <app-icon name="arrow_back"></app-icon> Back to Login
-              </button>
-            </div>
             <app-class-calendar
               [calendarId]="schoolCalendarId()"
               [calendarOwnerName]="schoolCalendarOwnerName()"
+              backLabel="Find a School"
+              backUrl="find-school"
             ></app-class-calendar>
           }
           @default {
@@ -225,9 +223,9 @@
                 <button (click)="routingService.navigateToParts(['find-an-instructor'])">
                   Find an Instructor
                 </button>
-                <button (click)="routingService.navigateToParts(['find-school'])">
+                <!-- <button (click)="routingService.navigateToParts(['find-school'])">
                   Find a School
-                </button>
+                </button> -->
               </div>
             }
 

@@ -13,6 +13,7 @@ import { IconComponent } from '../icons/icon.component';
 import {
   GoogleCalendarEventItem,
 } from '../../../functions/src/calendar.types';
+import { RoutingService } from '../routing.service';
 
 /**
  * Represents the state of calendar entries, which can be loading,
@@ -33,12 +34,19 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 })
 export class ClassCalendarComponent {
   private calendarService = inject(ClassCalendarService);
+  private routingService = inject(RoutingService);
 
   /** The Google Calendar ID to display. */
   calendarId = input.required<string>();
 
   /** The name of the calendar owner (instructor or school) for display. */
   calendarOwnerName = input<string>('');
+
+  /** Label for the back button, e.g. "Find an Instructor". If empty, no back button is shown. */
+  backLabel = input<string>('');
+
+  /** URL path to navigate to when the back button is clicked. */
+  backUrl = input<string>('');
 
   // The "card" styling from app.scss is used for the selected day's entries
   // in the forthcoming classes list.
@@ -141,5 +149,12 @@ export class ClassCalendarComponent {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       location
     )}`;
+  }
+
+  goBack() {
+    const url = this.backUrl();
+    if (url) {
+      this.routingService.navigateToParts([url]);
+    }
   }
 }
