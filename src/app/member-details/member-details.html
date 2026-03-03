@@ -184,7 +184,7 @@
           @if (e.primaryInstructorId === "") {
             <div class="note">No primary instructor set</div>
           } @else if (
-            membersService.instructors.entriesMap().get(e.primaryInstructorId);
+            membersService.instructors.get(e.primaryInstructorId);
             as sifuData
           ) {
             <div class="note">{{ sifuData.name }}</div>
@@ -235,7 +235,7 @@
           @if (e.primarySchoolId.trim() === "") {
             <div class="note">Primary School is ILC HQ</div>
           } @else if (
-            membersService.schools.entriesMap().get(e.primarySchoolId);
+            membersService.schools.get(e.primarySchoolId);
             as schoolData
           ) {
             <div class="note">{{ schoolData.schoolName }}</div>

@@ -30,10 +30,17 @@
         </div>
         }
 
-        @if (dataManager.instructors.entriesMap().get(school.ownerInstructorId); as owner) {
+        @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
         <div class="detail-row">
           <app-icon name="person"></app-icon>
           <span>School Owner: {{ owner.name }}</span>
+        </div>
+        }
+
+        @if (school.schoolClassGoogleCalendarId) {
+        <div class="detail-row">
+          <app-icon name="calendar_today"></app-icon>
+          <a [href]="'#/calendar/school/' + school.schoolId">Class Calendar</a>
         </div>
         }
       </div>

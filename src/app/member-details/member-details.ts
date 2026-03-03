@@ -434,7 +434,7 @@ export class MemberDetailsComponent {
     this.form.primarySchoolId().value.set(value);
     this.form.primarySchoolId().markAsDirty();
 
-    const school = this.membersService.schools.entriesMap().get(value);
+    const school = this.membersService.schools.get(value);
     const docId = school ? school.docId : '';
     this.form.primarySchoolDocId().value.set(docId);
     this.form.primarySchoolDocId().markAsDirty();

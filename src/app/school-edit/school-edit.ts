@@ -113,6 +113,10 @@ export class SchoolEditComponent {
       schema.schoolWebsite,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),
     );
+    disabled(
+      schema.schoolClassGoogleCalendarId,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
     disabled(schema.ownerInstructorId, () => !this.userIsAdmin());
     disabled(
       schema.managerInstructorIds,
@@ -219,14 +223,14 @@ export class SchoolEditComponent {
 
   owner = computed(() => {
     const ownerMemId = this.editableSchool().ownerInstructorId;
-    const owner = this.membersService.instructors.entriesMap().get(ownerMemId);
+    const owner = this.membersService.instructors.get(ownerMemId);
     return owner || null;
   });
   managers = computed(() => {
     const managerMemIds = this.editableSchool().managerInstructorIds;
     return managerMemIds.map(
       (memberDocId) =>
-        this.membersService.instructors.entriesMap().get(memberDocId) || null,
+        this.membersService.instructors.get(memberDocId) || null,
     );
   });
 

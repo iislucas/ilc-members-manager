@@ -35,9 +35,11 @@ export class NavigationMenuComponent {
       case Views.ManageSchools: return 'Manage Schools';
       case Views.FindSchool: return 'Find a School';
       case Views.ClassCalendarView:
-        const calId = this.routingService.signals[Views.ClassCalendarView].urlParams.instructorId();
-        const calInst = calId ? this.findInstructorsService.instructors.entriesMap().get(calId) : undefined;
+        const calId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
+        const calInst = calId ? this.findInstructorsService.instructors.get(calId) : undefined;
         return calInst ? `${calInst.name} (${calId})'s Class Calendar` : 'Class Calendar';
+      case Views.SchoolCalendarView:
+        return 'School Calendar';
       case Views.SchoolMembers:
         const schoolId = this.routingService.signals[viewId].pathVars.schoolId();
         return `School ${schoolId} Members`;

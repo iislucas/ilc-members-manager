@@ -59,7 +59,14 @@
           }
           @case (Views.ClassCalendarView) {
             <app-class-calendar
-              [instructorId]="routingService.signals[Views.ClassCalendarView].urlParams.instructorId() || ''"
+              [calendarId]="instructorCalendarId()"
+              [calendarOwnerName]="instructorCalendarOwnerName()"
+            ></app-class-calendar>
+          }
+          @case (Views.SchoolCalendarView) {
+            <app-class-calendar
+              [calendarId]="schoolCalendarId()"
+              [calendarOwnerName]="schoolCalendarOwnerName()"
             ></app-class-calendar>
           }
           @case (Views.MyStudents) {
@@ -187,7 +194,19 @@
               </button>
             </div>
             <app-class-calendar
-              [instructorId]="routingService.signals[Views.ClassCalendarView].urlParams.instructorId() || ''"
+              [calendarId]="instructorCalendarId()"
+              [calendarOwnerName]="instructorCalendarOwnerName()"
+            ></app-class-calendar>
+          }
+          @case (Views.SchoolCalendarView) {
+            <div class="public-action-bar">
+              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
+                <app-icon name="arrow_back"></app-icon> Back to Login
+              </button>
+            </div>
+            <app-class-calendar
+              [calendarId]="schoolCalendarId()"
+              [calendarOwnerName]="schoolCalendarOwnerName()"
             ></app-class-calendar>
           }
           @default {

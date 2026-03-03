@@ -113,6 +113,10 @@ export class App {
         } else if (basePath === 'my-students') {
           baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
         }
+      } else if (view === Views.ClassCalendarView) {
+        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
+      } else if (view === Views.SchoolCalendarView) {
+        baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -123,6 +127,38 @@ export class App {
     if (view === Views.MembersArea) return Views.MembersAreaCategory;
     if (view === Views.InstructorsArea) return Views.InstructorsAreaCategory;
     return view;
+  });
+
+  /** Resolved calendar ID for instructor calendar view. */
+  instructorCalendarId = computed(() => {
+    const instructorId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
+    if (!instructorId) return '';
+    const instructor = this.findInstructorsService.instructors.get(instructorId);
+    return instructor?.publicClassGoogleCalendarId || '';
+  });
+
+  /** Resolved instructor name for the calendar view title. */
+  instructorCalendarOwnerName = computed(() => {
+    const instructorId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
+    if (!instructorId) return '';
+    const instructor = this.findInstructorsService.instructors.get(instructorId);
+    return instructor?.name || '';
+  });
+
+  /** Resolved calendar ID for school calendar view. */
+  schoolCalendarId = computed(() => {
+    const schoolId = this.routingService.signals[Views.SchoolCalendarView].pathVars.schoolId();
+    if (!schoolId) return '';
+    const school = this.dataService.schools.get(schoolId);
+    return school?.schoolClassGoogleCalendarId || '';
+  });
+
+  /** Resolved school name for the calendar view title. */
+  schoolCalendarOwnerName = computed(() => {
+    const schoolId = this.routingService.signals[Views.SchoolCalendarView].pathVars.schoolId();
+    if (!schoolId) return '';
+    const school = this.dataService.schools.get(schoolId);
+    return school?.schoolName || '';
   });
   public Views = Views;
   public LoginStatus = LoginStatus;
@@ -180,13 +216,21 @@ export class App {
       case Views.FindSchool:
         return 'Find a School';
       case Views.ClassCalendarView:
-        const calInstructorId = this.routingService.signals[Views.ClassCalendarView].urlParams.instructorId();
+        const calInstructorId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
         const calInstructor = calInstructorId
-          ? this.findInstructorsService.instructors.entriesMap().get(calInstructorId)
+          ? this.findInstructorsService.instructors.get(calInstructorId)
           : undefined;
         return calInstructor
           ? `${calInstructor.name} (${calInstructorId})'s Class Calendar`
           : 'Class Calendar';
+      case Views.SchoolCalendarView:
+        const calSchoolId = this.routingService.signals[Views.SchoolCalendarView].pathVars.schoolId();
+        const calSchool = calSchoolId
+          ? this.dataService.schools.get(calSchoolId)
+          : undefined;
+        return calSchool
+          ? `${calSchool.schoolName}'s Calendar`
+          : 'School Calendar';
       case Views.SchoolMembers:
         const schoolId =
           this.routingService.signals[viewId].pathVars.schoolId();
@@ -239,8 +283,15 @@ export class App {
       case Views.InstructorStudentView:
       case Views.MyStudentView:
         const memberIdToName = (memberId: string) => {
-          const m = this.dataService.members.entries().find(m => m.memberId === memberId || m.docId === memberId);
-          return m ? m.name : 'Unknown Member';
+          let m = this.dataService.members.get(memberId);
+          if (m) {
+            return m.name;
+          }
+          m = this.dataService.members.entries().find(mem => mem.docId === memberId);
+          if (m) {
+            return m.name;
+          }
+          return 'Unknown Member';
         };
         const mId = (this.routingService.signals as any)[viewId].pathVars.memberId();
         return `${mId}: ${memberIdToName(mId)}`;

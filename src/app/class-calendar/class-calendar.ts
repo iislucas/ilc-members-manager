@@ -13,7 +13,6 @@ import { IconComponent } from '../icons/icon.component';
 import {
   GoogleCalendarEventItem,
 } from '../../../functions/src/calendar.types';
-import { FindInstructorsService } from '../find-instructors.service';
 
 /**
  * Represents the state of calendar entries, which can be loading,
@@ -34,26 +33,12 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 })
 export class ClassCalendarComponent {
   private calendarService = inject(ClassCalendarService);
-  private findInstructorsService = inject(FindInstructorsService);
 
-  /** The instructor ID whose public class calendar to display. */
-  instructorId = input.required<string>();
+  /** The Google Calendar ID to display. */
+  calendarId = input.required<string>();
 
-  /** Resolved Google Calendar ID from the instructor's public profile. */
-  calendarId = computed(() => {
-    const id = this.instructorId();
-    if (!id) return '';
-    const instructor = this.findInstructorsService.instructors.entriesMap().get(id);
-    return instructor?.publicClassGoogleCalendarId || '';
-  });
-
-  /** The instructor's name for display. */
-  instructorName = computed(() => {
-    const id = this.instructorId();
-    if (!id) return '';
-    const instructor = this.findInstructorsService.instructors.entriesMap().get(id);
-    return instructor?.name || '';
-  });
+  /** The name of the calendar owner (instructor or school) for display. */
+  calendarOwnerName = input<string>('');
 
   // The "card" styling from app.scss is used for the selected day's entries
   // in the forthcoming classes list.

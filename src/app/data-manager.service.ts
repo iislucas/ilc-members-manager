@@ -621,7 +621,7 @@ export class DataManagerService {
     const docRef = doc(this.db, 'members', id);
     let originalMember = oldMember;
     if (!originalMember) {
-      originalMember = this.members.entriesMap().get(newMember.docId);
+      originalMember = this.members.get(newMember.docId);
     }
 
     // If the member is found in the current list of members, only update the 
@@ -779,9 +779,9 @@ export class DataManagerService {
     const docRef = doc(this.db, 'gradings', id);
     let originalGrading = oldGrading;
     if (!originalGrading) {
-      originalGrading = this.gradings.entriesMap().get(id)
-        ?? this.myGradings.entriesMap().get(id)
-        ?? this.myGradingsAssessed.entriesMap().get(id);
+      originalGrading = this.gradings.get(id)
+        ?? this.myGradings.get(id)
+        ?? this.myGradingsAssessed.get(id);
     }
 
     // Only send changed fields. This is critical for non-admin users (e.g.

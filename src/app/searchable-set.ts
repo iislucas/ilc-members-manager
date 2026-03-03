@@ -103,8 +103,8 @@ export class SearchableSet<
     return map;
   });
 
-  get(id: string): T | null {
-    return this.entriesMap().get(id) || null;
+  get(id: string): T | undefined {
+    return this.entriesMap().get(id);
   }
 
   setEntries(entries: T[]) {
@@ -124,7 +124,7 @@ export class SearchableSet<
         fuzzy: 0.2,
         prefix: true,
       });
-      entries = results.map((result) => this.entriesMap().get(result.id)!);
+      entries = results.map((result) => this.get(result.id)!);
     }
     return entries;
   }

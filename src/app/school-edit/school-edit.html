@@ -147,6 +147,18 @@
             />
           </div>
 
+          <label for="schoolClassGoogleCalendarId">Calendar ID</label>
+          <div class="rhs">
+            <input
+              class="long"
+              type="text"
+              id="schoolClassGoogleCalendarId"
+              placeholder="e.g. abc123@group.calendar.google.com"
+              [formField]="form.schoolClassGoogleCalendarId"
+            />
+            <span class="note">Google Calendar ID for public class schedule</span>
+          </div>
+
           <h3>License</h3>
           <label for="schoolLicenseRenewalDate">License Renewal</label>
           <div class="rhs">
@@ -184,7 +196,7 @@
             @if (s.ownerInstructorId === "") {
               <div class="error-message">No owner set</div>
             } @else if (
-              membersService.instructors.entriesMap().get(s.ownerInstructorId);
+              membersService.instructors.get(s.ownerInstructorId);
               as ownerData
             ) {
               <div class="note">{{ ownerData.name }}</div>
@@ -222,7 +234,7 @@
                 @if (s.managerInstructorIds[i] === "") {
                   <div class="error-message">No manager set</div>
                 } @else if (
-                  membersService.instructors.entriesMap().get(s.managerInstructorIds[i]);
+                  membersService.instructors.get(s.managerInstructorIds[i]);
                   as managerData
                 ) {
                   <div class="note">

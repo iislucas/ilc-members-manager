@@ -194,6 +194,7 @@ export type School = {
   schoolCountyOrState: string; // County or State
   schoolCountry: string; // Country the School is in
   schoolWebsite: string; // Optional website URL
+  schoolClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
 
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
@@ -573,6 +574,7 @@ export function initSchool(): School {
     schoolCountyOrState: '',
     schoolCountry: '',
     schoolWebsite: '',
+    schoolClassGoogleCalendarId: '',
     ownerInstructorId: '',
     managerInstructorIds: [],
     ownerEmails: [],

@@ -336,7 +336,7 @@ export class ImportMembersComponent {
         issues,
       });
     } else {
-      const existing = this.membersService.members.entriesMap().get(memberId);
+      const existing = this.membersService.members.get(memberId);
       if (existing) {
         const newMember = { ...existing, ...member } as Member;
 
