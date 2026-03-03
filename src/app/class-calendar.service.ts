@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { environment } from '../environments/environment';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FirebaseStateService } from './firebase-state.service';
 import {
@@ -11,35 +10,39 @@ import {
 @Injectable({
   providedIn: 'root',
 })
-export class CalendarService {
+export class ClassCalendarService {
   private firebaseStateService = inject(FirebaseStateService);
   private functions = getFunctions(this.firebaseStateService.app);
-  private calendarId = environment.googleCalendar.calendarId;
 
   /**
-   * Fetches all events from the calendar.
+   * Fetches all events from a calendar.
+   * @param calendarId The Google Calendar ID to fetch events from.
    * @returns A promise of an array of calendar events.
    */
-  getEvents(): Promise<GoogleCalendarEventItem[]> {
-    return this.fetchEvents();
+  getEvents(calendarId: string): Promise<GoogleCalendarEventItem[]> {
+    return this.fetchEvents(calendarId);
   }
 
   /**
    * Fetches the next 5 forthcoming classes.
+   * @param calendarId The Google Calendar ID to fetch events from.
+   * @param date Optional date string to start from.
    * @returns A promise of an array of the next 5 calendar events.
    */
-  getForthcomingClasses(date?: string): Promise<GoogleCalendarEventItem[]> {
+  getForthcomingEvents(calendarId: string, date?: string): Promise<GoogleCalendarEventItem[]> {
     const selectedDate = date ? new Date(date) : new Date();
     const timeMin = selectedDate.toISOString();
-    return this.fetchEvents({ timeMin, maxResults: 5 });
+    return this.fetchEvents(calendarId, { timeMin, maxResults: 5 });
   }
 
   /**
    * Fetches classes from the last 7 days up to today.
    * This method provides a list of past classes for a historical view.
+   * @param calendarId The Google Calendar ID to fetch events from.
+   * @param date Optional date string to search backwards from.
    * @returns A promise of an array of calendar events from the last week.
    */
-  getPreviousClasses(date?: string): Promise<GoogleCalendarEventItem[]> {
+  getPreviousEvents(calendarId: string, date?: string): Promise<GoogleCalendarEventItem[]> {
     const selectedDate = date ? new Date(date) : new Date();
     const timeMax = new Date(selectedDate.getTime()).toISOString();
     const sevenDaysAgo = new Date(
@@ -47,16 +50,18 @@ export class CalendarService {
     );
     const timeMin = sevenDaysAgo.toISOString();
 
-    return this.fetchEvents({ timeMin, timeMax });
+    return this.fetchEvents(calendarId, { timeMin, timeMax });
   }
 
   /**
    * Private helper method to fetch events using the getCalendarEvents Firebase function.
    * This centralizes the logic for making the callable request and handling responses.
+   * @param calendarId The Google Calendar ID.
    * @param options - Optional parameters for the function request.
    * @returns A promise of an array of calendar events.
    */
   private async fetchEvents(
+    calendarId: string,
     options: {
       timeMin?: string;
       timeMax?: string;
@@ -69,7 +74,7 @@ export class CalendarService {
     >(this.functions, 'getCalendarEvents');
 
     const requestData = {
-      calendarId: this.calendarId,
+      calendarId,
       ...options,
     };
 

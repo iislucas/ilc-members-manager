@@ -11,6 +11,7 @@ import { addUrlParams, pathPattern, pv } from './routing.utils';
 import { RoutingConfig } from './routing.service';
 
 export enum Views {
+  ClassCalendarView = 'classCalendarView',
   ClassVideoLibrary = 'classVideoLibrary',
   FindAnInstructor = 'findAnInstructor',
   FindSchool = 'findSchool',
@@ -46,6 +47,7 @@ export enum Views {
 export const initPathPatterns = {
   [Views.Home]: pathPattern``,
   [Views.Login]: pathPattern`login`,
+  [Views.ClassCalendarView]: addUrlParams(pathPattern`instructorId`, ['instructorId']),
   [Views.ImportExport]: pathPattern`import-export`,
   [Views.FindAnInstructor]: addUrlParams(pathPattern`find-an-instructor`, ['instructorId', 'q']),
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId', 'q']),

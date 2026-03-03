@@ -1,23 +1,23 @@
 import {
   Component,
   computed,
+  effect,
   inject,
-  OnInit,
+  input,
   signal,
   WritableSignal,
 } from '@angular/core';
-import { CalendarService } from '../calendar.service';
+import { ClassCalendarService } from '../class-calendar.service';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import {
-  CalendarRequest,
   GoogleCalendarEventItem,
 } from '../../../functions/src/calendar.types';
+import { FindInstructorsService } from '../find-instructors.service';
 
 /**
  * Represents the state of calendar entries, which can be loading,
  * successfully loaded, or in an error state.
- *
  */
 export type CalendarEntriesState =
   | { status: 'loading' }
@@ -27,13 +27,33 @@ export type CalendarEntriesState =
 import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
-  selector: 'app-calendar-view',
+  selector: 'app-class-calendar',
   imports: [CommonModule, IconComponent, SpinnerComponent],
-  templateUrl: './calendar-view.html',
-  styleUrl: './calendar-view.scss',
+  templateUrl: './class-calendar.html',
+  styleUrl: './class-calendar.scss',
 })
-export class CalendarView implements OnInit {
-  private calendarService = inject(CalendarService);
+export class ClassCalendarComponent {
+  private calendarService = inject(ClassCalendarService);
+  private findInstructorsService = inject(FindInstructorsService);
+
+  /** The instructor ID whose public class calendar to display. */
+  instructorId = input.required<string>();
+
+  /** Resolved Google Calendar ID from the instructor's public profile. */
+  calendarId = computed(() => {
+    const id = this.instructorId();
+    if (!id) return '';
+    const instructor = this.findInstructorsService.instructors.entriesMap().get(id);
+    return instructor?.publicClassGoogleCalendarId || '';
+  });
+
+  /** The instructor's name for display. */
+  instructorName = computed(() => {
+    const id = this.instructorId();
+    if (!id) return '';
+    const instructor = this.findInstructorsService.instructors.entriesMap().get(id);
+    return instructor?.name || '';
+  });
 
   // The "card" styling from app.scss is used for the selected day's entries
   // in the forthcoming classes list.
@@ -48,40 +68,43 @@ export class CalendarView implements OnInit {
 
   /**
    * A computed signal to format the selected date for the input[type=date] value.
-   * This implementation is more readable and less prone to timezone conversion
-   * issues by manually constructing the 'yyyy-MM-dd' string.
    */
   selectedDateString = computed(() => {
     const date = this.selectedDate();
     const year = date.getFullYear();
-    // padStart ensures the month and day are always two digits (e.g., 07 for July).
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
 
-  ngOnInit() {
-    this.refreshCalendar(this.selectedDate());
+  constructor() {
+    // Use an effect to react to calendarId changes and refresh the calendar.
+    effect(() => {
+      const cid = this.calendarId();
+      if (cid) {
+        this.refreshCalendar(this.selectedDate());
+      }
+    });
   }
 
   onDateChange(event: Event) {
     const newDateString = (event.target as HTMLInputElement).value;
-    // The input provides a string like '2024-07-06'. We need to parse it as UTC
-    // to avoid timezone issues where it might become the previous day.
     this.selectedDate.set(new Date(newDateString + 'T00:00:00Z'));
     this.refreshCalendar(this.selectedDate());
   }
 
   refreshCalendar(date: Date) {
+    const calendarId = this.calendarId();
+    if (!calendarId) return;
     const dateString = date.toISOString();
 
     this.loadCalendarData(
       this.forthcomingClasses,
-      this.calendarService.getForthcomingClasses(dateString)
+      this.calendarService.getForthcomingEvents(calendarId, dateString)
     );
     this.loadCalendarData(
       this.previousClasses,
-      this.calendarService.getPreviousClasses(dateString)
+      this.calendarService.getPreviousEvents(calendarId, dateString)
     );
   }
 
@@ -110,13 +133,6 @@ export class CalendarView implements OnInit {
     return 'An unknown error occurred.';
   }
 
-  /**
-   * A private helper to determine if two Date objects represent the same calendar day.
-   * This centralizes the logic, improving maintainability and reducing code duplication.
-   * @param d1 The first date.
-   * @param d2 The second date.
-   * @returns True if they are the same day, false otherwise.
-   */
   private _isSameDay(d1: Date, d2: Date): boolean {
     return (
       d1.getFullYear() === d2.getFullYear() &&
@@ -125,8 +141,6 @@ export class CalendarView implements OnInit {
     );
   }
 
-  // TODO: update this to be isNextDayEvent, meaning that from the current
-  // moment in time, this is a class on the next day.
   isEventToday(event: GoogleCalendarEventItem): boolean {
     if (!event.start?.dateTime) {
       return false;

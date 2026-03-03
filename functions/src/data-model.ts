@@ -278,6 +278,7 @@ export type Member = {
   publicRegionOrCity: string; // publicly listed area/city
   publicCountyOrState: string; // publicly listed county or state
   instructorWebsite: string; // Optional website URL
+  publicClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -341,6 +342,7 @@ export type InstructorPublicData = {
   name: string; // Full name
   memberId: string; // ILC Member Id: UNIQUE
   instructorWebsite: string; // Optional website URL
+  publicClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -519,6 +521,7 @@ export function initMember(): Member {
     publicRegionOrCity: '', // publicly listed area/city
     publicCountyOrState: '', // publicly listed county or state
     instructorWebsite: '', // Optional publicly listed website URL
+    publicClassGoogleCalendarId: '', // Optional Google Calendar ID for public class schedule
 
     // Student membership status
     memberId: '',
@@ -664,6 +667,7 @@ export function initInstructor(): InstructorPublicData {
     name: '',
     memberId: '',
     instructorWebsite: '',
+    publicClassGoogleCalendarId: '',
     studentLevel: StudentLevel.None,
     applicationLevel: ApplicationLevel.None,
     mastersLevels: [],

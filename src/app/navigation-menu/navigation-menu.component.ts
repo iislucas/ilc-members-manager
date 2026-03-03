@@ -4,6 +4,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
+import { FindInstructorsService } from '../find-instructors.service';
 
 @Component({
   selector: 'app-navigation-menu',
@@ -15,6 +16,7 @@ import { IconComponent } from '../icons/icon.component';
 export class NavigationMenuComponent {
   public firebaseService = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  public findInstructorsService = inject(FindInstructorsService);
 
   public closeMenu = output<void>();
   public currentView = this.routingService.matchedPatternId;
@@ -32,6 +34,10 @@ export class NavigationMenuComponent {
       case Views.FindAnInstructor: return 'Find an Instructor';
       case Views.ManageSchools: return 'Manage Schools';
       case Views.FindSchool: return 'Find a School';
+      case Views.ClassCalendarView:
+        const calId = this.routingService.signals[Views.ClassCalendarView].urlParams.instructorId();
+        const calInst = calId ? this.findInstructorsService.instructors.entriesMap().get(calId) : undefined;
+        return calInst ? `${calInst.name} (${calId})'s Class Calendar` : 'Class Calendar';
       case Views.SchoolMembers:
         const schoolId = this.routingService.signals[viewId].pathVars.schoolId();
         return `School ${schoolId} Members`;

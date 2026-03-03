@@ -10,7 +10,7 @@ import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
 import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
-import { ProfileMenuComponent } from './profile-menu/profile-menu';
+import { FindInstructorsService } from './find-instructors.service';
 import { SchoolListComponent } from './school-list/school-list';
 import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
@@ -19,6 +19,7 @@ import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberDetailsComponent } from './member-details/member-details';
 import { FindSchoolComponent } from './find-school/find-school';
 import { HomeComponent } from './home/home';
+import { ClassCalendarComponent } from './class-calendar/class-calendar';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 import { SquarespaceArticleComponent } from './squarespace/squarespace-article.component';
 import { GradingListComponent } from './grading-list/grading-list';
@@ -52,6 +53,7 @@ import { StatisticsComponent } from './statistics/statistics';
     MemberDetailsComponent,
     FindSchoolComponent,
     HomeComponent,
+    ClassCalendarComponent,
     SquarespaceContentComponent,
     SquarespaceArticleComponent,
     GradingListComponent,
@@ -73,6 +75,7 @@ export class App {
   protected title = 'ilc-members-manager';
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
+  public findInstructorsService = inject(FindInstructorsService);
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public menuOpen = signal(false);
@@ -176,6 +179,14 @@ export class App {
         return 'Manage Schools';
       case Views.FindSchool:
         return 'Find a School';
+      case Views.ClassCalendarView:
+        const calInstructorId = this.routingService.signals[Views.ClassCalendarView].urlParams.instructorId();
+        const calInstructor = calInstructorId
+          ? this.findInstructorsService.instructors.entriesMap().get(calInstructorId)
+          : undefined;
+        return calInstructor
+          ? `${calInstructor.name} (${calInstructorId})'s Class Calendar`
+          : 'Class Calendar';
       case Views.SchoolMembers:
         const schoolId =
           this.routingService.signals[viewId].pathVars.schoolId();

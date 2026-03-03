@@ -40,7 +40,7 @@ service cloud.firestore {
       allow write: if hasValidEditUpdate() && (isAdmin() || isManagerOfMemberSchool());
       allow update: if hasValidEditUpdate() && isOwner() && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-          ['lastUpdated', 'name', 'instructorWebsite', 'publicRegionOrCity', 'publicCountyOrState',
+          ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
     }

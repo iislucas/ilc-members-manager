@@ -72,6 +72,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
         publicEmail: member.publicEmail,
         publicPhone: member.publicPhone,
         instructorWebsite: member.instructorWebsite,
+        publicClassGoogleCalendarId: member.publicClassGoogleCalendarId || '',
         tags: member.tags || [],
       };
       // For now we copy all data

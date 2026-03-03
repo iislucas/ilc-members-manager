@@ -54,5 +54,11 @@
         <a [href]="'tel:' + i.publicPhone">{{ i.publicPhone }}</a>
       </div>
     }
+    @if (i.publicClassGoogleCalendarId) {
+      <a class="link" [href]="'#/calendar?instructorId=' + i.instructorId">
+        <app-icon name="calendar_today" width="14px" height="14px"></app-icon>
+        Class Calendar
+      </a>
+    }
   </div>
 </div>

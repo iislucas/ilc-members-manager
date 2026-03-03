@@ -144,6 +144,10 @@ export class MemberDetailsComponent {
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(
+      schema.publicClassGoogleCalendarId,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
       schema.publicEmail,
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );

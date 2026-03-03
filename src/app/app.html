@@ -57,6 +57,11 @@
           @case (Views.FindSchool) {
             <app-find-school></app-find-school>
           }
+          @case (Views.ClassCalendarView) {
+            <app-class-calendar
+              [instructorId]="routingService.signals[Views.ClassCalendarView].urlParams.instructorId() || ''"
+            ></app-class-calendar>
+          }
           @case (Views.MyStudents) {
             <app-filtered-members
               [memberSet]="dataService.myStudents"
@@ -167,6 +172,24 @@
             </div>
             <app-find-an-instructor></app-find-an-instructor>
           }
+          @case (Views.FindSchool) {
+            <div class="public-action-bar">
+              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
+                <app-icon name="arrow_back"></app-icon> Back to Login
+              </button>
+            </div>
+            <app-find-school></app-find-school>
+          }
+          @case (Views.ClassCalendarView) {
+            <div class="public-action-bar">
+              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
+                <app-icon name="arrow_back"></app-icon> Back to Login
+              </button>
+            </div>
+            <app-class-calendar
+              [instructorId]="routingService.signals[Views.ClassCalendarView].urlParams.instructorId() || ''"
+            ></app-class-calendar>
+          }
           @default {
             @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
               <div class="app-info">
@@ -182,6 +205,9 @@
               <div class="public-options">
                 <button (click)="routingService.navigateToParts(['find-an-instructor'])">
                   Find an Instructor
+                </button>
+                <button (click)="routingService.navigateToParts(['find-school'])">
+                  Find a School
                 </button>
               </div>
             }

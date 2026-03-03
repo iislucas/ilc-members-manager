@@ -18,7 +18,7 @@ import { Member } from '../../src/data-model';
  *
  * Usage:
  *   GOOGLE_APPLICATION_CREDENTIALS=./path/to/credentials.json \
- *   pnpm exec ts-node functions/scripts/fix-members.ts --project <PROJECT_ID> [--dry-run]
+ *   pnpm exec ts-node functions/scripts/data-migrations/fix-members.ts --project <PROJECT_ID> [--dry-run]
  */
 
 const argv = yargs(hideBin(process.argv))
@@ -112,6 +112,7 @@ async function run() {
       name: member.name,
       memberId: member.memberId,
       instructorWebsite: member.instructorWebsite || '',
+      publicClassGoogleCalendarId: member.publicClassGoogleCalendarId || '',
       studentLevel: member.studentLevel || '',
       applicationLevel: member.applicationLevel || '',
       mastersLevels: member.mastersLevels || [],
