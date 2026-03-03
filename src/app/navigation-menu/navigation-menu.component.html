@@ -84,6 +84,10 @@
         <app-icon name="admin" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.Settings) }}</span>
       </div>
+      <div class="menu-item" (click)="onSelect(Views.Statistics)">
+        <app-icon name="admin" width="24px" height="24px"></app-icon>
+        <span>{{ viewIdToTitle(Views.Statistics) }}</span>
+      </div>
     }
   </div>
 }

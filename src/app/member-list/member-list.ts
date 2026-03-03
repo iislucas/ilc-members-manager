@@ -34,7 +34,7 @@ export class MemberListComponent {
       console.warn('Got to members list without a valid user.');
       return false;
     }
-    return user.isAdmin || user.schoolsManaged.length > 0;
+    return user.isAdmin;
   });
 
   memberSet = input.required<SearchableSet<'memberId', Member>>();

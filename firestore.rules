@@ -103,6 +103,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /statistics/{statId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /gradings/{gradingId} {
       function isGradingStudent() {
         return resource.data.studentMemberDocId in getUserMemberDocIds();

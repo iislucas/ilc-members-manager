@@ -32,6 +32,7 @@ import { OrderView } from './order-view/order-view';
 import { HeaderComponent, Breadcrumb } from './header/header.component';
 import { MemberViewComponent } from './member-view/member-view';
 import { MemberCreateComponent } from './member-create/member-create';
+import { StatisticsComponent } from './statistics/statistics';
 
 @Component({
   selector: 'app-root',
@@ -63,6 +64,7 @@ import { MemberCreateComponent } from './member-create/member-create';
     HeaderComponent,
     MemberViewComponent,
     MemberCreateComponent,
+    StatisticsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -204,6 +206,8 @@ export class App {
         return 'Gradings';
       case Views.Settings:
         return 'Settings';
+      case Views.Statistics:
+        return 'Statistics';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:

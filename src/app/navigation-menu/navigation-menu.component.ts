@@ -50,6 +50,7 @@ export class NavigationMenuComponent {
       case Views.Settings: return 'Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
       case Views.ManageOrders: return 'Manage Orders';
+      case Views.Statistics: return 'Statistics';
       case Views.OrderView:
         const orderId = this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;

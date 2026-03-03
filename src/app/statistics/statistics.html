@@ -1,0 +1,146 @@
+<div class="statistics-container">
+  <div class="page-header">
+    <h1>Membership Statistics</h1>
+    <div class="actions">
+      <button class="compute-button" (click)="computeNow()" [disabled]="computing()">
+        @if (computing()) {
+          <app-spinner></app-spinner> Computing...
+        } @else {
+          <app-icon name="link" width="18px" height="18px"></app-icon> Compute Now
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (error(); as errorMsg) {
+    <div class="error-banner">{{ errorMsg }}</div>
+  }
+
+  @if (loading()) {
+    <app-spinner>Loading statistics...</app-spinner>
+  } @else {
+    @let currentStats = selectedStats();
+    @if (!currentStats) {
+      <div class="empty-state">
+        <p>No statistics have been computed yet.</p>
+        <p>Click <strong>Compute Now</strong> to generate the first snapshot.</p>
+      </div>
+    } @else {
+      <!-- Snapshot selector -->
+      @if (allStats().length > 1) {
+        <div class="snapshot-selector">
+          <label for="snapshot-select">Snapshot:</label>
+          <select id="snapshot-select" (change)="selectSnapshot(+$any($event.target).value)">
+            @for (s of allStats(); track s.docId; let i = $index) {
+              <option [value]="i" [selected]="i === selectedIndex()">{{ s.docId }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      <div class="computed-date">
+        Computed on {{ currentStats.date | date:'medium' }}
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-value">{{ currentStats.totalMembers }}</div>
+          <div class="summary-label">Total Members</div>
+        </div>
+        <div class="summary-card active">
+          <div class="summary-value">{{ currentStats.activeMembers }}</div>
+          <div class="summary-label">Active Members</div>
+        </div>
+        <div class="summary-card instructors">
+          <div class="summary-value">{{ currentStats.activeInstructors }}</div>
+          <div class="summary-label">Active Instructors</div>
+        </div>
+      </div>
+
+      <!-- Histograms -->
+      <div class="histograms-grid">
+        <div class="histogram-card">
+          <h3>Membership Type</h3>
+          @for (entry of membershipTypeEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill membership" [style.width.%]="(entry.value / maxValue(membershipTypeEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Student Level</h3>
+          @for (entry of studentLevelEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill level" [style.width.%]="(entry.value / maxValue(studentLevelEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Application Level</h3>
+          @for (entry of applicationLevelEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill application" [style.width.%]="(entry.value / maxValue(applicationLevelEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Instructor License Type</h3>
+          @for (entry of instructorLicenseTypeEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill instructor" [style.width.%]="(entry.value / maxValue(instructorLicenseTypeEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Masters Level</h3>
+          @if (mastersLevelEntries().length === 0) {
+            <p class="no-data">No data</p>
+          }
+          @for (entry of mastersLevelEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill masters" [style.width.%]="(entry.value / maxValue(mastersLevelEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card wide">
+          <h3>Country</h3>
+          @for (entry of countryEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill country" [style.width.%]="(entry.value / maxValue(countryEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

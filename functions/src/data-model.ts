@@ -693,6 +693,56 @@ export type ACL = {
 export type ACLFirebaseDoc = ACL;
 
 // ==================================================================
+// # Statistics
+// ==================================================================
+// Firestore path: /statistics/{YYYY-MM}
+// Monthly snapshots of aggregate member/instructor statistics.
+
+// A histogram is a map from string keys to counts.
+export type Histogram = { [key: string]: number };
+
+export type MemberStatistics = {
+  docId: string; // Firestore document ID, e.g. '2026-03'
+  date: string; // ISO date string when the statistics were computed.
+
+  // Summary counts
+  totalMembers: number;
+  activeMembers: number; // Members with valid (non-expired) annual or life memberships.
+  activeInstructors: number; // Members with a non-empty instructorId and valid instructor license.
+
+  // Histograms for enum fields
+  membershipTypeHistogram: Histogram; // Keys are MembershipType values.
+  studentLevelHistogram: Histogram; // Keys are StudentLevel values.
+  applicationLevelHistogram: Histogram; // Keys are ApplicationLevel values.
+  instructorLicenseTypeHistogram: Histogram; // Keys are InstructorLicenseType values.
+  countryHistogram: Histogram; // Keys are country names.
+  mastersLevelHistogram: Histogram; // Keys are MasterLevel values.
+};
+
+export type MemberStatisticsFirebaseDoc = Omit<MemberStatistics, 'docId'>;
+
+export function firestoreDocToStatistics(doc: GenericFirestoreDoc): MemberStatistics {
+  const docData = doc.data() as MemberStatisticsFirebaseDoc;
+  return { ...initStatistics(), ...docData, docId: doc.id };
+}
+
+export function initStatistics(): MemberStatistics {
+  return {
+    docId: '',
+    date: '',
+    totalMembers: 0,
+    activeMembers: 0,
+    activeInstructors: 0,
+    membershipTypeHistogram: {},
+    studentLevelHistogram: {},
+    applicationLevelHistogram: {},
+    instructorLicenseTypeHistogram: {},
+    countryHistogram: {},
+    mastersLevelHistogram: {},
+  };
+}
+
+// ==================================================================
 // # API Request types
 // ==================================================================
 

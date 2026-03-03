@@ -34,3 +34,5 @@ export {
 export { scheduledBackup, manualBackup, listBackups } from './backup';
 
 export { syncSquarespaceOrders, processSquarespaceOrder, manualSquarespaceSync, reprocessOrder } from './squarespace-orders';
+
+export { computeStatistics, manualComputeStatistics } from './compute-statistics';
