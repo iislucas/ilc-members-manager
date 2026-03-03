@@ -141,6 +141,19 @@
           }
         </div>
       </div>
+
+      <!-- Data Quality -->
+      @if (currentStats.dataQuality.missingMastersLevels > 0 || currentStats.dataQuality.nonArrayMastersLevels > 0) {
+        <div class="data-quality-section">
+          <h3>Data Quality Notes</h3>
+          @if (currentStats.dataQuality.missingMastersLevels > 0) {
+            <p class="quality-note">⚠ {{ currentStats.dataQuality.missingMastersLevels }} members have missing <code>mastersLevels</code> field</p>
+          }
+          @if (currentStats.dataQuality.nonArrayMastersLevels > 0) {
+            <p class="quality-note">⚠ {{ currentStats.dataQuality.nonArrayMastersLevels }} members have non-array <code>mastersLevels</code> field (e.g. stored as a string)</p>
+          }
+        </div>
+      }
     }
   }
 </div>

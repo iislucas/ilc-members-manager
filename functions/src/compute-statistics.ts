@@ -60,6 +60,8 @@ export function computeStatisticsFromMembers(
   const instructorLicenseTypeHistogram: Histogram = {};
   const countryHistogram: Histogram = {};
   const mastersLevelHistogram: Histogram = {};
+  let missingMastersLevels = 0;
+  let nonArrayMastersLevels = 0;
 
   for (const member of members) {
     if (isActiveMember(member, todayIso)) activeMembers++;
@@ -71,8 +73,24 @@ export function computeStatisticsFromMembers(
     incrementHistogram(instructorLicenseTypeHistogram, member.instructorLicenseType);
     incrementHistogram(countryHistogram, member.country);
 
-    for (const level of member.mastersLevels) {
-      incrementHistogram(mastersLevelHistogram, level);
+    // mastersLevels may be missing, a string (from bad imports), or a proper array.
+    const rawLevels = member.mastersLevels;
+    if (rawLevels == null) {
+      missingMastersLevels++;
+    } else if (!Array.isArray(rawLevels)) {
+      nonArrayMastersLevels++;
+      // Attempt to parse comma-separated string values.
+      const asString = String(rawLevels);
+      if (asString.trim()) {
+        for (const part of asString.split(',')) {
+          const trimmed = part.trim();
+          if (trimmed) incrementHistogram(mastersLevelHistogram, trimmed);
+        }
+      }
+    } else {
+      for (const level of rawLevels) {
+        incrementHistogram(mastersLevelHistogram, level);
+      }
     }
   }
 
@@ -86,6 +104,10 @@ export function computeStatisticsFromMembers(
     instructorLicenseTypeHistogram,
     countryHistogram,
     mastersLevelHistogram,
+    dataQuality: {
+      missingMastersLevels,
+      nonArrayMastersLevels,
+    },
   };
 }
 

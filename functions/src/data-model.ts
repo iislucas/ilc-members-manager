@@ -717,6 +717,12 @@ export type MemberStatistics = {
   instructorLicenseTypeHistogram: Histogram; // Keys are InstructorLicenseType values.
   countryHistogram: Histogram; // Keys are country names.
   mastersLevelHistogram: Histogram; // Keys are MasterLevel values.
+
+  // Data quality counters for fields that may be missing or malformed.
+  dataQuality: {
+    missingMastersLevels: number; // Members where mastersLevels is undefined/null.
+    nonArrayMastersLevels: number; // Members where mastersLevels is present but not an array (e.g. a string).
+  };
 };
 
 export type MemberStatisticsFirebaseDoc = Omit<MemberStatistics, 'docId'>;
@@ -739,6 +745,10 @@ export function initStatistics(): MemberStatistics {
     instructorLicenseTypeHistogram: {},
     countryHistogram: {},
     mastersLevelHistogram: {},
+    dataQuality: {
+      missingMastersLevels: 0,
+      nonArrayMastersLevels: 0,
+    },
   };
 }
 

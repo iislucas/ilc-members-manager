@@ -225,6 +225,34 @@
   text-align: right;
 }
 
+// Data quality section
+.data-quality-section {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    color: #92400e;
+  }
+
+  .quality-note {
+    margin: 0.25rem 0;
+    font-size: 0.85rem;
+    color: #78350f;
+
+    code {
+      background: rgba(0, 0, 0, 0.06);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+  }
+}
+
 @media (max-width: 600px) {
   .statistics-container {
     padding: 1rem;

@@ -29,6 +29,8 @@ describe('computeStatisticsFromMembers', () => {
     expect(result.activeInstructors).toBe(0);
     expect(result.membershipTypeHistogram).toEqual({});
     expect(result.studentLevelHistogram).toEqual({});
+    expect(result.dataQuality.missingMastersLevels).toBe(0);
+    expect(result.dataQuality.nonArrayMastersLevels).toBe(0);
   });
 
   it('should count active annual members correctly', () => {
@@ -180,5 +182,44 @@ describe('computeStatisticsFromMembers', () => {
     expect(result.instructorLicenseTypeHistogram['Annual']).toBe(1);
     expect(result.instructorLicenseTypeHistogram['Life']).toBe(1);
     expect(result.instructorLicenseTypeHistogram['None']).toBe(2);
+  });
+
+  it('should count missing mastersLevels when field is undefined', () => {
+    const members: Member[] = [
+      makeMember({ mastersLevels: undefined as never }),
+      makeMember({ mastersLevels: null as never }),
+      makeMember({ mastersLevels: [MasterLevel.Good] }),
+    ];
+
+    const result = computeStatisticsFromMembers(members, today);
+    expect(result.dataQuality.missingMastersLevels).toBe(2);
+    expect(result.dataQuality.nonArrayMastersLevels).toBe(0);
+    expect(result.mastersLevelHistogram['Good Hands']).toBe(1);
+  });
+
+  it('should count non-array mastersLevels when field is a string', () => {
+    const members: Member[] = [
+      makeMember({ mastersLevels: 'Good Hands, Wonder Hands' as never }),
+      makeMember({ mastersLevels: 'Mystery Hands' as never }),
+      makeMember({ mastersLevels: [MasterLevel.Good] }),
+    ];
+
+    const result = computeStatisticsFromMembers(members, today);
+    expect(result.dataQuality.nonArrayMastersLevels).toBe(2);
+    expect(result.dataQuality.missingMastersLevels).toBe(0);
+    // String values should be parsed as comma-separated and counted.
+    expect(result.mastersLevelHistogram['Good Hands']).toBe(2);
+    expect(result.mastersLevelHistogram['Wonder Hands']).toBe(1);
+    expect(result.mastersLevelHistogram['Mystery Hands']).toBe(1);
+  });
+
+  it('should handle empty string mastersLevels without counting histogram entries', () => {
+    const members: Member[] = [
+      makeMember({ mastersLevels: '' as never }),
+    ];
+
+    const result = computeStatisticsFromMembers(members, today);
+    expect(result.dataQuality.nonArrayMastersLevels).toBe(1);
+    expect(Object.keys(result.mastersLevelHistogram)).toHaveLength(0);
   });
 });
