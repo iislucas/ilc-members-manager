@@ -182,6 +182,14 @@ export class MemberDetailsComponent {
 
   // --- Date-mismatch warnings (informational, do not block save) ---
 
+  /** Warn when annual membership has no expiry date set. */
+  missingExpiryWarning = computed(() => {
+    const m = this.editableMember();
+    if (m.membershipType !== MembershipType.Annual) return null;
+    if (m.currentMembershipExpires && m.currentMembershipExpires.trim() !== '') return null;
+    return 'Annual membership has no expiry date set.';
+  });
+
   /** Warn when annual membership expiration doesn't match lastRenewalDate + 1 year. */
   membershipDateMismatch = computed(() => {
     const m = this.editableMember();

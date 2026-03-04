@@ -333,6 +333,9 @@
             placeholder="YYYY-MM-DD"
             [formField]="form.currentMembershipExpires"
           />
+          @if (missingExpiryWarning(); as warning) {
+            <div class="warning-message">⚠ {{ warning }}</div>
+          }
           @if (membershipDateMismatch(); as warning) {
             <div class="warning-message">⚠ {{ warning }}</div>
           }
