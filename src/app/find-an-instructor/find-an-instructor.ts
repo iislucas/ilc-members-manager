@@ -54,7 +54,7 @@ export class FindAnInstructorComponent {
 
   filteredInstructors = computed(() => {
     return this.findInstructorsService.instructors
-      .search(this.searchTerm())
+      .search(this.searchTerm(), { strictDigits: true, interpretQuotesAsStrict: true })
       .filter((i) => i.instructorLicenseType !== 'None' && (i.instructorLicenseType as string) !== '');
   });
 }

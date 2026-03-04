@@ -7,7 +7,7 @@ import {
   linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SearchableSet } from '../searchable-set';
+import { SearchableSet, SearchOptions } from '../searchable-set';
 
 export interface AutocompleteItem {
   chipId: string;
@@ -34,6 +34,7 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   disabled = input<boolean>(false);
   inputBoxIsChip = input<boolean>(true);
   initSearchTerm = input<string>('');
+  searchOptions = input<SearchOptions>({});
   idField = computed(() => this.searchableSet().idField);
 
   itemSelected = output<T>();
@@ -42,7 +43,7 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   showResults = signal(false);
 
   filteredItems = computed(() => {
-    const items = this.searchableSet().search(this.searchTerm());
+    const items = this.searchableSet().search(this.searchTerm(), this.searchOptions());
     return items.length === 1 && items[0][this.idField()].toLowerCase() === this.searchTerm().toLowerCase() ? 
       this.searchableSet().entries() : items;
   });

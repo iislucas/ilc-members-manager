@@ -182,6 +182,7 @@
             [searchableSet]="membersService.instructors"
             [placeholder]="'Search for an instructor'"
             [displayFns]="instructorDisplayFns"
+            [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
             [initSearchTerm]="form.primaryInstructorId().value()"
             (textUpdated)="updatePrimaryInstructorId($event)"
           ></app-autocomplete>

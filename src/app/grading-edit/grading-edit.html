@@ -132,6 +132,7 @@
             [searchableSet]="dataService.instructors"
             [placeholder]="'Search for an instructor'"
             [displayFns]="instructorDisplayFns"
+            [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
             [initSearchTerm]="form.gradingInstructorId().value()"
             (textUpdated)="updateGradingInstructorId($event)"
           ></app-autocomplete>
@@ -155,6 +156,7 @@
                 [searchableSet]="dataService.instructors"
                 [placeholder]="'Search for an instructor'"
                 [displayFns]="instructorDisplayFns"
+                [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
                 [initSearchTerm]="assistant"
                 (textUpdated)="updateAssistantInstructorId($index, $event)"
               ></app-autocomplete>

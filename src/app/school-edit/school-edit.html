@@ -188,6 +188,7 @@
                 [searchableSet]="membersService.instructors"
                 [placeholder]="'Search instructor for owner'"
                 [displayFns]="instructorDisplayFns"
+                [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
                 [initSearchTerm]="form.ownerInstructorId().value()"
                 (textUpdated)="updateOwner($event)"
               ></app-autocomplete>
@@ -220,6 +221,7 @@
                       [searchableSet]="membersService.instructors"
                       [placeholder]="'Search instructor for owner'"
                       [displayFns]="instructorDisplayFns"
+                      [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
                       [initSearchTerm]="s.managerInstructorIds[i]"
                       (textUpdated)="updateManagerId(i, $event)"
                     ></app-autocomplete>

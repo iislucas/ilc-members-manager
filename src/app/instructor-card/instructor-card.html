@@ -1,8 +1,11 @@
 @let i = instructor();
 <div class="instructor-card">
   <div class="row">
-    <div class="name">
-      {{ i.name }}
+    <div>
+      <span class="name">{{ i.name }}</span>
+    </div>
+    <div class="identifier-chip instructor-id">
+      #{{ i.instructorId }}
     </div>
     @if (
       (i.tags && i.tags.length > 0) || i.studentLevel || i.applicationLevel

@@ -313,6 +313,14 @@ textarea:disabled {
     border-color: #d4a843;
     color: #856404;
   }
+
+  &.instructor-id {
+    font-size: 0.9em;
+    color: #666;
+    background-color: #eee;
+    border: unset;
+    background-color: unset;
+  }
 }
 
 .missing-identifier-chip {

@@ -1,6 +1,15 @@
 import { computed, signal } from '@angular/core';
 import MiniSearch from 'minisearch';
 
+export type SearchOptions = {
+  /** When true, purely numeric search terms use strict ID substring matching
+   * instead of MiniSearch fuzzy search. */
+  strictDigits?: boolean;  // default: false
+  /** When true, substrings wrapped in double quotes (e.g. "foo") are required
+   * to appear as a case-insensitive substring in at least one searchable field. */
+  interpretQuotesAsStrict?: boolean;  // default: true
+};
+
 // TODO: add caching of the memberset in localstorage? Or indexDB?
 export class SearchableSet<
   ID extends string,
@@ -115,17 +124,77 @@ export class SearchableSet<
     this.state.update((state) => ({ ...state, error, loading: false }));
   }
 
-  search(term: string): T[] {
-    let entries: T[];
+  search(term: string, options: SearchOptions = { strictDigits: false, interpretQuotesAsStrict: true }): T[] {
     if (!term) {
-      entries = this.uniqueEntries();
-    } else {
-      const results = this.membersMiniSearch().search(term, {
+      return this.uniqueEntries();
+    }
+
+    const opts = options ?? {};
+
+    let requiredIdSubstrings: string[] = [];
+    let requiredFieldSubstrings: string[] = [];
+    let fuzzyTerm = term;
+
+    // When interpretQuotesAsStrict is enabled, extract "quoted" substrings
+    // and require each as a case-insensitive match across the searchable fields.
+    if (opts.interpretQuotesAsStrict) {
+      requiredFieldSubstrings = [...fuzzyTerm.matchAll(/"([^"]+)"/g)].map(
+        (m) => m[1].toLowerCase(),
+      );
+      fuzzyTerm = fuzzyTerm.replace(/"[^"]*"/g, '').trim();
+    }
+
+    // When strictDigits is enabled, extract purely-numeric tokens and require
+    // each as a strict substring match on the ID field.
+    if (opts.strictDigits) {
+      const tokens = fuzzyTerm.split(/\s+/);
+      const digitTokens = tokens.filter((t) => /^\d+$/.test(t));
+      const nonDigitTokens = tokens.filter((t) => !/^\d+$/.test(t));
+      requiredIdSubstrings = digitTokens;
+      fuzzyTerm = nonDigitTokens.join(' ').trim();
+    }
+
+  // Start with MiniSearch results for the remaining fuzzy portion, or all
+  // entries if there's nothing left for MiniSearch.
+    let entries: T[];
+    if (fuzzyTerm) {
+      const results = this.membersMiniSearch().search(fuzzyTerm, {
         fuzzy: 0.2,
         prefix: true,
       });
       entries = results.map((result) => this.get(result.id)!);
+    } else {
+      entries = this.uniqueEntries();
     }
+
+    // Filter by required ID substrings (from numeric tokens).
+    if (requiredIdSubstrings.length > 0) {
+      entries = entries.filter((entry) =>
+        requiredIdSubstrings.every((sub) => entry[this.idField].includes(sub)),
+      );
+    }
+
+    // Filter by required field substrings (from quoted terms).
+    if (requiredFieldSubstrings.length > 0) {
+      const allFields = [this.idField as string, ...this.fieldsToSearch];
+      entries = entries.filter((entry) =>
+        requiredFieldSubstrings.every((sub) =>
+          allFields.some((field) => {
+            const val = (entry as Record<string, unknown>)[field];
+            if (typeof val === 'string') {
+              return val.toLowerCase().includes(sub);
+            }
+            if (Array.isArray(val)) {
+              return val.some(
+                (v) => typeof v === 'string' && v.toLowerCase().includes(sub),
+              );
+            }
+            return false;
+          }),
+        ),
+      );
+    }
+
     return entries;
   }
 }
