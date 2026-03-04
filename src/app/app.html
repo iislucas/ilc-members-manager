@@ -74,6 +74,9 @@
               backUrl="find-school"
             ></app-class-calendar>
           }
+          @case (Views.EventsCalendar) {
+            <app-events-calendar></app-events-calendar>
+          }
           @case (Views.MyStudents) {
             <app-filtered-members
               [memberSet]="dataService.myStudents"
@@ -208,6 +211,14 @@
               backUrl="find-school"
             ></app-class-calendar>
           }
+          @case (Views.EventsCalendar) {
+            <div class="public-action-bar">
+              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
+                <app-icon name="arrow_back"></app-icon> Back to Login
+              </button>
+            </div>
+            <app-events-calendar></app-events-calendar>
+          }
           @default {
             @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
               <div class="app-info">
@@ -223,6 +234,9 @@
               <div class="public-options">
                 <button (click)="routingService.navigateToParts(['find-an-instructor'])">
                   Find an Instructor
+                </button>
+                <button (click)="routingService.navigateToParts(['events'])">
+                  Events & Workshops
                 </button>
                 <!-- <button (click)="routingService.navigateToParts(['find-school'])">
                   Find a School

@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 
 import { ClassCalendarComponent } from './class-calendar';
 import { ClassCalendarService } from '../class-calendar.service';
+import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
 
 describe('ClassCalendarComponent', () => {
   let component: ClassCalendarComponent;
@@ -20,6 +21,10 @@ describe('ClassCalendarComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: ClassCalendarService, useValue: calendarServiceMock },
+        {
+          provide: ROUTING_CONFIG,
+          useValue: { validPathPatterns: initPathPatterns },
+        },
       ],
     }).compileComponents();
 

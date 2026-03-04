@@ -28,6 +28,7 @@ describe('ImportMembersComponent', () => {
             countries: { entries: signal([]) },
             members: {
               entriesMap: signal(new Map()),
+              get: (id: string) => undefined,
             },
             schools: {
               entries: signal([]),

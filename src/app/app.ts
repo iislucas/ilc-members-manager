@@ -33,6 +33,7 @@ import { HeaderComponent, Breadcrumb } from './header/header.component';
 import { MemberViewComponent } from './member-view/member-view';
 import { MemberCreateComponent } from './member-create/member-create';
 import { StatisticsComponent } from './statistics/statistics';
+import { EventsCalendarComponent } from './events-calendar/events-calendar';
 
 @Component({
   selector: 'app-root',
@@ -66,6 +67,7 @@ import { StatisticsComponent } from './statistics/statistics';
     MemberViewComponent,
     MemberCreateComponent,
     StatisticsComponent,
+    EventsCalendarComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -116,6 +118,8 @@ export class App {
         baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
       } else if (view === Views.SchoolCalendarView) {
         baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
+      } else if (view === Views.EventsCalendar) {
+        // No parent breadcrumb needed for events
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -262,6 +266,8 @@ export class App {
         return 'Settings';
       case Views.Statistics:
         return 'Statistics';
+      case Views.EventsCalendar:
+        return 'Events & Workshops';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:

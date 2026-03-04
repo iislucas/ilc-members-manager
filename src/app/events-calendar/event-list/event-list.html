@@ -1,0 +1,62 @@
+@if (errorMessage()) {
+  <div class="error-message">
+    <p>{{ errorMessage() }}</p>
+  </div>
+}
+
+@if (isLoading()) {
+  <app-spinner>Loading events...</app-spinner>
+} @else if (hasLoaded()) {
+  <div class="search-container">
+    <div class="search-box">
+      <app-icon class="search-icon" name="search"></app-icon>
+      <input
+        type="text"
+        id="searchTerm"
+        [ngModel]="searchInput()"
+        (ngModelChange)="onSearchInputChange($event)"
+        placeholder="Search events..."
+        name="searchTerm"
+      />
+    </div>
+    @if (inputCalendarId()) {
+      <a
+        href="https://calendar.google.com/calendar/embed?mode=AGENDA&src={{
+          inputCalendarId()
+        }}"
+        target="_blank"
+        aria-label="Open in Google Calendar"
+      >
+        <app-icon name="calendar_today"></app-icon>
+      </a>
+    }
+  </div>
+
+  @if (searchResults().matched.length === 0 && searchResults().unmatched.length === 0) {
+    <div>
+      <p>No events found</p>
+    </div>
+  } @else {
+    <div>
+      <!-- Matched Events -->
+      @if (searchResults().matched.length > 0) {
+        <div class="event-list">
+          @for (event of searchResults().matched; track event.id) {
+            <app-event-item [event]="event" />
+          }
+        </div>
+      }
+
+      <!-- Unmatched Events -->
+      @if (searchResults().unmatched.length > 0) {
+        <hr />
+        <h2>Other Events</h2>
+        <div class="event-list">
+          @for (event of searchResults().unmatched; track event.id) {
+            <app-event-item [event]="event" />
+          }
+        </div>
+      }
+    </div>
+  }
+}
