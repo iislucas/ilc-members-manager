@@ -18,9 +18,16 @@ service cloud.firestore {
       return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
     }
 
+    match /auditEvents/{auditEventDocId} {
+      // Only admins can read audit events
+      allow get, list: if isAdmin();
+      // Lock all client writes
+      allow create, update, delete: if false;
+    }
+
     match /members/{memberDocId} {
       function isOwner() {
-        return (request.auth.token.email in resource.data.emails) || 
+        return (request.auth.token.email in resource.data.emails) ||
                (memberDocId in getUserMemberDocIds());
       }
       function isManagerOfMemberSchool() {
@@ -28,7 +35,7 @@ service cloud.firestore {
         let schoolDocId = member.primarySchoolDocId;
         let schoolPath = /databases/$(database)/documents/schools/$(schoolDocId);
         return schoolDocId != "" && exists(schoolPath) && (
-          request.auth.token.email in get(schoolPath).data.get('ownerEmails', []) || 
+          request.auth.token.email in get(schoolPath).data.get('ownerEmails', []) ||
           request.auth.token.email in get(schoolPath).data.get('managerEmails', [])
         );
       }
@@ -38,22 +45,22 @@ service cloud.firestore {
       allow read: if isOwner() || isAdmin() || isManagerOfMemberSchool();
       allow delete: if isAdmin();
       allow write: if hasValidEditUpdate() && (isAdmin() || isManagerOfMemberSchool());
-      allow update: if hasValidEditUpdate() && isOwner() && 
+      allow update: if hasValidEditUpdate() && isOwner() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
-           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
+           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
     }
 
     match /instructors/{instructorMemberDocId} {
       allow read: if true;
       allow write: if isAdmin();
-      
+
       match /members/{studentMemberDocId} {
         allow read: if isAdmin() || instructorMemberDocId in getUserMemberDocIds();
         allow write: if isAdmin();
       }
-      
+
       match /gradings/{gradingId} {
         allow read: if isAdmin() || instructorMemberDocId in getUserMemberDocIds();
         allow write: if isAdmin();
@@ -63,8 +70,8 @@ service cloud.firestore {
     match /schools/{schoolDocId} {
       function isSchoolManager() {
         let school = get(/databases/$(database)/documents/schools/$(schoolDocId)).data;
-        return 
-            request.auth.token.email in school.get('ownerEmails', []) || 
+        return
+            request.auth.token.email in school.get('ownerEmails', []) ||
             request.auth.token.email in school.get('managerEmails', []);
       }
       function hasValidEditUpdate() {
@@ -73,10 +80,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if hasValidEditUpdate() && isSchoolManager() && 
+      allow update: if hasValidEditUpdate() && isSchoolManager() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds']);
-    
+
       match /members/{memberDocId} {
         allow read: if isAdmin() || isSchoolManager();
         allow write: if isAdmin();

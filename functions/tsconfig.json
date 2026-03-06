@@ -13,5 +13,6 @@
     "target": "es2017"
   },
   "compileOnSave": true,
+  "references": [{ "path": "../shared" }],
   "include": ["src/**/*.ts"]
 }
