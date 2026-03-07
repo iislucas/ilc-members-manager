@@ -5,10 +5,11 @@ import {
   inject,
   input,
   signal,
+  linkedSignal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Member, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
+import { Member, StudentLevel, ApplicationLevel, MembershipType } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
@@ -119,6 +120,7 @@ export class MemberListComponent {
   memberSet = input.required<SearchableSet<'memberId', Member>>();
   jumpToMember = input<string>('');
   basePath = input<string>('');
+  hideInactive = input<boolean>(false);
 
   searchTerm = computed(() => {
     const match = this.routingService.matchedPatternId();
@@ -138,17 +140,36 @@ export class MemberListComponent {
     this.sortDirection.update(d => d === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc);
   }
 
+  // Inactive member filtering
+  private static readonly INACTIVE_TYPES: string[] = [MembershipType.Inactive, MembershipType.Deceased];
+  showInactiveMembers = linkedSignal(() => !this.hideInactive());
+
+  private allSearchResults = computed(() => this.memberSet().search(this.searchTerm()));
+
+  /** Members after filtering out inactive/deceased (when hidden). */
+  private activeSearchResults = computed(() => {
+    const all = this.allSearchResults();
+    if (this.showInactiveMembers()) return all;
+    return all.filter(m => !MemberListComponent.INACTIVE_TYPES.includes(m.membershipType));
+  });
+
+  /** Count of inactive/deceased members hidden by the filter. */
+  hiddenInactiveCount = computed(() => {
+    if (this.showInactiveMembers()) return 0;
+    return this.allSearchResults().length - this.activeSearchResults().length;
+  });
+
   // Expose signals from the service to the template
   limit = signal(50);
   members = computed(() => {
-    const all = this.memberSet().search(this.searchTerm());
+    const all = this.activeSearchResults();
     const field = this.sortField();
     const dir = this.sortDirection();
     const sorted = [...all].sort((a, b) => compareMembersByField(a, b, field, dir));
     return sorted.slice(0, this.limit());
   });
   totalMembers = computed(
-    () => this.memberSet().search(this.searchTerm()).length,
+    () => this.activeSearchResults().length,
   );
 
   duplicateMemberIdEntries = computed(() => {
@@ -261,6 +282,10 @@ export class MemberListComponent {
     } else {
       console.warn('newMember called but no basePath was provided to member-list component.');
     }
+  }
+
+  isMemberInactive(member: Member): boolean {
+    return MemberListComponent.INACTIVE_TYPES.includes(member.membershipType);
   }
 
 }

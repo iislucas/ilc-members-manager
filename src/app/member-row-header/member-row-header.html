@@ -19,6 +19,9 @@
         <span>*</span>
       }
     </div>
+    @if (inactiveStatus(); as status) {
+      <span class="identifier-chip status-inactive">{{ status }}</span>
+    }
     @if (isMemberLicenseExpired() !== ExpiryStatus.Valid) {
       <span
         class="identifier-chip"

@@ -140,6 +140,7 @@
     @for (member of membersList; track member.docId) {
       <a
         class="member-card"
+        [class.inactive]="isMemberInactive(member)"
         [id]="'member-' + (member.memberId || member.docId)"
         [href]="memberLink(member)"
       >
@@ -154,4 +155,19 @@
       </div>
     }
   </div>
+  @if (hiddenInactiveCount() > 0) {
+    <div class="inactive-toggle-container">
+      <button class="subtle-button inactive-toggle" (click)="showInactiveMembers.set(true)">
+        <app-icon name="visibility_off"></app-icon>
+        Show {{ hiddenInactiveCount() }} inactive member{{ hiddenInactiveCount() === 1 ? '' : 's' }}
+      </button>
+    </div>
+  } @else if (hideInactive() && showInactiveMembers()) {
+    <div class="inactive-toggle-container">
+      <button class="subtle-button inactive-toggle" (click)="showInactiveMembers.set(false)">
+        <app-icon name="visibility"></app-icon>
+        Hide inactive members
+      </button>
+    </div>
+  }
 }

@@ -81,6 +81,7 @@
             <app-filtered-members
               [memberSet]="dataService.myStudents"
               basePath="my-students"
+              [hideInactive]="true"
             ></app-filtered-members>
           }
           @case (Views.MySchools) {

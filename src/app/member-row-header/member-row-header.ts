@@ -25,6 +25,11 @@ export class MemberRowHeaderComponent {
     // Life memberships never expire.
     if (type === MembershipType.Life) return ExpiryStatus.Valid;
 
+    // Inactive/Deceased are intentional non-active statuses, not data issues.
+    if (type === MembershipType.Inactive || type === MembershipType.Deceased) {
+      return ExpiryStatus.Valid;
+    }
+
     // If the membership type is not a recognized active type, treat as an issue.
     const activeTypes: string[] = [
       MembershipType.Annual, MembershipType.Life,
@@ -41,6 +46,14 @@ export class MemberRowHeaderComponent {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return expireDate >= sixMonthsAgo ? ExpiryStatus.Recent : ExpiryStatus.Expired;
+  });
+
+  /** Returns 'Inactive', 'Deceased', or '' for active members. */
+  inactiveStatus = computed((): string => {
+    const type = this.member().membershipType;
+    if (type === MembershipType.Inactive) return 'Inactive';
+    if (type === MembershipType.Deceased) return 'Deceased';
+    return '';
   });
 
   isInstructorLicenseExpired = computed((): ExpiryStatus => {
