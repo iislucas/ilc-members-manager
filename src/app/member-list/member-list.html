@@ -16,6 +16,26 @@
         (input)="onSearch($event)"
       />
     </div>
+    <div class="sort-controls">
+      <label class="sort-label" for="sort-field-select">Sort:</label>
+      <select
+        id="sort-field-select"
+        [ngModel]="sortField()"
+        (ngModelChange)="sortField.set($event)"
+      >
+        @for (opt of sortFieldOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+      <button
+        class="sort-direction-btn"
+        (click)="toggleSortDirection()"
+        [attr.aria-label]="sortDirection() === SortDirection.Asc ? 'Sort ascending' : 'Sort descending'"
+        [attr.title]="sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'"
+      >
+        <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+      </button>
+    </div>
     @if (canMakeNewMembers()) {
       <button class="button" (click)="newMember()">New Member</button>
     }

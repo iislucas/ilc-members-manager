@@ -22,6 +22,20 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  arrow_upward: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  arrow_downward: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224v-487h-80Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   calendar_today: {
     viewbox: '0 0 24 24',
     fill: '#5f6368',
