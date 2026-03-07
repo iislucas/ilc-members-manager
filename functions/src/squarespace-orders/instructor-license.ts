@@ -62,9 +62,16 @@ export async function processInstructorLicense(
 ): Promise<string | null> {
   const info = parseInstructorLicenseInfo(orderData, lineItem);
 
-  // If member ID is missing from the form, try to infer it.
+  // If the admin manually set ilcAppMemberIdInferred on the line item, it
+  // overrides whatever member ID the user may have entered in the form.
+  // Otherwise, if the form member ID is missing, attempt automatic inference.
   let skipValidation = false;
-  if (!info.memberId) {
+  if (lineItem.ilcAppMemberIdInferred) {
+    logger.info(`[License] Order ${orderId}: using admin-set ilcAppMemberIdInferred "${lineItem.ilcAppMemberIdInferred}"` +
+      (info.memberId ? ` (overriding form-provided "${info.memberId}")` : ''));
+    info.memberId = lineItem.ilcAppMemberIdInferred;
+    skipValidation = true;
+  } else if (!info.memberId) {
     const inference = await inferMemberIdFromOrder(
       orderData,
       { memberId: '', email: info.email, name: '', dateOfBirth: '', country: '', isNewMember: undefined },
@@ -74,7 +81,6 @@ export async function processInstructorLicense(
     if (inference.memberId) {
       logger.info(`[License] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
       info.memberId = inference.memberId;
-      skipValidation = inference.isManual;
     } else {
       const issue = `[License] Order ${orderId} is missing a Member ID in the form response `
         + `and automatic inference failed: ${inference.reason}`;

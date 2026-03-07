@@ -61,16 +61,20 @@ export async function processMembershipRenewal(
     return await processNewMemberRegistration(orderData, orderId, info, db);
   }
 
-  // If member ID is missing from the form, try to infer it.
+  // If the admin manually set ilcAppMemberIdInferred on the line item, it
+  // overrides whatever member ID the user may have entered in the form.
+  // Otherwise, if the form member ID is missing, attempt automatic inference.
   let skipValidation = false;
-  if (!info.member.memberId) {
+  if (lineItem.ilcAppMemberIdInferred) {
+    logger.info(`[Membership] Order ${orderId}: using admin-set ilcAppMemberIdInferred "${lineItem.ilcAppMemberIdInferred}"` +
+      (info.member.memberId ? ` (overriding form-provided "${info.member.memberId}")` : ''));
+    info.member.memberId = lineItem.ilcAppMemberIdInferred;
+    skipValidation = true;
+  } else if (!info.member.memberId) {
     const inference = await inferMemberIdFromOrder(orderData, info.member, db, lineItem);
     if (inference.memberId) {
       logger.info(`[Membership] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
       info.member.memberId = inference.memberId;
-      // If the admin manually set the inferred member ID, skip email/name
-      // validation since the admin has already confirmed the correct member.
-      skipValidation = inference.isManual;
     } else {
       const issue = `[Membership] Order ${orderId} is missing a Member ID in the form response `
         + `and automatic inference failed: ${inference.reason}`;

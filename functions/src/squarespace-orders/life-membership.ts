@@ -191,7 +191,15 @@ export async function processLifeMembershipPerson(
     return issue;
   }
 
-  // If not a new member and missing member ID, try to infer it.
+  // If the admin manually set ilcAppMemberIdInferred on the line item, it
+  // overrides whatever member ID the user may have entered in the form.
+  if (!pInfo.isNewMember && lineItem?.ilcAppMemberIdInferred) {
+    logger.info(`[Life Membership] Order ${orderId}: using admin-set ilcAppMemberIdInferred "${lineItem.ilcAppMemberIdInferred}" for ${label.toLowerCase()}` +
+      (pInfo.memberId ? ` (overriding form-provided "${pInfo.memberId}")` : ''));
+    pInfo.memberId = lineItem.ilcAppMemberIdInferred;
+  }
+
+  // If not a new member and still missing member ID, try automatic inference.
   if (!pInfo.isNewMember && !pInfo.memberId) {
     if (orderData) {
       const inference = await inferMemberIdFromOrder(orderData, pInfo, db, lineItem);
