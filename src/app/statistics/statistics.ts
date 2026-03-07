@@ -30,6 +30,24 @@ function sortedHistogram(histogram: Histogram): HistogramEntry[] {
     .sort((a, b) => b.value - a.value);
 }
 
+// Sorts a histogram by key in natural order: non-numeric keys first
+// (alphabetically), then numeric keys in numeric order (e.g. 1, 2, 10, 11).
+function sortedHistogramByKey(histogram: Histogram): HistogramEntry[] {
+  return Object.entries(histogram)
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => {
+      const aNum = Number(a.key);
+      const bNum = Number(b.key);
+      const aIsNum = a.key !== '' && !isNaN(aNum);
+      const bIsNum = b.key !== '' && !isNaN(bNum);
+      // Non-numeric keys sort before numeric keys.
+      if (!aIsNum && !bIsNum) return a.key.localeCompare(b.key);
+      if (!aIsNum) return -1;
+      if (!bIsNum) return 1;
+      return aNum - bNum;
+    });
+}
+
 @Component({
   selector: 'app-statistics',
   standalone: true,
@@ -61,10 +79,10 @@ export class StatisticsComponent {
     sortedHistogram(this.selectedStats()?.membershipTypeHistogram ?? {}),
   );
   protected studentLevelEntries = computed(() =>
-    sortedHistogram(this.selectedStats()?.studentLevelHistogram ?? {}),
+    sortedHistogramByKey(this.selectedStats()?.studentLevelHistogram ?? {}),
   );
   protected applicationLevelEntries = computed(() =>
-    sortedHistogram(this.selectedStats()?.applicationLevelHistogram ?? {}),
+    sortedHistogramByKey(this.selectedStats()?.applicationLevelHistogram ?? {}),
   );
   protected instructorLicenseTypeEntries = computed(() =>
     sortedHistogram(this.selectedStats()?.instructorLicenseTypeHistogram ?? {}),
@@ -73,7 +91,7 @@ export class StatisticsComponent {
     sortedHistogram(this.selectedStats()?.countryHistogram ?? {}),
   );
   protected mastersLevelEntries = computed(() =>
-    sortedHistogram(this.selectedStats()?.mastersLevelHistogram ?? {}),
+    sortedHistogramByKey(this.selectedStats()?.mastersLevelHistogram ?? {}),
   );
 
   constructor() {

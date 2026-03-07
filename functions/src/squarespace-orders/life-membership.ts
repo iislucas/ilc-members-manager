@@ -11,6 +11,7 @@ import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineIt
 import { resolveCountryCode } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo } from './common';
+import { inferMemberIdFromOrder } from './infer-member';
 
 export interface LifeMembershipInfo {
   member: MembershipPurchaseInfo;
@@ -179,7 +180,9 @@ export async function processLifeMembershipPerson(
   orderDate: string,
   pInfo: MembershipPurchaseInfo,
   label: 'Member' | 'Spouse',
-  db: admin.firestore.Firestore
+  db: admin.firestore.Firestore,
+  orderData?: SquareSpaceOrder,
+  lineItem?: SquareSpaceLineItem
 ): Promise<string | null> {
   // Explicit conflicts
   if (pInfo.isNewMember && pInfo.memberId) {
@@ -188,10 +191,21 @@ export async function processLifeMembershipPerson(
     return issue;
   }
 
+  // If not a new member and missing member ID, try to infer it.
   if (!pInfo.isNewMember && !pInfo.memberId) {
-    const issue = `[Life Membership] Order ${orderId} does not indicate ${label.toLowerCase()} is new, but no Member ID was provided.`;
-    logger.warn(issue);
-    return issue;
+    if (orderData) {
+      const inference = await inferMemberIdFromOrder(orderData, pInfo, db, lineItem);
+      if (inference.memberId) {
+        logger.info(`[Life Membership] Order ${orderId}: inferred ${label.toLowerCase()} member ID "${inference.memberId}" — ${inference.reason}`);
+        pInfo.memberId = inference.memberId;
+      }
+    }
+    // If still no member ID after inference attempt, fail.
+    if (!pInfo.memberId) {
+      const issue = `[Life Membership] Order ${orderId} does not indicate ${label.toLowerCase()} is new, but no Member ID was provided.`;
+      logger.warn(issue);
+      return issue;
+    }
   }
 
   if (pInfo.isNewMember) {
@@ -213,11 +227,11 @@ export async function processLifeMembership(
 ): Promise<string | null> {
   const info = parseLifeMembershipInfo(orderData, lineItem);
 
-  const memberIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.member, 'Member', db);
+  const memberIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.member, 'Member', db, orderData, lineItem);
   if (memberIssue) return memberIssue;
 
   if (info.hasSpouse && info.spouse) {
-    const spouseIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.spouse, 'Spouse', db);
+    const spouseIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.spouse, 'Spouse', db, orderData, lineItem);
     if (spouseIssue) return spouseIssue;
   }
 

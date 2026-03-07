@@ -441,6 +441,11 @@ export interface SquareSpaceLineItem {
   // ILC App processing fields added to SquarespaceLineItem.
   ilcAppProcessingStatus?: OrderStatus;
   ilcAppProcessingIssue?: string;
+  // Manually set or auto-inferred member ID, used as a fallback when the
+  // Squarespace form's "Member ID" field is missing or incorrect. Admins
+  // can set this via the order detail UI, or it can be automatically
+  // inferred by matching the order's email + date of birth to a member.
+  ilcAppMemberIdInferred?: string;
 }
 
 export type SquareSpaceOrder = BaseOrder & {

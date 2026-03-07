@@ -9,6 +9,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, InstructorLicenseType, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { computeRenewalAndExpiration } from './common';
+import { inferMemberIdFromOrder } from './infer-member';
 
 export interface InstructorLicenseInfo {
   memberId: string;
@@ -61,11 +62,25 @@ export async function processInstructorLicense(
 ): Promise<string | null> {
   const info = parseInstructorLicenseInfo(orderData, lineItem);
 
+  // If member ID is missing from the form, try to infer it.
+  let skipValidation = false;
   if (!info.memberId) {
-    const issue = `[License] Order ${orderId} is missing a Member ID in the form response. `
-      + `Cannot process license renewal without a Member ID.`;
-    logger.warn(issue);
-    return issue;
+    const inference = await inferMemberIdFromOrder(
+      orderData,
+      { memberId: '', email: info.email, name: '', dateOfBirth: '', country: '', isNewMember: undefined },
+      db,
+      lineItem
+    );
+    if (inference.memberId) {
+      logger.info(`[License] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
+      info.memberId = inference.memberId;
+      skipValidation = inference.isManual;
+    } else {
+      const issue = `[License] Order ${orderId} is missing a Member ID in the form response `
+        + `and automatic inference failed: ${inference.reason}`;
+      logger.warn(issue);
+      return issue;
+    }
   }
 
   // Look up the member by memberId
@@ -84,8 +99,8 @@ export async function processInstructorLicense(
   const memberDocRef = memberQuery.docs[0].ref;
   const memberData = memberQuery.docs[0].data() as Partial<Member>;
 
-  // Validate email
-  if (info.email) {
+  // Validate email — skip when member ID was manually set by an admin.
+  if (!skipValidation && info.email) {
     const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
     const providedEmailLower = info.email.toLowerCase();
     if (!memberEmails.includes(providedEmailLower)) {

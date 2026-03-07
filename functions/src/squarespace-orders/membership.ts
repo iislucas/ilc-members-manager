@@ -11,6 +11,7 @@ import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineIt
 import { resolveCountryCode } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration } from './common';
+import { inferMemberIdFromOrder } from './infer-member';
 
 export interface MembershipRenewalInfo {
   member: MembershipPurchaseInfo;
@@ -60,11 +61,22 @@ export async function processMembershipRenewal(
     return await processNewMemberRegistration(orderData, orderId, info, db);
   }
 
+  // If member ID is missing from the form, try to infer it.
+  let skipValidation = false;
   if (!info.member.memberId) {
-    const issue = `[Membership] Order ${orderId} is missing a Member ID in the form response. `
-      + `Cannot process renewal without a Member ID.`;
-    logger.warn(issue);
-    return issue;
+    const inference = await inferMemberIdFromOrder(orderData, info.member, db, lineItem);
+    if (inference.memberId) {
+      logger.info(`[Membership] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
+      info.member.memberId = inference.memberId;
+      // If the admin manually set the inferred member ID, skip email/name
+      // validation since the admin has already confirmed the correct member.
+      skipValidation = inference.isManual;
+    } else {
+      const issue = `[Membership] Order ${orderId} is missing a Member ID in the form response `
+        + `and automatic inference failed: ${inference.reason}`;
+      logger.warn(issue);
+      return issue;
+    }
   }
 
   // Look up the member by memberId
@@ -85,34 +97,38 @@ export async function processMembershipRenewal(
   const memberDocRef = memberQuery.docs[0].ref;
   const memberData = memberQuery.docs[0].data() as Partial<Member>;
 
-  // Validate that the member matches the order details
-  const validationIssues: string[] = [];
+  // Validate that the member matches the order details.
+  // Skip validation when the member ID was manually set by an admin
+  // (via ilcAppMemberIdInferred) since the admin has already verified the match.
+  if (!skipValidation) {
+    const validationIssues: string[] = [];
 
-  if (info.member.email) {
-    const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
-    const providedEmailLower = info.member.email.toLowerCase();
-    if (!memberEmails.includes(providedEmailLower)) {
-      validationIssues.push(
-        `Email mismatch: order provided "${info.member.email}" but member ${info.member.memberId} has emails [${memberData.emails?.join(', ')}]`
-      );
+    if (info.member.email) {
+      const memberEmails = (memberData.emails || []).map(e => e.toLowerCase());
+      const providedEmailLower = info.member.email.toLowerCase();
+      if (!memberEmails.includes(providedEmailLower)) {
+        validationIssues.push(
+          `Email mismatch: order provided "${info.member.email}" but member ${info.member.memberId} has emails [${memberData.emails?.join(', ')}]`
+        );
+      }
     }
-  }
 
-  if (info.member.name) {
-    const memberNameLower = (memberData.name || '').toLowerCase().trim();
-    const providedNameLower = info.member.name.toLowerCase().trim();
-    if (memberNameLower !== providedNameLower) {
-      validationIssues.push(
-        `Name mismatch: order provided "${info.member.name}" but member ${info.member.memberId} has name "${memberData.name}"`
-      );
+    if (info.member.name) {
+      const memberNameLower = (memberData.name || '').toLowerCase().trim();
+      const providedNameLower = info.member.name.toLowerCase().trim();
+      if (memberNameLower !== providedNameLower) {
+        validationIssues.push(
+          `Name mismatch: order provided "${info.member.name}" but member ${info.member.memberId} has name "${memberData.name}"`
+        );
+      }
     }
-  }
 
-  if (validationIssues.length > 0) {
-    const issue = `[Membership] Order ${orderId} validation issues for member ${info.member.memberId}: `
-      + validationIssues.join('; ');
-    logger.warn(issue);
-    return issue;
+    if (validationIssues.length > 0) {
+      const issue = `[Membership] Order ${orderId} validation issues for member ${info.member.memberId}: `
+        + validationIssues.join('; ');
+      logger.warn(issue);
+      return issue;
+    }
   }
 
   // Compute the actual renewal and expiration dates considering the

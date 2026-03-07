@@ -45,6 +45,19 @@
           <div class="sku-label text-sm text-gray-500" style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #666;">
             SKU: {{ item.sku }}
           </div>
+
+          @if (item.ilcAppProcessingStatus) {
+            <div class="line-item-status"
+                 [class.processed]="item.ilcAppProcessingStatus === 'processed'"
+                 [class.error]="item.ilcAppProcessingStatus === 'error'"
+                 [class.needs-manual]="item.ilcAppProcessingStatus === 'needs-manual-processing'">
+              {{ item.ilcAppProcessingStatus }}
+            </div>
+            @if (item.ilcAppProcessingIssue) {
+              <div class="line-item-issue">{{ item.ilcAppProcessingIssue }}</div>
+            }
+          }
+
           @if (item.customizations && item.customizations.length > 0) {
             <div class="form-info-label" style="font-weight: 600; font-size: 0.9rem; margin-top: 1rem; color: #444;">Form Information</div>
             <table class="customizations-table">
@@ -58,6 +71,70 @@
               </tbody>
             </table>
           }
+
+          <!-- Inferred Member ID section -->
+          <div class="inferred-member-section">
+            <div class="inferred-member-header">
+              <app-icon name="search"></app-icon>
+              <span>Inferred Member ID</span>
+            </div>
+
+            <div class="inferred-member-controls">
+              <input
+                type="text"
+                class="member-id-input"
+                placeholder="Enter member ID..."
+                [value]="getInferredMemberId(item)"
+                (input)="setInferredMemberIdInput(item.id, $any($event.target).value)"
+              />
+
+              <button
+                class="subtle-button lookup-btn"
+                (click)="lookupMemberByEmail(item)"
+                title="Look up members by email from this line item">
+                <app-icon name="search"></app-icon>
+                Lookup by Email
+              </button>
+
+              @if (hasUnsavedChange(item)) {
+                <button
+                  class="subtle-button save-btn"
+                  (click)="saveInferredMemberId(item)"
+                  [disabled]="savingLineItems().has(item.id)">
+                  <app-icon name="refresh"></app-icon>
+                  {{ savingLineItems().has(item.id) ? 'Saving...' : 'Save' }}
+                </button>
+              }
+            </div>
+
+            @if (item.ilcAppMemberIdInferred && !hasUnsavedChange(item)) {
+              <div class="inferred-member-saved">
+                <app-icon name="info"></app-icon>
+                Saved: {{ item.ilcAppMemberIdInferred }}
+              </div>
+            }
+
+            @let lookupResults = memberLookupResults().get(item.id);
+            @if (lookupResults) {
+              <div class="lookup-results">
+                @if (lookupResults.length === 0) {
+                  <div class="no-results">No members found with this email.</div>
+                } @else {
+                  <div class="results-header">
+                    Found {{ lookupResults.length }} member{{ lookupResults.length > 1 ? 's' : '' }}:
+                  </div>
+                  @for (member of lookupResults; track member.docId) {
+                    <div class="result-row" (click)="selectMemberForLineItem(item.id, member.memberId)">
+                      <span class="result-id">{{ member.memberId }}</span>
+                      <span class="result-name">{{ member.name }}</span>
+                      <span class="result-dob">DOB: {{ member.dateOfBirth || '(none)' }}</span>
+                      <app-icon name="arrow_forward" class="select-icon"></app-icon>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
         </div>
       }
     </div>

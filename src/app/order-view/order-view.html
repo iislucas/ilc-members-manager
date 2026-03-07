@@ -107,7 +107,7 @@
           o.ilcAppOrderKind ===
           "https://api.squarespace.com/1.0/commerce/orders"
         ) {
-          <app-squarespace-order-view [order]="o"></app-squarespace-order-view>
+          <app-squarespace-order-view [order]="o" (orderUpdated)="fetchOrder(orderId())"></app-squarespace-order-view>
         }
       </div>
     </div>

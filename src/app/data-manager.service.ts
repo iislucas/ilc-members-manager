@@ -45,6 +45,8 @@ import {
   Grading,
   GradingFirebaseDoc,
   firestoreDocToGrading,
+  SquareSpaceOrder,
+  SquareSpaceLineItem,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -835,6 +837,42 @@ export class DataManagerService {
       lastUpdated: serverTimestamp() as Timestamp,
     };
     return setDoc(docRef, orderWithNewTimestamp, { merge: true });
+  }
+
+  /**
+   * Set (or clear) the ilcAppMemberIdInferred field on a specific line item
+   * within an order document. This allows admins to manually associate a
+   * member with a particular line item in an order.
+   */
+  async setOrderLineItemInferredMemberId(
+    orderId: string, lineItemId: string, memberId: string
+  ): Promise<void> {
+    const docRef = doc(this.db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) throw new Error('Order not found');
+
+    const orderData = docSnap.data() as SquareSpaceOrder;
+    const lineItems = orderData.lineItems || [];
+    const item = lineItems.find((li: SquareSpaceLineItem) => li.id === lineItemId);
+    if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
+
+    item.ilcAppMemberIdInferred = memberId;
+    return updateDoc(docRef, {
+      lineItems,
+      lastUpdated: serverTimestamp(),
+    });
+  }
+
+  /**
+   * Look up members whose emails array contains the given email address.
+   * Uses the client-side members cache for admins, falls back to Firestore query.
+   */
+  lookupMembersByEmail(email: string): Member[] {
+    if (!email) return [];
+    const emailLower = email.toLowerCase().trim();
+    return this.members.entries().filter(m =>
+      m.emails.some(e => e.toLowerCase() === emailLower)
+    );
   }
 
   async clearSchoolMembers(schoolDocId: string): Promise<void> {

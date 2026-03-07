@@ -38,3 +38,6 @@ export { InstructorLicenseInfo, parseInstructorLicenseInfo } from './instructor-
 
 // School license
 export { SchoolLicenseInfo, parseSchoolLicenseInfo } from './school-license';
+
+// Member ID inference
+export { inferMemberIdFromOrder, lookupMembersByEmail, normalizeDateOfBirth } from './infer-member';
