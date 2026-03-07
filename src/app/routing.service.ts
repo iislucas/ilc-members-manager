@@ -86,7 +86,7 @@ export type RoutingConfig<P extends PathPatterns> = {
 export class RoutingService<T extends PathPatterns> {
   private urlHashPath: WritableSignal<string>;
   private urlHashParams: WritableSignal<string>;
-  public matchedPatternId: WritableSignal<string | null> = signal(null);
+  public matchedPatternId: WritableSignal<keyof T | null> = signal(null);
   public signals: {
     [pathId in keyof T]: PatternSignals<
       PathVarNames<T[pathId]>,

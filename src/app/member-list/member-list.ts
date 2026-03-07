@@ -17,7 +17,7 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns, Views } from '../app.config';
+import { MemberListPathPatterns } from '../app.config';
 
 export enum MemberSortField {
   Id = 'id',
@@ -105,7 +105,7 @@ function compareMembersByField(a: Member, b: Member, field: MemberSortField, dir
 })
 export class MemberListComponent {
   readonly sortFieldOptions = SORT_FIELD_LABELS;
-  routingService = inject(RoutingService<AppPathPatterns>);
+  routingService: RoutingService<MemberListPathPatterns> = inject(RoutingService<MemberListPathPatterns>);
   firebaseStateService = inject(FirebaseStateService);
   user = this.firebaseStateService.user;
   canMakeNewMembers = computed(() => {
@@ -125,19 +125,49 @@ export class MemberListComponent {
   searchTerm = computed(() => {
     const match = this.routingService.matchedPatternId();
     if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
+    return this.routingService.signals[match].urlParams.q();
   });
 
-
-  // Sort state
+  // Sort state — backed by URL params so sort is shareable via links.
   SortDirection = SortDirection;
 
-  sortField = signal<MemberSortField>(MemberSortField.LastUpdated);
-  sortDirection = signal<SortDirection>(SortDirection.Asc);
+  private static readonly VALID_SORT_FIELDS = new Set(
+    SORT_FIELD_LABELS.map(o => o.value),
+  );
+
+  sortField = computed<MemberSortField>(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const sortField = this.routingService.signals[match].urlParams.sortBy() as MemberSortField;
+      if (MemberListComponent.VALID_SORT_FIELDS.has(sortField)) {
+        return sortField;
+      }
+    }
+    return MemberSortField.LastUpdated;
+  });
+
+  sortDirection = computed<SortDirection>(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const sortDir = this.routingService.signals[match].urlParams.sortDir();
+      if (sortDir === SortDirection.Asc || sortDir === SortDirection.Desc) {
+        return sortDir;
+      }
+    }
+    return SortDirection.Desc;
+  });
+
+  onSortFieldChange(value: MemberSortField) {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return;
+    this.routingService.signals[match].urlParams.sortBy.set(value);
+  }
 
   toggleSortDirection() {
-    this.sortDirection.update(d => d === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc);
+    const next = this.sortDirection() === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
+    const match = this.routingService.matchedPatternId();
+    if (!match) return;
+    this.routingService.signals[match].urlParams.sortDir.set(next);
   }
 
   // Inactive member filtering
@@ -225,8 +255,7 @@ export class MemberListComponent {
   jumpToMemberRoute = computed(() => {
     const match = this.routingService.matchedPatternId();
     if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.jumpTo ? sigs.urlParams.jumpTo() : '';
+    return this.routingService.signals[match].urlParams.jumpTo();
   });
 
   constructor() {
@@ -251,10 +280,7 @@ export class MemberListComponent {
     const value = (event.target as HTMLInputElement).value;
     const match = this.routingService.matchedPatternId();
     if (match) {
-      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-      if (sigs?.urlParams?.q) {
-        sigs.urlParams.q.set(value);
-      }
+      this.routingService.signals[match].urlParams.q.set(value);
     }
     this.limit.set(50);
   }

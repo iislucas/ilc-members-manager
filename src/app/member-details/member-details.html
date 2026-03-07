@@ -432,7 +432,9 @@
       }
 
       @if (e.instructorId.trim() !== "" || userIsAdmin()) {
-        <h3>Instructor Status</h3>
+        <h3>
+          Instructor Status
+        </h3>
         <label for="instructorId">Instructor ID</label>
         <div class="rhs">
           <app-id-assignment
@@ -467,6 +469,10 @@
                 new instructor ID
               </label>
             </div>
+          }
+          @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
+            <a class="subtle-button" href="#/instructor/{{ e.instructorId }}/students" (click)="gotoStudents(); $event.preventDefault()">
+              <app-icon name="salut" /> View Students</a>
           }
         </div>
 

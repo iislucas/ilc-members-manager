@@ -46,7 +46,23 @@ export enum Views {
   EventsCalendar = 'eventsCalendar',
 }
 
+export const memberListPathPatterns = {
+  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, ['jumpTo', 'q', 'sortBy', 'sortDir']),
+  [Views.SchoolMembers]: addUrlParams(
+    pathPattern`school/${pv('schoolId')}/members`,
+    ['jumpTo', 'q', 'sortBy', 'sortDir'],
+  ),
+  [Views.InstructorStudents]: addUrlParams(
+    pathPattern`instructor/${pv('instructorId')}/students`,
+    ['jumpTo', 'q', 'sortBy', 'sortDir'],
+  ),
+};
+
+export type MemberListPathPatterns = typeof memberListPathPatterns;
+export type MemberListPathPatternsIds = keyof MemberListPathPatterns;
+
 export const initPathPatterns = {
+  ...memberListPathPatterns,
   [Views.Home]: pathPattern``,
   [Views.Login]: pathPattern`login`,
   [Views.ClassCalendarView]: pathPattern`calendar/instructor/${pv('instructorId')}`,
@@ -56,19 +72,10 @@ export const initPathPatterns = {
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId', 'q']),
   [Views.ManageSchools]: addUrlParams(pathPattern`schools`, ['schoolId', 'q']),
   [Views.MyProfile]: pathPattern`myProfile`,
-  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['jumpTo', 'q']),
+  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['jumpTo', 'q', 'sortBy', 'sortDir']),
   [Views.ManageMemberView]: pathPattern`members/${pv('memberId')}`,
-  [Views.SchoolMembers]: addUrlParams(
-    pathPattern`school/${pv('schoolId')}/members`,
-    ['jumpTo', 'q'],
-  ),
   [Views.SchoolMemberView]: pathPattern`school/${pv('schoolId')}/members/${pv('memberId')}`,
-  [Views.InstructorStudents]: addUrlParams(
-    pathPattern`instructor/${pv('instructorId')}/students`,
-    ['jumpTo', 'q'],
-  ),
   [Views.InstructorStudentView]: pathPattern`instructor/${pv('instructorId')}/students/${pv('memberId')}`,
-  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, ['jumpTo', 'q']),
   [Views.MyStudentView]: pathPattern`my-students/${pv('memberId')}`,
   [Views.MySchools]: addUrlParams(pathPattern`my-schools`, ['schoolId', 'q']),
   [Views.MembersArea]: pathPattern`members-area`,
