@@ -170,7 +170,10 @@ export class RoutingService<T extends PathPatterns> {
     for (const [key, value] of Object.entries<WritableSignal<string>>(
       this.signals[patternId].urlParams,
     )) {
-      params.set(key, value());
+      const v = value();
+      if (v !== '') {
+        params.set(key, v);
+      }
     }
     const queryString = params.toString();
     return queryString ? `?${queryString}` : '';

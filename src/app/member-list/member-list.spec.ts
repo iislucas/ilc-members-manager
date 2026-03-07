@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MemberListComponent } from './member-list';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns } from '../app.config';
+import { MemberListPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import { Member, initMember } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
@@ -35,16 +35,25 @@ describe('MemberListComponent', () => {
   let component: MemberListComponent;
   let fixture: ComponentFixture<MemberListComponent>;
   let mockFirebaseStateService: FirebaseStateService;
-  let mockRoutingService: RoutingService<AppPathPatterns>;
+  let mockRoutingService: RoutingService<MemberListPathPatterns>;
 
   beforeEach(async () => {
     mockFirebaseStateService = {
       user: signal({ isAdmin: true, schoolsManaged: [] }),
     } as never as FirebaseStateService;
     mockRoutingService = {
-      matchedPatternId: signal('members'),
-      signals: { members: { urlParams: { q: signal(''), memberId: signal('') } } }
-    } as never as RoutingService<AppPathPatterns>;
+      matchedPatternId: signal('myStudents'),
+      signals: {
+        myStudents: {
+          urlParams: {
+            q: signal(''),
+            jumpTo: signal(''),
+            sortBy: signal(''),
+            sortDir: signal(''),
+          },
+        },
+      },
+    } as never as RoutingService<MemberListPathPatterns>;
 
     await TestBed.configureTestingModule({
       imports: [MemberListComponent, MockMemberDetailsComponent, MockMemberRowHeaderComponent],
