@@ -10,6 +10,7 @@ import * as logger from 'firebase-functions/logger';
 import { Member, InstructorLicenseType, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
+import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 export interface InstructorLicenseInfo {
   memberId: string;
@@ -116,20 +117,16 @@ export async function processInstructorLicense(
     }
   }
 
+  // Snapshot the member's current dates before we change them (write-once).
+  snapshotPreOrderDates(lineItem,
+    memberData.instructorLicenseRenewalDate || '',
+    memberData.instructorLicenseExpires || '');
+
   // Compute the actual renewal and expiration dates
   const { renewalDate, expirationDate } = computeRenewalAndExpiration(
     memberData.instructorLicenseExpires || '',
     info.orderDate
   );
-
-  // Idempotency: check if the member already has a license expiring at or after new expiration
-  if (memberData.instructorLicenseExpires && memberData.instructorLicenseExpires >= expirationDate) {
-    const issue = `[License] Member ${info.memberId} already has instructor license expiring on `
-      + `${memberData.instructorLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
-      + `This may be a duplicate renewal. No update made.`;
-    logger.warn(issue);
-    return { kind: 'error', message: issue };
-  }
 
   logger.info(`[License] Updating member ${info.memberId} (doc ${memberDocRef.id}): `
     + `instructorLicenseRenewalDate=${renewalDate}, instructorLicenseExpires=${expirationDate}`);

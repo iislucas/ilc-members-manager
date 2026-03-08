@@ -120,6 +120,23 @@
             </div>
           }
 
+          @if (item.ilcAppPreOrderRenewalDate || item.ilcAppPreOrderExpiryDate) {
+            <div class="expiry-preview-dates" style="margin-top: 0.5rem;">
+              @if (item.ilcAppPreOrderRenewalDate) {
+                <div class="expiry-date-item">
+                  <span class="expiry-date-label">Pre-Order Renewal Date</span>
+                  <span class="expiry-date-value">{{ item.ilcAppPreOrderRenewalDate }}</span>
+                </div>
+              }
+              @if (item.ilcAppPreOrderExpiryDate) {
+                <div class="expiry-date-item">
+                  <span class="expiry-date-label">Pre-Order Expiry Date</span>
+                  <span class="expiry-date-value">{{ item.ilcAppPreOrderExpiryDate }}</span>
+                </div>
+              }
+            </div>
+          }
+
           @if (item.customizations && item.customizations.length > 0) {
             <div class="form-info-label" style="font-weight: 600; font-size: 0.9rem; margin-top: 1rem; color: #444;">Form Information</div>
             <table class="customizations-table">

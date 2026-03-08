@@ -8,8 +8,9 @@ custom forms or user email.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { SubscriptionResult } from './common';
+import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
+import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 // Grant video library access to a member based on order data.
 export async function processVideoLibraryAccess(
@@ -83,33 +84,33 @@ export async function processVideoLibraryAccess(
     return { kind: 'error', message: issue };
   }
 
-  // Compute expiration date: 1 month from order creation date.
-  // Video library subscriptions are monthly.
+  // Snapshot the member's current dates before we change them (write-once).
+  snapshotPreOrderDates(videoItem,
+    memberData?.classVideoLibraryLastRenewalDate || '',
+    memberData?.classVideoLibraryExpirationDate || '');
+
+  // Compute renewal and expiration dates.
+  // Video library subscriptions are monthly: each purchase adds 1 month.
+  // If the member already has a subscription with a future expiration,
+  // extend from that date rather than from the purchase date.
   const purchaseDate = orderData.createdOn
     ? orderData.createdOn.substring(0, 10)
     : new Date().toISOString().substring(0, 10);
-  const expirationDateObj = new Date(purchaseDate + 'T00:00:00Z');
-  expirationDateObj.setUTCMonth(expirationDateObj.getUTCMonth() + 1);
-  const expirationDate = expirationDateObj.toISOString().substring(0, 10);
 
-  // Idempotency: skip if the member already has a subscription expiring at or after
-  // this new expiration (indicates a duplicate or already-processed order).
-  if (memberData && memberData.classVideoLibrarySubscription === true
-    && memberData.classVideoLibraryExpirationDate
-    && memberData.classVideoLibraryExpirationDate >= expirationDate) {
-    const issue = `[Video Library] Member ${memberDocRef.id} already has video library subscription `
-      + `expiring ${memberData.classVideoLibraryExpirationDate}, which is at or after ${expirationDate}. No action needed.`;
-    logger.warn(issue);
-    return { kind: 'error', message: issue };
-  }
+  const { renewalDate, expirationDate } = computeRenewalAndExpiration(
+    memberData?.classVideoLibraryExpirationDate || '',
+    purchaseDate,
+    1 // monthly
+  );
 
   logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}, `
-    + `expires ${expirationDate}.`);
+    + `renewing from ${renewalDate}, expires ${expirationDate}.`);
   await memberDocRef.update({
     classVideoLibrarySubscription: true,
+    classVideoLibraryLastRenewalDate: renewalDate,
     classVideoLibraryExpirationDate: expirationDate,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return { kind: 'success', renewalDate: purchaseDate, expirationDate };
+  return { kind: 'success', renewalDate, expirationDate };
 }

@@ -46,6 +46,36 @@ const SQUARESPACE_ORDERS_API = 'https://api.squarespace.com/1.0/commerce/orders'
 // The systemInfo document where we keep track of the last time we synced orders
 const SYNC_STATE_DOC = 'system/squarespaceSync';
 
+// When re-syncing an order from the Squarespace API, the API response does not
+// include our custom `ilcApp*` fields on line items (e.g. ilcAppMemberIdInferred,
+// ilcAppProcessingStatus). This function copies those fields from the existing
+// Firestore line items onto the incoming line items (matched by line item `id`)
+// so they are not silently wiped.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function preserveIlcAppLineItemFields(existingData: any, incomingOrder: any) {
+  const existingLineItems: SquareSpaceLineItem[] | undefined = existingData?.lineItems;
+  const incomingLineItems: SquareSpaceLineItem[] | undefined = incomingOrder?.lineItems;
+  if (!existingLineItems || !incomingLineItems) return;
+
+  // Build a lookup from line item id → existing line item for O(n) matching.
+  const existingById = new Map<string, SquareSpaceLineItem>();
+  for (const item of existingLineItems) {
+    if (item.id) existingById.set(item.id, item);
+  }
+
+  for (const incoming of incomingLineItems) {
+    const existing = incoming.id ? existingById.get(incoming.id) : undefined;
+    if (!existing) continue;
+
+    // Copy every ilcApp* field from the existing item if not already on the incoming one.
+    for (const key of Object.keys(existing)) {
+      if (key.startsWith('ilcApp') && !(key in incoming)) {
+        (incoming as unknown as Record<string, unknown>)[key] = (existing as unknown as Record<string, unknown>)[key];
+      }
+    }
+  }
+}
+
 // Core logic to fetch from Squarespace API and sync to Firestore.
 // Placed in an exportable function so standalone scripts can call it.
 export async function fetchAndSyncOrders(
@@ -102,6 +132,8 @@ export async function fetchAndSyncOrders(
     }
 
     let latestModifiedOn = modifiedAfterStr;
+    let newOrderCount = 0;
+    let updatedOrderCount = 0;
 
     // 3. Process each order by saving it to Firestore
     for (const orderData of orders) {
@@ -133,7 +165,9 @@ export async function fetchAndSyncOrders(
         let docRef;
         if (!existingOrderQuery.empty) {
           docRef = existingOrderQuery.docs[0].ref;
+          preserveIlcAppLineItemFields(existingOrderQuery.docs[0].data(), orderToSave);
           await docRef.set(orderToSave, { merge: true });
+          updatedOrderCount++;
         } else {
           // Check by orderId if orderNumber failed (idempotency check fallback)
           const fallbackQuery = await db.collection('orders')
@@ -143,15 +177,20 @@ export async function fetchAndSyncOrders(
 
           if (!fallbackQuery.empty) {
             docRef = fallbackQuery.docs[0].ref;
+            preserveIlcAppLineItemFields(fallbackQuery.docs[0].data(), orderToSave);
             await docRef.set(orderToSave, { merge: true });
+            updatedOrderCount++;
           } else {
             docRef = await db.collection('orders').add(orderToSave);
+            newOrderCount++;
           }
         }
 
         logger.info(`Saved order ${orderId} to firestore document ${docRef.id}.`);
       }
     }
+
+    logger.info(`Sync batch complete: ${orders.length} orders fetched, ${newOrderCount} new, ${updatedOrderCount} updated (modifiedAfter=${modifiedAfterStr}).`);
 
     // 4. Update the sync state document so we don't process these orders again.
     if (dryRun) {
@@ -317,7 +356,7 @@ export async function executeOrderDownstreamLogic(
     } else if (lineItem.sku === 'LIS-SCH-YRL' || lineItem.sku === 'LIS-SCH-MTH') {
       const schoolInfo = parseSchoolLicenseInfo(orderData, lineItem);
       const renewalMonths = lineItem.sku === 'LIS-SCH-MTH' ? 1 : 12;
-      subscriptionResult = await processSchoolLicense(orderId, schoolInfo, renewalMonths, db);
+      subscriptionResult = await processSchoolLicense(orderId, schoolInfo, renewalMonths, lineItem, db);
     } else if (lineItem.sku === 'LIS-YEAR-GL' || lineItem.sku === 'LIS-YEAR-INS' || lineItem.sku === 'LIS-YEAR-LI') {
       subscriptionResult = await processInstructorLicense(orderData, orderId, lineItem, db);
     }

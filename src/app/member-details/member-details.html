@@ -603,26 +603,31 @@
         }
       }
 
-      @if (userIsAdmin()) {
-        <h3>Admin</h3>
-        <label for="isAdmin">Is Admin</label>
-        <div class="rhs">
-          <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
-          <span class="note">(can edit all members)</span>
-        </div>
+      @if (e.classVideoLibrarySubscription || userIsAdmin()) {
+        <h3>Class Video Library</h3>
 
-        <label for="classVideoLibrarySubscription">Class Video Library</label>
+        <label for="classVideoLibrarySubscription">Has Access</label>
         <div class="rhs">
           <input
             type="checkbox"
             id="classVideoLibrarySubscription"
             [formField]="form.classVideoLibrarySubscription"
           />
-          <span class="note">Has access</span>
+        </div>
+
+        <label for="classVideoLibraryLastRenewalDate">Last Renewal</label>
+        <div class="rhs">
+          <input
+            class="date"
+            type="date"
+            id="classVideoLibraryLastRenewalDate"
+            placeholder="YYYY-MM-DD"
+            [formField]="form.classVideoLibraryLastRenewalDate"
+          />
         </div>
 
         <label for="classVideoLibraryExpirationDate"
-          >Video Library Expires</label
+          >Expires</label
         >
         <div class="rhs">
           <input
@@ -633,6 +638,15 @@
             [formField]="form.classVideoLibraryExpirationDate"
           />
           <span class="note">Leave empty if never expires</span>
+        </div>
+      }
+
+      @if (userIsAdmin()) {
+        <h3>Admin</h3>
+        <label for="isAdmin">Is Admin</label>
+        <div class="rhs">
+          <input type="checkbox" id="isAdmin" [formField]="form.isAdmin" />
+          <span class="note">(can edit all members)</span>
         </div>
 
         <label for="notes" class="align-top">Notes</label>

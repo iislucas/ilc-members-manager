@@ -12,6 +12,7 @@ import { resolveCountryCode } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
+import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 export interface MembershipRenewalInfo {
   member: MembershipPurchaseInfo;
@@ -134,22 +135,17 @@ export async function processMembershipRenewal(
     }
   }
 
+  // Snapshot the member's current dates before we change them (write-once).
+  snapshotPreOrderDates(lineItem,
+    memberData.lastRenewalDate || '',
+    memberData.currentMembershipExpires || '');
+
   // Compute the actual renewal and expiration dates considering the
   // member's current expiration (so early renewals extend from expiry).
   const { renewalDate, expirationDate } = computeRenewalAndExpiration(
     memberData.currentMembershipExpires || '',
     info.renewalDate
   );
-
-  // Check if the member's current expiration is already beyond the new one
-  // (would indicate a duplicate / already processed renewal)
-  if (memberData.currentMembershipExpires && memberData.currentMembershipExpires >= expirationDate) {
-    const issue = `[Membership] Member ${info.member.memberId} already has membership expiring on `
-      + `${memberData.currentMembershipExpires}, which is at or after the new expiration ${expirationDate}. `
-      + `This may be a duplicate renewal. No update made.`;
-    logger.warn(issue);
-    return { kind: 'error', message: issue };
-  }
 
   // Update the member's renewal date and expiration
   logger.info(`[Membership] Updating member ${info.member.memberId} (doc ${memberDocRef.id}): `

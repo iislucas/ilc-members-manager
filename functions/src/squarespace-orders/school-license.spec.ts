@@ -251,6 +251,10 @@ describe('school license renewal durations', () => {
 // processSchoolLicense tests (with mocked Firestore)
 // ---------------------------------------------------------------
 describe('processSchoolLicense', () => {
+  function mockLineItem(): SquareSpaceLineItem {
+    return { id: 'li-1', sku: 'LIS-SCH-YRL', quantity: '1', unitPricePaid: { value: '100' } };
+  }
+
   it('should return an error when schoolId is missing', async () => {
     const info: SchoolLicenseInfo = {
       schoolId: '',
@@ -259,7 +263,7 @@ describe('processSchoolLicense', () => {
       orderDate: '2026-03-01',
     };
     const { db } = mockFirestoreEmpty();
-    const result = await processSchoolLicense('ORD-1', info, 12, db);
+    const result = await processSchoolLicense('ORD-1', info, 12, mockLineItem(), db);
     expect(result.kind).toBe('error');
     if (result.kind === 'error') {
       expect(result.message).toContain('missing a School ID');
@@ -274,7 +278,7 @@ describe('processSchoolLicense', () => {
       orderDate: '2026-03-01',
     };
     const { db } = mockFirestoreEmpty();
-    const result = await processSchoolLicense('ORD-2', info, 12, db);
+    const result = await processSchoolLicense('ORD-2', info, 12, mockLineItem(), db);
     expect(result.kind).toBe('error');
     if (result.kind === 'error') {
       expect(result.message).toContain('not found in database');
@@ -293,7 +297,7 @@ describe('processSchoolLicense', () => {
       schoolLicenseExpires: '',
     });
 
-    const result = await processSchoolLicense('ORD-3', info, 12, db);
+    const result = await processSchoolLicense('ORD-3', info, 12, mockLineItem(), db);
     expect(result.kind).toBe('success');
     if (result.kind === 'success') {
       expect(result.renewalDate).toBe('2026-03-01');
@@ -318,7 +322,7 @@ describe('processSchoolLicense', () => {
       schoolLicenseExpires: '',
     });
 
-    const result = await processSchoolLicense('ORD-4', info, 1, db);
+    const result = await processSchoolLicense('ORD-4', info, 1, mockLineItem(), db);
     expect(result.kind).toBe('success');
     if (result.kind === 'success') {
       expect(result.renewalDate).toBe('2026-03-01');
@@ -343,7 +347,7 @@ describe('processSchoolLicense', () => {
       schoolLicenseExpires: '2026-08-15', // still valid
     });
 
-    const result = await processSchoolLicense('ORD-5', info, 1, db);
+    const result = await processSchoolLicense('ORD-5', info, 1, mockLineItem(), db);
     expect(result.kind).toBe('success');
     if (result.kind === 'success') {
       expect(result.renewalDate).toBe('2026-08-15');
@@ -368,7 +372,7 @@ describe('processSchoolLicense', () => {
       schoolLicenseExpires: '2027-06-01',
     });
 
-    const result = await processSchoolLicense('ORD-6', info, 1, db);
+    const result = await processSchoolLicense('ORD-6', info, 1, mockLineItem(), db);
     expect(result.kind).toBe('success');
     if (result.kind === 'success') {
       expect(result.renewalDate).toBe('2027-06-01');
@@ -382,23 +386,22 @@ describe('processSchoolLicense', () => {
     expect(updateArg.schoolLicenseExpires).toBe('2027-07-01');
   });
 
-  it('should reject duplicate when new expiration does not extend beyond current', async () => {
+  it('should snapshot pre-order dates on the lineItem', async () => {
     const info: SchoolLicenseInfo = {
       schoolId: 'SCH-101',
       email: 'test@example.com',
       memberId: 'US402',
       orderDate: '2026-03-01',
     };
-    const { db, updateSpy } = mockFirestoreWithSchool({
+    const { db } = mockFirestoreWithSchool({
       schoolId: 'SCH-101',
-      schoolLicenseExpires: '9999-12-31',
+      schoolLicenseRenewalDate: '2025-06-01',
+      schoolLicenseExpires: '2026-06-01',
     });
+    const lineItem = mockLineItem();
 
-    const result = await processSchoolLicense('ORD-7', info, 12, db);
-    expect(result.kind).toBe('error');
-    if (result.kind === 'error') {
-      expect(result.message).toContain('duplicate renewal');
-    }
-    expect(updateSpy).not.toHaveBeenCalled();
+    await processSchoolLicense('ORD-7', info, 12, lineItem, db);
+    expect(lineItem.ilcAppPreOrderRenewalDate).toBe('2025-06-01');
+    expect(lineItem.ilcAppPreOrderExpiryDate).toBe('2026-06-01');
   });
 });

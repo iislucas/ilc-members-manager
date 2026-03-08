@@ -306,6 +306,7 @@ export type Member = {
 
   // Class Video Library
   classVideoLibrarySubscription: boolean;
+  classVideoLibraryLastRenewalDate: string; // YYYY-MM-DD
   classVideoLibraryExpirationDate: string; // YYYY-MM-DD or empty if never expires
 
   // Notes only for ILC HQ.
@@ -452,6 +453,11 @@ export interface SquareSpaceLineItem {
   // these fields record the renewal date and new expiry date that were set.
   ilcAppNewLastRenewalDate?: string; // YYYY-MM-DD
   ilcAppNewExpiryDate?: string; // YYYY-MM-DD
+  // Snapshot of the member/school's renewal and expiry dates before this
+  // order was processed. Written once at processing time so reprocessing
+  // does not overwrite the original baseline.
+  ilcAppPreOrderRenewalDate?: string; // YYYY-MM-DD
+  ilcAppPreOrderExpiryDate?: string; // YYYY-MM-DD
 }
 
 export type SquareSpaceOrder = BaseOrder & {
@@ -565,6 +571,7 @@ export function initMember(): Member {
 
     // Class Video Library
     classVideoLibrarySubscription: false,
+    classVideoLibraryLastRenewalDate: '',
     classVideoLibraryExpirationDate: '',
 
     // Notes - information only for ILC HQ management.

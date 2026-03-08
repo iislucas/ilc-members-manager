@@ -10,6 +10,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { School, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
+import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 export interface SchoolLicenseInfo {
   schoolId: string;
@@ -64,6 +65,7 @@ export async function processSchoolLicense(
   orderId: string,
   info: SchoolLicenseInfo,
   renewalMonths: number,
+  lineItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
 ): Promise<SubscriptionResult> {
   if (!info.schoolId) {
@@ -89,21 +91,17 @@ export async function processSchoolLicense(
   const schoolDocRef = schoolQuery.docs[0].ref;
   const schoolData = schoolQuery.docs[0].data() as Partial<School>;
 
+  // Snapshot the school's current dates before we change them (write-once).
+  snapshotPreOrderDates(lineItem,
+    schoolData.schoolLicenseRenewalDate || '',
+    schoolData.schoolLicenseExpires || '');
+
   // Compute the actual renewal and expiration dates
   const { renewalDate, expirationDate } = computeRenewalAndExpiration(
     schoolData.schoolLicenseExpires || '',
     info.orderDate,
     renewalMonths
   );
-
-  // Idempotency: check if the school already has a license expiring at or after new expiration
-  if (schoolData.schoolLicenseExpires && schoolData.schoolLicenseExpires >= expirationDate) {
-    const issue = `[School License] School ${info.schoolId} already has school license expiring on `
-      + `${schoolData.schoolLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
-      + `This may be a duplicate renewal. No update made.`;
-    logger.warn(issue);
-    return { kind: 'error', message: issue };
-  }
 
   logger.info(`[School License] Updating school ${info.schoolId} (doc ${schoolDocRef.id}): `
     + `schoolLicenseRenewalDate=${renewalDate}, schoolLicenseExpires=${expirationDate}`);
