@@ -16,7 +16,7 @@
           {{ event().end | date: "mediumDate" }}
         }
         @if (event().googleCalEventLink) {
-          <a
+          <a class="icon-only-button"
             [href]="event().googleCalEventLink"
             target="_blank"
             rel="noopener noreferrer"
@@ -32,7 +32,7 @@
         <span>
           {{ event().location }}
           @if (event().googleMapsUrl) {
-            <a
+            <a class="icon-only-button"
               [href]="event().googleMapsUrl"
               target="_blank"
               rel="noopener noreferrer"

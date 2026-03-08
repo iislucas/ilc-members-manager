@@ -46,6 +46,7 @@ button {
   align-items: center;
   display: flex;
   justify-content: center;
+  gap: 0.4em;
   padding: 0.3em;
   padding-left: 0.4em;
   padding-right: 0.4em;
@@ -91,20 +92,28 @@ button:disabled {
 
 .icon-only-button {
   // Sizing and spacing
-  border-radius: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 100%;
   // Colors and borders
   background-color: unset;
   border: unset;
   // A subtle shadow for a "raised" Material Design effect.
   box-shadow: unset;
+  opacity: 0.8;
 
   &:hover {
     background-color: unset;
     box-shadow: unset;
+    opacity: 1;
   }
   &:active {
     background-color: unset;
     box-shadow: unset;
+    background-color: $button-active-bg-color;
+    opacity: 1;
   }
   &:disabled {
     opacity: 0.7;
