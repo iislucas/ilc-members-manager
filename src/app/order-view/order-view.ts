@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
 import { Order } from '../../../functions/src/data-model';
@@ -8,11 +8,12 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { SquarespaceOrderView } from './squarespace-order-view/squarespace-order-view';
 import { SheetOrderView } from './sheet-order-view/sheet-order-view';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-order-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView],
+  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView, FormsModule],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })
@@ -25,6 +26,14 @@ export class OrderView {
   public loading = signal(false);
   public error = signal<string | null>(null);
   public reprocessing = signal(false);
+  public notesInput = signal<string | undefined>(undefined);
+  public savingNotes = signal(false);
+
+  public notesChanged = computed(() => {
+    const input = this.notesInput();
+    if (input === undefined) return false;
+    return input !== (this.order()?.ilcAppNotes || '');
+  });
 
   constructor() {
     effect(() => {
@@ -77,6 +86,28 @@ export class OrderView {
       alert(`Error reprocessing order: ${(e as Error).message}`);
     } finally {
       this.reprocessing.set(false);
+    }
+  }
+
+  onNotesInput(value: string) {
+    this.notesInput.set(value);
+  }
+
+  async saveNotes() {
+    const o = this.order();
+    if (!o) return;
+    const notes = this.notesInput() ?? '';
+
+    this.savingNotes.set(true);
+    try {
+      await this.dataService.updateOrderNotes(o.docId, notes);
+      // Refresh order and reset input tracking
+      await this.fetchOrder(this.orderId());
+      this.notesInput.set(undefined);
+    } catch (e: unknown) {
+      alert(`Error saving notes: ${(e as Error).message}`);
+    } finally {
+      this.savingNotes.set(false);
     }
   }
 }

@@ -8,13 +8,14 @@ custom forms or user email.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { SubscriptionResult } from './common';
+import { inferMemberIdFromOrder } from './infer-member';
 
 // Grant video library access to a member based on order data.
-// Returns error string or null if no error.
 export async function processVideoLibraryAccess(
   orderData: SquareSpaceOrder, orderId: string,
   videoItem: SquareSpaceLineItem, db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   let email = orderData.customerEmail;
   let providedMemberId = '';
   let providedEmail = '';
@@ -34,6 +35,28 @@ export async function processVideoLibraryAccess(
   // Use provided email from form if available
   if (providedEmail) {
     email = providedEmail;
+  }
+
+  // If the admin manually set ilcAppMemberIdInferred on the line item, it
+  // overrides whatever member ID the user may have entered in the form.
+  if (videoItem.ilcAppMemberIdInferred) {
+    logger.info(`[Video Library] Order ${orderId}: using admin-set ilcAppMemberIdInferred "${videoItem.ilcAppMemberIdInferred}"` +
+      (providedMemberId ? ` (overriding form-provided "${providedMemberId}")` : ''));
+    providedMemberId = videoItem.ilcAppMemberIdInferred;
+  }
+
+  // If still no member ID, try automatic inference by email + DOB.
+  if (!providedMemberId) {
+    const inference = await inferMemberIdFromOrder(
+      orderData,
+      { memberId: '', email, name: '', dateOfBirth: '', country: '', isNewMember: undefined },
+      db,
+      videoItem
+    );
+    if (inference.memberId) {
+      logger.info(`[Video Library] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
+      providedMemberId = inference.memberId;
+    }
   }
 
   let memberDocRef: admin.firestore.DocumentReference | null = null;
@@ -57,7 +80,7 @@ export async function processVideoLibraryAccess(
   if (!memberDocRef) {
     const issue = `[Video Library] Could not find a member document for order ${orderId} (Member ID: ${providedMemberId}, Email: ${email}) to grant video library access.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   // Compute expiration date: 1 month from order creation date.
@@ -77,7 +100,7 @@ export async function processVideoLibraryAccess(
     const issue = `[Video Library] Member ${memberDocRef.id} already has video library subscription `
       + `expiring ${memberData.classVideoLibraryExpirationDate}, which is at or after ${expirationDate}. No action needed.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   logger.info(`[Video Library] Granting video library subscription to member ${memberDocRef.id} based on order ${orderId}, `
@@ -88,5 +111,5 @@ export async function processVideoLibraryAccess(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate: purchaseDate, expirationDate };
 }

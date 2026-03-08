@@ -9,7 +9,7 @@ Handles parsing and processing school license renewals.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { School, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { computeRenewalAndExpiration } from './common';
+import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 
 export interface SchoolLicenseInfo {
   schoolId: string;
@@ -60,19 +60,17 @@ export function parseSchoolLicenseInfo(
 //
 // renewalMonths: how many months to extend the license by (12 = annual,
 // 1 = monthly).
-//
-// Returns an error string, or null if successful.
 export async function processSchoolLicense(
   orderId: string,
   info: SchoolLicenseInfo,
   renewalMonths: number,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   if (!info.schoolId) {
-    const issue = `[School License] Order ${orderId} is missing a School ID in the form response. `
+    const issue = `[School License] Order ${orderId} is missing a School ID in the form response `
       + `Cannot process school license renewal without a School ID.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   // Look up the school by schoolId
@@ -85,7 +83,7 @@ export async function processSchoolLicense(
   if (schoolQuery.empty) {
     const issue = `[School License] School ID ${info.schoolId} not found in database for order ${orderId}.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const schoolDocRef = schoolQuery.docs[0].ref;
@@ -104,7 +102,7 @@ export async function processSchoolLicense(
       + `${schoolData.schoolLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
       + `This may be a duplicate renewal. No update made.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   logger.info(`[School License] Updating school ${info.schoolId} (doc ${schoolDocRef.id}): `
@@ -116,5 +114,5 @@ export async function processSchoolLicense(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate, expirationDate };
 }

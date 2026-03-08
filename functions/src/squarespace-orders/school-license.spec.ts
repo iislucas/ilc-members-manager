@@ -260,7 +260,10 @@ describe('processSchoolLicense', () => {
     };
     const { db } = mockFirestoreEmpty();
     const result = await processSchoolLicense('ORD-1', info, 12, db);
-    expect(result).toContain('missing a School ID');
+    expect(result.kind).toBe('error');
+    if (result.kind === 'error') {
+      expect(result.message).toContain('missing a School ID');
+    }
   });
 
   it('should return an error when school is not found', async () => {
@@ -272,7 +275,10 @@ describe('processSchoolLicense', () => {
     };
     const { db } = mockFirestoreEmpty();
     const result = await processSchoolLicense('ORD-2', info, 12, db);
-    expect(result).toContain('not found in database');
+    expect(result.kind).toBe('error');
+    if (result.kind === 'error') {
+      expect(result.message).toContain('not found in database');
+    }
   });
 
   it('should update the school with annual renewal dates (12 months)', async () => {
@@ -288,7 +294,11 @@ describe('processSchoolLicense', () => {
     });
 
     const result = await processSchoolLicense('ORD-3', info, 12, db);
-    expect(result).toBeNull();
+    expect(result.kind).toBe('success');
+    if (result.kind === 'success') {
+      expect(result.renewalDate).toBe('2026-03-01');
+      expect(result.expirationDate).toBe('2027-03-01');
+    }
 
     expect(updateSpy).toHaveBeenCalledOnce();
     const updateArg = updateSpy.mock.calls[0][0];
@@ -309,7 +319,11 @@ describe('processSchoolLicense', () => {
     });
 
     const result = await processSchoolLicense('ORD-4', info, 1, db);
-    expect(result).toBeNull();
+    expect(result.kind).toBe('success');
+    if (result.kind === 'success') {
+      expect(result.renewalDate).toBe('2026-03-01');
+      expect(result.expirationDate).toBe('2026-04-01');
+    }
 
     expect(updateSpy).toHaveBeenCalledOnce();
     const updateArg = updateSpy.mock.calls[0][0];
@@ -330,7 +344,11 @@ describe('processSchoolLicense', () => {
     });
 
     const result = await processSchoolLicense('ORD-5', info, 1, db);
-    expect(result).toBeNull();
+    expect(result.kind).toBe('success');
+    if (result.kind === 'success') {
+      expect(result.renewalDate).toBe('2026-08-15');
+      expect(result.expirationDate).toBe('2026-09-15');
+    }
 
     const updateArg = updateSpy.mock.calls[0][0];
     // Should extend from current expiration, not from order date
@@ -351,7 +369,11 @@ describe('processSchoolLicense', () => {
     });
 
     const result = await processSchoolLicense('ORD-6', info, 1, db);
-    expect(result).toBeNull();
+    expect(result.kind).toBe('success');
+    if (result.kind === 'success') {
+      expect(result.renewalDate).toBe('2027-06-01');
+      expect(result.expirationDate).toBe('2027-07-01');
+    }
 
     // renewalDate = max(2027-06-01, 2026-03-01) = 2027-06-01
     // expirationDate = 2027-07-01
@@ -373,7 +395,10 @@ describe('processSchoolLicense', () => {
     });
 
     const result = await processSchoolLicense('ORD-7', info, 12, db);
-    expect(result).toContain('duplicate renewal');
+    expect(result.kind).toBe('error');
+    if (result.kind === 'error') {
+      expect(result.message).toContain('duplicate renewal');
+    }
     expect(updateSpy).not.toHaveBeenCalled();
   });
 });

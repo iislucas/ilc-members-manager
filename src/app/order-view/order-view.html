@@ -72,13 +72,21 @@
                 class="value app-status"
                 [class.error]="o.ilcAppOrderStatus === 'error'"
                 [class.processed]="o.ilcAppOrderStatus === 'processed'"
-                [class.needs-manual]="o.ilcAppOrderStatus === 'needs-manual-processing'"
+                [class.needs-manual]="
+                  o.ilcAppOrderStatus === 'needs-manual-processing'
+                "
                 [class.ignore]="o.ilcAppOrderStatus === 'ignore'"
               >
                 @switch (o.ilcAppOrderStatus) {
-                  @case ('needs-manual-processing') { TODO }
-                  @case ('ignore') { IGNORE }
-                  @default { {{ o.ilcAppOrderStatus | uppercase }} }
+                  @case ("needs-manual-processing") {
+                    TODO
+                  }
+                  @case ("ignore") {
+                    IGNORE
+                  }
+                  @default {
+                    {{ o.ilcAppOrderStatus | uppercase }}
+                  }
                 }
               </div>
             </div>
@@ -99,6 +107,29 @@
           </div>
         }
 
+        <div class="admin-notes-section">
+          <label>Admin Notes</label>
+          <textarea
+            class="admin-notes-input"
+            placeholder="Add notes about this order..."
+            [value]="
+              notesInput() !== undefined ? notesInput() : o.ilcAppNotes || ''
+            "
+            (input)="onNotesInput($any($event.target).value)"
+            rows="3"
+          ></textarea>
+          @if (notesChanged()) {
+            <button
+              class="save-notes-btn"
+              (click)="saveNotes()"
+              [disabled]="savingNotes()"
+            >
+              <app-icon name="refresh"></app-icon>
+              {{ savingNotes() ? "Saving..." : "Save Notes" }}
+            </button>
+          }
+        </div>
+
         <div class="divider"></div>
 
         @if (o.ilcAppOrderKind === "ilc-2005-sheets-db-import") {
@@ -107,7 +138,10 @@
           o.ilcAppOrderKind ===
           "https://api.squarespace.com/1.0/commerce/orders"
         ) {
-          <app-squarespace-order-view [order]="o" (orderUpdated)="fetchOrder(orderId())"></app-squarespace-order-view>
+          <app-squarespace-order-view
+            [order]="o"
+            (orderUpdated)="fetchOrder(orderId())"
+          ></app-squarespace-order-view>
         }
       </div>
     </div>

@@ -395,6 +395,8 @@ export type BaseOrder = {
   ilcAppOrderKind?: OrderKind;
   ilcAppOrderStatus?: OrderStatus;
   ilcAppOrderIssues?: string[];
+  // Free-form admin notes, editable from the order detail UI.
+  ilcAppNotes?: string;
 };
 
 // Firestore path: /orders/{doc-id}
@@ -446,6 +448,10 @@ export interface SquareSpaceLineItem {
   // can set this via the order detail UI, or it can be automatically
   // inferred by matching the order's email + date of birth to a member.
   ilcAppMemberIdInferred?: string;
+  // When the order is processed successfully and changes an expiry date,
+  // these fields record the renewal date and new expiry date that were set.
+  ilcAppNewLastRenewalDate?: string; // YYYY-MM-DD
+  ilcAppNewExpiryDate?: string; // YYYY-MM-DD
 }
 
 export type SquareSpaceOrder = BaseOrder & {

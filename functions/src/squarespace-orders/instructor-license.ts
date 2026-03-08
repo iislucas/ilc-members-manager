@@ -8,7 +8,7 @@ license renewals.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, InstructorLicenseType, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { computeRenewalAndExpiration } from './common';
+import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 
 export interface InstructorLicenseInfo {
@@ -53,13 +53,12 @@ export function parseInstructorLicenseInfo(
 // Process an instructor / group leader license renewal line item:
 // find the member by memberId, validate, update instructorLicenseRenewalDate
 // and instructorLicenseExpires.
-// Returns an error string, or null if successful.
 export async function processInstructorLicense(
   orderData: SquareSpaceOrder,
   orderId: string,
   lineItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   const info = parseInstructorLicenseInfo(orderData, lineItem);
 
   // If the admin manually set ilcAppMemberIdInferred on the line item, it
@@ -85,7 +84,7 @@ export async function processInstructorLicense(
       const issue = `[License] Order ${orderId} is missing a Member ID in the form response `
         + `and automatic inference failed: ${inference.reason}`;
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
@@ -99,7 +98,7 @@ export async function processInstructorLicense(
   if (memberQuery.empty) {
     const issue = `[License] Member ID ${info.memberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const memberDocRef = memberQuery.docs[0].ref;
@@ -113,7 +112,7 @@ export async function processInstructorLicense(
       const issue = `[License] Order ${orderId}: email mismatch for member ${info.memberId}: `
         + `order provided "${info.email}" but member has emails [${memberData.emails?.join(', ')}]`;
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
@@ -129,7 +128,7 @@ export async function processInstructorLicense(
       + `${memberData.instructorLicenseExpires}, which is at or after the new expiration ${expirationDate}. `
       + `This may be a duplicate renewal. No update made.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   logger.info(`[License] Updating member ${info.memberId} (doc ${memberDocRef.id}): `
@@ -142,5 +141,5 @@ export async function processInstructorLicense(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate, expirationDate };
 }

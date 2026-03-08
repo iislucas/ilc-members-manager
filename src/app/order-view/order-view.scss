@@ -211,6 +211,41 @@
     padding: 4rem;
   }
 
+  .admin-notes-section {
+    margin: 1.5rem 0;
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-secondary, #666);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.4rem;
+    }
+
+    .admin-notes-input {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      box-sizing: border-box;
+
+      &:focus {
+        border-color: #3a57e8;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(58, 87, 232, 0.15);
+      }
+    }
+
+    .save-notes-btn {
+      margin-top: 0.75rem;
+    }
+  }
+
   .error-msg {
     color: var(--error-color, #d32f2f);
     .error-icon {

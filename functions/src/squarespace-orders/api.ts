@@ -29,6 +29,7 @@ import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
 import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus } from '../data-model';
 import { assertAdmin, allowedOrigins } from '../common';
+import { SubscriptionResult } from './common';
 
 import { processVideoLibraryAccess } from './video-library';
 import { processGradingOrder } from './grading';
@@ -304,79 +305,57 @@ export async function executeOrderDownstreamLogic(
     if (lineItem.ilcAppProcessingStatus === 'processed') {
       continue;
     }
+
+    // --- Subscription orders (membership, license, video library) ---
+    let subscriptionResult: SubscriptionResult | undefined;
     if (lineItem.sku === 'VID-LIBRARY') {
-      const issue = await processVideoLibraryAccess(orderData, orderId, lineItem, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
-        lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
-        orderStatus = 'error';
-        allItemsFulfilled = false;
-      } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
-      }
-    } else if (lineItem.sku?.startsWith('GRA-')) {
-      const issue = await processGradingOrder(orderData, orderId, lineItem, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
-        lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
-        orderStatus = 'error';
-        allItemsFulfilled = false;
-      } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
-      }
-    } else if (lineItem.sku?.startsWith('MEM-LIFE-')) {
-      const issue = await processLifeMembership(orderData, orderId, lineItem, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
-        lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
-        orderStatus = 'error';
-        allItemsFulfilled = false;
-      } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
-      }
-    } else if (lineItem.sku?.startsWith('MEM-YEAR-')) {
-      const issue = await processMembershipRenewal(orderData, orderId, lineItem, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
-        lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
-        orderStatus = 'error';
-        allItemsFulfilled = false;
-      } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
-      }
+      subscriptionResult = await processVideoLibraryAccess(orderData, orderId, lineItem, db);
+    } else if (lineItem.sku.startsWith('MEM-LIFE-')) {
+      subscriptionResult = await processLifeMembership(orderData, orderId, lineItem, db);
+    } else if (lineItem.sku.startsWith('MEM-YEAR-')) {
+      subscriptionResult = await processMembershipRenewal(orderData, orderId, lineItem, db);
     } else if (lineItem.sku === 'LIS-SCH-YRL' || lineItem.sku === 'LIS-SCH-MTH') {
       const schoolInfo = parseSchoolLicenseInfo(orderData, lineItem);
       const renewalMonths = lineItem.sku === 'LIS-SCH-MTH' ? 1 : 12;
-      const issue = await processSchoolLicense(orderId, schoolInfo, renewalMonths, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
-        lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
-        orderStatus = 'error';
-        allItemsFulfilled = false;
-      } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
-      }
+      subscriptionResult = await processSchoolLicense(orderId, schoolInfo, renewalMonths, db);
     } else if (lineItem.sku === 'LIS-YEAR-GL' || lineItem.sku === 'LIS-YEAR-INS' || lineItem.sku === 'LIS-YEAR-LI') {
-      const issue = await processInstructorLicense(orderData, orderId, lineItem, db);
-      if (issue) {
-        ilcAppOrderIssues.push(issue);
+      subscriptionResult = await processInstructorLicense(orderData, orderId, lineItem, db);
+    }
+
+    if (subscriptionResult) {
+      if (subscriptionResult.kind === 'error') {
+        ilcAppOrderIssues.push(subscriptionResult.message);
         lineItem.ilcAppProcessingStatus = 'error';
-        lineItem.ilcAppProcessingIssue = issue;
+        lineItem.ilcAppProcessingIssue = subscriptionResult.message;
+        orderStatus = 'error';
+        allItemsFulfilled = false;
+      } else {
+        lineItem.ilcAppProcessingStatus = 'processed';
+        lineItem.ilcAppNewLastRenewalDate = subscriptionResult.renewalDate;
+        lineItem.ilcAppNewExpiryDate = subscriptionResult.expirationDate;
+      }
+      continue;
+    }
+
+    // --- Grading orders ---
+    if (lineItem.sku.startsWith('GRA-')) {
+      const gradingResult = await processGradingOrder(orderData, orderId, lineItem, db);
+      if (gradingResult.kind === 'error') {
+        ilcAppOrderIssues.push(gradingResult.message);
+        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingIssue = gradingResult.message;
         orderStatus = 'error';
         allItemsFulfilled = false;
       } else {
         lineItem.ilcAppProcessingStatus = 'processed';
       }
-    } else {
-      allItemsFulfilled = false;
-      lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
-      orderStatus = 'needs-manual-processing';
+      continue;
     }
+
+    // --- Unknown SKU ---
+    allItemsFulfilled = false;
+    lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
+    orderStatus = 'needs-manual-processing';
   }
 
   if (allItemsFulfilled) {

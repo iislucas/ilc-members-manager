@@ -8,7 +8,14 @@
   </div>
   <div class="field">
     <label>Member ID (External)</label>
-    <div class="value">{{ order().externalId }}</div>
+    <div class="value">
+      {{ order().externalId }}
+      @if (order().externalId) {
+        <a class="icon-only-button" [href]="'#/members/' + order().externalId" title="View member profile">
+          <app-icon name="visibility"></app-icon>
+        </a>
+      }
+    </div>
   </div>
   <div class="field">
     <label>Order Type / Sub-Type</label>

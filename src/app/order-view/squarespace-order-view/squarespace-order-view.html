@@ -58,6 +58,68 @@
             }
           }
 
+          <!-- Expiry Date Effect Preview / Record -->
+          @let preview = lineItemPreviews().get(item.id);
+          @if (preview) {
+            <div class="expiry-preview" [class.recorded]="preview.isRecorded" [class.preview]="!preview.isRecorded" [class.warning]="!preview.entityFound && !preview.isRecorded">
+              <div class="expiry-preview-header">
+                @if (preview.isRecorded) {
+                  <app-icon name="check"></app-icon>
+                  <span>Applied: {{ preview.label }} Dates</span>
+                } @else if (!preview.entityFound) {
+                  <app-icon name="error"></app-icon>
+                  <span>{{ preview.entityKind === 'member' ? 'Member' : 'School' }} Not Found: {{ preview.entityId }}</span>
+                } @else {
+                  <app-icon name="schedule"></app-icon>
+                  <span>Preview: {{ preview.label }} Dates</span>
+                }
+              </div>
+
+              <!-- Entity info row -->
+              @if (preview.entityId) {
+                <div class="expiry-entity-row">
+                  @if (preview.entityFound) {
+                    <span class="entity-id">{{ preview.entityId }}</span>
+                    <span class="entity-name">{{ preview.entityName }}</span>
+                    @if (preview.entityProfileLink) {
+                      <a class="icon-only-button" [href]="preview.entityProfileLink" title="View profile">
+                        <app-icon name="visibility"></app-icon>
+                      </a>
+                    }
+                  } @else {
+                    <span class="entity-warning">
+                      <app-icon name="info"></app-icon>
+                      {{ preview.entityKind === 'member' ? 'Member' : 'School' }} "{{ preview.entityId }}" was not found in the database.
+                      @if (preview.entityKind === 'member') {
+                        Set the Inferred Member ID below, or check the ID in the form.
+                      }
+                    </span>
+                  }
+                </div>
+              }
+
+              <!-- Date values (show even with warning for recorded orders) -->
+              @if (preview.entityFound || preview.isRecorded) {
+                <div class="expiry-preview-dates">
+                  <div class="expiry-date-item">
+                    <span class="expiry-date-label">Renewal Date</span>
+                    <span class="expiry-date-value">{{ preview.renewalDate }}</span>
+                  </div>
+                  <div class="expiry-date-item">
+                    <span class="expiry-date-label">New Expiry Date</span>
+                    <span class="expiry-date-value">{{ preview.expiryDate === '9999-12-31' ? 'Never (Life)' : preview.expiryDate }}</span>
+                  </div>
+                </div>
+                @if (!preview.isRecorded) {
+                  <div class="expiry-preview-note">
+                    <app-icon name="info"></app-icon>
+                    Preview only — actual dates depend on the {{ preview.entityKind }}'s current expiry when processed.
+                  </div>
+                }
+              }
+            </div>
+          }
+
           @if (item.customizations && item.customizations.length > 0) {
             <div class="form-info-label" style="font-weight: 600; font-size: 0.9rem; margin-top: 1rem; color: #444;">Form Information</div>
             <table class="customizations-table">
@@ -65,7 +127,14 @@
                 @for (custom of item.customizations; track custom.label) {
                   <tr>
                     <td class="custom-label">{{ custom.label }}</td>
-                    <td class="custom-value">{{ custom.value }}</td>
+                    <td class="custom-value">
+                      {{ custom.value }}
+                      @if (custom.label?.toLowerCase()?.includes('member id') && custom.value?.trim()) {
+                        <a class="icon-only-button" [href]="'#/members/' + $any(custom.value).trim()" title="View member profile">
+                          <app-icon name="visibility"></app-icon>
+                        </a>
+                      }
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -111,6 +180,9 @@
               <div class="inferred-member-saved">
                 <app-icon name="info"></app-icon>
                 Saved: {{ item.ilcAppMemberIdInferred }}
+                <a class="icon-only-button" [href]="'#/members/' + item.ilcAppMemberIdInferred" title="View member profile">
+                  <app-icon name="visibility"></app-icon>
+                </a>
               </div>
             }
 

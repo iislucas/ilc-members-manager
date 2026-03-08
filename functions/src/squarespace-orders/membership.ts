@@ -10,7 +10,7 @@ import * as logger from 'firebase-functions/logger';
 import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { resolveCountryCode } from '../country-codes';
 import { assignNextMemberId } from '../counters';
-import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration } from './common';
+import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 
 export interface MembershipRenewalInfo {
@@ -48,13 +48,12 @@ export function parseMembershipRenewalInfo(
 
 // Process a membership renewal line item: find the member, validate,
 // update lastRenewalDate and currentMembershipExpires.
-// Returns an error string, or null if successful.
 export async function processMembershipRenewal(
   orderData: SquareSpaceOrder,
   orderId: string,
   lineItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   const info = parseMembershipRenewalInfo(orderData, lineItem);
 
   if (info.member.isNewMember) {
@@ -79,7 +78,7 @@ export async function processMembershipRenewal(
       const issue = `[Membership] Order ${orderId} is missing a Member ID in the form response `
         + `and automatic inference failed: ${inference.reason}`;
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
@@ -95,7 +94,7 @@ export async function processMembershipRenewal(
   if (memberQuery.empty) {
     const issue = `[Membership] Member ID ${info.member.memberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const memberDocRef = memberQuery.docs[0].ref;
@@ -131,7 +130,7 @@ export async function processMembershipRenewal(
       const issue = `[Membership] Order ${orderId} validation issues for member ${info.member.memberId}: `
         + validationIssues.join('; ');
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
@@ -149,7 +148,7 @@ export async function processMembershipRenewal(
       + `${memberData.currentMembershipExpires}, which is at or after the new expiration ${expirationDate}. `
       + `This may be a duplicate renewal. No update made.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   // Update the member's renewal date and expiration
@@ -162,38 +161,37 @@ export async function processMembershipRenewal(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate, expirationDate };
 }
 
 // Create a new member document when a membership order is for a new member.
 // Uses initMember() as the base and populates fields from the order form.
 // Auto-assigns a member ID based on the country code.
-// Returns an error string, or null if successful.
 async function processNewMemberRegistration(
   orderData: SquareSpaceOrder,
   orderId: string,
   info: MembershipRenewalInfo,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   const pInfo = info.member;
 
   if (!pInfo.name) {
     const issue = `[Membership] Order ${orderId} is for a new member but name is missing. Cannot register.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   if (!pInfo.country) {
     const issue = `[Membership] Order ${orderId} is for a new member but country is missing. Cannot register.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const countryCode = resolveCountryCode(pInfo.country);
   if (!countryCode) {
     const issue = `[Membership] Order ${orderId} is for a new member but country "${pInfo.country}" could not be resolved to a country code. Please register manually.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   let newMemberId: string;
@@ -202,7 +200,7 @@ async function processNewMemberRegistration(
   } catch (e) {
     const issue = `[Membership] Failed to assign ID for new member in country ${countryCode} for order ${orderId}: ${e}`;
     logger.error(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const newMember: Member = {
@@ -228,5 +226,5 @@ async function processNewMemberRegistration(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate: info.renewalDate, expirationDate: info.expirationDate };
 }

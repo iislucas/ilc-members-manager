@@ -10,7 +10,7 @@ import * as logger from 'firebase-functions/logger';
 import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { resolveCountryCode } from '../country-codes';
 import { assignNextMemberId } from '../counters';
-import { MembershipPurchaseInfo, parseMembershipPurchaseInfo } from './common';
+import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 
 export interface LifeMembershipInfo {
@@ -39,18 +39,17 @@ export function parseLifeMembershipInfo(
 }
 
 // Create a new Life member document from scratch.
-// Returns an issue string, or null on success.
 export async function processNewLifeMember(
   orderId: string,
   orderDate: string,
   pInfo: MembershipPurchaseInfo,
   label: 'Member' | 'Spouse',
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   if (!pInfo.name) {
     const issue = `[Life Membership] Order ${orderId} is missing ${label} Name. Cannot process new ${label.toLowerCase()}.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   // Check for name collision
@@ -58,20 +57,20 @@ export async function processNewLifeMember(
   if (!nameQuery.empty) {
     const issue = `[Life Membership] Order ${orderId} is for a new ${label.toLowerCase()} but member with name "${pInfo.name}" already exists. Please process manually.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   if (!pInfo.country) {
     const issue = `[Life Membership] Order ${orderId} is for a new ${label.toLowerCase()} but no country was specified. Cannot process.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const countryCode = resolveCountryCode(pInfo.country);
   if (!countryCode) {
     const issue = `[Life Membership] Order ${orderId} is for a new ${label.toLowerCase()} but country "${pInfo.country}" could not be resolved to a country code. Please process manually.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   let newMemberId: string;
@@ -80,7 +79,7 @@ export async function processNewLifeMember(
   } catch (e) {
     const issue = `[Life Membership] Order ${orderId}: failed to assign ID for ${label.toLowerCase()} in country ${countryCode}: ${e}`;
     logger.error(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const newMember: Member = {
@@ -106,18 +105,17 @@ export async function processNewLifeMember(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate: orderDate, expirationDate: '9999-12-31' };
 }
 
 // Upgrade an existing member to Life membership.
-// Returns an issue string, or null on success.
 export async function processLifeUpgradeForExistingMember(
   orderId: string,
   orderDate: string,
   pInfo: MembershipPurchaseInfo,
   label: 'Member' | 'Spouse',
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   logger.info(`[Life Membership] Looking for ${label.toLowerCase()} with ID: ${pInfo.memberId} for order ${orderId}`);
   const memberQuery = await db.collection('members')
     .where('memberId', '==', pInfo.memberId)
@@ -127,7 +125,7 @@ export async function processLifeUpgradeForExistingMember(
   if (memberQuery.empty) {
     const issue = `[Life Membership] ${label} ID ${pInfo.memberId} not found in database for order ${orderId}.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const memberDocRef = memberQuery.docs[0].ref;
@@ -152,13 +150,13 @@ export async function processLifeUpgradeForExistingMember(
   if (validationIssues.length > 0) {
     const issue = `[Life Membership] Order ${orderId} validation issues for ${label.toLowerCase()} ${pInfo.memberId}: ` + validationIssues.join('; ');
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   if (memberData.currentMembershipExpires === '9999-12-31' && memberData.membershipType === MembershipType.Life) {
     const issue = `[Life Membership] ${label} ${pInfo.memberId} already has a Life membership. This may be a duplicate renewal. No update made.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   logger.info(`[Life Membership] Updating ${label.toLowerCase()} ${pInfo.memberId} (doc ${memberDocRef.id}) to Life Membership`);
@@ -170,11 +168,10 @@ export async function processLifeUpgradeForExistingMember(
     lastUpdated: admin.firestore.FieldValue.serverTimestamp()
   });
 
-  return null;
+  return { kind: 'success', renewalDate: orderDate, expirationDate: '9999-12-31' };
 }
 
 // Validate a single person's info and delegate to the appropriate handler.
-// Returns an issue string, or null on success.
 export async function processLifeMembershipPerson(
   orderId: string,
   orderDate: string,
@@ -183,12 +180,12 @@ export async function processLifeMembershipPerson(
   db: admin.firestore.Firestore,
   orderData?: SquareSpaceOrder,
   lineItem?: SquareSpaceLineItem
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   // Explicit conflicts
   if (pInfo.isNewMember && pInfo.memberId) {
     const issue = `[Life Membership] Order ${orderId} indicates ${label.toLowerCase()} is new, but a Member ID was provided.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   // If the admin manually set ilcAppMemberIdInferred on the line item, it
@@ -212,7 +209,7 @@ export async function processLifeMembershipPerson(
     if (!pInfo.memberId) {
       const issue = `[Life Membership] Order ${orderId} does not indicate ${label.toLowerCase()} is new, but no Member ID was provided.`;
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
@@ -226,22 +223,21 @@ export async function processLifeMembershipPerson(
 // Orchestrates the processing of a life membership order line item.
 // Validates each person (member and optional spouse) and delegates to
 // processLifeMembershipPerson.
-// Returns an issue string if something went wrong, null on success.
 export async function processLifeMembership(
   orderData: SquareSpaceOrder,
   orderId: string,
   lineItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<SubscriptionResult> {
   const info = parseLifeMembershipInfo(orderData, lineItem);
 
-  const memberIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.member, 'Member', db, orderData, lineItem);
-  if (memberIssue) return memberIssue;
+  const memberResult = await processLifeMembershipPerson(orderId, info.orderDate, info.member, 'Member', db, orderData, lineItem);
+  if (memberResult.kind === 'error') return memberResult;
 
   if (info.hasSpouse && info.spouse) {
-    const spouseIssue = await processLifeMembershipPerson(orderId, info.orderDate, info.spouse, 'Spouse', db, orderData, lineItem);
-    if (spouseIssue) return spouseIssue;
+    const spouseResult = await processLifeMembershipPerson(orderId, info.orderDate, info.spouse, 'Spouse', db, orderData, lineItem);
+    if (spouseResult.kind === 'error') return spouseResult;
   }
 
-  return null;
+  return { kind: 'success', renewalDate: info.orderDate, expirationDate: '9999-12-31' };
 }

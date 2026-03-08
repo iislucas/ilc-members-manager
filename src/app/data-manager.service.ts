@@ -875,6 +875,15 @@ export class DataManagerService {
     );
   }
 
+  /** Update the ilcAppNotes field on an order document. */
+  async updateOrderNotes(orderId: string, notes: string): Promise<void> {
+    const docRef = doc(this.db, 'orders', orderId);
+    return updateDoc(docRef, {
+      ilcAppNotes: notes,
+      lastUpdated: serverTimestamp(),
+    });
+  }
+
   async clearSchoolMembers(schoolDocId: string): Promise<void> {
     const membersRef = collection(this.db, 'schools', schoolDocId, 'members');
     const membersSnap = await getDocs(membersRef);

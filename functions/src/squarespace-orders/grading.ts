@@ -9,6 +9,8 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, Grading, GradingStatus, initGrading, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
+import { GradingResult } from './common';
+import { inferMemberIdFromOrder } from './infer-member';
 
 export function parseGradingOrderInfo(
   orderData: SquareSpaceOrder,
@@ -81,11 +83,10 @@ export function parseGradingOrderInfo(
 }
 
 // Create Grading documents when a grading is purchased.
-// Returns error string, or null if successful.
 export async function processGradingOrder(
   orderData: SquareSpaceOrder, orderId: string, gradingItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
-): Promise<string | null> {
+): Promise<GradingResult> {
   const { email, currentStudentLevel, currentApplicationLevel, gradingInfo } = parseGradingOrderInfo(orderData, gradingItem);
   const level = gradingInfo.level || '';
 
@@ -99,36 +100,60 @@ export async function processGradingOrder(
   if (!existingGradingsQuery.empty) {
     const issue = `[Grading] Grading for order ${orderId} and level ${level} already exists. Skipping.`;
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   let memberDocRef: admin.firestore.DocumentReference | null = null;
   let memberData: Partial<Member> | null = null;
-  const providedMemberId = gradingInfo.studentMemberId;
+  let effectiveMemberId = gradingInfo.studentMemberId;
 
-  // Try finding by Member ID first
-  if (providedMemberId) {
-    logger.info(`[Grading] Looking for member with ID: ${providedMemberId} for order ${orderId}`);
+  // If the admin manually set ilcAppMemberIdInferred on the line item, it
+  // overrides whatever member ID the user may have entered in the form.
+  if (gradingItem.ilcAppMemberIdInferred) {
+    logger.info(`[Grading] Order ${orderId}: using admin-set ilcAppMemberIdInferred "${gradingItem.ilcAppMemberIdInferred}"` +
+      (effectiveMemberId ? ` (overriding form-provided "${effectiveMemberId}")` : ''));
+    effectiveMemberId = gradingItem.ilcAppMemberIdInferred;
+    gradingInfo.studentMemberId = effectiveMemberId;
+  }
+
+  // If still no member ID, try automatic inference.
+  if (!effectiveMemberId) {
+    const inference = await inferMemberIdFromOrder(
+      orderData,
+      { memberId: '', email, name: '', dateOfBirth: '', country: '', isNewMember: undefined },
+      db,
+      gradingItem
+    );
+    if (inference.memberId) {
+      logger.info(`[Grading] Order ${orderId}: inferred member ID "${inference.memberId}" — ${inference.reason}`);
+      effectiveMemberId = inference.memberId;
+      gradingInfo.studentMemberId = effectiveMemberId;
+    }
+  }
+
+  // Try finding by Member ID
+  if (effectiveMemberId) {
+    logger.info(`[Grading] Looking for member with ID: ${effectiveMemberId} for order ${orderId}`);
     const memberIdQuery = await db.collection('members')
-      .where('memberId', '==', providedMemberId)
+      .where('memberId', '==', effectiveMemberId)
       .limit(1)
       .get();
     if (!memberIdQuery.empty) {
       memberDocRef = memberIdQuery.docs[0].ref;
       memberData = memberIdQuery.docs[0].data() as Partial<Member>;
     } else {
-      const issue = `[Grading] Member ID ${providedMemberId} not found in database.`;
+      const issue = `[Grading] Member ID ${effectiveMemberId} not found in database.`;
       logger.warn(issue);
-      return issue;
+      return { kind: 'error', message: issue };
     }
   }
 
   if (!memberDocRef) {
     const issue = `[Grading] Could not find a member document for order ${orderId} `
-      + `(Member ID: ${providedMemberId}, Email: ${email}) to create grading doc.` +
+      + `(Member ID: ${effectiveMemberId}, Email: ${email}) to create grading doc.` +
       ` Please create and associate a grading with a member manually.`
     logger.warn(issue);
-    return issue;
+    return { kind: 'error', message: issue };
   }
 
   const newGrading: Grading = {
@@ -175,5 +200,5 @@ export async function processGradingOrder(
     });
   }
 
-  return null;
+  return { kind: 'success', gradingDocId: gradingRef.id };
 }

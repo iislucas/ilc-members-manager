@@ -3,6 +3,14 @@ Shared types and utility functions used by multiple Squarespace order
 processing modules (membership, life-membership, instructor-license, etc.).
 
 Exports:
+  - SubscriptionResult
+      Discriminated union for subscription processing outcomes.
+      kind 'success' carries renewalDate + expirationDate;
+      kind 'error' carries a message string.
+  - GradingResult
+      Discriminated union for grading order processing outcomes.
+      kind 'success' carries the gradingDocId of the created document;
+      kind 'error' carries a message string.
   - MembershipPurchaseInfo / parseMembershipPurchaseInfo
       A person-level structure for membership orders (member or spouse).
   - computeRenewalAndExpiration
@@ -10,6 +18,22 @@ Exports:
 */
 
 import { SquareSpaceOrder, SquareSpaceCustomization } from '../data-model';
+
+// Shared error shape used by all processing result types.
+export type ProcessingError = { kind: 'error'; message: string };
+
+// Discriminated union returned by subscription processing functions
+// (membership, license, video library).
+export type SubscriptionResult =
+  | { kind: 'success'; renewalDate: string; expirationDate: string }
+  | ProcessingError;
+
+// Discriminated union returned by grading order processing.
+// Gradings are one-time purchases, not subscriptions, so the success
+// shape carries the created grading document ID instead of dates.
+export type GradingResult =
+  | { kind: 'success'; gradingDocId: string }
+  | ProcessingError;
 
 // A single person's membership purchase details, extracted from
 // Squarespace order customization fields.  Used for both the primary
