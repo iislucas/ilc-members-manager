@@ -15,10 +15,13 @@ import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
 import {
   Member,
+  School,
+  SquareSpaceOrder,
   MembershipType,
   InstructorLicenseType,
   MemberStatisticsFirebaseDoc,
   Histogram,
+  HistogramMap,
 } from './data-model';
 
 // Returns true if the member has a currently valid (non-expired) membership.
@@ -46,10 +49,32 @@ function incrementHistogram(histogram: Histogram, key: string): void {
   histogram[key] = (histogram[key] || 0) + 1;
 }
 
+// Extracts 'YYYY-MM' from a 'YYYY-MM-DD' date string.
+// Returns null if the date is empty, invalid, or the sentinel '9999-12-31' (Life).
+function toYearMonth(dateStr: string): string | null {
+  if (!dateStr || dateStr === '9999-12-31') return null;
+  const match = dateStr.match(/^(\d{4}-\d{2})/);
+  return match ? match[1] : null;
+}
+
+// Maps a Squarespace SKU to a human-readable product category.
+// Returns the category name, or the raw SKU if no mapping is found.
+function skuToCategory(sku: string): string {
+  if (sku.startsWith('MEM-YEAR-')) return 'Membership (Annual)';
+  if (sku.startsWith('MEM-LIFE-')) return 'Membership (Life)';
+  if (sku === 'VID-LIBRARY') return 'Video Library';
+  if (sku === 'LIS-YEAR-GL' || sku === 'LIS-YEAR-INS' || sku === 'LIS-YEAR-LI') return 'Instructor License';
+  if (sku === 'LIS-SCH-YRL') return 'School License (Annual)';
+  if (sku === 'LIS-SCH-MTH') return 'School License (Monthly)';
+  if (sku.startsWith('GRD-')) return 'Grading';
+  return sku;
+}
+
 // Core computation logic, separated for testability.
 export function computeStatisticsFromMembers(
   members: Member[],
   todayIso: string,
+  schools: School[] = [],
 ): Omit<MemberStatisticsFirebaseDoc, 'date'> {
   let activeMembers = 0;
   let activeInstructors = 0;
@@ -60,6 +85,9 @@ export function computeStatisticsFromMembers(
   const instructorLicenseTypeHistogram: Histogram = {};
   const countryHistogram: Histogram = {};
   const mastersLevelHistogram: Histogram = {};
+  const membershipExpiryHistogram: Histogram = {};
+  const instructorLicenseExpiryHistogram: Histogram = {};
+  const videoLibraryExpiryHistogram: Histogram = {};
   let missingMastersLevels = 0;
   let nonArrayMastersLevels = 0;
 
@@ -92,6 +120,27 @@ export function computeStatisticsFromMembers(
         incrementHistogram(mastersLevelHistogram, level);
       }
     }
+
+    // Expiry histograms (keyed by YYYY-MM).
+    if (member.membershipType === MembershipType.Annual) {
+      const ym = toYearMonth(member.currentMembershipExpires);
+      if (ym) incrementHistogram(membershipExpiryHistogram, ym);
+    }
+    if (member.instructorId && member.instructorLicenseType !== InstructorLicenseType.Life) {
+      const ym = toYearMonth(member.instructorLicenseExpires);
+      if (ym) incrementHistogram(instructorLicenseExpiryHistogram, ym);
+    }
+    if (member.classVideoLibraryExpirationDate) {
+      const ym = toYearMonth(member.classVideoLibraryExpirationDate);
+      if (ym) incrementHistogram(videoLibraryExpiryHistogram, ym);
+    }
+  }
+
+  // School license expiry histogram.
+  const schoolLicenseExpiryHistogram: Histogram = {};
+  for (const school of schools) {
+    const ym = toYearMonth(school.schoolLicenseExpires);
+    if (ym) incrementHistogram(schoolLicenseExpiryHistogram, ym);
   }
 
   return {
@@ -104,11 +153,38 @@ export function computeStatisticsFromMembers(
     instructorLicenseTypeHistogram,
     countryHistogram,
     mastersLevelHistogram,
+    membershipExpiryHistogram,
+    schoolLicenseExpiryHistogram,
+    instructorLicenseExpiryHistogram,
+    videoLibraryExpiryHistogram,
+    squarespaceOrdersByProductMonthly: {},
     dataQuality: {
       missingMastersLevels,
       nonArrayMastersLevels,
     },
   };
+}
+
+// Computes order statistics from Squarespace orders.
+// Groups line items by product category (from SKU) and month (from order date).
+export function computeOrderStatistics(
+  orders: SquareSpaceOrder[],
+): HistogramMap {
+  const result: HistogramMap = {};
+  for (const order of orders) {
+    // Use createdOn for the order date.
+    const ym = toYearMonth(order.createdOn ? order.createdOn.substring(0, 10) : '');
+    if (!ym) continue;
+
+    for (const item of order.lineItems || []) {
+      if (!item.sku) continue;
+      const category = skuToCategory(item.sku);
+      if (!result[category]) result[category] = {};
+      const qty = parseInt(item.quantity, 10) || 1;
+      result[category][ym] = (result[category][ym] || 0) + qty;
+    }
+  }
+  return result;
 }
 
 // Fetches all members and writes the computed statistics to Firestore.
@@ -119,16 +195,36 @@ async function performComputeStatistics(): Promise<string> {
 
   logger.info(`Computing statistics for ${docId}...`);
 
-  const snapshot = await db.collection('members').get();
-  const members: Member[] = snapshot.docs.map((doc) => ({
+  const membersSnapshot = await db.collection('members').get();
+  const members: Member[] = membersSnapshot.docs.map((doc) => ({
     ...(doc.data() as Member),
     docId: doc.id,
   }));
 
-  const stats = computeStatisticsFromMembers(members, todayIso);
+  const schoolsSnapshot = await db.collection('schools').get();
+  const schools: School[] = schoolsSnapshot.docs.map((doc) => ({
+    ...(doc.data() as School),
+    docId: doc.id,
+  }));
+
+  const stats = computeStatisticsFromMembers(members, todayIso, schools);
+
+  // Fetch Squarespace orders from the last 2 years for order-volume histograms.
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const ordersSnapshot = await db.collection('orders')
+    .where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders')
+    .where('createdOn', '>=', twoYearsAgo.toISOString())
+    .get();
+  const ssOrders: SquareSpaceOrder[] = ordersSnapshot.docs.map((doc) => ({
+    ...(doc.data() as SquareSpaceOrder),
+    docId: doc.id,
+  }));
+  const orderStats = computeOrderStatistics(ssOrders);
 
   const statsDoc: MemberStatisticsFirebaseDoc = {
     ...stats,
+    squarespaceOrdersByProductMonthly: orderStats,
     date: new Date().toISOString(),
   };
 

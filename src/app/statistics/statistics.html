@@ -128,6 +128,70 @@
           }
         </div>
 
+        <div class="histogram-card">
+          <h3>Membership Expiry (by Month)</h3>
+          @if (membershipExpiryEntries().length === 0) {
+            <p class="no-data">No data</p>
+          }
+          @for (entry of membershipExpiryEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill expiry" [style.width.%]="(entry.value / maxValue(membershipExpiryEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>School License Expiry (by Month)</h3>
+          @if (schoolLicenseExpiryEntries().length === 0) {
+            <p class="no-data">No data</p>
+          }
+          @for (entry of schoolLicenseExpiryEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill expiry" [style.width.%]="(entry.value / maxValue(schoolLicenseExpiryEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Instructor License Expiry (by Month)</h3>
+          @if (instructorLicenseExpiryEntries().length === 0) {
+            <p class="no-data">No data</p>
+          }
+          @for (entry of instructorLicenseExpiryEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill expiry" [style.width.%]="(entry.value / maxValue(instructorLicenseExpiryEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="histogram-card">
+          <h3>Video Library Expiry (by Month)</h3>
+          @if (videoLibraryExpiryEntries().length === 0) {
+            <p class="no-data">No data</p>
+          }
+          @for (entry of videoLibraryExpiryEntries(); track entry.key) {
+            <div class="bar-row">
+              <span class="bar-label">{{ entry.key }}</span>
+              <div class="bar-track">
+                <div class="bar-fill expiry" [style.width.%]="(entry.value / maxValue(videoLibraryExpiryEntries())) * 100"></div>
+              </div>
+              <span class="bar-value">{{ entry.value }}</span>
+            </div>
+          }
+        </div>
+
         <div class="histogram-card wide">
           <h3>Country</h3>
           @for (entry of countryEntries(); track entry.key) {
@@ -141,6 +205,27 @@
           }
         </div>
       </div>
+
+      <!-- Squarespace Order Volume -->
+      @if (orderCategoryEntries().length > 0) {
+        <h2 class="section-heading">Squarespace Orders (Last 2 Years)</h2>
+        <div class="histograms-grid">
+          @for (cat of orderCategoryEntries(); track cat.category) {
+            <div class="histogram-card">
+              <h3>{{ cat.category }}</h3>
+              @for (entry of cat.entries; track entry.key) {
+                <div class="bar-row">
+                  <span class="bar-label">{{ entry.key }}</span>
+                  <div class="bar-track">
+                    <div class="bar-fill orders" [style.width.%]="(entry.value / maxValue(cat.entries)) * 100"></div>
+                  </div>
+                  <span class="bar-value">{{ entry.value }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
 
       <!-- Data Quality -->
       @if (currentStats.dataQuality.missingMastersLevels > 0 || currentStats.dataQuality.nonArrayMastersLevels > 0) {

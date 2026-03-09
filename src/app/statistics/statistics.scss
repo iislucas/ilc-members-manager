@@ -215,6 +215,14 @@
   &.country {
     background: linear-gradient(90deg, #b4d8e8, #83b5d4);
   }
+
+  &.expiry {
+    background: linear-gradient(90deg, #f0c27f, #e87c4c);
+  }
+
+  &.orders {
+    background: linear-gradient(90deg, #81c784, #388e3c);
+  }
 }
 
 .bar-value {
@@ -223,6 +231,15 @@
   font-weight: 600;
   color: #444;
   text-align: right;
+}
+
+// Section headings
+.section-heading {
+  font-size: 1.15rem;
+  color: #444;
+  margin: 2rem 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 // Data quality section

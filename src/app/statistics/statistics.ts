@@ -15,13 +15,16 @@ import {
   getDocs,
   limit,
 } from 'firebase/firestore';
-import { MemberStatistics, firestoreDocToStatistics, Histogram } from '../../../functions/src/data-model';
+import { MemberStatistics, firestoreDocToStatistics, Histogram, HistogramMap } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { DatePipe } from '@angular/common';
 
 // Sorted histogram entry for display.
 export type HistogramEntry = { key: string; value: number };
+
+// A product category with its per-month histogram entries.
+export type OrderCategoryEntries = { category: string; entries: HistogramEntry[] };
 
 // Sorts a histogram by value descending, returning an array of entries.
 function sortedHistogram(histogram: Histogram): HistogramEntry[] {
@@ -93,6 +96,29 @@ export class StatisticsComponent {
   protected mastersLevelEntries = computed(() =>
     sortedHistogramByKey(this.selectedStats()?.mastersLevelHistogram ?? {}),
   );
+  protected membershipExpiryEntries = computed(() =>
+    sortedHistogramByKey(this.selectedStats()?.membershipExpiryHistogram ?? {}),
+  );
+  protected schoolLicenseExpiryEntries = computed(() =>
+    sortedHistogramByKey(this.selectedStats()?.schoolLicenseExpiryHistogram ?? {}),
+  );
+  protected instructorLicenseExpiryEntries = computed(() =>
+    sortedHistogramByKey(this.selectedStats()?.instructorLicenseExpiryHistogram ?? {}),
+  );
+  protected videoLibraryExpiryEntries = computed(() =>
+    sortedHistogramByKey(this.selectedStats()?.videoLibraryExpiryHistogram ?? {}),
+  );
+
+  // Squarespace order volume histograms, one per product category.
+  protected orderCategoryEntries = computed((): OrderCategoryEntries[] => {
+    const map: HistogramMap = this.selectedStats()?.squarespaceOrdersByProductMonthly ?? {};
+    return Object.keys(map)
+      .sort()
+      .map((category) => ({
+        category,
+        entries: sortedHistogramByKey(map[category]),
+      }));
+  });
 
   constructor() {
     this.loadStatistics();

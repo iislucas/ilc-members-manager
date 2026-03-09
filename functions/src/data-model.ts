@@ -724,6 +724,8 @@ export type ACLFirebaseDoc = ACL;
 
 // A histogram is a map from string keys to counts.
 export type Histogram = { [key: string]: number };
+// A map of named histograms (e.g. one histogram per product category).
+export type HistogramMap = { [category: string]: Histogram };
 
 export type MemberStatistics = {
   docId: string; // Firestore document ID, e.g. '2026-03'
@@ -741,6 +743,17 @@ export type MemberStatistics = {
   instructorLicenseTypeHistogram: Histogram; // Keys are InstructorLicenseType values.
   countryHistogram: Histogram; // Keys are country names.
   mastersLevelHistogram: Histogram; // Keys are MasterLevel values.
+
+  // Expiry date histograms, keyed by YYYY-MM.
+  membershipExpiryHistogram: Histogram; // Annual members' currentMembershipExpires by month.
+  schoolLicenseExpiryHistogram: Histogram; // Schools' schoolLicenseExpires by month.
+  instructorLicenseExpiryHistogram: Histogram; // Instructor license expiry by month.
+  videoLibraryExpiryHistogram: Histogram; // Video library subscription expiry by month.
+
+  // Squarespace order line items by product category and month (YYYY-MM).
+  // Outer keys are human-readable product category names (e.g. 'Membership', 'School License').
+  // Inner histograms map YYYY-MM to the count of line items in that month.
+  squarespaceOrdersByProductMonthly: HistogramMap;
 
   // Data quality counters for fields that may be missing or malformed.
   dataQuality: {
@@ -769,6 +782,11 @@ export function initStatistics(): MemberStatistics {
     instructorLicenseTypeHistogram: {},
     countryHistogram: {},
     mastersLevelHistogram: {},
+    membershipExpiryHistogram: {},
+    schoolLicenseExpiryHistogram: {},
+    instructorLicenseExpiryHistogram: {},
+    videoLibraryExpiryHistogram: {},
+    squarespaceOrdersByProductMonthly: {},
     dataQuality: {
       missingMastersLevels: 0,
       nonArrayMastersLevels: 0,
