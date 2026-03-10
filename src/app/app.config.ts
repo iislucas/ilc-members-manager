@@ -47,14 +47,14 @@ export enum Views {
 }
 
 export const memberListPathPatterns = {
-  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, ['jumpTo', 'q', 'sortBy', 'sortDir']),
+  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag']),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,
-    ['jumpTo', 'q', 'sortBy', 'sortDir'],
+    ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag'],
   ),
   [Views.InstructorStudents]: addUrlParams(
     pathPattern`instructor/${pv('instructorId')}/students`,
-    ['jumpTo', 'q', 'sortBy', 'sortDir'],
+    ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag'],
   ),
 };
 
@@ -72,7 +72,7 @@ export const initPathPatterns = {
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId', 'q']),
   [Views.ManageSchools]: addUrlParams(pathPattern`schools`, ['schoolId', 'q']),
   [Views.MyProfile]: pathPattern`myProfile`,
-  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['jumpTo', 'q', 'sortBy', 'sortDir']),
+  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag']),
   [Views.ManageMemberView]: pathPattern`members/${pv('memberId')}`,
   [Views.SchoolMemberView]: pathPattern`school/${pv('schoolId')}/members/${pv('memberId')}`,
   [Views.InstructorStudentView]: pathPattern`instructor/${pv('instructorId')}/students/${pv('memberId')}`,

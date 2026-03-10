@@ -199,4 +199,161 @@ describe('RoutingService', () => {
     await fixture.whenStable();
     expect(service.signals[Views.ManageMembers].urlParams['q']()).toBe('');
   });
+
+  // ── resolveUrlWithParams ──
+
+  it('resolveUrlWithParams should carry forward non-empty signal values', async () => {
+    await configureTestBed(testConfig);
+
+    // Simulate being on ManageMembers with some params set
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('search');
+    service.signals[Views.ManageMembers].urlParams['tag'].set('expired');
+    service.signals[Views.ManageMembers].urlParams['sortBy'].set('name');
+    await fixture.whenStable();
+
+    // Navigate away to a member detail
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+    expect(service.matchedPatternId()).toBe(Views.ManageMemberView);
+
+    // Signals for ManageMembers should still hold their values
+    expect(service.signals[Views.ManageMembers].urlParams['q']()).toBe('search');
+    expect(service.signals[Views.ManageMembers].urlParams['tag']()).toBe('expired');
+
+    // resolveUrlWithParams should carry those forward
+    const resolved = service.resolveUrlWithParams('/members?jumpTo=M1');
+    expect(resolved).toContain('jumpTo=M1');
+    expect(resolved).toContain('q=search');
+    expect(resolved).toContain('tag=expired');
+    expect(resolved).toContain('sortBy=name');
+  });
+
+  it('resolveUrlWithParams should not overwrite explicit params', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('old-search');
+    await fixture.whenStable();
+
+    // Navigate away
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    // Explicit q=new-search should NOT be overwritten by the old signal value
+    const resolved = service.resolveUrlWithParams('/members?q=new-search');
+    expect(resolved).toContain('q=new-search');
+    expect(resolved).not.toContain('q=old-search');
+  });
+
+  it('resolveUrlWithParams should skip empty signal values', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('search');
+    // sortBy is left empty
+    await fixture.whenStable();
+
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    const resolved = service.resolveUrlWithParams('/members');
+    expect(resolved).toContain('q=search');
+    expect(resolved).not.toContain('sortBy');
+    expect(resolved).not.toContain('sortDir');
+  });
+
+  it('resolveUrlWithParams should return input unchanged for unmatched paths', async () => {
+    await configureTestBed(testConfig);
+
+    const input = '/unknown/path?foo=bar';
+    expect(service.resolveUrlWithParams(input)).toBe(input);
+  });
+
+  // ── hrefWithParams ──
+
+  it('hrefWithParams should return an href with # prefix and preserved params', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('test');
+    await fixture.whenStable();
+
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    const href = service.hrefWithParams('/members');
+    expect(href).toMatch(/^#\//);
+    expect(href).toContain('q=test');
+  });
+
+  // ── navigateTo with clearUrlParams ──
+
+  it('navigateTo should preserve params by default', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('kept');
+    service.signals[Views.ManageMembers].urlParams['tag'].set('active');
+    await fixture.whenStable();
+
+    // Navigate away
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    // Navigate back without clearUrlParams (default = false)
+    service.navigateTo('/members?jumpTo=M1');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    expect(window.location.hash).toContain('jumpTo=M1');
+    expect(window.location.hash).toContain('q=kept');
+    expect(window.location.hash).toContain('tag=active');
+  });
+
+  it('navigateTo with clearUrlParams should not preserve params', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['q'].set('should-be-gone');
+    await fixture.whenStable();
+
+    // Navigate away
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    // Navigate back WITH clearUrlParams = true
+    service.navigateTo('/members?jumpTo=M1', { clearUrlParams: true });
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    expect(window.location.hash).toContain('jumpTo=M1');
+    expect(window.location.hash).not.toContain('q=should-be-gone');
+  });
+
+  it('navigateToParts should preserve params by default', async () => {
+    await configureTestBed(testConfig);
+
+    service.matchedPatternId.set(Views.ManageMembers);
+    service.signals[Views.ManageMembers].urlParams['sortBy'].set('name');
+    await fixture.whenStable();
+
+    // Navigate away
+    window.location.hash = '#/members/M1';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    // Navigate back
+    service.navigateToParts(['/members']);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await fixture.whenStable();
+
+    expect(window.location.hash).toContain('sortBy=name');
+  });
 });

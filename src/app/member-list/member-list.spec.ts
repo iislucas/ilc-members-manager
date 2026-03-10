@@ -50,6 +50,7 @@ describe('MemberListComponent', () => {
             jumpTo: signal(''),
             sortBy: signal(''),
             sortDir: signal(''),
+            tag: signal(''),
           },
         },
       },

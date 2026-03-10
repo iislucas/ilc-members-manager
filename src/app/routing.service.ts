@@ -200,15 +200,68 @@ export class RoutingService<T extends PathPatterns> {
     }
   }
 
-  navigateTo(pathAndParams: string) {
-    if (pathAndParams.startsWith('/')) {
-      window.location.hash = `#${pathAndParams}`;
+  navigateTo(pathAndParams: string, options?: { clearUrlParams?: boolean }) {
+    const clearUrlParams = options?.clearUrlParams ?? false;
+    const resolved = clearUrlParams ? pathAndParams : this.resolveUrlWithParams(pathAndParams);
+    if (resolved.startsWith('/')) {
+      window.location.hash = `#${resolved}`;
     } else {
-      window.location.hash = `#/${pathAndParams}`;
+      window.location.hash = `#/${resolved}`;
     }
   }
 
-  navigateToParts(parts: string[]) {
-    this.navigateTo(parts.join('/'));
+  navigateToParts(parts: string[], options?: { clearUrlParams?: boolean }) {
+    this.navigateTo(parts.join('/'), options);
+  }
+
+  /**
+   * Given a URL path (e.g. '/members' or '/members?jumpTo=123'), match it to a
+   * route pattern and append the current signal values for that pattern's URL
+   * params. Params already present in the URL are not overwritten.
+   *
+   * This preserves search, sort, tag filters etc. when navigating back to a
+   * list page from a detail page.
+   */
+  resolveUrlWithParams(pathAndParams: string): string {
+    let path = pathAndParams;
+    const existingParams = new URLSearchParams();
+    const qIndex = pathAndParams.indexOf('?');
+    if (qIndex >= 0) {
+      path = pathAndParams.substring(0, qIndex);
+      const parsed = new URLSearchParams(pathAndParams.substring(qIndex + 1));
+      parsed.forEach((v, k) => existingParams.set(k, v));
+    }
+
+    // Strip leading slash for matchUrl, which expects a path without it.
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    const match = matchUrl(cleanPath, this.config.validPathPatterns);
+    if (!match) return pathAndParams;
+
+    // Carry forward current signal values for the matched pattern's URL params.
+    const patternSignals = this.signals[match.patternId as keyof T];
+    for (const [key, sig] of Object.entries<WritableSignal<string>>(
+      patternSignals.urlParams,
+    )) {
+      if (!existingParams.has(key)) {
+        const val = sig();
+        if (val !== '') {
+          existingParams.set(key, val);
+        }
+      }
+    }
+
+    const queryString = existingParams.toString();
+    return `${path}${queryString ? '?' + queryString : ''}`;
+  }
+
+  /**
+   * Generate an href string (with leading #) for an <a> link, preserving the
+   * current URL param signal values for the target route pattern.
+   *
+   * Usage in templates: `<a [href]="routingService.hrefWithParams('/members')">`
+   */
+  hrefWithParams(basePath: string): string {
+    const resolved = this.resolveUrlWithParams(basePath);
+    return `#${resolved.startsWith('/') ? resolved : '/' + resolved}`;
   }
 }

@@ -1,4 +1,5 @@
 @use "../../scss_variables.scss" as v;
+@use "../../styles" as *;
 
 :host {
   display: flex;
@@ -76,26 +77,131 @@
         border-color: #007bff;
       }
     }
+  }
 
-    .sort-direction-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 4px;
-      cursor: pointer;
-      color: #555;
-      transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease;
+  // Shared style for small icon buttons (sort direction, filter toggle).
+  .sort-direction-btn,
+  .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px;
+    cursor: pointer;
+    color: #555;
+    box-shadow: none;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
 
-      &:hover {
-        background-color: #f0f0f0;
-        border-color: #999;
+    &:hover {
+      background-color: #f0f0f0;
+      border-color: #999;
+      box-shadow: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+
+  .tag-filter-container {
+    position: relative;
+    flex-shrink: 0;
+
+    .menu {
+      @extend .menu-style;
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      min-width: 220px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .menu-item.active {
+      background-color: #e8f0fe;
+      color: #1a73e8;
+      font-weight: 500;
+
+      app-icon {
+        color: #1a73e8;
       }
     }
+
+    .tag-filter-header {
+      padding: 0.4em 0.5em 0.2em;
+      font-size: 0.8em;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .tag-filter-empty {
+      padding: 0.75em;
+      text-align: center;
+      font-size: 0.85em;
+      color: #999;
+    }
+  }
+}
+
+.active-tag-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.75em;
+  gap: 0.4em;
+
+  .active-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px 3px 10px;
+    background-color: #e8f0fe;
+    color: #1a73e8;
+    border-radius: 16px;
+    font-size: 0.85em;
+    font-weight: 500;
+  }
+
+  .tag-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    box-shadow: none;
+    cursor: pointer;
+    padding: 2px;
+    color: #1a73e8;
+    border-radius: 50%;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(26, 115, 232, 0.12);
+      box-shadow: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
+    }
+
+    app-icon {
+      font-size: 0.85em;
+    }
+  }
+
+  .clear-all-btn {
+    font-size: 0.8em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: #666;
   }
 }
 

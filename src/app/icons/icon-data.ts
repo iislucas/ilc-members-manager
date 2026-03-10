@@ -227,4 +227,25 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  filter_list: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  check_box: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="m424-312 282-282-56-56-226 226-114-114-56 56 170 170ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  check_box_outline_blank: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 };

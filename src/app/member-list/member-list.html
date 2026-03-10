@@ -36,10 +36,56 @@
         <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_downward' : 'arrow_upward'"></app-icon>
       </button>
     </div>
+    <div class="tag-filter-container">
+      <button
+        class="filter-btn"
+        (click)="toggleTagMenu()"
+        aria-label="Filter by tag"
+        title="Filter by tag"
+      >
+        <app-icon name="filter_list"></app-icon>
+      </button>
+      @if (tagFilterMenuOpen()) {
+        <div class="menu-overlay transparent" (click)="tagFilterMenuOpen.set(false)"></div>
+        <div class="menu">
+          <div class="tag-filter-header">Filter by tag</div>
+          @for (tag of allAvailableTags(); track tag) {
+            <div
+              class="menu-item"
+              [class.active]="isTagSelected(tag)"
+              (click)="onSelectTag(tag)"
+            >
+              <app-icon [name]="isTagSelected(tag) ? 'check_box' : 'check_box_outline_blank'"></app-icon>
+              <span>{{ tag }}</span>
+            </div>
+          }
+          @if (allAvailableTags().length === 0) {
+            <div class="tag-filter-empty">No tags available</div>
+          }
+        </div>
+      }
+    </div>
     @if (canMakeNewMembers()) {
       <button class="button" (click)="newMember()">New Member</button>
     }
   </div>
+  @if (hasTagFilter()) {
+    <div class="active-tag-filter">
+      @for (tag of selectedTags(); track tag) {
+        <span class="active-tag-chip">
+          {{ tag }}
+          <button class="tag-clear-btn" (click)="removeTag(tag)" [attr.aria-label]="'Remove filter: ' + tag">
+            <app-icon name="close"></app-icon>
+          </button>
+        </span>
+      }
+      @if (selectedTags().size > 1) {
+        <button class="tag-clear-btn clear-all-btn" (click)="clearTagFilter()">
+          Clear all
+        </button>
+      }
+    </div>
+  }
 
   @if (errorsExist()) {
     <div class="error-box">

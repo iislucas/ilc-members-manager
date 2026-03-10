@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Member, StudentLevel, ApplicationLevel, MembershipType } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
+import { getAllMemberTags } from '../member-tags';
 
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 import { IconComponent } from '../icons/icon.component';
@@ -128,6 +129,67 @@ export class MemberListComponent {
     return this.routingService.signals[match].urlParams.q();
   });
 
+  // ── Tag filter ──
+  tagFilterMenuOpen = signal(false);
+
+  /** Currently selected tags from URL params (comma-separated). */
+  selectedTags = computed<Set<string>>(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match) {
+      const raw = this.routingService.signals[match].urlParams.tag() || '';
+      if (raw) return new Set(raw.split(',').map(t => t.trim()).filter(Boolean));
+    }
+    return new Set<string>();
+  });
+
+  /** Convenience: true when at least one tag is selected. */
+  hasTagFilter = computed(() => this.selectedTags().size > 0);
+
+  /** All unique tags (member tags + meta-tags) across every loaded member. */
+  allAvailableTags = computed<string[]>(() => {
+    const members = this.memberSet().entries();
+    const tagSet = new Set<string>();
+    for (const m of members) {
+      for (const t of getAllMemberTags(m)) {
+        tagSet.add(t);
+      }
+    }
+    return [...tagSet].sort((a, b) => a.localeCompare(b));
+  });
+
+  isTagSelected(tag: string): boolean {
+    return this.selectedTags().has(tag);
+  }
+
+  onSelectTag(tag: string) {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return;
+    const current = new Set(this.selectedTags());
+    if (current.has(tag)) {
+      current.delete(tag);
+    } else {
+      current.add(tag);
+    }
+    this.routingService.signals[match].urlParams.tag.set([...current].join(','));
+    this.limit.set(50);
+  }
+
+  removeTag(tag: string) {
+    this.onSelectTag(tag); // toggle off
+  }
+
+  clearTagFilter() {
+    const match = this.routingService.matchedPatternId();
+    if (!match) return;
+    this.routingService.signals[match].urlParams.tag.set('');
+    this.tagFilterMenuOpen.set(false);
+    this.limit.set(50);
+  }
+
+  toggleTagMenu() {
+    this.tagFilterMenuOpen.update(v => !v);
+  }
+
   // Sort state — backed by URL params so sort is shareable via links.
   SortDirection = SortDirection;
 
@@ -176,9 +238,20 @@ export class MemberListComponent {
 
   private allSearchResults = computed(() => this.memberSet().search(this.searchTerm()));
 
+  /** Members after applying the optional tag filter. */
+  private tagFilteredResults = computed(() => {
+    const all = this.allSearchResults();
+    const tags = this.selectedTags();
+    if (tags.size === 0) return all;
+    return all.filter(m => {
+      const memberTags = getAllMemberTags(m);
+      return [...tags].every(t => memberTags.includes(t));
+    });
+  });
+
   /** Members after filtering out inactive/deceased (when hidden). */
   private activeSearchResults = computed(() => {
-    const all = this.allSearchResults();
+    const all = this.tagFilteredResults();
     if (this.showInactiveMembers()) return all;
     return all.filter(m => !MemberListComponent.INACTIVE_TYPES.includes(m.membershipType));
   });
@@ -186,7 +259,7 @@ export class MemberListComponent {
   /** Count of inactive/deceased members hidden by the filter. */
   hiddenInactiveCount = computed(() => {
     if (this.showInactiveMembers()) return 0;
-    return this.allSearchResults().length - this.activeSearchResults().length;
+    return this.tagFilteredResults().length - this.activeSearchResults().length;
   });
 
   // Expose signals from the service to the template
