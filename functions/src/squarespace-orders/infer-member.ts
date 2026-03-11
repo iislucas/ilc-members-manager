@@ -129,29 +129,14 @@ export async function inferMemberIdFromOrder(
     };
   }
 
-  // Exactly one member found — validate DOB
+  // Exactly one member found — validate DOB if both sides provide one.
   const match = matches[0];
 
-  if (!purchaseInfo.dateOfBirth) {
-    return {
-      memberId: '',
-      reason: `One member found (${match.memberId}) with email "${email}", but no date of birth in order to confirm.`,
-      isManual: false,
-    };
-  }
+  const normalizedOrderDob = purchaseInfo.dateOfBirth ? normalizeDateOfBirth(purchaseInfo.dateOfBirth) : '';
+  const normalizedMemberDob = match.dateOfBirth ? normalizeDateOfBirth(match.dateOfBirth) : '';
 
-  const normalizedOrderDob = normalizeDateOfBirth(purchaseInfo.dateOfBirth);
-  const normalizedMemberDob = normalizeDateOfBirth(match.dateOfBirth);
-
-  if (!normalizedMemberDob) {
-    return {
-      memberId: '',
-      reason: `One member found (${match.memberId}) with email "${email}", but member has no date of birth on file to confirm.`,
-      isManual: false,
-    };
-  }
-
-  if (normalizedOrderDob !== normalizedMemberDob) {
+  // If both DOBs are present, they must match.
+  if (normalizedOrderDob && normalizedMemberDob && normalizedOrderDob !== normalizedMemberDob) {
     return {
       memberId: '',
       reason: `One member found (${match.memberId}) with email "${email}", but date of birth does not match: `
@@ -160,10 +145,18 @@ export async function inferMemberIdFromOrder(
     };
   }
 
-  logger.info(`[InferMember] Auto-inferred member ID ${match.memberId} for email "${email}" — email unique and DOB matches.`);
+  // Accept the match: either DOBs match, or one/both sides lack a DOB.
+  const dobDetail = normalizedOrderDob && normalizedMemberDob
+    ? 'DOB matches'
+    : !normalizedOrderDob && !normalizedMemberDob
+      ? 'no DOB available on either side'
+      : !normalizedOrderDob
+        ? 'order has no DOB (skipped DOB check)'
+        : 'member has no DOB on file (skipped DOB check)';
+  logger.info(`[InferMember] Auto-inferred member ID ${match.memberId} for email "${email}" — email unique, ${dobDetail}.`);
   return {
     memberId: match.memberId,
-    reason: `Auto-inferred: email "${email}" is unique and DOB matches member ${match.memberId}.`,
+    reason: `Auto-inferred: email "${email}" is unique (${dobDetail}) → member ${match.memberId}.`,
     isManual: false,
   };
 }
