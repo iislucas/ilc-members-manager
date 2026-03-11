@@ -1,7 +1,7 @@
 /* Guided login component.
  *
  * Presents a step-based login flow:
- * 1. User enters their email.
+ * 1. User enters their email (skipped for returning users via localStorage cache).
  * 2. A server-side check determines whether the email has a member record,
  *    an existing Firebase Auth account, and whether it's Google-managed.
  * 3. Based on the result the user is guided to:
@@ -9,6 +9,9 @@
  *    - Enter their password (for existing auth accounts),
  *    - Create a new password (for known members without an auth account), or
  *    - An informational message (if no member record exists).
+ *
+ * The last known email and login method are cached in localStorage so
+ * returning users can skip the email entry step entirely.
  */
 
 import { Component, inject, signal } from '@angular/core';
@@ -24,10 +27,45 @@ import { CheckEmailStatusResult } from '../../../functions/src/data-model';
 export enum LoginStep {
   Email = 'email',
   Checking = 'checking',
-  GoogleSuggested = 'google-suggested',
+  GoogleSignin = 'google-signin',
   PasswordLogin = 'password-login',
   CreateAccount = 'create-account',
   NoMember = 'no-member',
+}
+
+// Cached login info persisted to localStorage.
+type CachedLoginInfo = {
+  email: string;
+  isGoogleManaged: boolean;
+  hasAuthAccount: boolean;
+};
+
+const CACHED_LOGIN_KEY = 'ilc-login-info';
+
+function getCachedLoginInfo(): CachedLoginInfo | null {
+  try {
+    const raw = localStorage.getItem(CACHED_LOGIN_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CachedLoginInfo;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedLoginInfo(info: CachedLoginInfo): void {
+  try {
+    localStorage.setItem(CACHED_LOGIN_KEY, JSON.stringify(info));
+  } catch {
+    // localStorage might be unavailable or full
+  }
+}
+
+function clearCachedLoginInfo(): void {
+  try {
+    localStorage.removeItem(CACHED_LOGIN_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 @Component({
@@ -46,6 +84,8 @@ export class LoginComponent {
   // Flow state
   loginStep = signal<LoginStep>(LoginStep.Email);
   emailStatus = signal<CheckEmailStatusResult | null>(null);
+  // True when the flow was initialised from a localStorage cache (skip email step).
+  isReturningUser = signal(false);
 
   // Form state
   loginEmail = signal<string>('');
@@ -61,12 +101,35 @@ export class LoginComponent {
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
 
+  constructor() {
+    // Check for cached login info from a previous session.
+    const cached = getCachedLoginInfo();
+    if (cached) {
+      this.loginEmail.set(cached.email);
+      this.emailStatus.set({
+        hasMemberRecord: true, // only cached when this is true
+        hasAuthAccount: cached.hasAuthAccount,
+        isGoogleManaged: cached.isGoogleManaged,
+      });
+      this.isReturningUser.set(true);
+
+      if (cached.isGoogleManaged) {
+        this.loginStep.set(LoginStep.GoogleSignin);
+      } else if (cached.hasAuthAccount) {
+        this.loginStep.set(LoginStep.PasswordLogin);
+      } else {
+        this.loginStep.set(LoginStep.CreateAccount);
+      }
+    }
+  }
+
   // Step 1 → 2: check the email and decide which step to show next.
   async checkEmail() {
     const email = this.loginEmail().trim();
     if (!email) return;
 
     this.dismissMessages();
+    this.isReturningUser.set(false);
     this.loginStep.set(LoginStep.Checking);
 
     try {
@@ -75,12 +138,21 @@ export class LoginComponent {
 
       if (!result.hasMemberRecord) {
         this.loginStep.set(LoginStep.NoMember);
-      } else if (result.isGoogleManaged) {
-        this.loginStep.set(LoginStep.GoogleSuggested);
-      } else if (result.hasAuthAccount) {
-        this.loginStep.set(LoginStep.PasswordLogin);
       } else {
-        this.loginStep.set(LoginStep.CreateAccount);
+        // Cache for returning-user experience next time.
+        setCachedLoginInfo({
+          email,
+          isGoogleManaged: result.isGoogleManaged,
+          hasAuthAccount: result.hasAuthAccount,
+        });
+
+        if (result.isGoogleManaged) {
+          this.loginStep.set(LoginStep.GoogleSignin);
+        } else if (result.hasAuthAccount) {
+          this.loginStep.set(LoginStep.PasswordLogin);
+        } else {
+          this.loginStep.set(LoginStep.CreateAccount);
+        }
       }
     } catch (error: unknown) {
       console.error('checkEmailStatus failed:', error);
@@ -94,7 +166,13 @@ export class LoginComponent {
   async loginWithGoogle() {
     this.dismissMessages();
     const result = await this.firebaseService.loginWithGoogle();
-    if (!result.success) {
+    if (result.success) {
+      // Update cache: they now definitely have an auth account.
+      const email = this.loginEmail().trim();
+      if (email) {
+        setCachedLoginInfo({ email, isGoogleManaged: true, hasAuthAccount: true });
+      }
+    } else {
       console.warn(result.errorCode);
       if (result.errorCode !== 'auth/cancelled-popup-request') {
         this.loginWithGoogleError.set(result.errorCode);
@@ -107,7 +185,14 @@ export class LoginComponent {
     const email = this.loginEmail().trim();
     const pass = this.loginPassword();
     const result = await this.firebaseService.loginWithEmail(pass, email);
-    if (!result.success) {
+    if (result.success) {
+      // Update cache: they have a working auth account.
+      setCachedLoginInfo({
+        email,
+        isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
+        hasAuthAccount: true,
+      });
+    } else {
       console.warn(result.errorCode);
       if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
         this.invalidLoginCredentials.set(true);
@@ -122,10 +207,17 @@ export class LoginComponent {
     const email = this.loginEmail().trim();
     const pass = this.loginPassword();
     const result = await this.firebaseService.signupWithEmail(pass, email);
-    if (!result.success) {
+    if (result.success) {
+      // Update cache: they now have an auth account.
+      setCachedLoginInfo({
+        email,
+        isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
+        hasAuthAccount: true,
+      });
+    } else {
       console.warn(result.errorCode);
       if (result.errorCode === AuthErrorCodes.EMAIL_EXISTS) {
-        // Account already exists (e.g. created via Google) — redirect to password step.
+        // Account already exists — redirect to password step.
         this.loginStep.set(LoginStep.PasswordLogin);
         this.loginError.set(
           'An account already exists for this email. Please sign in with your password, or reset it below.',
@@ -155,7 +247,7 @@ export class LoginComponent {
     }
   }
 
-  // From the GoogleSuggested step, go to the appropriate password step.
+  // From the GoogleSignin step, go to the appropriate password step.
   usePasswordInstead() {
     const status = this.emailStatus();
     if (status?.hasAuthAccount) {
@@ -167,8 +259,10 @@ export class LoginComponent {
 
   goBackToEmail() {
     this.loginPassword.set('');
+    this.isReturningUser.set(false);
     this.loginStep.set(LoginStep.Email);
     this.dismissMessages();
+    clearCachedLoginInfo();
   }
 
   dismissMessages() {

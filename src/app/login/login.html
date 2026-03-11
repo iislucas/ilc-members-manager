@@ -45,14 +45,13 @@
           <app-spinner>Checking your email…</app-spinner>
         }
 
-        <!-- ──────────── STEP: GOOGLE SUGGESTED ──────────── -->
-        @case (LoginStep.GoogleSuggested) {
-          <div class="step-header">Sign in with Google</div>
-          <p class="step-guidance">
-            Your email <strong>{{ loginEmail() }}</strong> appears to be a
-            Google account. We recommend signing in with Google for the
-            easiest experience.
-          </p>
+        <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
+        @case (LoginStep.GoogleSignin) {
+          @if (isReturningUser()) {
+            <div class="step-header">Welcome back</div>
+          } @else {
+            <div class="step-header">Sign in with Google</div>
+          }
           @if (loginWithGoogleError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -63,29 +62,32 @@
           }
           <div class="step-actions">
             <button id="google-signin-btn" (click)="loginWithGoogle()">
-              Sign in with Google
+              @if (isReturningUser()) {
+                Sign in as {{ loginEmail() }}
+              } @else {
+                Sign in with Google
+              }
             </button>
-            <button
-              id="use-password-btn"
-              class="secondary-action"
-              (click)="usePasswordInstead()"
-            >
-              Use password instead
-            </button>
+            @if (!isReturningUser()) {
+              <button
+                id="use-password-btn"
+                class="secondary-action"
+                (click)="usePasswordInstead()"
+              >
+                Use password instead
+              </button>
+            }
           </div>
           <button class="back-link" (click)="goBackToEmail()">
-            ← Use a different email
+            Use a different email
           </button>
         }
 
         <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
         @case (LoginStep.PasswordLogin) {
           <div class="step-header">Welcome back</div>
-          <p class="step-guidance">
-            Enter your password for <strong>{{ loginEmail() }}</strong>.
-          </p>
           <div class="input-field">
-            <label for="password-input">Password</label>
+            <label for="password-input">Password for <strong>{{ loginEmail() }}</strong></label>
             <div class="password-input-row">
               <input
                 id="password-input"
@@ -135,6 +137,9 @@
           }
 
           <div class="step-actions">
+            <button class="back-link" (click)="goBackToEmail()">
+              Use a different email
+            </button>
             <button
               id="login-btn"
               (click)="loginWithEmail()"
@@ -143,9 +148,6 @@
               Sign in
             </button>
           </div>
-          <button class="back-link" (click)="goBackToEmail()">
-            ← Use a different email
-          </button>
         }
 
         <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
@@ -153,11 +155,10 @@
           <div class="step-header">Set up your account</div>
           <p class="step-guidance">
             We found your membership record for
-            <strong>{{ loginEmail() }}</strong>. This is a new site — please
-            create a password to get started.
+            <strong>{{ loginEmail() }}</strong>.
           </p>
           <div class="input-field">
-            <label for="new-password-input">Password</label>
+            <label for="new-password-input">Create a password to get started</label>
             <div class="password-input-row">
               <input
                 id="new-password-input"
@@ -192,6 +193,9 @@
           }
 
           <div class="step-actions">
+            <button class="back-link" (click)="goBackToEmail()">
+              Use a different email
+            </button>
             <button
               id="create-account-btn"
               (click)="signupWithEmail()"
@@ -200,9 +204,6 @@
               Create account
             </button>
           </div>
-          <button class="back-link" (click)="goBackToEmail()">
-            ← Use a different email
-          </button>
         }
 
         <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
