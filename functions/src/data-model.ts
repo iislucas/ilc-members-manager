@@ -804,3 +804,15 @@ export type FetchUserDetailsResult = {
   isAdmin: boolean;
   schoolsManaged: string[];
 };
+
+// Result from the pre-auth checkEmailStatus function. Guides the login UI
+// to show the appropriate step (Google sign-in, password, or account creation).
+export type CheckEmailStatusResult = {
+  // Whether this email has an ACL entry (is a known member).
+  hasMemberRecord: boolean;
+  // Whether a Firebase Auth account exists for this email.
+  hasAuthAccount: boolean;
+  // Whether the email appears to be Google-managed (gmail.com / googlemail.com
+  // domain, or the existing auth account has a google.com provider).
+  isGoogleManaged: boolean;
+};

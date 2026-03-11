@@ -28,6 +28,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import {
+  CheckEmailStatusResult,
   FetchUserDetailsResult,
   firestoreDocToMember,
   initMember,
@@ -368,6 +369,17 @@ export class FirebaseStateService {
       };
     }
   }
+
+  // Pre-auth check: determines whether an email has a member record,
+  // a Firebase Auth account, and whether it's Google-managed.
+  public async checkEmailStatus(email: string): Promise<CheckEmailStatusResult> {
+    const fn = httpsCallable<{ email: string }, CheckEmailStatusResult>(
+      this.functions,
+      'checkEmailStatus',
+    );
+    const result = await fn({ email });
+    return result.data;
+  }
 }
 
 export function createFirebaseStateServiceMock(): FirebaseStateService {
@@ -394,5 +406,7 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
     logout: (): Promise<LogoutResult> => Promise.resolve({ success: true }),
     resetPassword: (): Promise<ResetPasswordResult> =>
       Promise.resolve({ success: true }),
+    checkEmailStatus: (): Promise<CheckEmailStatusResult> =>
+      Promise.resolve({ hasMemberRecord: false, hasAuthAccount: false, isGoogleManaged: false }),
   } as Partial<FirebaseStateService> as FirebaseStateService;
 }
