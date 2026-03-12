@@ -5,6 +5,8 @@
     <button class="tab-button" [class.active]="activeTab() === 'country-codes'" (click)="setActiveTab('country-codes')">Country Codes</button>
     <button class="tab-button" [class.active]="activeTab() === 'backups'"
       (click)="setActiveTab('backups')">Backups</button>
+    <button class="tab-button" [class.active]="activeTab() === 'content-cache'"
+      (click)="setActiveTab('content-cache')">Content Cache</button>
   </div>
 
   @if (activeTab() === 'counters') {
@@ -22,6 +24,12 @@
   @if (activeTab() === 'backups') {
   <div class="tab-content">
     <app-backups></app-backups>
+  </div>
+  }
+
+  @if (activeTab() === 'content-cache') {
+  <div class="tab-content">
+    <app-content-cache></app-content-cache>
   </div>
   }
 </div>

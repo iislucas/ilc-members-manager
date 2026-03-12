@@ -1,0 +1,258 @@
+/* Styles for Content Cache admin panel — follows the Backups panel pattern */
+
+.control-panel {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f0f0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.panel-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eaeaea;
+
+  h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: #1a1a1a;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    margin: 0.5rem 0 0 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+}
+
+/* Status Grid */
+.status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: linear-gradient(145deg, #f8faff 0%, #ffffff 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+  }
+}
+
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  &.events-icon {
+    background-color: #eef2ff;
+    color: #4f46e5;
+  }
+
+  &.blogs-icon {
+    background-color: #fef3c7;
+    color: #d97706;
+  }
+}
+
+.status-details {
+  flex: 1;
+
+  h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    color: #1e293b;
+    font-weight: 600;
+  }
+}
+
+.status-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+
+  .item-count {
+    color: #334155;
+    font-weight: 600;
+    background-color: #f1f5f9;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .refresh-time {
+    color: #64748b;
+  }
+}
+
+/* Refresh All */
+.refresh-all-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+
+  .helper-text {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin: 0;
+  }
+}
+
+/* Buttons */
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: inherit;
+  white-space: nowrap;
+
+  &.primary-action {
+    background-color: #4f46e5;
+    color: white;
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+
+    &:hover:not(:disabled) {
+      background-color: #4338ca;
+      box-shadow: 0 6px 10px rgba(79, 70, 229, 0.3);
+    }
+  }
+
+  &.secondary-action {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+
+    &:hover:not(:disabled) {
+      background-color: #e2e8f0;
+      color: #1e293b;
+    }
+  }
+
+  &.danger-action {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+
+    &:hover:not(:disabled) {
+      background-color: #fee2e2;
+      color: #7f1d1d;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+/* Button spinner */
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Alerts */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+
+  &.success-alert {
+    background-color: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+
+    svg { color: #22c55e; }
+  }
+
+  &.error-alert {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+
+    svg { color: #ef4444; }
+  }
+}
+
+/* Loading state */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+  color: #64748b;
+
+  p { margin: 0; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .control-panel {
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin: 0.5rem;
+  }
+
+  .status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .refresh-all-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

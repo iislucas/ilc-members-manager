@@ -8,8 +8,7 @@ import {
 import { initializeApp } from 'firebase/app';
 import { ROUTING_CONFIG, Views, initPathPatterns, FIREBASE_APP } from './app.config';
 import { DataManagerService, DataServiceState } from './data-manager.service';
-import { SquarespaceService } from './squarespace/squarespace.service';
-import { of } from 'rxjs';
+
 import { signal } from '@angular/core';
 import { LoginStatus, UserDetails } from './firebase-state.service';
 
@@ -27,10 +26,6 @@ describe('App', () => {
       myStudents: { loaded: signal(true) } as any,
     };
 
-    // Mock SquarespaceService since we render app-squarespace-article
-    const squareSpaceServiceMock = {
-      getSquarespaceContent: () => of({ item: { body: 'test' } })
-    } as unknown as SquarespaceService;
 
     await TestBed.configureTestingModule({
       imports: [App],
@@ -58,7 +53,6 @@ describe('App', () => {
             validPathPatterns: initPathPatterns,
           },
         },
-        { provide: SquarespaceService, useValue: squareSpaceServiceMock },
       ],
     }).compileComponents();
   });

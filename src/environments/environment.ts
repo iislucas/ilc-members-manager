@@ -13,9 +13,6 @@ const firebaseConfig = {
 export const environment = {
   production: false,
   firebase: firebaseConfig,
-  googleCalendar: {
-    calendarId: '06se06gf82c428olklnjagbt6c@group.calendar.google.com',
-  },
   adminEmail: 'web-helper-team@iliqchuan.com',
   passwordResetEmailSender: 'noreply@app.iliqchuan.com'
 };

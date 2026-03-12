@@ -108,6 +108,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Cached calendar events — publicly readable as events are public.
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Cached members-area blog posts — readable by authenticated users.
+    // Fine-grained membership checks are done in the frontend component;
+    // the rule here ensures only logged-in users can access the data.
+    match /members-post/{postId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Cached instructors blog posts — readable by authenticated users.
+    match /instructors-post/{postId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /gradings/{gradingId} {
       function isGradingStudent() {
         return resource.data.studentMemberDocId in getUserMemberDocIds();

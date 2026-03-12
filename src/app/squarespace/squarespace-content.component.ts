@@ -1,16 +1,23 @@
-import { Component, effect, inject, input, ViewEncapsulation, signal, computed } from '@angular/core';
+import { Component, effect, inject, input, ViewEncapsulation, signal, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { SquarespaceService } from './squarespace.service';
+import {
+    collection,
+    onSnapshot,
+    query,
+    orderBy,
+    getFirestore,
+    Unsubscribe,
+} from 'firebase/firestore';
+import { FIREBASE_APP } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { MembershipType } from '../../../functions/src/data-model';
-import { SquareSpaceBlogsResponse, SquareSpaceBlogEntry } from './blog-types';
+import { MembershipType, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 
-export interface ProcessedBlogEntry extends SquareSpaceBlogEntry {
+export interface ProcessedBlogEntry extends CachedBlogPost {
     safeBody: SafeHtml;
     safeExcerpt: SafeHtml;
 }
@@ -23,23 +30,43 @@ export interface ProcessedBlogEntry extends SquareSpaceBlogEntry {
     styleUrls: ['./squarespace-content.component.scss'],
     encapsulation: ViewEncapsulation.None,
 })
-export class SquarespaceContentComponent {
-    private squarespaceService = inject(SquarespaceService);
+export class SquarespaceContentComponent implements OnDestroy {
     private sanitizer = inject(DomSanitizer);
     public firebaseService = inject(FirebaseStateService);
     private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+    private firebaseApp = inject(FIREBASE_APP);
+    private db = getFirestore(this.firebaseApp);
+    private unsubscribe: Unsubscribe | null = null;
 
-    /** The Squarespace path to fetch, e.g. '/membersareablog' */
+    // The Firestore collection name, e.g. 'members-post' or 'instructors-post'.
     path = input.required<string>();
 
-    blogEntries = signal<ProcessedBlogEntry[]>([]);
     categories = signal<string[]>([]);
     selectedCategory = signal<string>('All');
     fallbackContent = signal<SafeHtml | null>(null);
-    expandedIds = signal<Set<string>>(new Set<string>());
-
-    loading = signal<boolean>(true);
     error = signal<string | null>(null);
+
+    // Raw posts from Firestore.
+    private rawPosts = signal<CachedBlogPost[]>([]);
+    private subscribed = signal(false);
+
+    // Process cached posts into template-ready entries with sanitised HTML.
+    readonly blogEntries = computed<ProcessedBlogEntry[]>(() => {
+        if (!this.subscribed()) return [];
+        return this.rawPosts().map((item) => ({
+            ...item,
+            safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
+            safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
+        }));
+    });
+
+    readonly loading = computed(() => {
+        if (this.error()) return false;
+        if (!this.subscribed()) return true;
+        return this.postsLoading();
+    });
+
+    private postsLoading = signal(true);
 
     filteredEntries = computed(() => {
         const cat = this.selectedCategory();
@@ -49,16 +76,31 @@ export class SquarespaceContentComponent {
     });
 
     constructor() {
+        // Main effect: check access then subscribe to the Firestore collection.
         effect(() => {
-            const path = this.path();
-            if (path) {
-                this.checkAccessAndLoad(path);
+            const collectionName = this.path();
+            if (collectionName) {
+                this.checkAccessAndSubscribe(collectionName);
             } else {
-                this.error.set('Configuration error: No path specified.');
-                this.loading.set(false);
+                this.error.set('Configuration error: No collection specified.');
             }
         });
 
+        // Build the category list whenever blog entries change.
+        effect(() => {
+            const entries = this.blogEntries();
+            if (entries.length > 0) {
+                const allCategories = new Set<string>();
+                entries.forEach(item => {
+                    if (item.categories) {
+                        item.categories.forEach((c: string) => allCategories.add(c));
+                    }
+                });
+                this.categories.set(['All', ...Array.from(allCategories).sort()]);
+            }
+        });
+
+        // Sync the selected category from the URL.
         effect(() => {
             const patternId = this.routingService.matchedPatternId();
             if (patternId === Views.MembersArea
@@ -91,6 +133,10 @@ export class SquarespaceContentComponent {
         });
     }
 
+    ngOnDestroy(): void {
+        this.unsubscribe?.();
+    }
+
     selectCategory(cat: string) {
         this.selectedCategory.set(cat);
         const patternId = this.routingService.matchedPatternId();
@@ -104,9 +150,10 @@ export class SquarespaceContentComponent {
     }
 
     navigateToArticle(entry: ProcessedBlogEntry) {
-        if (this.path().includes('member')) {
+        const collectionName = this.path();
+        if (collectionName === 'members-post') {
             this.routingService.navigateTo('members-area/post/' + entry.urlId);
-        } else if (this.path().includes('instructor')) {
+        } else if (collectionName === 'instructors-post') {
             this.routingService.navigateTo('instructors-area/post/' + entry.urlId);
         }
     }
@@ -116,7 +163,6 @@ export class SquarespaceContentComponent {
         if (!user) return false;
         const member = user.member;
 
-        // Life, LifePartner, Senior memberships don't expire
         const nonExpiringTypes: MembershipType[] = [
             MembershipType.Life,
         ];
@@ -124,7 +170,6 @@ export class SquarespaceContentComponent {
             return true;
         }
 
-        // Inactive / Deceased are never active
         if (
             member.membershipType === MembershipType.Inactive ||
             member.membershipType === MembershipType.Deceased
@@ -132,23 +177,20 @@ export class SquarespaceContentComponent {
             return false;
         }
 
-        // For all other types, check the expiration date
         if (!member.currentMembershipExpires) return false;
         return new Date(member.currentMembershipExpires) > new Date();
     }
 
-    public checkAccessAndLoad(path: string) {
+    public checkAccessAndSubscribe(collectionName: string) {
         const user = this.firebaseService.user();
 
         if (!user) {
             this.error.set('You must be logged in to view this content.');
-            this.loading.set(false);
             return;
         }
 
-        // Role-based access check
-        const isMemberArea = path.includes('member');
-        const isInstructorArea = path.includes('instructor');
+        const isMemberArea = collectionName === 'members-post';
+        const isInstructorArea = collectionName === 'instructors-post';
 
         if (isMemberArea) {
             if (!this.isActiveMember()) {
@@ -157,170 +199,47 @@ export class SquarespaceContentComponent {
                 } else {
                     this.error.set('You must be an active member to view this content.');
                 }
-                this.loading.set(false);
                 return;
             }
         } else if (isInstructorArea) {
             if (!user.member.instructorId) {
                 this.error.set('You must be an instructor to view this content.');
-                this.loading.set(false);
                 return;
             }
             if (user.member.instructorLicenseExpires && new Date(user.member.instructorLicenseExpires) < new Date()) {
                 this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
-                this.loading.set(false);
                 return;
             }
         }
 
-        this.loadContent(path);
+        // Subscribe directly to the Firestore collection.
+        this.subscribeToCollection(collectionName);
     }
 
-    private loadContent(path: string) {
-        this.loading.set(true);
-        this.error.set(null);
+    private subscribeToCollection(collectionName: string): void {
+        // Clean up previous subscription if any.
+        this.unsubscribe?.();
 
-        this.squarespaceService.getSquarespaceContent(path).subscribe({
-            next: (data: SquareSpaceBlogsResponse) => {
-                console.log('Squarespace content loaded:', data);
+        const postsCollection = collection(this.db, collectionName);
+        const q = query(postsCollection, orderBy('publishOn', 'desc'));
+        this.postsLoading.set(true);
 
-                let htmlContent = '';
-                let baseUrl = '';
-
-                if (data) {
-                    // Try to extract base URL for link fixing
-                    baseUrl = data.website?.baseUrl || '';
-                    if (baseUrl && !baseUrl.startsWith('http')) {
-                        baseUrl = 'https:' + (baseUrl.startsWith('//') ? '' : '//') + baseUrl;
-                    }
-
-                    if (data.items && Array.isArray(data.items)) {
-                        const processed: ProcessedBlogEntry[] = data.items.map((item: any) => {
-                            let assetUrl = item.assetUrl ? String(item.assetUrl).trim() : '';
-
-                            // Squarespace placeholder URLs often end with a slash without an actual image filename, 
-                            // which then redirects to 'no-image.png'.
-                            if (assetUrl === "undefined" || assetUrl === "null" || assetUrl.includes('no-image.png') || assetUrl.endsWith('/')) {
-                                assetUrl = '';
-                            }
-
-                            if (assetUrl && !assetUrl.startsWith('http') && !assetUrl.startsWith('//')) {
-                                assetUrl = baseUrl + (assetUrl.startsWith('/') ? '' : '/') + assetUrl;
-                            }
-
-                            return {
-                                ...item,
-                                assetUrl,
-                                safeBody: this.sanitizer.bypassSecurityTrustHtml(this.processHtml(item.body || item.content || '', baseUrl)),
-                                safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(this.processHtml(item.excerpt || '', baseUrl)),
-                            };
-                        });
-
-                        this.blogEntries.set(processed);
-
-                        const allCategories = new Set<string>();
-                        processed.forEach(item => {
-                            if (item.categories) {
-                                item.categories.forEach((c: string) => allCategories.add(c));
-                            }
-                        });
-                        this.categories.set(['All', ...Array.from(allCategories).sort()]);
-                        this.fallbackContent.set(null);
-                        this.loading.set(false);
-                        return;
-                    }
-
-                    let htmlContent = '';
-                    if (data.collection?.description) {
-                        htmlContent = data.collection.description;
-                    } else if (typeof data === 'string') {
-                        htmlContent = data;
-                    } else if (data.sections && Array.isArray(data.sections)) {
-                        htmlContent = data.sections.map((s: any) => s.html || '').join('');
-                    }
-
-                    if (!htmlContent || htmlContent.trim() === '') {
-                        console.warn('No content found in Squarespace response', data);
-                        const title = data?.collection?.title || 'this page';
-                        htmlContent = `<div class="empty-content-warning">
-                            <p>No content was found for <strong>${title}</strong>.</p>
-                            <p>This may be because the page is empty or requires direct login.</p>
-                        </div>`;
-                    }
-
-                    // Process the HTML to ensure it works outside Squarespace
-                    const processedHtml = this.processHtml(htmlContent, baseUrl);
-                    this.fallbackContent.set(this.sanitizer.bypassSecurityTrustHtml(processedHtml));
-                    this.blogEntries.set([]);
-                }
-                this.loading.set(false);
+        this.unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const posts = snapshot.docs.map((doc) => ({
+                    ...initCachedBlogPost(),
+                    ...(doc.data() as CachedBlogPost),
+                }));
+                this.rawPosts.set(posts);
+                this.postsLoading.set(false);
+                this.subscribed.set(true);
             },
-            error: (err) => {
-                console.error('Error loading content', err);
-                this.error.set('Failed to load content from Squarespace. Please check your connection or try again later.');
-                this.loading.set(false);
+            (error) => {
+                console.error(`Error subscribing to ${collectionName}:`, error);
+                this.error.set('Failed to load blog posts. Please try again later.');
+                this.postsLoading.set(false);
             },
-        });
-    }
-
-    private processHtml(html: string, baseUrl: string): string {
-        if (!html) return '';
-
-        // 1. Fix protocol-relative URLs (//images.squarespace-cdn.com -> https://images.squarespace-cdn.com)
-        let processed = html.replace(/src="\/\//g, 'src="https://');
-        processed = processed.replace(/href="\/\//g, 'href="https://');
-
-        // 2. Fix relative URLs if we have a baseUrl
-        if (baseUrl) {
-            const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-            // Match src="/..." or href="/..." but not src="//..." or href="//..."
-            // Using a negative lookahead to avoid matching protocol-relative URLs
-            processed = processed.replace(/(src|href)="\/([^/])/g, `$1="${base}/$2`);
-        }
-
-        // 3. Fix Squarespace images safely without creating duplicate attributes
-        processed = processed.replace(/<img([^>]*)>/gi, (match) => {
-            let newImg = match;
-
-            if (newImg.includes('data-src=')) {
-                const dataSrcMatch = newImg.match(/data-src="([^"]+)"/);
-                if (dataSrcMatch) {
-                    let realSrc = dataSrcMatch[1];
-                    // Append format if missing so Squarespace CDN returns the actual image
-                    if (!realSrc.includes('format=')) {
-                        realSrc += (realSrc.includes('?') ? '&' : '?') + 'format=1000w';
-                    }
-                    // Remove existing src attributes to avoid clash
-                    newImg = newImg.replace(/\s+src="[^"]*"/g, '');
-                    // Sub in the real src
-                    newImg = newImg.replace(/data-src="[^"]*"/, `src="${realSrc}"`);
-                }
-            }
-
-            if (newImg.includes('data-srcset=')) {
-                newImg = newImg.replace(/\s+srcset="[^"]*"/g, '');
-                newImg = newImg.replace(/data-srcset=/g, 'srcset=');
-            }
-
-            // Remove loading class that might hide images
-            newImg = newImg.replace(/class="([^"]*)loading([^"]*)"/gi, 'class="$1$2"');
-
-            return newImg;
-        });
-
-        // 4. Fix Squarespace video blocks
-        processed = processed.replace(
-            /<div[^>]*class="[^"]*sqs-video-wrapper[^"]*"[^>]*data-html="([^"]+)"[^>]*>.*?<\/div>/gi,
-            (_match, dataHtml) => {
-                const unescaped = dataHtml
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&quot;/g, '"')
-                    .replace(/&amp;/g, '&');
-                return `<div class="ilc-video-container">${unescaped}</div>`;
-            }
         );
-
-        return processed;
     }
 }

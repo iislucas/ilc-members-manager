@@ -124,25 +124,25 @@
           }
           @case (Views.MembersAreaCategory) {
             <app-squarespace-content
-              path="/membersareablog"
+              path="members-post"
               pageTitle="Active Members Area"
             ></app-squarespace-content>
           }
           @case (Views.InstructorsAreaCategory) {
             <app-squarespace-content
-              path="/instructorsblog"
+              path="instructors-post"
               pageTitle="Active Instructors Area"
             ></app-squarespace-content>
           }
           @case (Views.MembersAreaPost) {
             <app-squarespace-article
-              collection="/membersareablog"
+              collection="members-post"
               [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }
           @case (Views.InstructorsAreaPost) {
             <app-squarespace-article
-              collection="/instructorsblog"
+              collection="instructors-post"
               [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
             ></app-squarespace-article>
           }

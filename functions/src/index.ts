@@ -23,7 +23,6 @@ export {
 } from './on-member-update';
 
 export { onSchoolCreated, onSchoolUpdated } from './on-school-update';
-export { getSquarespaceContent } from './squarespace-content';
 
 export {
   onGradingCreated,
@@ -38,3 +37,5 @@ export { syncSquarespaceOrders, processSquarespaceOrder, manualSquarespaceSync, 
 export { computeStatistics, manualComputeStatistics } from './compute-statistics';
 
 export { checkEmailStatus } from './check-email-status';
+
+export { refreshContentCache, manualRefreshCache, clearContentCache } from './content-cache';

@@ -6,10 +6,19 @@ import {
   computed,
   input,
   effect,
+  OnDestroy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ClassCalendarService } from '../../class-calendar.service';
+import {
+  collection,
+  onSnapshot,
+  query,
+  getFirestore,
+  Unsubscribe,
+} from 'firebase/firestore';
+import { FIREBASE_APP } from '../../app.config';
 import { CalendarEvent } from '../event.model';
+import { CachedCalendarEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
@@ -34,10 +43,8 @@ function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
   });
 }
 
-/**
- * A type representing a calendar event that can be indexed by MiniSearch.
- * It includes a string `id` field required by the library.
- */
+// A type representing a calendar event that can be indexed by MiniSearch.
+// It includes a string `id` field required by the library.
 type SearchableCalendarEvent = CalendarEvent & { id: string };
 
 @Component({
@@ -48,30 +55,37 @@ type SearchableCalendarEvent = CalendarEvent & { id: string };
   styleUrl: './event-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EventListComponent {
+export class EventListComponent implements OnDestroy {
   // --- Component State Signals ---
-  private allEvents = signal<SearchableCalendarEvent[]>([]);
   errorMessage = signal<string | null>(null);
-  isLoading = signal(false);
   inputCalendarId = signal('');
 
   // This signal is bound to the search input field and updates on every keystroke.
   searchInput = signal('');
 
-  // --- Injected Dependencies ---
-  private calendarService = inject(ClassCalendarService);
-
   // --- Component Inputs ---
   calendarId = input<string>();
+
+  // --- Firestore direct subscription ---
+  private firebaseApp = inject(FIREBASE_APP);
+  private db = getFirestore(this.firebaseApp);
+  private unsubscribe: Unsubscribe | null = null;
+  private cachedEvents = signal<CachedCalendarEvent[]>([]);
+  readonly isLoading = signal(true);
 
   // --- Full-text Search Implementation ---
   private miniSearch: MiniSearch<SearchableCalendarEvent>;
 
-  /**
-   * A computed signal that reactively filters events based on the submitted search term.
-   * It separates the events into two lists: those that match the search query
-   * and those that do not.
-   */
+  // Map cached events to the SearchableCalendarEvent format (adds an `id` field).
+  private allEvents = computed<SearchableCalendarEvent[]>(() => {
+    return this.cachedEvents().map((event, index) => ({
+      ...event,
+      id: `${index}`,
+      googleCalEventLink: event.googleCalEventLink,
+    }));
+  });
+
+  // A computed signal that reactively filters events based on the submitted search term.
   readonly searchResults = computed(() => {
     const term = this.searchInput().trim();
     const events = this.allEvents();
@@ -92,7 +106,7 @@ export class EventListComponent {
       matchedIds = new Set(
         events
           .filter((result) => quotedFilter(result, quoted))
-          .map((event) => event.id)
+          .map((event) => event.id),
       );
     } else {
       const results = this.miniSearch.search(nonQuoted, {
@@ -108,7 +122,7 @@ export class EventListComponent {
     return { matched, unmatched };
   });
 
-  /** Whether events have been loaded at least once. */
+  // Whether events have been loaded at least once.
   readonly hasLoaded = computed(() => {
     return this.allEvents().length > 0 || this.errorMessage() !== null;
   });
@@ -129,13 +143,53 @@ export class EventListComponent {
       idField: 'id',
     });
 
+    // Subscribe to /events collection on init.
+    this.subscribeToEvents();
+
+    // Rebuild the MiniSearch index whenever the cache data changes.
     effect(() => {
-      const calendarId = this.calendarId();
-      if (calendarId && calendarId !== this.inputCalendarId()) {
-        this.inputCalendarId.set(calendarId);
-        this.fetchEvents(calendarId);
+      const events = this.allEvents();
+      this.miniSearch.removeAll();
+      if (events.length > 0) {
+        this.miniSearch.addAll(events);
       }
     });
+
+    // Set the calendar link when the input is provided.
+    effect(() => {
+      const calendarId = this.calendarId();
+      if (calendarId) {
+        this.inputCalendarId.set(calendarId);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribe?.();
+  }
+
+  private subscribeToEvents(): void {
+    const eventsCollection = collection(this.db, 'events');
+    const q = query(eventsCollection);
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const events = snapshot.docs.map(
+          (doc) => doc.data() as CachedCalendarEvent,
+        );
+        this.cachedEvents.set(events);
+        this.isLoading.set(false);
+      },
+      (error) => {
+        console.error('Error subscribing to cached events:', error);
+        this.errorMessage.set('Failed to load events. Please try again later.');
+        this.isLoading.set(false);
+      },
+    );
   }
 
   private parseSearchTerm(term: string): {
@@ -161,29 +215,6 @@ export class EventListComponent {
 
     const nonQuoted = nonQuotedParts.join(' ').trim().toLowerCase();
     return { quoted, nonQuoted };
-  }
-
-  async fetchEvents(calendarId: string): Promise<void> {
-    this.errorMessage.set(null);
-    this.isLoading.set(true);
-    try {
-      const events = await this.calendarService.getEventsForViewer(calendarId);
-      const eventsWithId = events.map((event, index) => ({
-        ...event,
-        id: `${index}`,
-      }));
-      this.allEvents.set(eventsWithId);
-
-      this.miniSearch.removeAll();
-      this.miniSearch.addAll(eventsWithId);
-    } catch (err) {
-      console.error('Error fetching calendar events:', err);
-      this.errorMessage.set(
-        'Error fetching calendar events. Please check the console for more details.'
-      );
-    } finally {
-      this.isLoading.set(false);
-    }
   }
 
   onSearchInputChange(value: string): void {

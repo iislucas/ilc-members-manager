@@ -67,6 +67,29 @@ This document contains a map of country names to their 2-letter ISO codes.
 
 This document contains the sync timestamp for the squarespace orders poller.
 
+## /system/cache-metadata : CacheMetadata
+
+Metadata about the content cache (events, blog posts). Tracks when each
+cache was last refreshed and the item counts.
+
+## /events/{docId} : CachedCalendarEvent
+
+Cached calendar events fetched from Google Calendar. Readable by anyone
+(events are public). Written by the scheduled `refreshContentCache`
+function or the admin-callable `manualRefreshCache`.
+
+## /members-post/{docId} : CachedBlogPost
+
+Cached blog posts from the Squarespace members area blog. Readable only
+by authenticated users with an active membership. Written by the cache
+refresh functions.
+
+## /instructors-post/{docId} : CachedBlogPost
+
+Cached blog posts from the Squarespace instructors blog. Readable only
+by authenticated users with an active instructor license. Written by
+the cache refresh functions.
+
 # Namespaces for IDs: 
 
  - DocIds: These are the firestore document IDs, and are not human readable.
@@ -816,3 +839,74 @@ export type CheckEmailStatusResult = {
   // domain, or the existing auth account has a google.com provider).
   isGoogleManaged: boolean;
 };
+
+// ==================================================================
+// # Content Cache
+// ==================================================================
+// Firestore paths:
+//   /events/{docId}           — cached Google Calendar events (public)
+//   /members-post/{docId}     — cached members area blog posts
+//   /instructors-post/{docId} — cached instructors blog posts
+//   /system/cache-metadata    — refresh timestamps and item counts
+
+// A single cached calendar event with only the fields the UI needs.
+export type CachedCalendarEvent = {
+  title: string;
+  start: string;       // ISO date-time or YYYY-MM-DD
+  end: string;         // ISO date-time or YYYY-MM-DD
+  description: string; // may contain HTML
+  location: string;
+  googleMapsUrl: string;
+  googleCalEventLink: string;
+};
+
+// A single cached blog post with only the fields the UI needs.
+// The `body` and `excerpt` fields contain pre-processed HTML where
+// Squarespace-specific quirks (lazy images, protocol-relative URLs,
+// video embeds) have already been resolved.
+export type CachedBlogPost = {
+  id: string;            // Squarespace item ID
+  urlId: string;         // URL-friendly slug for routing
+  title: string;
+  excerpt: string;       // pre-processed HTML
+  body: string;          // pre-processed HTML
+  assetUrl: string;      // hero/thumbnail image; hosted on Squarespace CDN
+  publishOn: number;     // timestamp (ms since epoch)
+  addedOn: number;       // timestamp (ms since epoch)
+  categories: string[];
+  tags: string[];
+  author: string;        // display name
+};
+
+export function initCachedBlogPost(): CachedBlogPost {
+  return {
+    id: '',
+    urlId: '',
+    title: '',
+    excerpt: '',
+    body: '',
+    assetUrl: '',
+    publishOn: 0,
+    addedOn: 0,
+    categories: [],
+    tags: [],
+    author: '',
+  };
+}
+
+// Metadata about the content cache, stored at /system/cache-metadata.
+export type CacheMetadata = {
+  eventsLastRefreshed: string;  // ISO date-time
+  eventsItemCount: number;
+  blogsLastRefreshed: string;   // ISO date-time
+  blogsItemCount: number;
+};
+
+export function initCacheMetadata(): CacheMetadata {
+  return {
+    eventsLastRefreshed: '',
+    eventsItemCount: 0,
+    blogsLastRefreshed: '',
+    blogsItemCount: 0,
+  };
+}

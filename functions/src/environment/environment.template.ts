@@ -22,4 +22,7 @@ export const environment = {
       maxAgeSeconds: 300,
     }
   ],
+  googleCalendar: {
+    calendarId: '06se06gf82c428olklnjagbt6c@group.calendar.google.com',
+  },
 };
