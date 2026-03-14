@@ -363,16 +363,20 @@
 
       <label for="studentLevel">Student</label>
       <div class="rhs">
-        <input type="text" id="studentLevel" [formField]="form.studentLevel" />
+        <select id="studentLevel" [formField]="form.studentLevel">
+          @for (level of studentLevels; track level) {
+            <option [value]="level">{{ level || 'None' }}</option>
+          }
+        </select>
       </div>
 
       <label for="applicationLevel">Application</label>
       <div class="rhs">
-        <input
-          type="text"
-          id="applicationLevel"
-          [formField]="form.applicationLevel"
-        />
+        <select id="applicationLevel" [formField]="form.applicationLevel">
+          @for (level of applicationLevels; track level) {
+            <option [value]="level">{{ level || 'None' }}</option>
+          }
+        </select>
       </div>
 
       @if (userIsAdmin() || e.mastersLevels.length > 0) {

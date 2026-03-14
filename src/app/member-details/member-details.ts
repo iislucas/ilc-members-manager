@@ -19,6 +19,8 @@ import {
   School,
   InstructorPublicData,
   InstructorLicenseType,
+  StudentLevel,
+  ApplicationLevel,
   AgeCategory,
   initMember,
 } from '../../../functions/src/data-model';
@@ -77,6 +79,8 @@ export class MemberDetailsComponent {
   membershipTypes = Object.values(MembershipType);
   InstructorLicenseType = InstructorLicenseType;
   instructorLicenseTypes = Object.values(InstructorLicenseType);
+  studentLevels = Object.values(StudentLevel);
+  applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
 
   // The core object of interest.
