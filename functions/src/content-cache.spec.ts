@@ -5,6 +5,7 @@ import {
   processSquarespaceHtml,
   cleanAssetUrl,
   mapToCachedBlogPost,
+  contentChanged,
 } from './content-cache';
 import {
   timedCalendarEvent,
@@ -53,6 +54,7 @@ describe('getEventEndDate', () => {
 describe('mapToCalendarEvent', () => {
   it('should map a timed event correctly', () => {
     const result = mapToCalendarEvent(timedCalendarEvent);
+    expect(result.sourceId).toBe('evt-timed-001');
     expect(result.title).toBe('Loose, Soft, and Elastic Energies with Jeffrey Wong');
     expect(result.start).toBe('2026-03-07T19:00:00Z');
     expect(result.end).toBe('2026-03-07T20:30:00Z');
@@ -64,6 +66,7 @@ describe('mapToCalendarEvent', () => {
 
   it('should map an all-day event and adjust end date', () => {
     const result = mapToCalendarEvent(allDayCalendarEvent);
+    expect(result.sourceId).toBe('evt-allday-001');
     expect(result.title).toBe('Annual ILC Retreat 2026');
     expect(result.start).toBe('2026-06-15');
     // End date 2026-06-18 should be adjusted to 2026-06-17.
@@ -86,6 +89,11 @@ describe('mapToCalendarEvent', () => {
   it('should handle missing htmlLink gracefully', () => {
     const result = mapToCalendarEvent(noLocationEvent);
     expect(result.googleCalEventLink).toBe('');
+  });
+
+  it('should not set lastUpdated (managed by sync logic)', () => {
+    const result = mapToCalendarEvent(timedCalendarEvent);
+    expect(result.lastUpdated).toBeUndefined();
   });
 });
 
@@ -230,6 +238,16 @@ describe('mapToCachedBlogPost', () => {
     expect(result.assetUrl).toBe('https://static1.squarespace.com/static/6779aa49/image.jpg');
   });
 
+  it('should set kind to squarespace', () => {
+    const result = mapToCachedBlogPost(memberBlogItem, squarespaceBaseUrl);
+    expect(result.kind).toBe('squarespace');
+  });
+
+  it('should not set lastUpdated (managed by sync logic)', () => {
+    const result = mapToCachedBlogPost(memberBlogItem, squarespaceBaseUrl);
+    expect(result.lastUpdated).toBeUndefined();
+  });
+
   it('should process HTML in excerpt and body', () => {
     const result = mapToCachedBlogPost(blogItemWithProtocolRelativeUrls, squarespaceBaseUrl);
     // Protocol-relative src should be converted to https.
@@ -271,6 +289,7 @@ describe('mapToCachedBlogPost', () => {
     expect(result.author).toBe('');
     expect(result.publishOn).toBe(0);
     expect(result.addedOn).toBe(0);
+    expect(result.kind).toBe('squarespace');
   });
 
   it('should use content field as fallback when body is missing', () => {
@@ -287,5 +306,58 @@ describe('mapToCachedBlogPost', () => {
   it('should resolve relative links in body using baseUrl', () => {
     const result = mapToCachedBlogPost(blogItemWithRelativeAssetUrl, squarespaceBaseUrl);
     expect(result.body).toContain(`href="${squarespaceBaseUrl}/about"`);
+  });
+});
+
+// ==================================================================
+// contentChanged
+// ==================================================================
+describe('contentChanged', () => {
+  it('should return false when content is identical', () => {
+    const existing = { title: 'Hello', body: 'World', lastUpdated: '2026-01-01T00:00:00Z' };
+    const incoming = { title: 'Hello', body: 'World' };
+    expect(contentChanged(existing, incoming)).toBe(false);
+  });
+
+  it('should return true when a field differs', () => {
+    const existing = { title: 'Hello', body: 'World' };
+    const incoming = { title: 'Hello', body: 'Changed!' };
+    expect(contentChanged(existing, incoming)).toBe(true);
+  });
+
+  it('should return true when incoming has a field not in existing', () => {
+    const existing = { title: 'Hello' };
+    const incoming = { title: 'Hello', kind: 'squarespace' };
+    expect(contentChanged(existing, incoming)).toBe(true);
+  });
+
+  it('should ignore lastUpdated differences', () => {
+    const existing = { title: 'Hello', lastUpdated: '2026-01-01T00:00:00Z' };
+    const incoming = { title: 'Hello', lastUpdated: '2026-02-01T00:00:00Z' };
+    expect(contentChanged(existing, incoming)).toBe(false);
+  });
+
+  it('should detect array changes', () => {
+    const existing = { tags: ['a', 'b'] };
+    const incoming = { tags: ['a', 'c'] };
+    expect(contentChanged(existing, incoming)).toBe(true);
+  });
+
+  it('should detect array length changes', () => {
+    const existing = { categories: ['one'] };
+    const incoming = { categories: ['one', 'two'] };
+    expect(contentChanged(existing, incoming)).toBe(true);
+  });
+
+  it('should return false for identical arrays', () => {
+    const existing = { tags: ['a', 'b'], categories: ['x'] };
+    const incoming = { tags: ['a', 'b'], categories: ['x'] };
+    expect(contentChanged(existing, incoming)).toBe(false);
+  });
+
+  it('should detect number changes', () => {
+    const existing = { publishOn: 1000 };
+    const incoming = { publishOn: 2000 };
+    expect(contentChanged(existing, incoming)).toBe(true);
   });
 });

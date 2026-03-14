@@ -851,6 +851,7 @@ export type CheckEmailStatusResult = {
 
 // A single cached calendar event with only the fields the UI needs.
 export type CachedCalendarEvent = {
+  sourceId: string;    // Google Calendar event ID; used by sync for upsert matching
   title: string;
   start: string;       // ISO date-time or YYYY-MM-DD
   end: string;         // ISO date-time or YYYY-MM-DD
@@ -858,6 +859,7 @@ export type CachedCalendarEvent = {
   location: string;
   googleMapsUrl: string;
   googleCalEventLink: string;
+  lastUpdated?: string; // ISO date-time; managed by sync logic
 };
 
 // A single cached blog post with only the fields the UI needs.
@@ -876,6 +878,8 @@ export type CachedBlogPost = {
   categories: string[];
   tags: string[];
   author: string;        // display name
+  kind: string;          // source identifier, e.g. 'squarespace'
+  lastUpdated?: string;  // ISO date-time; managed by sync logic
 };
 
 export function initCachedBlogPost(): CachedBlogPost {
@@ -891,6 +895,7 @@ export function initCachedBlogPost(): CachedBlogPost {
     categories: [],
     tags: [],
     author: '',
+    kind: '',
   };
 }
 
@@ -898,15 +903,23 @@ export function initCachedBlogPost(): CachedBlogPost {
 export type CacheMetadata = {
   eventsLastRefreshed: string;  // ISO date-time
   eventsItemCount: number;
+  eventsLastSyncUpdated: number;  // items written (new or changed) in last sync
+  eventsLastSyncRemoved: number;  // stale items pruned in last sync
   blogsLastRefreshed: string;   // ISO date-time
   blogsItemCount: number;
+  blogsLastSyncUpdated: number;   // items written (new or changed) in last sync
+  blogsLastSyncRemoved: number;   // stale items pruned in last sync
 };
 
 export function initCacheMetadata(): CacheMetadata {
   return {
     eventsLastRefreshed: '',
     eventsItemCount: 0,
+    eventsLastSyncUpdated: 0,
+    eventsLastSyncRemoved: 0,
     blogsLastRefreshed: '',
     blogsItemCount: 0,
+    blogsLastSyncUpdated: 0,
+    blogsLastSyncRemoved: 0,
   };
 }

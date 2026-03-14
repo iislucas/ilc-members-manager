@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cog Icon Designer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+  }
+  .controls {
+    width: 380px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+  }
+  h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #e94560;
+  }
+  .control-group {
+    margin-bottom: 16px;
+  }
+  .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #a0a0b0;
+  }
+  .control-group label span.val {
+    color: #e94560;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e94560;
+  }
+  .preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 24px;
+  }
+  .preview-container {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+  }
+  svg { background: #f5f5f5; border-radius: 12px; }
+  .output-section {
+    width: 100%;
+    max-width: 900px;
+  }
+  .output-section h2 {
+    font-size: 14px;
+    color: #a0a0b0;
+    margin-bottom: 8px;
+  }
+  .path-output {
+    width: 100%;
+    height: 80px;
+    background: #0f3460;
+    border: 1px solid #533483;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 8px;
+    resize: vertical;
+  }
+  .copy-btn {
+    margin-top: 8px;
+    padding: 8px 20px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .copy-btn:hover { background: #c73652; }
+  .copy-btn:active { transform: scale(0.97); }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #533483;
+    margin: 20px 0 10px;
+    border-bottom: 1px solid #0f3460;
+    padding-bottom: 4px;
+  }
+  .icon-sizes {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    margin-top: 12px;
+  }
+  .icon-sizes .icon-sample {
+    text-align: center;
+    color: #a0a0b0;
+    font-size: 11px;
+  }
+  .icon-sizes .icon-sample svg {
+    display: block;
+    margin: 0 auto 4px;
+    background: transparent;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>⚙️ Cog Designer</h1>
+
+  <div class="section-title">Teeth</div>
+
+  <div class="control-group">
+    <label>Number of teeth <span class="val" id="numTeeth-val"></span></label>
+    <input type="range" id="numTeeth" min="4" max="16" step="1" value="6">
+  </div>
+
+  <div class="control-group">
+    <label>Tooth base width (half-angle) <span class="val" id="baseHalf-val"></span></label>
+    <input type="range" id="baseHalf" min="0.05" max="0.35" step="0.005" value="0.22">
+  </div>
+
+  <div class="control-group">
+    <label>Tooth tip width (half-angle) <span class="val" id="tipHalf-val"></span></label>
+    <input type="range" id="tipHalf" min="0.03" max="0.30" step="0.005" value="0.14">
+  </div>
+
+  <div class="section-title">Radii</div>
+
+  <div class="control-group">
+    <label>Outer radius (tooth tips) <span class="val" id="outerR-val"></span></label>
+    <input type="range" id="outerR" min="350" max="460" step="5" value="420">
+  </div>
+
+  <div class="control-group">
+    <label>Body radius (tooth base) <span class="val" id="bodyR-val"></span></label>
+    <input type="range" id="bodyR" min="200" max="400" step="5" value="310">
+  </div>
+
+  <div class="control-group">
+    <label>Axle hole radius <span class="val" id="holeR-val"></span></label>
+    <input type="range" id="holeR" min="40" max="250" step="5" value="140">
+  </div>
+
+  <div class="section-title">Orientation</div>
+
+  <div class="control-group">
+    <label>Rotation (degrees) <span class="val" id="rotation-val"></span></label>
+    <input type="range" id="rotation" min="0" max="360" step="1" value="0">
+  </div>
+</div>
+
+<div class="preview">
+  <div class="preview-container">
+    <div>
+      <svg id="single-svg" viewBox="0 0 960 960" width="280" height="280">
+        <path id="single-path" fill="#5f6368" fill-rule="evenodd"/>
+      </svg>
+      <div class="icon-sizes" id="icon-sizes"></div>
+    </div>
+    <div>
+      <svg id="mesh-svg" viewBox="0 0 1400 1000" width="420" height="300">
+        <path id="gear1-path" fill="#5f6368" fill-rule="evenodd"/>
+        <path id="gear2-path" fill="#8a9aaa" fill-rule="evenodd"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="output-section">
+    <h2>SVG Path (for icon-data.ts)</h2>
+    <textarea class="path-output" id="path-output" readonly></textarea>
+    <button class="copy-btn" id="copy-btn">Copy icon-data.ts entry</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const inputs = {
+  numTeeth: $('numTeeth'),
+  baseHalf: $('baseHalf'),
+  tipHalf: $('tipHalf'),
+  outerR: $('outerR'),
+  bodyR: $('bodyR'),
+  holeR: $('holeR'),
+  rotation: $('rotation'),
+};
+
+function px(angle, r, ox, oy) {
+  return Math.round(ox + r * Math.cos(angle));
+}
+function py(angle, r, ox, oy) {
+  return Math.round(oy + r * Math.sin(angle));
+}
+
+function buildGearPath(cx, cy, p, rotOffset = 0) {
+  const seg = (Math.PI * 2) / p.numTeeth;
+  const d = [];
+
+  for (let i = 0; i < p.numTeeth; i++) {
+    const angle = i * seg - Math.PI / 2 + rotOffset;
+    const blx = px(angle - p.baseHalf, p.bodyR, cx, cy);
+    const bly = py(angle - p.baseHalf, p.bodyR, cx, cy);
+    const brx = px(angle + p.baseHalf, p.bodyR, cx, cy);
+    const bry = py(angle + p.baseHalf, p.bodyR, cx, cy);
+    const tlx = px(angle - p.tipHalf, p.outerR, cx, cy);
+    const tly = py(angle - p.tipHalf, p.outerR, cx, cy);
+    const trx = px(angle + p.tipHalf, p.outerR, cx, cy);
+    const try_ = py(angle + p.tipHalf, p.outerR, cx, cy);
+    const nextAngle = (i + 1) * seg - Math.PI / 2 + rotOffset;
+    const nblx = px(nextAngle - p.baseHalf, p.bodyR, cx, cy);
+    const nbly = py(nextAngle - p.baseHalf, p.bodyR, cx, cy);
+
+    if (i === 0) d.push(`M${blx} ${bly}`);
+    d.push(`L${tlx} ${tly}`);
+    d.push(`L${trx} ${try_}`);
+    d.push(`L${brx} ${bry}`);
+    d.push(`A${p.bodyR} ${p.bodyR} 0 0 1 ${nblx} ${nbly}`);
+  }
+  d.push('Z');
+
+  // Center hole
+  const htx = px(-Math.PI / 2 + rotOffset, p.holeR, cx, cy);
+  const hty = py(-Math.PI / 2 + rotOffset, p.holeR, cx, cy);
+  const hbx = px(Math.PI / 2 + rotOffset, p.holeR, cx, cy);
+  const hby = py(Math.PI / 2 + rotOffset, p.holeR, cx, cy);
+  d.push(`M${htx} ${hty}`);
+  d.push(`A${p.holeR} ${p.holeR} 0 1 0 ${hbx} ${hby}`);
+  d.push(`A${p.holeR} ${p.holeR} 0 1 0 ${htx} ${hty}`);
+  d.push('Z');
+
+  return d.join(' ');
+}
+
+function getParams() {
+  return {
+    numTeeth: parseInt(inputs.numTeeth.value),
+    baseHalf: parseFloat(inputs.baseHalf.value),
+    tipHalf: parseFloat(inputs.tipHalf.value),
+    outerR: parseInt(inputs.outerR.value),
+    bodyR: parseInt(inputs.bodyR.value),
+    holeR: parseInt(inputs.holeR.value),
+    rotation: parseInt(inputs.rotation.value),
+  };
+}
+
+function update() {
+  const p = getParams();
+  const rotRad = p.rotation * Math.PI / 180;
+
+  // Update labels
+  $('numTeeth-val').textContent = p.numTeeth;
+  $('baseHalf-val').textContent = p.baseHalf.toFixed(3);
+  $('tipHalf-val').textContent = p.tipHalf.toFixed(3);
+  $('outerR-val').textContent = p.outerR;
+  $('bodyR-val').textContent = p.bodyR;
+  $('holeR-val').textContent = p.holeR;
+  $('rotation-val').textContent = p.rotation + '°';
+
+  // Single gear
+  const singlePath = buildGearPath(480, 480, p, rotRad);
+  $('single-path').setAttribute('d', singlePath);
+
+  // Meshing pair
+  const pitchR = (p.bodyR + p.outerR) / 2;
+  const meshDist = pitchR * 2;
+  const halfSeg = Math.PI / p.numTeeth;
+  const gear1 = buildGearPath(500, 500, p, rotRad);
+  const gear2 = buildGearPath(500 + meshDist, 500, p, halfSeg + rotRad);
+  $('gear1-path').setAttribute('d', gear1);
+  $('gear2-path').setAttribute('d', gear2);
+
+  // Icon size samples
+  const sizesContainer = $('icon-sizes');
+  sizesContainer.innerHTML = '';
+  for (const size of [16, 24, 32, 48]) {
+    const div = document.createElement('div');
+    div.className = 'icon-sample';
+    div.innerHTML = `<svg viewBox="0 0 960 960" width="${size}" height="${size}"><path fill="#5f6368" fill-rule="evenodd" d="${singlePath}"/></svg>${size}px`;
+    sizesContainer.appendChild(div);
+  }
+
+  // Output
+  const iconPath = buildGearPath(480, 480, p, rotRad);
+  $('path-output').value =
+`  // Generated by cog-designer.html: ${p.numTeeth}-tooth gear, outerR=${p.outerR}, bodyR=${p.bodyR}, holeR=${p.holeR},
+  // trapezoidal teeth (baseHalfAngle=${p.baseHalf}, tipHalfAngle=${p.tipHalf})
+  settings: {
+    viewbox: '0 0 960 960',
+    fill: '#5f6368',
+    html: \`<path fill-rule="evenodd" d="${iconPath}"/>\`,
+    width: defaultSize,
+    height: defaultSize,
+  },`;
+}
+
+// Wire up inputs
+Object.values(inputs).forEach(el => el.addEventListener('input', update));
+
+// Copy button
+$('copy-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText($('path-output').value).then(() => {
+    $('copy-btn').textContent = '✓ Copied!';
+    setTimeout(() => $('copy-btn').textContent = 'Copy icon-data.ts entry', 1500);
+  });
+});
+
+// Initial render
+update();
+</script>
+</body>
+</html>

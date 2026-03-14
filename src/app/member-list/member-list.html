@@ -30,10 +30,22 @@
       <button
         class="sort-direction-btn"
         (click)="toggleSortDirection()"
-        [attr.aria-label]="sortDirection() === SortDirection.Asc ? 'Sort ascending' : 'Sort descending'"
-        [attr.title]="sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'"
+        [attr.aria-label]="
+          sortDirection() === SortDirection.Asc
+            ? 'Sort ascending'
+            : 'Sort descending'
+        "
+        [attr.title]="
+          sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'
+        "
       >
-        <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_downward' : 'arrow_upward'"></app-icon>
+        <app-icon
+          [name]="
+            sortDirection() === SortDirection.Asc
+              ? 'arrow_downward'
+              : 'arrow_upward'
+          "
+        ></app-icon>
       </button>
     </div>
     <div class="tag-filter-container">
@@ -46,7 +58,10 @@
         <app-icon name="filter_list"></app-icon>
       </button>
       @if (tagFilterMenuOpen()) {
-        <div class="menu-overlay transparent" (click)="tagFilterMenuOpen.set(false)"></div>
+        <div
+          class="menu-overlay transparent"
+          (click)="tagFilterMenuOpen.set(false)"
+        ></div>
         <div class="menu">
           <div class="tag-filter-header">Filter by tag</div>
           @for (tag of allAvailableTags(); track tag) {
@@ -55,7 +70,11 @@
               [class.active]="isTagSelected(tag)"
               (click)="onSelectTag(tag)"
             >
-              <app-icon [name]="isTagSelected(tag) ? 'check_box' : 'check_box_outline_blank'"></app-icon>
+              <app-icon
+                [name]="
+                  isTagSelected(tag) ? 'check_box' : 'check_box_outline_blank'
+                "
+              ></app-icon>
               <span>{{ tag }}</span>
             </div>
           }
@@ -65,6 +84,7 @@
         </div>
       }
     </div>
+
     @if (canMakeNewMembers()) {
       <button class="button" (click)="newMember()">New Member</button>
     }
@@ -74,7 +94,11 @@
       @for (tag of selectedTags(); track tag) {
         <span class="active-tag-chip">
           {{ tag }}
-          <button class="tag-clear-btn" (click)="removeTag(tag)" [attr.aria-label]="'Remove filter: ' + tag">
+          <button
+            class="tag-clear-btn"
+            (click)="removeTag(tag)"
+            [attr.aria-label]="'Remove filter: ' + tag"
+          >
             <app-icon name="close"></app-icon>
           </button>
         </span>
@@ -203,14 +227,22 @@
   </div>
   @if (hiddenInactiveCount() > 0) {
     <div class="inactive-toggle-container">
-      <button class="subtle-button inactive-toggle" (click)="showInactiveMembers.set(true)">
+      <button
+        class="subtle-button inactive-toggle"
+        (click)="showInactiveMembers.set(true)"
+      >
         <app-icon name="visibility_off"></app-icon>
-        Show {{ hiddenInactiveCount() }} inactive member{{ hiddenInactiveCount() === 1 ? '' : 's' }}
+        Show {{ hiddenInactiveCount() }} inactive member{{
+          hiddenInactiveCount() === 1 ? "" : "s"
+        }}
       </button>
     </div>
   } @else if (hideInactive() && showInactiveMembers()) {
     <div class="inactive-toggle-container">
-      <button class="subtle-button inactive-toggle" (click)="showInactiveMembers.set(false)">
+      <button
+        class="subtle-button inactive-toggle"
+        (click)="showInactiveMembers.set(false)"
+      >
         <app-icon name="visibility"></app-icon>
         Hide inactive members
       </button>

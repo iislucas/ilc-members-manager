@@ -85,7 +85,15 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
         try {
             const refreshFn = httpsCallable<
                 { eventsOnly?: boolean; blogsOnly?: boolean },
-                { success: boolean; eventCount: number; postCount: number }
+                {
+                    success: boolean;
+                    eventCount: number;
+                    postCount: number;
+                    eventsUpdated?: number;
+                    eventsRemoved?: number;
+                    blogsUpdated?: number;
+                    blogsRemoved?: number;
+                }
             >(this.functions, 'manualRefreshCache');
 
             const result = await refreshFn({
@@ -95,15 +103,21 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
 
             const parts: string[] = [];
             if (result.data.eventCount > 0) {
-                parts.push(`${result.data.eventCount} events`);
+                const detail = result.data.eventsUpdated !== undefined
+                    ? ` (${result.data.eventsUpdated} updated, ${result.data.eventsRemoved} removed)`
+                    : '';
+                parts.push(`${result.data.eventCount} events${detail}`);
             }
             if (result.data.postCount > 0) {
-                parts.push(`${result.data.postCount} blog posts`);
+                const detail = result.data.blogsUpdated !== undefined
+                    ? ` (${result.data.blogsUpdated} updated, ${result.data.blogsRemoved} removed)`
+                    : '';
+                parts.push(`${result.data.postCount} blog posts${detail}`);
             }
             this.resultMessage.set(
                 parts.length > 0
-                    ? `Cache refreshed: ${parts.join(', ')}.`
-                    : 'Cache refreshed (no items found).',
+                    ? `Cache synced: ${parts.join(', ')}.`
+                    : 'Cache synced (no items found).',
             );
         } catch (error) {
             console.error('Cache refresh failed:', error);

@@ -40,4 +40,18 @@ describe('FindSchoolComponent', () => {
     fixture.detectChanges();
     expect(mockDataManagerService.schools.search).toHaveBeenCalledWith('Test');
   });
+
+  describe('ensureHttps', () => {
+    it('should prefix URL with https:// when no protocol is present', () => {
+      expect(component.ensureHttps('www.example.com')).toBe('https://www.example.com');
+    });
+
+    it('should not modify URL that already starts with https://', () => {
+      expect(component.ensureHttps('https://www.example.com')).toBe('https://www.example.com');
+    });
+
+    it('should not modify URL that starts with http://', () => {
+      expect(component.ensureHttps('http://www.example.com')).toBe('http://www.example.com');
+    });
+  });
 });

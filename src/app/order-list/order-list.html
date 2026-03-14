@@ -6,7 +6,23 @@
         <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
         <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Order Date</button>
       </div>
-      
+
+      <!-- Config Menu -->
+      <div class="menu-container">
+        <button (click)="toggleMenu()" class="icon-only-button secondary">
+          <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+        </button>
+        @if (menuOpen()) {
+          <div class="menu-overlay transparent" (click)="menuOpen.set(false)"></div>
+          <div class="menu">
+            <div class="menu-item" (click)="!syncing() && manualSync()" [class.disabled]="syncing()">
+              <app-icon name="refresh"></app-icon>
+              <span>{{ syncing() ? "Syncing..." : "Sync Squarespace" }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
       @if (searchMode() === 'term') {
         <select [(ngModel)]="searchField" class="field-select">
           <option value="email">Member Email</option>
@@ -44,22 +60,6 @@
           Search
         </button>
       }
-
-      <!-- Config Menu -->
-      <div class="menu-container">
-        <button (click)="toggleMenu()" class="icon-only-button secondary">
-          <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
-        </button>
-        @if (menuOpen()) {
-          <div class="menu-overlay transparent" (click)="menuOpen.set(false)"></div>
-          <div class="menu">
-            <div class="menu-item" (click)="!syncing() && manualSync()" [class.disabled]="syncing()">
-              <app-icon name="refresh"></app-icon>
-              <span>{{ syncing() ? "Syncing..." : "Sync Squarespace" }}</span>
-            </div>
-          </div>
-        }
-      </div>
     </div>
   </div>
 
@@ -82,17 +82,16 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th>Reference / Order #</th>
+            <th>Order #</th>
             <th>Name / Email</th>
             <th>Description</th>
-            <th>Kind</th>
             <th>Status</th>
-            <th>Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           @for (order of orders(); track order.docId) {
-            <tr [class.ignored]="order.ilcAppOrderStatus === 'ignore'">
+            <tr [class.ignored]="order.ilcAppOrderStatus === 'ignore'" class="clickable-row" (click)="viewOrder(order)">
               <td>
                 @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
                   {{ order.createdOn | date: "yyyy-MM-dd" }}
@@ -105,10 +104,21 @@
                   order.ilcAppOrderKind ===
                   "https://api.squarespace.com/1.0/commerce/orders"
                 ) {
-                  {{ order.orderNumber }}
+                  <div>{{ order.orderNumber }}</div>
                 } @else {
-                  {{ order.referenceNumber }}
+                  <div>{{ order.referenceNumber }}</div>
                 }
+                <span
+                  class="kind-badge"
+                  [class.ss]="order.ilcAppOrderKind.includes('squarespace')"
+                >
+                  {{
+                    order.ilcAppOrderKind ===
+                    "https://api.squarespace.com/1.0/commerce/orders"
+                      ? "squarespace"
+                      : "sheets"
+                  }}
+                </span>
               </td>
               <td>
                 @if (
@@ -138,19 +148,7 @@
                   }
                 }
               </td>
-              <td>
-                <span
-                  class="kind-badge"
-                  [class.ss]="order.ilcAppOrderKind.includes('squarespace')"
-                >
-                  {{
-                    order.ilcAppOrderKind ===
-                    "https://api.squarespace.com/1.0/commerce/orders"
-                      ? "Squarespace"
-                      : "Sheets"
-                  }}
-                </span>
-              </td>
+
               <td class="status-column">
                 <div class="badges">
                   @if (
@@ -189,7 +187,7 @@
               <td>
                 <div class="menu-container inline-menu-container">
                   <button
-                    (click)="toggleOrderMenu(order.docId, $event)"
+                    (click)="toggleOrderMenu(order.docId, $event); $event.stopPropagation()"
                     class="icon-only-button"
                     title="Order Actions"
                   >

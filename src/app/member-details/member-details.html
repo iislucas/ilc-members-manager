@@ -8,8 +8,13 @@
 
   @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
     <div class="nav-buttons">
-      <a class="subtle-button" href="#/instructor/{{ e.instructorId }}/students" (click)="gotoStudents(); $event.preventDefault()">
-        <app-icon name="salut" /> Students</a>
+      <a
+        class="subtle-button"
+        href="#/instructor/{{ e.instructorId }}/students"
+        (click)="gotoStudents(); $event.preventDefault()"
+      >
+        <app-icon name="salut" /> Students</a
+      >
     </div>
   }
 
@@ -72,8 +77,17 @@
             <div class="warning-message">
               ⚠ One of these emails is also used by:
               @if (userIsAdmin()) {
-                @for (dup of dupEmailMembers; track dup.docId; let last = $last) {
-                  <a class="inline-link-button" href="#/members/{{ dup.docId }}">{{ dup.name }} ({{ dup.memberId }})</a>@if (!last) {,}
+                @for (
+                  dup of dupEmailMembers;
+                  track dup.docId;
+                  let last = $last
+                ) {
+                  <a class="inline-link-button" href="#/members/{{ dup.docId }}"
+                    >{{ dup.name }} ({{ dup.memberId }})</a
+                  >
+                  @if (!last) {
+                    ,
+                  }
                 }
               } @else {
                 another member.
@@ -182,7 +196,10 @@
             [searchableSet]="membersService.instructors"
             [placeholder]="'Search for an instructor'"
             [displayFns]="instructorDisplayFns"
-            [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
+            [searchOptions]="{
+              strictDigits: true,
+              interpretQuotesAsStrict: true,
+            }"
             [initSearchTerm]="form.primaryInstructorId().value()"
             (textUpdated)="updatePrimaryInstructorId($event)"
           ></app-autocomplete>
@@ -277,18 +294,19 @@
       @if (duplicateMembersForMemberId().length > 0) {
         <label></label>
         <div class="error-message duplicate-warning">
-          <div>
-            Warning: This member ID is also used by:
-          </div>
+          <div>Warning: This member ID is also used by:</div>
           <div class="duplicate-warning-list">
             @for (dup of duplicateMembersForMemberId(); track dup.docId) {
-              <div class="duplicate-warning-item" (click)="gotoMember(dup.docId)">
+              <div
+                class="duplicate-warning-item"
+                (click)="gotoMember(dup.docId)"
+              >
                 <app-member-row-header [member]="dup"></app-member-row-header>
               </div>
             }
           </div>
-        </div>  
-        }
+        </div>
+      }
 
       <label for="membershipType">Type</label>
       <div class="rhs">
@@ -432,9 +450,7 @@
       }
 
       @if (e.instructorId.trim() !== "" || userIsAdmin()) {
-        <h3>
-          Instructor Status
-        </h3>
+        <h3>Instructor Status</h3>
         <label for="instructorId">Instructor ID</label>
         <div class="rhs">
           <app-id-assignment
@@ -470,9 +486,16 @@
               </label>
             </div>
           }
-          @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
-            <a class="subtle-button" href="#/instructor/{{ e.instructorId }}/students" (click)="gotoStudents(); $event.preventDefault()">
-              <app-icon name="salut" /> View Students</a>
+          @if (
+            userIsAdmin() && e.instructorId && e.instructorId.trim() !== ""
+          ) {
+            <a
+              class="subtle-button"
+              href="#/instructor/{{ e.instructorId }}/students"
+              (click)="gotoStudents(); $event.preventDefault()"
+            >
+              <app-icon name="salut" /> View Students</a
+            >
           }
         </div>
 
@@ -482,7 +505,10 @@
             <div>Warning: This instructor ID is also used by:</div>
             <div class="duplicate-warning-list">
               @for (dup of duplicateMembersForInstructorId(); track dup.docId) {
-                <div class="duplicate-warning-item" (click)="gotoMember(dup.docId)">
+                <div
+                  class="duplicate-warning-item"
+                  (click)="gotoMember(dup.docId)"
+                >
                   <app-member-row-header [member]="dup"></app-member-row-header>
                 </div>
               }
@@ -562,7 +588,9 @@
               placeholder="e.g. abc123@group.calendar.google.com"
               [formField]="form.publicClassGoogleCalendarId"
             />
-            <span class="note">Google Calendar ID for your public class schedule</span>
+            <span class="note"
+              >Google Calendar ID for your public class schedule</span
+            >
           </div>
 
           <label for="publicEmail">Public Email</label>
@@ -626,9 +654,7 @@
           />
         </div>
 
-        <label for="classVideoLibraryExpirationDate"
-          >Expires</label
-        >
+        <label for="classVideoLibraryExpirationDate">Expires</label>
         <div class="rhs">
           <input
             class="date"
@@ -683,13 +709,17 @@
               Save
             </button>
           }
-          <button type="button" (click)="cancel($event)">
-            @if (isDirty()) {
-              Undo changes
-            } @else {
-              Close and go back
-            }
-          </button>
+          @if (isDirty()) {
+            <button type="button" (click)="cancel($event)">Undo changes</button>
+          } @else {
+            <button
+              type="button"
+              class="subtle-button"
+              (click)="cancel($event)"
+            >
+              <app-icon name="arrow_back" /> Close and go back
+            </button>
+          }
         }
       </div>
       <div class="right-actions">

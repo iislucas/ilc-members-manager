@@ -34,4 +34,8 @@ export class FindSchoolComponent {
   filteredSchools = computed(() => {
     return this.dataManager.schools.search(this.searchTerm());
   });
+
+  ensureHttps(url: string): string {
+    return url.match(/^https?:\/\//) ? url : `https://${url}`;
+  }
 }

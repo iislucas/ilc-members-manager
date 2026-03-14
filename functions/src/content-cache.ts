@@ -9,11 +9,26 @@
  * to these collections with onSnapshot for fast, real-time reads — no
  * Cloud Function call needed on the read path.
  *
+ * Sync strategy:
+ *   Each item stores a stable source identifier in a designated field
+ *   (e.g. `sourceId` for calendar events, `id` for blog posts). On
+ *   re-sync the engine queries existing documents by that field to
+ *   decide whether to create, update, or delete — Firestore document
+ *   IDs remain auto-generated. Only items whose content has actually
+ *   changed are written, and only items that no longer exist in the
+ *   source are deleted. Each document carries a `lastUpdated` timestamp
+ *   set only when content meaningfully changes.
+ *
+ *   Blog posts carry a `kind` field (e.g. 'squarespace') so that
+ *   pruning only removes posts from the same source, allowing other
+ *   kinds of posts to coexist safely in the same collection.
+ *
  * Collections written:
  *   /events/{docId}            — cached calendar events (public)
  *   /members-post/{docId}      — cached members-area blog posts
  *   /instructors-post/{docId}  — cached instructors blog posts
- *   /system/cache-metadata     — refresh timestamps and item counts
+ *   /system/cache-metadata     — refresh timestamps, item counts,
+ *                                and per-sync update/removal stats
  *
  * Triggers:
  *   refreshContentCache  — scheduled every 30 minutes
@@ -22,7 +37,7 @@
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall } from 'firebase-functions/v2/https';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineSecret } from 'firebase-functions/params';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
@@ -41,6 +56,19 @@ const BLOG_CONFIGS: { path: string; collection: string }[] = [
   { path: '/membersareablog', collection: 'members-post' },
   { path: '/instructorsblog', collection: 'instructors-post' },
 ];
+
+// ------------------------------------------------------------------
+// Sync types
+// ------------------------------------------------------------------
+
+// Result of a single collection sync: how many items were processed
+// and what changed.
+export type SyncResult = {
+  total: number;
+  updated: number;
+  removed: number;
+  unchanged: number;
+};
 
 // ------------------------------------------------------------------
 // Helpers
@@ -62,6 +90,7 @@ export function mapToCalendarEvent(item: GoogleCalendarEventItem): CachedCalenda
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
     : '';
   return {
+    sourceId: item.id,
     title: item.summary || 'No Title',
     start: item.start?.dateTime || item.start?.date || 'N/A',
     end: getEventEndDate(item.end),
@@ -136,7 +165,8 @@ export function cleanAssetUrl(assetUrl: string | undefined, baseUrl: string): st
 
 // Map a raw Squarespace blog item (from their JSON API) to our lean
 // CachedBlogPost format. The `baseUrl` is used to resolve relative
-// asset/image URLs.
+// asset/image URLs. Sets `kind` to 'squarespace' to identify the source.
+// Note: `lastUpdated` is NOT set here — it is managed by the sync logic.
 export function mapToCachedBlogPost(
   item: Record<string, unknown>,
   baseUrl: string,
@@ -156,11 +186,164 @@ export function mapToCachedBlogPost(
     categories: (item.categories as string[]) || [],
     tags: (item.tags as string[]) || [],
     author: ((item.author as Record<string, unknown>)?.displayName as string) || '',
+    kind: 'squarespace',
   };
 }
 
-// Delete all documents in a collection. Works in batches to stay
-// within the Firestore 500-op limit per batch.
+// ------------------------------------------------------------------
+// Sync engine
+// ------------------------------------------------------------------
+
+// Compare an incoming item's content fields against an existing
+// Firestore document to decide whether a write is needed. The
+// `lastUpdated` field is excluded from comparison since it is
+// metadata managed by the sync engine itself.
+export function contentChanged(
+  existing: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): boolean {
+  for (const [key, value] of Object.entries(incoming)) {
+    if (key === 'lastUpdated') continue;
+    if (JSON.stringify(existing[key]) !== JSON.stringify(value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Sync a Firestore collection with fresh source data using
+// upsert-and-prune. Firestore document IDs remain auto-generated;
+// items are matched by a designated source ID field within each
+// document (e.g. `sourceId` for calendar events, `id` for blog posts).
+//
+//   1. Write items that are new or whose content has changed
+//      (bumping `lastUpdated` only on actual changes).
+//   2. Delete items that no longer exist in the source.
+//
+// `sourceIdField` — the name of the field in each document that holds
+// the stable source identifier used for matching.
+//
+// If `kindFilter` is provided, only prune documents whose `kind`
+// field matches the filter (or have no `kind` at all, treating them
+// as legacy entries from the same source). This allows documents
+// from other sources to coexist safely in the same collection.
+async function syncCollection(
+  db: admin.firestore.Firestore,
+  collectionPath: string,
+  freshItems: Record<string, unknown>[],
+  sourceIdField: string,
+  options?: { kindFilter?: string },
+): Promise<SyncResult> {
+  const colRef = db.collection(collectionPath);
+  const now = new Date().toISOString();
+
+  // Build a map of fresh items keyed by their source ID.
+  const freshMap = new Map<string, Record<string, unknown>>();
+  for (const item of freshItems) {
+    const sourceId = item[sourceIdField] as string;
+    if (sourceId) {
+      freshMap.set(sourceId, item);
+    }
+  }
+
+  // Read all existing documents and index them by the source ID field.
+  const existingSnapshot = await colRef.get();
+  const existingBySourceId = new Map<string, { docId: string; data: Record<string, unknown> }>();
+  // Docs without a source ID are legacy orphans from the old
+  // delete-all-then-recreate approach; they'll be pruned below.
+  const orphans: { docId: string; data: Record<string, unknown> }[] = [];
+
+  existingSnapshot.forEach((doc) => {
+    const data = doc.data() as Record<string, unknown>;
+    const sourceId = data[sourceIdField] as string;
+    if (sourceId) {
+      existingBySourceId.set(sourceId, { docId: doc.id, data });
+    } else {
+      orphans.push({ docId: doc.id, data });
+    }
+  });
+
+  let updated = 0;
+  let unchanged = 0;
+
+  // Phase 1: Upsert — create or update items.
+  const freshSourceIds = [...freshMap.keys()];
+  for (let i = 0; i < freshSourceIds.length; i += 400) {
+    const batch = db.batch();
+    let batchHasOps = false;
+    const chunk = freshSourceIds.slice(i, i + 400);
+
+    for (const sourceId of chunk) {
+      const newData = freshMap.get(sourceId)!;
+      const existing = existingBySourceId.get(sourceId);
+
+      if (existing && !contentChanged(existing.data, newData)) {
+        unchanged++;
+        continue;
+      }
+
+      // Determine the doc ref: reuse existing Firestore ID or create new.
+      const docRef = existing
+        ? colRef.doc(existing.docId)
+        : colRef.doc(); // auto-generated ID
+
+      batch.set(docRef, { ...newData, lastUpdated: now });
+      batchHasOps = true;
+      updated++;
+    }
+
+    if (batchHasOps) {
+      await batch.commit();
+    }
+  }
+
+  // Phase 2: Prune — delete docs no longer present in the source.
+  const staleIds: string[] = [];
+
+  // Docs with a source ID that no longer appears in the fresh set.
+  for (const [sourceId, existing] of existingBySourceId) {
+    if (freshMap.has(sourceId)) continue;
+
+    // If kindFilter is specified, only prune docs from the same source.
+    // Documents with no `kind` are treated as legacy entries from the
+    // filtered source (safe for initial migration).
+    if (options?.kindFilter) {
+      const docKind = existing.data.kind as string | undefined;
+      if (docKind && docKind !== options.kindFilter) {
+        continue; // Different source — leave untouched.
+      }
+    }
+
+    staleIds.push(existing.docId);
+  }
+
+  // Legacy orphan docs without a source ID are also pruned (respecting kindFilter).
+  for (const orphan of orphans) {
+    if (options?.kindFilter) {
+      const docKind = orphan.data.kind as string | undefined;
+      if (docKind && docKind !== options.kindFilter) {
+        continue;
+      }
+    }
+    staleIds.push(orphan.docId);
+  }
+
+  let removed = 0;
+  for (let i = 0; i < staleIds.length; i += 400) {
+    const batch = db.batch();
+    const chunk = staleIds.slice(i, i + 400);
+    for (const id of chunk) {
+      batch.delete(colRef.doc(id));
+    }
+    await batch.commit();
+    removed += chunk.length;
+  }
+
+  return { total: freshMap.size, updated, removed, unchanged };
+}
+
+// Delete all documents in a collection. Used only by the explicit
+// "clear cache" admin action, not during normal sync.
 async function deleteCollection(
   db: admin.firestore.Firestore,
   collectionPath: string,
@@ -169,7 +352,6 @@ async function deleteCollection(
   const docs = await colRef.listDocuments();
   let deleted = 0;
 
-  // Process in chunks of 400 (leaving room for other ops in the batch).
   for (let i = 0; i < docs.length; i += 400) {
     const batch = db.batch();
     const chunk = docs.slice(i, i + 400);
@@ -186,16 +368,16 @@ async function deleteCollection(
 // Core refresh logic
 // ------------------------------------------------------------------
 
-async function refreshEventsCache(db: admin.firestore.Firestore): Promise<number> {
+async function refreshEventsCache(db: admin.firestore.Firestore): Promise<SyncResult> {
   const calendarId = environment.googleCalendar.calendarId;
   if (!calendarId) {
     logger.warn('EVENTS_CALENDAR_ID is not set; skipping events cache refresh.');
-    return 0;
+    return { total: 0, updated: 0, removed: 0, unchanged: 0 };
   }
 
   if (!calendarApiKey.value()) {
     logger.warn('Google Calendar API key not configured; skipping events cache refresh.');
-    return 0;
+    return { total: 0, updated: 0, removed: 0, unchanged: 0 };
   }
 
   const params: Record<string, unknown> = {
@@ -213,27 +395,22 @@ async function refreshEventsCache(db: admin.firestore.Firestore): Promise<number
   const response = await axios.get<GoogleCalendarResponse>(calendarApiUrl, { params });
   const items = response.data.items || [];
 
-  // Clear existing cached events.
-  await deleteCollection(db, 'events');
+  // Map to cached format; each item carries `sourceId` (the Google
+  // Calendar event ID) for matching during sync.
+  const freshItems = items.map(
+    (item) => mapToCalendarEvent(item) as unknown as Record<string, unknown>,
+  );
 
-  // Write new events in batches.
-  for (let i = 0; i < items.length; i += 400) {
-    const batch = db.batch();
-    const chunk = items.slice(i, i + 400);
-    for (let j = 0; j < chunk.length; j++) {
-      const event = mapToCalendarEvent(chunk[j]);
-      const docRef = db.collection('events').doc(`event-${String(i + j).padStart(4, '0')}`);
-      batch.set(docRef, event);
-    }
-    await batch.commit();
-  }
-
-  logger.info(`Events cache refreshed: ${items.length} events written.`);
-  return items.length;
+  const result = await syncCollection(db, 'events', freshItems, 'sourceId');
+  logger.info(
+    `Events cache synced: ${result.total} total, ${result.updated} updated, ` +
+    `${result.removed} removed, ${result.unchanged} unchanged.`,
+  );
+  return result;
 }
 
-async function refreshBlogCache(db: admin.firestore.Firestore): Promise<number> {
-  let totalPosts = 0;
+async function refreshBlogCache(db: admin.firestore.Firestore): Promise<SyncResult> {
+  let totalResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
 
   for (const blogConfig of BLOG_CONFIGS) {
     const targetUrl = `${SQUARESPACE_BASE_URL}${blogConfig.path}?format=json`;
@@ -248,35 +425,44 @@ async function refreshBlogCache(db: admin.firestore.Firestore): Promise<number> 
         baseUrl = 'https:' + (baseUrl.startsWith('//') ? '' : '//') + baseUrl;
       }
 
-      // Clear existing cached posts for this blog.
-      await deleteCollection(db, blogConfig.collection);
-
+      // Map to cached format; each item carries `id` (the Squarespace
+      // item ID) for matching during sync.
+      const freshItems: Record<string, unknown>[] = [];
       if (data.items && Array.isArray(data.items)) {
-        for (let i = 0; i < data.items.length; i += 400) {
-          const batch = db.batch();
-          const chunk = data.items.slice(i, i + 400);
-
-          for (const item of chunk) {
-            const cached = mapToCachedBlogPost(item, baseUrl);
-            const docRef = db.collection(blogConfig.collection).doc(item.id || `post-${totalPosts}`);
-            batch.set(docRef, cached);
-            totalPosts++;
-          }
-
-          await batch.commit();
+        for (const item of data.items) {
+          const cached = mapToCachedBlogPost(item, baseUrl);
+          freshItems.push(cached as unknown as Record<string, unknown>);
         }
-        logger.info(`Cached ${data.items.length} posts from ${blogConfig.path} → ${blogConfig.collection}.`);
-      } else {
-        logger.warn(`No items found in response for ${blogConfig.path}.`);
       }
+
+      // Sync with kindFilter so only squarespace-sourced posts are pruned.
+      const result = await syncCollection(db, blogConfig.collection, freshItems, 'id', {
+        kindFilter: 'squarespace',
+      });
+
+      totalResult = {
+        total: totalResult.total + result.total,
+        updated: totalResult.updated + result.updated,
+        removed: totalResult.removed + result.removed,
+        unchanged: totalResult.unchanged + result.unchanged,
+      };
+
+      logger.info(
+        `Blog ${blogConfig.path} → ${blogConfig.collection} synced: ` +
+        `${result.total} total, ${result.updated} updated, ` +
+        `${result.removed} removed, ${result.unchanged} unchanged.`,
+      );
     } catch (error) {
       logger.error(`Error fetching blog content from ${blogConfig.path}:`, error);
       // Continue with other blogs even if one fails.
     }
   }
 
-  logger.info(`Blog cache refreshed: ${totalPosts} total posts written.`);
-  return totalPosts;
+  logger.info(
+    `Blog cache sync complete: ${totalResult.total} total, ` +
+    `${totalResult.updated} updated, ${totalResult.removed} removed.`,
+  );
+  return totalResult;
 }
 
 // Update the metadata document at /system/cache-metadata.
@@ -298,18 +484,24 @@ export const refreshContentCache = onSchedule(
   async () => {
     const db = admin.firestore();
     try {
-      const [eventCount, postCount] = await Promise.all([
+      const [eventResult, blogResult] = await Promise.all([
         refreshEventsCache(db),
         refreshBlogCache(db),
       ]);
       await updateCacheMetadata(db, {
         eventsLastRefreshed: new Date().toISOString(),
-        eventsItemCount: eventCount,
+        eventsItemCount: eventResult.total,
+        eventsLastSyncUpdated: eventResult.updated,
+        eventsLastSyncRemoved: eventResult.removed,
         blogsLastRefreshed: new Date().toISOString(),
-        blogsItemCount: postCount,
+        blogsItemCount: blogResult.total,
+        blogsLastSyncUpdated: blogResult.updated,
+        blogsLastSyncRemoved: blogResult.removed,
       });
       logger.info(
-        `Scheduled cache refresh complete: ${eventCount} events, ${postCount} blog posts.`,
+        `Scheduled cache sync complete: ${eventResult.total} events ` +
+        `(${eventResult.updated} updated), ${blogResult.total} blog posts ` +
+        `(${blogResult.updated} updated).`,
       );
     } catch (error) {
       logger.error('Scheduled cache refresh failed:', error);
@@ -328,28 +520,36 @@ export const manualRefreshCache = onCall(
     const blogsOnly = request.data?.blogsOnly === true;
 
     const db = admin.firestore();
-    let eventCount = 0;
-    let postCount = 0;
+    let eventResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
+    let blogResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
 
     if (!blogsOnly) {
-      eventCount = await refreshEventsCache(db);
+      eventResult = await refreshEventsCache(db);
       await updateCacheMetadata(db, {
         eventsLastRefreshed: new Date().toISOString(),
-        eventsItemCount: eventCount,
+        eventsItemCount: eventResult.total,
+        eventsLastSyncUpdated: eventResult.updated,
+        eventsLastSyncRemoved: eventResult.removed,
       });
     }
     if (!eventsOnly) {
-      postCount = await refreshBlogCache(db);
+      blogResult = await refreshBlogCache(db);
       await updateCacheMetadata(db, {
         blogsLastRefreshed: new Date().toISOString(),
-        blogsItemCount: postCount,
+        blogsItemCount: blogResult.total,
+        blogsLastSyncUpdated: blogResult.updated,
+        blogsLastSyncRemoved: blogResult.removed,
       });
     }
 
     return {
       success: true,
-      eventCount,
-      postCount,
+      eventCount: eventResult.total,
+      postCount: blogResult.total,
+      eventsUpdated: eventResult.updated,
+      eventsRemoved: eventResult.removed,
+      blogsUpdated: blogResult.updated,
+      blogsRemoved: blogResult.removed,
     };
   },
 );
@@ -374,8 +574,12 @@ export const clearContentCache = onCall(
     await updateCacheMetadata(db, {
       eventsLastRefreshed: '',
       eventsItemCount: 0,
+      eventsLastSyncUpdated: 0,
+      eventsLastSyncRemoved: 0,
       blogsLastRefreshed: '',
       blogsItemCount: 0,
+      blogsLastSyncUpdated: 0,
+      blogsLastSyncRemoved: 0,
     });
 
     logger.info(`Cache cleared: ${totalDeleted} total documents deleted.`);

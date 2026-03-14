@@ -61,7 +61,7 @@
       <div class="menu-seperator"></div>
       <!-- Admin -->
       <div class="menu-item" (click)="onSelect(Views.ManageMembers)">
-        <app-icon name="person" width="24px" height="24px"></app-icon>
+        <app-icon name="admin" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.ManageMembers) }}</span>
       </div>
       <div class="menu-item" (click)="onSelect(Views.ManageSchools)">
@@ -81,11 +81,11 @@
         <span>{{ viewIdToTitle(Views.ManageOrders) }}</span>
       </div>
       <div class="menu-item" (click)="onSelect(Views.Settings)">
-        <app-icon name="admin" width="24px" height="24px"></app-icon>
+        <app-icon name="settings" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.Settings) }}</span>
       </div>
       <div class="menu-item" (click)="onSelect(Views.Statistics)">
-        <app-icon name="admin" width="24px" height="24px"></app-icon>
+        <app-icon name="bar_chart" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.Statistics) }}</span>
       </div>
     }

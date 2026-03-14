@@ -26,6 +26,9 @@
         <div class="status-meta">
           <span class="item-count">{{ metadata().eventsItemCount }} items</span>
           <span class="refresh-time">Last refreshed: {{ formatDate(metadata().eventsLastRefreshed) }}</span>
+          @if (metadata().eventsLastSyncUpdated || metadata().eventsLastSyncRemoved) {
+            <span class="sync-stats">Last sync: {{ metadata().eventsLastSyncUpdated }} updated, {{ metadata().eventsLastSyncRemoved }} removed</span>
+          }
         </div>
       </div>
       <button
@@ -53,6 +56,9 @@
         <div class="status-meta">
           <span class="item-count">{{ metadata().blogsItemCount }} items</span>
           <span class="refresh-time">Last refreshed: {{ formatDate(metadata().blogsLastRefreshed) }}</span>
+          @if (metadata().blogsLastSyncUpdated || metadata().blogsLastSyncRemoved) {
+            <span class="sync-stats">Last sync: {{ metadata().blogsLastSyncUpdated }} updated, {{ metadata().blogsLastSyncRemoved }} removed</span>
+          }
         </div>
       </div>
       <button

@@ -26,7 +26,7 @@
         @if (school.schoolWebsite) {
         <div class="detail-row">
           <app-icon name="link"></app-icon>
-          <a [href]="school.schoolWebsite" target="_blank" rel="noopener noreferrer">{{ school.schoolWebsite }}</a>
+          <a [href]="ensureHttps(school.schoolWebsite)" target="_blank" rel="noopener noreferrer">{{ school.schoolWebsite }}</a>
         </div>
         }
 
