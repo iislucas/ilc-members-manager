@@ -1,20 +1,24 @@
-# ILC Members Manager
+# ILC Members Portal
 
-The goal of this project is to provide a simple Angular web application to
-manage the status of ILC memberships. There are 3 kinds of users for this system:
+A web application serving as the **member-facing portal** for the
+[I Liq Chuan](https://www.iliqchuan.com/) kung fu community. This app is used
+by **all members** of the organisation — not just administrators — to manage
+memberships, view personal information, and stay connected with the community.
+There are 3 kinds of users for this system:
 
-- **ILC Admins**: Can make arbitrary changes to anyone's status, as well as add
-  country managers.
+- **ILC Admins (HQ)**: Full administrative access — manage all members, schools,
+  orders, instructors, global settings, and backups.
 
-- **ILC School Managers**: Can manage the status of all students within their
-  school (but not themselves).
+- **ILC School Managers & Instructors**: View the status of all students
+  within their school(s).
 
-- **ILC practitioners**: should be able to use their registerd email address to
-  see the status of their data, and request deletion.
+- **ILC Practitioners (all members)**: View their own membership status, level,
+  and renewal dates (like a digital passbook); update their own contact
+  information; browse public information such as finding instructors and upcoming
+  events.
 
-The application intends to eventually support being a PWA (Progressive Web
-Application) so it can be downloaded and saved on mobile devices, and used to
-send notifications.
+The application is intended to be a **PWA (Progressive Web App)** so it can be
+installed on phones and tablets for everyday use, and support push notifications.
 
 ## Status
 

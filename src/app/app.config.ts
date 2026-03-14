@@ -1,9 +1,11 @@
 import {
   ApplicationConfig,
   InjectionToken,
+  isDevMode,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
+import { provideServiceWorker } from '@angular/service-worker';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { environment } from '../environments/environment';
 import { provideHttpClient } from '@angular/common/http';
@@ -126,5 +128,9 @@ export const appConfig: ApplicationConfig = {
       provide: FIREBASE_APP,
       useValue: initializeApp(environment.firebase),
     },
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
   ],
 };

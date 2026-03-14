@@ -1,17 +1,27 @@
 ---
 name: generalist-developer
-description: Already read this; it contains the coding standards, tech stack, and best practices for this project, including pnpm (never npm or npx).
+description: Always read this; it contains the coding standards, tech stack, and best practices for this project, including pnpm (never npm or npx).
 ---
 
 # ILC Members Manager Developer Guide
 
 This guide details the technology stack, coding standards, and style conventions for the ILC Members Manager.
 
-Some language from Kung Fu / I Liq Chuan that is used:
+## 1. Project Overview
 
-- sifu: this refers to the primary instructor of a student.
+The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](https://www.iliqchuan.com/) kung fu community. It is **not** just an admin tool — it is designed to be used by **all members** of the organisation, from headquarters administrators down to individual practitioners. The app is intended to work as a **Progressive Web App (PWA)** so it can be installed on phones and tablets for everyday use.
 
-## 1. Key other files to consult
+### User Roles
+
+- **ILC Admins (HQ):** Full administrative access — manage all members, schools, orders, instructors, global settings, and backups.
+- **School Managers & Instructors:** View the status of all students within their school(s).
+- **ILC Practitioners (all members):** View their own membership status, level, and renewal dates (like a digital passbook); update their own contact information; and browse public information such as finding instructors and upcoming events.
+
+### Key Terminology
+
+- **sifu**: the primary instructor of a student.
+
+## 2. Key other files to consult
 
 - [README.md](./README.md): basic goals and details of how to build and test the project.
 - [STATUS.md](./STATUS.md): the status of milestones, and goals within the project.
@@ -19,7 +29,7 @@ Some language from Kung Fu / I Liq Chuan that is used:
 
 ---
 
-## 2. Core Technologies
+## 3. Core Technologies
 
 - **Package Manager:** **pnpm**. Use `pnpm` (do NOT use `npm`).
 - **Framework:** **Angular `^21.x.x`**.
@@ -33,7 +43,7 @@ Some language from Kung Fu / I Liq Chuan that is used:
 
 ---
 
-## 3. Backend Services
+## 4. Backend Services
 
 This service used Firebase for the backend.
 
@@ -46,7 +56,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ---
 
-## 4. Coding Style & Formatting
+## 5. Coding Style & Formatting
 
 - **Formatter:** Prettier.
 - **Indentation:** 2 spaces.
@@ -58,7 +68,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ---
 
-## 5. Angular & TypeScript Best Practices
+## 6. Angular & TypeScript Best Practices
 
 ### TypeScript
 
@@ -115,14 +125,14 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ---
 
-## 6. CSS Styling
+## 7. CSS Styling
 
 - Use **SCSS** for all styling.
 - Styles should be component-scoped by default.
 
 ---
 
-## 7. Testing
+## 8. Testing
 
 - Frameworks: **Karma** and **Jasmine**.
 - To run tests for specific angular UI components for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
@@ -134,7 +144,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ---
 
-## 8. Comments
+## 9. Comments
 
 - Comments should be provided for all aspects of a functions specification that are not obvious from types. e.g. if a function returns a string, the comment should explain what the string represents.
 - All comments should be in **English**.
