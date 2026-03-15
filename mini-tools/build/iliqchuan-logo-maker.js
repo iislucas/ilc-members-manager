@@ -121,16 +121,17 @@ function setInputVal(id, val) {
 // ---------------------------------------------------------------------------
 // Yin-yang S-curve path (dark half).
 // sweep-flag=0 makes the dark half bulge LEFT (matching the reference image).
+// Path starts from BOTTOM, arcs to TOP — flipped on x-axis.
 function buildYinPath(cx, cy, R) {
     const r = R / 2;
     const top = cy - R;
     const bottom = cy + R;
     const mid = cy;
     return [
-        `M ${cx} ${top}`,
-        `A ${R} ${R} 0 1 0 ${cx} ${bottom}`,
-        `A ${r} ${r} 0 0 1 ${cx} ${mid}`,
-        `A ${r} ${r} 0 0 0 ${cx} ${top}`,
+        `M ${cx} ${bottom}`,
+        `A ${R} ${R} 0 1 1 ${cx} ${top}`,
+        `A ${r} ${r} 0 0 0 ${cx} ${mid}`,
+        `A ${r} ${r} 0 0 1 ${cx} ${bottom}`,
         'Z',
     ].join(' ');
 }
@@ -143,10 +144,10 @@ function buildYinYangSvg(cx, cy, p) {
     parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${p.fillLight}"/>`);
     // Dark (yin) S-curve half
     parts.push(`<path d="${yinPath}" fill="${p.fillDark}"/>`);
-    // Eyes
+    // Eyes (swapped: dark eye on top in light half, white eye on bottom in dark half)
     if (p.yinYangEyeRadius > 0) {
-        parts.push(`<circle cx="${cx}" cy="${cy - eyeOffset}" r="${p.yinYangEyeRadius}" fill="${p.fillLight}"/>`);
-        parts.push(`<circle cx="${cx}" cy="${cy + eyeOffset}" r="${p.yinYangEyeRadius}" fill="${p.fillDark}"/>`);
+        parts.push(`<circle cx="${cx}" cy="${cy - eyeOffset}" r="${p.yinYangEyeRadius}" fill="${p.fillDark}"/>`);
+        parts.push(`<circle cx="${cx}" cy="${cy + eyeOffset}" r="${p.yinYangEyeRadius}" fill="${p.fillLight}"/>`);
     }
     // Border
     parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${p.strokeColor}" stroke-width="1.5"/>`);
@@ -405,6 +406,160 @@ async function updateDiff(p) {
     const rmseColor = Math.sqrt(sumSqErrColor / totalPixels);
     const rmseAlpha = Math.sqrt(sumSqErrAlpha / totalPixels);
     $('rmse-score').textContent = `Color: ${rmseColor.toFixed(2)}  Alpha: ${rmseAlpha.toFixed(2)}`;
+    return { color: rmseColor, alpha: rmseAlpha };
+}
+// ---------------------------------------------------------------------------
+// Fast offscreen RMSE computation (for optimization)
+// ---------------------------------------------------------------------------
+async function computeRMSEFast(p) {
+    if (!referenceImage)
+        return { color: Infinity, alpha: Infinity };
+    const size = 200; // smaller for speed during optimization
+    const offRef = document.createElement('canvas');
+    offRef.width = size;
+    offRef.height = size;
+    const offGen = document.createElement('canvas');
+    offGen.width = size;
+    offGen.height = size;
+    // Composite reference on white
+    const refCtx = offRef.getContext('2d');
+    refCtx.fillStyle = '#ffffff';
+    refCtx.fillRect(0, 0, size, size);
+    refCtx.drawImage(referenceImage, 0, 0, size, size);
+    // Render generated on white
+    const genCtx = offGen.getContext('2d');
+    genCtx.fillStyle = '#ffffff';
+    genCtx.fillRect(0, 0, size, size);
+    const svgStr = buildFullSvg({ ...p, transparentBg: false, bgColor: '#ffffff' });
+    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const svgImg = await loadReferenceImage(url);
+    genCtx.drawImage(svgImg, 0, 0, size, size);
+    URL.revokeObjectURL(url);
+    const refData = refCtx.getImageData(0, 0, size, size).data;
+    const genData = genCtx.getImageData(0, 0, size, size).data;
+    const totalPixels = size * size;
+    let sumSqColor = 0;
+    let sumSqAlpha = 0;
+    for (let i = 0; i < refData.length; i += 4) {
+        const dr = Math.abs(refData[i] - genData[i]);
+        const dg = Math.abs(refData[i + 1] - genData[i + 1]);
+        const db = Math.abs(refData[i + 2] - genData[i + 2]);
+        const d = (dr + dg + db) / 3;
+        sumSqColor += d * d;
+        // Alpha from luminance
+        const refLum = refData[i] * 0.299 + refData[i + 1] * 0.587 + refData[i + 2] * 0.114;
+        const refAlpha = 255 - refLum;
+        const genLum = genData[i] * 0.299 + genData[i + 1] * 0.587 + genData[i + 2] * 0.114;
+        const genAlpha = 255 - genLum;
+        const da = Math.abs(refAlpha - genAlpha);
+        sumSqAlpha += da * da;
+    }
+    return {
+        color: Math.sqrt(sumSqColor / totalPixels),
+        alpha: Math.sqrt(sumSqAlpha / totalPixels),
+    };
+}
+// ---------------------------------------------------------------------------
+// Hill-climbing optimizer (coordinate descent)
+// ---------------------------------------------------------------------------
+// Numeric slider IDs eligible for auto-optimization.
+// User-only params (excluded from optimization):
+//   - yinYangRotation: dots must stay vertically aligned
+//   - colors (strokeColor, fillLight, fillDark, bgColor): structural, not tunable
+//   - transparentBg: boolean, not numeric
+const OPTIMIZABLE_PARAMS = [
+    { id: 'yinYangRadius', step: 1 },
+    { id: 'yinYangEyeRadius', step: 1 },
+    { id: 'yinYangEyePosition', step: 1 },
+    // yinYangRotation deliberately excluded — user-only
+    { id: 'innerRingWidth', step: 0.5 },
+    { id: 'textBandWidth', step: 1 },
+    { id: 'outerRingWidth', step: 0.5 },
+    { id: 'textSizeUpper', step: 1 },
+    { id: 'textSizeLower', step: 1 },
+    { id: 'textOffsetUpper', step: 1 },
+    { id: 'textOffsetLower', step: 1 },
+    { id: 'textLetterSpacingLower', step: 0.5 },
+    { id: 'spokeLength', step: 1 },
+    { id: 'spokeWidth', step: 0.5 },
+    { id: 'cardinalTipLength', step: 1 },
+    { id: 'cardinalTipWidth', step: 1 },
+    { id: 'diagonalTipLength', step: 1 },
+    { id: 'diagonalTipWidth', step: 1 },
+];
+let optimizing = false;
+async function runOptimization() {
+    if (!referenceImage) {
+        $('opt-status').textContent = 'Load a reference image first!';
+        return;
+    }
+    if (optimizing) {
+        optimizing = false; // signal stop
+        return;
+    }
+    optimizing = true;
+    const btn = $('opt-btn');
+    btn.textContent = '⏹ Stop';
+    const statusEl = $('opt-status');
+    let baseRMSE = await computeRMSEFast(getParams());
+    let combined = baseRMSE.color + baseRMSE.alpha;
+    statusEl.textContent = `Starting: ${combined.toFixed(2)}`;
+    const maxPasses = 10;
+    for (let pass = 0; pass < maxPasses && optimizing; pass++) {
+        let improved = false;
+        for (const param of OPTIMIZABLE_PARAMS) {
+            if (!optimizing)
+                break;
+            const el = $(param.id);
+            const min = parseFloat(el.min);
+            const max = parseFloat(el.max);
+            const current = parseFloat(el.value);
+            let bestVal = current;
+            let bestCombined = combined;
+            // Try stepping up
+            const upVal = Math.min(max, current + param.step);
+            if (upVal !== current) {
+                el.value = String(upVal);
+                const upRMSE = await computeRMSEFast(getParams());
+                const upCombined = upRMSE.color + upRMSE.alpha;
+                if (upCombined < bestCombined) {
+                    bestVal = upVal;
+                    bestCombined = upCombined;
+                }
+            }
+            // Try stepping down
+            const downVal = Math.max(min, current - param.step);
+            if (downVal !== current) {
+                el.value = String(downVal);
+                const downRMSE = await computeRMSEFast(getParams());
+                const downCombined = downRMSE.color + downRMSE.alpha;
+                if (downCombined < bestCombined) {
+                    bestVal = downVal;
+                    bestCombined = downCombined;
+                }
+            }
+            // Apply best
+            el.value = String(bestVal);
+            if (bestVal !== current) {
+                combined = bestCombined;
+                improved = true;
+            }
+            statusEl.textContent = `Pass ${pass + 1}/${maxPasses} | ${param.id}: ${bestVal} | RMSE: ${combined.toFixed(2)}`;
+            // Yield to browser for UI updates
+            await new Promise(r => setTimeout(r, 0));
+        }
+        // Full visual update after each pass
+        update();
+        await new Promise(r => setTimeout(r, 50));
+        if (!improved) {
+            statusEl.textContent = `Converged after ${pass + 1} passes! RMSE: ${combined.toFixed(2)}`;
+            break;
+        }
+    }
+    optimizing = false;
+    btn.textContent = '⚡ Optimize';
+    update(); // Final visual update with best values
 }
 // ---------------------------------------------------------------------------
 // PNG export
@@ -529,6 +684,8 @@ function init() {
     // PNG downloads
     $('download-png-192').addEventListener('click', () => downloadPng(192));
     $('download-png-512').addEventListener('click', () => downloadPng(512));
+    // Optimize button
+    $('opt-btn').addEventListener('click', runOptimization);
     // Reference image for pixel diff
     const refInput = $('ref-image-input');
     refInput.addEventListener('change', () => {

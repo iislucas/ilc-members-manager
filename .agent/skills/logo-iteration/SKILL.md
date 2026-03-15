@@ -60,7 +60,7 @@ Two types of changes:
 2. **Default parameter changes** → Edit `iliqchuan-logo-maker.html` slider `value=` attributes
 
 > [!TIP]
-> Prefer fixing structural/code issues first (bigger RMSE drops), then tune default parameters for fine adjustments. Each cycle of changes that does structural should also to some parameter updates to ensure the generated logo is as close as possible to the reference image and that the structural change is locally optimal. Run some kind of basic hill-climbing of the parameters to get closer to the reference image in the tool itself. This will help to ensure that the structural change is locally optimal. Think about if this can/should be improved also. Verify it's working with a final image check.
+> Prefer fixing structural/code issues first (bigger RMSE drops). Parameter adjustments are done by basic in-tool hill-climbing of the parameters to get closer to the reference image.
 
 ### Step 4: Verify
 

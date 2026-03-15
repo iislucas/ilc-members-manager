@@ -219,17 +219,17 @@
 
   <div class="control-group">
     <label>Radius <span class="val" id="yinYangRadius-val"></span></label>
-    <input type="range" id="yinYangRadius" min="30" max="150" step="1" value="80">
+    <input type="range" id="yinYangRadius" min="30" max="150" step="1" value="79">
   </div>
 
   <div class="control-group">
     <label>Eye radius <span class="val" id="yinYangEyeRadius-val"></span></label>
-    <input type="range" id="yinYangEyeRadius" min="0" max="40" step="1" value="10">
+    <input type="range" id="yinYangEyeRadius" min="0" max="40" step="1" value="5">
   </div>
 
   <div class="control-group">
     <label>Eye position (%) <span class="val" id="yinYangEyePosition-val"></span></label>
-    <input type="range" id="yinYangEyePosition" min="0" max="100" step="1" value="50">
+    <input type="range" id="yinYangEyePosition" min="0" max="100" step="1" value="40">
     <div class="description">0% = center, 50% = natural, 100% = edge</div>
   </div>
 
@@ -242,40 +242,40 @@
 
   <div class="control-group">
     <label>Inner ring width <span class="val" id="innerRingWidth-val"></span></label>
-    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="3">
+    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="8">
   </div>
 
   <div class="control-group">
     <label>Text band width <span class="val" id="textBandWidth-val"></span></label>
-    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="25">
+    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="35">
   </div>
 
   <div class="control-group">
     <label>Outer ring width <span class="val" id="outerRingWidth-val"></span></label>
-    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="3">
+    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="8">
   </div>
 
   <div class="section-title">Text</div>
 
   <div class="control-group">
     <label>Chinese text size <span class="val" id="textSizeUpper-val"></span></label>
-    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="20">
+    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="10">
   </div>
 
   <div class="control-group">
     <label>Latin text size <span class="val" id="textSizeLower-val"></span></label>
-    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="14">
+    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="12">
   </div>
 
   <div class="control-group">
     <label>Upper text offset <span class="val" id="textOffsetUpper-val"></span></label>
-    <input type="range" id="textOffsetUpper" min="-20" max="20" step="1" value="0">
+    <input type="range" id="textOffsetUpper" min="-20" max="20" step="1" value="1">
     <div class="description">Positive = outward from band center</div>
   </div>
 
   <div class="control-group">
     <label>Lower text offset <span class="val" id="textOffsetLower-val"></span></label>
-    <input type="range" id="textOffsetLower" min="-20" max="20" step="1" value="0">
+    <input type="range" id="textOffsetLower" min="-20" max="20" step="1" value="-1">
   </div>
 
   <div class="control-group">
@@ -287,12 +287,12 @@
 
   <div class="control-group">
     <label>Spoke length <span class="val" id="spokeLength-val"></span></label>
-    <input type="range" id="spokeLength" min="10" max="100" step="1" value="32">
+    <input type="range" id="spokeLength" min="10" max="100" step="1" value="31">
   </div>
 
   <div class="control-group">
     <label>Spoke width <span class="val" id="spokeWidth-val"></span></label>
-    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="8">
+    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="4.5">
   </div>
 
   <div class="section-title">Ornamental Tips</div>
@@ -314,7 +314,7 @@
 
   <div class="control-group">
     <label>Diagonal tip width <span class="val" id="diagonalTipWidth-val"></span></label>
-    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="7">
+    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="3">
   </div>
 
   <div class="section-title">Colors</div>
@@ -371,9 +371,11 @@
     </div>
   </div>
 
-  <!-- Score and ref file controls -->
+  <!-- Score, optimize, and ref file controls -->
   <div class="score-row">
     <div>RMSE: <span class="rmse-display" id="rmse-score">—</span></div>
+    <button class="action-btn" id="opt-btn">⚡ Optimize</button>
+    <span id="opt-status" style="font-size:12px; color:#a0a0b0; font-style:italic;"></span>
     <label class="action-btn secondary" style="cursor:pointer; font-size:11px; padding:4px 10px;">
       Load reference PNG
       <input type="file" id="ref-image-input" accept="image/*" style="display:none">
