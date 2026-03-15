@@ -345,10 +345,7 @@ function buildTipsSvg(cx, cy, p) {
 // Full SVG assembly
 // ---------------------------------------------------------------------------
 function computeViewSize(p) {
-    const yinYangBorderWidth = 1.5;
-    const outerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
-    const fullR = outerEdge + p.spokeLength + Math.max(p.cardinalTipLength, p.diagonalTipLength);
-    return Math.ceil(fullR * 2 + 20); // 10px padding each side
+    return 400; // Fixed size so optimization scaling is stable and 1:1 with diff canvas
 }
 function buildFullSvg(p, size) {
     const viewSize = size || computeViewSize(p);
