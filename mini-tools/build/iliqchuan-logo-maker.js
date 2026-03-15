@@ -291,22 +291,32 @@ function buildTipsSvg(cx, cy, p) {
         const leftY = cy + sideDist * sin - sideOffset * perpSin;
         const rightX = cx + sideDist * cos + sideOffset * perpCos;
         const rightY = cy + sideDist * sin + sideOffset * perpSin;
-        // Base circle for a nice rounded stem where it connects
-        const baseR = tipW * 0.15;
-        const baseX = cx + tipStart * cos;
-        const baseY = cy + tipStart * sin;
         // Stem bridging outward
         const baseW = tipW * 0.12;
-        const stemX1 = cx + tipStart * cos - baseW * perpCos;
-        const stemY1 = cy + tipStart * sin - baseW * perpSin;
-        const stemX2 = cx + tipStart * cos + baseW * perpCos;
-        const stemY2 = cy + tipStart * sin + baseW * perpSin;
+        // Silhouettes stay at tipStart so they connect with normal external geometry
+        const stemX1_sil = cx + tipStart * cos - baseW * perpCos;
+        const stemY1_sil = cy + tipStart * sin - baseW * perpSin;
+        const stemX2_sil = cx + tipStart * cos + baseW * perpCos;
+        const stemY2_sil = cy + tipStart * sin + baseW * perpSin;
+        // Interiors cut inward deeper to break through the ring connecting line
+        const innerCut = p.spokeLength <= 1 ? p.outerRingWidth + 1.5 : 0;
+        const stemX1_int = cx + (tipStart - innerCut) * cos - baseW * perpCos;
+        const stemY1_int = cy + (tipStart - innerCut) * sin - baseW * perpSin;
+        const stemX2_int = cx + (tipStart - innerCut) * cos + baseW * perpCos;
+        const stemY2_int = cy + (tipStart - innerCut) * sin + baseW * perpSin;
         const topX1 = cx + (tipStart + stemLen * 0.9) * cos - baseW * perpCos;
         const topY1 = cy + (tipStart + stemLen * 0.9) * sin - baseW * perpSin;
         const topX2 = cx + (tipStart + stemLen * 0.9) * cos + baseW * perpCos;
         const topY2 = cy + (tipStart + stemLen * 0.9) * sin + baseW * perpSin;
-        addShape(`<polygon points="${stemX1},${stemY1} ${stemX2},${stemY2} ${topX2},${topY2} ${topX1},${topY1}"/>`);
-        addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+        silhouettes.push(`<polygon points="${stemX1_sil},${stemY1_sil} ${stemX2_sil},${stemY2_sil} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+        interiors.push(`<polygon points="${stemX1_int},${stemY1_int} ${stemX2_int},${stemY2_int} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+        if (p.spokeLength > 1) {
+            // Base circle for a nice rounded stem where it connects to a thin spoke line
+            const baseR = tipW * 0.15;
+            const baseX = cx + tipStart * cos;
+            const baseY = cy + tipStart * sin;
+            addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+        }
         addShape(`<circle cx="${headX}" cy="${headY}" r="${headR}"/>`);
         addShape(`<circle cx="${leftX}" cy="${leftY}" r="${sideR}"/>`);
         addShape(`<circle cx="${rightX}" cy="${rightY}" r="${sideR}"/>`);
