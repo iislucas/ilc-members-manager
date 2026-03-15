@@ -52,6 +52,7 @@
           } @else {
             <div class="step-header">Sign in with Google</div>
           }
+          <div class="email-display">{{ loginEmail() }}</div>
           @if (loginWithGoogleError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -62,11 +63,7 @@
           }
           <div class="step-actions">
             <button id="google-signin-btn" (click)="loginWithGoogle()">
-              @if (isReturningUser()) {
-                Sign in as {{ loginEmail() }}
-              } @else {
-                Sign in with Google
-              }
+              Sign in with Google
             </button>
             @if (!isReturningUser()) {
               <button
