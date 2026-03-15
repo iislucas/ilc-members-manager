@@ -101,75 +101,56 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 24px;
-    gap: 24px;
+    padding: 16px;
+    gap: 12px;
     overflow-y: auto;
   }
-  .preview-area {
+
+  /* Top comparison row: Reference | Generated | Diff side-by-side */
+  .comparison-row {
     display: flex;
-    gap: 32px;
+    gap: 12px;
     align-items: flex-start;
-    flex-wrap: wrap;
     justify-content: center;
   }
-  .preview-box {
+  .comparison-row .canvas-box {
     text-align: center;
+    flex: 1;
+    max-width: 320px;
   }
-  .preview-box .label {
-    font-size: 12px;
-    color: #a0a0b0;
-    margin-top: 8px;
-  }
-  svg#main-preview {
-    border-radius: 12px;
-    max-width: 400px;
-    max-height: 400px;
-  }
-
-  /* Diff section */
-  .diff-section {
+  .comparison-row canvas {
     width: 100%;
-    max-width: 1000px;
-  }
-  .diff-section h2 {
-    font-size: 14px;
-    color: #a0a0b0;
-    margin-bottom: 8px;
-  }
-  .diff-canvases {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  .diff-canvases .canvas-box {
-    text-align: center;
-  }
-  .diff-canvases canvas {
+    aspect-ratio: 1;
     border: 1px solid #0f3460;
     border-radius: 8px;
-    background: #fff;
+    /* Checkerboard pattern to reveal transparency */
+    background-image:
+      linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-color: #fff;
   }
-  .diff-canvases .canvas-label {
+  .comparison-row .canvas-label {
     font-size: 11px;
     color: #a0a0b0;
     margin-top: 4px;
   }
+
+  /* Score and ref controls row */
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
   .rmse-display {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     color: #e94560;
     font-family: 'SF Mono', 'Fira Code', monospace;
-    margin: 8px 0;
-  }
-  .ref-input-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
   }
   .ref-status {
     font-size: 12px;
@@ -179,17 +160,18 @@
 
   /* Output section */
   .output-section {
-    width: 100%;
-    max-width: 1000px;
+    border-top: 1px solid #0f3460;
+    padding-top: 10px;
   }
-  .output-section h2 {
-    font-size: 14px;
+  .output-section summary {
+    font-size: 13px;
     color: #a0a0b0;
-    margin-bottom: 8px;
+    cursor: pointer;
+    margin-bottom: 6px;
   }
   .path-output {
     width: 100%;
-    height: 80px;
+    height: 60px;
     background: #0f3460;
     border: 1px solid #533483;
     color: #e0e0e0;
@@ -201,18 +183,18 @@
   }
   .btn-row {
     display: flex;
-    gap: 10px;
-    margin-top: 8px;
+    gap: 8px;
+    margin-top: 6px;
     flex-wrap: wrap;
   }
   .action-btn {
-    padding: 8px 20px;
+    padding: 6px 14px;
     background: #e94560;
     color: white;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
   }
   .action-btn:hover { background: #c73652; }
@@ -221,6 +203,11 @@
     background: #533483;
   }
   .action-btn.secondary:hover { background: #6b44a8; }
+
+  /* Hidden live preview SVG for rendering (used by diff comparison) */
+  svg#main-preview {
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -237,7 +224,7 @@
 
   <div class="control-group">
     <label>Eye radius <span class="val" id="yinYangEyeRadius-val"></span></label>
-    <input type="range" id="yinYangEyeRadius" min="0" max="40" step="1" value="12">
+    <input type="range" id="yinYangEyeRadius" min="0" max="40" step="1" value="10">
   </div>
 
   <div class="control-group">
@@ -255,29 +242,29 @@
 
   <div class="control-group">
     <label>Inner ring width <span class="val" id="innerRingWidth-val"></span></label>
-    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="4">
+    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="3">
   </div>
 
   <div class="control-group">
     <label>Text band width <span class="val" id="textBandWidth-val"></span></label>
-    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="30">
+    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="25">
   </div>
 
   <div class="control-group">
     <label>Outer ring width <span class="val" id="outerRingWidth-val"></span></label>
-    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="4">
+    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="3">
   </div>
 
   <div class="section-title">Text</div>
 
   <div class="control-group">
     <label>Chinese text size <span class="val" id="textSizeUpper-val"></span></label>
-    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="22">
+    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="20">
   </div>
 
   <div class="control-group">
     <label>Latin text size <span class="val" id="textSizeLower-val"></span></label>
-    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="16">
+    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="14">
   </div>
 
   <div class="control-group">
@@ -293,41 +280,41 @@
 
   <div class="control-group">
     <label>Lower letter spacing <span class="val" id="textLetterSpacingLower-val"></span></label>
-    <input type="range" id="textLetterSpacingLower" min="0" max="15" step="0.5" value="3">
+    <input type="range" id="textLetterSpacingLower" min="0" max="15" step="0.5" value="4">
   </div>
 
   <div class="section-title">Spokes</div>
 
   <div class="control-group">
     <label>Spoke length <span class="val" id="spokeLength-val"></span></label>
-    <input type="range" id="spokeLength" min="10" max="100" step="1" value="40">
+    <input type="range" id="spokeLength" min="10" max="100" step="1" value="32">
   </div>
 
   <div class="control-group">
     <label>Spoke width <span class="val" id="spokeWidth-val"></span></label>
-    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="6">
+    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="8">
   </div>
 
   <div class="section-title">Ornamental Tips</div>
 
   <div class="control-group">
     <label>Cardinal tip length <span class="val" id="cardinalTipLength-val"></span></label>
-    <input type="range" id="cardinalTipLength" min="5" max="60" step="1" value="25">
+    <input type="range" id="cardinalTipLength" min="5" max="60" step="1" value="30">
   </div>
 
   <div class="control-group">
     <label>Cardinal tip width <span class="val" id="cardinalTipWidth-val"></span></label>
-    <input type="range" id="cardinalTipWidth" min="3" max="40" step="1" value="14">
+    <input type="range" id="cardinalTipWidth" min="3" max="40" step="1" value="18">
   </div>
 
   <div class="control-group">
     <label>Diagonal tip length <span class="val" id="diagonalTipLength-val"></span></label>
-    <input type="range" id="diagonalTipLength" min="5" max="60" step="1" value="16">
+    <input type="range" id="diagonalTipLength" min="5" max="60" step="1" value="12">
   </div>
 
   <div class="control-group">
     <label>Diagonal tip width <span class="val" id="diagonalTipWidth-val"></span></label>
-    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="10">
+    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="7">
   </div>
 
   <div class="section-title">Colors</div>
@@ -365,50 +352,46 @@
 </div>
 
 <div class="main">
-  <!-- Live Preview -->
-  <div class="preview-area">
-    <div class="preview-box">
-      <svg id="main-preview" width="400" height="400"></svg>
-      <div class="label">Live preview</div>
+  <!-- Hidden SVG used for rendering (the diff comparison reads from this) -->
+  <svg id="main-preview" width="400" height="400"></svg>
+
+  <!-- Top comparison row: Reference | Generated | Diff side-by-side -->
+  <div class="comparison-row">
+    <div class="canvas-box">
+      <canvas id="ref-canvas" width="300" height="300"></canvas>
+      <div class="canvas-label">Reference</div>
+    </div>
+    <div class="canvas-box">
+      <canvas id="gen-canvas" width="300" height="300"></canvas>
+      <div class="canvas-label">Generated</div>
+    </div>
+    <div class="canvas-box">
+      <canvas id="diff-canvas" width="300" height="300"></canvas>
+      <div class="canvas-label">Diff heatmap</div>
     </div>
   </div>
 
-  <!-- Pixel Diff Comparison -->
-  <div class="diff-section">
-    <h2>Pixel Diff Comparison</h2>
-    <div class="ref-input-row">
-      <label class="action-btn secondary" style="cursor:pointer">
-        Load reference PNG
-        <input type="file" id="ref-image-input" accept="image/*" style="display:none">
-      </label>
-      <span class="ref-status" id="ref-status">No reference loaded</span>
-    </div>
-    <div class="diff-canvases">
-      <div class="canvas-box">
-        <canvas id="ref-canvas" width="250" height="250"></canvas>
-        <div class="canvas-label">Reference</div>
-      </div>
-      <div class="canvas-box">
-        <canvas id="gen-canvas" width="250" height="250"></canvas>
-        <div class="canvas-label">Generated</div>
-      </div>
-      <div class="canvas-box">
-        <canvas id="diff-canvas" width="250" height="250"></canvas>
-        <div class="canvas-label">Diff heatmap</div>
-      </div>
-    </div>
+  <!-- Score and ref file controls -->
+  <div class="score-row">
     <div>RMSE: <span class="rmse-display" id="rmse-score">—</span></div>
+    <label class="action-btn secondary" style="cursor:pointer; font-size:11px; padding:4px 10px;">
+      Load reference PNG
+      <input type="file" id="ref-image-input" accept="image/*" style="display:none">
+    </label>
+    <span class="ref-status" id="ref-status">No reference loaded</span>
   </div>
 
-  <!-- SVG Output -->
+  <!-- SVG Output (collapsible) -->
   <div class="output-section">
-    <h2>SVG Output</h2>
-    <textarea class="path-output" id="svg-output" readonly></textarea>
-    <div class="btn-row">
-      <button class="action-btn" id="copy-svg-btn">Copy SVG</button>
-      <button class="action-btn secondary" id="download-png-192">Download PNG 192×192</button>
-      <button class="action-btn secondary" id="download-png-512">Download PNG 512×512</button>
-    </div>
+    <details>
+      <summary>SVG Output & Export</summary>
+      <textarea class="path-output" id="svg-output" readonly></textarea>
+      <div class="btn-row">
+        <button class="action-btn" id="copy-svg-btn">Copy SVG</button>
+        <button class="action-btn secondary" id="download-png-192">Download PNG 192×192</button>
+        <button class="action-btn secondary" id="download-png-512">Download PNG 512×512</button>
+      </div>
+    </details>
   </div>
 </div>
 

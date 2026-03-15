@@ -120,6 +120,7 @@ function setInputVal(id, val) {
 // SVG geometry builders
 // ---------------------------------------------------------------------------
 // Yin-yang S-curve path (dark half).
+// sweep-flag=0 makes the dark half bulge LEFT (matching the reference image).
 function buildYinPath(cx, cy, R) {
     const r = R / 2;
     const top = cy - R;
@@ -127,9 +128,9 @@ function buildYinPath(cx, cy, R) {
     const mid = cy;
     return [
         `M ${cx} ${top}`,
-        `A ${R} ${R} 0 1 1 ${cx} ${bottom}`,
-        `A ${r} ${r} 0 0 0 ${cx} ${mid}`,
-        `A ${r} ${r} 0 0 1 ${cx} ${top}`,
+        `A ${R} ${R} 0 1 0 ${cx} ${bottom}`,
+        `A ${r} ${r} 0 0 1 ${cx} ${mid}`,
+        `A ${r} ${r} 0 0 0 ${cx} ${top}`,
         'Z',
     ].join(' ');
 }
@@ -155,12 +156,31 @@ function buildYinYangSvg(cx, cy, p) {
     }
     return parts.join('');
 }
-// Rings: inner border ring, outer border ring.
+// Rings: dark filled text band annulus + border rings.
 function buildRingsSvg(cx, cy, p) {
-    const innerR = p.yinYangRadius + p.innerRingWidth / 2;
-    const outerR = p.yinYangRadius + p.innerRingWidth + p.textBandWidth + p.outerRingWidth / 2;
+    // The text band is a filled dark annulus between the inner and outer ring edges.
+    const bandInnerR = p.yinYangRadius + p.innerRingWidth;
+    const bandOuterR = bandInnerR + p.textBandWidth;
+    // Draw a filled annulus using a path with two concentric arcs (even-odd fill).
+    const annulusPath = [
+        // Outer circle (clockwise)
+        `M ${cx + bandOuterR} ${cy}`,
+        `A ${bandOuterR} ${bandOuterR} 0 1 1 ${cx - bandOuterR} ${cy}`,
+        `A ${bandOuterR} ${bandOuterR} 0 1 1 ${cx + bandOuterR} ${cy}`,
+        // Inner circle (counter-clockwise to cut out)
+        `M ${cx + bandInnerR} ${cy}`,
+        `A ${bandInnerR} ${bandInnerR} 0 1 0 ${cx - bandInnerR} ${cy}`,
+        `A ${bandInnerR} ${bandInnerR} 0 1 0 ${cx + bandInnerR} ${cy}`,
+        'Z',
+    ].join(' ');
     const parts = [];
+    // Filled dark annulus for text band background
+    parts.push(`<path d="${annulusPath}" fill="${p.fillDark}" fill-rule="evenodd"/>`);
+    // Inner border ring (on top of the annulus inner edge)
+    const innerR = p.yinYangRadius + p.innerRingWidth / 2;
     parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.innerRingWidth}"/>`);
+    // Outer border ring (on top of the annulus outer edge)
+    const outerR = bandOuterR + p.outerRingWidth / 2;
     parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth}"/>`);
     return parts.join('');
 }
@@ -180,12 +200,12 @@ function buildTextSvg(cx, cy, p) {
     const lowerR = bandCenterR + p.textOffsetLower;
     parts.push(`  <path id="lower-arc" d="M ${cx - lowerR} ${cy} A ${lowerR} ${lowerR} 0 1 0 ${cx + lowerR} ${cy}" fill="none"/>`);
     parts.push(`</defs>`);
-    // Chinese text (upper arc)
-    parts.push(`<text font-size="${p.textSizeUpper}" fill="${p.strokeColor}" font-family="'Noto Serif SC', 'SimSun', serif" font-weight="700">`);
+    // Chinese text (upper arc) — rendered in light color on the dark band
+    parts.push(`<text font-size="${p.textSizeUpper}" fill="${p.fillLight}" font-family="'Noto Serif SC', 'SimSun', serif" font-weight="700">`);
     parts.push(`  <textPath href="#upper-arc" startOffset="50%" text-anchor="middle">意 力 拳</textPath>`);
     parts.push(`</text>`);
-    // Latin text (lower arc)
-    parts.push(`<text font-size="${p.textSizeLower}" fill="${p.strokeColor}" font-family="'Times New Roman', 'Noto Serif', serif" font-weight="700" letter-spacing="${p.textLetterSpacingLower}">`);
+    // Latin text (lower arc) — rendered in light color on the dark band
+    parts.push(`<text font-size="${p.textSizeLower}" fill="${p.fillLight}" font-family="'Times New Roman', 'Noto Serif', serif" font-weight="700" letter-spacing="${p.textLetterSpacingLower}">`);
     parts.push(`  <textPath href="#lower-arc" startOffset="50%" text-anchor="middle">I  LIQ  CHUAN</textPath>`);
     parts.push(`</text>`);
     return parts.join('\n');
@@ -321,44 +341,70 @@ async function updateDiff(p) {
     genCanvas.height = diffSize;
     diffCanvas.width = diffSize;
     diffCanvas.height = diffSize;
-    // Draw reference
+    // Draw reference on transparent canvas (no white fill)
     const refCtx = refCanvas.getContext('2d');
-    refCtx.fillStyle = '#ffffff';
-    refCtx.fillRect(0, 0, diffSize, diffSize);
+    refCtx.clearRect(0, 0, diffSize, diffSize);
     refCtx.drawImage(referenceImage, 0, 0, diffSize, diffSize);
-    // Draw generated SVG
+    // Draw generated SVG with transparent background
     const genCtx = genCanvas.getContext('2d');
-    genCtx.fillStyle = '#ffffff';
-    genCtx.fillRect(0, 0, diffSize, diffSize);
-    const svgStr = buildFullSvg({ ...p, transparentBg: false, bgColor: '#ffffff' });
+    genCtx.clearRect(0, 0, diffSize, diffSize);
+    const svgStr = buildFullSvg({ ...p, transparentBg: true });
     const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const svgImg = await loadReferenceImage(url);
     genCtx.drawImage(svgImg, 0, 0, diffSize, diffSize);
     URL.revokeObjectURL(url);
-    // Compute diff
-    const refData = refCtx.getImageData(0, 0, diffSize, diffSize).data;
-    const genData = genCtx.getImageData(0, 0, diffSize, diffSize).data;
+    // For color comparison: composite both onto white backgrounds
+    // Use off-screen canvases to avoid corrupting visual canvases
+    const refWhite = document.createElement('canvas');
+    refWhite.width = diffSize;
+    refWhite.height = diffSize;
+    const refWhiteCtx = refWhite.getContext('2d');
+    refWhiteCtx.fillStyle = '#ffffff';
+    refWhiteCtx.fillRect(0, 0, diffSize, diffSize);
+    refWhiteCtx.drawImage(referenceImage, 0, 0, diffSize, diffSize);
+    const genWhite = document.createElement('canvas');
+    genWhite.width = diffSize;
+    genWhite.height = diffSize;
+    const genWhiteCtx = genWhite.getContext('2d');
+    genWhiteCtx.fillStyle = '#ffffff';
+    genWhiteCtx.fillRect(0, 0, diffSize, diffSize);
+    genWhiteCtx.drawImage(svgImg, 0, 0, diffSize, diffSize);
+    // Get pixel data
+    const refData = refWhiteCtx.getImageData(0, 0, diffSize, diffSize).data;
+    const genData = genWhiteCtx.getImageData(0, 0, diffSize, diffSize).data;
+    const refRawData = refCtx.getImageData(0, 0, diffSize, diffSize).data;
+    const genRawData = genCtx.getImageData(0, 0, diffSize, diffSize).data;
     const diffCtx = diffCanvas.getContext('2d');
     const diffImgData = diffCtx.createImageData(diffSize, diffSize);
     const diffData = diffImgData.data;
-    let sumSqErr = 0;
+    let sumSqErrColor = 0;
+    let sumSqErrAlpha = 0;
     const totalPixels = diffSize * diffSize;
     for (let i = 0; i < refData.length; i += 4) {
+        // Color RMSE: compare composited-on-white RGB values
         const dr = Math.abs(refData[i] - genData[i]);
         const dg = Math.abs(refData[i + 1] - genData[i + 1]);
         const db = Math.abs(refData[i + 2] - genData[i + 2]);
-        const diff = (dr + dg + db) / 3;
-        sumSqErr += diff * diff;
+        const diffColor = (dr + dg + db) / 3;
+        sumSqErrColor += diffColor * diffColor;
+        // Alpha RMSE: derive reference alpha from luminance
+        // (white bg reference: white=transparent, dark=opaque)
+        const refLum = (refRawData[i] * 0.299 + refRawData[i + 1] * 0.587 + refRawData[i + 2] * 0.114);
+        const refAlpha = refRawData[i + 3] > 0 ? 255 - refLum : 0;
+        const genAlpha = genRawData[i + 3];
+        const da = Math.abs(refAlpha - genAlpha);
+        sumSqErrAlpha += da * da;
         // Heatmap: transparent where close, red where different
         diffData[i] = 255; // R
         diffData[i + 1] = 0; // G
         diffData[i + 2] = 0; // B
-        diffData[i + 3] = Math.min(255, diff * 3); // A — amplified for visibility
+        diffData[i + 3] = Math.min(255, diffColor * 3); // A — amplified for visibility
     }
     diffCtx.putImageData(diffImgData, 0, 0);
-    const rmse = Math.sqrt(sumSqErr / totalPixels);
-    $('rmse-score').textContent = rmse.toFixed(2);
+    const rmseColor = Math.sqrt(sumSqErrColor / totalPixels);
+    const rmseAlpha = Math.sqrt(sumSqErrAlpha / totalPixels);
+    $('rmse-score').textContent = `Color: ${rmseColor.toFixed(2)}  Alpha: ${rmseAlpha.toFixed(2)}`;
 }
 // ---------------------------------------------------------------------------
 // PNG export
