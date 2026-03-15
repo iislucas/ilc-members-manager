@@ -5,7 +5,7 @@ description: Iterating on ILC logo SVG quality by comparing generated output aga
 
 # Logo Iteration Workflow
 
-Use this skill when improving the visual fidelity of the ILC logo SVG generator (`mini-tools/iliqchuan-logo-maker.ts`).
+Use this skill when improving the visual fidelity of the ILC logo SVG generator (source in `mini-tools/logo-maker/`).
 
 ## Environment Setup
 
@@ -14,7 +14,7 @@ Use this skill when improving the visual fidelity of the ILC logo SVG generator 
 Start the compiler in watch mode so changes auto-compile:
 
 ```bash
-pnpm exec tsc mini-tools/iliqchuan-logo-maker.ts --target ES2020 --module ES2020 --outDir mini-tools/build --skipLibCheck --lib ES2020,DOM --watch
+pnpm exec tsc --project mini-tools/logo-maker/tsconfig.json --watch
 ```
 
 ### 2. HTTP Server
@@ -58,7 +58,7 @@ Think about changes that make the image structure correct first, such that auto-
 
 Two types of changes:
 
-1. **Code changes** → Edit `iliqchuan-logo-maker.ts` geometry/rendering logic
+1. **Code changes** → Edit the relevant module in `mini-tools/logo-maker/` (see Code Structure below)
 2. **Default parameter changes** → Edit `iliqchuan-logo-maker.html` slider `value=` attributes
 
 > [!TIP]
@@ -89,13 +89,44 @@ After each round, note:
 - Update the default parameters in `iliqchuan-logo-maker.html` to the those that were produced after the auto-optimization.
 - Consider the next things to do or major changes to update.
 
+## Code Structure
+
+The logo maker source lives in `mini-tools/logo-maker/` as ES modules:
+
+| Module              | Lines | Purpose                                                              |
+| ------------------- | ----- | -------------------------------------------------------------------- |
+| `types.ts`          | ~75   | `LogoParams` interface, DOM helpers (`$`, `numVal`, `strVal`, etc.)  |
+| `params.ts`         | ~100  | `getParams()`, `saveParams()`, `loadParams()` — localStorage I/O    |
+| `svg-builders.ts`   | ~300  | All SVG geometry: yin-yang, rings, text arcs, spokes, tips, assembly |
+| `pixel-diff.ts`     | ~200  | `updateDiff()` visual heatmap, `computeRMSEFast()` for optimization |
+| `optimizer.ts`      | ~150  | `STAGES` config, `runOptimization()` hill-climbing coordinate descent|
+| `main.ts`           | ~260  | Entry point: update loop, PNG export, UI wiring, initialization     |
+
+### Import graph
+
+```
+main.ts
+  ├── types.ts
+  ├── params.ts       → types.ts
+  ├── svg-builders.ts → types.ts
+  ├── pixel-diff.ts   → types.ts, svg-builders.ts
+  └── optimizer.ts    → types.ts, params.ts, pixel-diff.ts
+```
+
+### Key design patterns
+
+- **Two-pass tip rendering**: `buildTipsSvg()` in `svg-builders.ts` uses a silhouette+interior approach. Pass 1 draws all shapes in `strokeColor` with a thick stroke to create a bordered silhouette. Pass 2 overlays the same shapes in `fillLight` with no stroke, filling the interior white. This creates clean bordered shapes without internal stroke artifacts.
+- **Ring-penetrating cutouts**: When tips sit directly on the outer ring (spoke length ≤ 1), the interior pass extends inward past the ring's stroke to erase the ring line under the tip, creating a seamless union.
+- **Dependency injection for `update()`**: The optimizer takes `updateFn` as a parameter rather than importing `update()` directly, avoiding circular dependencies.
+
 ## Key Files
 
 | File                                       | Role                                          |
 | ------------------------------------------ | --------------------------------------------- |
-| `mini-tools/iliqchuan-logo-maker.ts`       | SVG generation logic, pixel diff, persistence |
+| `mini-tools/logo-maker/*.ts`               | Modular TypeScript source (see table above)   |
+| `mini-tools/logo-maker/tsconfig.json`      | TypeScript build config for the modules       |
+| `mini-tools/logo-maker/build/*.js`         | Compiled output (auto-generated)              |
 | `mini-tools/iliqchuan-logo-maker.html`     | UI controls with default parameter values     |
-| `mini-tools/build/iliqchuan-logo-maker.js` | Compiled output (auto-generated)              |
 | `public/iliqchuan-white-bg.png`            | Reference image for pixel diff                |
 
 ## Tips
