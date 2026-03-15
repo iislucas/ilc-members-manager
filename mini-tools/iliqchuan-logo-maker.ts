@@ -217,7 +217,7 @@ function buildYinYangSvg(cx: number, cy: number, p: LogoParams): string {
   return parts.join('');
 }
 
-// Rings: dark filled text band annulus + border rings.
+// Rings: dark filled text band annulus + border rings + scalloped inner edge.
 function buildRingsSvg(cx: number, cy: number, p: LogoParams): string {
   // The text band is a filled dark annulus between the inner and outer ring edges.
   const bandInnerR = p.yinYangRadius + p.innerRingWidth;
@@ -241,6 +241,19 @@ function buildRingsSvg(cx: number, cy: number, p: LogoParams): string {
   // Inner border ring (on top of the annulus inner edge)
   const innerR = p.yinYangRadius + p.innerRingWidth / 2;
   parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.innerRingWidth}"/>`);
+
+  // Scalloped / cloud-border decoration at the inner ring edge.
+  // Small semicircular bumps protruding outward from the inner ring.
+  const scallops = 16;
+  const scallopR = (p.innerRingWidth * 1.2); // bump radius
+  const scallopBaseR = p.yinYangRadius + p.innerRingWidth; // on the inner edge of text band
+  for (let i = 0; i < scallops; i++) {
+    const a = (i / scallops) * Math.PI * 2;
+    const bx = cx + scallopBaseR * Math.cos(a);
+    const by = cy + scallopBaseR * Math.sin(a);
+    parts.push(`<circle cx="${bx}" cy="${by}" r="${scallopR}" fill="${p.fillDark}" stroke="${p.strokeColor}" stroke-width="0.5"/>`);
+  }
+
   // Outer border ring (on top of the annulus outer edge)
   const outerR = bandOuterR + p.outerRingWidth / 2;
   parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth}"/>`);
@@ -311,7 +324,7 @@ function buildSpokesSvg(cx: number, cy: number, p: LogoParams): string {
 }
 
 // Ornamental tips at the end of each spoke.
-// Cardinal (N,E,S,W) - larger concave "petal" shape
+// Cardinal (N,E,S,W) - vajra/scepter shape with pointed tip, waist, and lobed shoulders
 // Diagonal (NE,SE,SW,NW) - smaller simple diamond
 function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
   const outerRingOuterEdge = p.yinYangRadius + p.innerRingWidth + p.textBandWidth + p.outerRingWidth;
@@ -331,35 +344,62 @@ function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
     const perpCos = Math.cos(angle + Math.PI / 2);
     const perpSin = Math.sin(angle + Math.PI / 2);
 
-    // Tip center point
-    const tipCenterR = tipStart + tipLen / 2;
-    // Diamond: 4 points - inner, left, outer, right
-    const innerX = cx + tipStart * cos;
-    const innerY = cy + tipStart * sin;
-    const outerX = cx + (tipStart + tipLen) * cos;
-    const outerY = cy + (tipStart + tipLen) * sin;
-    const leftX = cx + tipCenterR * cos - tipW * perpCos;
-    const leftY = cy + tipCenterR * sin - tipW * perpSin;
-    const rightX = cx + tipCenterR * cos + tipW * perpCos;
-    const rightY = cy + tipCenterR * sin + tipW * perpSin;
-
     if (isCardinal) {
-      // Cardinal tips: concave sides (pinched petal shape).
-      // Use quadratic bezier curves with control points pulled inward.
-      const pullFactor = 0.35;
-      // Control points for concave sides (pulled toward center axis)
-      const cInnerLeftX = cx + (tipStart + tipLen * pullFactor) * cos - tipW * 0.3 * perpCos;
-      const cInnerLeftY = cy + (tipStart + tipLen * pullFactor) * sin - tipW * 0.3 * perpSin;
-      const cOuterLeftX = cx + (tipStart + tipLen * (1 - pullFactor)) * cos - tipW * 0.3 * perpCos;
-      const cOuterLeftY = cy + (tipStart + tipLen * (1 - pullFactor)) * sin - tipW * 0.3 * perpSin;
-      const cInnerRightX = cx + (tipStart + tipLen * pullFactor) * cos + tipW * 0.3 * perpCos;
-      const cInnerRightY = cy + (tipStart + tipLen * pullFactor) * sin + tipW * 0.3 * perpSin;
-      const cOuterRightX = cx + (tipStart + tipLen * (1 - pullFactor)) * cos + tipW * 0.3 * perpCos;
-      const cOuterRightY = cy + (tipStart + tipLen * (1 - pullFactor)) * sin + tipW * 0.3 * perpSin;
+      // Vajra/scepter shape — 10 profile points along the spoke axis.
+      // Distances are fractions of tipLen from tipStart:
+      //   0.0  = base (meets spoke)
+      //   0.15 = shoulder widest point (lobe)
+      //   0.30 = waist (pinch inward)
+      //   0.50 = mid-lobe second bulge (smaller)
+      //   0.70 = narrowing toward tip
+      //   1.0  = pointed tip
 
-      parts.push(`<path d="M ${innerX} ${innerY} Q ${cInnerLeftX} ${cInnerLeftY} ${leftX} ${leftY} Q ${cOuterLeftX} ${cOuterLeftY} ${outerX} ${outerY} Q ${cOuterRightX} ${cOuterRightY} ${rightX} ${rightY} Q ${cInnerRightX} ${cInnerRightY} ${innerX} ${innerY} Z" fill="${p.strokeColor}"/>`);
+      const pt = (frac: number, perpW: number) => {
+        const r = tipStart + tipLen * frac;
+        return {
+          lx: cx + r * cos - perpW * perpCos,
+          ly: cy + r * sin - perpW * perpSin,
+          rx: cx + r * cos + perpW * perpCos,
+          ry: cy + r * sin + perpW * perpSin,
+        };
+      };
+
+      const base = pt(0, tipW * 0.25);      // narrow base at spoke junction
+      const shoulder = pt(0.18, tipW * 1.0); // widest lobe
+      const waist = pt(0.38, tipW * 0.3);    // pinched waist
+      const midLobe = pt(0.55, tipW * 0.6);  // secondary bulge
+      const narrow = pt(0.75, tipW * 0.2);   // narrowing
+      const tipPt = {                          // pointed tip
+        x: cx + (tipStart + tipLen) * cos,
+        y: cy + (tipStart + tipLen) * sin,
+      };
+
+      // Build path: left side from base to tip, then right side back
+      parts.push(`<path d="
+        M ${base.lx} ${base.ly}
+        Q ${cx + (tipStart + tipLen * 0.05) * cos - tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.05) * sin - tipW * 0.7 * perpSin} ${shoulder.lx} ${shoulder.ly}
+        Q ${cx + (tipStart + tipLen * 0.28) * cos - tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.28) * sin - tipW * 0.7 * perpSin} ${waist.lx} ${waist.ly}
+        Q ${cx + (tipStart + tipLen * 0.45) * cos - tipW * 0.55 * perpCos} ${cy + (tipStart + tipLen * 0.45) * sin - tipW * 0.55 * perpSin} ${midLobe.lx} ${midLobe.ly}
+        Q ${cx + (tipStart + tipLen * 0.65) * cos - tipW * 0.35 * perpCos} ${cy + (tipStart + tipLen * 0.65) * sin - tipW * 0.35 * perpSin} ${narrow.lx} ${narrow.ly}
+        L ${tipPt.x} ${tipPt.y}
+        L ${narrow.rx} ${narrow.ry}
+        Q ${cx + (tipStart + tipLen * 0.65) * cos + tipW * 0.35 * perpCos} ${cy + (tipStart + tipLen * 0.65) * sin + tipW * 0.35 * perpSin} ${midLobe.rx} ${midLobe.ry}
+        Q ${cx + (tipStart + tipLen * 0.45) * cos + tipW * 0.55 * perpCos} ${cy + (tipStart + tipLen * 0.45) * sin + tipW * 0.55 * perpSin} ${waist.rx} ${waist.ry}
+        Q ${cx + (tipStart + tipLen * 0.28) * cos + tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.28) * sin + tipW * 0.7 * perpSin} ${shoulder.rx} ${shoulder.ry}
+        Q ${cx + (tipStart + tipLen * 0.05) * cos + tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.05) * sin + tipW * 0.7 * perpSin} ${base.rx} ${base.ry}
+        Z
+      " fill="${p.strokeColor}"/>`);
     } else {
       // Diagonal tips: simple diamond
+      const tipCenterR = tipStart + tipLen / 2;
+      const innerX = cx + tipStart * cos;
+      const innerY = cy + tipStart * sin;
+      const outerX = cx + (tipStart + tipLen) * cos;
+      const outerY = cy + (tipStart + tipLen) * sin;
+      const leftX = cx + tipCenterR * cos - tipW * perpCos;
+      const leftY = cy + tipCenterR * sin - tipW * perpSin;
+      const rightX = cx + tipCenterR * cos + tipW * perpCos;
+      const rightY = cy + tipCenterR * sin + tipW * perpSin;
       parts.push(`<polygon points="${innerX},${innerY} ${leftX},${leftY} ${outerX},${outerY} ${rightX},${rightY}" fill="${p.strokeColor}"/>`);
     }
   }
@@ -859,6 +899,8 @@ function init(): void {
     referenceImage = img;
     $('ref-status').textContent = 'Loaded: iliqchuan-white-bg.png (auto)';
     update();
+    // Auto-run optimizer on page load after reference is ready
+    setTimeout(() => runOptimization(), 500);
   }).catch(() => {
     $('ref-status').textContent = 'No reference loaded (use file picker or serve via HTTP)';
   });

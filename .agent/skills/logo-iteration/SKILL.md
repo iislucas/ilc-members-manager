@@ -52,6 +52,8 @@ Common categories of difference (ordered by typical RMSE impact):
 | **Shapes**      | Tips, spokes, or curves don't match reference contours | Adjust path geometry, bezier control points        |
 | **Text**        | Font, size, spacing, position along arc                | Adjust font-family, letter-spacing, text offset    |
 
+Think about changes that make the image structure correct first, such that auto-optimization works better, and avoids local wrong minima spaces of the optimization.
+
 ### Step 3: Make Changes
 
 Two types of changes:
@@ -60,7 +62,7 @@ Two types of changes:
 2. **Default parameter changes** → Edit `iliqchuan-logo-maker.html` slider `value=` attributes
 
 > [!TIP]
-> Prefer fixing structural/code issues first (bigger RMSE drops). Parameter adjustments are done by basic in-tool hill-climbing of the parameters to get closer to the reference image.
+> Prefer fixing structural/code issues first (bigger RMSE drops). Parameter adjustments are done by basic in-tool hill-climbing of the parameters to get closer to the reference image. If the auto-optimization doesn't work for some aspect that you see from visual inspection, suggest to the user possible ways to either ajdust the code so that auto-optimization works better, or suggest modifications to the auto-optimization logic itself.
 
 ### Step 4: Verify
 
@@ -76,7 +78,8 @@ After each round, note:
 
 - What was changed
 - RMSE before → after
-- Whether the change was a code fix or parameter tuning
+- Update the default parameters in `iliqchuan-logo-maker.html` to the those that were produced after the auto-optimization.
+- Consider the next things to do or major changes to update.
 
 ## Key Files
 
