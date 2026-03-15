@@ -219,7 +219,7 @@
 
   <div class="control-group">
     <label>Radius <span class="val" id="yinYangRadius-val"></span></label>
-    <input type="range" id="yinYangRadius" min="30" max="150" step="1" value="78">
+    <input type="range" id="yinYangRadius" min="30" max="150" step="1" value="58">
   </div>
 
   <div class="control-group">
@@ -229,7 +229,7 @@
 
   <div class="control-group">
     <label>Eye position (%) <span class="val" id="yinYangEyePosition-val"></span></label>
-    <input type="range" id="yinYangEyePosition" min="0" max="100" step="1" value="43">
+    <input type="range" id="yinYangEyePosition" min="0" max="100" step="1" value="44">
     <div class="description">0% = center, 50% = natural, 100% = edge</div>
   </div>
 
@@ -241,70 +241,90 @@
   <div class="section-title">Rings</div>
 
   <div class="control-group">
+    <label>Yin-yang gap <span class="val" id="yinYangGap-val"></span></label>
+    <input type="range" id="yinYangGap" min="0" max="30" step="0.5" value="10">
+  </div>
+
+  <div class="control-group">
     <label>Inner ring width <span class="val" id="innerRingWidth-val"></span></label>
-    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="10">
+    <input type="range" id="innerRingWidth" min="0.5" max="20" step="0.5" value="2">
+  </div>
+
+  <div class="control-group">
+    <label>Inner ring gap <span class="val" id="innerRingGap-val"></span></label>
+    <input type="range" id="innerRingGap" min="0" max="30" step="0.5" value="10">
   </div>
 
   <div class="control-group">
     <label>Text band width <span class="val" id="textBandWidth-val"></span></label>
-    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="38">
+    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="46">
+  </div>
+
+  <div class="control-group">
+    <label>Scallop radius <span class="val" id="scallopRadius-val"></span></label>
+    <input type="range" id="scallopRadius" min="0" max="20" step="0.5" value="5">
+  </div>
+  
+  <div class="control-group">
+    <label>Outer ring gap <span class="val" id="outerRingGap-val"></span></label>
+    <input type="range" id="outerRingGap" min="0" max="30" step="0.5" value="5">
   </div>
 
   <div class="control-group">
     <label>Outer ring width <span class="val" id="outerRingWidth-val"></span></label>
-    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="10">
+    <input type="range" id="outerRingWidth" min="0.5" max="20" step="0.5" value="2">
   </div>
 
   <div class="section-title">Text</div>
 
   <div class="control-group">
     <label>Chinese text size <span class="val" id="textSizeUpper-val"></span></label>
-    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="8">
+    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="12">
   </div>
 
   <div class="control-group">
     <label>Latin text size <span class="val" id="textSizeLower-val"></span></label>
-    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="12">
+    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="11">
   </div>
 
   <div class="control-group">
     <label>Upper text offset <span class="val" id="textOffsetUpper-val"></span></label>
-    <input type="range" id="textOffsetUpper" min="-20" max="20" step="1" value="4">
+    <input type="range" id="textOffsetUpper" min="-20" max="20" step="1" value="2">
     <div class="description">Positive = outward from band center</div>
   </div>
 
   <div class="control-group">
     <label>Lower text offset <span class="val" id="textOffsetLower-val"></span></label>
-    <input type="range" id="textOffsetLower" min="-20" max="20" step="1" value="1">
+    <input type="range" id="textOffsetLower" min="-20" max="20" step="1" value="0">
   </div>
 
   <div class="control-group">
     <label>Lower letter spacing <span class="val" id="textLetterSpacingLower-val"></span></label>
-    <input type="range" id="textLetterSpacingLower" min="0" max="15" step="0.5" value="5">
+    <input type="range" id="textLetterSpacingLower" min="0" max="15" step="0.5" value="4">
   </div>
 
   <div class="section-title">Spokes</div>
 
   <div class="control-group">
     <label>Spoke length <span class="val" id="spokeLength-val"></span></label>
-    <input type="range" id="spokeLength" min="10" max="100" step="1" value="31">
+    <input type="range" id="spokeLength" min="5" max="100" step="1" value="20">
   </div>
 
   <div class="control-group">
     <label>Spoke width <span class="val" id="spokeWidth-val"></span></label>
-    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="1">
+    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="2">
   </div>
 
   <div class="section-title">Ornamental Tips</div>
 
   <div class="control-group">
     <label>Cardinal tip length <span class="val" id="cardinalTipLength-val"></span></label>
-    <input type="range" id="cardinalTipLength" min="5" max="60" step="1" value="30">
+    <input type="range" id="cardinalTipLength" min="5" max="60" step="1" value="25">
   </div>
 
   <div class="control-group">
     <label>Cardinal tip width <span class="val" id="cardinalTipWidth-val"></span></label>
-    <input type="range" id="cardinalTipWidth" min="3" max="40" step="1" value="18">
+    <input type="range" id="cardinalTipWidth" min="3" max="40" step="1" value="12">
   </div>
 
   <div class="control-group">
@@ -314,7 +334,7 @@
 
   <div class="control-group">
     <label>Diagonal tip width <span class="val" id="diagonalTipWidth-val"></span></label>
-    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="3">
+    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="4">
   </div>
 
   <div class="section-title">Colors</div>

@@ -64,6 +64,10 @@ Two types of changes:
 > [!TIP]
 > Prefer fixing structural/code issues first (bigger RMSE drops). Parameter adjustments are done by basic in-tool hill-climbing of the parameters to get closer to the reference image. If the auto-optimization doesn't work for some aspect that you see from visual inspection, suggest to the user possible ways to either ajdust the code so that auto-optimization works better, or suggest modifications to the auto-optimization logic itself.
 
+Make sure the code has appropriate and enough comments to explain the logic. Make sure there are names for the various parts of the image too. For example, the yin-yang is made of two halves, and there are two eyes, and there are rings around the yin-yang. These should be named in the code.
+
+Consider when to break up elements and optimize them independently (e.g. when text should be broken up into individual words or letters and optimized independently, rather than collectively). This is especially relevant when the auto-optimization is not working well for some aspect of the image.
+
 ### Step 4: Verify
 
 - If using `--watch`, the TS compiler auto-recompiles; otherwise run the compile command
