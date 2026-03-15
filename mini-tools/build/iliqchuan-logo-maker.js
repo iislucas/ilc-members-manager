@@ -259,72 +259,67 @@ function buildTipsSvg(cx, cy, p) {
     const outerRingOuterEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
     const tipStart = outerRingOuterEdge + p.spokeLength;
     const parts = [];
+    const silhouettes = [];
+    const interiors = [];
+    const addShape = (svgShape) => {
+        silhouettes.push(svgShape);
+        interiors.push(svgShape);
+    };
     for (let i = 0; i < 8; i++) {
         const angleDeg = i * 45;
         const angle = angleDeg * Math.PI / 180;
         const isCardinal = angleDeg % 90 === 0;
         const tipLen = isCardinal ? p.cardinalTipLength : p.diagonalTipLength;
         const tipW = isCardinal ? p.cardinalTipWidth : p.diagonalTipWidth;
+        if (tipLen <= 0 || tipW <= 0)
+            continue;
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
         const perpCos = Math.cos(angle + Math.PI / 2);
         const perpSin = Math.sin(angle + Math.PI / 2);
-        if (isCardinal) {
-            // Vajra/scepter shape — 10 profile points along the spoke axis.
-            // Distances are fractions of tipLen from tipStart:
-            //   0.0  = base (meets spoke)
-            //   0.15 = shoulder widest point (lobe)
-            //   0.30 = waist (pinch inward)
-            //   0.50 = mid-lobe second bulge (smaller)
-            //   0.70 = narrowing toward tip
-            //   1.0  = pointed tip
-            const pt = (frac, perpW) => {
-                const r = tipStart + tipLen * frac;
-                return {
-                    lx: cx + r * cos - perpW * perpCos,
-                    ly: cy + r * sin - perpW * perpSin,
-                    rx: cx + r * cos + perpW * perpCos,
-                    ry: cy + r * sin + perpW * perpSin,
-                };
-            };
-            const base = pt(0, tipW * 0.25); // narrow base at spoke junction
-            const shoulder = pt(0.18, tipW * 1.0); // widest lobe
-            const waist = pt(0.38, tipW * 0.3); // pinched waist
-            const midLobe = pt(0.55, tipW * 0.6); // secondary bulge
-            const narrow = pt(0.75, tipW * 0.2); // narrowing
-            const tipPt = {
-                x: cx + (tipStart + tipLen) * cos,
-                y: cy + (tipStart + tipLen) * sin,
-            };
-            // Build path: left side from base to tip, then right side back
-            parts.push(`<path d="
-        M ${base.lx} ${base.ly}
-        Q ${cx + (tipStart + tipLen * 0.05) * cos - tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.05) * sin - tipW * 0.7 * perpSin} ${shoulder.lx} ${shoulder.ly}
-        Q ${cx + (tipStart + tipLen * 0.28) * cos - tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.28) * sin - tipW * 0.7 * perpSin} ${waist.lx} ${waist.ly}
-        Q ${cx + (tipStart + tipLen * 0.45) * cos - tipW * 0.55 * perpCos} ${cy + (tipStart + tipLen * 0.45) * sin - tipW * 0.55 * perpSin} ${midLobe.lx} ${midLobe.ly}
-        Q ${cx + (tipStart + tipLen * 0.65) * cos - tipW * 0.35 * perpCos} ${cy + (tipStart + tipLen * 0.65) * sin - tipW * 0.35 * perpSin} ${narrow.lx} ${narrow.ly}
-        L ${tipPt.x} ${tipPt.y}
-        L ${narrow.rx} ${narrow.ry}
-        Q ${cx + (tipStart + tipLen * 0.65) * cos + tipW * 0.35 * perpCos} ${cy + (tipStart + tipLen * 0.65) * sin + tipW * 0.35 * perpSin} ${midLobe.rx} ${midLobe.ry}
-        Q ${cx + (tipStart + tipLen * 0.45) * cos + tipW * 0.55 * perpCos} ${cy + (tipStart + tipLen * 0.45) * sin + tipW * 0.55 * perpSin} ${waist.rx} ${waist.ry}
-        Q ${cx + (tipStart + tipLen * 0.28) * cos + tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.28) * sin + tipW * 0.7 * perpSin} ${shoulder.rx} ${shoulder.ry}
-        Q ${cx + (tipStart + tipLen * 0.05) * cos + tipW * 0.7 * perpCos} ${cy + (tipStart + tipLen * 0.05) * sin + tipW * 0.7 * perpSin} ${base.rx} ${base.ry}
-        Z
-      " fill="${p.strokeColor}"/>`);
-        }
-        else {
-            // Diagonal tips: simple diamond
-            const tipCenterR = tipStart + tipLen / 2;
-            const innerX = cx + tipStart * cos;
-            const innerY = cy + tipStart * sin;
-            const outerX = cx + (tipStart + tipLen) * cos;
-            const outerY = cy + (tipStart + tipLen) * sin;
-            const leftX = cx + tipCenterR * cos - tipW * perpCos;
-            const leftY = cy + tipCenterR * sin - tipW * perpSin;
-            const rightX = cx + tipCenterR * cos + tipW * perpCos;
-            const rightY = cy + tipCenterR * sin + tipW * perpSin;
-            parts.push(`<polygon points="${innerX},${innerY} ${leftX},${leftY} ${outerX},${outerY} ${rightX},${rightY}" fill="${p.strokeColor}"/>`);
-        }
+        // Head circle scaling
+        const headR = Math.min(tipW * 0.4, tipLen * 0.5);
+        const stemLen = typeof tipLen === 'number' && typeof headR === 'number' ? tipLen - headR : 0;
+        const headDist = tipStart + stemLen;
+        const headX = cx + headDist * cos;
+        const headY = cy + headDist * sin;
+        // Side flanking circles
+        const sideR = tipW * (isCardinal ? 0.3 : 0.35);
+        const sideDist = tipStart + stemLen * (isCardinal ? 0.55 : 0.5);
+        const sideOffset = Math.max(0, tipW / 2 - sideR);
+        const leftX = cx + sideDist * cos - sideOffset * perpCos;
+        const leftY = cy + sideDist * sin - sideOffset * perpSin;
+        const rightX = cx + sideDist * cos + sideOffset * perpCos;
+        const rightY = cy + sideDist * sin + sideOffset * perpSin;
+        // Base circle for a nice rounded stem where it connects
+        const baseR = tipW * 0.15;
+        const baseX = cx + tipStart * cos;
+        const baseY = cy + tipStart * sin;
+        // Stem bridging outward
+        const baseW = tipW * 0.12;
+        const stemX1 = cx + tipStart * cos - baseW * perpCos;
+        const stemY1 = cy + tipStart * sin - baseW * perpSin;
+        const stemX2 = cx + tipStart * cos + baseW * perpCos;
+        const stemY2 = cy + tipStart * sin + baseW * perpSin;
+        const topX1 = cx + (tipStart + stemLen * 0.9) * cos - baseW * perpCos;
+        const topY1 = cy + (tipStart + stemLen * 0.9) * sin - baseW * perpSin;
+        const topX2 = cx + (tipStart + stemLen * 0.9) * cos + baseW * perpCos;
+        const topY2 = cy + (tipStart + stemLen * 0.9) * sin + baseW * perpSin;
+        addShape(`<polygon points="${stemX1},${stemY1} ${stemX2},${stemY2} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+        addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+        addShape(`<circle cx="${headX}" cy="${headY}" r="${headR}"/>`);
+        addShape(`<circle cx="${leftX}" cy="${leftY}" r="${sideR}"/>`);
+        addShape(`<circle cx="${rightX}" cy="${rightY}" r="${sideR}"/>`);
+    }
+    if (silhouettes.length > 0) {
+        // Pass 1: Silhouette expansion (fills with dark color, strokes with dark color)
+        parts.push(`<g fill="${p.strokeColor}" stroke="${p.strokeColor}" stroke-width="2.5" stroke-linejoin="round">`);
+        parts.push(...silhouettes);
+        parts.push(`</g>`);
+        // Pass 2: Interior filling (fills with light color overlaying the silhouettes)
+        parts.push(`<g fill="${p.fillLight}" stroke="none">`);
+        parts.push(...interiors);
+        parts.push(`</g>`);
     }
     return parts.join('\n');
 }
