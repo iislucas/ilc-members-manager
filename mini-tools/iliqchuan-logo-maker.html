@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>I Liq Chuan Logo Maker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+  }
+  .controls {
+    width: 380px;
+    min-width: 380px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+  }
+  h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #e94560;
+  }
+  .control-group {
+    margin-bottom: 14px;
+  }
+  .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #a0a0b0;
+  }
+  .control-group label span.val {
+    color: #e94560;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e94560;
+  }
+  input[type="color"] {
+    width: 40px;
+    height: 28px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    padding: 2px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .color-row span {
+    font-size: 13px;
+    color: #a0a0b0;
+    flex: 1;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .checkbox-row input[type="checkbox"] {
+    accent-color: #e94560;
+    width: 16px;
+    height: 16px;
+  }
+  .checkbox-row label {
+    font-size: 13px;
+    color: #a0a0b0;
+    cursor: pointer;
+  }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #533483;
+    margin: 20px 0 10px;
+    border-bottom: 1px solid #0f3460;
+    padding-bottom: 4px;
+  }
+  .description {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* Main content area */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    gap: 24px;
+    overflow-y: auto;
+  }
+  .preview-area {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .preview-box {
+    text-align: center;
+  }
+  .preview-box .label {
+    font-size: 12px;
+    color: #a0a0b0;
+    margin-top: 8px;
+  }
+  svg#main-preview {
+    border-radius: 12px;
+    max-width: 400px;
+    max-height: 400px;
+  }
+
+  /* Diff section */
+  .diff-section {
+    width: 100%;
+    max-width: 1000px;
+  }
+  .diff-section h2 {
+    font-size: 14px;
+    color: #a0a0b0;
+    margin-bottom: 8px;
+  }
+  .diff-canvases {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .diff-canvases .canvas-box {
+    text-align: center;
+  }
+  .diff-canvases canvas {
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .diff-canvases .canvas-label {
+    font-size: 11px;
+    color: #a0a0b0;
+    margin-top: 4px;
+  }
+  .rmse-display {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e94560;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    margin: 8px 0;
+  }
+  .ref-input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .ref-status {
+    font-size: 12px;
+    color: #a0a0b0;
+    font-style: italic;
+  }
+
+  /* Output section */
+  .output-section {
+    width: 100%;
+    max-width: 1000px;
+  }
+  .output-section h2 {
+    font-size: 14px;
+    color: #a0a0b0;
+    margin-bottom: 8px;
+  }
+  .path-output {
+    width: 100%;
+    height: 80px;
+    background: #0f3460;
+    border: 1px solid #533483;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 8px;
+    resize: vertical;
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    padding: 8px 20px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .action-btn:hover { background: #c73652; }
+  .action-btn:active { transform: scale(0.97); }
+  .action-btn.secondary {
+    background: #533483;
+  }
+  .action-btn.secondary:hover { background: #6b44a8; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>☸ I Liq Chuan Logo Maker</h1>
+
+  <div class="section-title">Yin-Yang</div>
+
+  <div class="control-group">
+    <label>Radius <span class="val" id="yinYangRadius-val"></span></label>
+    <input type="range" id="yinYangRadius" min="30" max="150" step="1" value="80">
+  </div>
+
+  <div class="control-group">
+    <label>Eye radius <span class="val" id="yinYangEyeRadius-val"></span></label>
+    <input type="range" id="yinYangEyeRadius" min="0" max="40" step="1" value="12">
+  </div>
+
+  <div class="control-group">
+    <label>Eye position (%) <span class="val" id="yinYangEyePosition-val"></span></label>
+    <input type="range" id="yinYangEyePosition" min="0" max="100" step="1" value="50">
+    <div class="description">0% = center, 50% = natural, 100% = edge</div>
+  </div>
+
+  <div class="control-group">
+    <label>Rotation <span class="val" id="yinYangRotation-val"></span></label>
+    <input type="range" id="yinYangRotation" min="0" max="360" step="1" value="0">
+  </div>
+
+  <div class="section-title">Rings</div>
+
+  <div class="control-group">
+    <label>Inner ring width <span class="val" id="innerRingWidth-val"></span></label>
+    <input type="range" id="innerRingWidth" min="1" max="20" step="0.5" value="4">
+  </div>
+
+  <div class="control-group">
+    <label>Text band width <span class="val" id="textBandWidth-val"></span></label>
+    <input type="range" id="textBandWidth" min="10" max="80" step="1" value="30">
+  </div>
+
+  <div class="control-group">
+    <label>Outer ring width <span class="val" id="outerRingWidth-val"></span></label>
+    <input type="range" id="outerRingWidth" min="1" max="20" step="0.5" value="4">
+  </div>
+
+  <div class="section-title">Text</div>
+
+  <div class="control-group">
+    <label>Chinese text size <span class="val" id="textSizeUpper-val"></span></label>
+    <input type="range" id="textSizeUpper" min="8" max="40" step="1" value="22">
+  </div>
+
+  <div class="control-group">
+    <label>Latin text size <span class="val" id="textSizeLower-val"></span></label>
+    <input type="range" id="textSizeLower" min="8" max="40" step="1" value="16">
+  </div>
+
+  <div class="control-group">
+    <label>Upper text offset <span class="val" id="textOffsetUpper-val"></span></label>
+    <input type="range" id="textOffsetUpper" min="-20" max="20" step="1" value="0">
+    <div class="description">Positive = outward from band center</div>
+  </div>
+
+  <div class="control-group">
+    <label>Lower text offset <span class="val" id="textOffsetLower-val"></span></label>
+    <input type="range" id="textOffsetLower" min="-20" max="20" step="1" value="0">
+  </div>
+
+  <div class="control-group">
+    <label>Lower letter spacing <span class="val" id="textLetterSpacingLower-val"></span></label>
+    <input type="range" id="textLetterSpacingLower" min="0" max="15" step="0.5" value="3">
+  </div>
+
+  <div class="section-title">Spokes</div>
+
+  <div class="control-group">
+    <label>Spoke length <span class="val" id="spokeLength-val"></span></label>
+    <input type="range" id="spokeLength" min="10" max="100" step="1" value="40">
+  </div>
+
+  <div class="control-group">
+    <label>Spoke width <span class="val" id="spokeWidth-val"></span></label>
+    <input type="range" id="spokeWidth" min="1" max="20" step="0.5" value="6">
+  </div>
+
+  <div class="section-title">Ornamental Tips</div>
+
+  <div class="control-group">
+    <label>Cardinal tip length <span class="val" id="cardinalTipLength-val"></span></label>
+    <input type="range" id="cardinalTipLength" min="5" max="60" step="1" value="25">
+  </div>
+
+  <div class="control-group">
+    <label>Cardinal tip width <span class="val" id="cardinalTipWidth-val"></span></label>
+    <input type="range" id="cardinalTipWidth" min="3" max="40" step="1" value="14">
+  </div>
+
+  <div class="control-group">
+    <label>Diagonal tip length <span class="val" id="diagonalTipLength-val"></span></label>
+    <input type="range" id="diagonalTipLength" min="5" max="60" step="1" value="16">
+  </div>
+
+  <div class="control-group">
+    <label>Diagonal tip width <span class="val" id="diagonalTipWidth-val"></span></label>
+    <input type="range" id="diagonalTipWidth" min="3" max="30" step="1" value="10">
+  </div>
+
+  <div class="section-title">Colors</div>
+
+  <div class="color-row">
+    <span>Stroke / dark</span>
+    <input type="color" id="strokeColor" value="#000000">
+  </div>
+  <div class="color-row">
+    <span>Fill light</span>
+    <input type="color" id="fillLight" value="#ffffff">
+  </div>
+  <div class="color-row">
+    <span>Fill dark</span>
+    <input type="color" id="fillDark" value="#000000">
+  </div>
+
+  <div class="section-title">Background</div>
+
+  <div class="checkbox-row">
+    <input type="checkbox" id="transparentBg">
+    <label for="transparentBg">Transparent background</label>
+  </div>
+  <div class="color-row">
+    <span>Background color</span>
+    <input type="color" id="bgColor" value="#ffffff">
+  </div>
+
+  <div class="section-title">Persistence</div>
+
+  <div class="btn-row">
+    <button class="action-btn" id="save-btn">Save Parameters</button>
+    <button class="action-btn secondary" id="load-btn">Load Parameters</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Live Preview -->
+  <div class="preview-area">
+    <div class="preview-box">
+      <svg id="main-preview" width="400" height="400"></svg>
+      <div class="label">Live preview</div>
+    </div>
+  </div>
+
+  <!-- Pixel Diff Comparison -->
+  <div class="diff-section">
+    <h2>Pixel Diff Comparison</h2>
+    <div class="ref-input-row">
+      <label class="action-btn secondary" style="cursor:pointer">
+        Load reference PNG
+        <input type="file" id="ref-image-input" accept="image/*" style="display:none">
+      </label>
+      <span class="ref-status" id="ref-status">No reference loaded</span>
+    </div>
+    <div class="diff-canvases">
+      <div class="canvas-box">
+        <canvas id="ref-canvas" width="250" height="250"></canvas>
+        <div class="canvas-label">Reference</div>
+      </div>
+      <div class="canvas-box">
+        <canvas id="gen-canvas" width="250" height="250"></canvas>
+        <div class="canvas-label">Generated</div>
+      </div>
+      <div class="canvas-box">
+        <canvas id="diff-canvas" width="250" height="250"></canvas>
+        <div class="canvas-label">Diff heatmap</div>
+      </div>
+    </div>
+    <div>RMSE: <span class="rmse-display" id="rmse-score">—</span></div>
+  </div>
+
+  <!-- SVG Output -->
+  <div class="output-section">
+    <h2>SVG Output</h2>
+    <textarea class="path-output" id="svg-output" readonly></textarea>
+    <div class="btn-row">
+      <button class="action-btn" id="copy-svg-btn">Copy SVG</button>
+      <button class="action-btn secondary" id="download-png-192">Download PNG 192×192</button>
+      <button class="action-btn secondary" id="download-png-512">Download PNG 512×512</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="export-canvas" style="display:none"></canvas>
+<script type="module" src="build/iliqchuan-logo-maker.js"></script>
+</body>
+</html>
