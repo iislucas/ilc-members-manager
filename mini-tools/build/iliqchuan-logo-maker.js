@@ -42,7 +42,6 @@ function getParams() {
         innerRingWidth: numVal('innerRingWidth'),
         innerRingGap: numVal('innerRingGap'),
         textBandWidth: numVal('textBandWidth'),
-        scallopRadius: numVal('scallopRadius'),
         outerRingGap: numVal('outerRingGap'),
         outerRingWidth: numVal('outerRingWidth'),
         textSizeUpper: numVal('textSizeUpper'),
@@ -92,7 +91,6 @@ function loadParams() {
         setInputVal('innerRingWidth', p.innerRingWidth);
         setInputVal('innerRingGap', p.innerRingGap ?? 4);
         setInputVal('textBandWidth', p.textBandWidth);
-        setInputVal('scallopRadius', p.scallopRadius ?? 4);
         setInputVal('outerRingGap', p.outerRingGap ?? 2);
         setInputVal('outerRingWidth', p.outerRingWidth);
         setInputVal('textSizeUpper', p.textSizeUpper);
@@ -187,17 +185,6 @@ function buildRingsSvg(cx, cy, p) {
     const parts = [];
     // Filled dark annulus for text band background
     parts.push(`<path d="${annulusPath}" fill="${p.fillDark}" fill-rule="evenodd"/>`);
-    // Scalloped / cloud-border decoration at the inner ring edge.
-    // We draw white circles to cut wavy bites out of the dark text band.
-    const scallops = 24;
-    const scallopR = p.scallopRadius; // bump radius
-    const scallopBaseR = bandInnerR; // on the inner edge of text band
-    for (let i = 0; i < scallops; i++) {
-        const a = (i / scallops) * Math.PI * 2;
-        const bx = cx + scallopBaseR * Math.cos(a);
-        const by = cy + scallopBaseR * Math.sin(a);
-        parts.push(`<circle cx="${bx}" cy="${by}" r="${scallopR}" fill="${p.fillLight}" stroke="none"/>`);
-    }
     // Inner border ring
     if (p.innerRingWidth > 0) {
         parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerRingCenterR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.innerRingWidth}"/>`);
@@ -547,36 +534,61 @@ async function computeRMSEFast(p, maskParamKeys) {
 // ---------------------------------------------------------------------------
 // Hill-climbing optimizer (coordinate descent)
 // ---------------------------------------------------------------------------
-// Numeric slider IDs eligible for auto-optimization.
-// User-only params (excluded from optimization):
-//   - yinYangRotation: dots must stay vertically aligned
-//   - colors (strokeColor, fillLight, fillDark, bgColor): structural, not tunable
-//   - transparentBg: boolean, not numeric
-const OPTIMIZABLE_PARAMS = [
-    { id: 'yinYangRadius', step: 1 },
-    { id: 'yinYangEyeRadius', step: 1 },
-    { id: 'yinYangEyePosition', step: 1 },
-    // yinYangRotation deliberately excluded — user-only
-    { id: 'innerRingWidth', step: 0.5 },
-    { id: 'innerRingGap', step: 0.5 },
-    { id: 'textBandWidth', step: 1 },
-    { id: 'scallopRadius', step: 0.5 },
-    { id: 'outerRingGap', step: 0.5 },
-    { id: 'outerRingWidth', step: 0.5 },
-    { id: 'textSizeUpper', step: 1 },
-    { id: 'textSizeLower', step: 1 },
-    { id: 'textOffsetUpper', step: 1 },
-    { id: 'textOffsetLower', step: 1 },
-    { id: 'textLetterSpacingLower', step: 0.5 },
-    { id: 'spokeLength', step: 1 },
-    { id: 'spokeWidth', step: 0.5 },
-    { id: 'cardinalTipLength', step: 1 },
-    { id: 'cardinalTipWidth', step: 1 },
-    { id: 'diagonalTipLength', step: 1 },
-    { id: 'diagonalTipWidth', step: 1 },
+// The optimization sequence proceeds in stages to build outwards.
+// For each stage, we use a radial mask bounding the outer edge of its components.
+export const STAGES = [
+    {
+        name: 'Center',
+        maskKeys: ['yinYangRadius'],
+        params: [
+            { id: 'yinYangRadius', step: 1 },
+            { id: 'yinYangEyeRadius', step: 1 },
+            { id: 'yinYangEyePosition', step: 1 },
+        ],
+    },
+    {
+        name: 'Inner Rings',
+        maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap'],
+        params: [
+            { id: 'innerRingWidth', step: 0.5 },
+            { id: 'innerRingGap', step: 0.5 },
+        ],
+    },
+    {
+        name: 'Band',
+        maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth'],
+        params: [
+            { id: 'textBandWidth', step: 1 },
+        ],
+    },
+    {
+        name: 'Outer Rings',
+        maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth'],
+        params: [
+            { id: 'outerRingGap', step: 0.5 },
+            { id: 'outerRingWidth', step: 0.5 },
+        ],
+    },
+    {
+        name: 'Decorations',
+        maskKeys: [], // unlimited
+        params: [
+            { id: 'textSizeUpper', step: 1 },
+            { id: 'textSizeLower', step: 1 },
+            { id: 'textOffsetUpper', step: 1 },
+            { id: 'textOffsetLower', step: 1 },
+            { id: 'textLetterSpacingLower', step: 0.5 },
+            { id: 'spokeLength', step: 1 },
+            { id: 'spokeWidth', step: 0.5 },
+            { id: 'cardinalTipLength', step: 1 },
+            { id: 'cardinalTipWidth', step: 1 },
+            { id: 'diagonalTipLength', step: 1 },
+            { id: 'diagonalTipWidth', step: 1 },
+        ],
+    },
 ];
 let optimizing = false;
-async function runOptimization() {
+async function runOptimization(stagesToRun = STAGES) {
     if (!referenceImage) {
         $('opt-status').textContent = 'Load a reference image first!';
         return;
@@ -589,62 +601,10 @@ async function runOptimization() {
     const btn = $('opt-btn');
     btn.textContent = '⏹ Stop';
     const statusEl = $('opt-status');
-    const STAGES = [
-        {
-            name: 'Center',
-            maskKeys: ['yinYangRadius'],
-            params: [
-                { id: 'yinYangRadius', step: 1 },
-                { id: 'yinYangEyeRadius', step: 1 },
-                { id: 'yinYangEyePosition', step: 1 },
-            ],
-        },
-        {
-            name: 'Inner Rings',
-            maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap'],
-            params: [
-                { id: 'innerRingWidth', step: 0.5 },
-                { id: 'innerRingGap', step: 0.5 },
-            ],
-        },
-        {
-            name: 'Band & Scallops',
-            maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth'],
-            params: [
-                { id: 'textBandWidth', step: 1 },
-                { id: 'scallopRadius', step: 0.5 },
-            ],
-        },
-        {
-            name: 'Outer Rings',
-            maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth'],
-            params: [
-                { id: 'outerRingGap', step: 0.5 },
-                { id: 'outerRingWidth', step: 0.5 },
-            ],
-        },
-        {
-            name: 'Decorations',
-            maskKeys: [], // unlimited
-            params: [
-                { id: 'textSizeUpper', step: 1 },
-                { id: 'textSizeLower', step: 1 },
-                { id: 'textOffsetUpper', step: 1 },
-                { id: 'textOffsetLower', step: 1 },
-                { id: 'textLetterSpacingLower', step: 0.5 },
-                { id: 'spokeLength', step: 1 },
-                { id: 'spokeWidth', step: 0.5 },
-                { id: 'cardinalTipLength', step: 1 },
-                { id: 'cardinalTipWidth', step: 1 },
-                { id: 'diagonalTipLength', step: 1 },
-                { id: 'diagonalTipWidth', step: 1 },
-            ],
-        },
-    ];
     let combined = 0;
     const maxPasses = 5;
     let stageIndex = 0;
-    for (const stage of STAGES) {
+    for (const stage of stagesToRun) {
         if (!optimizing)
             break;
         stageIndex++;
@@ -740,7 +700,6 @@ function updateLabels(p) {
     $('innerRingWidth-val').textContent = String(p.innerRingWidth);
     $('innerRingGap-val').textContent = String(p.innerRingGap);
     $('textBandWidth-val').textContent = String(p.textBandWidth);
-    $('scallopRadius-val').textContent = String(p.scallopRadius);
     $('outerRingGap-val').textContent = String(p.outerRingGap);
     $('outerRingWidth-val').textContent = String(p.outerRingWidth);
     $('textSizeUpper-val').textContent = String(p.textSizeUpper);
@@ -801,7 +760,7 @@ function init() {
     // Wire up all range/color inputs
     const controlIds = [
         'yinYangRadius', 'yinYangEyeRadius', 'yinYangEyePosition', 'yinYangRotation',
-        'innerRingWidth', 'innerRingGap', 'textBandWidth', 'scallopRadius', 'outerRingGap', 'outerRingWidth',
+        'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
         'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
         'spokeLength', 'spokeWidth',
         'cardinalTipLength', 'cardinalTipWidth', 'diagonalTipLength', 'diagonalTipWidth',
@@ -832,7 +791,72 @@ function init() {
     $('download-png-192').addEventListener('click', () => downloadPng(192));
     $('download-png-512').addEventListener('click', () => downloadPng(512));
     // Optimize button
-    $('opt-btn').addEventListener('click', runOptimization);
+    $('opt-btn').addEventListener('click', () => runOptimization());
+    // Inject per-property optimize buttons
+    controlIds.forEach(id => {
+        let stageForParam = STAGES.find(s => s.params.some(p => p.id === id));
+        if (stageForParam) {
+            const label = $(`${id}-val`)?.parentElement;
+            if (label) {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn-small';
+                btn.textContent = '⚡';
+                btn.title = 'Optimize this property';
+                btn.addEventListener('click', () => {
+                    const paramDef = stageForParam.params.find(p => p.id === id);
+                    runOptimization([{
+                            name: `Optimize ${id}`,
+                            maskKeys: stageForParam.maskKeys,
+                            params: [paramDef]
+                        }]);
+                });
+                label.appendChild(btn);
+            }
+        }
+    });
+    // Inject per-group optimize buttons
+    document.querySelectorAll('.section-title').forEach(section => {
+        const sectionName = section.textContent?.trim() || '';
+        const paramsInGroup = [];
+        let nextEl = section.nextElementSibling;
+        while (nextEl && !nextEl.classList.contains('section-title')) {
+            if (nextEl.classList.contains('control-group')) {
+                const input = nextEl.querySelector('input[type="range"]');
+                if (input && input.id) {
+                    const id = input.id;
+                    const stageForParam = STAGES.find(s => s.params.some(p => p.id === id));
+                    if (stageForParam) {
+                        paramsInGroup.push({
+                            id: id,
+                            step: stageForParam.params.find(p => p.id === id).step
+                        });
+                    }
+                }
+            }
+            nextEl = nextEl.nextElementSibling;
+        }
+        if (paramsInGroup.length > 0) {
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn-small group-opt';
+            btn.innerHTML = '⚡ Opt';
+            btn.title = `Optimize all in ${sectionName}`;
+            btn.addEventListener('click', () => {
+                const stagesToRun = STAGES.map(s => {
+                    const matchingParams = s.params.filter(sp => paramsInGroup.some(pg => pg.id === sp.id));
+                    if (matchingParams.length > 0) {
+                        return {
+                            name: `${s.name} (${sectionName})`,
+                            maskKeys: s.maskKeys,
+                            params: matchingParams
+                        };
+                    }
+                    return null;
+                }).filter(s => s !== null);
+                runOptimization(stagesToRun);
+            });
+            section.appendChild(btn);
+        }
+    });
     // Reference image for pixel diff
     const refInput = $('ref-image-input');
     refInput.addEventListener('change', () => {
