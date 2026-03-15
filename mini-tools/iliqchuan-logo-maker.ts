@@ -30,7 +30,6 @@ interface LogoParams {
   yinYangRotation: number; // degrees
 
   // Rings
-  yinYangGap: number;
   innerRingWidth: number;
   innerRingGap: number;
   textBandWidth: number;
@@ -92,7 +91,6 @@ function getParams(): LogoParams {
     yinYangEyePosition: numVal('yinYangEyePosition') / 100,
     yinYangRotation: numVal('yinYangRotation'),
 
-    yinYangGap: numVal('yinYangGap'),
     innerRingWidth: numVal('innerRingWidth'),
     innerRingGap: numVal('innerRingGap'),
     textBandWidth: numVal('textBandWidth'),
@@ -149,7 +147,6 @@ function loadParams(): void {
     setInputVal('yinYangEyeRadius', p.yinYangEyeRadius);
     setInputVal('yinYangEyePosition', p.yinYangEyePosition * 100);
     setInputVal('yinYangRotation', p.yinYangRotation);
-    setInputVal('yinYangGap', p.yinYangGap ?? 2);
     setInputVal('innerRingWidth', p.innerRingWidth);
     setInputVal('innerRingGap', p.innerRingGap ?? 4);
     setInputVal('textBandWidth', p.textBandWidth);
@@ -220,7 +217,8 @@ function buildYinYangSvg(cx: number, cy: number, p: LogoParams): string {
     parts.push(`<circle cx="${cx}" cy="${cy + eyeOffset}" r="${p.yinYangEyeRadius}" fill="${p.fillLight}"/>`);
   }
   // Border
-  parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${p.strokeColor}" stroke-width="1.5"/>`);
+  const yinYangBorderWidth = 1.5;
+  parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${p.strokeColor}" stroke-width="${yinYangBorderWidth}"/>`);
 
   // Wrap in rotation group
   if (p.yinYangRotation !== 0) {
@@ -231,8 +229,11 @@ function buildYinYangSvg(cx: number, cy: number, p: LogoParams): string {
 
 // Rings: dark filled text band annulus + border rings + scalloped inner edge.
 function buildRingsSvg(cx: number, cy: number, p: LogoParams): string {
-  const innerRingCenterR = p.yinYangRadius + p.yinYangGap + p.innerRingWidth / 2;
-  const bandInnerR = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap;
+  const yinYangBorderWidth = 1.5;
+  const yinYangOuterR = p.yinYangRadius + yinYangBorderWidth / 2; // Exact geometric edge of the black border
+  
+  const innerRingCenterR = yinYangOuterR + p.innerRingWidth / 2;
+  const bandInnerR = yinYangOuterR + p.innerRingWidth + p.innerRingGap;
   const bandOuterR = bandInnerR + p.textBandWidth;
   const outerRingCenterR = bandOuterR + p.outerRingGap + p.outerRingWidth / 2;
 
@@ -279,7 +280,9 @@ function buildRingsSvg(cx: number, cy: number, p: LogoParams): string {
 // Text along circular arcs using <textPath>.
 function buildTextSvg(cx: number, cy: number, p: LogoParams): string {
   // The text band center radius
-  const bandInnerR = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap;
+  const yinYangBorderWidth = 1.5;
+  const yinYangOuterR = p.yinYangRadius + yinYangBorderWidth / 2;
+  const bandInnerR = yinYangOuterR + p.innerRingWidth + p.innerRingGap;
   const bandCenterR = bandInnerR + p.textBandWidth / 2;
   const parts: string[] = [];
 
@@ -310,7 +313,8 @@ function buildTextSvg(cx: number, cy: number, p: LogoParams): string {
 
 // 8 spokes radiating from the outer ring.
 function buildSpokesSvg(cx: number, cy: number, p: LogoParams): string {
-  const outerRingOuterEdge = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
+  const yinYangBorderWidth = 1.5;
+  const outerRingOuterEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
   const parts: string[] = [];
 
   for (let i = 0; i < 8; i++) {
@@ -344,7 +348,8 @@ function buildSpokesSvg(cx: number, cy: number, p: LogoParams): string {
 // Cardinal (N,E,S,W) - vajra/scepter shape with pointed tip, waist, and lobed shoulders
 // Diagonal (NE,SE,SW,NW) - smaller simple diamond
 function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
-  const outerRingOuterEdge = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
+  const yinYangBorderWidth = 1.5;
+  const outerRingOuterEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
   const tipStart = outerRingOuterEdge + p.spokeLength;
   const parts: string[] = [];
 
@@ -429,7 +434,8 @@ function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
 // ---------------------------------------------------------------------------
 
 function computeViewSize(p: LogoParams): number {
-  const outerEdge = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
+  const yinYangBorderWidth = 1.5;
+  const outerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
   const fullR = outerEdge + p.spokeLength + Math.max(p.cardinalTipLength, p.diagonalTipLength);
   return Math.ceil(fullR * 2 + 20); // 10px padding each side
 }
@@ -447,7 +453,8 @@ function buildFullSvg(p: LogoParams, size?: number): string {
   }
 
   // Solid white interior background (so gaps are white, not transparent!)
-  const outerEdge = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
+  const yinYangBorderWidth = 1.5;
+  const outerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
   parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="${p.fillLight}" stroke="none"/>`);
 
   // Build layers inside-out
@@ -674,7 +681,6 @@ const OPTIMIZABLE_PARAMS: Array<{id: string, step: number}> = [
   { id: 'yinYangEyeRadius', step: 1 },
   { id: 'yinYangEyePosition', step: 1 },
   // yinYangRotation deliberately excluded — user-only
-  { id: 'yinYangGap', step: 0.5 },
   { id: 'innerRingWidth', step: 0.5 },
   { id: 'innerRingGap', step: 0.5 },
   { id: 'textBandWidth', step: 1 },
@@ -722,16 +728,15 @@ async function runOptimization(): Promise<void> {
     },
     {
       name: 'Inner Rings',
-      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap'],
+      maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap'],
       params: [
-        { id: 'yinYangGap', step: 0.5 },
         { id: 'innerRingWidth', step: 0.5 },
         { id: 'innerRingGap', step: 0.5 },
       ],
     },
     {
       name: 'Band & Scallops',
-      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap', 'textBandWidth'],
+      maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth'],
       params: [
         { id: 'textBandWidth', step: 1 },
         { id: 'scallopRadius', step: 0.5 },
@@ -739,7 +744,7 @@ async function runOptimization(): Promise<void> {
     },
     {
       name: 'Outer Rings',
-      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth'],
+      maskKeys: ['yinYangRadius', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth'],
       params: [
         { id: 'outerRingGap', step: 0.5 },
         { id: 'outerRingWidth', step: 0.5 },
@@ -880,7 +885,6 @@ function updateLabels(p: LogoParams): void {
   $('yinYangEyeRadius-val').textContent = String(p.yinYangEyeRadius);
   $('yinYangEyePosition-val').textContent = (p.yinYangEyePosition * 100).toFixed(0) + '%';
   $('yinYangRotation-val').textContent = p.yinYangRotation + '°';
-  $('yinYangGap-val').textContent = String(p.yinYangGap);
   $('innerRingWidth-val').textContent = String(p.innerRingWidth);
   $('innerRingGap-val').textContent = String(p.innerRingGap);
   $('textBandWidth-val').textContent = String(p.textBandWidth);
@@ -955,7 +959,7 @@ function init(): void {
   // Wire up all range/color inputs
   const controlIds = [
     'yinYangRadius', 'yinYangEyeRadius', 'yinYangEyePosition', 'yinYangRotation',
-    'yinYangGap', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'scallopRadius', 'outerRingGap', 'outerRingWidth',
+    'innerRingWidth', 'innerRingGap', 'textBandWidth', 'scallopRadius', 'outerRingGap', 'outerRingWidth',
     'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
     'spokeLength', 'spokeWidth',
     'cardinalTipLength', 'cardinalTipWidth', 'diagonalTipLength', 'diagonalTipWidth',
