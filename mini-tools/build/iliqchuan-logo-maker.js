@@ -198,9 +198,13 @@ function buildRingsSvg(cx, cy, p) {
         parts.push(`<circle cx="${bx}" cy="${by}" r="${scallopR}" fill="${p.fillLight}" stroke="none"/>`);
     }
     // Inner border ring
-    parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerRingCenterR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.innerRingWidth}"/>`);
+    if (p.innerRingWidth > 0) {
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${innerRingCenterR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.innerRingWidth}"/>`);
+    }
     // Outer border ring
-    parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerRingCenterR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth}"/>`);
+    if (p.outerRingWidth > 0) {
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerRingCenterR}" fill="none" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth}"/>`);
+    }
     return parts.join('');
 }
 // Text along circular arcs using <textPath>.
@@ -349,6 +353,9 @@ function buildFullSvg(p, size) {
     if (!p.transparentBg) {
         parts.push(`<rect width="${viewSize}" height="${viewSize}" fill="${p.bgColor}"/>`);
     }
+    // Solid white interior background (so gaps are white, not transparent!)
+    const outerEdge = p.yinYangRadius + p.yinYangGap + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="${p.fillLight}" stroke="none"/>`);
     // Build layers inside-out
     parts.push(buildYinYangSvg(cx, cy, p));
     parts.push(buildRingsSvg(cx, cy, p));

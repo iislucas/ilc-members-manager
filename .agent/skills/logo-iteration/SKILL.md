@@ -70,6 +70,8 @@ Consider when to break up elements and optimize them independently (e.g. when te
 
 If some value is at the min or max of it's parameter range, consider if the range should be expanded, or if the initial settings are wrong, or something is misplaced leading to the auto-optimization not working well for that aspect. If this happens, think about some change in structure to improve initial settings. e.g. did we add too many cirlces or are we missing one?
 
+Note: All elements in the logo should always exist and have non-zero size. If they get set to zero, consider if the range should be expanded or the element should be removed.
+
 ### Step 4: Verify
 
 - If using `--watch`, the TS compiler auto-recompiles; otherwise run the compile command
