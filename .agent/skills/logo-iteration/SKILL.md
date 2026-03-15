@@ -68,6 +68,8 @@ Make sure the code has appropriate and enough comments to explain the logic. Mak
 
 Consider when to break up elements and optimize them independently (e.g. when text should be broken up into individual words or letters and optimized independently, rather than collectively). This is especially relevant when the auto-optimization is not working well for some aspect of the image.
 
+If some value is at the min or max of it's parameter range, consider if the range should be expanded, or if the initial settings are wrong, or something is misplaced leading to the auto-optimization not working well for that aspect. If this happens, think about some change in structure to improve initial settings. e.g. did we add too many cirlces or are we missing one?
+
 ### Step 4: Verify
 
 - If using `--watch`, the TS compiler auto-recompiles; otherwise run the compile command

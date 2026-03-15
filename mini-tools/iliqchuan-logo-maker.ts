@@ -568,7 +568,7 @@ async function updateDiff(p: LogoParams): Promise<{color: number, alpha: number}
 // Fast offscreen RMSE computation (for optimization)
 // ---------------------------------------------------------------------------
 
-async function computeRMSEFast(p: LogoParams): Promise<{color: number, alpha: number}> {
+async function computeRMSEFast(p: LogoParams, maskParamKeys?: Array<keyof LogoParams>): Promise<{color: number, alpha: number}> {
   if (!referenceImage) return { color: Infinity, alpha: Infinity };
 
   const size = 200; // smaller for speed during optimization
@@ -597,11 +597,38 @@ async function computeRMSEFast(p: LogoParams): Promise<{color: number, alpha: nu
 
   const refData = refCtx.getImageData(0, 0, size, size).data;
   const genData = genCtx.getImageData(0, 0, size, size).data;
-  const totalPixels = size * size;
+  
+  // Calculate mask radius
+  let activePixels = 0;
+  let maskRadiusSq = Infinity;
+  if (maskParamKeys && maskParamKeys.length > 0) {
+    let maskR = 0;
+    for (const key of maskParamKeys) {
+      if (typeof p[key] === 'number') {
+        maskR += p[key] as number;
+      }
+    }
+    // Add padding for strokes
+    maskR += 2;
+    // Map mask to the scaled image size
+    const viewSize = computeViewSize(p);
+    const scaledMaskR = maskR * (size / viewSize);
+    maskRadiusSq = scaledMaskR * scaledMaskR;
+  }
+  const cx = size / 2;
+  const cy = size / 2;
 
   let sumSqColor = 0;
   let sumSqAlpha = 0;
   for (let i = 0; i < refData.length; i += 4) {
+    if (maskRadiusSq !== Infinity) {
+      const px = (i / 4) % size;
+      const py = Math.floor((i / 4) / size);
+      const distSq = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+      if (distSq > maskRadiusSq) continue;
+    }
+    activePixels++;
+
     const dr = Math.abs(refData[i] - genData[i]);
     const dg = Math.abs(refData[i + 1] - genData[i + 1]);
     const db = Math.abs(refData[i + 2] - genData[i + 2]);
@@ -617,9 +644,11 @@ async function computeRMSEFast(p: LogoParams): Promise<{color: number, alpha: nu
     sumSqAlpha += da * da;
   }
 
+  if (activePixels === 0) activePixels = 1;
+
   return {
-    color: Math.sqrt(sumSqColor / totalPixels),
-    alpha: Math.sqrt(sumSqAlpha / totalPixels),
+    color: Math.sqrt(sumSqColor / activePixels),
+    alpha: Math.sqrt(sumSqAlpha / activePixels),
   };
 }
 
@@ -673,71 +702,131 @@ async function runOptimization(): Promise<void> {
   btn.textContent = '⏹ Stop';
   const statusEl = $('opt-status');
 
-  let baseRMSE = await computeRMSEFast(getParams());
-  let combined = baseRMSE.color + baseRMSE.alpha;
-  statusEl.textContent = `Starting: ${combined.toFixed(2)}`;
+  const STAGES: Array<{ name: string, maskKeys: Array<keyof LogoParams>, params: Array<{id: keyof LogoParams, step: number}> }> = [
+    {
+      name: 'Center',
+      maskKeys: ['yinYangRadius'],
+      params: [
+        { id: 'yinYangRadius', step: 1 },
+        { id: 'yinYangEyeRadius', step: 1 },
+        { id: 'yinYangEyePosition', step: 1 },
+      ],
+    },
+    {
+      name: 'Inner Rings',
+      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap'],
+      params: [
+        { id: 'yinYangGap', step: 0.5 },
+        { id: 'innerRingWidth', step: 0.5 },
+        { id: 'innerRingGap', step: 0.5 },
+      ],
+    },
+    {
+      name: 'Band & Scallops',
+      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap', 'textBandWidth'],
+      params: [
+        { id: 'textBandWidth', step: 1 },
+        { id: 'scallopRadius', step: 0.5 },
+      ],
+    },
+    {
+      name: 'Outer Rings',
+      maskKeys: ['yinYangRadius', 'yinYangGap', 'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth'],
+      params: [
+        { id: 'outerRingGap', step: 0.5 },
+        { id: 'outerRingWidth', step: 0.5 },
+      ],
+    },
+    {
+      name: 'Decorations',
+      maskKeys: [], // unlimited
+      params: [
+        { id: 'textSizeUpper', step: 1 },
+        { id: 'textSizeLower', step: 1 },
+        { id: 'textOffsetUpper', step: 1 },
+        { id: 'textOffsetLower', step: 1 },
+        { id: 'textLetterSpacingLower', step: 0.5 },
+        { id: 'spokeLength', step: 1 },
+        { id: 'spokeWidth', step: 0.5 },
+        { id: 'cardinalTipLength', step: 1 },
+        { id: 'cardinalTipWidth', step: 1 },
+        { id: 'diagonalTipLength', step: 1 },
+        { id: 'diagonalTipWidth', step: 1 },
+      ],
+    },
+  ];
 
-  const maxPasses = 10;
-  for (let pass = 0; pass < maxPasses && optimizing; pass++) {
-    let improved = false;
+  let combined = 0;
+  const maxPasses = 5;
+  let stageIndex = 0;
+  
+  for (const stage of STAGES) {
+    if (!optimizing) break;
+    stageIndex++;
 
-    for (const param of OPTIMIZABLE_PARAMS) {
-      if (!optimizing) break;
+    for (let pass = 0; pass < maxPasses && optimizing; pass++) {
+      let improved = false;
 
-      const el = $(param.id) as HTMLInputElement;
-      const min = parseFloat(el.min);
-      const max = parseFloat(el.max);
-      const current = parseFloat(el.value);
+      for (const param of stage.params) {
+        if (!optimizing) break;
 
-      let bestVal = current;
-      let bestCombined = combined;
+        const el = $(param.id) as HTMLInputElement;
+        const min = parseFloat(el.min);
+        const max = parseFloat(el.max);
+        const current = parseFloat(el.value);
 
-      // Try stepping up
-      const upVal = Math.min(max, current + param.step);
-      if (upVal !== current) {
-        el.value = String(upVal);
-        const upRMSE = await computeRMSEFast(getParams());
-        const upCombined = upRMSE.color + upRMSE.alpha;
-        if (upCombined < bestCombined) {
-          bestVal = upVal;
-          bestCombined = upCombined;
+        let bestVal = current;
+        const baseRMSE = await computeRMSEFast(getParams(), stage.maskKeys);
+        let bestCombined = baseRMSE.color + baseRMSE.alpha;
+
+        // Try stepping up
+        const upVal = Math.min(max, current + param.step);
+        if (upVal !== current) {
+          el.value = String(upVal);
+          const upRMSE = await computeRMSEFast(getParams(), stage.maskKeys);
+          const upCombined = upRMSE.color + upRMSE.alpha;
+          if (upCombined < bestCombined) {
+            bestVal = upVal;
+            bestCombined = upCombined;
+          }
         }
-      }
 
-      // Try stepping down
-      const downVal = Math.max(min, current - param.step);
-      if (downVal !== current) {
-        el.value = String(downVal);
-        const downRMSE = await computeRMSEFast(getParams());
-        const downCombined = downRMSE.color + downRMSE.alpha;
-        if (downCombined < bestCombined) {
-          bestVal = downVal;
-          bestCombined = downCombined;
+        // Try stepping down
+        const downVal = Math.max(min, current - param.step);
+        if (downVal !== current) {
+          el.value = String(downVal);
+          const downRMSE = await computeRMSEFast(getParams(), stage.maskKeys);
+          const downCombined = downRMSE.color + downRMSE.alpha;
+          if (downCombined < bestCombined) {
+            bestVal = downVal;
+            bestCombined = downCombined;
+          }
         }
-      }
 
-      // Apply best
-      el.value = String(bestVal);
-      if (bestVal !== current) {
+        // Apply best
+        el.value = String(bestVal);
+        if (bestVal !== current) {
+          improved = true;
+        }
+
+        statusEl.textContent = `Stage ${stageIndex}/${STAGES.length}: ${stage.name} | Pass ${pass + 1}/${maxPasses} | ${param.id}`;
         combined = bestCombined;
-        improved = true;
+
+        // Yield to browser for UI updates
+        await new Promise(r => setTimeout(r, 0));
       }
 
-      statusEl.textContent = `Pass ${pass + 1}/${maxPasses} | ${param.id}: ${bestVal} | RMSE: ${combined.toFixed(2)}`;
+      // Full visual update after each pass
+      update();
+      await new Promise(r => setTimeout(r, 50));
 
-      // Yield to browser for UI updates
-      await new Promise(r => setTimeout(r, 0));
-    }
-
-    // Full visual update after each pass
-    update();
-    await new Promise(r => setTimeout(r, 50));
-
-    if (!improved) {
-      statusEl.textContent = `Converged after ${pass + 1} passes! RMSE: ${combined.toFixed(2)}`;
-      break;
+      if (!improved) {
+        break; // Converged early on this stage
+      }
     }
   }
+
+  statusEl.textContent = `Finished! RMSE: ${combined.toFixed(2)}`;
 
   optimizing = false;
   btn.textContent = '⚡ Optimize';
