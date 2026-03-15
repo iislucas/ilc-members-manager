@@ -277,49 +277,75 @@ function buildTipsSvg(cx, cy, p) {
         const sin = Math.sin(angle);
         const perpCos = Math.cos(angle + Math.PI / 2);
         const perpSin = Math.sin(angle + Math.PI / 2);
-        // Head circle scaling
-        const headR = Math.min(tipW * 0.4, tipLen * 0.5);
-        const stemLen = typeof tipLen === 'number' && typeof headR === 'number' ? tipLen - headR : 0;
-        const headDist = tipStart + stemLen;
-        const headX = cx + headDist * cos;
-        const headY = cy + headDist * sin;
-        // Side flanking circles
-        const sideR = tipW * (isCardinal ? 0.3 : 0.35);
-        const sideDist = tipStart + stemLen * (isCardinal ? 0.55 : 0.5);
-        const sideOffset = Math.max(0, tipW / 2 - sideR);
-        const leftX = cx + sideDist * cos - sideOffset * perpCos;
-        const leftY = cy + sideDist * sin - sideOffset * perpSin;
-        const rightX = cx + sideDist * cos + sideOffset * perpCos;
-        const rightY = cy + sideDist * sin + sideOffset * perpSin;
-        // Stem bridging outward
-        const baseW = tipW * 0.12;
-        // Silhouettes stay at tipStart so they connect with normal external geometry
-        const stemX1_sil = cx + tipStart * cos - baseW * perpCos;
-        const stemY1_sil = cy + tipStart * sin - baseW * perpSin;
-        const stemX2_sil = cx + tipStart * cos + baseW * perpCos;
-        const stemY2_sil = cy + tipStart * sin + baseW * perpSin;
-        // Interiors cut inward deeper to break through the ring connecting line
         const innerCut = p.spokeLength <= 1 ? p.outerRingWidth + 1.5 : 0;
-        const stemX1_int = cx + (tipStart - innerCut) * cos - baseW * perpCos;
-        const stemY1_int = cy + (tipStart - innerCut) * sin - baseW * perpSin;
-        const stemX2_int = cx + (tipStart - innerCut) * cos + baseW * perpCos;
-        const stemY2_int = cy + (tipStart - innerCut) * sin + baseW * perpSin;
-        const topX1 = cx + (tipStart + stemLen * 0.9) * cos - baseW * perpCos;
-        const topY1 = cy + (tipStart + stemLen * 0.9) * sin - baseW * perpSin;
-        const topX2 = cx + (tipStart + stemLen * 0.9) * cos + baseW * perpCos;
-        const topY2 = cy + (tipStart + stemLen * 0.9) * sin + baseW * perpSin;
-        silhouettes.push(`<polygon points="${stemX1_sil},${stemY1_sil} ${stemX2_sil},${stemY2_sil} ${topX2},${topY2} ${topX1},${topY1}"/>`);
-        interiors.push(`<polygon points="${stemX1_int},${stemY1_int} ${stemX2_int},${stemY2_int} ${topX2},${topY2} ${topX1},${topY1}"/>`);
-        if (p.spokeLength > 1) {
-            // Base circle for a nice rounded stem where it connects to a thin spoke line
-            const baseR = tipW * 0.15;
-            const baseX = cx + tipStart * cos;
-            const baseY = cy + tipStart * sin;
-            addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+        if (isCardinal) {
+            // Head circle scaling
+            const headR = Math.min(tipW * 0.4, tipLen * 0.5);
+            const stemLen = typeof tipLen === 'number' && typeof headR === 'number' ? tipLen - headR : 0;
+            const headDist = tipStart + stemLen;
+            const headX = cx + headDist * cos;
+            const headY = cy + headDist * sin;
+            // Side flanking circles
+            const sideR = tipW * 0.3;
+            const sideDist = tipStart + stemLen * 0.55;
+            const sideOffset = Math.max(0, tipW / 2 - sideR);
+            const leftX = cx + sideDist * cos - sideOffset * perpCos;
+            const leftY = cy + sideDist * sin - sideOffset * perpSin;
+            const rightX = cx + sideDist * cos + sideOffset * perpCos;
+            const rightY = cy + sideDist * sin + sideOffset * perpSin;
+            // Stem bridging outward
+            const baseW = tipW * 0.12;
+            // Silhouettes stay at tipStart so they connect with normal external geometry
+            const stemX1_sil = cx + tipStart * cos - baseW * perpCos;
+            const stemY1_sil = cy + tipStart * sin - baseW * perpSin;
+            const stemX2_sil = cx + tipStart * cos + baseW * perpCos;
+            const stemY2_sil = cy + tipStart * sin + baseW * perpSin;
+            // Interiors cut inward deeper to break through the ring connecting line
+            const stemX1_int = cx + (tipStart - innerCut) * cos - baseW * perpCos;
+            const stemY1_int = cy + (tipStart - innerCut) * sin - baseW * perpSin;
+            const stemX2_int = cx + (tipStart - innerCut) * cos + baseW * perpCos;
+            const stemY2_int = cy + (tipStart - innerCut) * sin + baseW * perpSin;
+            const topX1 = cx + (tipStart + stemLen * 0.9) * cos - baseW * perpCos;
+            const topY1 = cy + (tipStart + stemLen * 0.9) * sin - baseW * perpSin;
+            const topX2 = cx + (tipStart + stemLen * 0.9) * cos + baseW * perpCos;
+            const topY2 = cy + (tipStart + stemLen * 0.9) * sin + baseW * perpSin;
+            silhouettes.push(`<polygon points="${stemX1_sil},${stemY1_sil} ${stemX2_sil},${stemY2_sil} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+            interiors.push(`<polygon points="${stemX1_int},${stemY1_int} ${stemX2_int},${stemY2_int} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+            if (p.spokeLength > 1) {
+                // Base circle for a nice rounded stem where it connects to a thin spoke line
+                const baseR = tipW * 0.15;
+                const baseX = cx + tipStart * cos;
+                const baseY = cy + tipStart * sin;
+                addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+            }
+            addShape(`<circle cx="${headX}" cy="${headY}" r="${headR}"/>`);
+            addShape(`<circle cx="${leftX}" cy="${leftY}" r="${sideR}"/>`);
+            addShape(`<circle cx="${rightX}" cy="${rightY}" r="${sideR}"/>`);
         }
-        addShape(`<circle cx="${headX}" cy="${headY}" r="${headR}"/>`);
-        addShape(`<circle cx="${leftX}" cy="${leftY}" r="${sideR}"/>`);
-        addShape(`<circle cx="${rightX}" cy="${rightY}" r="${sideR}"/>`);
+        else {
+            // Diagonal tips: simple single perfect circle
+            const radius = tipW / 2;
+            const dist = tipStart + Math.max(0, tipLen - radius);
+            const cx_circle = cx + dist * cos;
+            const cy_circle = cy + dist * sin;
+            silhouettes.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
+            interiors.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
+            // Seamlessly connect and cut the outer ring stroke if there is no spoke gap
+            if (innerCut > 0) {
+                const d_center = dist - tipStart;
+                if (d_center < radius) {
+                    // Find width of circle intersection at the outer ring radius
+                    const cutW = Math.sqrt(radius * radius - d_center * d_center) * 0.85; // slightly narrower than true intersection
+                    const cutX1 = cx + (tipStart - innerCut) * cos - cutW * perpCos;
+                    const cutY1 = cy + (tipStart - innerCut) * sin - cutW * perpSin;
+                    const cutX2 = cx + (tipStart - innerCut) * cos + cutW * perpCos;
+                    const cutY2 = cy + (tipStart - innerCut) * sin + cutW * perpSin;
+                    const poly = `<polygon points="${cutX1},${cutY1} ${cutX2},${cutY2} ${cx_circle},${cy_circle}"/>`;
+                    silhouettes.push(poly);
+                    interiors.push(poly);
+                }
+            }
+        }
     }
     if (silhouettes.length > 0) {
         // Pass 1: Silhouette expansion (fills with dark color, strokes with dark color)
