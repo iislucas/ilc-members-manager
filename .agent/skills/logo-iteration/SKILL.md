@@ -5,7 +5,7 @@ description: Iterating on ILC logo SVG quality by comparing generated output aga
 
 # Logo Iteration Workflow
 
-Use this skill when improving the visual fidelity of the ILC logo SVG generator (source in `mini-tools/logo-maker/`).
+Use this skill when improving the visual fidelity of the ILC logo SVG generator (source in `mini-tools/logo-maker/`). The goal is not actually to get perfect fidelity, but to get close have the same fundamental elements and structure, and look great.
 
 ## Environment Setup
 
@@ -93,14 +93,14 @@ After each round, note:
 
 The logo maker source lives in `mini-tools/logo-maker/` as ES modules:
 
-| Module              | Lines | Purpose                                                              |
-| ------------------- | ----- | -------------------------------------------------------------------- |
-| `types.ts`          | ~75   | `LogoParams` interface, DOM helpers (`$`, `numVal`, `strVal`, etc.)  |
-| `params.ts`         | ~100  | `getParams()`, `saveParams()`, `loadParams()` — localStorage I/O    |
-| `svg-builders.ts`   | ~300  | All SVG geometry: yin-yang, rings, text arcs, spokes, tips, assembly |
-| `pixel-diff.ts`     | ~200  | `updateDiff()` visual heatmap, `computeRMSEFast()` for optimization |
-| `optimizer.ts`      | ~150  | `STAGES` config, `runOptimization()` hill-climbing coordinate descent|
-| `main.ts`           | ~260  | Entry point: update loop, PNG export, UI wiring, initialization     |
+| Module            | Lines | Purpose                                                               |
+| ----------------- | ----- | --------------------------------------------------------------------- |
+| `types.ts`        | ~75   | `LogoParams` interface, DOM helpers (`$`, `numVal`, `strVal`, etc.)   |
+| `params.ts`       | ~100  | `getParams()`, `saveParams()`, `loadParams()` — localStorage I/O      |
+| `svg-builders.ts` | ~300  | All SVG geometry: yin-yang, rings, text arcs, spokes, tips, assembly  |
+| `pixel-diff.ts`   | ~200  | `updateDiff()` visual heatmap, `computeRMSEFast()` for optimization   |
+| `optimizer.ts`    | ~150  | `STAGES` config, `runOptimization()` hill-climbing coordinate descent |
+| `main.ts`         | ~260  | Entry point: update loop, PNG export, UI wiring, initialization       |
 
 ### Import graph
 
@@ -121,13 +121,13 @@ main.ts
 
 ## Key Files
 
-| File                                       | Role                                          |
-| ------------------------------------------ | --------------------------------------------- |
-| `mini-tools/logo-maker/*.ts`               | Modular TypeScript source (see table above)   |
-| `mini-tools/logo-maker/tsconfig.json`      | TypeScript build config for the modules       |
-| `mini-tools/logo-maker/build/*.js`         | Compiled output (auto-generated)              |
-| `mini-tools/iliqchuan-logo-maker.html`     | UI controls with default parameter values     |
-| `public/iliqchuan-white-bg.png`            | Reference image for pixel diff                |
+| File                                   | Role                                        |
+| -------------------------------------- | ------------------------------------------- |
+| `mini-tools/logo-maker/*.ts`           | Modular TypeScript source (see table above) |
+| `mini-tools/logo-maker/tsconfig.json`  | TypeScript build config for the modules     |
+| `mini-tools/logo-maker/build/*.js`     | Compiled output (auto-generated)            |
+| `mini-tools/iliqchuan-logo-maker.html` | UI controls with default parameter values   |
+| `public/iliqchuan-white-bg.png`        | Reference image for pixel diff              |
 
 ## Tips
 
