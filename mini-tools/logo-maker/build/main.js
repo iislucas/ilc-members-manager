@@ -19,7 +19,7 @@
  */
 import { $ } from './types.js';
 import { getParams, saveParams, loadParams, hasSavedParams } from './params.js';
-import { buildYinYangSvg, buildRingsSvg, buildTextSvg, buildSpokesSvg, buildTipsSvg, buildFullSvg, computeViewSize } from './svg-builders.js';
+import { buildYinYangSvg, buildRingsSvg, buildTextSvg, buildMergedOuterBaseSvg, buildFullSvg, computeViewSize } from './svg-builders.js';
 import { updateDiff, loadReferenceImage, setReferenceImage } from './pixel-diff.js';
 import { STAGES, runOptimization } from './optimizer.js';
 // ---------------------------------------------------------------------------
@@ -96,15 +96,10 @@ function update() {
     else {
         content += `<rect width="100%" height="100%" fill="${p.bgColor}" rx="12"/>`;
     }
-    // Solid white interior background (so gaps are white, not transparent!)
-    const yinYangBorderWidth = 1.5;
-    const outerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
-    content += `<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="${p.fillLight}" stroke="none"/>`;
+    content += buildMergedOuterBaseSvg(cx, cy, p);
     content += buildYinYangSvg(cx, cy, p);
     content += buildRingsSvg(cx, cy, p);
     content += buildTextSvg(cx, cy, p);
-    content += buildSpokesSvg(cx, cy, p);
-    content += buildTipsSvg(cx, cy, p);
     previewSvg.innerHTML = content;
     // SVG output
     const fullSvg = buildFullSvg(p);
