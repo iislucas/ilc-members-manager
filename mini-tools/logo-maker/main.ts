@@ -68,6 +68,7 @@ function updateLabels(p: LogoParams): void {
   $('textBandWidth-val').textContent = String(p.textBandWidth);
   $('outerRingGap-val').textContent = String(p.outerRingGap);
   $('outerRingWidth-val').textContent = String(p.outerRingWidth);
+
   $('textSizeUpper-val').textContent = String(p.textSizeUpper);
   $('textSizeLower-val').textContent = String(p.textSizeLower);
   $('textOffsetUpper-val').textContent = String(p.textOffsetUpper);
@@ -77,6 +78,7 @@ function updateLabels(p: LogoParams): void {
   $('spokeWidth-val').textContent = String(p.spokeWidth);
   $('cardinalTipLength-val').textContent = String(p.cardinalTipLength);
   $('cardinalTipWidth-val').textContent = String(p.cardinalTipWidth);
+  $('cardinalTipConcavity-val').textContent = p.cardinalTipConcavity.toFixed(1);
   $('diagonalTipLength-val').textContent = String(p.diagonalTipLength);
   $('diagonalTipWidth-val').textContent = String(p.diagonalTipWidth);
 }
@@ -115,6 +117,7 @@ function update(): void {
   content += `<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="${p.fillLight}" stroke="none"/>`;
 
   content += buildYinYangSvg(cx, cy, p);
+
   content += buildRingsSvg(cx, cy, p);
   content += buildTextSvg(cx, cy, p);
   content += buildSpokesSvg(cx, cy, p);
@@ -141,7 +144,7 @@ function init(): void {
     'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
     'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
     'spokeLength', 'spokeWidth',
-    'cardinalTipLength', 'cardinalTipWidth', 'diagonalTipLength', 'diagonalTipWidth',
+    'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'diagonalTipLength', 'diagonalTipWidth',
     'strokeColor', 'fillLight', 'fillDark', 'bgColor',
   ];
 

@@ -68,6 +68,7 @@ function updateLabels(p) {
     $('spokeWidth-val').textContent = String(p.spokeWidth);
     $('cardinalTipLength-val').textContent = String(p.cardinalTipLength);
     $('cardinalTipWidth-val').textContent = String(p.cardinalTipWidth);
+    $('cardinalTipConcavity-val').textContent = p.cardinalTipConcavity.toFixed(1);
     $('diagonalTipLength-val').textContent = String(p.diagonalTipLength);
     $('diagonalTipWidth-val').textContent = String(p.diagonalTipWidth);
 }
@@ -121,7 +122,7 @@ function init() {
         'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
         'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
         'spokeLength', 'spokeWidth',
-        'cardinalTipLength', 'cardinalTipWidth', 'diagonalTipLength', 'diagonalTipWidth',
+        'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'diagonalTipLength', 'diagonalTipWidth',
         'strokeColor', 'fillLight', 'fillDark', 'bgColor',
     ];
     for (const id of controlIds) {

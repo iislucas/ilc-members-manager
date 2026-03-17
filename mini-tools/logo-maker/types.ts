@@ -22,6 +22,7 @@ export interface LogoParams {
   outerRingGap: number;
   outerRingWidth: number;
 
+
   // Text
   textSizeUpper: number;
   textSizeLower: number;
@@ -36,6 +37,7 @@ export interface LogoParams {
   // Tips
   cardinalTipLength: number;
   cardinalTipWidth: number;
+  cardinalTipConcavity: number; // 0 = straight sides, 1 = deeply concave sides
   diagonalTipLength: number;
   diagonalTipWidth: number;
 

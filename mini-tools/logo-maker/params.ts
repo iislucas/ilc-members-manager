@@ -22,6 +22,7 @@ export function getParams(): LogoParams {
     outerRingGap: numVal('outerRingGap'),
     outerRingWidth: numVal('outerRingWidth'),
 
+
     textSizeUpper: numVal('textSizeUpper'),
     textSizeLower: numVal('textSizeLower'),
     textOffsetUpper: numVal('textOffsetUpper'),
@@ -33,6 +34,7 @@ export function getParams(): LogoParams {
 
     cardinalTipLength: numVal('cardinalTipLength'),
     cardinalTipWidth: numVal('cardinalTipWidth'),
+    cardinalTipConcavity: numVal('cardinalTipConcavity'),
     diagonalTipLength: numVal('diagonalTipLength'),
     diagonalTipWidth: numVal('diagonalTipWidth'),
 
@@ -85,6 +87,7 @@ export function loadParams(updateFn: () => void): void {
     setInputVal('spokeWidth', p.spokeWidth);
     setInputVal('cardinalTipLength', p.cardinalTipLength);
     setInputVal('cardinalTipWidth', p.cardinalTipWidth);
+    setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);
     setInputVal('diagonalTipLength', p.diagonalTipLength);
     setInputVal('diagonalTipWidth', p.diagonalTipWidth);
     setInputVal('strokeColor', p.strokeColor);

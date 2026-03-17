@@ -97,6 +97,9 @@ export function buildRingsSvg(cx: number, cy: number, p: LogoParams): string {
 }
 
 // ---------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------
 
@@ -184,11 +187,12 @@ export function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
   const tipStart = outerRingOuterEdge + p.spokeLength;
   const parts: string[] = [];
   const silhouettes: string[] = [];
-  const interiors: string[] = [];
+  const interiorsCardinal: string[] = [];
+  const interiorsDiagonal: string[] = [];
 
   const addShape = (svgShape: string) => {
     silhouettes.push(svgShape);
-    interiors.push(svgShape);
+    interiorsCardinal.push(svgShape);
   };
 
   for (let i = 0; i < 8; i++) {
@@ -206,61 +210,84 @@ export function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
     const perpCos = Math.cos(angle + Math.PI / 2);
     const perpSin = Math.sin(angle + Math.PI / 2);
 
-    const innerCut = p.spokeLength <= 1 ? p.outerRingWidth + 1.5 : 0;
+
 
     if (isCardinal) {
-      // Head circle scaling
-      const headR = Math.min(tipW * 0.4, tipLen * 0.5);
-      const stemLen = typeof tipLen === 'number' && typeof headR === 'number' ? tipLen - headR : 0;
-      const headDist = tipStart + stemLen;
-      const headX = cx + headDist * cos;
-      const headY = cy + headDist * sin;
-
-      // Side flanking circles
-      const sideR = tipW * 0.3;
-      const sideDist = tipStart + stemLen * 0.55;
-      const sideOffset = Math.max(0, tipW / 2 - sideR);
+      // Cardinal tips:
+      // The flanking semi-circles sit exactly on the outer ring (tipStart).
+      // The central spike protrudes OUTWARD starting from between the side circles.
+      // This immediately removes the "thin neck".
       
-      const leftX = cx + sideDist * cos - sideOffset * perpCos;
-      const leftY = cy + sideDist * sin - sideOffset * perpSin;
-      const rightX = cx + sideDist * cos + sideOffset * perpCos;
-      const rightY = cy + sideDist * sin + sideOffset * perpSin;
+      const halfW = tipW / 2;
+      const baseR = tipStart;
+      const tipR = tipStart + tipLen;
+      const concavity = p.cardinalTipConcavity;
 
-      // Stem bridging outward
-      const baseW = tipW * 0.12;
+      // Flanking decorative circles (semi-circles visible from outside the ring)
+      const bumpR = tipW * 0.28;
       
-      // Silhouettes stay at tipStart so they connect with normal external geometry
-      const stemX1_sil = cx + tipStart * cos - baseW * perpCos;
-      const stemY1_sil = cy + tipStart * sin - baseW * perpSin;
-      const stemX2_sil = cx + tipStart * cos + baseW * perpCos;
-      const stemY2_sil = cy + tipStart * sin + baseW * perpSin;
-      
-      // Interiors cut inward deeper to break through the ring connecting line
-      const stemX1_int = cx + (tipStart - innerCut) * cos - baseW * perpCos;
-      const stemY1_int = cy + (tipStart - innerCut) * sin - baseW * perpSin;
-      const stemX2_int = cx + (tipStart - innerCut) * cos + baseW * perpCos;
-      const stemY2_int = cy + (tipStart - innerCut) * sin + baseW * perpSin;
+      // The spike base width fits comfortably between the bumps
+      const baseSpikeW = Math.max(0, halfW - bumpR * 0.6); 
 
-      const topX1 = cx + (tipStart + stemLen*0.9) * cos - baseW * perpCos;
-      const topY1 = cy + (tipStart + stemLen*0.9) * sin - baseW * perpSin;
-      const topX2 = cx + (tipStart + stemLen*0.9) * cos + baseW * perpCos;
-      const topY2 = cy + (tipStart + stemLen*0.9) * sin + baseW * perpSin;
+      // Spike base points
+      const bx1 = cx + baseR * cos - baseSpikeW * perpCos;
+      const by1 = cy + baseR * sin - baseSpikeW * perpSin;
+      const bx2 = cx + baseR * cos + baseSpikeW * perpCos;
+      const by2 = cy + baseR * sin + baseSpikeW * perpSin;
 
-      silhouettes.push(`<polygon points="${stemX1_sil},${stemY1_sil} ${stemX2_sil},${stemY2_sil} ${topX2},${topY2} ${topX1},${topY1}"/>`);
-      interiors.push(`<polygon points="${stemX1_int},${stemY1_int} ${stemX2_int},${stemY2_int} ${topX2},${topY2} ${topX1},${topY1}"/>`);
+      // Tip point (sharp or slightly rounded via stroke cap)
+      const tx = cx + tipR * cos;
+      const ty = cy + tipR * sin;
 
-      if (p.spokeLength > 1) {
-        // Base circle for a nice rounded stem where it connects to a thin spoke line
-        const baseR = tipW * 0.15;
-        const baseX = cx + tipStart * cos;
-        const baseY = cy + tipStart * sin;
-        addShape(`<circle cx="${baseX}" cy="${baseY}" r="${baseR}"/>`);
+      // Control point offset for the concave curve from base to tip
+      const cpOffset = baseSpikeW * concavity;
+      const midR = tipStart + tipLen * 0.4;
+      const cp1x = cx + midR * cos - (baseSpikeW - cpOffset) * perpCos;
+      const cp1y = cy + midR * sin - (baseSpikeW - cpOffset) * perpSin;
+      const cp2x = cx + midR * cos + (baseSpikeW - cpOffset) * perpCos;
+      const cp2y = cy + midR * sin + (baseSpikeW - cpOffset) * perpSin;
+
+      // Silhouette path for the spike
+      const path_sil = `M ${bx1},${by1} Q ${cp1x},${cp1y} ${tx},${ty} Q ${cp2x},${cp2y} ${bx2},${by2} Z`;
+      silhouettes.push(`<path d="${path_sil}"/>`);
+
+      // Place flanking circles precisely on baseR
+      const leftBumpX = cx + baseR * cos - (halfW - bumpR) * perpCos;
+      const leftBumpY = cy + baseR * sin - (halfW - bumpR) * perpSin;
+      const rightBumpX = cx + baseR * cos + (halfW - bumpR) * perpCos;
+      const rightBumpY = cy + baseR * sin + (halfW - bumpR) * perpSin;
+
+      addShape(`<circle cx="${leftBumpX}" cy="${leftBumpY}" r="${bumpR}"/>`);
+      addShape(`<circle cx="${rightBumpX}" cy="${rightBumpY}" r="${bumpR}"/>`);
+
+      // Always cut through the outer ring stroke at cardinal tip positions.
+      // The white outer gap must seamlessly flow into the decorations.
+      const ringCut = p.outerRingWidth + 1.5;
+      const ibx1 = cx + (baseR - ringCut) * cos - baseSpikeW * perpCos;
+      const iby1 = cy + (baseR - ringCut) * sin - baseSpikeW * perpSin;
+      const ibx2 = cx + (baseR - ringCut) * cos + baseSpikeW * perpCos;
+      const iby2 = cy + (baseR - ringCut) * sin + baseSpikeW * perpSin;
+      const path_int = `M ${ibx1},${iby1} L ${bx1},${by1} Q ${cp1x},${cp1y} ${tx},${ty} Q ${cp2x},${cp2y} ${bx2},${by2} L ${ibx2},${iby2} Z`;
+      interiorsCardinal.push(`<path d="${path_int}"/>`);
+
+      // Wide rectangular cutout spanning the FULL decoration width to completely
+      // erase the outer ring stroke arc under the entire cardinal tip footprint.
+      {
+        const fullCutW = halfW + bumpR * 0.3; // slightly wider than the outermost bump edge
+        const cutInnerR = baseR - ringCut;     // cut inward past the ring stroke
+        const cutOuterR = baseR + bumpR * 0.5; // extend slightly outward past the ring stroke center
+
+        const c1x = cx + cutInnerR * cos - fullCutW * perpCos;
+        const c1y = cy + cutInnerR * sin - fullCutW * perpSin;
+        const c2x = cx + cutInnerR * cos + fullCutW * perpCos;
+        const c2y = cy + cutInnerR * sin + fullCutW * perpSin;
+        const c3x = cx + cutOuterR * cos + fullCutW * perpCos;
+        const c3y = cy + cutOuterR * sin + fullCutW * perpSin;
+        const c4x = cx + cutOuterR * cos - fullCutW * perpCos;
+        const c4y = cy + cutOuterR * sin - fullCutW * perpSin;
+
+        interiorsCardinal.push(`<polygon points="${c1x},${c1y} ${c2x},${c2y} ${c3x},${c3y} ${c4x},${c4y}"/>`);
       }
-
-      addShape(`<circle cx="${headX}" cy="${headY}" r="${headR}"/>`);
-      addShape(`<circle cx="${leftX}" cy="${leftY}" r="${sideR}"/>`);
-      addShape(`<circle cx="${rightX}" cy="${rightY}" r="${sideR}"/>`);
-
     } else {
       // Diagonal tips: simple single perfect circle
       const radius = tipW / 2;
@@ -269,24 +296,37 @@ export function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
       const cy_circle = cy + dist * sin;
 
       silhouettes.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
-      interiors.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
+      interiorsDiagonal.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);
 
-      // Seamlessly connect and cut the outer ring stroke if there is no spoke gap
-      if (innerCut > 0) {
-        const d_center = dist - tipStart;
+      // Always cut through the outer ring stroke at diagonal tip positions.
+      // The white area must naturally flow into the circles at the 45 degree points.
+      const ringCut = p.outerRingWidth + 1.5;
+      const d_center = Math.abs(dist - tipStart);
+      if (d_center < radius * 1.5) {
+        // Find width of circle intersection at the outer ring radius
+        let cutWidth = radius;
         if (d_center < radius) {
-          // Find width of circle intersection at the outer ring radius
-          const cutW = Math.sqrt(radius * radius - d_center * d_center) * 0.85; // slightly narrower than true intersection
-
-          const cutX1 = cx + (tipStart - innerCut) * cos - cutW * perpCos;
-          const cutY1 = cy + (tipStart - innerCut) * sin - cutW * perpSin;
-          const cutX2 = cx + (tipStart - innerCut) * cos + cutW * perpCos;
-          const cutY2 = cy + (tipStart - innerCut) * sin + cutW * perpSin;
-
-          const poly = `<polygon points="${cutX1},${cutY1} ${cutX2},${cutY2} ${cx_circle},${cy_circle}"/>`;
-          silhouettes.push(poly);
-          interiors.push(poly);
+          cutWidth = Math.sqrt(radius * radius - d_center * d_center);
         }
+
+        const cutX1_sil = cx + tipStart * cos - cutWidth * perpCos;
+        const cutY1_sil = cy + tipStart * sin - cutWidth * perpSin;
+        const cutX2_sil = cx + tipStart * cos + cutWidth * perpCos;
+        const cutY2_sil = cy + tipStart * sin + cutWidth * perpSin;
+
+        // Silhouette connects to the ring stroke
+        const polySil = `<polygon points="${cutX1_sil},${cutY1_sil} ${cutX2_sil},${cutY2_sil} ${cx_circle},${cy_circle}"/>`;
+        silhouettes.push(polySil);
+        
+        // Inner cut completely punches through the ring stroke
+        const innerHW = cutWidth * 0.95; 
+        const cutX1 = cx + (tipStart - ringCut) * cos - innerHW * perpCos;
+        const cutY1 = cy + (tipStart - ringCut) * sin - innerHW * perpSin;
+        const cutX2 = cx + (tipStart - ringCut) * cos + innerHW * perpCos;
+        const cutY2 = cy + (tipStart - ringCut) * sin + innerHW * perpSin;
+        
+        const polyInt = `<polygon points="${cutX1},${cutY1} ${cutX2},${cutY2} ${cx_circle},${cy_circle}"/>`;
+        interiorsDiagonal.push(polyInt);
       }
     }
   }
@@ -297,9 +337,16 @@ export function buildTipsSvg(cx: number, cy: number, p: LogoParams): string {
     parts.push(...silhouettes);
     parts.push(`</g>`);
 
-    // Pass 2: Interior filling (fills with light color overlaying the silhouettes)
-    parts.push(`<g fill="${p.fillLight}" stroke="none">`);
-    parts.push(...interiors);
+    // Pass 2: Interior filling for Cardinal tips
+    // [USER REQUEST] Color cardinal decorations fill green
+    parts.push(`<g fill="green" stroke="none">`);
+    parts.push(...interiorsCardinal);
+    parts.push(`</g>`);
+
+    // Pass 2: Interior filling for Diagonal tips
+    // [USER REQUEST] Color diagonal (45 degree) decorations fill blue
+    parts.push(`<g fill="blue" stroke="none">`);
+    parts.push(...interiorsDiagonal);
     parts.push(`</g>`);
   }
 
@@ -326,10 +373,12 @@ export function buildFullSvg(p: LogoParams, size?: number): string {
     parts.push(`<rect width="${viewSize}" height="${viewSize}" fill="${p.bgColor}"/>`);
   }
 
-  // Solid white interior background (so gaps are white, not transparent!)
+  // [USER REQUEST] "outer-decoration circle"
+  // This provides the solid white background behind the logo, up to the outer ring.
+  // Colored red temporarily to verify it is the correct element to merge.
   const yinYangBorderWidth = 1.5;
   const outerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap + p.outerRingWidth;
-  parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="${p.fillLight}" stroke="none"/>`);
+  parts.push(`<circle cx="${cx}" cy="${cy}" r="${outerEdge}" fill="red" stroke="none"/>`);
 
   // Build layers inside-out
   parts.push(buildYinYangSvg(cx, cy, p));

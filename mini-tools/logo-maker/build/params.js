@@ -26,6 +26,7 @@ export function getParams() {
         spokeWidth: numVal('spokeWidth'),
         cardinalTipLength: numVal('cardinalTipLength'),
         cardinalTipWidth: numVal('cardinalTipWidth'),
+        cardinalTipConcavity: numVal('cardinalTipConcavity'),
         diagonalTipLength: numVal('diagonalTipLength'),
         diagonalTipWidth: numVal('diagonalTipWidth'),
         strokeColor: strVal('strokeColor'),
@@ -75,6 +76,7 @@ export function loadParams(updateFn) {
         setInputVal('spokeWidth', p.spokeWidth);
         setInputVal('cardinalTipLength', p.cardinalTipLength);
         setInputVal('cardinalTipWidth', p.cardinalTipWidth);
+        setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);
         setInputVal('diagonalTipLength', p.diagonalTipLength);
         setInputVal('diagonalTipWidth', p.diagonalTipWidth);
         setInputVal('strokeColor', p.strokeColor);

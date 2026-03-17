@@ -57,6 +57,7 @@ export const STAGES = [
             { id: 'spokeWidth', step: 0.5 },
             { id: 'cardinalTipLength', step: 1 },
             { id: 'cardinalTipWidth', step: 1 },
+            { id: 'cardinalTipConcavity', step: 0.1 },
             { id: 'diagonalTipLength', step: 1 },
             { id: 'diagonalTipWidth', step: 1 },
         ],
