@@ -38,6 +38,8 @@ export interface LogoParams {
   cardinalTipLength: number;
   cardinalTipWidth: number;
   cardinalTipConcavity: number; // 0 = straight sides, 1 = deeply concave sides
+  cardinalTipThirdBumpDistance: number;
+  cardinalTipThirdBumpRadius: number;
   diagonalTipLength: number;
   diagonalTipWidth: number;
 

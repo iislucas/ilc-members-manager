@@ -218,6 +218,15 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
         const rightBumpY = cy + baseR * sin + (halfW - bumpR) * perpSin;
         shapes.push(`<circle cx="${leftBumpX}" cy="${leftBumpY}" r="${bumpR}"/>`);
         shapes.push(`<circle cx="${rightBumpX}" cy="${rightBumpY}" r="${bumpR}"/>`);
+
+        // Third Bump (Center base)
+        if (p.cardinalTipThirdBumpRadius > 0) {
+          const bumpDist = tipStart + p.cardinalTipThirdBumpDistance;
+          const thirdBumpX = cx + bumpDist * cos;
+          const thirdBumpY = cy + bumpDist * sin;
+          shapes.push(`<!-- Third central bump -->`);
+          shapes.push(`<circle cx="${thirdBumpX}" cy="${thirdBumpY}" r="${p.cardinalTipThirdBumpRadius}"/>`);
+        }
       } else {
         // Diagonal Circle
         const radius = tipW / 2;
@@ -231,16 +240,14 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
 
   const joinedShapes = shapes.map(s => '    ' + s).join('\n');
   
-  // [USER REQUEST] Demonstrate Venn Technique with Red
-  // Pass 1: Outer boundary stroke 2x width
-  // Pass 2: Inner fill overriding the innermost stroke half
+  // Pass 1: Silhouette outline for merged outer structure
   return `
   <!-- Pass 1: Silhouette outline for merged outer structure -->
-  <g fill="red" stroke="red" stroke-width="${p.outerRingWidth * 2}" stroke-linejoin="round">
+  <g fill="${p.strokeColor}" stroke="${p.strokeColor}" stroke-width="${p.outerRingWidth * 2}" stroke-linejoin="round">
 ${joinedShapes}
   </g>
   <!-- Pass 2: Knockout fill for merged outer structure (white) -->
-  <g fill="white" stroke="none">
+  <g fill="${p.fillLight}" stroke="none">
 ${joinedShapes}
   </g>
   `;

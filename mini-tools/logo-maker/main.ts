@@ -79,6 +79,8 @@ function updateLabels(p: LogoParams): void {
   $('cardinalTipLength-val').textContent = String(p.cardinalTipLength);
   $('cardinalTipWidth-val').textContent = String(p.cardinalTipWidth);
   $('cardinalTipConcavity-val').textContent = p.cardinalTipConcavity.toFixed(1);
+  $('cardinalTipThirdBumpDistance-val').textContent = String(p.cardinalTipThirdBumpDistance);
+  $('cardinalTipThirdBumpRadius-val').textContent = String(p.cardinalTipThirdBumpRadius);
   $('diagonalTipLength-val').textContent = String(p.diagonalTipLength);
   $('diagonalTipWidth-val').textContent = String(p.diagonalTipWidth);
 }
@@ -137,7 +139,7 @@ function init(): void {
     'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
     'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
     'spokeLength', 'spokeWidth',
-    'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'diagonalTipLength', 'diagonalTipWidth',
+    'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'cardinalTipThirdBumpDistance', 'cardinalTipThirdBumpRadius', 'diagonalTipLength', 'diagonalTipWidth',
     'strokeColor', 'fillLight', 'fillDark', 'bgColor',
   ];
 

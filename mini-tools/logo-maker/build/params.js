@@ -27,6 +27,8 @@ export function getParams() {
         cardinalTipLength: numVal('cardinalTipLength'),
         cardinalTipWidth: numVal('cardinalTipWidth'),
         cardinalTipConcavity: numVal('cardinalTipConcavity'),
+        cardinalTipThirdBumpDistance: numVal('cardinalTipThirdBumpDistance'),
+        cardinalTipThirdBumpRadius: numVal('cardinalTipThirdBumpRadius'),
         diagonalTipLength: numVal('diagonalTipLength'),
         diagonalTipWidth: numVal('diagonalTipWidth'),
         strokeColor: strVal('strokeColor'),
@@ -77,6 +79,8 @@ export function loadParams(updateFn) {
         setInputVal('cardinalTipLength', p.cardinalTipLength);
         setInputVal('cardinalTipWidth', p.cardinalTipWidth);
         setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);
+        setInputVal('cardinalTipThirdBumpDistance', p.cardinalTipThirdBumpDistance ?? 12);
+        setInputVal('cardinalTipThirdBumpRadius', p.cardinalTipThirdBumpRadius ?? 5);
         setInputVal('diagonalTipLength', p.diagonalTipLength);
         setInputVal('diagonalTipWidth', p.diagonalTipWidth);
         setInputVal('strokeColor', p.strokeColor);
