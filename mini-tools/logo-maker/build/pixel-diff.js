@@ -47,15 +47,29 @@ export async function updateDiff(p) {
     // Draw generated SVG with transparent background
     const genCtx = genCanvas.getContext('2d');
     genCtx.clearRect(0, 0, diffSize, diffSize);
-    const svgStr = buildFullSvg({ ...p, transparentBg: true });
-    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const svgImg = await loadReferenceImage(url);
-    genCtx.drawImage(svgImg, 0, 0, diffSize, diffSize);
-    URL.revokeObjectURL(url);
+    // 1. True representation for the visual UI "Generated" canvas
+    const visualSvgStr = buildFullSvg(p);
+    const visualBlob = new Blob([visualSvgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const visualUrl = URL.createObjectURL(visualBlob);
+    const visualSvgImg = await loadReferenceImage(visualUrl);
+    genCtx.clearRect(0, 0, diffSize, diffSize);
+    genCtx.drawImage(visualSvgImg, 0, 0, diffSize, diffSize);
+    URL.revokeObjectURL(visualUrl);
+    // 2. Forced transparent representation for the mathematical diff
+    const mathSvgStr = buildFullSvg({ ...p, transparentBg: true });
+    const mathBlob = new Blob([mathSvgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const mathUrl = URL.createObjectURL(mathBlob);
+    const mathSvgImg = await loadReferenceImage(mathUrl);
+    const mathCanvas = document.createElement('canvas');
+    mathCanvas.width = diffSize;
+    mathCanvas.height = diffSize;
+    const mathCtx = mathCanvas.getContext('2d');
+    mathCtx.clearRect(0, 0, diffSize, diffSize);
+    mathCtx.drawImage(mathSvgImg, 0, 0, diffSize, diffSize);
+    URL.revokeObjectURL(mathUrl);
     // Get pixel data
     const refRawData = refCtx.getImageData(0, 0, diffSize, diffSize).data;
-    const genRawData = genCtx.getImageData(0, 0, diffSize, diffSize).data;
+    const genRawData = mathCtx.getImageData(0, 0, diffSize, diffSize).data;
     const diffColorCtx = diffColorCanvas.getContext('2d');
     const diffColorImgData = diffColorCtx.createImageData(diffSize, diffSize);
     const diffColorData = diffColorImgData.data;
