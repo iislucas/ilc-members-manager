@@ -139,11 +139,10 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
   const yinYangBorderWidth = 1.5;
   const outerRingInnerEdge = p.yinYangRadius + yinYangBorderWidth / 2 + p.innerRingWidth + p.innerRingGap + p.textBandWidth + p.outerRingGap;
   const outerRingOuterEdge = outerRingInnerEdge + p.outerRingWidth;
-  const tipStart = outerRingOuterEdge + p.spokeLength;
 
   const shapes: string[] = [];
 
-  // 1. The central background circle (extends to the inner edge of the outer ring stroke)
+  // 1. The outer circle (extends to the inner edge of the outer ring stroke)
   shapes.push(`<circle cx="${cx}" cy="${cy}" r="${outerRingInnerEdge}"/>`);
 
   for (let i = 0; i < 8; i++) {
@@ -155,36 +154,8 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
     const perpCos = Math.cos(angle + Math.PI / 2);
     const perpSin = Math.sin(angle + Math.PI / 2);
 
-    // 2. Spokes or Gap overlap
-    if (p.spokeLength > 0 && p.spokeWidth > 0) {
-      const halfW = p.spokeWidth / 2;
-      const xs1 = cx + outerRingInnerEdge * cos - halfW * perpCos;
-      const ys1 = cy + outerRingInnerEdge * sin - halfW * perpSin;
-      const xs2 = cx + outerRingInnerEdge * cos + halfW * perpCos;
-      const ys2 = cy + outerRingInnerEdge * sin + halfW * perpSin;
-      const xs3 = cx + tipStart * cos + halfW * perpCos;
-      const ys3 = cy + tipStart * sin + halfW * perpSin;
-      const xs4 = cx + tipStart * cos - halfW * perpCos;
-      const ys4 = cy + tipStart * sin - halfW * perpSin;
-      shapes.push(`<polygon points="${xs1},${ys1} ${xs2},${ys2} ${xs3},${ys3} ${xs4},${ys4}"/>`);
-    } else if (p.spokeLength <= 0) {
-      // No spoke: Add an overlap block to ensure the tip's white fill merges seamlessly 
-      // with the base circle's white fill underneath the thick stroke ring.
-      const tipW = isCardinal ? p.cardinalTipWidth : p.diagonalTipWidth;
-      const overlapW = isCardinal ? tipW * 0.5 : tipW * 0.8;
-      const halfW = overlapW / 2;
-      const xs1 = cx + outerRingInnerEdge * cos - halfW * perpCos;
-      const ys1 = cy + outerRingInnerEdge * sin - halfW * perpSin;
-      const xs2 = cx + outerRingInnerEdge * cos + halfW * perpCos;
-      const ys2 = cy + outerRingInnerEdge * sin + halfW * perpSin;
-      const xs3 = cx + tipStart * cos + halfW * perpCos;
-      const ys3 = cy + tipStart * sin + halfW * perpSin;
-      const xs4 = cx + tipStart * cos - halfW * perpCos;
-      const ys4 = cy + tipStart * sin - halfW * perpSin;
-      shapes.push(`<polygon points="${xs1},${ys1} ${xs2},${ys2} ${xs3},${ys3} ${xs4},${ys4}"/>`);
-    }
-
-    // 3. Tips
+    // 2. Tips
+    const tipStart = outerRingOuterEdge + (isCardinal ? p.cardinalTipDistance : p.diagonalTipDistance);
     const tipLen = isCardinal ? p.cardinalTipLength : p.diagonalTipLength;
     const tipW = isCardinal ? p.cardinalTipWidth : p.diagonalTipWidth;
     if (tipLen > 0 && tipW > 0) {

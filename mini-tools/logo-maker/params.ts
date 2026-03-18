@@ -29,8 +29,8 @@ export function getParams(): LogoParams {
     textOffsetLower: numVal('textOffsetLower'),
     textLetterSpacingLower: numVal('textLetterSpacingLower'),
 
-    spokeLength: numVal('spokeLength'),
-    spokeWidth: numVal('spokeWidth'),
+    cardinalTipDistance: numVal('cardinalTipDistance'),
+    diagonalTipDistance: numVal('diagonalTipDistance'),
 
     cardinalTipLength: numVal('cardinalTipLength'),
     cardinalTipWidth: numVal('cardinalTipWidth'),
@@ -85,8 +85,8 @@ export function loadParams(updateFn: () => void): void {
     setInputVal('textOffsetUpper', p.textOffsetUpper);
     setInputVal('textOffsetLower', p.textOffsetLower);
     setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
-    setInputVal('spokeLength', p.spokeLength);
-    setInputVal('spokeWidth', p.spokeWidth);
+    setInputVal('cardinalTipDistance', p.cardinalTipDistance);
+    setInputVal('diagonalTipDistance', p.diagonalTipDistance);
     setInputVal('cardinalTipLength', p.cardinalTipLength);
     setInputVal('cardinalTipWidth', p.cardinalTipWidth);
     setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);

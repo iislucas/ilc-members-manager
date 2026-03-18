@@ -22,8 +22,8 @@ export function getParams() {
         textOffsetUpper: numVal('textOffsetUpper'),
         textOffsetLower: numVal('textOffsetLower'),
         textLetterSpacingLower: numVal('textLetterSpacingLower'),
-        spokeLength: numVal('spokeLength'),
-        spokeWidth: numVal('spokeWidth'),
+        cardinalTipDistance: numVal('cardinalTipDistance'),
+        diagonalTipDistance: numVal('diagonalTipDistance'),
         cardinalTipLength: numVal('cardinalTipLength'),
         cardinalTipWidth: numVal('cardinalTipWidth'),
         cardinalTipConcavity: numVal('cardinalTipConcavity'),
@@ -74,8 +74,8 @@ export function loadParams(updateFn) {
         setInputVal('textOffsetUpper', p.textOffsetUpper);
         setInputVal('textOffsetLower', p.textOffsetLower);
         setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
-        setInputVal('spokeLength', p.spokeLength);
-        setInputVal('spokeWidth', p.spokeWidth);
+        setInputVal('cardinalTipDistance', p.cardinalTipDistance);
+        setInputVal('diagonalTipDistance', p.diagonalTipDistance);
         setInputVal('cardinalTipLength', p.cardinalTipLength);
         setInputVal('cardinalTipWidth', p.cardinalTipWidth);
         setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);

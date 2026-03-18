@@ -64,8 +64,8 @@ function updateLabels(p) {
     $('textOffsetUpper-val').textContent = String(p.textOffsetUpper);
     $('textOffsetLower-val').textContent = String(p.textOffsetLower);
     $('textLetterSpacingLower-val').textContent = String(p.textLetterSpacingLower);
-    $('spokeLength-val').textContent = String(p.spokeLength);
-    $('spokeWidth-val').textContent = String(p.spokeWidth);
+    $('cardinalTipDistance-val').textContent = String(p.cardinalTipDistance);
+    $('diagonalTipDistance-val').textContent = String(p.diagonalTipDistance);
     $('cardinalTipLength-val').textContent = String(p.cardinalTipLength);
     $('cardinalTipWidth-val').textContent = String(p.cardinalTipWidth);
     $('cardinalTipConcavity-val').textContent = p.cardinalTipConcavity.toFixed(1);
@@ -118,7 +118,7 @@ function init() {
         'yinYangRadius', 'yinYangEyeRadius', 'yinYangEyePosition', 'yinYangRotation',
         'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
         'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
-        'spokeLength', 'spokeWidth',
+        'cardinalTipDistance', 'diagonalTipDistance',
         'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'cardinalTipThirdBumpDistance', 'cardinalTipThirdBumpRadius', 'diagonalTipLength', 'diagonalTipWidth',
         'strokeColor', 'fillLight', 'fillDark', 'bgColor',
     ];

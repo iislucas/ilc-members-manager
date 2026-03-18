@@ -30,9 +30,7 @@ export interface LogoParams {
   textOffsetLower: number;
   textLetterSpacingLower: number;
 
-  // Spokes
-  spokeLength: number;
-  spokeWidth: number;
+  cardinalTipDistance: number;
 
   // Tips
   cardinalTipLength: number;
@@ -40,6 +38,7 @@ export interface LogoParams {
   cardinalTipConcavity: number; // 0 = straight sides, 1 = deeply concave sides
   cardinalTipThirdBumpDistance: number;
   cardinalTipThirdBumpRadius: number;
+  diagonalTipDistance: number;
   diagonalTipLength: number;
   diagonalTipWidth: number;
 
