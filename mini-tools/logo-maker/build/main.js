@@ -18,7 +18,7 @@
  *   <script type="module" src="logo-maker/build/main.js"></script>
  */
 import { $ } from './types.js';
-import { getParams, saveParams, loadParams, hasSavedParams } from './params.js';
+import { getParams, saveParams, loadParams, hasSavedParams, applyParams } from './params.js';
 import { buildYinYangSvg, buildRingsSvg, buildTextSvg, buildMergedOuterBaseSvg, buildFullSvg, computeViewSize } from './svg-builders.js';
 import { updateDiff, loadReferenceImage, setReferenceImage } from './pixel-diff.js';
 import { STAGES, runOptimization } from './optimizer.js';
@@ -76,6 +76,10 @@ function updateLabels(p) {
 function update() {
     const p = getParams();
     updateLabels(p);
+    const jsonInput = $('param-json');
+    if (document.activeElement !== jsonInput) {
+        jsonInput.value = JSON.stringify(p, null, 2);
+    }
     const viewSize = computeViewSize(p);
     // Build preview SVG
     const previewSvg = $('main-preview');
@@ -133,6 +137,18 @@ function init() {
         const btn = $('load-btn');
         btn.textContent = '✓ Loaded!';
         setTimeout(() => (btn.textContent = 'Load Parameters'), 1500);
+    });
+    // JSON text area input
+    const jsonInput = $('param-json');
+    jsonInput.addEventListener('input', () => {
+        try {
+            const p = JSON.parse(jsonInput.value);
+            applyParams(p);
+            update();
+        }
+        catch {
+            // ignore invalid JSON during typing
+        }
     });
     // Copy SVG
     $('copy-svg-btn').addEventListener('click', () => {

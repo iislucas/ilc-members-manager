@@ -53,39 +53,74 @@ export function saveParams(updateFn) {
         // ignore
     }
 }
+export function applyParams(p) {
+    try {
+        if (p.yinYangRadius !== undefined)
+            setInputVal('yinYangRadius', p.yinYangRadius);
+        if (p.yinYangEyeRadius !== undefined)
+            setInputVal('yinYangEyeRadius', p.yinYangEyeRadius);
+        if (p.yinYangEyePosition !== undefined)
+            setInputVal('yinYangEyePosition', p.yinYangEyePosition * 100);
+        if (p.yinYangRotation !== undefined)
+            setInputVal('yinYangRotation', p.yinYangRotation);
+        if (p.innerRingWidth !== undefined)
+            setInputVal('innerRingWidth', p.innerRingWidth);
+        if (p.innerRingGap !== undefined)
+            setInputVal('innerRingGap', p.innerRingGap);
+        if (p.textBandWidth !== undefined)
+            setInputVal('textBandWidth', p.textBandWidth);
+        if (p.outerRingGap !== undefined)
+            setInputVal('outerRingGap', p.outerRingGap);
+        if (p.outerRingWidth !== undefined)
+            setInputVal('outerRingWidth', p.outerRingWidth);
+        if (p.textSizeUpper !== undefined)
+            setInputVal('textSizeUpper', p.textSizeUpper);
+        if (p.textSizeLower !== undefined)
+            setInputVal('textSizeLower', p.textSizeLower);
+        if (p.textOffsetUpper !== undefined)
+            setInputVal('textOffsetUpper', p.textOffsetUpper);
+        if (p.textOffsetLower !== undefined)
+            setInputVal('textOffsetLower', p.textOffsetLower);
+        if (p.textLetterSpacingLower !== undefined)
+            setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
+        if (p.nsewDecorationDistance !== undefined)
+            setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
+        if (p.diagonalDecorationDistance !== undefined)
+            setInputVal('diagonalDecorationDistance', p.diagonalDecorationDistance);
+        if (p.nsewDecorationLength !== undefined)
+            setInputVal('nsewDecorationLength', p.nsewDecorationLength);
+        if (p.nsewDecorationWidth !== undefined)
+            setInputVal('nsewDecorationWidth', p.nsewDecorationWidth);
+        if (p.nsewDecorationConcavity !== undefined)
+            setInputVal('nsewDecorationConcavity', p.nsewDecorationConcavity);
+        if (p.nsewDecorationThirdBumpDistance !== undefined)
+            setInputVal('nsewDecorationThirdBumpDistance', p.nsewDecorationThirdBumpDistance);
+        if (p.nsewDecorationThirdBumpRadius !== undefined)
+            setInputVal('nsewDecorationThirdBumpRadius', p.nsewDecorationThirdBumpRadius);
+        if (p.diagonalDecorationWidth !== undefined)
+            setInputVal('diagonalDecorationWidth', p.diagonalDecorationWidth);
+        if (p.strokeColor !== undefined)
+            setInputVal('strokeColor', p.strokeColor);
+        if (p.fillLight !== undefined)
+            setInputVal('fillLight', p.fillLight);
+        if (p.fillDark !== undefined)
+            setInputVal('fillDark', p.fillDark);
+        if (p.bgColor !== undefined)
+            setInputVal('bgColor', p.bgColor);
+        if (p.transparentBg !== undefined)
+            $('transparentBg').checked = p.transparentBg;
+    }
+    catch {
+        // ignore
+    }
+}
 export function loadParams(updateFn) {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw)
             return;
         const p = JSON.parse(raw);
-        setInputVal('yinYangRadius', p.yinYangRadius);
-        setInputVal('yinYangEyeRadius', p.yinYangEyeRadius);
-        setInputVal('yinYangEyePosition', p.yinYangEyePosition * 100);
-        setInputVal('yinYangRotation', p.yinYangRotation);
-        setInputVal('innerRingWidth', p.innerRingWidth);
-        setInputVal('innerRingGap', p.innerRingGap ?? 4);
-        setInputVal('textBandWidth', p.textBandWidth);
-        setInputVal('outerRingGap', p.outerRingGap ?? 2);
-        setInputVal('outerRingWidth', p.outerRingWidth);
-        setInputVal('textSizeUpper', p.textSizeUpper);
-        setInputVal('textSizeLower', p.textSizeLower);
-        setInputVal('textOffsetUpper', p.textOffsetUpper);
-        setInputVal('textOffsetLower', p.textOffsetLower);
-        setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
-        setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
-        setInputVal('diagonalDecorationDistance', p.diagonalDecorationDistance);
-        setInputVal('nsewDecorationLength', p.nsewDecorationLength);
-        setInputVal('nsewDecorationWidth', p.nsewDecorationWidth);
-        setInputVal('nsewDecorationConcavity', p.nsewDecorationConcavity ?? 0.5);
-        setInputVal('nsewDecorationThirdBumpDistance', p.nsewDecorationThirdBumpDistance ?? 12);
-        setInputVal('nsewDecorationThirdBumpRadius', p.nsewDecorationThirdBumpRadius ?? 5);
-        setInputVal('diagonalDecorationWidth', p.diagonalDecorationWidth);
-        setInputVal('strokeColor', p.strokeColor);
-        setInputVal('fillLight', p.fillLight);
-        setInputVal('fillDark', p.fillDark);
-        setInputVal('bgColor', p.bgColor);
-        $('transparentBg').checked = p.transparentBg;
+        applyParams(p);
         updateFn();
     }
     catch {

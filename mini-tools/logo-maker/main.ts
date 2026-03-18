@@ -19,7 +19,7 @@
  */
 
 import { LogoParams, $ } from './types.js';
-import { getParams, saveParams, loadParams, hasSavedParams } from './params.js';
+import { getParams, saveParams, loadParams, hasSavedParams, applyParams } from './params.js';
 import { buildYinYangSvg, buildRingsSvg, buildTextSvg, buildMergedOuterBaseSvg, buildFullSvg, computeViewSize } from './svg-builders.js';
 import { updateDiff, loadReferenceImage, setReferenceImage } from './pixel-diff.js';
 import { STAGES, runOptimization } from './optimizer.js';
@@ -87,6 +87,11 @@ function updateLabels(p: LogoParams): void {
 function update(): void {
   const p = getParams();
   updateLabels(p);
+
+  const jsonInput = $('param-json') as HTMLTextAreaElement;
+  if (document.activeElement !== jsonInput) {
+    jsonInput.value = JSON.stringify(p, null, 2);
+  }
 
   const viewSize = computeViewSize(p);
 
@@ -156,6 +161,18 @@ function init(): void {
     const btn = $('load-btn');
     btn.textContent = '✓ Loaded!';
     setTimeout(() => (btn.textContent = 'Load Parameters'), 1500);
+  });
+
+  // JSON text area input
+  const jsonInput = $('param-json') as HTMLTextAreaElement;
+  jsonInput.addEventListener('input', () => {
+    try {
+      const p = JSON.parse(jsonInput.value) as Partial<LogoParams>;
+      applyParams(p);
+      update();
+    } catch {
+      // ignore invalid JSON during typing
+    }
   });
 
   // Copy SVG

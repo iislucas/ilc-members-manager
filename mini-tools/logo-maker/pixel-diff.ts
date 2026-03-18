@@ -37,14 +37,17 @@ export async function updateDiff(p: LogoParams): Promise<{color: number, alpha: 
   const diffSize = 400;
   const refCanvas = $('ref-canvas') as HTMLCanvasElement;
   const genCanvas = $('gen-canvas') as HTMLCanvasElement;
-  const diffCanvas = $('diff-canvas') as HTMLCanvasElement;
+  const diffColorCanvas = $('diff-color-canvas') as HTMLCanvasElement;
+  const diffAlphaCanvas = $('diff-alpha-canvas') as HTMLCanvasElement;
 
   refCanvas.width = diffSize;
   refCanvas.height = diffSize;
   genCanvas.width = diffSize;
   genCanvas.height = diffSize;
-  diffCanvas.width = diffSize;
-  diffCanvas.height = diffSize;
+  diffColorCanvas.width = diffSize;
+  diffColorCanvas.height = diffSize;
+  diffAlphaCanvas.width = diffSize;
+  diffAlphaCanvas.height = diffSize;
 
   // Draw reference on transparent canvas (no white fill)
   const refCtx = refCanvas.getContext('2d')!;
@@ -63,59 +66,61 @@ export async function updateDiff(p: LogoParams): Promise<{color: number, alpha: 
   genCtx.drawImage(svgImg, 0, 0, diffSize, diffSize);
   URL.revokeObjectURL(url);
 
-  // For color comparison: composite both onto white backgrounds
-  // Use off-screen canvases to avoid corrupting visual canvases
-  const refWhite = document.createElement('canvas');
-  refWhite.width = diffSize; refWhite.height = diffSize;
-  const refWhiteCtx = refWhite.getContext('2d')!;
-  refWhiteCtx.fillStyle = '#ffffff';
-  refWhiteCtx.fillRect(0, 0, diffSize, diffSize);
-  refWhiteCtx.drawImage(referenceImage, 0, 0, diffSize, diffSize);
-
-  const genWhite = document.createElement('canvas');
-  genWhite.width = diffSize; genWhite.height = diffSize;
-  const genWhiteCtx = genWhite.getContext('2d')!;
-  genWhiteCtx.fillStyle = '#ffffff';
-  genWhiteCtx.fillRect(0, 0, diffSize, diffSize);
-  genWhiteCtx.drawImage(svgImg, 0, 0, diffSize, diffSize);
-
   // Get pixel data
-  const refData = refWhiteCtx.getImageData(0, 0, diffSize, diffSize).data;
-  const genData = genWhiteCtx.getImageData(0, 0, diffSize, diffSize).data;
   const refRawData = refCtx.getImageData(0, 0, diffSize, diffSize).data;
   const genRawData = genCtx.getImageData(0, 0, diffSize, diffSize).data;
-  const diffCtx = diffCanvas.getContext('2d')!;
-  const diffImgData = diffCtx.createImageData(diffSize, diffSize);
-  const diffData = diffImgData.data;
+  const diffColorCtx = diffColorCanvas.getContext('2d')!;
+  const diffColorImgData = diffColorCtx.createImageData(diffSize, diffSize);
+  const diffColorData = diffColorImgData.data;
+
+  const diffAlphaCtx = diffAlphaCanvas.getContext('2d')!;
+  const diffAlphaImgData = diffAlphaCtx.createImageData(diffSize, diffSize);
+  const diffAlphaData = diffAlphaImgData.data;
 
   let sumSqErrColor = 0;
   let sumSqErrAlpha = 0;
   const totalPixels = diffSize * diffSize;
 
-  for (let i = 0; i < refData.length; i += 4) {
-    // Color RMSE: compare composited-on-white RGB values
-    const dr = Math.abs(refData[i] - genData[i]);
-    const dg = Math.abs(refData[i + 1] - genData[i + 1]);
-    const db = Math.abs(refData[i + 2] - genData[i + 2]);
-    const diffColor = (dr + dg + db) / 3;
-    sumSqErrColor += diffColor * diffColor;
-
-    // Alpha RMSE: derive reference alpha from luminance
-    // (white bg reference: white=transparent, dark=opaque)
-    const refLum = (refRawData[i] * 0.299 + refRawData[i + 1] * 0.587 + refRawData[i + 2] * 0.114);
-    const refAlpha = refRawData[i + 3] > 0 ? 255 - refLum : 0;
+  for (let i = 0; i < refRawData.length; i += 4) {
+    const refAlpha = refRawData[i + 3];
     const genAlpha = genRawData[i + 3];
     const da = Math.abs(refAlpha - genAlpha);
     sumSqErrAlpha += da * da;
 
-    // Heatmap: transparent where close, red where different
-    diffData[i] = 255;     // R
-    diffData[i + 1] = 0;   // G
-    diffData[i + 2] = 0;   // B
-    diffData[i + 3] = Math.min(255, diffColor * 3); // A — amplified for visibility
+    // Color RMSE: composite onto white background for evaluation
+    const rA = refAlpha / 255;
+    const gA = genAlpha / 255;
+    const refR = refRawData[i] * rA + 255 * (1 - rA);
+    const refG = refRawData[i + 1] * rA + 255 * (1 - rA);
+    const refB = refRawData[i + 2] * rA + 255 * (1 - rA);
+    
+    const genR = genRawData[i] * gA + 255 * (1 - gA);
+    const genG = genRawData[i + 1] * gA + 255 * (1 - gA);
+    const genB = genRawData[i + 2] * gA + 255 * (1 - gA);
+
+    const dr = Math.abs(refR - genR);
+    const dg = Math.abs(refG - genG);
+    const db = Math.abs(refB - genB);
+    const diffColor = (dr + dg + db) / 3;
+    sumSqErrColor += diffColor * diffColor;
+
+    // Color Mismatch Heatmap (Red)
+    const colorIntensity = Math.min(255, diffColor * 3);
+    diffColorData[i] = 255;     // R
+    diffColorData[i + 1] = 0;   // G
+    diffColorData[i + 2] = 0;   // B
+    diffColorData[i + 3] = colorIntensity;
+
+    // Transparency Mismatch Heatmap (Light Green)
+    const alphaIntensity = Math.min(255, da * 3);
+    diffAlphaData[i] = 100;     // R
+    diffAlphaData[i + 1] = 255; // G
+    diffAlphaData[i + 2] = 100; // B
+    diffAlphaData[i + 3] = alphaIntensity;
   }
 
-  diffCtx.putImageData(diffImgData, 0, 0);
+  diffColorCtx.putImageData(diffColorImgData, 0, 0);
+  diffAlphaCtx.putImageData(diffAlphaImgData, 0, 0);
 
   const rmseColor = Math.sqrt(sumSqErrColor / totalPixels);
   const rmseAlpha = Math.sqrt(sumSqErrAlpha / totalPixels);
@@ -136,18 +141,16 @@ export async function computeRMSEFast(p: LogoParams, maskParamKeys?: Array<keyof
   const offGen = document.createElement('canvas');
   offGen.width = size; offGen.height = size;
 
-  // Composite reference on white
+  // Draw reference on transparent empty canvas
   const refCtx = offRef.getContext('2d')!;
-  refCtx.fillStyle = '#ffffff';
-  refCtx.fillRect(0, 0, size, size);
+  refCtx.clearRect(0, 0, size, size);
   refCtx.drawImage(referenceImage, 0, 0, size, size);
 
-  // Render generated on white
+  // Render generated on transparent empty canvas
   const genCtx = offGen.getContext('2d')!;
-  genCtx.fillStyle = '#ffffff';
-  genCtx.fillRect(0, 0, size, size);
+  genCtx.clearRect(0, 0, size, size);
 
-  const svgStr = buildFullSvg({ ...p, transparentBg: false, bgColor: '#ffffff' });
+  const svgStr = buildFullSvg({ ...p, transparentBg: true });
   const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const svgImg = await loadReferenceImage(url);
@@ -188,19 +191,26 @@ export async function computeRMSEFast(p: LogoParams, maskParamKeys?: Array<keyof
     }
     activePixels++;
 
-    const dr = Math.abs(refData[i] - genData[i]);
-    const dg = Math.abs(refData[i + 1] - genData[i + 1]);
-    const db = Math.abs(refData[i + 2] - genData[i + 2]);
-    const d = (dr + dg + db) / 3;
-    sumSqColor += d * d;
-
-    // Alpha from luminance
-    const refLum = refData[i] * 0.299 + refData[i + 1] * 0.587 + refData[i + 2] * 0.114;
-    const refAlpha = 255 - refLum;
-    const genLum = genData[i] * 0.299 + genData[i + 1] * 0.587 + genData[i + 2] * 0.114;
-    const genAlpha = 255 - genLum;
+    const refAlpha = refData[i + 3];
+    const genAlpha = genData[i + 3];
     const da = Math.abs(refAlpha - genAlpha);
     sumSqAlpha += da * da;
+
+    const rA = refAlpha / 255;
+    const gA = genAlpha / 255;
+    const refR = refData[i] * rA + 255 * (1 - rA);
+    const refG = refData[i + 1] * rA + 255 * (1 - rA);
+    const refB = refData[i + 2] * rA + 255 * (1 - rA);
+    
+    const genR = genData[i] * gA + 255 * (1 - gA);
+    const genG = genData[i + 1] * gA + 255 * (1 - gA);
+    const genB = genData[i + 2] * gA + 255 * (1 - gA);
+
+    const dr = Math.abs(refR - genR);
+    const dg = Math.abs(refG - genG);
+    const db = Math.abs(refB - genB);
+    const d = (dr + dg + db) / 3;
+    sumSqColor += d * d;
   }
 
   if (activePixels === 0) activePixels = 1;

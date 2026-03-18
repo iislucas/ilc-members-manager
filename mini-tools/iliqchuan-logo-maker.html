@@ -553,7 +553,7 @@
           min="-20"
           max="20"
           step="1"
-          value="0"
+          value="9"
         />
       </div>
 
@@ -567,7 +567,7 @@
           min="25"
           max="40"
           step="1"
-          value="30"
+          value="31"
         />
       </div>v>0
       <div class="section-title">Colors</div>
@@ -604,13 +604,17 @@
           Load Parameters
         </button>
       </div>
+      <div style="margin-top: 12px;">
+        <label style="font-size: 11px; color: #a0a0b0; margin-bottom: 4px; display: block;">JSON Parameters (editable):</label>
+        <textarea id="param-json" rows="8" style="width: 100%; background: #0a192f; color: #fff; border: 1px solid #0f3460; padding: 8px; font-family: monospace; font-size: 10px; border-radius: 4px; box-sizing: border-box; resize: vertical;"></textarea>
+      </div>
     </div>
 
     <div class="main">
       <!-- Hidden SVG used for rendering (the diff comparison reads from this) -->
       <svg id="main-preview" width="400" height="400"></svg>
 
-      <!-- Top comparison row: Reference | Generated | Diff side-by-side -->
+      <!-- Top comparison row: Reference | Generated -->
       <div class="comparison-row">
         <div class="canvas-box">
           <canvas id="ref-canvas" width="300" height="300"></canvas>
@@ -620,9 +624,17 @@
           <canvas id="gen-canvas" width="300" height="300"></canvas>
           <div class="canvas-label">Generated</div>
         </div>
+      </div>
+      
+      <!-- Bottom comparison row: Color error | Transparency error -->
+      <div class="comparison-row">
         <div class="canvas-box">
-          <canvas id="diff-canvas" width="300" height="300"></canvas>
-          <div class="canvas-label">Diff heatmap</div>
+          <canvas id="diff-color-canvas" width="300" height="300"></canvas>
+          <div class="canvas-label">Color error</div>
+        </div>
+        <div class="canvas-box">
+          <canvas id="diff-alpha-canvas" width="300" height="300"></canvas>
+          <div class="canvas-label">Transparency error</div>
         </div>
       </div>
 

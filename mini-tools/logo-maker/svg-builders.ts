@@ -199,6 +199,20 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
           const thirdBumpY = cy + bumpDist * sin;
           shapes.push(`<!-- Third central bump -->`);
           shapes.push(`<circle cx="${thirdBumpX}" cy="${thirdBumpY}" r="${p.nsewDecorationThirdBumpRadius}"/>`);
+
+          // Connecting Rectangle (from center to 3rd bump)
+          // This hides any potential gap lines when nsewDistance is high
+          const rectHalfW = p.nsewDecorationThirdBumpRadius;
+          const rx1 = cx - rectHalfW * perpCos;
+          const ry1 = cy - rectHalfW * perpSin;
+          const rx2 = cx + rectHalfW * perpCos;
+          const ry2 = cy + rectHalfW * perpSin;
+          const rx3 = thirdBumpX + rectHalfW * perpCos;
+          const ry3 = thirdBumpY + rectHalfW * perpSin;
+          const rx4 = thirdBumpX - rectHalfW * perpCos;
+          const ry4 = thirdBumpY - rectHalfW * perpSin;
+          shapes.push(`<!-- Connecting rect to center to hide lines -->`);
+          shapes.push(`<polygon points="${rx1},${ry1} ${rx2},${ry2} ${rx3},${ry3} ${rx4},${ry4}"/>`);
         }
       } else {
         // Diagonal Circle
