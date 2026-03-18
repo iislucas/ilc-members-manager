@@ -128,6 +128,18 @@ function update(): void {
   const fullSvg = buildFullSvg(p);
   ($('svg-output') as HTMLTextAreaElement).value = fullSvg;
 
+  const renderArea = $('svg-final-render');
+  if (renderArea) {
+    renderArea.innerHTML = fullSvg;
+    const svgEl = renderArea.querySelector('svg');
+    if (svgEl) {
+      svgEl.style.maxWidth = '100%';
+      svgEl.style.height = 'auto';
+      svgEl.style.display = 'block';
+      svgEl.style.margin = '0 auto';
+    }
+  }
+
   // Update diff
   updateDiff(p);
 }

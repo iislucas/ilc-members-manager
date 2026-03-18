@@ -90,11 +90,11 @@ export async function updateDiff(p) {
         diffColorData[i + 1] = 0; // G
         diffColorData[i + 2] = 0; // B
         diffColorData[i + 3] = colorIntensity;
-        // Transparency Mismatch Heatmap (Light Green)
+        // Transparency Mismatch Heatmap (Black & White)
         const alphaIntensity = Math.min(255, da * 3);
-        diffAlphaData[i] = 100; // R
-        diffAlphaData[i + 1] = 255; // G
-        diffAlphaData[i + 2] = 100; // B
+        diffAlphaData[i] = 0; // R
+        diffAlphaData[i + 1] = 0; // G
+        diffAlphaData[i + 2] = 0; // B
         diffAlphaData[i + 3] = alphaIntensity;
     }
     diffColorCtx.putImageData(diffColorImgData, 0, 0);
