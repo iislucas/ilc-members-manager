@@ -22,15 +22,14 @@ export function getParams() {
         textOffsetUpper: numVal('textOffsetUpper'),
         textOffsetLower: numVal('textOffsetLower'),
         textLetterSpacingLower: numVal('textLetterSpacingLower'),
-        cardinalTipDistance: numVal('cardinalTipDistance'),
-        diagonalTipDistance: numVal('diagonalTipDistance'),
-        cardinalTipLength: numVal('cardinalTipLength'),
-        cardinalTipWidth: numVal('cardinalTipWidth'),
-        cardinalTipConcavity: numVal('cardinalTipConcavity'),
-        cardinalTipThirdBumpDistance: numVal('cardinalTipThirdBumpDistance'),
-        cardinalTipThirdBumpRadius: numVal('cardinalTipThirdBumpRadius'),
-        diagonalTipLength: numVal('diagonalTipLength'),
-        diagonalTipWidth: numVal('diagonalTipWidth'),
+        nsewDecorationDistance: numVal('nsewDecorationDistance'),
+        diagonalDecorationDistance: numVal('diagonalDecorationDistance'),
+        nsewDecorationLength: numVal('nsewDecorationLength'),
+        nsewDecorationWidth: numVal('nsewDecorationWidth'),
+        nsewDecorationConcavity: numVal('nsewDecorationConcavity'),
+        nsewDecorationThirdBumpDistance: numVal('nsewDecorationThirdBumpDistance'),
+        nsewDecorationThirdBumpRadius: numVal('nsewDecorationThirdBumpRadius'),
+        diagonalDecorationWidth: numVal('diagonalDecorationWidth'),
         strokeColor: strVal('strokeColor'),
         fillLight: strVal('fillLight'),
         fillDark: strVal('fillDark'),
@@ -74,15 +73,14 @@ export function loadParams(updateFn) {
         setInputVal('textOffsetUpper', p.textOffsetUpper);
         setInputVal('textOffsetLower', p.textOffsetLower);
         setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
-        setInputVal('cardinalTipDistance', p.cardinalTipDistance);
-        setInputVal('diagonalTipDistance', p.diagonalTipDistance);
-        setInputVal('cardinalTipLength', p.cardinalTipLength);
-        setInputVal('cardinalTipWidth', p.cardinalTipWidth);
-        setInputVal('cardinalTipConcavity', p.cardinalTipConcavity ?? 0.5);
-        setInputVal('cardinalTipThirdBumpDistance', p.cardinalTipThirdBumpDistance ?? 12);
-        setInputVal('cardinalTipThirdBumpRadius', p.cardinalTipThirdBumpRadius ?? 5);
-        setInputVal('diagonalTipLength', p.diagonalTipLength);
-        setInputVal('diagonalTipWidth', p.diagonalTipWidth);
+        setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
+        setInputVal('diagonalDecorationDistance', p.diagonalDecorationDistance);
+        setInputVal('nsewDecorationLength', p.nsewDecorationLength);
+        setInputVal('nsewDecorationWidth', p.nsewDecorationWidth);
+        setInputVal('nsewDecorationConcavity', p.nsewDecorationConcavity ?? 0.5);
+        setInputVal('nsewDecorationThirdBumpDistance', p.nsewDecorationThirdBumpDistance ?? 12);
+        setInputVal('nsewDecorationThirdBumpRadius', p.nsewDecorationThirdBumpRadius ?? 5);
+        setInputVal('diagonalDecorationWidth', p.diagonalDecorationWidth);
         setInputVal('strokeColor', p.strokeColor);
         setInputVal('fillLight', p.fillLight);
         setInputVal('fillDark', p.fillDark);

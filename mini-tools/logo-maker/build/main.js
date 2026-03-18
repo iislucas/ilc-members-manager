@@ -64,15 +64,14 @@ function updateLabels(p) {
     $('textOffsetUpper-val').textContent = String(p.textOffsetUpper);
     $('textOffsetLower-val').textContent = String(p.textOffsetLower);
     $('textLetterSpacingLower-val').textContent = String(p.textLetterSpacingLower);
-    $('cardinalTipDistance-val').textContent = String(p.cardinalTipDistance);
-    $('diagonalTipDistance-val').textContent = String(p.diagonalTipDistance);
-    $('cardinalTipLength-val').textContent = String(p.cardinalTipLength);
-    $('cardinalTipWidth-val').textContent = String(p.cardinalTipWidth);
-    $('cardinalTipConcavity-val').textContent = p.cardinalTipConcavity.toFixed(1);
-    $('cardinalTipThirdBumpDistance-val').textContent = String(p.cardinalTipThirdBumpDistance);
-    $('cardinalTipThirdBumpRadius-val').textContent = String(p.cardinalTipThirdBumpRadius);
-    $('diagonalTipLength-val').textContent = String(p.diagonalTipLength);
-    $('diagonalTipWidth-val').textContent = String(p.diagonalTipWidth);
+    $('nsewDecorationDistance-val').textContent = String(p.nsewDecorationDistance);
+    $('diagonalDecorationDistance-val').textContent = String(p.diagonalDecorationDistance);
+    $('nsewDecorationLength-val').textContent = String(p.nsewDecorationLength);
+    $('nsewDecorationWidth-val').textContent = String(p.nsewDecorationWidth);
+    $('nsewDecorationConcavity-val').textContent = p.nsewDecorationConcavity.toFixed(1);
+    $('nsewDecorationThirdBumpDistance-val').textContent = String(p.nsewDecorationThirdBumpDistance);
+    $('nsewDecorationThirdBumpRadius-val').textContent = String(p.nsewDecorationThirdBumpRadius);
+    $('diagonalDecorationWidth-val').textContent = String(p.diagonalDecorationWidth);
 }
 function update() {
     const p = getParams();
@@ -118,8 +117,8 @@ function init() {
         'yinYangRadius', 'yinYangEyeRadius', 'yinYangEyePosition', 'yinYangRotation',
         'innerRingWidth', 'innerRingGap', 'textBandWidth', 'outerRingGap', 'outerRingWidth',
         'textSizeUpper', 'textSizeLower', 'textOffsetUpper', 'textOffsetLower', 'textLetterSpacingLower',
-        'cardinalTipDistance', 'diagonalTipDistance',
-        'cardinalTipLength', 'cardinalTipWidth', 'cardinalTipConcavity', 'cardinalTipThirdBumpDistance', 'cardinalTipThirdBumpRadius', 'diagonalTipLength', 'diagonalTipWidth',
+        'nsewDecorationDistance', 'diagonalDecorationDistance',
+        'nsewDecorationLength', 'nsewDecorationWidth', 'nsewDecorationConcavity', 'nsewDecorationThirdBumpDistance', 'nsewDecorationThirdBumpRadius', 'diagonalDecorationWidth',
         'strokeColor', 'fillLight', 'fillDark', 'bgColor',
     ];
     for (const id of controlIds) {

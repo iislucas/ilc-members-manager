@@ -154,12 +154,14 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
     const perpCos = Math.cos(angle + Math.PI / 2);
     const perpSin = Math.sin(angle + Math.PI / 2);
 
-    // 2. Tips
-    const tipStart = outerRingOuterEdge + (isCardinal ? p.cardinalTipDistance : p.diagonalTipDistance);
-    const tipLen = isCardinal ? p.cardinalTipLength : p.diagonalTipLength;
-    const tipW = isCardinal ? p.cardinalTipWidth : p.diagonalTipWidth;
-    if (tipLen > 0 && tipW > 0) {
+    // 2. Decorations
+    const tipStart = outerRingOuterEdge + (isCardinal ? p.nsewDecorationDistance : p.diagonalDecorationDistance);
+    const tipW = isCardinal ? p.nsewDecorationWidth : p.diagonalDecorationWidth;
+    if (tipW > 0) {
       if (isCardinal) {
+        const tipLen = p.nsewDecorationLength;
+        if (tipLen <= 0) continue;
+
         const halfW = tipW / 2;
         const baseR = tipStart;
         const tipR = tipStart + tipLen;
@@ -174,7 +176,7 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
         const tx = cx + tipR * cos;
         const ty = cy + tipR * sin;
         
-        const cpOffset = baseSpikeW * p.cardinalTipConcavity;
+        const cpOffset = baseSpikeW * p.nsewDecorationConcavity;
         const midR = baseR + tipLen * 0.4;
         const cp1x = cx + midR * cos - (baseSpikeW - cpOffset) * perpCos;
         const cp1y = cy + midR * sin - (baseSpikeW - cpOffset) * perpSin;
@@ -191,17 +193,17 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
         shapes.push(`<circle cx="${rightBumpX}" cy="${rightBumpY}" r="${bumpR}"/>`);
 
         // Third Bump (Center base)
-        if (p.cardinalTipThirdBumpRadius > 0) {
-          const bumpDist = tipStart + p.cardinalTipThirdBumpDistance;
+        if (p.nsewDecorationThirdBumpRadius > 0) {
+          const bumpDist = tipStart + p.nsewDecorationThirdBumpDistance;
           const thirdBumpX = cx + bumpDist * cos;
           const thirdBumpY = cy + bumpDist * sin;
           shapes.push(`<!-- Third central bump -->`);
-          shapes.push(`<circle cx="${thirdBumpX}" cy="${thirdBumpY}" r="${p.cardinalTipThirdBumpRadius}"/>`);
+          shapes.push(`<circle cx="${thirdBumpX}" cy="${thirdBumpY}" r="${p.nsewDecorationThirdBumpRadius}"/>`);
         }
       } else {
         // Diagonal Circle
         const radius = tipW / 2;
-        const dist = tipStart + Math.max(0, tipLen - radius);
+        const dist = tipStart;
         const cx_circle = cx + dist * cos;
         const cy_circle = cy + dist * sin;
         shapes.push(`<circle cx="${cx_circle}" cy="${cy_circle}" r="${radius}"/>`);

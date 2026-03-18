@@ -30,17 +30,16 @@ export interface LogoParams {
   textOffsetLower: number;
   textLetterSpacingLower: number;
 
-  cardinalTipDistance: number;
+  nsewDecorationDistance: number;
 
   // Tips
-  cardinalTipLength: number;
-  cardinalTipWidth: number;
-  cardinalTipConcavity: number; // 0 = straight sides, 1 = deeply concave sides
-  cardinalTipThirdBumpDistance: number;
-  cardinalTipThirdBumpRadius: number;
-  diagonalTipDistance: number;
-  diagonalTipLength: number;
-  diagonalTipWidth: number;
+  nsewDecorationLength: number;
+  nsewDecorationWidth: number;
+  nsewDecorationConcavity: number; // 0 = straight sides, 1 = deeply concave sides
+  nsewDecorationThirdBumpDistance: number;
+  nsewDecorationThirdBumpRadius: number;
+  diagonalDecorationDistance: number;
+  diagonalDecorationWidth: number;
 
   // Colors
   strokeColor: string;
