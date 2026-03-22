@@ -41,11 +41,18 @@ async function setupMember(db: Firestore, member: Member) {
 
 async function setupInstructor(
   db: Firestore,
-  instructor: InstructorPublicData,
+  instructor: Member,
 ) {
   await db.collection('instructors').doc(instructor.docId).set(instructor);
-  // 2. Create Member Profile
-  await setupMember(db, instructor as Member);
+  // Create Member Profile
+  await setupMember(db, instructor);
+  // Populate instructorIds in ACL
+  for (const email of instructor.emails || []) {
+    await db.collection('acl').doc(email).set(
+      { instructorIds: [instructor.instructorId] },
+      { merge: true }
+    );
+  }
 }
 
 async function setupStudentWithSifu(db: Firestore, student: Member) {
@@ -102,7 +109,7 @@ describe('Firestore Rules', () => {
         docId: 'FirestoreDocID-school1',
         schoolId: 'SCH-001',
         ownerInstructorId: 'MEM-OWNER',
-        ownerEmail: 'school_owner@ilc.com',
+        ownerEmails: ['school_owner@ilc.com'],
         managerInstructorIds: ['MEM-MANAGER'],
         managerEmails: ['school_manager@ilc.com'],
       } as School);
@@ -139,7 +146,8 @@ describe('Firestore Rules', () => {
         memberId: 'MEM-002',
         emails: ['student1@ilc.com'],
         primaryInstructorId: 'INST-001',
-        primarySchoolId: 'FirestoreDocID-school1',
+        primarySchoolDocId: 'FirestoreDocID-school1',
+        primarySchoolId: 'SCH-001',
       } as Member);
 
       // Member 3 (Student of Instructor 2)
@@ -548,6 +556,29 @@ describe('Firestore Rules', () => {
           .doc('FirestoreDocID-student1')
           .get(),
       );
+    });
+  });
+
+  describe('Blog Posts Collections', () => {
+    it('should allow anyone logged in to read members blog posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('members-post').doc('post1').get());
+    });
+
+    it('should allow instructors to read instructors blog posts', async () => {
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('instructors-post').doc('post1').get());
+    });
+
+    it('should deny non-instructors from reading instructors blog posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(db.collection('instructors-post').doc('post1').get());
     });
   });
 });

@@ -53,7 +53,7 @@ service cloud.firestore {
 
     match /instructors/{instructorMemberDocId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false; // Locked down to Cloud Functions
       
       match /members/{studentMemberDocId} {
         allow read: if isAdmin() || instructorMemberDocId in getUserMemberDocIds();

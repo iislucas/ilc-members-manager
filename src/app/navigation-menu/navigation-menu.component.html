@@ -8,11 +8,12 @@
 
     <div class="menu-seperator"></div>
 
+    <!-- Group 1: Access Resources -->
     <div class="menu-item" (click)="onSelect(Views.MembersArea)">
       <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.MembersArea) }}</span>
     </div>
-    @if (u.member.instructorId) {
+    @if (instructorStatus().isInstructor) {
       <div class="menu-item" (click)="onSelect(Views.InstructorsArea)">
         <app-icon name="meditation" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.InstructorsArea) }}</span>
@@ -23,7 +24,13 @@
       <span>{{ viewIdToTitle(Views.ClassVideoLibrary) }}</span>
     </div>
 
-    <!-- Public -->
+    <div class="menu-seperator"></div>
+
+    <!-- Group 2: Public -->
+    <div class="menu-item" (click)="onSelect(Views.EventsCalendar)">
+      <app-icon name="event" width="24px" height="24px"></app-icon>
+      <span>{{ viewIdToTitle(Views.EventsCalendar) }}</span>
+    </div>
     <div class="menu-item" (click)="onSelect(Views.FindSchool)">
       <app-icon name="map" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.FindSchool) }}</span>
@@ -35,7 +42,7 @@
 
     <div class="menu-seperator"></div>
 
-    <!-- Personal -->
+    <!-- Group 3: Personal -->
     <div class="menu-item" (click)="onSelect(Views.MyProfile)">
       <app-icon name="person" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.MyProfile) }}</span>
@@ -44,7 +51,7 @@
       <app-icon name="mountain" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.MemberGradings) }}</span>
     </div>
-    @if (u.member.instructorId) {
+    @if (instructorStatus().hasAccess) {
       <div class="menu-item" (click)="onSelect(Views.MyStudents)">
         <app-icon name="salut" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
@@ -59,7 +66,7 @@
 
     @if (u.isAdmin) {
       <div class="menu-seperator"></div>
-      <!-- Admin -->
+      <!-- Group 4: Admin 1 -->
       <div class="menu-item" (click)="onSelect(Views.ManageMembers)">
         <app-icon name="admin" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.ManageMembers) }}</span>
@@ -67,10 +74,6 @@
       <div class="menu-item" (click)="onSelect(Views.ManageSchools)">
         <app-icon name="map" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.ManageSchools) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.ImportExport)">
-        <app-icon name="link" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
       </div>
       <div class="menu-item" (click)="onSelect(Views.ManageGradings)">
         <app-icon name="mountain" width="24px" height="24px"></app-icon>
@@ -80,13 +83,20 @@
         <app-icon name="link" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.ManageOrders) }}</span>
       </div>
-      <div class="menu-item" (click)="onSelect(Views.Settings)">
-        <app-icon name="settings" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.Settings) }}</span>
-      </div>
+
+      <div class="menu-seperator"></div>
+      <!-- Group 5: Admin 2 -->
       <div class="menu-item" (click)="onSelect(Views.Statistics)">
         <app-icon name="bar_chart" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.Statistics) }}</span>
+      </div>
+      <div class="menu-item" (click)="onSelect(Views.ImportExport)">
+        <app-icon name="link" width="24px" height="24px"></app-icon>
+        <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
+      </div>
+      <div class="menu-item" (click)="onSelect(Views.Settings)">
+        <app-icon name="settings" width="24px" height="24px"></app-icon>
+        <span>{{ viewIdToTitle(Views.Settings) }}</span>
       </div>
     }
   </div>

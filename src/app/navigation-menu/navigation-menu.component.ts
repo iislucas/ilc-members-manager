@@ -1,10 +1,12 @@
-import { Component, inject, output } from '@angular/core';
+import { Component, computed, inject, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { FindInstructorsService } from '../find-instructors.service';
+import { ExpiryStatus } from '../../../functions/src/data-model';
+import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
 @Component({
   selector: 'app-navigation-menu',
@@ -24,9 +26,45 @@ export class NavigationMenuComponent {
 
   public user = this.firebaseService.user;
 
-  get todayDateString(): string {
-    return new Date().toISOString().split('T')[0];
-  }
+  private today = computed(() => new Date().toISOString().split('T')[0]);
+
+  public membershipStatus = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return { hasAccess: false, expired: false, date: '' };
+    const status = getMemberExpiryStatus(m, this.today());
+    return {
+      hasAccess: status === ExpiryStatus.Valid,
+      expired: status === ExpiryStatus.Expired || status === ExpiryStatus.Recent,
+      date: m.currentMembershipExpires
+    };
+  });
+
+  public instructorStatus = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return { hasAccess: false, expired: false, date: '', isInstructor: false };
+    const status = getInstructorExpiryStatus(m, this.today());
+    return {
+      hasAccess: !!m.instructorId && status === ExpiryStatus.Valid,
+      expired: !!m.instructorId && (status === ExpiryStatus.Expired || status === ExpiryStatus.Recent),
+      date: m.instructorLicenseExpires,
+      isInstructor: !!m.instructorId
+    };
+  });
+
+  public videoStatus = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return { hasAccess: false, expired: false, date: '' };
+    const today = this.today();
+    const hasSubscription = m.classVideoLibrarySubscription;
+    const expires = m.classVideoLibraryExpirationDate;
+    const hasAccess = hasSubscription && (!expires || expires >= today);
+    const expired = hasSubscription && !!expires && expires < today;
+    return {
+      hasAccess,
+      expired,
+      date: expires
+    };
+  });
 
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
@@ -54,11 +92,12 @@ export class NavigationMenuComponent {
       case Views.MembersArea: return 'Members Area';
       case Views.InstructorsArea: return 'Instructors Area';
       case Views.ManageGradings: return 'Manage Gradings';
-      case Views.MemberGradings: return 'Gradings';
+      case Views.MemberGradings: return 'My Gradings';
       case Views.Settings: return 'Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
       case Views.ManageOrders: return 'Manage Orders';
       case Views.Statistics: return 'Statistics';
+      case Views.EventsCalendar: return 'Events & Workshops';
       case Views.OrderView:
         const orderId = this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;
