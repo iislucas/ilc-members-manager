@@ -118,7 +118,7 @@
         </div>
       </a>
 
-      @if (u.member.instructorId) {
+      @if (instructorStatus().hasAccess) {
         <a class="card" [href]="routingService.hrefForView(Views.MyStudents)">
           <div class="icon-container">
             <app-icon name="salut" width="48px" height="48px"></app-icon>

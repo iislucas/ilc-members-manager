@@ -35,7 +35,9 @@ export function getMemberExpiryStatus(member: Member, today: string): ExpiryStat
 
 export function getInstructorExpiryStatus(member: Member, today: string): ExpiryStatus {
   const expires = member.instructorLicenseExpires;
-  if (!expires || member.instructorLicenseType === InstructorLicenseType.Life) return ExpiryStatus.Valid;
+  if (member.instructorLicenseType === InstructorLicenseType.Life) return ExpiryStatus.Valid;
+  if (!expires) return ExpiryStatus.Expired;
+
   if (expires >= today) return ExpiryStatus.Valid;
 
   const expireDate = new Date(expires);

@@ -14,8 +14,9 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { MembershipType, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model';
+import { MembershipType, CachedBlogPost, initCachedBlogPost, ExpiryStatus } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
+import { getInstructorExpiryStatus } from '../member-tags';
 
 export interface ProcessedBlogEntry extends CachedBlogPost {
     safeBody: SafeHtml;
@@ -206,7 +207,9 @@ export class SquarespaceContentComponent implements OnDestroy {
                 this.error.set('You must be an instructor to view this content.');
                 return;
             }
-            if (user.member.instructorLicenseExpires && new Date(user.member.instructorLicenseExpires) < new Date()) {
+            const today = new Date().toISOString().split('T')[0];
+            const status = getInstructorExpiryStatus(user.member, today);
+            if (status !== ExpiryStatus.Valid) {
                 this.error.set('Your instructor license has expired. Please renew your instructor license to access this content.');
                 return;
             }

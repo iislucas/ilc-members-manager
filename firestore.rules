@@ -18,6 +18,12 @@ service cloud.firestore {
       return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
     }
 
+    function isInstructor() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/$(database)/documents/acl/$(email);
+      return email != null && exists(aclPath) && get(aclPath).data.get('instructorIds', []).size() > 0;
+    }
+
     match /members/{memberDocId} {
       function isOwner() {
         return (request.auth.token.email in resource.data.emails) || 
@@ -122,9 +128,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Cached instructors blog posts — readable by authenticated users.
+    // Cached instructors blog posts — readable by active instructors or admins.
     match /instructors-post/{postId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && (isAdmin() || isInstructor());
       allow write: if isAdmin();
     }
 
