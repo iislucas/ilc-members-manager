@@ -205,26 +205,46 @@
       }
     </div>
   }
-  <div class="member-cards">
-    @let membersList = members();
-    @for (member of membersList; track member.docId) {
-      <a
-        class="member-card"
-        [class.inactive]="isMemberInactive(member)"
-        [id]="'member-' + (member.memberId || member.docId)"
-        [href]="memberLink(member)"
-      >
-        <app-member-row-header [member]="member"></app-member-row-header>
-      </a>
-    }
-    @if (membersList.length < totalMembers()) {
-      <div class="show-more-container">
-        <button class="show-more-button" (click)="showAll()">
-          Show all {{ totalMembers() }} members
-        </button>
-      </div>
-    }
-  </div>
+  @let membersList = members();
+  @if (membersList.length === 0) {
+    <div class="empty-list-notice">
+      @if (!searchTerm() && !hasTagFilter()) {
+        <div class="notice-content">
+          <p class="empty-title">
+            There are not currently any students who have
+            <strong>{{ u.member.name }} ({{ u.member.instructorId }})</strong>
+            listed as their primary instructor.
+          </p>
+          <p class="empty-details">
+            Students can update who they consider their primary instructor at any time.
+            This allows the primary instructor to follow their progress, see when they are grading, and better support them.
+          </p>
+        </div>
+      } @else {
+        <p>No members found.</p>
+      }
+    </div>
+  } @else {
+    <div class="member-cards">
+      @for (member of membersList; track member.docId) {
+        <a
+          class="member-card"
+          [class.inactive]="isMemberInactive(member)"
+          [id]="'member-' + (member.memberId || member.docId)"
+          [href]="memberLink(member)"
+        >
+          <app-member-row-header [member]="member"></app-member-row-header>
+        </a>
+      }
+      @if (membersList.length < totalMembers()) {
+        <div class="show-more-container">
+          <button class="show-more-button" (click)="showAll()">
+            Show all {{ totalMembers() }} members
+          </button>
+        </div>
+      }
+    </div>
+  }
   @if (hiddenInactiveCount() > 0) {
     <div class="inactive-toggle-container">
       <button

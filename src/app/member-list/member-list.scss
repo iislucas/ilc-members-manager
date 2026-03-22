@@ -325,3 +325,39 @@
 .jump-highlight {
   animation: flashHighlight 2s ease-out;
 }
+
+.notice-content {
+  max-width: 600px;
+}
+
+.empty-list-notice {
+  text-align: left;
+  margin: 1.5em 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+
+  .empty-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.75em;
+    line-height: 1.4;
+  }
+
+  .empty-details {
+    font-size: 0.95em;
+    line-height: 1.6;
+    color: #6b7280;
+  }
+
+  strong {
+    color: #111827;
+    background-color: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+}
