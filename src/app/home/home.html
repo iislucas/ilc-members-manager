@@ -13,7 +13,7 @@
           @if (!mStatus.hasAccess) {
             <div class="no-access-container">
               <span class="info-message">
-                @if (mStatus.expired) { Expired: {{ mStatus.date }} } @else { Requires active membership }
+                @if (mStatus.expired) { Expired: {{ mStatus.date || '(unknown last expiration date)' }} } @else { Requires active membership }
               </span>
             </div>
           }
@@ -33,7 +33,7 @@
             @if (!iStatus.hasAccess) {
               <div class="no-access-container">
                 <span class="info-message">
-                  @if (iStatus.expired) { Expired: {{ iStatus.date }} } @else { Requires active license }
+                  @if (iStatus.expired) { Expired: {{ iStatus.date || '(unknown last expiration date)' }} } @else { Requires active license }
                 </span>
               </div>
             }
@@ -86,7 +86,7 @@
           @if (!vStatus.hasAccess) {
             <div class="no-access-container">
               <span class="info-message">
-                @if (vStatus.expired) { Expired: {{ vStatus.date }} } @else { Requires subscription }
+                @if (vStatus.expired) { Expired: {{ vStatus.date || '(unknown last expiration date)' }} } @else { Requires subscription }
               </span>
             </div>
           }
