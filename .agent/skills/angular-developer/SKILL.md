@@ -1,13 +1,13 @@
 ---
 name: angular-developer
-description: Angular 21+ development, focusing on Signals, Standalone Components, and modern best practices; read this whenever you see you are using angular for something. Skip if you are just writing firebase functions.
+description: Angular 21+ development, focusing on Signals, Standalone Components, and modern best practices; read this whenever you see you are using angular. Skip if you are only writing firebase functions.
 ---
 
 # Angular 21+ Developer Skill
 
 This skill outlines the mandatory practices for developing Angular applications in v21+. It strictly enforces modern patterns (Signals, Standalone) and bans legacy approaches (Modules, Zone.js patterns).
 
-## 1. Core Principles & "The Banned List"
+## Core Principles & "The Banned List"
 
 > [!CAUTION]
 > **STRICTLY PROHIBITED PATTERNS**
@@ -21,7 +21,7 @@ This skill outlines the mandatory practices for developing Angular applications 
 
 ---
 
-## 2. Reactivity with Signals
+## Reactivity with Signals
 
 Signals are the primary mechanism for state, derived state, and side effects.
 
@@ -86,7 +86,7 @@ const query$ = toObservable(query);
 
 ---
 
-## 3. Component Architecture
+## Component Architecture
 
 All components must be **Standalone**.
 
@@ -153,9 +153,42 @@ Avoid rewriting the same signal many times with optional chaining and checks. In
 }
 ```
 
+### Declarative Navigation (Hrefs vs Click Handlers)
+
+Prefer using standard `<a href="...">` tags for navigation instead of `(click)` handlers that programmatically navigate. This improves UI responsiveness, enables standard browser features (like middle-click or hover previews), and enforces better design patterns.
+
+To support this strictly and type-safely, use `routingService.hrefForView(viewName, pathVars?)` directly in the template.
+
+**❌ Bad:**
+```html
+<div class="card" (click)="handleCardClick()">Navigate</div>
+```
+```typescript
+handleCardClick() {
+  if (this.hasAccess()) {
+    this.routingService.matchedPatternId.set(Views.Dashboard);
+  } else {
+    window.open('https://external.link', '_blank');
+  }
+}
+```
+
+**✅ Good:**
+```html
+<a class="card" 
+   [href]="hasAccess() ? routingService.hrefForView('dashboard') : 'https://external.link'"
+   [target]="hasAccess() ? '_self' : '_blank'">
+  Navigate
+</a>
+```
+```typescript
+// In component class:
+protected routingService = inject(RoutingService);
+```
+
 ---
 
-## 4. Routing
+## Routing
 
 Use my routing service to handle routing.
 
@@ -168,7 +201,7 @@ import { RoutingConfig } from "./routing.service";
 
 ---
 
-## 5. Forms (Signal Forms)
+## Forms (Signal Forms)
 
 Use the new Signal Forms API for type-safe, reactive forms.
 
@@ -196,7 +229,7 @@ export class LoginPage {
 
 ---
 
-## 6. Dependency Injection
+## Dependency Injection
 
 Always use `inject()`.
 
@@ -228,7 +261,7 @@ userResource = httpResource<User>(() => `/api/users/${this.userId()}`);
 
 ---
 
-## 8. Testing (Vitest)
+## Testing (Vitest)
 
 Use **Vitest** for all testing.
 
@@ -271,7 +304,7 @@ vi.spyOn(service, "method").mockReturnValue(of(data));
 
 ---
 
-## 9. State Management
+## State Management
 
 - **Local State**: `signal()` inside components.
 - **Shared State**: Services with private writable signals and public readonly signals.
@@ -282,4 +315,29 @@ export class GlobalStore {
   private _state = signal(initialState);
   readonly state = this._state.asReadonly();
 }
+```
+
+---
+
+## Environment & Configuration Management
+
+Manage configuration variables and global links using Angular environment files.
+
+### Setup
+
+- **`src/environments/environment.local.ts`**: Holds local development overrides and sensitive/variable globals (e.g., app-specific product links). This file is **NOT** committed to git.
+- **`src/environments/environment.ts`**: The template file that other developers copy. This file **IS** committed to git.
+
+### Best Practices
+
+1. **No Hardcoded Constants in Components**: Move application configuration details (e.g., external product links, support email addresses) out of components (e.g., `home.ts`) and into environment files.
+2. **Keep Templates in Sync**: Whenever you add a configuration key to `environment.local.ts`, you **MUST** update `environment.ts` with a template/placeholder value (e.g., `'YOUR_API_KEY'` or `'YOUR_PRODUCT_URL'`). This ensures other developers know the parameter exists when they pull the code.
+3. **Usage**:
+   ```typescript
+   import { environment } from '../../environments/environment';
+   
+   export class MyComponent {
+     protected links = environment.links;
+   }
+   ```
 ```

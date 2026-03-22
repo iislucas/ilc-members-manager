@@ -356,4 +356,36 @@ describe('RoutingService', () => {
 
     expect(window.location.hash).toContain('sortBy=name');
   });
+
+  // ── hrefForView ──
+
+  it('hrefForView should return href for view without path vars', async () => {
+    await configureTestBed(testConfig);
+    
+    const href = service.hrefForView(Views.ManageMembers);
+    expect(href).toBe('#/members');
+  });
+
+  it('hrefForView should return href for view with path vars', async () => {
+    await configureTestBed(testConfig);
+    
+    const href = service.hrefForView(Views.SchoolMembers, { schoolId: 'S123' });
+    expect(href).toBe('#/school/S123/members');
+  });
+
+  it('hrefForView should encode path variables', async () => {
+    await configureTestBed(testConfig);
+    
+    const href = service.hrefForView(Views.ManageMemberView, { memberId: 'John Doe' });
+    expect(href).toBe('#/members/John%20Doe');
+  });
+
+  it('hrefForView should throw if required path variable is missing', async () => {
+    await configureTestBed(testConfig);
+    
+    expect(() => {
+      // Cast to any to bypass TypeScript safety checks for testing the runtime error
+      (service as any).hrefForView(Views.SchoolMembers);
+    }).toThrowError(/Missing path variable schoolId/);
+  });
 });

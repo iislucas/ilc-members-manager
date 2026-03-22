@@ -15,7 +15,7 @@ import {
 
 // ── helpers (duplicated from MemberRowHeaderComponent to keep this pure) ──
 
-function getMemberExpiryStatus(member: Member, today: string): ExpiryStatus {
+export function getMemberExpiryStatus(member: Member, today: string): ExpiryStatus {
   const type = member.membershipType;
   if (type === MembershipType.Life) return ExpiryStatus.Valid;
   if (type === MembershipType.Inactive || type === MembershipType.Deceased) return ExpiryStatus.Valid;
@@ -33,7 +33,7 @@ function getMemberExpiryStatus(member: Member, today: string): ExpiryStatus {
   return expireDate >= sixMonthsAgo ? ExpiryStatus.Recent : ExpiryStatus.Expired;
 }
 
-function getInstructorExpiryStatus(member: Member, today: string): ExpiryStatus {
+export function getInstructorExpiryStatus(member: Member, today: string): ExpiryStatus {
   const expires = member.instructorLicenseExpires;
   if (!expires || member.instructorLicenseType === InstructorLicenseType.Life) return ExpiryStatus.Valid;
   if (expires >= today) return ExpiryStatus.Valid;
@@ -43,6 +43,7 @@ function getInstructorExpiryStatus(member: Member, today: string): ExpiryStatus 
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
   return expireDate >= sixMonthsAgo ? ExpiryStatus.Recent : ExpiryStatus.Expired;
 }
+
 
 // ── public API ──────────────────────────────────────────────────────────────
 

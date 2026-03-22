@@ -264,4 +264,30 @@ export class RoutingService<T extends PathPatterns> {
     const resolved = this.resolveUrlWithParams(basePath);
     return `#${resolved.startsWith('/') ? resolved : '/' + resolved}`;
   }
+
+  /**
+   * Generate an href string for a specific View pattern, with strongly typed path variables.
+   * Preserves current URL param signals.
+   */
+  hrefForView<K extends keyof T>(
+    view: K,
+    ...args: PathVarNames<T[K]> extends never ? [] : [{ [key in PathVarNames<T[K]>]: string }]
+  ): string {
+    const pattern = this.config.validPathPatterns[view];
+    const pathVars = args[0] as { [key: string]: string } | undefined;
+    const substParts = pattern.pathParts.map((part) => {
+      if (part.startsWith(':')) {
+        const paramName = part.substring(1);
+        const val = pathVars?.[paramName];
+        if (val === undefined) {
+          throw new Error(`Missing path variable ${paramName} for view ${String(view)}`);
+        }
+        return encodeURIComponent(val);
+      } else {
+        return part;
+      }
+    });
+    const path = substParts.join('/');
+    return this.hrefWithParams(path);
+  }
 }
