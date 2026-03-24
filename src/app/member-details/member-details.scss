@@ -95,3 +95,37 @@ app-member-row-header {
 .nav-buttons {
   margin-top: 0.5em;
 }
+
+.deletion-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+
+  .cancel-deletion-button {
+    background-color: #0056b3;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+
+  &.top-notice {
+    margin-bottom: 1em;
+    margin-top: 0.5em;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+}

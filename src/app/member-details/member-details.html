@@ -6,6 +6,16 @@
     [isDirty]="isDirty()"
   ></app-member-row-header>
 
+  @if (e.scheduledDeletionDate) {
+    <div class="deletion-notice top-notice">
+      <span>⚠️ Account scheduled for deletion on <strong>{{ e.scheduledDeletionDate }}</strong></span>
+      <button type="button" class="cancel-deletion-button" (click)="cancelDeletion($event)">
+        Cancel Deletion
+      </button>
+    </div>
+  }
+
+
   @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
     <div class="nav-buttons">
       <a
@@ -729,12 +739,20 @@
       <div class="right-actions">
         <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
 
-        @if (canDelete()) {
-          <button class="delete-button" (click)="deleteMember($event)">
+        @if (e.scheduledDeletionDate) {
+          <div class="deletion-notice">
+            <span>Scheduled for deletion: {{ e.scheduledDeletionDate }}</span>
+            <button type="button" class="cancel-deletion-button" (click)="cancelDeletion($event)">
+              Cancel Deletion
+            </button>
+          </div>
+        } @else if (canDelete()) {
+          <button type="button" class="delete-button" (click)="deleteMember($event)">
             <app-icon name="trash" fill="#000" />
-            Delete
+            {{ userIsAdmin() ? 'Delete (Admin)' : 'Schedule Deletion' }}
           </button>
         }
+
       </div>
     </div>
   </form>

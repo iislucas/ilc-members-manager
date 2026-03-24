@@ -39,3 +39,6 @@ export { computeStatistics, manualComputeStatistics } from './compute-statistics
 export { checkEmailStatus } from './check-email-status';
 
 export { refreshContentCache, manualRefreshCache, clearContentCache } from './content-cache';
+
+export { scheduleAccountDeletion, cancelAccountDeletion, dailyAccountCleanup } from './account-deletion';
+

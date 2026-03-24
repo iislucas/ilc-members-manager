@@ -334,6 +334,9 @@ export type Member = {
 
   // Notes only for ILC HQ.
   notes: string;
+
+  // Scheduled Deletion Date (YYYY-MM-DD), empty if not scheduled.
+  scheduledDeletionDate: string;
 };
 
 export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
@@ -599,6 +602,8 @@ export function initMember(): Member {
 
     // Notes - information only for ILC HQ management.
     notes: '',
+
+    scheduledDeletionDate: '',
   };
 }
 

@@ -1050,7 +1050,26 @@ export class DataManagerService {
     this.downloadFile('schools.jsonl', jsonl, 'application/jsonl');
   }
 
+  async scheduleAccountDeletion(memberDocId: string): Promise<{ success: boolean; scheduledDeletionDate: string }> {
+    const fn = httpsCallable<{ memberDocId: string }, { success: boolean; scheduledDeletionDate: string }>(
+      this.functions,
+      'scheduleAccountDeletion',
+    );
+    const result = await fn({ memberDocId });
+    return result.data;
+  }
+
+  async cancelAccountDeletion(memberDocId: string): Promise<{ success: boolean }> {
+    const fn = httpsCallable<{ memberDocId: string }, { success: boolean }>(
+      this.functions,
+      'cancelAccountDeletion',
+    );
+    const result = await fn({ memberDocId });
+    return result.data;
+  }
+
   private downloadFile(filename: string, content: string, mimeType: string) {
+
     const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);

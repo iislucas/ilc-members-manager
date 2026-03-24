@@ -381,7 +381,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
       const db = getDb();
       await assertFails(
         db.collection('members').doc(memberDocId).update({
-          membershipType: 'Life',
+          membershipType: 'Annual',
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -411,7 +411,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
       await assertFails(
         db.collection('members').doc(memberDocId).update({
           name: 'Brett Drinkwater Updated',
-          id: 'mSUDPNATSQa8uB55Oaq6',
+          id: 'CHANGED',
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -506,7 +506,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
       await assertFails(
         db.collection('members').doc(memberDocId).update({
           name: 'Moi Updated',
-          id: 'hUr2Qv3Q9hpx8KjlvkHy',
+          id: 'CHANGED',
           lastUpdated: serverTimestamp(),
         }),
       );
