@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "watch": "tsc --project tsconfig.json --watch",
-    "serve": "http-server ../.. -p 8000 -c-1",
+    "serve": "http-server . -p 8000 -c-1",
     "dev": "concurrently --names tsc,srv --prefix-colors cyan,green \"pnpm run watch\" \"pnpm run serve\""
   },
   "devDependencies": {

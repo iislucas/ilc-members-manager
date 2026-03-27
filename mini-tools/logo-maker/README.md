@@ -8,10 +8,10 @@ and export the result as SVG or PNG.
 
 This is a **TypeScript** application. The source `.ts` files in this directory
 are compiled to ES-module JavaScript in the `build/` folder, which is loaded by
-the HTML entry point (`../iliqchuan-logo-maker.html`) via:
+the HTML entry point (`./iliqchuan-logo-maker.html`) via:
 
 ```html
-<script type="module" src="logo-maker/build/main.js"></script>
+<script type="module" src="build/main.js"></script>
 ```
 
 ### Source files
@@ -49,7 +49,7 @@ pnpm run build
 pnpm run dev
 ```
 
-Then open <http://localhost:8000/mini-tools/iliqchuan-logo-maker.html> in your browser.
+Then open <http://localhost:8000/iliqchuan-logo-maker.html> in your browser.
 
 ## Available scripts
 

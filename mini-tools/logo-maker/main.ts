@@ -15,7 +15,7 @@
  *   pnpm exec tsc --project mini-tools/logo-maker/tsconfig.json
  *
  * Loaded by iliqchuan-logo-maker.html as:
- *   <script type="module" src="logo-maker/build/main.js"></script>
+ *   <script type="module" src="build/main.js"></script>
  */
 
 import { LogoParams, $ } from './types.js';
@@ -291,7 +291,7 @@ function init(): void {
   });
 
   // Try to auto-load reference from the default path
-  loadReferenceImage('../public/iliqchuan-white-bg.png').then(img => {
+  loadReferenceImage('assets/iliqchuan-white-bg.png').then(img => {
     setReferenceImage(img);
     $('ref-status').textContent = 'Loaded: iliqchuan-white-bg.png (auto)';
     update();
