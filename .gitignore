@@ -54,3 +54,7 @@ src/environments/environment.local.ts
 firebase-debug.log
 firestore-debug.log
 secret.keys.txt
+
+# Mini-tools (logo maker)
+mini-tools/logo-maker/build/
+mini-tools/logo-maker/node_modules/

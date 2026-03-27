@@ -107,10 +107,9 @@ function update(): void {
   if (p.transparentBg) {
     const ps = 12;
     content += `<defs><pattern id="checker" width="${ps * 2}" height="${ps * 2}" patternUnits="userSpaceOnUse">
-      <rect width="${ps}" height="${ps}" fill="#ccc"/>
-      <rect x="${ps}" y="${ps}" width="${ps}" height="${ps}" fill="#ccc"/>
-      <rect x="${ps}" width="${ps}" height="${ps}" fill="#999"/>
-      <rect y="${ps}" width="${ps}" height="${ps}" fill="#999"/>
+      <rect width="100%" height="100%" fill="#ffffff"/>
+      <rect width="${ps}" height="${ps}" fill="#e0e0e0"/>
+      <rect x="${ps}" y="${ps}" width="${ps}" height="${ps}" fill="#e0e0e0"/>
     </pattern></defs>`;
     content += `<rect width="100%" height="100%" fill="url(#checker)" rx="12"/>`;
   } else {

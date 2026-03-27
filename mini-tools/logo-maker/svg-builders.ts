@@ -175,13 +175,14 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
         const by2 = cy + baseR * sin + baseSpikeW * perpSin;
         const tx = cx + tipR * cos;
         const ty = cy + tipR * sin;
-        
+
         const cpOffset = baseSpikeW * p.nsewDecorationConcavity;
         const midR = baseR + tipLen * 0.4;
         const cp1x = cx + midR * cos - (baseSpikeW - cpOffset) * perpCos;
         const cp1y = cy + midR * sin - (baseSpikeW - cpOffset) * perpSin;
         const cp2x = cx + midR * cos + (baseSpikeW - cpOffset) * perpCos;
         const cp2y = cy + midR * sin + (baseSpikeW - cpOffset) * perpSin;
+        
         shapes.push(`<path d="M ${bx1},${by1} Q ${cp1x},${cp1y} ${tx},${ty} Q ${cp2x},${cp2y} ${bx2},${by2} Z"/>`);
 
         // Side Bumps

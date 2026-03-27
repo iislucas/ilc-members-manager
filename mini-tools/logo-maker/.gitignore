@@ -1,0 +1,3 @@
+# Compiled output (rebuild with: pnpm run build)
+build/
+node_modules/

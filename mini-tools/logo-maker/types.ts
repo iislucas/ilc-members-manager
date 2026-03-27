@@ -35,7 +35,7 @@ export interface LogoParams {
   // Tips
   nsewDecorationLength: number;
   nsewDecorationWidth: number;
-  nsewDecorationConcavity: number; // 0 = straight sides, 1 = deeply concave sides
+  nsewDecorationConcavity: number; // 0 = straight sides, >1 = sharper point
   nsewDecorationThirdBumpDistance: number;
   nsewDecorationThirdBumpRadius: number;
   diagonalDecorationDistance: number;

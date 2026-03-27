@@ -1,0 +1,17 @@
+{
+  "name": "iliqchuan-logo-maker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "I Liq Chuan Logo SVG generator — interactive tool for tweaking and exporting the ILC emblem.",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "watch": "tsc --project tsconfig.json --watch",
+    "serve": "http-server ../.. -p 8000 -c-1",
+    "dev": "concurrently --names tsc,srv --prefix-colors cyan,green \"pnpm run watch\" \"pnpm run serve\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "http-server": "^14.1.1",
+    "typescript": "~5.9.0"
+  }
+}

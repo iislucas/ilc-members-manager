@@ -501,18 +501,20 @@
 
       <div class="control-group">
         <label
-          >NSEW decoration concavity <span class="val" id="nsewDecorationConcavity-val"></span
+          >NSEW point width/concavity <span class="val" id="nsewDecorationConcavity-val"></span
         ></label>
         <input
           type="range"
           id="nsewDecorationConcavity"
           min="0"
-          max="1"
+          max="3"
           step="0.1"
           value="0.5"
         />
-        <div class="description">0 = straight sides, 1 = deeply concave</div>
+        <div class="description">0 = straight sides, &gt;1 = sharper point</div>
       </div>
+
+
 
       <div class="control-group">
         <label
@@ -569,7 +571,7 @@
           step="1"
           value="31"
         />
-      </div>v>0
+      </div>
       <div class="section-title">Colors</div>
 
       <div class="color-row">
