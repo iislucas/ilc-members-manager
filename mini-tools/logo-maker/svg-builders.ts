@@ -176,14 +176,24 @@ export function buildMergedOuterBaseSvg(cx: number, cy: number, p: LogoParams): 
         const tx = cx + tipR * cos;
         const ty = cy + tipR * sin;
 
-        const cpOffset = baseSpikeW * p.nsewDecorationConcavity;
-        const midR = baseR + tipLen * 0.4;
-        const cp1x = cx + midR * cos - (baseSpikeW - cpOffset) * perpCos;
-        const cp1y = cy + midR * sin - (baseSpikeW - cpOffset) * perpSin;
-        const cp2x = cx + midR * cos + (baseSpikeW - cpOffset) * perpCos;
-        const cp2y = cy + midR * sin + (baseSpikeW - cpOffset) * perpSin;
-        
-        shapes.push(`<path d="M ${bx1},${by1} Q ${cp1x},${cp1y} ${tx},${ty} Q ${cp2x},${cp2y} ${bx2},${by2} Z"/>`);
+        const cpLenR1 = baseR + tipLen * 0.33;
+        const cpLenR2 = baseR + tipLen * 0.67;
+
+        // Pull the curve in more near the tip as sharpness (concavity) increases
+        const cp1_offset = baseSpikeW; 
+        const cp2_offset = baseSpikeW * (1 - p.nsewDecorationConcavity * 0.2);
+
+        const cp1lx = cx + cpLenR1 * cos - cp1_offset * perpCos;
+        const cp1ly = cy + cpLenR1 * sin - cp1_offset * perpSin;
+        const cp2lx = cx + cpLenR2 * cos - cp2_offset * perpCos;
+        const cp2ly = cy + cpLenR2 * sin - cp2_offset * perpSin;
+
+        const cp1rx = cx + cpLenR1 * cos + cp1_offset * perpCos;
+        const cp1ry = cy + cpLenR1 * sin + cp1_offset * perpSin;
+        const cp2rx = cx + cpLenR2 * cos + cp2_offset * perpCos;
+        const cp2ry = cy + cpLenR2 * sin + cp2_offset * perpSin;
+
+        shapes.push(`<path d="M ${bx1},${by1} C ${cp1lx},${cp1ly} ${cp2lx},${cp2ly} ${tx},${ty} C ${cp2rx},${cp2ry} ${cp1rx},${cp1ry} ${bx2},${by2} Z"/>`);
 
         // Side Bumps
         const leftBumpX = cx + baseR * cos - (halfW - bumpR) * perpCos;
