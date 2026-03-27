@@ -677,7 +677,16 @@
               Download PNG 512×512
             </button>
           </div>
-          <div id="svg-final-render" style="margin-top: 20px; text-align: center; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #fff; padding: 20px; border-radius: 8px; border: 1px solid #0f3460;"></div>
+          <div class="preview-control-row" style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+            <label for="export-bg-style">Preview Background:</label>
+            <select id="export-bg-style" style="background: #0f3460; color: #e94560; border: 1px solid #e94560; padding: 5px 10px; border-radius: 4px; font-weight: bold;">
+              <option value="checkerboard">Checkerboard (Transparent)</option>
+              <option value="white">Solid White</option>
+              <option value="black">Solid Black</option>
+            </select>
+          </div>
+
+          <div id="svg-final-render" style="margin-top: 20px; text-align: center; background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #0f3460;"></div>
         </details>
       </div>
     </div>

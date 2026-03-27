@@ -202,6 +202,24 @@ function init(): void {
   // Optimize button
   $('opt-btn').addEventListener('click', () => runOptimization(update));
 
+  // Export background style toggle
+  $('export-bg-style').addEventListener('change', () => {
+    const style = ($('export-bg-style') as HTMLSelectElement).value;
+    const renderArea = $('svg-final-render');
+    if (!renderArea) return;
+
+    if (style === 'checkerboard') {
+      renderArea.style.backgroundImage = 'linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%)';
+      renderArea.style.backgroundColor = '#ffffff';
+    } else if (style === 'white') {
+      renderArea.style.backgroundImage = 'none';
+      renderArea.style.backgroundColor = '#ffffff';
+    } else if (style === 'black') {
+      renderArea.style.backgroundImage = 'none';
+      renderArea.style.backgroundColor = '#000000';
+    }
+  });
+
   // Inject per-property optimize buttons
   controlIds.forEach(id => {
     const stageForParam = STAGES.find(s => s.params.some(p => p.id === id));
@@ -300,11 +318,6 @@ function init(): void {
   }).catch(() => {
     $('ref-status').textContent = 'No reference loaded (use file picker or serve via HTTP)';
   });
-
-  // Try loading saved params
-  if (hasSavedParams()) {
-    loadParams(update);
-  }
 
   update();
 }
