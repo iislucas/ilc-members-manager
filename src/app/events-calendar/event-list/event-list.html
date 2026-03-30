@@ -7,7 +7,12 @@
 @if (isLoading()) {
   <app-spinner>Loading events...</app-spinner>
 } @else if (hasLoaded()) {
-  <div class="search-container">
+  <div class="list-search-header">
+    @if (showBackButton()) {
+      <a class="back-link subtle-button" [href]="backUrl()">
+        <app-icon name="arrow_back"></app-icon> <span>{{ backLabel() }}</span>
+      </a>
+    }
     <div class="search-box">
       <app-icon class="search-icon" name="search"></app-icon>
       <input
@@ -41,8 +46,10 @@
       <!-- Matched Events -->
       @if (searchResults().matched.length > 0) {
         <div class="event-list">
-          @for (event of searchResults().matched; track event.id) {
-            <app-event-item [event]="event" />
+          @for (event of searchResults().matched; track event.sourceId) {
+            <a class="event-card-link" [href]="'#/events/' + event.sourceId">
+              <app-event-item [event]="event" />
+            </a>
           }
         </div>
       }
@@ -52,8 +59,10 @@
         <hr />
         <h2>Other Events</h2>
         <div class="event-list">
-          @for (event of searchResults().unmatched; track event.id) {
-            <app-event-item [event]="event" />
+          @for (event of searchResults().unmatched; track event.sourceId) {
+            <a class="event-card-link" [href]="'#/events/' + event.sourceId">
+              <app-event-item [event]="event" />
+            </a>
           }
         </div>
       }

@@ -1,9 +1,6 @@
 <div class="card-header">
-  <div class="card-title" (click)="toggleExpansion()">
+  <div class="card-title">
     <div class="title-text">{{ event().title }}</div>
-    <button class="icon-only-button">
-      <app-icon [name]="expandIconName()"></app-icon>
-    </button>
   </div>
   <div class="card-subtitle">
     <div class="subtitle-group">
@@ -46,10 +43,3 @@
     </div>
   </div>
 </div>
-@if (expandIconName() === "expand_less") {
-  <div class="card-content">
-    <div class="description">
-      <span [innerHTML]="event().description"></span>
-    </div>
-  </div>
-}

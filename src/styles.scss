@@ -254,6 +254,51 @@ textarea:disabled {
 }
 
 // ----------------------------------------------------------------------------
+//  List Search and Filtering
+// ----------------------------------------------------------------------------
+
+.list-search-header {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 200px;
+    max-width: 30rem;
+    gap: 0.4rem;
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: #888;
+    }
+
+    input[type="text"] {
+      padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      width: 100%;
+      max-width: unset;
+
+      &:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        outline: none;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
 //  Chips and text styles
 // ----------------------------------------------------------------------------
 

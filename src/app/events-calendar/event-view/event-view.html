@@ -1,0 +1,68 @@
+<div class="event-view-actions">
+  <button class="back-link subtle-button" (click)="goBack()">
+    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+  </button>
+</div>
+
+<div class="event-view-content">
+  @if (isLoading()) {
+    <app-spinner>Loading event details...</app-spinner>
+  } @else if (errorMessage(); as msg) {
+    <div class="error-container">
+      <div class="error-message">
+        {{ msg }}
+      </div>
+    </div>
+  } @else if (event(); as ev) {
+    <div class="event-detail-card">
+      <div class="event-header">
+        <h1 class="event-title">{{ ev.title }}</h1>
+        <div class="event-meta">
+          <div class="meta-item date-chip">
+            <app-icon name="calendar_today"></app-icon>
+            @if (ev.start === ev.end) {
+              {{ ev.start | date : "mediumDate" }}
+            } @else {
+              {{ ev.start | date : "mediumDate" }} - {{ ev.end | date : "mediumDate" }}
+            }
+          </div>
+          @if (ev.location) {
+            <div class="meta-item location-chip">
+              <app-icon name="map"></app-icon>
+              <span>{{ ev.location }}</span>
+              @if (ev.googleMapsUrl) {
+                <a class="icon-only-button"
+                  [href]="ev.googleMapsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="View on Google Maps"
+                >
+                  <app-icon name="map"></app-icon>
+                </a>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="event-body">
+        <div class="description-section">
+          <h2>About this Event</h2>
+          <div class="description-content" [innerHTML]="ev.description"></div>
+        </div>
+        
+        <div class="actions-section">
+          @if (ev.googleCalEventLink) {
+            <a class="action-button primary-action"
+               [href]="ev.googleCalEventLink"
+               target="_blank"
+               rel="noopener noreferrer">
+              <app-icon name="event"></app-icon>
+              <span>Add to Calendar</span>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

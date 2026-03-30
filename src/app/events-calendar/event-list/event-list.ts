@@ -5,6 +5,7 @@ import {
   ChangeDetectionStrategy,
   computed,
   input,
+  output,
   effect,
   OnDestroy,
 } from '@angular/core';
@@ -23,6 +24,8 @@ import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
+import { environment } from '../../../environments/environment';
+
 
 function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
   if (quoted.length === 0) {
@@ -45,7 +48,7 @@ function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
 
 // A type representing a calendar event that can be indexed by MiniSearch.
 // It includes a string `id` field required by the library.
-type SearchableCalendarEvent = CalendarEvent & { id: string };
+type SearchableCalendarEvent = CachedCalendarEvent & { id: string };
 
 @Component({
   selector: 'app-event-list',
@@ -64,7 +67,11 @@ export class EventListComponent implements OnDestroy {
   searchInput = signal('');
 
   // --- Component Inputs ---
-  calendarId = input<string>();
+  calendarId = input<string>(environment.googleCalendar.calendarId);
+  showBackButton = input<boolean>(false);
+  backLabel = input<string>('Back');
+  backUrl = input<string>('');
+
 
   // --- Firestore direct subscription ---
   private firebaseApp = inject(FIREBASE_APP);

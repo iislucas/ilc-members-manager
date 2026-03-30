@@ -33,7 +33,9 @@ import { HeaderComponent, Breadcrumb } from './header/header.component';
 import { MemberViewComponent } from './member-view/member-view';
 import { MemberCreateComponent } from './member-create/member-create';
 import { StatisticsComponent } from './statistics/statistics';
-import { EventsCalendarComponent } from './events-calendar/events-calendar';
+import { EventListComponent } from './events-calendar/event-list/event-list';
+import { EventViewComponent } from './events-calendar/event-view/event-view';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -67,7 +69,8 @@ import { EventsCalendarComponent } from './events-calendar/events-calendar';
     MemberViewComponent,
     MemberCreateComponent,
     StatisticsComponent,
-    EventsCalendarComponent,
+    EventListComponent,
+    EventViewComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -268,6 +271,8 @@ export class App {
         return 'Statistics';
       case Views.EventsCalendar:
         return 'Events & Workshops';
+      case Views.EventView:
+        return 'Event Details';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:

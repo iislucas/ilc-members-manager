@@ -75,7 +75,13 @@
             ></app-class-calendar>
           }
           @case (Views.EventsCalendar) {
-            <app-events-calendar></app-events-calendar>
+            <app-event-list></app-event-list>
+          }
+          @case (Views.EventView) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
+              backLabel="Events List"
+            ></app-event-view>
           }
           @case (Views.MyStudents) {
             <app-filtered-members
@@ -213,12 +219,17 @@
             ></app-class-calendar>
           }
           @case (Views.EventsCalendar) {
-            <div class="public-action-bar">
-              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
-                <app-icon name="arrow_back"></app-icon> Back
-              </button>
-            </div>
-            <app-events-calendar></app-events-calendar>
+            <app-event-list
+              [showBackButton]="true"
+              backLabel="Back to Login"
+              [backUrl]="'#/' + routingService.resolveUrlWithParams('login')"
+            ></app-event-list>
+          }
+          @case (Views.EventView) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
+              backLabel="Events List"
+            ></app-event-view>
           }
           @default {
             @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
