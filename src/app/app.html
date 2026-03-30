@@ -81,6 +81,7 @@
             <app-event-view
               [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
               backLabel="Events List"
+              (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-view>
           }
           @case (Views.MyStudents) {
@@ -229,6 +230,7 @@
             <app-event-view
               [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
               backLabel="Events List"
+              (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-view>
           }
           @default {

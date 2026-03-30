@@ -1,9 +1,3 @@
-<div class="event-view-actions">
-  <button class="back-link subtle-button" (click)="goBack()">
-    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
-  </button>
-</div>
-
 <div class="event-view-content">
   @if (isLoading()) {
     <app-spinner>Loading event details...</app-spinner>
@@ -16,10 +10,20 @@
   } @else if (event(); as ev) {
     <div class="event-detail-card">
       <div class="event-header">
-        <h1 class="event-title">{{ ev.title }}</h1>
         <div class="event-meta">
           <div class="meta-item date-chip">
-            <app-icon name="calendar_today"></app-icon>
+            @if (ev.googleCalEventLink) {
+              <a class="icon-only-button"
+                [href]="ev.googleCalEventLink"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View on Google Calendar"
+              >
+                <app-icon name="calendar_today"></app-icon>
+              </a>
+            } @else {
+              <app-icon name="calendar_today"></app-icon>
+            }
             @if (ev.start === ev.end) {
               {{ ev.start | date : "mediumDate" }}
             } @else {
@@ -28,8 +32,6 @@
           </div>
           @if (ev.location) {
             <div class="meta-item location-chip">
-              <app-icon name="map"></app-icon>
-              <span>{{ ev.location }}</span>
               @if (ev.googleMapsUrl) {
                 <a class="icon-only-button"
                   [href]="ev.googleMapsUrl"
@@ -39,7 +41,10 @@
                 >
                   <app-icon name="map"></app-icon>
                 </a>
+              } @else {
+                <app-icon name="map"></app-icon>
               }
+              <span>{{ ev.location }}</span>
             </div>
           }
         </div>
@@ -65,4 +70,10 @@
       </div>
     </div>
   }
+</div>
+
+<div class="event-view-actions">
+  <button class="back-link subtle-button" (click)="goBack()">
+    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+  </button>
 </div>

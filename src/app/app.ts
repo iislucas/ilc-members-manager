@@ -83,6 +83,11 @@ export class App {
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
   public menuOpen = signal(false);
+  public loadedEventTitle = signal<string | null>(null);
+
+  onEventTitleLoaded(title: string) {
+    this.loadedEventTitle.set(title);
+  }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
       { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
@@ -123,6 +128,8 @@ export class App {
         baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
       } else if (view === Views.EventsCalendar) {
         // No parent breadcrumb needed for events
+      } else if (view === Views.EventView) {
+        baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -195,6 +202,10 @@ export class App {
       const isLoggedIn =
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
       const view = this.routingService.matchedPatternId();
+
+      if (view !== Views.EventView) {
+        this.loadedEventTitle.set(null);
+      }
 
       if (isLoggedOut && (!view || view === Views.Home)) {
         this.routingService.navigateToParts(['login']);
@@ -272,7 +283,7 @@ export class App {
       case Views.EventsCalendar:
         return 'Events & Workshops';
       case Views.EventView:
-        return 'Event Details';
+        return this.loadedEventTitle() || 'Event Details';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:

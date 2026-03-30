@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns } from '../../app.config';
@@ -22,6 +22,7 @@ export class EventViewComponent implements OnInit {
 
   eventId = input.required<string>();
   backLabel = input<string>('Events List');
+  titleLoaded = output<string>();
 
   event = signal<CachedCalendarEvent | null>(null);
   isLoading = signal(true);
@@ -47,7 +48,9 @@ export class EventViewComponent implements OnInit {
       const querySnap = await getDocs(q);
       
       if (!querySnap.empty) {
-        this.event.set(querySnap.docs[0].data() as CachedCalendarEvent);
+        const data = querySnap.docs[0].data() as CachedCalendarEvent;
+        this.event.set(data);
+        this.titleLoaded.emit(data.title);
       } else {
         this.errorMessage.set('Event not found.');
       }

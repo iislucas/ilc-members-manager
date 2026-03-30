@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 a {
   text-decoration: underline;
 }
@@ -23,6 +25,7 @@ a {
 }
 
 .card-subtitle {
+  margin-top: 0.4em;
   color: #666;
   font-size: 0.875rem;
 }
@@ -50,5 +53,32 @@ a {
   a {
     text-decoration: underline;
     color: blue;
+  }
+}
+
+.icon-only-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  color: #4a4a4a;
+
+  &:hover {
+    background-color: $menu-item-hover-color;
+    color: #333;
+    text-decoration: none;
+  }
+
+  &:active {
+    background-color: $button-active-bg-color;
+    transform: scale(0.95);
+  }
+
+  app-icon {
+    font-size: 1.25rem;
   }
 }

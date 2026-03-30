@@ -6,12 +6,6 @@
     <div class="subtitle-group">
       <!-- date & icon link to cal -->
       <span>
-        @if (event().start === event().end) {
-          {{ event().start | date: "mediumDate" }}
-        } @else {
-          {{ event().start | date: "mediumDate" }} -
-          {{ event().end | date: "mediumDate" }}
-        }
         @if (event().googleCalEventLink) {
           <a class="icon-only-button"
             [href]="event().googleCalEventLink"
@@ -22,12 +16,17 @@
             <app-icon name="event"></app-icon>
           </a>
         }
+        @if (event().start === event().end) {
+          {{ event().start | date: "mediumDate" }}
+        } @else {
+          {{ event().start | date: "mediumDate" }} -
+          {{ event().end | date: "mediumDate" }}
+        }
       </span>
 
       <!-- location & map link -->
       @if (event().location) {
         <span>
-          {{ event().location }}
           @if (event().googleMapsUrl) {
             <a class="icon-only-button"
               [href]="event().googleMapsUrl"
@@ -38,6 +37,7 @@
               <app-icon name="map"></app-icon>
             </a>
           }
+          {{ event().location }}
         </span>
       }
     </div>

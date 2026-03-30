@@ -85,7 +85,10 @@ export class EventListComponent implements OnDestroy {
 
   // Map cached events to the SearchableCalendarEvent format (adds an `id` field).
   private allEvents = computed<SearchableCalendarEvent[]>(() => {
-    return this.cachedEvents().map((event, index) => ({
+    const sortedEvents = [...this.cachedEvents()].sort((a, b) =>
+      a.start.localeCompare(b.start),
+    );
+    return sortedEvents.map((event, index) => ({
       ...event,
       id: `${index}`,
       googleCalEventLink: event.googleCalEventLink,
