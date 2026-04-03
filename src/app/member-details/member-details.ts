@@ -339,17 +339,10 @@ export class MemberDetailsComponent {
     };
   }
   initMemberIdAssignment(): Assignment {
-    if (this.member().memberId.trim() === '') {
-      return {
-        kind: AssignKind.AssignNewAutoId,
-        curId: '',
-      };
-    } else {
-      return {
-        kind: AssignKind.UnchangedExistingId,
-        curId: this.member().memberId,
-      };
-    }
+    return {
+      kind: AssignKind.UnchangedExistingId,
+      curId: this.member().memberId,
+    };
   }
   instructorIdAssignment = linkedSignal<Assignment>(() =>
     this.initInstructorIdAssignment(),
