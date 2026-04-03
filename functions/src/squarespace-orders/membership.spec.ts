@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseMembershipRenewalInfo } from './membership';
 import { SquareSpaceLineItem, SquareSpaceOrder } from '../data-model';
+import { resolveCountryCode } from '../country-codes';
 
 const realLineItem: SquareSpaceLineItem = {
   id: '69a46442795c546cc28cdac6',
@@ -214,5 +215,89 @@ describe('parseMembershipRenewalInfo', () => {
     const parsed = parseMembershipRenewalInfo(realOrder, lineItemWithCodeOverride);
     // The code 'SL' should resolve to the country name 'Slovenia'
     expect(parsed.member.country).toBe('Slovenia');
+  });
+});
+
+// Integration tests: verify the full chain from form data → parsed country → country code.
+// This simulates what processNewMemberRegistration does: parse the order, then
+// call resolveCountryCode on the parsed country to generate a member ID.
+describe('parseMembershipRenewalInfo → resolveCountryCode (end-to-end)', () => {
+  // Helper: parse a new-member line item with the given country value and optional
+  // override, then resolve the resulting country to a code.
+  function parseAndResolveCountry(
+    formCountry: string,
+    countryOverride?: string
+  ): { country: string; countryCode: string | null } {
+    const lineItem: SquareSpaceLineItem = {
+      ...realLineItem,
+      ...(countryOverride ? { ilcAppCountryOverride: countryOverride } : {}),
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'New Person', label: 'Name' },
+        { label: 'Email', value: 'new@example.com' },
+        { label: 'Country', value: formCountry },
+      ],
+    };
+    const parsed = parseMembershipRenewalInfo(realOrder, lineItem);
+    return {
+      country: parsed.member.country,
+      countryCode: resolveCountryCode(parsed.member.country),
+    };
+  }
+
+  it('should resolve common correctly-spelled countries', () => {
+    expect(parseAndResolveCountry('France')).toEqual({ country: 'France', countryCode: 'FR' });
+    expect(parseAndResolveCountry('United States')).toEqual({ country: 'United States', countryCode: 'US' });
+    expect(parseAndResolveCountry('Germany')).toEqual({ country: 'Germany', countryCode: 'DE' });
+    expect(parseAndResolveCountry('Slovenia')).toEqual({ country: 'Slovenia', countryCode: 'SL' });
+    expect(parseAndResolveCountry('Australia')).toEqual({ country: 'Australia', countryCode: 'AUS' });
+    expect(parseAndResolveCountry('United Kingdom')).toEqual({ country: 'United Kingdom', countryCode: 'UK' });
+    expect(parseAndResolveCountry('China')).toEqual({ country: 'China', countryCode: 'CN' });
+    expect(parseAndResolveCountry('India')).toEqual({ country: 'India', countryCode: 'IN' });
+  });
+
+  it('should resolve case-insensitive country names', () => {
+    expect(parseAndResolveCountry('france')).toEqual({ country: 'france', countryCode: 'FR' });
+    expect(parseAndResolveCountry('GERMANY')).toEqual({ country: 'GERMANY', countryCode: 'DE' });
+  });
+
+  it('should fail to resolve a misspelled country without an override', () => {
+    const result = parseAndResolveCountry('Slovinia');
+    expect(result.country).toBe('Slovinia');
+    // resolveCountryCode has partial match, so "Slovinia" actually does NOT match
+    // "Slovenia" because "slovinia" is not contained in "slovenia". This is correct —
+    // the admin needs to set a country override.
+    expect(result.countryCode).toBe(null);
+  });
+
+  it('should resolve a misspelled country when a valid override is set', () => {
+    const result = parseAndResolveCountry('Slovinia', 'Slovenia');
+    expect(result.country).toBe('Slovenia');
+    expect(result.countryCode).toBe('SL');
+  });
+
+  it('should resolve a misspelled country when a legacy code override is set', () => {
+    const result = parseAndResolveCountry('Slovinia', 'SL');
+    expect(result.country).toBe('Slovenia');
+    expect(result.countryCode).toBe('SL');
+  });
+
+  it('should use the billing address country as fallback when form has no country', () => {
+    const lineItem: SquareSpaceLineItem = {
+      ...realLineItem,
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'New Person', label: 'Name' },
+        { label: 'Email', value: 'new@example.com' },
+        // No country field in form
+      ],
+    };
+    const orderWithBillingCountry: SquareSpaceOrder = {
+      ...realOrder,
+      billingAddress: { ...realOrder.billingAddress, country: 'France' },
+    };
+    const parsed = parseMembershipRenewalInfo(orderWithBillingCountry, lineItem);
+    expect(parsed.member.country).toBe('France');
+    expect(resolveCountryCode(parsed.member.country)).toBe('FR');
   });
 });
