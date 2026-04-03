@@ -183,6 +183,7 @@
         />
       </div>
 
+    @if (!isOwnProfile() || e.memberId.trim() !== '') {
       <h3>Membership Status & Level</h3>
 
       @if (userIsMemberOrAdmin()) {
@@ -299,7 +300,7 @@
         } @else {
           <app-id-assignment
             [initAssignment]="memberIdAssignment()"
-            [canBeUnset]="false"
+            [canBeUnset]="userIsAdmin()"
             [expectedNextId]="expectedNextMemberId()"
             [canEdit]="userIsAdmin()"
             (assignment)="handleMemberIdAssignmentChange($event)"
@@ -468,6 +469,19 @@
           }
         </div>
       }
+    } @else {
+      <h3>Membership Status & Level</h3>
+      <label>Status</label>
+      <div class="rhs">
+        <span class="note">No active membership found.</span>
+      </div>
+      <label></label>
+      <div class="rhs">
+        <a [href]="membershipLink" target="_blank" class="subtle-button">
+          <app-icon name="link" /> Purchase Membership
+        </a>
+      </div>
+    }
 
       @if (e.instructorId.trim() !== "" || userIsAdmin()) {
         <h3>Instructor Status</h3>

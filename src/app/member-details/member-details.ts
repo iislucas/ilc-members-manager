@@ -49,6 +49,7 @@ import { Timestamp } from 'firebase/firestore';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-member-details',
@@ -82,6 +83,7 @@ export class MemberDetailsComponent {
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
+  membershipLink = environment.links.membership;
 
   // The core object of interest.
   member = input.required<Member>();
@@ -600,8 +602,6 @@ export class MemberDetailsComponent {
             `Invalid country code: ${countryCode}, please make sure the code exists before you save, otherwise we don't know how to assign an member ID (member IDs are of the form CCNNN where CC is the two character country code)`,
           );
         }
-      } else if (member.memberId === '') {
-        throw new Error(`Member ID cannot be empty.`);
       }
 
       const instructorIdAssignment = this.instructorIdAssignment().kind;
@@ -749,12 +749,6 @@ export class MemberDetailsComponent {
     }
     if (this.form.name().value().trim() === '') {
       errors.push('Name cannot be empty.');
-    }
-    if (
-      this.memberIdAssignment().kind !== AssignKind.AssignNewAutoId &&
-      member.memberId.trim() === ''
-    ) {
-      errors.push('Member ID cannot be empty for a new member.');
     }
     const asyncError = this.asyncError();
     if (asyncError) {

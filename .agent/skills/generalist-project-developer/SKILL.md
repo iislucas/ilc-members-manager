@@ -31,7 +31,8 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 
 ## 3. Core Technologies
 
-- **Package Manager:** **pnpm**. Use `pnpm` (do NOT use `npm`).
+- **Package Manager:** **pnpm**. Use `pnpm` (do NOT use `npm`). Note that if you can't find the command, you may need to load `~/.zshrc` or `~/.bashrc` first.
+
 - **Framework:** **Angular `^21.x.x`**.
   - Do NOT use the angular router.
   - Always use the Angular CLI for creating components: `pnpm exec ng generate component ${COMPONENT_NAME} --project=ilc-members-manager`
@@ -134,7 +135,9 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ## 8. Testing
 
-- Frameworks: **Karma** and **Jasmine**.
+After adding or changing anything non-trivial, run `pnpm test` (or the specific test for the affected files) to ensure that things are not broken. Also when making changes consider if new tests should be added.
+
+- Frameworks: `vitest`.
 - To run tests for specific angular UI components for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
 - To run tests for firebase firestore rules: `pnpm test:rules`
 - To run tests for firebase functions: `pnpm test:functions`
@@ -148,5 +151,5 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 - Comments should be provided for all aspects of a functions specification that are not obvious from types. e.g. if a function returns a string, the comment should explain what the string represents.
 - All comments should be in **English**.
-- Don't use /** ... */ style comments. Use // for function and inline comments. Use /* ... */ for multi-line comments. 
-- The header of every file should have a /* ... */ comment describing the file and its purpose, and key aspects of how to use it. If the file is a script, the header comment should also include instructions on how to run it, with an example command line.
+- Don't use /\*_ ... _/ style comments. Use // for function and inline comments. Use /_ ... _/ for multi-line comments.
+- The header of every file should have a /_ ... _/ comment describing the file and its purpose, and key aspects of how to use it. If the file is a script, the header comment should also include instructions on how to run it, with an example command line.
