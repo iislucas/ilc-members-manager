@@ -26,7 +26,7 @@ export class MemberRowHeaderComponent {
     if (type === MembershipType.Life) return ExpiryStatus.Valid;
 
     // Inactive/Deceased are intentional non-active statuses, not data issues.
-    if (type === MembershipType.Inactive || type === MembershipType.Deceased) {
+    if (type === MembershipType.Inactive || type === MembershipType.Deceased || type === MembershipType.NotYetAMember) {
       return ExpiryStatus.Valid;
     }
 
