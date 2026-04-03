@@ -22,6 +22,8 @@
     <main>
       @if (dataService.loadingState() !== DataServiceState.Loaded) {
         <app-spinner>Loading app data...</app-spinner>
+      } @else if (incompleteProfile()) {
+        <app-complete-profile></app-complete-profile>
       } @else {
         @switch (currentView()) {
           @case (Views.Home) {

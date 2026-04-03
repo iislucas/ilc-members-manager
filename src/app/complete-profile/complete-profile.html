@@ -1,0 +1,73 @@
+<div class="complete-profile-container">
+  <div class="form-card">
+    <h2>Complete Your Profile</h2>
+    <p class="form-hint">
+      Please provide your basic details to get started with the members portal.
+    </p>
+
+    <div class="form-group">
+      <label for="fill-name">Full Name</label>
+      <input
+        id="fill-name"
+        type="text"
+        [ngModel]="fillName()"
+        (ngModelChange)="fillName.set($event)"
+        placeholder="Enter your full name"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="fill-dob">Date of Birth</label>
+      <input
+        id="fill-dob"
+        type="date"
+        [ngModel]="fillDOB()"
+        (ngModelChange)="fillDOB.set($event)"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="fill-country"
+        >Country of Residence
+        @if (countryWithCode(); as cc) {
+          (<span class="identifier-chip">{{ cc.id }}</span
+          >)
+        }
+      </label>
+      <app-autocomplete
+        [searchableSet]="dataService.countries"
+        [displayFns]="countryDisplayFns"
+        [inputBoxIsChip]="false"
+        [placeholder]="'Search for a country'"
+        [initSearchTerm]="fillCountry()"
+        (textUpdated)="updateCountry($event)"
+      ></app-autocomplete>
+      @if (!countryWithCode()) {
+        @if (!fillCountry().trim()) {
+          <div class="error-message">please select a country</div>
+        } @else {
+          <div class="error-message">invalid country</div>
+        }
+      }
+    </div>
+
+    <div class="form-actions">
+      <button
+        class="button"
+        (click)="submitProfileEnrichment()"
+        [disabled]="
+          !fillName().trim() ||
+          !fillDOB().trim() ||
+          !fillCountry().trim() ||
+          fillingProfile()
+        "
+      >
+        @if (fillingProfile()) {
+          <span>Saving...</span>
+        } @else {
+          <span>Proceed to Portal</span>
+        }
+      </button>
+    </div>
+  </div>
+</div>

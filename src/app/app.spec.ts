@@ -98,8 +98,13 @@ describe('App', () => {
     // Simulate being on the login page while logged in
     firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
     firebaseStateServiceMock.user!.set({
-      member: { membershipType: 'Life' },
-      firebaseUser: { photoURL: null }
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
     } as unknown as UserDetails);
     app.routingService.matchedPatternId.set(Views.Login);
 
@@ -133,8 +138,13 @@ describe('App', () => {
     // Simulate logged in user
     firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
     firebaseStateServiceMock.user!.set({
-      member: { membershipType: 'Life' },
-      firebaseUser: { photoURL: null }
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
     } as unknown as UserDetails);
 
     // Simulate routing to a post

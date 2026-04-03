@@ -118,10 +118,12 @@ export class MemberListComponent {
     return user.isAdmin;
   });
 
-  memberSet = input.required<SearchableSet<'memberId', Member>>();
+  memberSet = input.required<SearchableSet<'docId', Member>>();
   jumpToMember = input<string>('');
   basePath = input<string>('');
   hideInactive = input<boolean>(false);
+  instructorName = input<string>('');
+  instructorId = input<string>('');
 
   searchTerm = computed(() => {
     const match = this.routingService.matchedPatternId();
@@ -276,15 +278,26 @@ export class MemberListComponent {
   );
 
   duplicateMemberIdEntries = computed(() => {
-    const dups = this.memberSet().duplicateEntries();
-    // optionally ignore empty memberIds but let's just use what SearchableSet does
-    return dups;
+    const entries = this.memberSet().entries();
+    const seen = new Set<string>();
+    const dups = new Set<string>();
+    for (const entry of entries) {
+      if (!entry.memberId) continue;
+      if (seen.has(entry.memberId)) {
+        dups.add(entry.memberId);
+      }
+      seen.add(entry.memberId);
+    }
+    return entries.filter((e) => e.memberId && dups.has(e.memberId));
   });
   errorsExist = computed(() => this.duplicateMemberIdEntries().length > 0);
   showErrors = signal(false);
 
   missingMemberIdEntries = computed(() => {
-    return this.memberSet().missingIdEntries();
+    return this.memberSet().entries().filter(
+      (m) =>
+        !m.memberId && m.membershipType !== MembershipType.NotYetAMember,
+    );
   });
   missingMemberErrorsExist = computed(() => this.missingMemberIdEntries().length > 0);
   showMissingMemberErrors = signal(false);
@@ -366,7 +379,6 @@ export class MemberListComponent {
       const hasDups = this.duplicateMemberIdEntries().some(m => m.memberId === member.memberId);
       const isMissing = !member.memberId;
       const idToRoute = (hasDups || isMissing) ? member.docId : member.memberId;
-
       return `#/${base}/${idToRoute}`;
     } else {
       console.warn('memberLink called but no basePath was provided to member-list component.');

@@ -18,6 +18,12 @@ service cloud.firestore {
       return (email != null && exists(aclPath)) ? get(aclPath).data.memberDocIds : [];
     }
 
+    function isFullMember() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/$(database)/documents/acl/$(email);
+      return email != null && exists(aclPath) && get(aclPath).data.get('notYetLinkedToMember', false) == false;
+    }
+
     function isInstructor() {
       let email = request.auth.token.email;
       let aclPath = /databases/$(database)/documents/acl/$(email);
@@ -124,7 +130,7 @@ service cloud.firestore {
     // Fine-grained membership checks are done in the frontend component;
     // the rule here ensures only logged-in users can access the data.
     match /members-post/{postId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && (isAdmin() || isFullMember());
       allow write: if isAdmin();
     }
 

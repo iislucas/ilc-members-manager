@@ -172,6 +172,7 @@
                 placeholder="Enter member ID..."
                 [value]="getInferredMemberId(item)"
                 (input)="setInferredMemberIdInput(item.id, $any($event.target).value)"
+                [style.background-color]="hasUnsavedChange(item) ? '#fff9c4' : (item.ilcAppMemberIdInferred ? '#e8f5e9' : 'white')"
               />
 
               <button
@@ -221,6 +222,45 @@
                     </div>
                   }
                 }
+              </div>
+            }
+          </div>
+
+          <!-- Country Override section -->
+          <div class="country-override-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+            <div class="inferred-member-header">
+              <app-icon name="info"></app-icon>
+              <span>Country Code Override (for New Members)</span>
+            </div>
+
+            <div class="inferred-member-controls">
+              <select
+                class="member-id-input"
+                [value]="getCountryOverride(item)"
+                (change)="setCountryOverrideInput(item.id, $any($event.target).value)"
+                [style.background-color]="hasCountryUnsavedChange(item) ? '#fff9c4' : (item.ilcAppCountryOverride ? '#e8f5e9' : 'white')"
+                style="padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem; font-family: inherit;">
+                <option value="">(None)</option>
+                @for (c of dataService.countries.entries(); track c.id) {
+                  <option [value]="c.id">{{ c.id }} - {{ c.name }}</option>
+                }
+              </select>
+
+              @if (hasCountryUnsavedChange(item)) {
+                <button
+                  class="subtle-button save-btn"
+                  (click)="saveCountryOverride(item)"
+                  [disabled]="savingLineItems().has(item.id)">
+                  <app-icon name="refresh"></app-icon>
+                  {{ savingLineItems().has(item.id) ? 'Saving...' : 'Save' }}
+                </button>
+              }
+            </div>
+
+            @if (item.ilcAppCountryOverride && !hasCountryUnsavedChange(item)) {
+              <div class="inferred-member-saved">
+                <app-icon name="info"></app-icon>
+                Saved Country Override: {{ item.ilcAppCountryOverride }}
               </div>
             }
           </div>

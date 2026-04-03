@@ -34,6 +34,8 @@ describe('SquarespaceOrderView', () => {
       schools: { entriesMap: schoolsMapSignal },
       lookupMembersByEmail: () => [],
       setOrderLineItemInferredMemberId: vi.fn().mockResolvedValue(undefined),
+      setOrderLineItemCountryOverride: vi.fn().mockResolvedValue(undefined),
+      countries: { entries: signal([]) },
     };
 
     await TestBed.configureTestingModule({
@@ -250,5 +252,36 @@ describe('SquarespaceOrderView', () => {
     expect(preview!.renewalDate).toBe('2026-06-15');
     // expiryDate = renewalDate + 12 months = 2027-06-15
     expect(preview!.expiryDate).toBe('2027-06-15');
+  });
+
+  it('should call data service when saving country override', async () => {
+    const lineItem = {
+      id: 'line-c1',
+      sku: 'MEM-YEAR-IND',
+      productId: 'prod-1',
+      productName: 'Membership : Annual (Individual)',
+      quantity: '1' as const,
+      unitPricePaid: { value: '50.00' },
+      customizations: [],
+    };
+    const order = makeOrder([lineItem]);
+
+    createComponent(order);
+    await fixture.whenStable();
+
+    component.setCountryOverrideInput('line-c1', 'SI');
+
+    expect(component.hasCountryUnsavedChange(lineItem)).toBe(true);
+    expect(component.getCountryOverride(lineItem)).toBe('SI');
+
+    const orderUpdatedSpy = vi.fn();
+    component.orderUpdated.subscribe(orderUpdatedSpy);
+
+    const mockSetOverride = TestBed.inject(DataManagerService).setOrderLineItemCountryOverride as ReturnType<typeof vi.fn>;
+    await component.saveCountryOverride(lineItem);
+
+    expect(mockSetOverride).toHaveBeenCalledWith('test-order-doc', 'line-c1', 'SI');
+    expect(orderUpdatedSpy).toHaveBeenCalled();
+    expect(component.hasCountryUnsavedChange(lineItem)).toBe(false);
   });
 });

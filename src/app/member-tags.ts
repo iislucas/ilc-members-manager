@@ -57,6 +57,7 @@ export const META_TAG_INSTRUCTOR_EXPIRED = 'instructor license expired';
 export const META_TAG_INSTRUCTOR_RECENTLY_EXPIRED = 'recently expired instructor license';
 export const META_TAG_INACTIVE = 'Inactive';
 export const META_TAG_DECEASED = 'Deceased';
+export const META_TAG_NOT_YET_A_MEMBER = 'not-yet-a-member';
 
 /**
  * Returns the set of meta-tags that apply to the given member.
@@ -71,6 +72,7 @@ export function getMemberMetaTags(member: Member, today?: string): string[] {
   // Inactive / Deceased status
   if (member.membershipType === MembershipType.Inactive) tags.push(META_TAG_INACTIVE);
   if (member.membershipType === MembershipType.Deceased) tags.push(META_TAG_DECEASED);
+  if (member.membershipType === MembershipType.NotYetAMember) tags.push(META_TAG_NOT_YET_A_MEMBER);
 
   // Membership expiry
   const memberExpiry = getMemberExpiryStatus(member, todayStr);

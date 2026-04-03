@@ -28,7 +28,7 @@ export class MemberViewComponent implements OnInit {
   member = computed(() => {
     const id = this.memberId();
     return this.dataService.members.get(id) ||
-      this.dataService.members.entries().find(m => m.docId === id);
+      this.dataService.members.entries().find(m => m.memberId === id);
   });
 
   goBack() {

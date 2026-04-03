@@ -8,7 +8,7 @@ existing members, and registering brand-new members.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { resolveCountryCode } from '../country-codes';
+import { resolveCountryCode, countryCodeList } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -29,6 +29,11 @@ export function parseMembershipRenewalInfo(
   const customizations: SquareSpaceCustomization[] = lineItem.customizations || [];
 
   const member = parseMembershipPurchaseInfo(customizations, orderData, '');
+
+  if (lineItem.ilcAppCountryOverride) {
+    const countryObj = countryCodeList.find(c => c.id === lineItem.ilcAppCountryOverride);
+    member.country = countryObj ? countryObj.name : lineItem.ilcAppCountryOverride;
+  }
 
   // Compute renewal and expiration dates from order creation date.
   // Memberships are annual; expiration is exactly 1 year from the renewal date.

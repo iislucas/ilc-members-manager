@@ -10,7 +10,9 @@ import {
   FetchUserDetailsResult,
   Member,
   MemberFirestoreDoc,
+  MembershipType,
   firestoreDocToMember,
+  initMember,
 } from './data-model';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
@@ -34,10 +36,63 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       );
     }
 
-    const aclDoc = await db.collection('acl').doc(user.email).get();
+    let aclDoc = await db.collection('acl').doc(user.email).get();
     if (!aclDoc.exists) {
-      // If no ACL exists, this user has no member profiles associated with them.
-      return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
+      // Check if any member document already lists this email.
+      const existingMembersQuery = await db.collection('members')
+        .where('emails', 'array-contains', user.email)
+        .get();
+
+      if (!existingMembersQuery.empty) {
+        logger.info('Found existing members for email without ACL, creating ACL', { email: user.email });
+        const memberDocIds = existingMembersQuery.docs.map((doc) => doc.id);
+
+        const aclData = {
+          memberDocIds: memberDocIds,
+          instructorIds: [],
+          isAdmin: false,
+          notYetLinkedToMember: false,
+        };
+
+        await db.collection('acl').doc(user.email).set(aclData);
+        aclDoc = await db.collection('acl').doc(user.email).get(); // Refresh to continue normal flow
+      } else {
+        logger.info('Creating guest profile for user', { email: user.email });
+
+        const memberRef = db.collection('members').doc();
+        const memberDocId = memberRef.id;
+
+        const guestMember: Member = {
+          ...initMember(),
+          docId: memberDocId,
+          emails: [user.email],
+          membershipType: MembershipType.NotYetAMember,
+        };
+
+        const { docId, lastUpdated, ...dbData } = guestMember;
+        const memberFirestoreData = {
+          ...dbData,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        const aclData = {
+          memberDocIds: [memberDocId],
+          instructorIds: [],
+          isAdmin: false,
+          notYetLinkedToMember: true,
+        };
+
+        const batch = db.batch();
+        batch.set(memberRef, memberFirestoreData);
+        batch.set(db.collection('acl').doc(user.email), aclData);
+        await batch.commit();
+
+        return {
+          userMemberProfiles: [guestMember],
+          isAdmin: false,
+          schoolsManaged: [],
+        };
+      }
     }
 
     const aclData = aclDoc.data() as { memberDocIds: string[] };

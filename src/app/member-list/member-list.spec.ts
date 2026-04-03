@@ -80,9 +80,9 @@ describe('MemberListComponent', () => {
       m.name = `Member ${i}`;
       members.push(m);
     }
-    const memberSet = new SearchableSet<'memberId', Member>(
+    const memberSet = new SearchableSet<'docId', Member>(
       ['name'],
-      'memberId',
+      'docId',
       members,
     );
 

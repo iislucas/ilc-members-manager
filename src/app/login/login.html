@@ -203,6 +203,63 @@
           </div>
         }
 
+        <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
+        @case (LoginStep.GuestCreateAccount) {
+          <div class="step-header">Create new account</div>
+          <div class="step-guidance">
+            <p>
+              You are creating an account for <strong>{{ loginEmail() }}</strong> without a linked membership.
+            </p>
+          </div>
+          <div class="input-field">
+            <label for="guest-password-input">Create a password</label>
+            <div class="password-input-row">
+              <input
+                id="guest-password-input"
+                autocomplete="new-password"
+                [type]="showPassword() ? 'text' : 'password'"
+                name="password"
+                [ngModel]="loginPassword()"
+                (ngModelChange)="loginPassword.set($event)"
+                (keyup.enter)="signupWithEmail()"
+                placeholder="Create a password (min. 6 characters)"
+              />
+              <button
+                class="icon-only-button"
+                type="button"
+                (click)="showPassword.set(!showPassword())"
+                [title]="showPassword() ? 'Hide password' : 'Show password'"
+              >
+                <app-icon
+                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
+                ></app-icon>
+              </button>
+            </div>
+          </div>
+
+          @if (signupError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+              <button class="icon-only-button" (click)="signupError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="step-actions">
+            <button class="back-link" (click)="goBackToEmail()">
+              Use a different email
+            </button>
+            <button
+              id="create-guest-account-submit-btn"
+              (click)="signupWithEmail()"
+              [disabled]="!loginPassword() || loginPassword().length < 6"
+            >
+              Create account
+            </button>
+          </div>
+        }
+
         <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
         @case (LoginStep.NoMember) {
           <div class="step-header">Email not recognised</div>
@@ -220,10 +277,23 @@
               <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
               for help. To help us verify your membership, please include a picture of your passbook.
             </p>
+            <p class="secondary-info">
+              If you are not yet a member, you can create a new account (without membership) to get access to the video library and read more about I Liq Chuan.
+            </p>
+            <p class="caution-note">
+              <strong>Note:</strong> Please only do this if you are not yet a member.
+            </p>
           </div>
           <div class="step-actions">
             <button id="try-different-email-btn" (click)="goBackToEmail()">
               Try a different email
+            </button>
+            <button
+              id="create-guest-account-btn"
+              class="secondary-action"
+              (click)="loginStep.set(LoginStep.GuestCreateAccount)"
+            >
+              Create account without membership
             </button>
           </div>
         }

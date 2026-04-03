@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, computed } from '@angular/core';
+import { Component, inject, input, output, signal, computed, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SquareSpaceOrder, SquareSpaceLineItem, Member, School } from '../../../../functions/src/data-model';
@@ -74,7 +74,7 @@ function extractSchoolIdFromCustomizations(lineItem: SquareSpaceLineItem): strin
   styleUrl: './squarespace-order-view.scss'
 })
 export class SquarespaceOrderView {
-  private dataService = inject(DataManagerService);
+  dataService = inject(DataManagerService);
 
   order = input.required<SquareSpaceOrder>();
   orderUpdated = output<void>();
@@ -82,7 +82,42 @@ export class SquarespaceOrderView {
   // Per-line-item UI state, keyed by line item id.
   memberLookupResults = signal<Map<string, Member[]>>(new Map());
   memberIdInputs = signal<Map<string, string>>(new Map());
+  countryOverrideInputs = signal<Map<string, string>>(new Map());
   savingLineItems = signal<Set<string>>(new Set());
+
+  constructor() {
+    effect(() => {
+      const ord = this.order(); // Track order changes
+      if (!ord || !ord.lineItems) return;
+
+      const memberMap = untracked(() => new Map(this.memberIdInputs()));
+      const countryMap = untracked(() => new Map(this.countryOverrideInputs()));
+      let changed = false;
+
+      for (const item of ord.lineItems) {
+        const hasUnsaved = untracked(() => this.hasUnsavedChange(item));
+        if (!hasUnsaved && item.ilcAppMemberIdInferred) {
+          if (memberMap.get(item.id) !== item.ilcAppMemberIdInferred) {
+            memberMap.set(item.id, item.ilcAppMemberIdInferred);
+            changed = true;
+          }
+        }
+
+        const hasCountryUnsaved = untracked(() => this.hasCountryUnsavedChange(item));
+        if (!hasCountryUnsaved && item.ilcAppCountryOverride) {
+          if (countryMap.get(item.id) !== item.ilcAppCountryOverride) {
+            countryMap.set(item.id, item.ilcAppCountryOverride);
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        this.memberIdInputs.set(memberMap);
+        this.countryOverrideInputs.set(countryMap);
+      }
+    });
+  }
 
   // Computed signal: for each line item, produces the expiry preview (or null).
   // Reactive to: order(), dataService.members.entriesMap(), dataService.schools.entriesMap().
@@ -273,5 +308,51 @@ export class SquarespaceOrderView {
     const inputMap = this.memberIdInputs();
     if (!inputMap.has(lineItem.id)) return false;
     return inputMap.get(lineItem.id) !== (lineItem.ilcAppMemberIdInferred || '');
+  }
+
+  getCountryOverride(lineItem: SquareSpaceLineItem): string {
+    const inputMap = this.countryOverrideInputs();
+    if (inputMap.has(lineItem.id)) {
+      return inputMap.get(lineItem.id) || '';
+    }
+    return lineItem.ilcAppCountryOverride || '';
+  }
+
+  setCountryOverrideInput(lineItemId: string, value: string) {
+    const map = new Map(this.countryOverrideInputs());
+    map.set(lineItemId, value);
+    this.countryOverrideInputs.set(map);
+  }
+
+  async saveCountryOverride(lineItem: SquareSpaceLineItem) {
+    const countryCode = this.getCountryOverride(lineItem);
+    const orderId = this.order().docId;
+    if (!orderId) return;
+
+    const saving = new Set(this.savingLineItems());
+    saving.add(lineItem.id);
+    this.savingLineItems.set(saving);
+
+    try {
+      await this.dataService.setOrderLineItemCountryOverride(
+        orderId, lineItem.id, countryCode
+      );
+      const map = new Map(this.countryOverrideInputs());
+      map.delete(lineItem.id);
+      this.countryOverrideInputs.set(map);
+      this.orderUpdated.emit();
+    } catch (e: unknown) {
+      alert(`Error saving country override: ${(e as Error).message}`);
+    } finally {
+      const saving = new Set(this.savingLineItems());
+      saving.delete(lineItem.id);
+      this.savingLineItems.set(saving);
+    }
+  }
+
+  hasCountryUnsavedChange(lineItem: SquareSpaceLineItem): boolean {
+    const inputMap = this.countryOverrideInputs();
+    if (!inputMap.has(lineItem.id)) return false;
+    return inputMap.get(lineItem.id) !== (lineItem.ilcAppCountryOverride || '');
   }
 }

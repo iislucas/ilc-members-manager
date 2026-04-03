@@ -35,7 +35,8 @@ import { MemberCreateComponent } from './member-create/member-create';
 import { StatisticsComponent } from './statistics/statistics';
 import { EventListComponent } from './events-calendar/event-list/event-list';
 import { EventViewComponent } from './events-calendar/event-view/event-view';
-import { environment } from '../environments/environment';
+import { CompleteProfileComponent } from './complete-profile/complete-profile';
+import { MembershipType } from '../../functions/src/data-model';
 
 @Component({
   selector: 'app-root',
@@ -71,6 +72,7 @@ import { environment } from '../environments/environment';
     StatisticsComponent,
     EventListComponent,
     EventViewComponent,
+    CompleteProfileComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -106,9 +108,28 @@ export class App {
       } else if (view === Views.SchoolMemberView) {
         const schoolId = this.routingService.signals[Views.SchoolMemberView].pathVars.schoolId();
         baseBreadcrumbs.push({ label: `School ${schoolId} Members`, url: `#/school/${schoolId}/members` });
-      } else if (view === Views.InstructorStudentView) {
-        const instructorId = this.routingService.signals[Views.InstructorStudentView].pathVars.instructorId();
-        baseBreadcrumbs.push({ label: `Instructor ${instructorId}'s Students`, url: `#/instructor/${instructorId}/students` });
+      } else if (view === Views.InstructorStudents || view === Views.InstructorStudentView) {
+        const instructorId = view === Views.InstructorStudents
+          ? this.routingService.signals[Views.InstructorStudents].pathVars.instructorId()
+          : this.routingService.signals[Views.InstructorStudentView].pathVars.instructorId();
+        const instructor = this.dataService.instructors.get(instructorId);
+        if (!instructor) {
+          baseBreadcrumbs.push({ label: `Instructor Not Found (${instructorId})`, url: `#/instructor/${instructorId}/students` });
+          return baseBreadcrumbs;
+        }
+        baseBreadcrumbs.push({ label: `Manage Members`, url: `#/members` });
+        baseBreadcrumbs.push({ label: `${instructor.name} (${instructorId})`, url: `#/members/${instructor.memberId}` });
+        baseBreadcrumbs.push({ label: `Students of ${instructor.name} (${instructorId})`, url: `#/instructor/${instructorId}/students` });
+        if (view === Views.InstructorStudentView) {
+          const studentId = this.routingService.signals[Views.InstructorStudentView].pathVars.memberId();
+          const student = this.dataService.getMember(studentId);
+          if (!student) {
+            baseBreadcrumbs.push({ label: `Student Not Found (${studentId})`, url: `#/instructor/${instructorId}/students` });
+            return baseBreadcrumbs;
+          }
+          baseBreadcrumbs.push({ label: `${student.name} (${studentId})`, url: `#/instructor/${instructorId}/students` });
+        }
+        return baseBreadcrumbs;
       } else if (view === Views.MyStudentView) {
         baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
       } else if (view === Views.NewMember) {
@@ -222,6 +243,16 @@ export class App {
     });
   }
 
+  public incompleteProfile = computed(() => {
+    const user = this.firebaseService.user();
+    if (!user || !user.member) return false;
+    return (
+      (!user.member.name ||
+        !user.member.dateOfBirth ||
+        !user.member.country)
+    );
+  });
+
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
       case Views.ManageMembers:
@@ -253,9 +284,7 @@ export class App {
           this.routingService.signals[viewId].pathVars.schoolId();
         return `School ${schoolId} Members`;
       case Views.InstructorStudents:
-        const instructorId =
-          this.routingService.signals[viewId].pathVars.instructorId();
-        return `Instructor ${instructorId}'s Students`;
+        return 'Students';
       case Views.ImportExport:
         return 'Import/Export';
       case Views.Home:
@@ -299,23 +328,36 @@ export class App {
         return 'Login';
       case Views.NewMember:
         return 'New Member';
+      case Views.MyStudentView: {
+        const mIdOrDocId = this.routingService.signals[viewId].pathVars.memberId();
+        const m = this.dataService.getMyStudent(mIdOrDocId);
+        if (!m) {
+          return `Unknown student of yours (${mIdOrDocId})`;
+        }
+        if (m.name?.trim() && m.memberId) {
+          return `${m.name} (${m.memberId})`;
+        }
+        if (m.name?.trim()) {
+          return `${m.name} (Not yet a Member)`;
+        }
+        return `Unknown student of yours (doc:${m.docId})`;
+      }
       case Views.ManageMemberView:
       case Views.SchoolMemberView:
-      case Views.InstructorStudentView:
-      case Views.MyStudentView:
-        const memberIdToName = (memberId: string) => {
-          let m = this.dataService.members.get(memberId);
-          if (m) {
-            return m.name;
-          }
-          m = this.dataService.members.entries().find(mem => mem.docId === memberId);
-          if (m) {
-            return m.name;
-          }
-          return 'Unknown Member';
-        };
-        const mId = (this.routingService.signals as any)[viewId].pathVars.memberId();
-        return `${mId}: ${memberIdToName(mId)}`;
+      case Views.InstructorStudentView: {
+        const mIdOrDocId = this.routingService.signals[viewId].pathVars.memberId();
+        const m = this.dataService.getMember(mIdOrDocId);
+        if (!m) {
+          return `Unknown (${mIdOrDocId})`;
+        }
+        if (m.name.trim() && m.memberId) {
+          return `${m.name} (${m.memberId})`;
+        }
+        if (m.name.trim() && !m.memberId) {
+          return `${m.name} (Not yet a Member)`;
+        }
+        return `Unnamed and not yet a Member (doc:${m.docId})`;
+      }
       default:
         return 'Unknown View';
     }

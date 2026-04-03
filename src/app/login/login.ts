@@ -31,6 +31,7 @@ export enum LoginStep {
   PasswordLogin = 'password-login',
   CreateAccount = 'create-account',
   NoMember = 'no-member',
+  GuestCreateAccount = 'guest-create-account',
 }
 
 // Cached login info persisted to localStorage.

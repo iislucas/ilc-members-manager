@@ -132,6 +132,7 @@ export enum MembershipType {
   Life = 'Life',
   Deceased = 'Deceased',
   Inactive = 'Inactive',
+  NotYetAMember = 'NotYetAMember',
 }
 
 /** Status of a membership or license expiry. */
@@ -484,6 +485,7 @@ export interface SquareSpaceLineItem {
   // does not overwrite the original baseline.
   ilcAppPreOrderRenewalDate?: string; // YYYY-MM-DD
   ilcAppPreOrderExpiryDate?: string; // YYYY-MM-DD
+  ilcAppCountryOverride?: string; // 2-letter country code (override for generating member ID)
 }
 
 export type SquareSpaceOrder = BaseOrder & {

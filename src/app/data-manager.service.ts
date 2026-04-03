@@ -118,7 +118,7 @@ export class DataManagerService {
   });
 
   // A signal to hold the state of the members list.
-  public members = new SearchableSet<'memberId', Member>(
+  public members = new SearchableSet<'docId', Member>(
     [
       'memberId',
       'instructorId',
@@ -133,7 +133,7 @@ export class DataManagerService {
       'country',
       'tags',
     ],
-    'memberId',
+    'docId',
   );
   public instructors = new SearchableSet<'instructorId', InstructorPublicData>(
     [
@@ -150,7 +150,7 @@ export class DataManagerService {
     ],
     'instructorId',
   );
-  public myStudents = new SearchableSet<'memberId', Member>(
+  public myStudents = new SearchableSet<'docId', Member>(
     [
       'memberId',
       'name',
@@ -164,7 +164,7 @@ export class DataManagerService {
       'country',
       'tags',
     ],
-    'memberId',
+    'docId',
   );
   public mySchools = new SearchableSet<'schoolId', School>(
     [
@@ -204,6 +204,56 @@ export class DataManagerService {
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
   );
+
+  // Reactive map from memberId to docId for efficient member lookups by
+  // human-readable member ID.
+  public memberIdToDocIdMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const m of this.members.entries()) {
+      if (m.memberId) {
+        map.set(m.memberId, m.docId);
+      }
+    }
+    return map;
+  });
+
+  // Look up a member by their Firestore document ID (docId).
+  getMemberByDocId(docId: string): Member | undefined {
+    return this.members.get(docId);
+  }
+
+  // Look up a member by their human-readable memberId. Resolves
+  // memberId → docId via memberIdToDocIdMap, then delegates to members.get().
+  getMemberByMemberId(memberId: string): Member | undefined {
+    const docId = this.memberIdToDocIdMap().get(memberId);
+    if (!docId) return undefined;
+    return this.members.get(docId);
+  }
+
+  // Look up a member by either memberId or docId, trying docId first.
+  getMember(idOrDocId: string): Member | undefined {
+    return this.members.get(idOrDocId) ?? this.getMemberByMemberId(idOrDocId);
+  }
+
+  // Reactive map from memberId to docId for the logged-in instructor's students.
+  public myStudentIdToDocIdMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const m of this.myStudents.entries()) {
+      if (m.memberId) {
+        map.set(m.memberId, m.docId);
+      }
+    }
+    return map;
+  });
+
+  // Look up one of the logged-in instructor's students by either memberId or docId.
+  getMyStudent(idOrDocId: string): Member | undefined {
+    const byDocId = this.myStudents.get(idOrDocId);
+    if (byDocId) return byDocId;
+    const docId = this.myStudentIdToDocIdMap().get(idOrDocId);
+    if (!docId) return undefined;
+    return this.myStudents.get(docId);
+  }
 
   constructor() {
     effect(async () => {
@@ -857,6 +907,30 @@ export class DataManagerService {
     if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
 
     item.ilcAppMemberIdInferred = memberId;
+    return updateDoc(docRef, {
+      lineItems,
+      lastUpdated: serverTimestamp(),
+    });
+  }
+
+  /**
+   * Set (or clear) the ilcAppCountryOverride field on a specific line item
+   * within an order document. This allows admins to manually set the country
+   * code for generating a member ID.
+   */
+  async setOrderLineItemCountryOverride(
+    orderId: string, lineItemId: string, countryCode: string
+  ): Promise<void> {
+    const docRef = doc(this.db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) throw new Error('Order not found');
+
+    const orderData = docSnap.data() as SquareSpaceOrder;
+    const lineItems = orderData.lineItems || [];
+    const item = lineItems.find((li: SquareSpaceLineItem) => li.id === lineItemId);
+    if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
+
+    item.ilcAppCountryOverride = countryCode;
     return updateDoc(docRef, {
       lineItems,
       lastUpdated: serverTimestamp(),

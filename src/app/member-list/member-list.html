@@ -212,7 +212,7 @@
         <div class="notice-content">
           <p class="empty-title">
             There are not currently any students who have
-            <strong>{{ u.member.name }} ({{ u.member.instructorId }})</strong>
+            <strong>{{ instructorName() || u.member.name }} ({{ instructorId() || u.member.instructorId }})</strong>
             listed as their primary instructor.
           </p>
           <p class="empty-details">

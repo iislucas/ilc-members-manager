@@ -98,6 +98,11 @@ async function refreshACLAdminStatus(email: string) {
       snap.exists && snap.data()?.isAdmin === true,
   );
 
+  const anyFullMember = memberSnaps.some(
+    (snap: admin.firestore.DocumentSnapshot) =>
+      snap.exists && snap.data()?.membershipType !== 'NotYetAMember',
+  );
+
   const newInstructorIds = new Set<string>();
   for (const snap of memberSnaps) {
     if (snap.exists) {
@@ -111,6 +116,7 @@ async function refreshACLAdminStatus(email: string) {
   await aclRef.update({
     isAdmin: anyAdmin,
     instructorIds: Array.from(newInstructorIds),
+    notYetLinkedToMember: !anyFullMember,
   });
 }
 
