@@ -82,12 +82,16 @@ export type OrderSearchCriteriaTerm = {
   kind: 'term';
   searchField: 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
   term: string;
+  statusFilter?: string;
+  kindFilter?: string;
 };
 
 export type OrderSearchCriteriaDateRange = {
   kind: 'date';
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  statusFilter?: string;
+  kindFilter?: string;
 };
 
 export type OrderSearchCriteria = OrderSearchCriteriaTerm | OrderSearchCriteriaDateRange;
@@ -405,13 +409,21 @@ export class DataManagerService {
     }
   }
 
-  async getRecentOrders(limitCount: number = 1000): Promise<Order[]> {
+  async getRecentOrders(limitCount: number = 1000, status?: string, kindFilter?: string): Promise<Order[]> {
     try {
-      const q = query(
+      let q = query(
         this.ordersCollection,
         orderBy('lastUpdated', 'desc'),
         limit(limitCount),
       );
+      
+      if (status) {
+        q = query(q, where('ilcAppOrderStatus', '==', status));
+      }
+      if (kindFilter === 'squarespace') {
+        q = query(q, where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders'));
+      }
+      
       const snapshot = await getDocs(q);
       return sortOrdersByDateDesc(snapshot.docs.map(firestoreDocToOrder));
     } catch (error: any) {
@@ -421,6 +433,9 @@ export class DataManagerService {
   }
 
   async searchOrders(criteria: OrderSearchCriteria): Promise<Order[]> {
+    const status = criteria.statusFilter;
+    const kindFilter = criteria.kindFilter;
+
     if (criteria.kind === 'term') {
       const term = criteria.term.trim();
       const field = criteria.searchField;
@@ -429,7 +444,15 @@ export class DataManagerService {
       const results = new Map<string, Order>();
 
       // Search only the specifically requested field
-      const q = query(this.ordersCollection, where(field, '==', term));
+      let q = query(this.ordersCollection, where(field, '==', term));
+      
+      if (status) {
+        q = query(q, where('ilcAppOrderStatus', '==', status));
+      }
+      if (kindFilter === 'squarespace') {
+        q = query(q, where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders'));
+      }
+
       const snap = await getDocs(q);
       snap.docs.forEach((docSnap) => {
         const order = firestoreDocToOrder(docSnap as any);

@@ -1,10 +1,124 @@
 <div class="order-list-container">
-  <div class="search-section">
     <div class="input-group">
       <div class="search-mode-toggle">
         <button [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
         <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
         <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Order Date</button>
+      </div>
+
+      <div class="sort-controls">
+        <label class="sort-label" for="sort-field-select">Sort:</label>
+        <select
+          id="sort-field-select"
+          [ngModel]="sortField()"
+          (ngModelChange)="sortField.set($event); syncUrlParams()"
+        >
+          <option value="default">Date then status (Default)</option>
+          <option value="date">Date</option>
+          <option value="status">Status</option>
+        </select>
+        <button
+          class="sort-direction-btn"
+          (click)="toggleSortDirection()"
+          [attr.aria-label]="
+            sortDirection() === 'asc' ? 'Sort ascending' : 'Sort descending'
+          "
+          [attr.title]="sortDirection() === 'asc' ? 'Ascending' : 'Descending'"
+        >
+          <app-icon
+            [name]="
+              sortDirection() === 'asc' ? 'arrow_downward' : 'arrow_upward'
+            "
+          ></app-icon>
+        </button>
+      </div>
+
+      <div class="tag-filter-container">
+        <button
+          class="filter-btn"
+          (click)="filterMenuOpen.set(!filterMenuOpen())"
+          aria-label="Filter by status"
+          title="Filter by status"
+        >
+          <app-icon name="filter_list"></app-icon>
+        </button>
+        @if (filterMenuOpen()) {
+          <div
+            class="menu-overlay transparent"
+            (click)="filterMenuOpen.set(false)"
+          ></div>
+          <div class="menu">
+            <div class="tag-filter-header">Order Type</div>
+            <div
+              class="menu-item"
+              [class.active]="kindFilter() === 'squarespace'"
+              (click)="
+                kindFilter.set(
+                  kindFilter() === 'squarespace' ? '' : 'squarespace'
+                );
+                onFilterChange();
+                filterMenuOpen.set(false)
+              "
+            >
+              <span>Squarespace Only</span>
+            </div>
+
+            <div class="tag-filter-header">Filter by Status</div>
+            <div
+              class="menu-item"
+              [class.active]="statusFilter() === ''"
+              (click)="
+                statusFilter.set(''); onFilterChange(); filterMenuOpen.set(false)
+              "
+            >
+              <span>All Orders</span>
+            </div>
+            <div
+              class="menu-item"
+              [class.active]="statusFilter() === 'processed'"
+              (click)="
+                statusFilter.set('processed');
+                onFilterChange();
+                filterMenuOpen.set(false)
+              "
+            >
+              <span>Processed</span>
+            </div>
+            <div
+              class="menu-item"
+              [class.active]="statusFilter() === 'needs-manual-processing'"
+              (click)="
+                statusFilter.set('needs-manual-processing');
+                onFilterChange();
+                filterMenuOpen.set(false)
+              "
+            >
+              <span>TODO</span>
+            </div>
+            <div
+              class="menu-item"
+              [class.active]="statusFilter() === 'error'"
+              (click)="
+                statusFilter.set('error');
+                onFilterChange();
+                filterMenuOpen.set(false)
+              "
+            >
+              <span>Error</span>
+            </div>
+            <div
+              class="menu-item"
+              [class.active]="statusFilter() === 'ignore'"
+              (click)="
+                statusFilter.set('ignore');
+                onFilterChange();
+                filterMenuOpen.set(false)
+              "
+            >
+              <span>Ignore</span>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Config Menu -->
@@ -61,7 +175,6 @@
         </button>
       }
     </div>
-  </div>
 
   @if (syncing()) {
     <div class="sync-status">

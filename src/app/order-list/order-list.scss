@@ -1,4 +1,5 @@
 @use "../../scss_variables.scss" as v;
+@use "../../styles" as *;
 
 .order-list-container {
   display: flex;
@@ -6,69 +7,157 @@
   padding: 0.5rem;
   gap: 1rem;
 
-  .search-section {
+  .input-group {
     display: flex;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 800px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
 
-    .input-group {
+    .search-mode-toggle {
       display: flex;
-      gap: 0.5rem;
-      width: 100%;
-      max-width: 800px;
-      flex-direction: row;
+      border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
+      border-radius: 4px;
+      overflow: hidden;
+      flex-shrink: 0;
+
+      button {
+        padding: 0.4rem 0.75rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--mdc-theme-text-primary-on-background, #333);
+        white-space: nowrap;
+
+        &.active {
+          background: var(--mdc-theme-primary, #1976d2);
+          color: white;
+        }
+      }
+    }
+
+    // The "..." config menu should stay on the same line as the toggle.
+    .menu-container {
+      flex-shrink: 0;
+      margin-left: 0.5em;
+    }
+
+    input,
+    .field-select {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      background-color: white;
+    }
+
+    .field-select {
+      max-width: 250px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      display: flex;
       align-items: center;
-      flex-wrap: wrap;
+      gap: 0.4rem;
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+    }
 
-      .search-mode-toggle {
-        display: flex;
-        border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
-        border-radius: 4px;
-        overflow: hidden;
-        flex-shrink: 0;
+    .sort-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      flex-shrink: 0;
 
-        button {
-          padding: 0.4rem 0.75rem;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          font-size: 0.85rem;
-          font-weight: 500;
-          color: var(--mdc-theme-text-primary-on-background, #333);
-          white-space: nowrap;
+      .sort-label {
+        font-size: 0.85em;
+        color: #666;
+        white-space: nowrap;
+      }
 
-          &.active {
-            background: var(--mdc-theme-primary, #1976d2);
-            color: white;
-          }
+      select {
+        padding: 4px 4px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fff;
+        font-size: 0.85em;
+        color: #333;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s ease;
+
+        &:focus {
+          border-color: #007bff;
+        }
+      }
+    }
+
+    .sort-direction-btn,
+    .filter-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 4px;
+      cursor: pointer;
+      color: #555;
+      box-shadow: none;
+      transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+
+      &:hover {
+        background-color: #f0f0f0;
+        border-color: #999;
+        box-shadow: none;
+      }
+
+      &:active {
+        transform: none;
+        box-shadow: none;
+      }
+    }
+
+    .tag-filter-container {
+      position: relative;
+      flex-shrink: 0;
+
+      .menu {
+        @extend .menu-style;
+        position: absolute;
+        top: calc(100% + 5px);
+        right: 0;
+        min-width: 220px;
+        max-height: 360px;
+        overflow-y: auto;
+      }
+
+      .menu-item.active {
+        background-color: #e8f0fe;
+        color: #1a73e8;
+        font-weight: 500;
+
+        app-icon {
+          color: #1a73e8;
         }
       }
 
-      // The "..." config menu should stay on the same line as the toggle.
-      .menu-container {
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-
-      input, .field-select {
-        flex: 1;
-        min-width: 120px;
-        padding: 0.4rem 0.75rem;
-        border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
-        border-radius: 4px;
-        font-size: 0.85rem;
-        background-color: white;
-      }
-
-      .field-select {
-        max-width: 250px;
-        cursor: pointer;
-      }
-
-      button.primary {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.4rem 1rem;
-        font-size: 0.85rem;
+      .tag-filter-header {
+        padding: 0.4em 0.5em 0.2em;
+        font-size: 0.8em;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
     }
   }
@@ -138,7 +227,7 @@
           &.app-status {
             background-color: #fce4ec;
             color: #c2185b;
-            
+
             &.processed {
               background-color: #e3f2fd;
               color: #1565c0;
@@ -168,7 +257,7 @@
           margin-top: 0.5rem;
           color: #c62828;
           font-size: 0.8rem;
-          
+
           app-icon {
             font-size: 1rem;
             width: 1rem;
@@ -209,7 +298,8 @@
     }
 
     .results-table table {
-      th, td {
+      th,
+      td {
         padding: 0.5rem;
         font-size: 0.85rem;
         white-space: nowrap;
@@ -217,7 +307,6 @@
     }
   }
 }
-
 
 .menu-container {
   position: relative;
