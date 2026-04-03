@@ -916,10 +916,10 @@ export class DataManagerService {
   /**
    * Set (or clear) the ilcAppCountryOverride field on a specific line item
    * within an order document. This allows admins to manually set the country
-   * code for generating a member ID.
+   * name (from the approved list) for generating a member ID.
    */
   async setOrderLineItemCountryOverride(
-    orderId: string, lineItemId: string, countryCode: string
+    orderId: string, lineItemId: string, country: string
   ): Promise<void> {
     const docRef = doc(this.db, 'orders', orderId);
     const docSnap = await getDoc(docRef);
@@ -930,7 +930,7 @@ export class DataManagerService {
     const item = lineItems.find((li: SquareSpaceLineItem) => li.id === lineItemId);
     if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
 
-    item.ilcAppCountryOverride = countryCode;
+    item.ilcAppCountryOverride = country;
     return updateDoc(docRef, {
       lineItems,
       lastUpdated: serverTimestamp(),

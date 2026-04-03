@@ -181,4 +181,38 @@ describe('parseMembershipRenewalInfo', () => {
     expect(parsed.member.isNewMember).toBe(true);
     expect(parsed.member.name).toBe('New Person');
   });
+
+  it('should override country with ilcAppCountryOverride using a country name', () => {
+    const lineItemWithOverride = {
+      ...realLineItem,
+      ilcAppCountryOverride: 'Slovenia',
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'New Person', label: 'Name' },
+        { label: 'Email', value: 'new@example.com' },
+        { label: 'Country', value: 'Slovinia' }, // misspelled by user
+      ],
+    };
+
+    const parsed = parseMembershipRenewalInfo(realOrder, lineItemWithOverride);
+    // The override should replace the misspelled country
+    expect(parsed.member.country).toBe('Slovenia');
+  });
+
+  it('should handle legacy ilcAppCountryOverride with a country code', () => {
+    const lineItemWithCodeOverride = {
+      ...realLineItem,
+      ilcAppCountryOverride: 'SL', // legacy: a country code instead of name
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'New Person', label: 'Name' },
+        { label: 'Email', value: 'new@example.com' },
+        { label: 'Country', value: 'Slovinia' },
+      ],
+    };
+
+    const parsed = parseMembershipRenewalInfo(realOrder, lineItemWithCodeOverride);
+    // The code 'SL' should resolve to the country name 'Slovenia'
+    expect(parsed.member.country).toBe('Slovenia');
+  });
 });

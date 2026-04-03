@@ -485,7 +485,7 @@ export interface SquareSpaceLineItem {
   // does not overwrite the original baseline.
   ilcAppPreOrderRenewalDate?: string; // YYYY-MM-DD
   ilcAppPreOrderExpiryDate?: string; // YYYY-MM-DD
-  ilcAppCountryOverride?: string; // 2-letter country code (override for generating member ID)
+  ilcAppCountryOverride?: string; // Country name override from approved list (for generating member ID)
 }
 
 export type SquareSpaceOrder = BaseOrder & {

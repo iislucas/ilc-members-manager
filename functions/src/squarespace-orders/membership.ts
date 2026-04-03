@@ -8,7 +8,7 @@ existing members, and registering brand-new members.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { resolveCountryCode, countryCodeList } from '../country-codes';
+import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -31,8 +31,9 @@ export function parseMembershipRenewalInfo(
   const member = parseMembershipPurchaseInfo(customizations, orderData, '');
 
   if (lineItem.ilcAppCountryOverride) {
-    const countryObj = countryCodeList.find(c => c.id === lineItem.ilcAppCountryOverride);
-    member.country = countryObj ? countryObj.name : lineItem.ilcAppCountryOverride;
+    // The override is expected to be a country name from our approved list.
+    // For backward compatibility, also accept a country code and resolve it.
+    member.country = resolveCountryName(lineItem.ilcAppCountryOverride);
   }
 
   // Compute renewal and expiration dates from order creation date.

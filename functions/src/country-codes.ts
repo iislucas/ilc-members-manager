@@ -286,3 +286,23 @@ export function resolveCountryCode(input: string): string | null {
 
   return null;
 }
+
+// Resolve a country input (name, code, or partial match) to the canonical
+// country name from our approved list. Returns the input unchanged if no
+// match is found, so existing data is preserved even for unknown inputs.
+export function resolveCountryName(input: string): string {
+  if (!input) return input;
+  const trimmed = input.trim();
+  const lower = trimmed.toLowerCase();
+
+  // First try exact code match (case-insensitive)
+  const byCode = countryCodeList.find(c => c.id.toLowerCase() === lower);
+  if (byCode) return byCode.name;
+
+  // Then try exact name match (case-insensitive)
+  const byExactName = countryCodeList.find(c => c.name.toLowerCase() === lower);
+  if (byExactName) return byExactName.name;
+
+  // No match found — return the input as-is.
+  return trimmed;
+}

@@ -269,10 +269,10 @@ describe('SquarespaceOrderView', () => {
     createComponent(order);
     await fixture.whenStable();
 
-    component.setCountryOverrideInput('line-c1', 'SI');
+    component.setCountryOverrideInput('line-c1', 'Slovenia');
 
     expect(component.hasCountryUnsavedChange(lineItem)).toBe(true);
-    expect(component.getCountryOverride(lineItem)).toBe('SI');
+    expect(component.getCountryOverride(lineItem)).toBe('Slovenia');
 
     const orderUpdatedSpy = vi.fn();
     component.orderUpdated.subscribe(orderUpdatedSpy);
@@ -280,7 +280,7 @@ describe('SquarespaceOrderView', () => {
     const mockSetOverride = TestBed.inject(DataManagerService).setOrderLineItemCountryOverride as ReturnType<typeof vi.fn>;
     await component.saveCountryOverride(lineItem);
 
-    expect(mockSetOverride).toHaveBeenCalledWith('test-order-doc', 'line-c1', 'SI');
+    expect(mockSetOverride).toHaveBeenCalledWith('test-order-doc', 'line-c1', 'Slovenia');
     expect(orderUpdatedSpy).toHaveBeenCalled();
     expect(component.hasCountryUnsavedChange(lineItem)).toBe(false);
   });

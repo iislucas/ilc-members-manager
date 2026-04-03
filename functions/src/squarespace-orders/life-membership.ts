@@ -8,7 +8,7 @@ Uses the shared MembershipPurchaseInfo to represent each person.
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
-import { resolveCountryCode } from '../country-codes';
+import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -28,6 +28,15 @@ export function parseLifeMembershipInfo(
 
   const member = parseMembershipPurchaseInfo(customizations, orderData, '');
   const spouse = parseMembershipPurchaseInfo(customizations, orderData, 'Spouse');
+
+  // Apply country override if set by admin.
+  if (lineItem.ilcAppCountryOverride) {
+    const resolvedCountry = resolveCountryName(lineItem.ilcAppCountryOverride);
+    member.country = resolvedCountry;
+    if (spouse.name || spouse.memberId) {
+      spouse.country = resolvedCountry;
+    }
+  }
 
   const hasSpouse = !!spouse.name || !!spouse.memberId;
 

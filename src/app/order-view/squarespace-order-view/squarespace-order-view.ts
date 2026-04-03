@@ -325,7 +325,7 @@ export class SquarespaceOrderView {
   }
 
   async saveCountryOverride(lineItem: SquareSpaceLineItem) {
-    const countryCode = this.getCountryOverride(lineItem);
+    const country = this.getCountryOverride(lineItem);
     const orderId = this.order().docId;
     if (!orderId) return;
 
@@ -335,7 +335,7 @@ export class SquarespaceOrderView {
 
     try {
       await this.dataService.setOrderLineItemCountryOverride(
-        orderId, lineItem.id, countryCode
+        orderId, lineItem.id, country
       );
       const map = new Map(this.countryOverrideInputs());
       map.delete(lineItem.id);
