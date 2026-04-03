@@ -8,20 +8,33 @@
 
   @if (e.scheduledDeletionDate) {
     <div class="deletion-notice top-notice">
-      <span>⚠️ Account scheduled for deletion on <strong>{{ e.scheduledDeletionDate }}</strong></span>
-      <button type="button" class="cancel-deletion-button" (click)="cancelDeletion($event)">
+      <span
+        >⚠️ Account scheduled for deletion on
+        <strong>{{ e.scheduledDeletionDate }}</strong></span
+      >
+      <button
+        type="button"
+        class="cancel-deletion-button"
+        (click)="cancelDeletion($event)"
+      >
         Cancel Deletion
       </button>
     </div>
   }
 
-
-  @if (userIsAdmin() && e.instructorId && e.instructorId.trim() !== "") {
+  @if (
+    (userIsAdmin() || isOwnProfile()) &&
+    e.instructorId &&
+    e.instructorId.trim() !== ""
+  ) {
     <div class="nav-buttons">
       <a
         class="subtle-button"
-        href="#/instructor/{{ e.instructorId }}/students"
-        (click)="gotoStudents(); $event.preventDefault()"
+        [href]="
+          isOwnProfile()
+            ? '#/my-students'
+            : '#/instructor/' + e.instructorId + '/students'
+        "
       >
         <app-icon name="salut" /> Students</a
       >
@@ -171,106 +184,106 @@
       </div>
 
       <h3>Membership Status & Level</h3>
- 
-       @if (userIsMemberOrAdmin()) {
-         <label for="primaryInstructorId" class="align-top">
-           Primary Instructor ID
-           <app-icon
-             name="info"
-             (click)="showInstructorNotes.set(!showInstructorNotes())"
-             style="cursor: pointer"
-           ></app-icon>
-         </label>
-         <div class="rhs">
-           <app-autocomplete
-             name="Primary Instructor"
-             [searchableSet]="membersService.instructors"
-             [placeholder]="'Search for an instructor'"
-             [displayFns]="instructorDisplayFns"
-             [searchOptions]="{
-               strictDigits: true,
-               interpretQuotesAsStrict: true,
-             }"
-             [initSearchTerm]="form.primaryInstructorId().value()"
-             (textUpdated)="updatePrimaryInstructorId($event)"
-           ></app-autocomplete>
-           @if (e.primaryInstructorId === "") {
-             <div class="note">No primary instructor set</div>
-           } @else if (
-             membersService.instructors.get(e.primaryInstructorId);
-             as sifuData
-           ) {
-             <div class="note">{{ sifuData.name }}</div>
-           } @else {
-             <div class="error-message">
-               invalid instructor ID:
-               <span class="identifier-chip">{{ e.primaryInstructorId }}</span>
-             </div>
-           }
-           @if (showInstructorNotes()) {
-             <p class="note">
-               Members choose who they consider to be their primary instructor, and
-               can change it at any time. The member's choice of primary instructor
-               is visable only to the member, their current primary instructor, and
-               ILC HQ.
-             </p>
-             <p class="note">
-               The selected primary instructor can see the member's
-               <span class="section-chip">Contacts Details</span>,
-               <span class="section-chip">Membership Status & Level</span>, and
-               <span class="section-chip">Instructor Status</span> (and if this
-               member if an instructor, their
-               <span class="section-chip">Instructor Public Listing</span>). The
-               primary instructor cannot edit the any of the member's details.
-             </p>
-           }
-         </div>
-       }
- 
-       @if (userIsMemberSchoolManagerOrAdmin()) {
-         <label for="inSchoolId" class="align-top">
-           Primary School ID
-           <app-icon
-             name="info"
-             (click)="showSchoolNotes.set(!showSchoolNotes())"
-             style="cursor: pointer"
-           ></app-icon>
-         </label>
-         <div class="rhs">
-           <app-autocomplete
-             [searchableSet]="membersService.schools"
-             [placeholder]="'Search for a school'"
-             [displayFns]="schoolDisplayFns"
-             [initSearchTerm]="form.primarySchoolId().value()"
-             (textUpdated)="updatePrimarySchoolId($event)"
-           ></app-autocomplete>
-           @if (e.primarySchoolId.trim() === "") {
-             <div class="note">Primary School is ILC HQ</div>
-           } @else if (
-             membersService.schools.get(e.primarySchoolId);
-             as schoolData
-           ) {
-             <div class="note">{{ schoolData.schoolName }}</div>
-           } @else {
-             <div class="error-message">invalid school ID</div>
-           }
-           @if (showSchoolNotes()) {
-             <p class="note">
-               Member choose their primary school and can change it at any time. A
-               member's primary school is visible only to the member, the current
-               primary school and ILC HQ.
-             </p>
-             <p class="note">
-               Administrators of the primary school can see and edit
-               <span class="section-chip">Contacts Details</span>,
-               <span class="section-chip">Membership Status & Level</span>, and
-               <span class="section-chip">Instructor Status</span> (and if the
-               member if an instructor, their
-               <span class="section-chip">Instructor Public Listing</span>).
-             </p>
-           }
-         </div>
-       }
+
+      @if (userIsMemberOrAdmin()) {
+        <label for="primaryInstructorId" class="align-top">
+          Primary Instructor ID
+          <app-icon
+            name="info"
+            (click)="showInstructorNotes.set(!showInstructorNotes())"
+            style="cursor: pointer"
+          ></app-icon>
+        </label>
+        <div class="rhs">
+          <app-autocomplete
+            name="Primary Instructor"
+            [searchableSet]="membersService.instructors"
+            [placeholder]="'Search for an instructor'"
+            [displayFns]="instructorDisplayFns"
+            [searchOptions]="{
+              strictDigits: true,
+              interpretQuotesAsStrict: true,
+            }"
+            [initSearchTerm]="form.primaryInstructorId().value()"
+            (textUpdated)="updatePrimaryInstructorId($event)"
+          ></app-autocomplete>
+          @if (e.primaryInstructorId === "") {
+            <div class="note">No primary instructor set</div>
+          } @else if (
+            membersService.instructors.get(e.primaryInstructorId);
+            as sifuData
+          ) {
+            <div class="note">{{ sifuData.name }}</div>
+          } @else {
+            <div class="error-message">
+              invalid instructor ID:
+              <span class="identifier-chip">{{ e.primaryInstructorId }}</span>
+            </div>
+          }
+          @if (showInstructorNotes()) {
+            <p class="note">
+              Members choose who they consider to be their primary instructor,
+              and can change it at any time. The member's choice of primary
+              instructor is visable only to the member, their current primary
+              instructor, and ILC HQ.
+            </p>
+            <p class="note">
+              The selected primary instructor can see the member's
+              <span class="section-chip">Contacts Details</span>,
+              <span class="section-chip">Membership Status & Level</span>, and
+              <span class="section-chip">Instructor Status</span> (and if this
+              member if an instructor, their
+              <span class="section-chip">Instructor Public Listing</span>). The
+              primary instructor cannot edit the any of the member's details.
+            </p>
+          }
+        </div>
+      }
+
+      @if (userIsMemberSchoolManagerOrAdmin()) {
+        <label for="inSchoolId" class="align-top">
+          Primary School ID
+          <app-icon
+            name="info"
+            (click)="showSchoolNotes.set(!showSchoolNotes())"
+            style="cursor: pointer"
+          ></app-icon>
+        </label>
+        <div class="rhs">
+          <app-autocomplete
+            [searchableSet]="membersService.schools"
+            [placeholder]="'Search for a school'"
+            [displayFns]="schoolDisplayFns"
+            [initSearchTerm]="form.primarySchoolId().value()"
+            (textUpdated)="updatePrimarySchoolId($event)"
+          ></app-autocomplete>
+          @if (e.primarySchoolId.trim() === "") {
+            <div class="note">Primary School is ILC HQ</div>
+          } @else if (
+            membersService.schools.get(e.primarySchoolId);
+            as schoolData
+          ) {
+            <div class="note">{{ schoolData.schoolName }}</div>
+          } @else {
+            <div class="error-message">invalid school ID</div>
+          }
+          @if (showSchoolNotes()) {
+            <p class="note">
+              Member choose their primary school and can change it at any time.
+              A member's primary school is visible only to the member, the
+              current primary school and ILC HQ.
+            </p>
+            <p class="note">
+              Administrators of the primary school can see and edit
+              <span class="section-chip">Contacts Details</span>,
+              <span class="section-chip">Membership Status & Level</span>, and
+              <span class="section-chip">Instructor Status</span> (and if the
+              member if an instructor, their
+              <span class="section-chip">Instructor Public Listing</span>).
+            </p>
+          }
+        </div>
+      }
 
       <label for="memberId">Member ID</label>
       <div class="rhs">
@@ -368,7 +381,7 @@
       <div class="rhs">
         <select id="studentLevel" [formField]="form.studentLevel">
           @for (level of studentLevels; track level) {
-            <option [value]="level">{{ level || 'None' }}</option>
+            <option [value]="level">{{ level || "None" }}</option>
           }
         </select>
       </div>
@@ -377,7 +390,7 @@
       <div class="rhs">
         <select id="applicationLevel" [formField]="form.applicationLevel">
           @for (level of applicationLevels; track level) {
-            <option [value]="level">{{ level || 'None' }}</option>
+            <option [value]="level">{{ level || "None" }}</option>
           }
         </select>
       </div>
@@ -494,12 +507,17 @@
             </div>
           }
           @if (
-            userIsAdmin() && e.instructorId && e.instructorId.trim() !== ""
+            (userIsAdmin() || isOwnProfile()) &&
+            e.instructorId &&
+            e.instructorId.trim() !== ""
           ) {
             <a
               class="subtle-button"
-              href="#/instructor/{{ e.instructorId }}/students"
-              (click)="gotoStudents(); $event.preventDefault()"
+              [href]="
+                isOwnProfile()
+                  ? '#/my-students'
+                  : '#/instructor/' + e.instructorId + '/students'
+              "
             >
               <app-icon name="salut" /> View Students</a
             >
@@ -735,17 +753,24 @@
         @if (e.scheduledDeletionDate) {
           <div class="deletion-notice">
             <span>Scheduled for deletion: {{ e.scheduledDeletionDate }}</span>
-            <button type="button" class="cancel-deletion-button" (click)="cancelDeletion($event)">
+            <button
+              type="button"
+              class="cancel-deletion-button"
+              (click)="cancelDeletion($event)"
+            >
               Cancel Deletion
             </button>
           </div>
         } @else if (canDelete()) {
-          <button type="button" class="delete-button" (click)="deleteMember($event)">
+          <button
+            type="button"
+            class="delete-button"
+            (click)="deleteMember($event)"
+          >
             <app-icon name="trash" fill="#000" />
-            {{ userIsAdmin() ? 'Delete (Admin)' : 'Schedule Deletion' }}
+            {{ userIsAdmin() ? "Delete (Admin)" : "Schedule Deletion" }}
           </button>
         }
-
       </div>
     </div>
   </form>

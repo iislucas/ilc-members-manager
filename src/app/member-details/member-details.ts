@@ -387,6 +387,11 @@ export class MemberDetailsComponent {
     );
   });
 
+  /** True when the member is viewing their own profile (MyProfile route). */
+  isOwnProfile = computed(() =>
+    this.routingService.matchedPatternId() === Views.MyProfile,
+  );
+
   // Erro handling.
   asyncError = signal<Error | null>(null);
 
@@ -451,12 +456,6 @@ export class MemberDetailsComponent {
     const docId = school ? school.docId : '';
     this.form.primarySchoolDocId().value.set(docId);
     this.form.primarySchoolDocId().markAsDirty();
-  }
-
-  gotoStudents() {
-    this.routingService.matchedPatternId.set(Views.InstructorStudents);
-    const signals = this.routingService.signals[Views.InstructorStudents];
-    signals.pathVars.instructorId.set(this.member().instructorId);
   }
 
   constructor() {
