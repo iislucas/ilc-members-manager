@@ -1,0 +1,9 @@
+{
+  "name": "ghpages-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:logo-maker": "pnpm --prefix mini-tools/logo-maker run build",
+    "build": "pnpm run build:logo-maker"
+  }
+}
