@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Yin-Yang SVG Designer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+  }
+  .controls {
+    width: 380px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+  }
+  h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #e94560;
+  }
+  .control-group {
+    margin-bottom: 16px;
+  }
+  .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #a0a0b0;
+  }
+  .control-group label span.val {
+    color: #e94560;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e94560;
+  }
+  input[type="color"] {
+    width: 40px;
+    height: 28px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    padding: 2px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .color-row span {
+    font-size: 13px;
+    color: #a0a0b0;
+    flex: 1;
+  }
+  .preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 24px;
+  }
+  .preview-container {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+  }
+  .preview-box {
+    text-align: center;
+  }
+  .preview-box .label {
+    font-size: 12px;
+    color: #a0a0b0;
+    margin-top: 8px;
+  }
+  svg#main-preview { border-radius: 12px; }
+  .output-section {
+    width: 100%;
+    max-width: 900px;
+  }
+  .output-section h2 {
+    font-size: 14px;
+    color: #a0a0b0;
+    margin-bottom: 8px;
+  }
+  .path-output {
+    width: 100%;
+    height: 80px;
+    background: #0f3460;
+    border: 1px solid #533483;
+    color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 8px;
+    resize: vertical;
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    padding: 8px 20px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .action-btn:hover { background: #c73652; }
+  .action-btn:active { transform: scale(0.97); }
+  .action-btn.secondary {
+    background: #533483;
+  }
+  .action-btn.secondary:hover { background: #6b44a8; }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #533483;
+    margin: 20px 0 10px;
+    border-bottom: 1px solid #0f3460;
+    padding-bottom: 4px;
+  }
+  .icon-sizes {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    margin-top: 12px;
+  }
+  .icon-sizes .icon-sample {
+    text-align: center;
+    color: #a0a0b0;
+    font-size: 11px;
+  }
+  .icon-sizes .icon-sample svg {
+    display: block;
+    margin: 0 auto 4px;
+  }
+  .description {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .checkbox-row input[type="checkbox"] {
+    accent-color: #e94560;
+    width: 16px;
+    height: 16px;
+  }
+  .checkbox-row label {
+    font-size: 13px;
+    color: #a0a0b0;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>☯ Yin-Yang Designer</h1>
+
+  <div class="section-title">Geometry</div>
+
+  <div class="control-group">
+    <label>Outer radius <span class="val" id="radius-val"></span></label>
+    <input type="range" id="radius" min="50" max="250" step="1" value="150">
+  </div>
+
+  <div class="control-group">
+    <label>Eye radius <span class="val" id="eyeRadius-val"></span></label>
+    <input type="range" id="eyeRadius" min="0" max="60" step="1" value="22">
+    <div class="description">Size of the dots; 0 hides them</div>
+  </div>
+
+  <div class="control-group">
+    <label>Eye position (% from center) <span class="val" id="eyePosition-val"></span></label>
+    <input type="range" id="eyePosition" min="0" max="100" step="1" value="50">
+    <div class="description">0% = center, 50% = natural (R/2), 100% = edge</div>
+  </div>
+
+  <div class="section-title">Orientation</div>
+
+  <div class="control-group">
+    <label>Rotation (degrees) <span class="val" id="rotation-val"></span></label>
+    <input type="range" id="rotation" min="0" max="360" step="1" value="0">
+  </div>
+
+  <div class="section-title">Border</div>
+
+  <div class="control-group">
+    <label>Border width <span class="val" id="borderWidth-val"></span></label>
+    <input type="range" id="borderWidth" min="0" max="20" step="0.5" value="3">
+  </div>
+
+  <div class="section-title">Colors</div>
+
+  <div class="color-row">
+    <span>Dark (yin)</span>
+    <input type="color" id="darkColor" value="#000000">
+  </div>
+  <div class="color-row">
+    <span>Light (yang)</span>
+    <input type="color" id="lightColor" value="#ffffff">
+  </div>
+  <div class="color-row">
+    <span>Border</span>
+    <input type="color" id="borderColor" value="#000000">
+  </div>
+
+  <div class="section-title">Background</div>
+
+  <div class="checkbox-row">
+    <input type="checkbox" id="transparentBg" checked>
+    <label for="transparentBg">Transparent background</label>
+  </div>
+  <div class="color-row">
+    <span>Background color</span>
+    <input type="color" id="bgColor" value="#ffffff">
+  </div>
+</div>
+
+<div class="preview">
+  <div class="preview-container">
+    <div class="preview-box">
+      <svg id="main-preview" width="350" height="350"></svg>
+      <div class="label">Live preview</div>
+      <div class="icon-sizes" id="icon-sizes"></div>
+    </div>
+  </div>
+
+  <div class="output-section">
+    <h2>SVG Output</h2>
+    <textarea class="path-output" id="svg-output" readonly></textarea>
+    <div class="btn-row">
+      <button class="action-btn" id="copy-svg-btn">Copy SVG</button>
+      <button class="action-btn secondary" id="download-png-192">Download PNG 192×192</button>
+      <button class="action-btn secondary" id="download-png-512">Download PNG 512×512</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="export-canvas" style="display:none"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const inputs = {
+  radius: $('radius'),
+  eyeRadius: $('eyeRadius'),
+  eyePosition: $('eyePosition'),
+  rotation: $('rotation'),
+  borderWidth: $('borderWidth'),
+  darkColor: $('darkColor'),
+  lightColor: $('lightColor'),
+  borderColor: $('borderColor'),
+  bgColor: $('bgColor'),
+  transparentBg: $('transparentBg'),
+};
+
+// Build the dark (yin) region as an SVG path.
+//
+// Geometry:
+//   - Outer circle: center (cx, cy), radius R.
+//   - The S-curve divides the circle into two equal halves using two
+//     semicircles of radius R/2.
+//   - Top semicircle: center at (cx, cy - R/2), radius R/2.
+//   - Bottom semicircle: center at (cx, cy + R/2), radius R/2.
+//
+// The dark region path:
+//   1. Start at top of outer circle: (cx, cy - R)
+//   2. Clockwise arc along outer circle (right side) to bottom: (cx, cy + R)
+//   3. Small semicircle from bottom to center, curving LEFT (sweep=0 CCW)
+//   4. Small semicircle from center to top, curving RIGHT (sweep=1 CW)
+//
+// This produces a shape where:
+//   - The dark "head" bulges into the right at the top
+//   - The dark "tail" narrows through the left at the bottom
+function buildYinPath(cx, cy, R) {
+  const r = R / 2;
+  const top = cy - R;
+  const bottom = cy + R;
+  const mid = cy;
+
+  // Step 1: Move to top
+  // Step 2: Right half of outer circle (large arc, CW)
+  // Step 3: Bottom S-curve semicircle (CCW = sweep 0, bulges LEFT)
+  // Step 4: Top S-curve semicircle (CW = sweep 1, bulges RIGHT)
+  return [
+    `M ${cx} ${top}`,
+    `A ${R} ${R} 0 1 1 ${cx} ${bottom}`,
+    `A ${r} ${r} 0 0 0 ${cx} ${mid}`,
+    `A ${r} ${r} 0 0 1 ${cx} ${top}`,
+    'Z',
+  ].join(' ');
+}
+
+function getParams() {
+  return {
+    radius: parseInt(inputs.radius.value),
+    eyeRadius: parseInt(inputs.eyeRadius.value),
+    // Eye position: 0..1, where 0.5 = natural (R/2 from center = center of
+    // each S-curve semicircle). 0 = eye at center, 1 = eye at outer edge.
+    eyePosition: parseInt(inputs.eyePosition.value) / 100,
+    rotation: parseInt(inputs.rotation.value),
+    borderWidth: parseFloat(inputs.borderWidth.value),
+    darkColor: inputs.darkColor.value,
+    lightColor: inputs.lightColor.value,
+    borderColor: inputs.borderColor.value,
+    bgColor: inputs.bgColor.value,
+    transparentBg: inputs.transparentBg.checked,
+  };
+}
+
+function buildSvgContent(p, size) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const R = p.radius;
+
+  // Eye offset from center along the vertical axis.
+  // At eyePosition=0.5 (the natural position), eyes sit at R/2 from center
+  // (i.e., the center of each S-curve semicircle).
+  const eyeOffset = R * p.eyePosition;
+
+  const yinPath = buildYinPath(cx, cy, R);
+
+  const parts = [];
+
+  // Background circle (optional, for non-transparent exports)
+  if (!p.transparentBg) {
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="${R + p.borderWidth}" fill="${p.bgColor}"/>`);
+  }
+
+  // Light (yang) base circle
+  parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${p.lightColor}"/>`);
+
+  // Dark (yin) half — the S-curve shape
+  parts.push(`<path d="${yinPath}" fill="${p.darkColor}"/>`);
+
+  // Eyes:
+  // Light eye sits in the dark region's head (upper half, at cy - eyeOffset).
+  // Dark eye sits in the light region's head (lower half, at cy + eyeOffset).
+  if (p.eyeRadius > 0) {
+    parts.push(`<circle cx="${cx}" cy="${cy - eyeOffset}" r="${p.eyeRadius}" fill="${p.lightColor}"/>`);
+    parts.push(`<circle cx="${cx}" cy="${cy + eyeOffset}" r="${p.eyeRadius}" fill="${p.darkColor}"/>`);
+  }
+
+  // Border ring
+  if (p.borderWidth > 0) {
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${p.borderColor}" stroke-width="${p.borderWidth}"/>`);
+  }
+
+  return parts.join('\n    ');
+}
+
+function buildFullSvg(p, size) {
+  const content = buildSvgContent(p, size);
+  const rotAngle = p.rotation;
+  const center = size / 2;
+
+  // Wrap in rotation group if needed
+  const inner = rotAngle === 0
+    ? `    ${content}`
+    : `  <g transform="rotate(${rotAngle}, ${center}, ${center})">\n    ${content}\n  </g>`;
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`,
+    inner,
+    '</svg>',
+  ].join('\n');
+}
+
+function update() {
+  const p = getParams();
+
+  // Update value labels
+  $('radius-val').textContent = p.radius;
+  $('eyeRadius-val').textContent = p.eyeRadius;
+  $('eyePosition-val').textContent = (p.eyePosition * 100).toFixed(0) + '%';
+  $('rotation-val').textContent = p.rotation + '°';
+  $('borderWidth-val').textContent = p.borderWidth;
+
+  // Preview size: fit the symbol with border and a bit of padding
+  const previewPadding = 20;
+  const totalR = p.radius + p.borderWidth + previewPadding;
+  const viewSize = totalR * 2;
+
+  const previewSvg = $('main-preview');
+  previewSvg.setAttribute('viewBox', `0 0 ${viewSize} ${viewSize}`);
+
+  // Build with adjusted center for padded viewbox
+  const previewParams = { ...p, radius: p.radius }; // radius stays the same
+  const cx = viewSize / 2;
+  const cy = viewSize / 2;
+  const R = p.radius;
+  const eyeOffset = R * p.eyePosition;
+
+  const yinPath = buildYinPath(cx, cy, R);
+
+  // Build the preview SVG content directly (to correctly center in padded viewbox)
+  let svgContent = '';
+
+  // Checkerboard background for transparent preview
+  if (p.transparentBg) {
+    const patternSize = 12;
+    svgContent += `<defs><pattern id="checker" width="${patternSize * 2}" height="${patternSize * 2}" patternUnits="userSpaceOnUse">
+      <rect width="${patternSize}" height="${patternSize}" fill="#ccc"/>
+      <rect x="${patternSize}" y="${patternSize}" width="${patternSize}" height="${patternSize}" fill="#ccc"/>
+      <rect x="${patternSize}" width="${patternSize}" height="${patternSize}" fill="#999"/>
+      <rect y="${patternSize}" width="${patternSize}" height="${patternSize}" fill="#999"/>
+    </pattern></defs>`;
+    svgContent += `<rect width="100%" height="100%" fill="url(#checker)" rx="12"/>`;
+  } else {
+    svgContent += `<rect width="100%" height="100%" fill="${p.bgColor}" rx="12"/>`;
+  }
+
+  // Build the yin-yang symbol content
+  let symbolContent = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${p.lightColor}"/>`;
+  symbolContent += `<path d="${yinPath}" fill="${p.darkColor}"/>`;
+  if (p.eyeRadius > 0) {
+    symbolContent += `<circle cx="${cx}" cy="${cy - eyeOffset}" r="${p.eyeRadius}" fill="${p.lightColor}"/>`;
+    symbolContent += `<circle cx="${cx}" cy="${cy + eyeOffset}" r="${p.eyeRadius}" fill="${p.darkColor}"/>`;
+  }
+  if (p.borderWidth > 0) {
+    symbolContent += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${p.borderColor}" stroke-width="${p.borderWidth}"/>`;
+  }
+
+  if (p.rotation !== 0) {
+    svgContent += `<g transform="rotate(${p.rotation}, ${cx}, ${cy})">${symbolContent}</g>`;
+  } else {
+    svgContent += symbolContent;
+  }
+
+  previewSvg.innerHTML = svgContent;
+
+  // Icon size samples
+  const sizesContainer = $('icon-sizes');
+  sizesContainer.innerHTML = '';
+  for (const size of [24, 32, 48, 64]) {
+    const exportSize = p.radius * 2 + p.borderWidth * 2;
+    const svgStr = buildFullSvg(p, exportSize);
+    const div = document.createElement('div');
+    div.className = 'icon-sample';
+    div.innerHTML = svgStr.replace(
+      `width="${exportSize}" height="${exportSize}"`,
+      `width="${size}" height="${size}"`
+    ) + `<br>${size}px`;
+    sizesContainer.appendChild(div);
+  }
+
+  // SVG output
+  const exportSize = p.radius * 2 + p.borderWidth * 2;
+  $('svg-output').value = buildFullSvg(p, exportSize);
+}
+
+function downloadPng(targetSize) {
+  const p = getParams();
+  const exportSize = p.radius * 2 + p.borderWidth * 2;
+  const svgStr = buildFullSvg(p, exportSize);
+
+  const canvas = $('export-canvas');
+  canvas.width = targetSize;
+  canvas.height = targetSize;
+  const ctx = canvas.getContext('2d');
+
+  const img = new Image();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  img.onload = () => {
+    ctx.clearRect(0, 0, targetSize, targetSize);
+    ctx.drawImage(img, 0, 0, targetSize, targetSize);
+    URL.revokeObjectURL(url);
+
+    const a = document.createElement('a');
+    a.download = `yin-yang-${targetSize}x${targetSize}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+}
+
+// Wire up all inputs
+Object.values(inputs).forEach(el =>
+  el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', update)
+);
+
+// Copy SVG button
+$('copy-svg-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText($('svg-output').value).then(() => {
+    $('copy-svg-btn').textContent = '✓ Copied!';
+    setTimeout(() => $('copy-svg-btn').textContent = 'Copy SVG', 1500);
+  });
+});
+
+// Download PNG buttons
+$('download-png-192').addEventListener('click', () => downloadPng(192));
+$('download-png-512').addEventListener('click', () => downloadPng(512));
+
+// Initial render
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SVG Venn Merge Experiment</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+  }
+  .controls {
+    width: 380px;
+    padding: 24px;
+    overflow-y: auto;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+  }
+  h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #e94560;
+  }
+  .control-group {
+    margin-bottom: 16px;
+  }
+  .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #a0a0b0;
+  }
+  .control-group label span.val {
+    color: #e94560;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e94560;
+  }
+  .preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 24px;
+  }
+  svg#main-preview { 
+    border-radius: 12px;
+    background: #ffffff; /* White background by default */
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  }
+  .description {
+    font-size: 13px;
+    color: #a0a0b0;
+    margin-top: 10px;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>Venn Merge Experiment</h1>
+  <div class="description">
+    This demonstrates the two-pass rendering technique for dynamically merging SVG shapes.
+    <br><br>
+    Notice that as the circles overlap, there is NO line separating them inside. The stroke only wraps the outer union of the two shapes.
+  </div>
+  <br>
+  
+  <div class="control-group">
+    <label>Circle Radius <span class="val" id="radius-val"></span></label>
+    <input type="range" id="radius" min="20" max="150" step="1" value="80">
+  </div>
+
+  <div class="control-group">
+    <label>Distance Apart <span class="val" id="distance-val"></span></label>
+    <input type="range" id="distance" min="0" max="200" step="1" value="100">
+  </div>
+
+  <div class="control-group">
+    <label>Stroke Width (Outer Border) <span class="val" id="strokeWidth-val"></span></label>
+    <input type="range" id="strokeWidth" min="1" max="30" step="1" value="6">
+  </div>
+</div>
+
+<div class="preview">
+  <svg id="main-preview" width="500" height="400"></svg>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const inputs = {
+  radius: $('radius'),
+  distance: $('distance'),
+  strokeWidth: $('strokeWidth')
+};
+
+function update() {
+  const r = parseInt(inputs.radius.value);
+  const d = parseInt(inputs.distance.value);
+  const w = parseInt(inputs.strokeWidth.value);
+
+  $('radius-val').textContent = r;
+  $('distance-val').textContent = d;
+  $('strokeWidth-val').textContent = w;
+
+  const svg = $('main-preview');
+  const cx = 250;
+  const cy = 200;
+  
+  // Calculate the centers of the two circles
+  const c1x = cx - (d / 2);
+  const c2x = cx + (d / 2);
+
+  // Here's the magic: Two passes.
+  // Pass 1: Silhouette (Draws the stroke for BOTH circles)
+  // To ensure the stroke draws completely on the *outside* of the fill, we apply a stroke 
+  // that is twice as thick as the desired visual line, since SVG draws strokes centered on the path.
+  // The inner half of the stroke will be covered by Pass 2.
+  const silhouetteStrokeWidth = w * 2;
+
+  // Pass 2: Interior Fills
+  // Draws over the exact same paths but with NO stroke.
+  // Since these are drawn on top, they cover everything inside the shapes, including the
+  // overlapping internal borders that the silhouette pass created!
+
+  svg.innerHTML = `
+    <!-- Pass 1: Silhouette / Outline Pass -->
+    <!-- We use our 'border' color (red) and fill with the same color to form a solid block -->
+    <g fill="#ff0044" stroke="#ff0044" stroke-width="${silhouetteStrokeWidth}" stroke-linejoin="round">
+      <circle cx="${c1x}" cy="${cy}" r="${r}"/>
+      <circle cx="${c2x}" cy="${cy}" r="${r}"/>
+    </g>
+    
+    <!-- Pass 2: Interior / Fill Pass -->
+    <!-- We use our interior color (white) and NO stroke. It erases all interior lines! -->
+    <g fill="#ffffff" stroke="none">
+      <circle cx="${c1x}" cy="${cy}" r="${r}"/>
+      <circle cx="${c2x}" cy="${cy}" r="${r}"/>
+    </g>
+  `;
+}
+
+// Wire up all inputs
+Object.values(inputs).forEach(el => el.addEventListener('input', update));
+
+// Initial render
+update();
+</script>
+</body>
+</html>
