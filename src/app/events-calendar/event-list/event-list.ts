@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
 import { CalendarEvent } from '../event.model';
-import { CachedCalendarEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
@@ -48,7 +48,7 @@ function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
 
 // A type representing a calendar event that can be indexed by MiniSearch.
 // It includes a string `id` field required by the library.
-type SearchableCalendarEvent = CachedCalendarEvent & { id: string };
+type SearchableCalendarEvent = IlcEvent & { id: string };
 
 @Component({
   selector: 'app-event-list',
@@ -72,12 +72,15 @@ export class EventListComponent implements OnDestroy {
   backLabel = input<string>('Back');
   backUrl = input<string>('');
 
+  // The Firestore collection path to load events from.
+  // Defaults to 'events' for the public events list.
+  collectionPath = input<string>('events');
+  private events = signal<IlcEvent[]>([]);
 
   // --- Firestore direct subscription ---
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   private unsubscribe: Unsubscribe | null = null;
-  private cachedEvents = signal<CachedCalendarEvent[]>([]);
   readonly isLoading = signal(true);
 
   // --- Full-text Search Implementation ---
@@ -85,9 +88,14 @@ export class EventListComponent implements OnDestroy {
 
   // Map cached events to the SearchableCalendarEvent format (adds an `id` field).
   private allEvents = computed<SearchableCalendarEvent[]>(() => {
-    const sortedEvents = [...this.cachedEvents()].sort((a, b) =>
-      a.start.localeCompare(b.start),
-    );
+    const isPublicEvents = this.collectionPath() === 'events';
+    const baseEvents = this.events();
+    const filteredEvents = isPublicEvents
+      ? baseEvents.filter(e => e.status === EventStatus.Listed || !e.status)
+      : baseEvents;
+
+    const sortedEvents = [...filteredEvents]
+      .sort((a, b) => a.start.localeCompare(b.start));
     return sortedEvents.map((event, index) => ({
       ...event,
       id: `${index}`,
@@ -134,7 +142,7 @@ export class EventListComponent implements OnDestroy {
 
   // Whether events have been loaded at least once.
   readonly hasLoaded = computed(() => {
-    return this.allEvents().length > 0 || this.errorMessage() !== null;
+    return !this.isLoading();
   });
 
   constructor() {
@@ -153,8 +161,11 @@ export class EventListComponent implements OnDestroy {
       idField: 'id',
     });
 
-    // Subscribe to /events collection on init.
-    this.subscribeToEvents();
+    // Re-subscribe whenever the collection path changes.
+    effect(() => {
+      this.unsubscribe?.();
+      this.subscribeToEvents();
+    });
 
     // Rebuild the MiniSearch index whenever the cache data changes.
     effect(() => {
@@ -179,7 +190,9 @@ export class EventListComponent implements OnDestroy {
   }
 
   private subscribeToEvents(): void {
-    const eventsCollection = collection(this.db, 'events');
+    const path = this.collectionPath();
+    console.info(`Subscribing to events at path: ${path}`);
+    const eventsCollection = collection(this.db, path);
     const q = query(eventsCollection);
 
     this.isLoading.set(true);
@@ -189,13 +202,13 @@ export class EventListComponent implements OnDestroy {
       q,
       (snapshot) => {
         const events = snapshot.docs.map(
-          (doc) => doc.data() as CachedCalendarEvent,
+          (doc) => ({ ...doc.data(), docId: doc.id } as IlcEvent),
         );
-        this.cachedEvents.set(events);
+        this.events.set(events);
         this.isLoading.set(false);
       },
       (error) => {
-        console.error('Error subscribing to cached events:', error);
+        console.error(`Error subscribing to events at ${path}:`, error);
         this.errorMessage.set('Failed to load events. Please try again later.');
         this.isLoading.set(false);
       },

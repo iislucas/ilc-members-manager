@@ -1,0 +1,13 @@
+@use "../edit-form.scss" as *;
+
+textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  resize: vertical;
+}
+
+.success-message {
+  color: #155724;
+  font-size: 0.9em;
+}

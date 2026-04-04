@@ -35,6 +35,9 @@ import { MemberCreateComponent } from './member-create/member-create';
 import { StatisticsComponent } from './statistics/statistics';
 import { EventListComponent } from './events-calendar/event-list/event-list';
 import { EventViewComponent } from './events-calendar/event-view/event-view';
+import { ManageEventsComponent } from './manage-events/manage-events';
+import { EventEditComponent } from './event-edit/event-edit';
+import { ProposeEventComponent } from './proposed-events/propose-event/propose-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { MembershipType } from '../../functions/src/data-model';
 
@@ -72,6 +75,9 @@ import { MembershipType } from '../../functions/src/data-model';
     StatisticsComponent,
     EventListComponent,
     EventViewComponent,
+    ManageEventsComponent,
+    EventEditComponent,
+    ProposeEventComponent,
     CompleteProfileComponent,
   ],
   templateUrl: './app.html',
@@ -151,6 +157,12 @@ export class App {
         // No parent breadcrumb needed for events
       } else if (view === Views.EventView) {
         baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
+      } else if (view === Views.EventEdit) {
+        baseBreadcrumbs.push({ label: 'Manage Events', url: '#/manage-events' });
+      } else if (view === Views.ProposeEvent) {
+        baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
+      } else if (view === Views.ManageEvents) {
+        // No parent breadcrumb needed for manage events
       }
       baseBreadcrumbs.push({ label: this.currentViewTitle() });
     }
@@ -293,6 +305,8 @@ export class App {
         return 'My Profile';
       case Views.MyStudents:
         return 'My Students';
+      case Views.MyEvents:
+        return 'My Events';
       case Views.MySchools:
         return 'My Schools';
       case Views.MembersArea:
@@ -313,6 +327,12 @@ export class App {
         return 'Events & Workshops';
       case Views.EventView:
         return this.loadedEventTitle() || 'Event Details';
+      case Views.EventEdit:
+        return this.loadedEventTitle() ? `Edit: ${this.loadedEventTitle()}` : 'Edit Event';
+      case Views.ProposeEvent:
+        return 'Propose Organising an Event';
+      case Views.ManageEvents:
+        return 'Manage Events';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:

@@ -123,6 +123,22 @@ service cloud.firestore {
     // Cached calendar events — publicly readable as events are public.
     match /events/{eventId} {
       allow read: if true;
+      allow create: if isAdmin();
+      allow delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.auth != null && 
+        (request.auth.token.email == resource.data.ownerEmail || request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        request.resource.data.status == resource.data.status
+      );
+    }
+
+    // Member subcollection for events
+    match /members/{memberDocId}/events/{eventId} {
+      allow read: if request.auth != null && (
+        request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails || 
+        memberDocId in getUserMemberDocIds() || 
+        isAdmin()
+      );
       allow write: if isAdmin();
     }
 

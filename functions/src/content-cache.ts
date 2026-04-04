@@ -43,7 +43,7 @@ import * as admin from 'firebase-admin';
 import axios from 'axios';
 import { assertAdmin, allowedOrigins } from './common';
 import { GoogleCalendarResponse, GoogleCalendarEventItem } from './calendar.types';
-import { CachedCalendarEvent, CachedBlogPost, CacheMetadata } from './data-model';
+import { IlcEvent, EventStatus, EventSourceKind, CachedBlogPost, CacheMetadata, initEvent } from './data-model';
 import { environment } from './environment/environment';
 
 const calendarApiKey = defineSecret('GOOGLE_CALENDAR_API_KEY');
@@ -84,12 +84,13 @@ export function getEventEndDate(end?: { dateTime?: string; date?: string }): str
   return end.dateTime || end.date || 'N/A';
 }
 
-export function mapToCalendarEvent(item: GoogleCalendarEventItem): CachedCalendarEvent {
+export function mapToCalendarEvent(item: GoogleCalendarEventItem): IlcEvent {
   const location = item.location || '';
   const googleMapsUrl = location
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
     : '';
   return {
+    ...initEvent(),
     sourceId: item.id,
     title: item.summary || 'No Title',
     start: item.start?.dateTime || item.start?.date || 'N/A',
@@ -98,6 +99,8 @@ export function mapToCalendarEvent(item: GoogleCalendarEventItem): CachedCalenda
     location,
     googleMapsUrl,
     googleCalEventLink: item.htmlLink || '',
+    status: EventStatus.Listed,
+    kind: EventSourceKind.CalendarSourced,
   };
 }
 
@@ -401,7 +404,9 @@ async function refreshEventsCache(db: admin.firestore.Firestore): Promise<SyncRe
     (item) => mapToCalendarEvent(item) as unknown as Record<string, unknown>,
   );
 
-  const result = await syncCollection(db, 'events', freshItems, 'sourceId');
+  const result = await syncCollection(db, 'events', freshItems, 'sourceId', {
+    kindFilter: EventSourceKind.CalendarSourced,
+  });
   logger.info(
     `Events cache synced: ${result.total} total, ${result.updated} updated, ` +
     `${result.removed} removed, ${result.unchanged} unchanged.`,

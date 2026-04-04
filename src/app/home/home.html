@@ -183,6 +183,28 @@
         </div>
       </a>
 
+      <!-- My Events -->
+      <a class="card" [href]="routingService.hrefForView(Views.MyEvents)">
+        <div class="icon-container">
+          <app-icon name="event" width="48px" height="48px"></app-icon>
+        </div>
+        <div class="content">
+          <h2>My Events</h2>
+          <p>View and edit events you proposed</p>
+        </div>
+      </a>
+
+      <!-- Organise Event -->
+      <a class="card" [href]="routingService.hrefForView(Views.ProposeEvent)">
+        <div class="icon-container">
+          <app-icon name="add" width="48px" height="48px"></app-icon>
+        </div>
+        <div class="content">
+          <h2>Organise Event</h2>
+          <p>Submit a proposal to organise an event</p>
+        </div>
+      </a>
+
       @if (instructorStatus().hasAccess) {
         <a class="card" [href]="routingService.hrefForView(Views.MyStudents)">
           <div class="icon-container">
@@ -255,6 +277,17 @@
           <div class="content">
             <h2>Manage Orders</h2>
             <p>Administer shop orders</p>
+          </div>
+        </a>
+
+        <!-- Manage Events -->
+        <a class="card" [href]="routingService.hrefForView(Views.ManageEvents)">
+          <div class="icon-container">
+            <app-icon name="event" width="48px" height="48px"></app-icon>
+          </div>
+          <div class="content">
+            <h2>Manage Events</h2>
+            <p>Administer events and proposals</p>
           </div>
         </a>
       </div>

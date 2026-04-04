@@ -86,12 +86,31 @@
               (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-view>
           }
+          @case (Views.EventEdit) {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
+            ></app-event-edit>
+          }
+          @case (Views.ProposeEvent) {
+            <app-propose-event></app-propose-event>
+          }
+          @case (Views.ManageEvents) {
+            <app-manage-events></app-manage-events>
+          }
           @case (Views.MyStudents) {
             <app-filtered-members
               [memberSet]="dataService.myStudents"
               basePath="my-students"
               [hideInactive]="true"
             ></app-filtered-members>
+          }
+          @case (Views.MyEvents) {
+            <app-event-list
+              [collectionPath]="'members/' + user.member.docId + '/events'"
+              [showBackButton]="true"
+              backLabel="Back to Home"
+              backUrl=""
+            ></app-event-list>
           }
           @case (Views.MySchools) {
             <app-school-list

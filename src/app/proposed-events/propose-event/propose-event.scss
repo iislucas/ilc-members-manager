@@ -1,0 +1,102 @@
+@use "../../../scss_variables" as *;
+
+.propose-event-container {
+  max-width: 600px;
+  margin-left: 1rem;
+  margin-right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .intro-text {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+  }
+
+  .instructor-id-selection {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #333;
+    }
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+
+    .input-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      label {
+        font-weight: 500;
+        color: #555;
+        font-size: 0.9rem;
+
+        &.invalid {
+          color: #b30000;
+          font-weight: 700;
+        }
+      }
+
+      input[type="text"],
+      input[type="datetime-local"],
+      textarea {
+        width: 100%;
+        max-width: 100%;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 0.5rem;
+        font-size: 1rem;
+
+        &:focus {
+          border-color: #007bff;
+          outline: none;
+        }
+      }
+
+      textarea {
+        min-height: 100px;
+      }
+    }
+
+    .leading-instructor-name {
+      font-weight: bold;
+    }
+
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 0.75rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+
+      button {
+        padding: 0.6rem 1.5rem;
+        font-size: 1rem;
+      }
+    }
+  }
+}

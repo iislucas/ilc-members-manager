@@ -88,6 +88,7 @@ export class NavigationMenuComponent {
       case Views.Home: return 'Home';
       case Views.MyProfile: return 'My Profile';
       case Views.MyStudents: return 'My Students';
+      case Views.MyEvents: return 'My Events';
       case Views.MySchools: return 'My Schools';
       case Views.MembersArea: return 'Members Area';
       case Views.InstructorsArea: return 'Instructors Area';
@@ -101,6 +102,8 @@ export class NavigationMenuComponent {
       case Views.OrderView:
         const orderId = this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;
+      case Views.ProposeEvent: return 'Organise Event';
+      case Views.ManageEvents: return 'Manage Events';
       default: return 'Unknown View';
     }
   }

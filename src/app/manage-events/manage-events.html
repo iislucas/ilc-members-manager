@@ -1,0 +1,164 @@
+@if (isLoading()) {
+  <app-spinner>Loading events...</app-spinner>
+} @else if (errorMessage()) {
+  <div class="error-container">
+    <span class="error-message">{{ errorMessage() }}</span>
+  </div>
+} @else {
+  <div class="search-header">
+    <div class="search-box">
+      <app-icon class="search-icon" name="search"></app-icon>
+      <input
+        type="text"
+        [value]="searchTerm()"
+        placeholder="Search events by title, location, or description..."
+        (input)="onSearch($event)"
+      />
+    </div>
+    <div class="sort-controls">
+      <label class="sort-label" for="sort-field-select">Sort:</label>
+      <select
+        id="sort-field-select"
+        [ngModel]="sortField()"
+        (ngModelChange)="onSortFieldChange($event)"
+      >
+        @for (opt of sortFieldOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+      <button
+        class="sort-direction-btn"
+        (click)="toggleSortDirection()"
+        [attr.aria-label]="
+          sortDirection() === SortDirection.Asc
+            ? 'Sort ascending'
+            : 'Sort descending'
+        "
+        [attr.title]="
+          sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'
+        "
+      >
+        <app-icon
+          [name]="
+            sortDirection() === SortDirection.Asc
+              ? 'arrow_downward'
+              : 'arrow_upward'
+          "
+        ></app-icon>
+      </button>
+    </div>
+    <div class="status-filter-container">
+      <button
+        class="filter-btn"
+        (click)="toggleStatusMenu()"
+        aria-label="Filter by status"
+        title="Filter by status"
+      >
+        <app-icon name="filter_list"></app-icon>
+      </button>
+      @if (statusFilterMenuOpen()) {
+        <div
+          class="menu-overlay transparent"
+          (click)="statusFilterMenuOpen.set(false)"
+        ></div>
+        <div class="menu">
+          <div class="filter-header">Filter by status</div>
+          @for (status of [EventStatus.Proposed, EventStatus.Listed, EventStatus.Rejected, EventStatus.Cancelled]; track status) {
+            <div
+              class="menu-item"
+              [class.active]="isStatusSelected(status)"
+              (click)="onSelectStatus(status)"
+            >
+              <app-icon
+                [name]="
+                  isStatusSelected(status) ? 'check_box' : 'check_box_outline_blank'
+                "
+              ></app-icon>
+              <span>{{ status }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (hasStatusFilter()) {
+    <div class="active-status-filter">
+      @for (status of selectedStatuses(); track status) {
+        <span class="active-status-chip" [class]="'status-' + status">
+          {{ status }}
+          <button
+            class="chip-clear-btn"
+            (click)="onSelectStatus(status)"
+            [attr.aria-label]="'Remove filter: ' + status"
+          >
+            <app-icon name="close"></app-icon>
+          </button>
+        </span>
+      }
+      @if (selectedStatuses().size > 1) {
+        <button class="chip-clear-btn clear-all-btn" (click)="clearStatusFilter()">
+          Clear all
+        </button>
+      }
+    </div>
+  }
+
+  @let eventsList = events();
+  @if (eventsList.length === 0) {
+    <div class="empty-list-notice">
+      <p>No events found.</p>
+    </div>
+  } @else {
+    <div class="event-cards">
+      @for (ev of eventsList; track ev.docId || ev.sourceId) {
+        <div class="event-management-card" [class]="'status-border-' + ev.status">
+          <div class="event-card-header">
+            <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
+            @if (ev.kind) {
+              <span class="kind-chip">{{ ev.kind }}</span>
+            }
+          </div>
+          <a class="event-card-link" [href]="viewLink(ev)">
+            <app-event-item [event]="ev" />
+          </a>
+          @if (ev.ownerEmail) {
+            <div class="proposed-by">
+              Owner: {{ ev.ownerEmail }} ({{ ev.ownerDocId }})
+            </div>
+          }
+          <div class="event-card-actions">
+            <a class="subtle-button" [href]="editLink(ev)">
+              <app-icon name="settings" /> Edit
+            </a>
+            @if (ev.status === EventStatus.Proposed) {
+              <button class="subtle-button approve-btn" (click)="setStatus(ev.docId!, EventStatus.Listed)">
+                <app-icon name="check" /> Approve
+              </button>
+              <button class="subtle-button reject-btn" (click)="setStatus(ev.docId!, EventStatus.Rejected)">
+                <app-icon name="close" /> Reject
+              </button>
+            }
+            @if (ev.status === EventStatus.Listed) {
+              <button class="subtle-button cancel-btn" (click)="setStatus(ev.docId!, EventStatus.Cancelled)">
+                <app-icon name="close" /> Cancel
+              </button>
+            }
+            @if (ev.status === EventStatus.Rejected || ev.status === EventStatus.Cancelled) {
+              <button class="subtle-button approve-btn" (click)="setStatus(ev.docId!, EventStatus.Listed)">
+                <app-icon name="check" /> Re-list
+              </button>
+            }
+          </div>
+        </div>
+      }
+      @if (eventsList.length < totalFiltered()) {
+        <div class="show-more-container">
+          <button class="show-more-button" (click)="showAll()">
+            Show all {{ totalFiltered() }} events
+          </button>
+        </div>
+      }
+    </div>
+  }
+}

@@ -72,11 +72,11 @@ This document contains the sync timestamp for the squarespace orders poller.
 Metadata about the content cache (events, blog posts). Tracks when each
 cache was last refreshed and the item counts.
 
-## /events/{docId} : CachedCalendarEvent
+## /events/{docId} : IlcEvent
 
-Cached calendar events fetched from Google Calendar. Readable by anyone
-(events are public). Written by the scheduled `refreshContentCache`
-function or the admin-callable `manualRefreshCache`.
+Unified events collection containing both calendar-synced events (public)
+and member-proposed events. Readable by anyone (listed events are public).
+Updated by cache sync or member proposals.
 
 ## /members-post/{docId} : CachedBlogPost
 
@@ -851,23 +851,67 @@ export type CheckEmailStatusResult = {
 // # Content Cache
 // ==================================================================
 // Firestore paths:
-//   /events/{docId}           — cached Google Calendar events (public)
+//   /events/{docId}           — calendar-synced and member-proposed events
 //   /members-post/{docId}     — cached members area blog posts
 //   /instructors-post/{docId} — cached instructors blog posts
 //   /system/cache-metadata    — refresh timestamps and item counts
 
-// A single cached calendar event with only the fields the UI needs.
-export type CachedCalendarEvent = {
-  sourceId: string;    // Google Calendar event ID; used by sync for upsert matching
+// Event status values for the unified /events collection.
+export enum EventStatus {
+  Proposed = 'proposed',
+  Listed = 'listed',
+  Rejected = 'rejected',
+  Cancelled = 'cancelled',
+}
+
+// Event source kind — used by sync pruning so that calendar-sourced
+// events can be pruned without deleting Firebase-sourced events.
+export enum EventSourceKind {
+  CalendarSourced = 'calendar-sourced',
+  FirebaseSourced = 'firebase-sourced',
+}
+
+// A single unified event type. All events live in /events/{docId}.
+// Calendar-synced events have kind='calendar-sourced' and status='listed'.
+// Member-proposed events have kind='firebase-sourced' and status='proposed'.
+export type IlcEvent = {
+  docId: string;          // Firestore document ID (not stored in doc, added on read)
   title: string;
-  start: string;       // ISO date-time or YYYY-MM-DD
-  end: string;         // ISO date-time or YYYY-MM-DD
-  description: string; // may contain HTML
+  start: string;           // ISO date-time or YYYY-MM-DD
+  end: string;             // ISO date-time or YYYY-MM-DD
+  description: string;     // may contain HTML or Markdown
   location: string;
-  googleMapsUrl: string;
-  googleCalEventLink: string;
-  lastUpdated?: string; // ISO date-time; managed by sync logic
+  status: EventStatus;
+  // Google Calendar sync fields
+  sourceId?: string;       // Google Calendar event ID; used by sync for upsert matching
+  googleMapsUrl?: string;
+  googleCalEventLink?: string;
+  kind?: EventSourceKind;  // used by sync pruning
+  createdAt?: string;      // ISO date-time
+  ownerDocId: string;
+  ownerEmail: string;
+  leadingInstructorId: string; // Primary instructor leading the event
+  managerDocIds: string[];
+  managerEmails: string[];
+  lastUpdated?: string;    // ISO date-time; managed by sync logic
 };
+
+export function initEvent(): IlcEvent {
+  return {
+    docId: '',
+    title: '',
+    start: '',
+    end: '',
+    description: '',
+    location: '',
+    status: EventStatus.Proposed,
+    ownerDocId: '',
+    ownerEmail: '',
+    leadingInstructorId: '',
+    managerDocIds: [],
+    managerEmails: [],
+  };
+}
 
 // A single cached blog post with only the fields the UI needs.
 // The `body` and `excerpt` fields contain pre-processed HTML where

@@ -47,6 +47,10 @@ export enum Views {
   NewMember = 'newMember',
   EventsCalendar = 'eventsCalendar',
   EventView = 'eventView',
+  EventEdit = 'eventEdit',
+  ProposeEvent = 'proposeEvent',
+  ManageEvents = 'manageEvents',
+  MyEvents = 'myEvents',
 }
 
 export const memberListPathPatterns = {
@@ -97,6 +101,10 @@ export const initPathPatterns = {
   [Views.Statistics]: pathPattern`statistics`,
   [Views.EventsCalendar]: pathPattern`events`,
   [Views.EventView]: pathPattern`events/${pv('eventId')}`,
+  [Views.EventEdit]: pathPattern`events/${pv('eventId')}/edit`,
+  [Views.ProposeEvent]: pathPattern`propose-event`,
+  [Views.ManageEvents]: addUrlParams(pathPattern`manage-events`, ['q', 'status', 'sortBy', 'sortDir']),
+  [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'status', 'sortBy', 'sortDir']),
 };
 
 // Santiy check for type correctness...

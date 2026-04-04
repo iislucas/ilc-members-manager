@@ -47,6 +47,7 @@ import {
   firestoreDocToGrading,
   SquareSpaceOrder,
   SquareSpaceLineItem,
+  IlcEvent,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -545,6 +546,7 @@ export class DataManagerService {
       this.myStudents.setEntries([]);
     }
   }
+
 
   async updateCountersSync() {
     const countersRef = doc(this.db, 'system', 'counters');

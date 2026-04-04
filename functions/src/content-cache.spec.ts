@@ -62,6 +62,8 @@ describe('mapToCalendarEvent', () => {
     expect(result.googleMapsUrl).toContain('Zoom%20-%20Online');
     expect(result.googleCalEventLink).toBe('https://www.google.com/calendar/event?eid=abc123');
     expect(result.description).toContain('Join us LIVE');
+    expect(result.status).toBe('listed');
+    expect(result.kind).toBe('calendar-sourced');
   });
 
   it('should map an all-day event and adjust end date', () => {
@@ -73,6 +75,8 @@ describe('mapToCalendarEvent', () => {
     expect(result.end).toBe('2026-06-17');
     expect(result.location).toBe('ILC Center, Kuala Lumpur, Malaysia');
     expect(result.googleMapsUrl).toContain('ILC%20Center');
+    expect(result.status).toBe('listed');
+    expect(result.kind).toBe('calendar-sourced');
   });
 
   it('should handle missing location with empty googleMapsUrl', () => {

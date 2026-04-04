@@ -31,6 +31,7 @@
       <app-icon name="event" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.EventsCalendar) }}</span>
     </div>
+
     <div class="menu-item" (click)="onSelect(Views.FindSchool)">
       <app-icon name="map" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.FindSchool) }}</span>
@@ -50,6 +51,14 @@
     <div class="menu-item" (click)="onSelect(Views.MemberGradings)">
       <app-icon name="mountain" width="24px" height="24px"></app-icon>
       <span>{{ viewIdToTitle(Views.MemberGradings) }}</span>
+    </div>
+    <div class="menu-item" (click)="onSelect(Views.MyEvents)">
+      <app-icon name="event" width="24px" height="24px"></app-icon>
+      <span>{{ viewIdToTitle(Views.MyEvents) }}</span>
+    </div>
+    <div class="menu-item" (click)="onSelect(Views.ProposeEvent)">
+      <app-icon name="add" width="24px" height="24px"></app-icon>
+      <span>{{ viewIdToTitle(Views.ProposeEvent) }}</span>
     </div>
     @if (instructorStatus().hasAccess) {
       <div class="menu-item" (click)="onSelect(Views.MyStudents)">
@@ -82,6 +91,10 @@
       <div class="menu-item" (click)="onSelect(Views.ManageOrders)">
         <app-icon name="link" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.ManageOrders) }}</span>
+      </div>
+      <div class="menu-item" (click)="onSelect(Views.ManageEvents)">
+        <app-icon name="event" width="24px" height="24px"></app-icon>
+        <span>Manage Events</span>
       </div>
 
       <div class="menu-seperator"></div>

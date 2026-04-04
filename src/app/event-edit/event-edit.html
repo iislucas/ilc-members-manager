@@ -1,0 +1,136 @@
+@if (isLoadingEvent()) {
+  <app-spinner>Loading event...</app-spinner>
+} @else if (loadError()) {
+  <div class="error-container">
+    <span class="error-message">{{ loadError() }}</span>
+    <button class="subtle-button" (click)="goBack()">
+      <app-icon name="arrow_back" /> Back to Events
+    </button>
+  </div>
+} @else {
+  @let ev = event();
+
+  <div class="edit-form">
+    <form (submit)="saveEvent($event)">
+      <div class="form-section">
+        <h3>Event Details</h3>
+
+        <label for="event-title">Title</label>
+        <div class="rhs">
+          <input type="text" id="event-title" [formField]="form.title" />
+          @let titleErrors = form.title().errors();
+          @if (titleErrors.length > 0 && titleErrors[0]; as error) {
+            <div class="error-message">{{ error.message }}</div>
+          }
+        </div>
+
+        <label for="event-start">Start</label>
+        <div class="rhs">
+          <input type="datetime-local" id="event-start" [formField]="form.start" />
+          @let startErrors = form.start().errors();
+          @if (startErrors.length > 0 && startErrors[0]; as error) {
+            <div class="error-message">{{ error.message }}</div>
+          }
+        </div>
+
+        <label for="event-end">End</label>
+        <div class="rhs">
+          <input type="datetime-local" id="event-end" [formField]="form.end" />
+          @let endErrors = form.end().errors();
+          @if (endErrors.length > 0 && endErrors[0]; as error) {
+            <div class="error-message">{{ error.message }}</div>
+          }
+        </div>
+
+        <label for="event-location">Location</label>
+        <div class="rhs">
+          <input type="text" id="event-location" [formField]="form.location" />
+        </div>
+
+        <label for="event-description" class="align-top">Description</label>
+        <div class="rhs">
+          <textarea id="event-description" rows="6" [formField]="form.description"></textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Status & Metadata</h3>
+
+        <label for="event-status">Status</label>
+        <div class="rhs">
+          <select id="event-status" [formField]="form.status">
+            @for (status of eventStatuses; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+        </div>
+
+        @if (ev) {
+          @if (ev.ownerEmail) {
+            <label>Owner</label>
+            <div class="rhs">
+              <span class="readonly-value">{{ ev.ownerEmail }} ({{ ev.ownerDocId }})</span>
+            </div>
+          }
+
+          @if (ev.createdAt) {
+            <label>Created</label>
+            <div class="rhs">
+              <span class="readonly-value timestamp">{{ ev.createdAt }}</span>
+            </div>
+          }
+
+          @if (ev.lastUpdated) {
+            <label>Last Updated</label>
+            <div class="rhs">
+              <span class="readonly-value timestamp">{{ ev.lastUpdated }}</span>
+            </div>
+          }
+
+          @if (ev.sourceId) {
+            <label>Source ID</label>
+            <div class="rhs">
+              <span class="readonly-value timestamp">{{ ev.sourceId }}</span>
+            </div>
+          }
+
+          @if (ev.kind) {
+            <label>Kind</label>
+            <div class="rhs">
+              <span class="readonly-value">{{ ev.kind }}</span>
+            </div>
+          }
+
+          @if (ev.docId) {
+            <label>Doc ID</label>
+            <div class="rhs">
+              <span class="readonly-value timestamp">{{ ev.docId }}</span>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="form-actions">
+        <div class="left-actions">
+          <button type="button" class="subtle-button" (click)="goBack()">
+            <app-icon name="arrow_back" /> Back
+          </button>
+        </div>
+        <div class="right-actions">
+          @if (errorMessage()) {
+            <span class="error-message">{{ errorMessage() }}</span>
+          }
+          @if (successMessage()) {
+            <span class="success-message">{{ successMessage() }}</span>
+          }
+          @if (isSaving()) {
+            <app-spinner></app-spinner>
+          }
+          <button type="submit" class="button" [disabled]="isSaving() || !isDirty()">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+}

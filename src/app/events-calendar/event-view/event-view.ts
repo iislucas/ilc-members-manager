@@ -1,12 +1,18 @@
+/* event-view.ts
+ *
+ * Component for viewing the full details of a single event.
+ * Loads the event by sourceId or docId from the /events collection.
+ */
+
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { collection, getDocs, getFirestore, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
-import { CachedCalendarEvent } from '../../../../functions/src/data-model';
+import { IlcEvent } from '../../../../functions/src/data-model';
 
 @Component({
   selector: 'app-event-view',
@@ -24,7 +30,7 @@ export class EventViewComponent implements OnInit {
   backLabel = input<string>('Events List');
   titleLoaded = output<string>();
 
-  event = signal<CachedCalendarEvent | null>(null);
+  event = signal<IlcEvent | null>(null);
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
 
@@ -37,18 +43,27 @@ export class EventViewComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     try {
-      // Import the necessary functions at the top of the file if needed, or inline them here.
-      // Wait, we need to make sure the imports are correct at the top! We will fix that separately.
-      // Let's assume the imports are fixed at the top, or just use Firestore functions!
-      // Since it's typescript, let's make sure the imports work. I'll fix the imports at top later.
+      const eventId = this.eventId();
+
+      // First try loading by docId (for firebase-sourced events).
+      const docRef = doc(this.db, 'events', eventId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = { ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+        this.event.set(data);
+        this.titleLoaded.emit(data.title);
+        return;
+      }
+
+      // Fall back to searching by sourceId (for calendar-sourced events).
       const q = query(
         collection(this.db, 'events'),
-        where('sourceId', '==', this.eventId())
+        where('sourceId', '==', eventId)
       );
       const querySnap = await getDocs(q);
-      
+
       if (!querySnap.empty) {
-        const data = querySnap.docs[0].data() as CachedCalendarEvent;
+        const data = { ...querySnap.docs[0].data(), docId: querySnap.docs[0].id } as IlcEvent;
         this.event.set(data);
         this.titleLoaded.emit(data.title);
       } else {
