@@ -3,9 +3,12 @@
 } @else if (loadError()) {
   <div class="error-container">
     <span class="error-message">{{ loadError() }}</span>
-    <button class="subtle-button" (click)="goBack()">
-      <app-icon name="arrow_back" /> Back to Events
-    </button>
+    <a
+      class="subtle-button"
+      [href]="routingService.hrefWithParams(backUrl())"
+    >
+      <app-icon name="arrow_back" /> Back
+    </a>
   </div>
 } @else {
   @let ev = event();
@@ -26,7 +29,7 @@
 
         <label for="event-start">Start</label>
         <div class="rhs">
-          <input type="datetime-local" id="event-start" [formField]="form.start" />
+          <input type="date" id="event-start" [formField]="form.start" />
           @let startErrors = form.start().errors();
           @if (startErrors.length > 0 && startErrors[0]; as error) {
             <div class="error-message">{{ error.message }}</div>
@@ -35,7 +38,7 @@
 
         <label for="event-end">End</label>
         <div class="rhs">
-          <input type="datetime-local" id="event-end" [formField]="form.end" />
+          <input type="date" id="event-end" [formField]="form.end" />
           @let endErrors = form.end().errors();
           @if (endErrors.length > 0 && endErrors[0]; as error) {
             <div class="error-message">{{ error.message }}</div>
@@ -49,7 +52,11 @@
 
         <label for="event-description" class="align-top">Description</label>
         <div class="rhs">
-          <textarea id="event-description" rows="6" [formField]="form.description"></textarea>
+          <textarea
+            id="event-description"
+            rows="6"
+            [formField]="form.description"
+          ></textarea>
         </div>
       </div>
 
@@ -58,18 +65,24 @@
 
         <label for="event-status">Status</label>
         <div class="rhs">
-          <select id="event-status" [formField]="form.status">
-            @for (status of eventStatuses; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
+          @if (isAdmin()) {
+            <select id="event-status" [formField]="form.status">
+              @for (status of eventStatuses; track status) {
+                <option [value]="status">{{ status }}</option>
+              }
+            </select>
+          } @else {
+            <span class="readonly-value">{{ ev?.status }}</span>
+          }
         </div>
 
         @if (ev) {
           @if (ev.ownerEmail) {
             <label>Owner</label>
             <div class="rhs">
-              <span class="readonly-value">{{ ev.ownerEmail }} ({{ ev.ownerDocId }})</span>
+              <span class="readonly-value"
+                >{{ ev.ownerEmail }} ({{ ev.ownerDocId }})</span
+              >
             </div>
           }
 
@@ -112,9 +125,22 @@
 
       <div class="form-actions">
         <div class="left-actions">
-          <button type="button" class="subtle-button" (click)="goBack()">
+          <a
+            class="subtle-button"
+            [href]="routingService.hrefWithParams(backUrl())"
+          >
             <app-icon name="arrow_back" /> Back
-          </button>
+          </a>
+          @if (canDelete()) {
+            <button
+              type="button"
+              class="subtle-button"
+              (click)="deleteEvent()"
+              style="color: #d9534f"
+            >
+              <app-icon name="trash" /> Delete
+            </button>
+          }
         </div>
         <div class="right-actions">
           @if (errorMessage()) {
@@ -126,7 +152,11 @@
           @if (isSaving()) {
             <app-spinner></app-spinner>
           }
-          <button type="submit" class="button" [disabled]="isSaving() || !isDirty()">
+          <button
+            type="submit"
+            class="button"
+            [disabled]="isSaving() || !isDirty()"
+          >
             Save Changes
           </button>
         </div>

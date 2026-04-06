@@ -47,7 +47,7 @@
       @if (searchResults().matched.length > 0) {
         <div class="event-list">
           @for (event of searchResults().matched; track event.sourceId) {
-            <a class="event-card-link" [href]="'#/events/' + event.sourceId">
+            <a class="event-card-link" [href]="(collectionPath() === 'events' ? '#/events/' : '#/my-events/') + event.docId">
               <app-event-item [event]="event" />
             </a>
           }
@@ -60,7 +60,7 @@
         <h2>Other Events</h2>
         <div class="event-list">
           @for (event of searchResults().unmatched; track event.sourceId) {
-            <a class="event-card-link" [href]="'#/events/' + event.sourceId">
+            <a class="event-card-link" [href]="(collectionPath() === 'events' ? '#/events/' : '#/my-events/') + event.docId">
               <app-event-item [event]="event" />
             </a>
           }

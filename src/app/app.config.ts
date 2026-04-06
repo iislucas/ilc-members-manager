@@ -51,6 +51,10 @@ export enum Views {
   ProposeEvent = 'proposeEvent',
   ManageEvents = 'manageEvents',
   MyEvents = 'myEvents',
+  MyEventView = 'myEventView',
+  ManageEventView = 'manageEventView',
+  MyEventEdit = 'myEventEdit',
+  ManageEventEdit = 'manageEventEdit',
 }
 
 export const memberListPathPatterns = {
@@ -101,7 +105,11 @@ export const initPathPatterns = {
   [Views.Statistics]: pathPattern`statistics`,
   [Views.EventsCalendar]: pathPattern`events`,
   [Views.EventView]: pathPattern`events/${pv('eventId')}`,
+  [Views.MyEventView]: pathPattern`my-events/${pv('eventId')}`,
+  [Views.ManageEventView]: pathPattern`manage-events/${pv('eventId')}`,
   [Views.EventEdit]: pathPattern`events/${pv('eventId')}/edit`,
+  [Views.MyEventEdit]: pathPattern`my-events/${pv('eventId')}/edit`,
+  [Views.ManageEventEdit]: pathPattern`manage-events/${pv('eventId')}/edit`,
   [Views.ProposeEvent]: pathPattern`propose-event`,
   [Views.ManageEvents]: addUrlParams(pathPattern`manage-events`, ['q', 'status', 'sortBy', 'sortDir']),
   [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'status', 'sortBy', 'sortDir']),

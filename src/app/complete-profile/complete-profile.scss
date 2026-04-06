@@ -83,4 +83,14 @@
       font-size: 1em;
     }
   }
+
+  .save-error {
+    margin-top: 1em;
+    padding: 0.8em;
+    background: #fdecea;
+    color: #c0392b;
+    border-radius: 4px;
+    font-size: 0.9em;
+    text-align: center;
+  }
 }

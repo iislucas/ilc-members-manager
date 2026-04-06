@@ -27,10 +27,11 @@ import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/d
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq } from '../utils';
-import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { FirebaseStateService } from '../firebase-state.service';
 
 // Fields used in the event form model.
 type EventFormModel = {
@@ -45,8 +46,8 @@ type EventFormModel = {
 function toFormModel(event: IlcEvent): EventFormModel {
   return {
     title: event.title || '',
-    start: event.start || '',
-    end: event.end || '',
+    start: event.start ? event.start.split('T')[0] : '',
+    end: event.end ? event.end.split('T')[0] : '',
     description: event.description || '',
     location: event.location || '',
     status: event.status || EventStatus.Proposed,
@@ -65,6 +66,7 @@ export class EventEditComponent implements OnInit {
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  firebaseState = inject(FirebaseStateService);
 
   // Constants for template
   EventStatus = EventStatus;
@@ -103,6 +105,55 @@ export class EventEditComponent implements OnInit {
   isSaving = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+
+  isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+
+  isOwner = computed(() => {
+    const user = this.firebaseState.user();
+    const ev = this.event();
+    return !!(user && ev && user.member.docId === ev.ownerDocId);
+  });
+
+  isManager = computed(() => {
+    const user = this.firebaseState.user();
+    const ev = this.event();
+    return !!(user && ev && ev.managerDocIds?.includes(user.member.docId));
+  });
+
+  canDelete = computed(() => {
+    const ev = this.event();
+    if (!ev) return false;
+    return this.isAdmin() || ((this.isOwner() || this.isManager()) && ev.status === EventStatus.Proposed);
+  });
+
+  // TODO: do something more diciplined and thoughtful with back urls, and router. 
+  backUrl = computed(() => {
+    const view = this.routingService.matchedPatternId();
+    if (view === Views.MyEventEdit) return 'my-events';
+    if (view === Views.ManageEventEdit) return 'manage-events';
+    return 'manage-events'; // Default fallback
+  });
+
+  async deleteEvent() {
+    const ev = this.event();
+    if (!ev || !ev.docId) return;
+
+    if (!confirm('Are you sure you want to delete this event?')) return;
+
+    this.isSaving.set(true);
+    try {
+      const docRef = doc(this.db, 'events', ev.docId);
+      await deleteDoc(docRef);
+      this.successMessage.set('Event deleted successfully.');
+      setTimeout(() => this.routingService.navigateToParts([this.backUrl()]), 1500);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error deleting event:', error);
+      this.errorMessage.set('Failed to delete: ' + message);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
 
   ngOnInit() {
     this.loadEvent();
@@ -190,9 +241,5 @@ export class EventEditComponent implements OnInit {
     } finally {
       this.isSaving.set(false);
     }
-  }
-
-  goBack() {
-    this.routingService.navigateToParts(['manage-events']);
   }
 }

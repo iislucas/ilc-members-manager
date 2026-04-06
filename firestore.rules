@@ -124,7 +124,11 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if true;
       allow create: if isAdmin();
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (
+        request.auth != null && 
+        (request.auth.token.email == resource.data.ownerEmail || request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        resource.data.status == 'proposed'
+      );
       allow update: if isAdmin() || (
         request.auth != null && 
         (request.auth.token.email == resource.data.ownerEmail || request.auth.token.email in resource.data.get('managerEmails', [])) &&

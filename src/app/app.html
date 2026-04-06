@@ -82,13 +82,34 @@
           @case (Views.EventView) {
             <app-event-view
               [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
-              backLabel="Events List"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-view>
+          }
+          @case (Views.MyEventView) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.MyEventView].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-view>
+          }
+          @case (Views.ManageEventView) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.ManageEventView].pathVars.eventId()"
               (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-view>
           }
           @case (Views.EventEdit) {
             <app-event-edit
               [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
+            ></app-event-edit>
+          }
+          @case (Views.MyEventEdit) {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
+            ></app-event-edit>
+          }
+          @case (Views.ManageEventEdit) {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
             ></app-event-edit>
           }
           @case (Views.ProposeEvent) {

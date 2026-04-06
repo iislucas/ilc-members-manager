@@ -255,7 +255,7 @@ export class ManageEventsComponent implements OnDestroy {
   }
 
   viewLink(event: IlcEvent): string {
-    const id = event.sourceId || event.docId || '';
-    return `#/events/${id}`;
+    const id = event.docId || event.sourceId || '';
+    return `#/manage-events/${id}`;
   }
 }

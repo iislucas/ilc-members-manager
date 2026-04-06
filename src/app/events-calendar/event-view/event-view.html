@@ -66,6 +66,12 @@
               <span>Add to Calendar</span>
             </a>
           }
+          @if (canEdit()) {
+            <a class="action-button secondary-action"
+               [href]="editUrl()">
+              <span>Edit Event</span>
+            </a>
+          }
         </div>
       </div>
     </div>
@@ -73,7 +79,7 @@
 </div>
 
 <div class="event-view-actions">
-  <button class="back-link subtle-button" (click)="goBack()">
-    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
-  </button>
+  <a class="back-link subtle-button" [href]="backHref()">
+    <app-icon name="arrow_back"></app-icon> <span>Back to {{ computedBackLabel() }}</span>
+  </a>
 </div>

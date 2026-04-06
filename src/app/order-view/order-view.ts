@@ -19,7 +19,7 @@ import { FormsModule } from '@angular/forms';
 })
 export class OrderView {
   private dataService = inject(DataManagerService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
+  public routingService = inject(RoutingService<AppPathPatterns>);
 
   public orderId = this.routingService.signals[Views.OrderView].pathVars['orderId'];
   public order = signal<Order | null>(null);

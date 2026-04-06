@@ -1,7 +1,7 @@
 <div class="member-view-actions">
-  <button class="back-link subtle-button" (click)="goBack()">
+  <a class="back-link subtle-button" [href]="routingService.hrefWithParams('/' + basePath())">
     <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
-  </button>
+  </a>
 </div>
 
 <div class="member-view-content">

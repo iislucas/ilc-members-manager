@@ -69,5 +69,8 @@
         }
       </button>
     </div>
+    @if (saveError(); as errorMsg) {
+      <div class="error-message save-error">{{ errorMsg }}</div>
+    }
   </div>
 </div>

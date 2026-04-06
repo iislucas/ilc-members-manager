@@ -9,7 +9,7 @@
  */
 
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
-import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { IlcEvent, EventStatus, EventSourceKind, MembershipType, Member, initEvent } from './data-model';
@@ -198,5 +198,42 @@ export const onEventCreated = onDocumentCreated('/events/{docId}', async (event)
       .doc(eventDocId);
     await ref.set(eventData);
     logger.info(`Mirrored event ${eventDocId} to member ${docId} subcollection.`);
+  }
+});
+
+export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+
+  const eventData = snap.data() as IlcEvent;
+  const eventDocId = snap.id;
+
+  const allTargetDocIds = new Set([eventData.ownerDocId, ...(eventData.managerDocIds || [])].filter(Boolean));
+  
+  for (const docId of allTargetDocIds) {
+    const ref = admin.firestore()
+      .collection('members')
+      .doc(docId)
+      .collection('events')
+      .doc(eventDocId);
+    await ref.delete();
+    logger.info(`Removed mirrored event ${eventDocId} from member ${docId} subcollection.`);
+  }
+
+  // Also remove from Google Calendar if it was listed
+  if (eventData.status === EventStatus.Listed && eventData.sourceId) {
+    const calendarId = environment.googleCalendar.calendarId;
+    const googleCalEventId = eventData.sourceId;
+    try {
+      const tokenResponse = await admin.credential.applicationDefault().getAccessToken();
+      const accessToken = tokenResponse.access_token;
+      if (accessToken && calendarId) {
+        const calendarApiUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(googleCalEventId)}`;
+        await axios.delete(calendarApiUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+        logger.info(`Deleted Google Calendar event with ID: ${googleCalEventId}`);
+      }
+    } catch (err) {
+      logger.error('Failed to delete from Google Calendar.', err);
+    }
   }
 });

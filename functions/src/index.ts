@@ -42,5 +42,5 @@ export { refreshContentCache, manualRefreshCache, clearContentCache } from './co
 
 export { scheduleAccountDeletion, cancelAccountDeletion, dailyAccountCleanup } from './account-deletion';
 
-export { submitProposedEvent, onEventUpdated, onEventCreated } from './proposed-events';
+export { submitProposedEvent, onEventUpdated, onEventCreated, onEventDeleted } from './proposed-events';
 

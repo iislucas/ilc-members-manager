@@ -44,6 +44,7 @@ export class CompleteProfileComponent {
   });
 
   public fillingProfile = signal(false);
+  public saveError = signal<string | null>(null);
 
   countryDisplayFns = {
     toChipId: (c: { id: string; name: string }) => c.id,
@@ -72,15 +73,19 @@ export class CompleteProfileComponent {
     if (!name || !dob || !country) return;
 
     this.fillingProfile.set(true);
+    this.saveError.set(null);
     try {
       await this.dataService.updateMember(user.member.docId, {
         ...user.member,
         name,
         dateOfBirth: dob,
         country,
-      });
-    } catch (error) {
+      }, user.member);
+    } catch (error: unknown) {
       console.error('Failed to update profile enrichment:', error);
+      this.saveError.set(
+        `Failed to save your profile: ${(error as Error).message}.`,
+      );
     } finally {
       this.fillingProfile.set(false);
     }

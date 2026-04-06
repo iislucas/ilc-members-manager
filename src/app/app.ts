@@ -157,8 +157,14 @@ export class App {
         // No parent breadcrumb needed for events
       } else if (view === Views.EventView) {
         baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
-      } else if (view === Views.EventEdit) {
+      } else if (view === Views.MyEventView) {
+        baseBreadcrumbs.push({ label: 'My Events', url: '#/my-events' });
+      } else if (view === Views.ManageEventView) {
         baseBreadcrumbs.push({ label: 'Manage Events', url: '#/manage-events' });
+      } else if (view === Views.EventEdit || view === Views.ManageEventEdit) {
+        baseBreadcrumbs.push({ label: 'Manage Events', url: '#/manage-events' });
+      } else if (view === Views.MyEventEdit) {
+        baseBreadcrumbs.push({ label: 'My Events', url: '#/my-events' });
       } else if (view === Views.ProposeEvent) {
         baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
       } else if (view === Views.ManageEvents) {

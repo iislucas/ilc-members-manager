@@ -156,6 +156,7 @@ button:disabled {
   padding: 0.4em 0.8em;
   border-radius: 4px;
   font-size: 1em;
+  text-decoration: none;
 
   &:hover {
     background-color: $menu-item-hover-color;
