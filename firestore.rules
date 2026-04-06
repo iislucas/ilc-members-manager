@@ -87,7 +87,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolZipCode', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds']);
+            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolCity', 'schoolZipCode', 'schoolCountyOrState', 'schoolCountry', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds']);
     
       match /members/{memberDocId} {
         allow read: if isAdmin() || isSchoolManager();

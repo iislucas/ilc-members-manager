@@ -149,10 +149,22 @@
 }
 
 // Status colors
-.status-proposed { background-color: #fff3cd; color: #856404; }
-.status-listed { background-color: #d4edda; color: #155724; }
-.status-rejected { background-color: #f8d7da; color: #721c24; }
-.status-cancelled { background-color: #e2e3e5; color: #383d41; }
+.status-proposed {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.status-listed {
+  background-color: #d4edda;
+  color: #155724;
+}
+.status-rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+.status-cancelled {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
 
 .status-chip {
   display: inline-block;
@@ -175,32 +187,30 @@
 .event-cards {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .event-management-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-  background: white;
-  transition: box-shadow 0.2s;
-  border-left: 4px solid transparent;
+  border-top: 1px solid #ebebeb;
+  transition: background-color 0.2s ease;
+  background-color: transparent;
+  padding-left: 1em;
 
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background-color: #fcfcfc;
+  }
+
+  &:active {
+    background-color: #f5f5f5;
   }
 }
-
-.status-border-proposed { border-left-color: #ffc107; }
-.status-border-listed { border-left-color: #28a745; }
-.status-border-rejected { border-left-color: #dc3545; }
-.status-border-cancelled { border-left-color: #6c757d; }
 
 .event-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px 0;
+  padding-bottom: 0.5em;
+  padding-top: 0.5em;
 }
 
 .event-card-link {
@@ -214,33 +224,6 @@
   font-size: 0.85em;
   color: #666;
   font-style: italic;
-}
-
-.event-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid #f0f0f0;
-
-  a, button {
-    font-size: 0.85em;
-  }
-}
-
-.approve-btn {
-  color: #155724 !important;
-  &:hover { background-color: #d4edda !important; }
-}
-
-.reject-btn {
-  color: #721c24 !important;
-  &:hover { background-color: #f8d7da !important; }
-}
-
-.cancel-btn {
-  color: #383d41 !important;
-  &:hover { background-color: #e2e3e5 !important; }
 }
 
 .empty-list-notice {

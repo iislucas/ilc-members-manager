@@ -95,8 +95,8 @@ export class SchoolEditComponent {
 
     disabled(schema.schoolName, () => !this.userIsAdmin() && !this.userIsSchoolManager());
     disabled(schema.schoolId, () => !this.userIsAdmin());
-    disabled(schema.schoolCity, () => !this.userIsAdmin());
-    disabled(schema.schoolCountry, () => !this.userIsAdmin());
+    disabled(schema.schoolCity, () => !this.userIsAdmin() && !this.userIsSchoolManager());
+    disabled(schema.schoolCountry, () => !this.userIsAdmin() && !this.userIsSchoolManager());
     disabled(
       schema.schoolAddress,
       () => !this.userIsAdmin() && !this.userIsSchoolManager(),

@@ -112,45 +112,20 @@
   } @else {
     <div class="event-cards">
       @for (ev of eventsList; track ev.docId || ev.sourceId) {
-        <div class="event-management-card" [class]="'status-border-' + ev.status">
+        <a class="event-management-card event-card-link" [href]="editLink(ev)">
           <div class="event-card-header">
             <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
             @if (ev.kind) {
               <span class="kind-chip">{{ ev.kind }}</span>
             }
           </div>
-          <a class="event-card-link" [href]="viewLink(ev)">
-            <app-event-item [event]="ev" />
-          </a>
+          <app-event-item [event]="ev" />
           @if (ev.ownerEmail) {
             <div class="proposed-by">
               Owner: {{ ev.ownerEmail }} ({{ ev.ownerDocId }})
             </div>
           }
-          <div class="event-card-actions">
-            <a class="subtle-button" [href]="editLink(ev)">
-              <app-icon name="settings" /> Edit
-            </a>
-            @if (ev.status === EventStatus.Proposed) {
-              <button class="subtle-button approve-btn" (click)="setStatus(ev.docId!, EventStatus.Listed)">
-                <app-icon name="check" /> Approve
-              </button>
-              <button class="subtle-button reject-btn" (click)="setStatus(ev.docId!, EventStatus.Rejected)">
-                <app-icon name="close" /> Reject
-              </button>
-            }
-            @if (ev.status === EventStatus.Listed) {
-              <button class="subtle-button cancel-btn" (click)="setStatus(ev.docId!, EventStatus.Cancelled)">
-                <app-icon name="close" /> Cancel
-              </button>
-            }
-            @if (ev.status === EventStatus.Rejected || ev.status === EventStatus.Cancelled) {
-              <button class="subtle-button approve-btn" (click)="setStatus(ev.docId!, EventStatus.Listed)">
-                <app-icon name="check" /> Re-list
-              </button>
-            }
-          </div>
-        </div>
+        </a>
       }
       @if (eventsList.length < totalFiltered()) {
         <div class="show-more-container">

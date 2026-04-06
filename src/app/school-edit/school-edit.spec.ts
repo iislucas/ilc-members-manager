@@ -39,7 +39,7 @@ describe('SchoolEditComponent', () => {
       setSchool: vi.fn().mockResolvedValue(undefined),
       createNextSchoolId: vi.fn(),
       countMembersWithSchoolId: vi.fn().mockResolvedValue(0),
-      members: new SearchableSet<'memberId', Member>(['name'], 'memberId', []),
+      members: new SearchableSet<'docId', Member>(['name'], 'docId', []),
       instructors: new SearchableSet<'instructorId', any>(
         ['name'],
         'instructorId',
@@ -289,8 +289,6 @@ describe('SchoolEditComponent', () => {
 
     it('admin-only fields should be disabled', () => {
       expect(component.form.schoolId().disabled()).toBe(true);
-      expect(component.form.schoolCity().disabled()).toBe(true);
-      expect(component.form.schoolCountry().disabled()).toBe(true);
       expect(component.form.ownerInstructorId().disabled()).toBe(true);
     });
 
@@ -300,6 +298,8 @@ describe('SchoolEditComponent', () => {
       expect(component.form.schoolZipCode().disabled()).toBe(false);
       expect(component.form.schoolCountyOrState().disabled()).toBe(false);
       expect(component.form.schoolWebsite().disabled()).toBe(false);
+      expect(component.form.schoolCity().disabled()).toBe(false);
+      expect(component.form.schoolCountry().disabled()).toBe(false);
     });
 
     it('should be dirty after editing schoolAddress', () => {
@@ -425,7 +425,7 @@ describe('SchoolEditComponent', () => {
       expect(saveButton!.disabled).toBe(false);
     });
 
-    it('DOM: admin-only inputs should be disabled in the DOM for manager', async () => {
+    it('DOM: schoolCity and schoolCountry inputs should be enabled in the DOM for manager', async () => {
       component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
@@ -433,12 +433,12 @@ describe('SchoolEditComponent', () => {
       const schoolCityInput: HTMLInputElement | null =
         fixture.nativeElement.querySelector('#schoolCity');
       expect(schoolCityInput).toBeTruthy();
-      expect(schoolCityInput!.disabled).toBe(true);
+      expect(schoolCityInput!.disabled).toBe(false);
 
       const schoolCountryInput: HTMLInputElement | null =
         fixture.nativeElement.querySelector('#schoolCountry');
       expect(schoolCountryInput).toBeTruthy();
-      expect(schoolCountryInput!.disabled).toBe(true);
+      expect(schoolCountryInput!.disabled).toBe(false);
     });
   });
 
