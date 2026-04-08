@@ -939,6 +939,30 @@ export class DataManagerService {
   }
 
   /**
+   * Set (or clear) the ilcAppSchoolIdInferred field on a specific line item
+   * within an order document. This allows admins to manually associate a
+   * school with a particular line item in an order.
+   */
+  async setOrderLineItemInferredSchoolId(
+    orderId: string, lineItemId: string, schoolId: string
+  ): Promise<void> {
+    const docRef = doc(this.db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) throw new Error('Order not found');
+
+    const orderData = docSnap.data() as SquareSpaceOrder;
+    const lineItems = orderData.lineItems || [];
+    const item = lineItems.find((li: SquareSpaceLineItem) => li.id === lineItemId);
+    if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
+
+    item.ilcAppSchoolIdInferred = schoolId;
+    return updateDoc(docRef, {
+      lineItems,
+      lastUpdated: serverTimestamp(),
+    });
+  }
+
+  /**
    * Set (or clear) the ilcAppCountryOverride field on a specific line item
    * within an order document. This allows admins to manually set the country
    * name (from the approved list) for generating a member ID.
@@ -1027,6 +1051,14 @@ export class DataManagerService {
     const fn = httpsCallable<{ docId: string }, { success: boolean }>(
       this.functions,
       'reprocessOrder',
+    );
+    await fn({ docId });
+  }
+
+  async fulfillOrder(docId: string): Promise<void> {
+    const fn = httpsCallable<{ docId: string }, { success: boolean }>(
+      this.functions,
+      'fulfillOrder',
     );
     await fn({ docId });
   }

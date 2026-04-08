@@ -16,7 +16,7 @@ describe('OrderView', () => {
     await TestBed.configureTestingModule({
       imports: [OrderView],
       providers: [
-        { provide: RoutingService, useValue: { navigateTo: vi.fn(), matchedPatternId: signal(''), signals: { [Views.OrderView]: { pathVars: { orderId: signal('123') } } } } },
+        { provide: RoutingService, useValue: { navigateTo: vi.fn(), hrefWithParams: vi.fn().mockReturnValue('#/orders'), matchedPatternId: signal(''), signals: { [Views.OrderView]: { pathVars: { orderId: signal('123') } } } } },
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: DataManagerService, useValue: { loadingState: signal('loaded') } }
       ]

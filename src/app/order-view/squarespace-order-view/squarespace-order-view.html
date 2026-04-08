@@ -30,8 +30,33 @@
   </div>
   <div class="field">
     <label>Squarespace Fulfillment Status</label>
-    <div class="value">{{ order().fulfillmentStatus || "PENDING" }}</div>
+    <div class="value" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem;">
+      <span>{{ order().fulfillmentStatus || "PENDING" }}</span>
+      
+      @if (order().fulfillmentStatus !== 'FULFILLED') {
+        <button
+          (click)="markAsFulfilled()"
+          class="subtle-button"
+          title="Mark as Fulfilled"
+          style="padding: 0.25rem 0.5rem; font-size: 0.9rem;"
+        >
+          <app-icon name="check" style="font-size: 1rem;"></app-icon>
+          Mark Fulfilled
+        </button>
+      }
+    </div>
+    @if (order().fulfillmentStatus === 'FULFILLED') {
+      <div class="small-text" style="margin-top: 0.25rem; color: #666; font-size: 0.8rem;">
+        This order is fulfilled. To cancel or refund, please go to the <a href="https://squarespace.com/" target="_blank" rel="noopener">Squarespace dashboard</a>.
+      </div>
+    } @else {
+      <div class="small-text" style="margin-top: 0.25rem; color: #666; font-size: 0.8rem;">
+        Note: Marking as Fulfilled will update Squarespace and email the customer.
+      </div>
+    }
   </div>
+
+
 
   <div class="field span-2">
     <label>Items Purchased</label>
@@ -68,7 +93,11 @@
                   <span>Applied: {{ preview.label }} Dates</span>
                 } @else if (!preview.entityFound) {
                   <app-icon name="error"></app-icon>
-                  <span>{{ preview.entityKind === 'member' ? 'Member' : 'School' }} Not Found: {{ preview.entityId }}</span>
+                  @if (preview.isOverridden) {
+                    <span>ID Overridden: {{ preview.entityKind === 'member' ? 'Member' : 'School' }} Not Found</span>
+                  } @else {
+                    <span>{{ preview.entityKind === 'member' ? 'Member' : 'School' }} Not Found: {{ preview.entityId }}</span>
+                  }
                 } @else {
                   <app-icon name="schedule"></app-icon>
                   <span>Preview: {{ preview.label }} Dates</span>
@@ -81,6 +110,12 @@
                   @if (preview.entityFound) {
                     <span class="entity-id">{{ preview.entityId }}</span>
                     <span class="entity-name">{{ preview.entityName }}</span>
+                    @if (preview.isOverridden) {
+                      <span style="margin-left: 0.5rem; color: #666; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                        <app-icon name="info" style="font-size: 1rem;"></app-icon>
+                        (Overrode invalid ID: "{{ preview.originalEntityId }}")
+                      </span>
+                    }
                     @if (preview.entityProfileLink) {
                       <a class="icon-only-button" [href]="preview.entityProfileLink" title="View profile">
                         <app-icon name="visibility"></app-icon>
@@ -89,7 +124,11 @@
                   } @else {
                     <span class="entity-warning">
                       <app-icon name="info"></app-icon>
-                      {{ preview.entityKind === 'member' ? 'Member' : 'School' }} "{{ preview.entityId }}" was not found in the database.
+                      @if (preview.isOverridden) {
+                        There was a problem with the old ID "{{ preview.originalEntityId }}", and it has since been overridden with "{{ preview.entityId }}". However, "{{ preview.entityId }}" was also not found.
+                      } @else {
+                        {{ preview.entityKind === 'member' ? 'Member' : 'School' }} "{{ preview.entityId }}" was not found in the database.
+                      }
                       @if (preview.entityKind === 'member') {
                         Set the Inferred Member ID below, or check the ID in the form.
                       }
@@ -158,73 +197,112 @@
             </table>
           }
 
-          <!-- Inferred Member ID section -->
-          <div class="inferred-member-section">
-            <div class="inferred-member-header">
-              <app-icon name="search"></app-icon>
-              <span>Inferred Member ID</span>
-            </div>
-
-            <div class="inferred-member-controls">
-              <input
-                type="text"
-                class="member-id-input"
-                placeholder="Enter member ID..."
-                [value]="getInferredMemberId(item)"
-                (input)="setInferredMemberIdInput(item.id, $any($event.target).value)"
-                [style.background-color]="hasUnsavedChange(item) ? '#fff9c4' : (item.ilcAppMemberIdInferred ? '#e8f5e9' : 'white')"
-              />
-
-              <button
-                class="subtle-button lookup-btn"
-                (click)="lookupMemberByEmail(item)"
-                title="Look up members by email from this line item">
+          <!-- Inferred Entity ID section -->
+          @if (!preview || preview.entityKind === 'member') {
+            <!-- Inferred Member ID section -->
+            <div class="inferred-member-section">
+              <div class="inferred-member-header">
                 <app-icon name="search"></app-icon>
-                Lookup by Email
-              </button>
-
-              @if (hasUnsavedChange(item)) {
-                <button
-                  class="subtle-button save-btn"
-                  (click)="saveInferredMemberId(item)"
-                  [disabled]="savingLineItems().has(item.id)">
-                  <app-icon name="refresh"></app-icon>
-                  {{ savingLineItems().has(item.id) ? 'Saving...' : 'Save' }}
-                </button>
-              }
-            </div>
-
-            @if (item.ilcAppMemberIdInferred && !hasUnsavedChange(item)) {
-              <div class="inferred-member-saved">
-                <app-icon name="info"></app-icon>
-                Saved: {{ item.ilcAppMemberIdInferred }}
-                <a class="icon-only-button" [href]="'#/members/' + item.ilcAppMemberIdInferred" title="View member profile">
-                  <app-icon name="visibility"></app-icon>
-                </a>
+                <span>Inferred Member ID</span>
               </div>
-            }
 
-            @let lookupResults = memberLookupResults().get(item.id);
-            @if (lookupResults) {
-              <div class="lookup-results">
-                @if (lookupResults.length === 0) {
-                  <div class="no-results">No members found with this email.</div>
-                } @else {
-                  <div class="results-header">
-                    Found {{ lookupResults.length }} member{{ lookupResults.length > 1 ? 's' : '' }}:
-                  </div>
-                  @for (member of lookupResults; track member.docId) {
-                    <div class="result-row" (click)="selectMemberForLineItem(item.id, member.memberId)">
-                      <span class="result-id">{{ member.memberId }}</span>
-                      <span class="result-name">{{ member.name }}</span>
-                      <span class="result-dob">DOB: {{ member.dateOfBirth || '(none)' }}</span>
-                      <app-icon name="arrow_forward" class="select-icon"></app-icon>
-                    </div>
-                  }
+              <div class="inferred-member-controls">
+                <input
+                  type="text"
+                  class="member-id-input"
+                  placeholder="Enter member ID..."
+                  [value]="getInferredMemberId(item)"
+                  (input)="setInferredMemberIdInput(item.id, $any($event.target).value)"
+                  [style.background-color]="hasUnsavedChange(item) ? '#fff9c4' : (item.ilcAppMemberIdInferred ? '#e8f5e9' : 'white')"
+                />
+
+                <button
+                  class="subtle-button lookup-btn"
+                  (click)="lookupMemberByEmail(item)"
+                  title="Look up members by email from this line item">
+                  <app-icon name="search"></app-icon>
+                  Lookup by Email
+                </button>
+
+                @if (hasUnsavedChange(item)) {
+                  <button
+                    class="subtle-button save-btn"
+                    (click)="saveInferredMemberId(item)"
+                    [disabled]="savingLineItems().has(item.id)">
+                    <app-icon name="refresh"></app-icon>
+                    {{ savingLineItems().has(item.id) ? 'Saving...' : 'Save' }}
+                  </button>
                 }
               </div>
-            }
-          </div>
+
+              @if (item.ilcAppMemberIdInferred && !hasUnsavedChange(item)) {
+                <div class="inferred-member-saved">
+                  <app-icon name="info"></app-icon>
+                  Saved: {{ item.ilcAppMemberIdInferred }}
+                  <a class="icon-only-button" [href]="'#/members/' + item.ilcAppMemberIdInferred" title="View member profile">
+                    <app-icon name="visibility"></app-icon>
+                  </a>
+                </div>
+              }
+
+              @let lookupResults = memberLookupResults().get(item.id);
+              @if (lookupResults) {
+                <div class="lookup-results">
+                  @if (lookupResults.length === 0) {
+                    <div class="no-results">No members found with this email.</div>
+                  } @else {
+                    <div class="results-header">
+                      Found {{ lookupResults.length }} member{{ lookupResults.length > 1 ? 's' : '' }}:
+                    </div>
+                    @for (member of lookupResults; track member.docId) {
+                      <div class="result-row" (click)="selectMemberForLineItem(item.id, member.memberId)">
+                        <span class="result-id">{{ member.memberId }}</span>
+                        <span class="result-name">{{ member.name }}</span>
+                        <span class="result-dob">DOB: {{ member.dateOfBirth || '(none)' }}</span>
+                        <app-icon name="arrow_forward" class="select-icon"></app-icon>
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          } @else if (preview.entityKind === 'school') {
+            <!-- Inferred School ID section -->
+            <div class="inferred-member-section">
+              <div class="inferred-member-header">
+                <app-icon name="search"></app-icon>
+                <span>Inferred School ID</span>
+              </div>
+
+              <div class="inferred-member-controls">
+                <app-autocomplete
+                  [searchableSet]="dataService.schools"
+                  [placeholder]="'Search for a school'"
+                  [displayFns]="schoolDisplayFns"
+                  [initSearchTerm]="getInferredSchoolId(item)"
+                  (textUpdated)="setInferredSchoolIdInput(item.id, $event)"
+                  style="flex: 1;"
+                ></app-autocomplete>
+
+                @if (hasSchoolUnsavedChange(item)) {
+                  <button
+                    class="subtle-button save-btn"
+                    (click)="saveInferredSchoolId(item)"
+                    [disabled]="savingLineItems().has(item.id)">
+                    <app-icon name="refresh"></app-icon>
+                    {{ savingLineItems().has(item.id) ? 'Saving...' : 'Save' }}
+                  </button>
+                }
+              </div>
+
+              @if (item.ilcAppSchoolIdInferred && !hasSchoolUnsavedChange(item)) {
+                <div class="inferred-member-saved">
+                  <app-icon name="info"></app-icon>
+                  Saved: {{ item.ilcAppSchoolIdInferred }}
+                </div>
+              }
+            </div>
+          }
 
           <!-- Country Override section -->
           <div class="country-override-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">

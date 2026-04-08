@@ -300,6 +300,65 @@ export const reprocessOrder = onCall(
   }
 );
 
+export const fulfillOrder = onCall(
+  {
+    cors: allowedOrigins,
+    secrets: [squarespaceApiKey],
+  },
+  async (request) => {
+    logger.info('fulfillOrder called by user.');
+    await assertAdmin(request);
+
+    const docId = request.data.docId;
+    if (!docId) {
+      throw new HttpsError('invalid-argument', 'docId is required');
+    }
+
+    const db = admin.firestore();
+    const docSnap = await db.collection('orders').doc(docId).get();
+    if (!docSnap.exists) {
+      throw new HttpsError('not-found', 'Order not found');
+    }
+
+    const orderData = docSnap.data() as SquareSpaceOrder;
+    const squarespaceId = orderData.id;
+    const orderId = orderData.orderNumber || docId;
+
+    if (orderData.fulfillmentStatus === 'FULFILLED') {
+      throw new HttpsError('failed-precondition', 'Order is already fulfilled');
+    }
+
+    if (!squarespaceId) {
+      throw new HttpsError('failed-precondition', 'Missing Squarespace UUID (id field)');
+    }
+
+    try {
+      const apiKey = squarespaceApiKey.value();
+      const url = `https://api.squarespace.com/1.0/commerce/orders/${squarespaceId}/fulfillments`;
+      await axios.post(url, {
+        shouldSendNotification: true 
+      }, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'ILC-Members-Manager/1.0',
+        }
+      });
+      logger.info(`Manually fulfilled order ${orderId} on Squarespace.`);
+      
+      await db.collection('orders').doc(docId).update({
+        fulfillmentStatus: 'FULFILLED',
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      logger.error(`Failed to manually fulfill order ${orderId} on Squarespace:`, error);
+      throw new HttpsError('internal', `Failed to fulfill order on Squarespace: ${error}`);
+    }
+  }
+);
+
 // Clear all ilcApp processing state from an order so it can be re-processed.
 // Removes order-level and line-item-level processing status fields.
 export function clearOrderProcessingState(orderData: SquareSpaceOrder): void {
@@ -413,7 +472,7 @@ export async function executeOrderDownstreamLogic(
         const apiKey = options.apiKeyOverride || squarespaceApiKey.value();
         const url = `https://api.squarespace.com/1.0/commerce/orders/${squarespaceId}/fulfillments`;
         await axios.post(url, {
-          shouldSendNotification: false // Typically don't need shipment notification for digital fulfillment
+          shouldSendNotification: true // Email customers about digital product processed
         }, {
           headers: {
             'Authorization': `Bearer ${apiKey}`,

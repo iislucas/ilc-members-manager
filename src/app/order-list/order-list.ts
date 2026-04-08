@@ -200,6 +200,14 @@ export class OrderList {
     }
   }
 
+  async markAsProcessed(order: Order, event: Event) {
+    event.stopPropagation();
+    this.openMenuId.set(null);
+    const updatedOrder = { ...order, ilcAppOrderStatus: 'processed' as const, ilcAppOrderIssues: [] };
+    await this.dataService.updateOrder(order.docId, updatedOrder);
+    this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
+  }
+
   async markAsIgnored(order: Order, event: Event) {
     event.stopPropagation();
     this.openMenuId.set(null);

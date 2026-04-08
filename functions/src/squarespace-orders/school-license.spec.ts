@@ -190,6 +190,19 @@ describe('parseSchoolLicenseInfo', () => {
     expect(parsed.email).toBe('test@example.com');
   });
 
+  it('should use ilcAppSchoolIdInferred when present', () => {
+    const lineItem = {
+      ...realLineItem,
+      ilcAppSchoolIdInferred: 'SCH-OVERRIDE',
+      customizations: [
+        { label: 'School ID', value: 'SCH-300' },
+      ],
+    };
+
+    const parsed = parseSchoolLicenseInfo(realOrder, lineItem);
+    expect(parsed.schoolId).toBe('SCH-OVERRIDE');
+  });
+
   it('should return empty schoolId when School ID is missing', () => {
     const lineItem = {
       ...realLineItem,

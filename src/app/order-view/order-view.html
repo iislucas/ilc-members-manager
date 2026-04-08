@@ -65,32 +65,53 @@
             <label>Database ID</label>
             <div class="value small">{{ o.docId }}</div>
           </div>
-          @if (o.ilcAppOrderStatus) {
-            <div class="info-item">
-              <label>Processing Status</label>
-              <div
-                class="value app-status"
+          <div class="info-item">
+            <label>Processing Status</label>
+            <div class="value" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; min-width: 150px;">
+              <span class="status-badge app-status"
                 [class.error]="o.ilcAppOrderStatus === 'error'"
                 [class.processed]="o.ilcAppOrderStatus === 'processed'"
-                [class.needs-manual]="
-                  o.ilcAppOrderStatus === 'needs-manual-processing'
-                "
+                [class.needs-manual]="o.ilcAppOrderStatus === 'needs-manual-processing'"
                 [class.ignore]="o.ilcAppOrderStatus === 'ignore'"
+                style="font-size: 0.85rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;"
               >
                 @switch (o.ilcAppOrderStatus) {
-                  @case ("needs-manual-processing") {
-                    TODO
-                  }
-                  @case ("ignore") {
-                    IGNORE
-                  }
-                  @default {
-                    {{ o.ilcAppOrderStatus | uppercase }}
-                  }
+                  @case ('needs-manual-processing') { TODO }
+                  @case ('ignore') { IGNORE }
+                  @case (undefined) { NONE }
+                  @default { {{ o.ilcAppOrderStatus | uppercase }} }
+                }
+              </span>
+
+              <div class="menu-container">
+                <button
+                  (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()"
+                  class="icon-only-button"
+                  title="Order Actions"
+                  style="background: none; border: none; cursor: pointer; padding: 0.25rem;"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (menuOpen()) {
+                  <div class="menu-overlay transparent" (click)="menuOpen.set(false); $event.stopPropagation()"></div>
+                  <div class="menu right-aligned">
+                    <div class="menu-item" (click)="setOrderStatus('processed'); menuOpen.set(false)">
+                      <app-icon name="check"></app-icon> <span>Mark as processed</span>
+                    </div>
+                    <div class="menu-item" (click)="setOrderStatus('needs-manual-processing'); menuOpen.set(false)">
+                      <app-icon name="schedule"></app-icon> <span>Mark as TODO</span>
+                    </div>
+                    <div class="menu-item" (click)="setOrderStatus('error'); menuOpen.set(false)">
+                      <app-icon name="error"></app-icon> <span>Mark as error</span>
+                    </div>
+                    <div class="menu-item" (click)="setOrderStatus('ignore'); menuOpen.set(false)">
+                      <app-icon name="close"></app-icon> <span>Mark as ignored</span>
+                    </div>
+                  </div>
                 }
               </div>
             </div>
-          }
+          </div>
         </div>
 
         @if (o.ilcAppOrderIssues && o.ilcAppOrderIssues.length > 0) {

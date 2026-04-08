@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP } from '../app.config';
 import { EventEditComponent } from './event-edit';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -31,6 +32,7 @@ describe('EventEditComponent', () => {
       providers: [
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} }, // Mock app object
+        { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
       ]
     })
     .compileComponents();

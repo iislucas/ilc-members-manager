@@ -1,10 +1,11 @@
 import { Component, inject, input, output, signal, computed, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SquareSpaceOrder, SquareSpaceLineItem, Member, School } from '../../../../functions/src/data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, Member, School, OrderStatus } from '../../../../functions/src/data-model';
 import { computeRenewalAndExpiration } from '../../../../functions/src/squarespace-orders/common';
 import { DataManagerService } from '../../data-manager.service';
 import { IconComponent } from '../../icons/icon.component';
+import { AutocompleteComponent } from '../../autocomplete/autocomplete';
 
 // Describes the expiry date effect of a line item.
 export interface ExpiryPreview {
@@ -18,6 +19,8 @@ export interface ExpiryPreview {
   entityFound: boolean; // True if the entity was found in the database.
   entityKind: 'member' | 'school'; // What kind of entity this targets.
   entityProfileLink: string; // Link to profile e.g. '#/members/US123', empty if N/A.
+  originalEntityId?: string;
+  isOverridden?: boolean;
 }
 
 // SKU patterns that change an expiry date and their renewal durations (months).
@@ -69,19 +72,26 @@ function extractSchoolIdFromCustomizations(lineItem: SquareSpaceLineItem): strin
 @Component({
   selector: 'app-squarespace-order-view',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, AutocompleteComponent],
   templateUrl: './squarespace-order-view.html',
   styleUrl: './squarespace-order-view.scss'
 })
 export class SquarespaceOrderView {
   dataService = inject(DataManagerService);
 
+  schoolDisplayFns = {
+    toChipId: (s: School) => s.schoolId,
+    toName: (s: School) => s.schoolName,
+  };
+
   order = input.required<SquareSpaceOrder>();
   orderUpdated = output<void>();
 
   // Per-line-item UI state, keyed by line item id.
   memberLookupResults = signal<Map<string, Member[]>>(new Map());
+  fulfillmentMenuOpen = signal(false);
   memberIdInputs = signal<Map<string, string>>(new Map());
+  schoolIdInputs = signal<Map<string, string>>(new Map());
   countryOverrideInputs = signal<Map<string, string>>(new Map());
   savingLineItems = signal<Set<string>>(new Set());
 
@@ -91,6 +101,7 @@ export class SquarespaceOrderView {
       if (!ord || !ord.lineItems) return;
 
       const memberMap = untracked(() => new Map(this.memberIdInputs()));
+      const schoolMap = untracked(() => new Map(this.schoolIdInputs()));
       const countryMap = untracked(() => new Map(this.countryOverrideInputs()));
       let changed = false;
 
@@ -99,6 +110,14 @@ export class SquarespaceOrderView {
         if (!hasUnsaved && item.ilcAppMemberIdInferred) {
           if (memberMap.get(item.id) !== item.ilcAppMemberIdInferred) {
             memberMap.set(item.id, item.ilcAppMemberIdInferred);
+            changed = true;
+          }
+        }
+
+        const hasSchoolUnsaved = untracked(() => this.hasSchoolUnsavedChange(item));
+        if (!hasSchoolUnsaved && item.ilcAppSchoolIdInferred) {
+          if (schoolMap.get(item.id) !== item.ilcAppSchoolIdInferred) {
+            schoolMap.set(item.id, item.ilcAppSchoolIdInferred);
             changed = true;
           }
         }
@@ -114,6 +133,7 @@ export class SquarespaceOrderView {
 
       if (changed) {
         this.memberIdInputs.set(memberMap);
+        this.schoolIdInputs.set(schoolMap);
         this.countryOverrideInputs.set(countryMap);
       }
     });
@@ -145,13 +165,15 @@ export class SquarespaceOrderView {
       let entityFound = false;
       let entityProfileLink = '';
       let currentExpiry = '';
+      let originalId = '';
+      let isOverridden = false;
 
       if (config.entityKind === 'member') {
-        // Priority: inferred > customization form field.
-        entityId = item.ilcAppMemberIdInferred
-          || extractMemberIdFromCustomizations(item);
+        originalId = extractMemberIdFromCustomizations(item);
+        entityId = item.ilcAppMemberIdInferred || originalId;
+        isOverridden = !!item.ilcAppMemberIdInferred && item.ilcAppMemberIdInferred !== originalId;
         if (entityId) {
-          const member = membersMap.get(entityId);
+          const member = this.dataService.getMemberByMemberId(entityId);
           if (member) {
             entityName = member.name;
             entityFound = true;
@@ -167,7 +189,9 @@ export class SquarespaceOrderView {
           }
         }
       } else {
-        entityId = extractSchoolIdFromCustomizations(item);
+        originalId = extractSchoolIdFromCustomizations(item);
+        entityId = item.ilcAppSchoolIdInferred || originalId;
+        isOverridden = !!item.ilcAppSchoolIdInferred && item.ilcAppSchoolIdInferred !== originalId;
         if (entityId) {
           const school = schoolsMap.get(entityId) as School | undefined;
           if (school) {
@@ -188,6 +212,8 @@ export class SquarespaceOrderView {
           entityId, entityName, entityFound,
           entityKind: config.entityKind,
           entityProfileLink,
+          originalEntityId: originalId,
+          isOverridden,
         });
         continue;
       }
@@ -215,6 +241,8 @@ export class SquarespaceOrderView {
           entityId, entityName, entityFound,
           entityKind: config.entityKind,
           entityProfileLink,
+          originalEntityId: originalId,
+          isOverridden,
         });
         continue;
       }
@@ -231,6 +259,8 @@ export class SquarespaceOrderView {
         entityId, entityName, entityFound,
         entityKind: config.entityKind,
         entityProfileLink,
+        originalEntityId: originalId,
+        isOverridden,
       });
     }
 
@@ -310,6 +340,52 @@ export class SquarespaceOrderView {
     return inputMap.get(lineItem.id) !== (lineItem.ilcAppMemberIdInferred || '');
   }
 
+  getInferredSchoolId(lineItem: SquareSpaceLineItem): string {
+    const inputMap = this.schoolIdInputs();
+    if (inputMap.has(lineItem.id)) {
+      return inputMap.get(lineItem.id) || '';
+    }
+    return lineItem.ilcAppSchoolIdInferred || '';
+  }
+
+  setInferredSchoolIdInput(lineItemId: string, value: string) {
+    const map = new Map(this.schoolIdInputs());
+    map.set(lineItemId, value);
+    this.schoolIdInputs.set(map);
+  }
+
+  async saveInferredSchoolId(lineItem: SquareSpaceLineItem) {
+    const schoolId = this.getInferredSchoolId(lineItem);
+    const orderId = this.order().docId;
+    if (!orderId) return;
+
+    const saving = new Set(this.savingLineItems());
+    saving.add(lineItem.id);
+    this.savingLineItems.set(saving);
+
+    try {
+      await this.dataService.setOrderLineItemInferredSchoolId(
+        orderId, lineItem.id, schoolId
+      );
+      const map = new Map(this.schoolIdInputs());
+      map.delete(lineItem.id);
+      this.schoolIdInputs.set(map);
+      this.orderUpdated.emit();
+    } catch (e: unknown) {
+      alert(`Error saving inferred school ID: ${(e as Error).message}`);
+    } finally {
+      const saving = new Set(this.savingLineItems());
+      saving.delete(lineItem.id);
+      this.savingLineItems.set(saving);
+    }
+  }
+
+  hasSchoolUnsavedChange(lineItem: SquareSpaceLineItem): boolean {
+    const inputMap = this.schoolIdInputs();
+    if (!inputMap.has(lineItem.id)) return false;
+    return inputMap.get(lineItem.id) !== (lineItem.ilcAppSchoolIdInferred || '');
+  }
+
   getCountryOverride(lineItem: SquareSpaceLineItem): string {
     const inputMap = this.countryOverrideInputs();
     if (inputMap.has(lineItem.id)) {
@@ -354,5 +430,17 @@ export class SquarespaceOrderView {
     const inputMap = this.countryOverrideInputs();
     if (!inputMap.has(lineItem.id)) return false;
     return inputMap.get(lineItem.id) !== (lineItem.ilcAppCountryOverride || '');
+  }
+
+  async markAsFulfilled() {
+    const orderId = this.order().docId;
+    if (!orderId) return;
+
+    try {
+      await this.dataService.fulfillOrder(orderId);
+      this.orderUpdated.emit();
+    } catch (e: unknown) {
+      alert(`Error marking as fulfilled: ${(e as Error).message}`);
+    }
   }
 }

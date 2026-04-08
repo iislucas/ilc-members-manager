@@ -33,6 +33,7 @@ describe('SquarespaceOrderView', () => {
       members: { entries: signal([]), entriesMap: membersMapSignal },
       schools: { entriesMap: schoolsMapSignal },
       lookupMembersByEmail: () => [],
+      getMemberByMemberId: (id: string) => membersMapSignal().get(id),
       setOrderLineItemInferredMemberId: vi.fn().mockResolvedValue(undefined),
       setOrderLineItemCountryOverride: vi.fn().mockResolvedValue(undefined),
       countries: { entries: signal([]) },

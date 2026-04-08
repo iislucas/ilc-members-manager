@@ -1,7 +1,7 @@
 import { Component, effect, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
-import { Order } from '../../../functions/src/data-model';
+import { Order, OrderStatus } from '../../../functions/src/data-model';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
@@ -28,6 +28,7 @@ export class OrderView {
   public reprocessing = signal(false);
   public notesInput = signal<string | undefined>(undefined);
   public savingNotes = signal(false);
+  public menuOpen = signal(false);
 
   public notesChanged = computed(() => {
     const input = this.notesInput();
@@ -108,6 +109,35 @@ export class OrderView {
       alert(`Error saving notes: ${(e as Error).message}`);
     } finally {
       this.savingNotes.set(false);
+    }
+  }
+
+  async setOrderStatus(status: string) {
+    const o = this.order();
+    if (!o) return;
+
+    try {
+      const updatedOrder = { ...o, ilcAppOrderStatus: status as OrderStatus };
+      if (status === 'processed' || status === 'ignore') {
+        updatedOrder.ilcAppOrderIssues = [];
+      }
+      await this.dataService.updateOrder(o.docId, updatedOrder);
+      await this.fetchOrder(this.orderId());
+    } catch (e: unknown) {
+      alert(`Error updating order status: ${(e as Error).message}`);
+    }
+  }
+
+  async markAsFulfilled() {
+    const o = this.order();
+    if (!o) return;
+
+    try {
+      const updatedOrder = { ...o, fulfillmentStatus: 'FULFILLED' as const };
+      await this.dataService.updateOrder(o.docId, updatedOrder);
+      await this.fetchOrder(this.orderId());
+    } catch (e: unknown) {
+      alert(`Error marking as fulfilled: ${(e as Error).message}`);
     }
   }
 }

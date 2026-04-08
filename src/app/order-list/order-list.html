@@ -317,6 +317,9 @@
                           <app-icon name="check"></app-icon> <span>Mark as fulfilled</span>
                         </div>
                       }
+                      <div class="menu-item" (click)="markAsProcessed(order, $event)">
+                        <app-icon name="check"></app-icon> <span>Mark as processed</span>
+                      </div>
                       <div class="menu-item" (click)="markAsTodo(order, $event)">
                         <app-icon name="schedule"></app-icon> <span>Mark as TODO</span>
                       </div>

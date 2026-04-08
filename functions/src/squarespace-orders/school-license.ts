@@ -27,15 +27,15 @@ export function parseSchoolLicenseInfo(
 ): SchoolLicenseInfo {
   const customizations: SquareSpaceCustomization[] = lineItem.customizations || [];
 
-  let schoolId = '';
+  let schoolId = lineItem.ilcAppSchoolIdInferred || '';
   let email = '';
   let memberId = '';
-
+ 
   for (const field of customizations) {
     if (!field.label || !field.value) continue;
     const labelLower = field.label.toLowerCase();
-
-    if (labelLower.includes('school id')) {
+ 
+    if (labelLower.includes('school id') && !schoolId) {
       schoolId = field.value.trim();
     } else if (labelLower.includes('member id') || labelLower === 'memberid') {
       memberId = field.value.trim();

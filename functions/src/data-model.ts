@@ -476,6 +476,10 @@ export interface SquareSpaceLineItem {
   // can set this via the order detail UI, or it can be automatically
   // inferred by matching the order's email + date of birth to a member.
   ilcAppMemberIdInferred?: string;
+  // Manually set or auto-inferred school ID, used as a fallback when the
+  // Squarespace form's "School ID" field is missing or incorrect. Admins
+  // can set this via the order detail UI.
+  ilcAppSchoolIdInferred?: string;
   // When the order is processed successfully and changes an expiry date,
   // these fields record the renewal date and new expiry date that were set.
   ilcAppNewLastRenewalDate?: string; // YYYY-MM-DD
