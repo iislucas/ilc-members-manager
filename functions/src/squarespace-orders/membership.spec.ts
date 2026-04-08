@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseMembershipRenewalInfo } from './membership';
-import { SquareSpaceLineItem, SquareSpaceOrder } from '../data-model';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
 import { resolveCountryCode } from '../country-codes';
 
 const realLineItem: SquareSpaceLineItem = {
@@ -8,6 +8,7 @@ const realLineItem: SquareSpaceLineItem = {
   sku: 'MEM-YEAR-21',
   productId: '67e994caacb4bf75c1bddf0b',
   productName: 'MEMBERSHIP : Annual',
+  lineItemType: SquareSpaceLineItemType.Service,
   quantity: '1',
   unitPricePaid: { value: '55.00' },
   variantOptions: [

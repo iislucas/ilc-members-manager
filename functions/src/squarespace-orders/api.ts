@@ -27,7 +27,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType } from '../data-model';
 import { assertAdmin, allowedOrigins } from '../common';
 import { SubscriptionResult } from './common';
 
@@ -372,6 +372,8 @@ export function clearOrderProcessingState(orderData: SquareSpaceOrder): void {
   }
 }
 
+// Called automatically by the `processSquarespaceOrder` Firestore trigger
+// whenever an order is created or updated, and manually by `reprocessOrder`.
 export async function executeOrderDownstreamLogic(
   orderData: SquareSpaceOrder, docId: string, db: admin.firestore.Firestore,
   options: { apiKeyOverride?: string; skipFulfillment?: boolean } = {}
@@ -401,6 +403,17 @@ export async function executeOrderDownstreamLogic(
 
   for (const lineItem of lineItems) {
     if (lineItem.ilcAppProcessingStatus === 'processed') {
+      continue;
+    }
+
+    if (lineItem.lineItemType === SquareSpaceLineItemType.PhysicalProduct) {
+      if (orderData.fulfillmentStatus === 'FULFILLED') {
+        lineItem.ilcAppProcessingStatus = 'processed';
+      } else {
+        lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
+        orderStatus = 'needs-manual-processing';
+        allItemsFulfilled = false;
+      }
       continue;
     }
 

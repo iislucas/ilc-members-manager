@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseLifeMembershipInfo } from './life-membership';
-import { SquareSpaceOrder } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
 
 // Real example order from a Life + Spouse purchase.
 // Extra Squarespace-specific fields that are not part of our SquareSpaceOrder
@@ -35,6 +35,7 @@ const realOrder: SquareSpaceOrder = {
       sku: 'MEM-LIFE-SPOUSE',
       productId: '69a20367cf9f9e7ac577fd0e',
       productName: 'MEMBERSHIP : Life + Spouse',
+      lineItemType: SquareSpaceLineItemType.Service,
       quantity: '1',
       unitPricePaid: { value: '900.00' },
       variantOptions: [

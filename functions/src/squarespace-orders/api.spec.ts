@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { clearOrderProcessingState } from './api';
-import { SquareSpaceOrder } from '../data-model';
+import { describe, it, expect, vi } from 'vitest';
+import { clearOrderProcessingState, executeOrderDownstreamLogic } from './api';
+import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
+import * as admin from 'firebase-admin';
 
 describe('clearOrderProcessingState', () => {
   it('should clear order-level and line-item-level processing fields', () => {
@@ -67,5 +68,71 @@ describe('clearOrderProcessingState', () => {
     expect(order.orderNumber).toBe('789');
     expect(order.lineItems![0].sku).toBe('MEM-YEAR-REG');
     expect(order.ilcAppOrderStatus).toBeUndefined();
+  });
+});
+
+describe('executeOrderDownstreamLogic with physical products', () => {
+  it('should mark physical items as needs-manual-processing if order is PENDING', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'PENDING',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'PHYSICAL-SKU',
+          lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+          quantity: '1',
+          unitPricePaid: { value: '10.00' },
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).toHaveBeenCalled();
+    const updateData = mockUpdate.mock.calls[0][0];
+    expect(updateData.ilcAppOrderStatus).toBe('needs-manual-processing');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('needs-manual-processing');
+  });
+
+  it('should mark physical items as processed if order is FULFILLED', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'FULFILLED',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'PHYSICAL-SKU',
+          lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+          quantity: '1',
+          unitPricePaid: { value: '10.00' },
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).toHaveBeenCalled();
+    const updateData = mockUpdate.mock.calls[0][0];
+    expect(updateData.ilcAppOrderStatus).toBe('processed');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
   });
 });

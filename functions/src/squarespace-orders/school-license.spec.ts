@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseSchoolLicenseInfo, processSchoolLicense, SchoolLicenseInfo } from './school-license';
 import { computeRenewalAndExpiration } from './common';
-import { SquareSpaceLineItem, SquareSpaceOrder } from '../data-model';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
 import * as admin from 'firebase-admin';
 
 // Helper to build a mock Firestore that returns a school document.
@@ -50,6 +50,7 @@ const realLineItem: SquareSpaceLineItem = {
   sku: 'LIS-SCH-YRL',
   productId: '6999404b0ccc755adde0f466',
   productName: 'LICENSE : School (YEARLY)',
+  lineItemType: SquareSpaceLineItemType.Service,
   quantity: '1',
   unitPricePaid: { value: '600.00' },
   variantOptions: [
@@ -96,6 +97,7 @@ const monthlyLineItem: SquareSpaceLineItem = {
   sku: 'LIS-SCH-MTH',
   productId: '69a3a553db7fc05e5f349587',
   productName: 'LICENSE : School (Monthly)',
+  lineItemType: SquareSpaceLineItemType.Service,
   quantity: '1',
   unitPricePaid: { value: '60.00' },
   variantOptions: [],
@@ -265,7 +267,7 @@ describe('school license renewal durations', () => {
 // ---------------------------------------------------------------
 describe('processSchoolLicense', () => {
   function mockLineItem(): SquareSpaceLineItem {
-    return { id: 'li-1', sku: 'LIS-SCH-YRL', quantity: '1', unitPricePaid: { value: '100' } };
+    return { id: 'li-1', sku: 'LIS-SCH-YRL', quantity: '1', unitPricePaid: { value: '100' }, lineItemType: SquareSpaceLineItemType.Service };
   }
 
   it('should return an error when schoolId is missing', async () => {

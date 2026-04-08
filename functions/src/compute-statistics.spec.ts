@@ -12,6 +12,7 @@ import {
   School,
   SquareSpaceOrder,
   SquareSpaceLineItem,
+  SquareSpaceLineItemType,
   MembershipType,
   StudentLevel,
   ApplicationLevel,
@@ -337,6 +338,7 @@ function makeOrder(createdOn: string, lineItems: Partial<SquareSpaceLineItem>[])
       productName: li.productName || '',
       quantity: li.quantity || '1',
       unitPricePaid: { value: '0' },
+      lineItemType: SquareSpaceLineItemType.Service,
       ...li,
     })),
   };

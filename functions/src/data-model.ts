@@ -459,11 +459,17 @@ export interface SquareSpaceVariantOption {
   value?: string;
 }
 
+export enum SquareSpaceLineItemType {
+  PhysicalProduct = 'PHYSICAL_PRODUCT',
+  Service = 'SERVICE',
+}
+
 export interface SquareSpaceLineItem {
   id: string;
   sku: string;
   productId?: string;
   productName?: string;
+  lineItemType: SquareSpaceLineItemType;
   variantOptions?: SquareSpaceVariantOption[];
   customizations?: SquareSpaceCustomization[];
   quantity: string;

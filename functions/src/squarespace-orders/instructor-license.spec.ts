@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInstructorLicenseInfo } from './instructor-license';
-import { SquareSpaceOrder, SquareSpaceLineItem } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType } from '../data-model';
 
 // Real example line item from an Instructor license purchase.
 const realLineItem: SquareSpaceLineItem = {
@@ -8,6 +8,7 @@ const realLineItem: SquareSpaceLineItem = {
   productId: '68ab8406c1bfc45b6dc2798a',
   productName: 'LICENSE : Instructor + Group Leader',
   sku: 'LIS-YEAR-INS',
+  lineItemType: SquareSpaceLineItemType.Service,
   quantity: '1',
   unitPricePaid: { value: '150.00' },
   variantOptions: [
