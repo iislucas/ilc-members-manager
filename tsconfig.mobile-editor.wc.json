@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "files": ["src/mobile-editor.wc.ts"],
+  "include": ["src/**/*.d.ts"]
+}

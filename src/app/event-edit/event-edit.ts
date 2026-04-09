@@ -271,6 +271,10 @@ export class EventEditComponent implements OnInit {
   }
 
   private initMilkdown(element: HTMLElement) {
+    element.style.setProperty('--crepe-max-width', '100%');
+    element.style.setProperty('--crepe-padding-top', '20px');
+    element.style.setProperty('--crepe-padding-bottom', '20px');
+
     const crepe = new Crepe({
       root: element,
       defaultValue: this.eventFormModel().description,

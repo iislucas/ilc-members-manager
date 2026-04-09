@@ -1,0 +1,15 @@
+<div class="mobile-editor-container">
+  <div class="toolbar">
+    <button (click)="toggleBold()" aria-label="Bold">B</button>
+    <button (click)="toggleItalic()" aria-label="Italic">I</button>
+    <button (click)="wrapInHeading(1)" aria-label="H1">H1</button>
+    <button (click)="wrapInHeading(2)" aria-label="H2">H2</button>
+    <button (click)="wrapInHeading(3)" aria-label="H3">H3</button>
+    <button (click)="wrapInBulletList()" aria-label="Bullet List">UL</button>
+    <button (click)="unindent()" aria-label="Un-indent">⬅</button>
+    <button (click)="indent()" aria-label="Indent">➡</button>
+    <button (click)="undo()" aria-label="Undo">↶</button>
+    <button (click)="redo()" aria-label="Redo">↷</button>
+  </div>
+  <div #editorRef class="editor-content"></div>
+</div>

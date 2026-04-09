@@ -60,6 +60,17 @@ export function htmlToMarkdown(html: string): string {
     md = md.replace(/<(b|strong|i|em|u|p)>\s*<\/\1>/gi, '');
   } while (md !== oldMd);
 
+
+
+  // Merge consecutive tags of the same type
+  do {
+    oldMd = md;
+    md = md.replace(/<\/b><b>/gi, '');
+    md = md.replace(/<\/strong><strong>/gi, '');
+    md = md.replace(/<\/i><i>/gi, '');
+    md = md.replace(/<\/em><em>/gi, '');
+  } while (md !== oldMd);
+
   // Handle specific pattern <strong>Title<br></strong> -> **Title** 
   md = md.replace(/<strong>(.*?)<br\s*\/?>\s*<\/strong>/gi, '**$1** ');
 
@@ -86,10 +97,10 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<\/u>/gi, '');
 
   // Replace emphasis/italic
-  md = md.replace(/<em>/gi, '*');
-  md = md.replace(/<\/em>/gi, '*');
-  md = md.replace(/<i>/gi, '*');
-  md = md.replace(/<\/i>/gi, '*');
+  md = md.replace(/<em>/gi, '_');
+  md = md.replace(/<\/em>/gi, '_');
+  md = md.replace(/<i>/gi, '_');
+  md = md.replace(/<\/i>/gi, '_');
 
   // Replace bold
   md = md.replace(/<b>/gi, '**');

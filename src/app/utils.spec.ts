@@ -58,7 +58,7 @@ This 12-hour workshop experience is open to everyone! All styles of qigong, move
 **Where** Wing Chun kung fu - Asd ASAM “La Via Dell'Acqua”
 Viale don Minzoni 24
 60035 Jesi, Marche, Italy
-**(all days)**
+__(all days)__
 
 **Cost to Attend** 135€ members / 150€ non-members
 
@@ -82,7 +82,7 @@ The workshop will be led by **Master Hsin C**, the son of Grand Master Sam C. Hs
 
 +33 123 456 789
 
-**[Please register](https://www.google.com/url?q=https://docs.google.com/forms/d/e/1FAIpQLSdoNBNxJqsjRAXBzGKWSqccXZwDiy05EDP0kU10i24P4etkhw/viewform?usp%3Dheader&sa=D&source=calendar&usd=2&usg=AOvVaw3KtpW0_zpiHepCprzr3MBN) before 4rd of April to attend the workshop and pay the early-bird price.**
+**_[Please register](https://www.google.com/url?q=https://docs.google.com/forms/d/e/1FAIpQLSdoNBNxJqsjRAXBzGKWSqccXZwDiy05EDP0kU10i24P4etkhw/viewform?usp%3Dheader&sa=D&source=calendar&usd=2&usg=AOvVaw3KtpW0_zpiHepCprzr3MBN)_ before 4rd of April to attend the workshop and pay the early-bird price.**
 
 (payment details on the registration form)
 

@@ -1,24 +1,50 @@
 @use "../edit-form.scss" as *;
 
-
-
 .milkdown-editor-container {
   border: 1px solid #ddd;
   border-radius: 4px;
-  padding: 1rem;
-  margin: 0.5rem 0;
+  padding: 0;
+  margin: 0;
   background: white;
   min-height: 200px;
+
+  .milkdown {
+    .ProseMirror {
+      padding: 0px;;
+    }
+  }
 
   /* Basic typography for headless nodes */
   .editor {
     outline: none;
-    p { margin: 1em 0; line-height: 1.6; }
-    h1 { font-size: 2em; font-weight: bold; margin: 0.5em 0; }
-    h2 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
-    ul, ol { padding-left: 1.5em; }
-    blockquote { border-left: 4px solid #eee; padding-left: 1em; color: #666; }
-    code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
+    p {
+      margin: 1em 0;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 2em;
+      font-weight: bold;
+      margin: 0.5em 0;
+    }
+    h2 {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin: 0.5em 0;
+    }
+    ul,
+    ol {
+      padding-left: 1.5em;
+    }
+    blockquote {
+      border-left: 4px solid #eee;
+      padding-left: 1em;
+      color: #666;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+    }
   }
 }
 

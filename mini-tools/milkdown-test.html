@@ -3,32 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Milkdown Test Page</title>
-    <!-- Crepe Theme CSS from unpkg -->
-    <link rel="stylesheet" href="https://unpkg.com/@milkdown/crepe/lib/theme/common/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/@milkdown/crepe/lib/theme/frame/style.css">
+    <title>Mobile Editor Test</title>
+    <!-- Load Angular Web Component styles -->
+    <link rel="stylesheet" href="../dist/mobile-editor-wc/browser/styles.css">
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: 0 auto; background: #f9f9f9; }
-        h1 { color: #333; }
-        #editor { background: white; border: 1px solid #ddd; border-radius: 8px; min-height: 400px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .status { padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: bold; border: 1px solid transparent; }
-        .success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
-        .error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-        .output-box { margin-top: 30px; }
+        body { font-family: sans-serif; padding: 0; margin: 0; background: #f9f9f9; }
+        h1 { color: #333; padding: 10px; margin: 0; font-size: 1.5rem; }
+        .output-box { padding: 10px; }
         pre { background: #2d2d2d; color: #ccc; padding: 15px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+        /* Ensure the custom element has a height */
+        app-mobile-editor {
+            display: block;
+            border: 1px solid #ddd;
+            background: white;
+            height: 50vh;
+        }
     </style>
 </head>
 <body>
-    <h1>Milkdown v7 + Custom htmlToMarkdown</h1>
-    <div id="status" class="status">Initializing editor...</div>
+    <h1>Mobile Editor Test (Angular Web Component)</h1>
     
-    <div id="editor"></div>
+    <!-- The Web Component -->
+    <app-mobile-editor id="my-editor"></app-mobile-editor>
 
     <div class="output-box">
         <h3>Final Markdown Output:</h3>
-        <pre id="markdown-output">Loading...</pre>
+        <pre id="markdown-output">Waiting for changes...</pre>
     </div>
 
-    <script src="milkdown-test.bundle.js"></script>
+    <!-- Load Angular Web Component script -->
+    <script type="module" src="../dist/mobile-editor-wc/browser/main.js"></script>
+    
+    <script>
+        // Wait for the element to be defined
+        customElements.whenDefined('app-mobile-editor').then(() => {
+            const editor = document.getElementById('my-editor');
+            const output = document.getElementById('markdown-output');
+            
+            // Set initial value
+            editor.initialValue = `# Mobile Editor Test
+
+This is a **Milkdown** editor running as an Angular Web Component.
+
+## Features:
+- Minimal overhead
+- Custom mobile-friendly toolbar
+- Signal-based inputs/outputs
+
+### Try it out:
+1. Edit this text
+2. Use the toolbar buttons
+3. See the output below
+
+Enjoy editing!`;
+            
+            // Listen for changes
+            editor.addEventListener('changed', (event) => {
+                console.log('Changed event:', event);
+                output.textContent = event.detail;
+            });
+        });
+    </script>
 </body>
 </html>
