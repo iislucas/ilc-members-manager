@@ -49,9 +49,36 @@
   padding: 0; /* Full size of the component */
   min-height: 200px; /* Ensure valid tap target */
   
-  /* Override Milkdown default padding */
+  /* Override Milkdown default padding and add basic markdown styles */
   ::ng-deep .ProseMirror {
-    padding: 0 !important;
+    padding: 12px !important; /* Added some padding for readability */
+    outline: none;
+    
+    ul {
+      list-style-type: disc !important;
+      padding-left: 24px !important;
+      margin: 8px 0 !important;
+    }
+    
+    ol {
+      list-style-type: decimal !important;
+      padding-left: 24px !important;
+      margin: 8px 0 !important;
+    }
+    
+    li {
+      display: list-item !important;
+      margin: 4px 0 !important;
+    }
+    
+    h1 { font-size: 1.8em; margin: 0.67em 0; font-weight: bold; }
+    h2 { font-size: 1.5em; margin: 0.83em 0; font-weight: bold; }
+    h3 { font-size: 1.2em; margin: 1em 0; font-weight: bold; }
+    
+    p { margin: 8px 0; }
+    
+    strong { font-weight: bold; }
+    em { font-style: italic; }
   }
 }
 
