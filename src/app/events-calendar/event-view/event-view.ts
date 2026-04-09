@@ -5,7 +5,8 @@
  */
 
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
+import { marked } from 'marked';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
@@ -18,7 +19,7 @@ import { FirebaseStateService } from '../../firebase-state.service';
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [CommonModule, DatePipe, IconComponent, SpinnerComponent],
+  imports: [DatePipe, IconComponent, SpinnerComponent],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })
@@ -34,6 +35,20 @@ export class EventViewComponent implements OnInit {
   event = signal<IlcEvent | null>(null);
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
+
+  renderedDescription = computed(() => {
+    const ev = this.event();
+    if (!ev) return '';
+    if (ev.descriptionMarkdown) {
+      try {
+        return marked.parse(ev.descriptionMarkdown) as string;
+      } catch (e) {
+        console.error('Failed to parse markdown:', e);
+        return ev.descriptionMarkdown;
+      }
+    }
+    return ev.description;
+  });
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();

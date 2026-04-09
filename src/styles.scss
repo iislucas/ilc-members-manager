@@ -12,6 +12,9 @@
 @use "scss_variables" as *;
 @use "sass:color";
 
+@import "@milkdown/crepe/theme/common/style.css";
+@import "@milkdown/crepe/theme/frame.css";
+
 body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0px;

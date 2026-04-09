@@ -3,6 +3,7 @@ export interface CalendarEvent {
   start: string;
   end: string;
   description: string;
+  descriptionMarkdown?: string;
   location?: string;
   googleMapsUrl?: string;
   googleCalEventLink?: string;

@@ -889,7 +889,8 @@ export type IlcEvent = {
   title: string;
   start: string;           // ISO date-time or YYYY-MM-DD
   end: string;             // ISO date-time or YYYY-MM-DD
-  description: string;     // may contain HTML or Markdown
+  description: string;     // Always HTML if from calendar
+  descriptionMarkdown?: string; // Markdown version for editing and display
   location: string;
   status: EventStatus;
   // Google Calendar sync fields

@@ -52,11 +52,11 @@
 
         <label for="event-description" class="align-top">Description</label>
         <div class="rhs">
-          <textarea
+          <div
             id="event-description"
-            rows="6"
-            [formField]="form.description"
-          ></textarea>
+            #editorContainer
+            class="milkdown-editor-container"
+          ></div>
         </div>
       </div>
 

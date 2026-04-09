@@ -16,6 +16,8 @@ import {
   effect,
   ChangeDetectionStrategy,
   OnInit,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import {
   form,
@@ -26,7 +28,8 @@ import {
 import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { deepObjEq } from '../utils';
+import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
+import { Crepe } from '@milkdown/crepe';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
@@ -48,7 +51,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     title: event.title || '',
     start: event.start ? event.start.split('T')[0] : '',
     end: event.end ? event.end.split('T')[0] : '',
-    description: event.description || '',
+    description: event.descriptionMarkdown || event.description || '',
     location: event.location || '',
     status: event.status || EventStatus.Proposed,
   };
@@ -63,6 +66,15 @@ function toFormModel(event: IlcEvent): EventFormModel {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventEditComponent implements OnInit {
+  private _editorContainer!: ElementRef;
+  private crepeInstance: Crepe | undefined;
+
+  @ViewChild('editorContainer') set editorContainer(el: ElementRef) {
+    if (el && !this.crepeInstance) {
+      this._editorContainer = el;
+      this.initMilkdown(el.nativeElement);
+    }
+  }
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
@@ -170,6 +182,13 @@ export class EventEditComponent implements OnInit {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = { ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+        if (data.descriptionMarkdown) {
+          if (looksLikeHtml(data.descriptionMarkdown)) {
+            data.descriptionMarkdown = htmlToMarkdown(data.descriptionMarkdown);
+          }
+        } else if (data.description) {
+          data.descriptionMarkdown = htmlToMarkdown(data.description);
+        }
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
         return;
@@ -184,6 +203,13 @@ export class EventEditComponent implements OnInit {
 
       if (!querySnap.empty) {
         const data = { ...querySnap.docs[0].data(), docId: querySnap.docs[0].id } as IlcEvent;
+        if (data.descriptionMarkdown) {
+          if (looksLikeHtml(data.descriptionMarkdown)) {
+            data.descriptionMarkdown = htmlToMarkdown(data.descriptionMarkdown);
+          }
+        } else if (data.description) {
+          data.descriptionMarkdown = htmlToMarkdown(data.description);
+        }
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
       } else {
@@ -221,7 +247,7 @@ export class EventEditComponent implements OnInit {
         title: formData.title,
         start: formData.start,
         end: formData.end,
-        description: formData.description,
+        descriptionMarkdown: formData.description,
         location: formData.location,
         status: formData.status,
         lastUpdated: new Date().toISOString(),
@@ -231,6 +257,7 @@ export class EventEditComponent implements OnInit {
       this.event.set({
         ...eventData,
         ...formData,
+        descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
         lastUpdated: new Date().toISOString(),
       });
@@ -241,5 +268,26 @@ export class EventEditComponent implements OnInit {
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  private initMilkdown(element: HTMLElement) {
+    const crepe = new Crepe({
+      root: element,
+      defaultValue: this.eventFormModel().description,
+    });
+
+    crepe.on((listener) => {
+      listener.markdownUpdated((ctx, markdown) => {
+        this.eventFormModel.update((m) => ({ ...m, description: markdown }));
+      });
+    });
+
+    crepe.create()
+      .then(() => {
+        this.crepeInstance = crepe;
+      })
+      .catch((error) => {
+        console.error('Failed to initialize Milkdown Crepe:', error);
+      });
   }
 }

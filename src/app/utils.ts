@@ -38,6 +38,76 @@ export function stringToDate(dateString: string | null | undefined): Date {
   return date;
 }
 
+/**
+ * Converts a restricted subset of HTML to Markdown.
+ * Specifically handles tags found in Google Calendar events.
+ */
+export function htmlToMarkdown(html: string): string {
+  if (!html) return '';
+
+  let md = html;
+
+  // Normalize characters and entities first
+  md = md.replace(/’/g, "'");
+  md = md.replace(/–/g, "-");
+  md = md.replace(/\u00a0/g, ' ');
+  md = md.replace(/&amp;/gi, '&');
+
+  // Remove empty styling tags (handles nested tags like <b><u></u></b>)
+  let oldMd;
+  do {
+    oldMd = md;
+    md = md.replace(/<(b|strong|i|em|u|p)>\s*<\/\1>/gi, '');
+  } while (md !== oldMd);
+
+  // Handle specific pattern <strong>Title<br></strong> -> **Title** 
+  md = md.replace(/<strong>(.*?)<br\s*\/?>\s*<\/strong>/gi, '**$1** ');
+
+  // Replace headings
+  md = md.replace(/<h4>/gi, '#### ');
+  md = md.replace(/<\/h4>/gi, '\n\n');
+
+  // Replace paragraphs
+  md = md.replace(/<p>/gi, '');
+  md = md.replace(/<\/p>/gi, '\n\n');
+
+  // Replace strong
+  md = md.replace(/<strong>/gi, '**');
+  md = md.replace(/<\/strong>/gi, '**');
+
+  // Replace br
+  md = md.replace(/<br\s*\/?>/gi, '\n');
+
+  // Replace links
+  md = md.replace(/<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+
+  // Replace underline (remove)
+  md = md.replace(/<u>/gi, '');
+  md = md.replace(/<\/u>/gi, '');
+
+  // Replace emphasis/italic
+  md = md.replace(/<em>/gi, '*');
+  md = md.replace(/<\/em>/gi, '*');
+  md = md.replace(/<i>/gi, '*');
+  md = md.replace(/<\/i>/gi, '*');
+
+  // Replace bold
+  md = md.replace(/<b>/gi, '**');
+  md = md.replace(/<\/b>/gi, '**');
+
+  // Clean up multiple newlines
+  md = md.replace(/\n{3,}/g, '\n\n');
+
+  return md.trim();
+}
+
+/**
+ * Checks if a string looks like HTML.
+ */
+export function looksLikeHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
+}
+
 export { deepObjEq };
 
 // export function deepObjEq(obj1: Object, obj2: Object) {
