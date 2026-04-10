@@ -38,10 +38,17 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
   changed = output<string>();
   menuOpen = signal<boolean>(false);
   showDescriptions = signal<boolean>(false);
+  
+  linkPopupOpen = signal<boolean>(false);
+  linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
+  linkUrl = signal<string>('');
+  currentLinkRange = signal<{ from: number; to: number } | null>(null);
 
   @ViewChild('editorRef') editorRef!: ElementRef;
   private editor?: Editor;
   private isFirstLoad = true;
+  private lastTap = 0;
+  private tapCount = 0;
 
   constructor() {
     effect(() => {
@@ -55,6 +62,28 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.initEditor();
+    this.setupTapHandlers();
+  }
+  
+  private setupTapHandlers() {
+    const el = this.editorRef.nativeElement;
+    el.addEventListener('touchstart', (e: TouchEvent) => {
+      const now = Date.now();
+      if (now - this.lastTap < 300) {
+        this.tapCount++;
+      } else {
+        this.tapCount = 1;
+      }
+      this.lastTap = now;
+
+      if (this.tapCount === 2) {
+        this.selectWord();
+        e.preventDefault(); // Prevent default double tap zoom
+      } else if (this.tapCount === 3) {
+        this.selectLine();
+        e.preventDefault();
+      }
+    }, { passive: false });
   }
 
   ngOnDestroy() {
@@ -196,6 +225,149 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
       const view = ctx.get(editorViewCtx);
       const commands = ctx.get(commandsCtx);
       commands.call(liftListItemCommand.key);
+      view.focus();
+    });
+  }
+
+  toggleLink() {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { schema } = state;
+      const { link } = schema.marks;
+      
+      if (!link) return;
+
+      const { $from, $to } = state.selection;
+      
+      // Find if there is a link at the cursor
+      const mark = $from.marks().find(m => m.type.name === 'link');
+      
+      if (mark) {
+        const url = mark.attrs['href'];
+        this.linkUrl.set(url);
+        
+        // Find range
+        let $pos = $from;
+        let from = $pos.pos;
+        let to = $pos.pos;
+        while (from > 0 && mark.isInSet(state.doc.resolve(from - 1).marks())) from--;
+        while (to < state.doc.content.size && mark.isInSet(state.doc.resolve(to).marks())) to++;
+        
+        this.currentLinkRange.set({ from, to });
+        
+        // Get coordinates
+        const coords = view.coordsAtPos($from.pos);
+        
+        this.linkPopupPos.set({
+          top: coords.bottom + 8,
+          left: coords.left,
+        });
+        
+        this.linkPopupOpen.set(true);
+      } else {
+        // No link at cursor, use popup for new link (with or without selection)
+        this.linkUrl.set('');
+        this.currentLinkRange.set({ from: $from.pos, to: $to.pos });
+        
+        const coords = view.coordsAtPos($from.pos);
+        
+        this.linkPopupPos.set({
+          top: coords.bottom + 8,
+          left: coords.left,
+        });
+        
+        this.linkPopupOpen.set(true);
+      }
+      view.focus();
+    });
+  }
+
+  private selectWord() {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { $from } = state.selection;
+      const text = $from.parent.textContent;
+      const offset = $from.parentOffset;
+
+      let start = offset;
+      while (start > 0 && /\w/.test(text[start - 1])) start--;
+      let end = offset;
+      while (end < text.length && /\w/.test(text[end])) end++;
+
+      const posStart = $from.before() + 1 + start;
+      const posEnd = $from.before() + 1 + end;
+
+      const SelectionConstructor = state.selection.constructor as any;
+      const newSelection = SelectionConstructor.create(state.doc, posStart, posEnd);
+      
+      view.dispatch(state.tr.setSelection(newSelection));
+      view.focus();
+    });
+  }
+
+  private selectLine() {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { $from } = state.selection;
+      
+      // Select the whole parent block (paragraph, heading, etc.)
+      const start = $from.before();
+      const end = $from.after();
+
+      const SelectionConstructor = state.selection.constructor as any;
+      const newSelection = SelectionConstructor.create(state.doc, start, end);
+      
+      view.dispatch(state.tr.setSelection(newSelection));
+      view.focus();
+    });
+  }
+
+  updateLink(newUrl: string) {
+    if (!newUrl) {
+      this.linkPopupOpen.set(false);
+      return; // Do nothing if empty!
+    }
+
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { schema } = state;
+      const { link } = schema.marks;
+      const range = this.currentLinkRange();
+      
+      if (range && link) {
+        if (range.from === range.to) {
+          // Empty range! Insert text node with mark!
+          const node = schema.text(newUrl, [link.create({ href: newUrl })]);
+          view.dispatch(state.tr.insert(range.from, node));
+        } else {
+          // Non-empty range! Add mark!
+          const tr = state.tr
+            .removeMark(range.from, range.to, link)
+            .addMark(range.from, range.to, link.create({ href: newUrl }));
+          view.dispatch(tr);
+        }
+      }
+      this.linkPopupOpen.set(false);
+      view.focus();
+    });
+  }
+
+  removeLink() {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { schema } = state;
+      const { link } = schema.marks;
+      const range = this.currentLinkRange();
+      
+      if (range && link) {
+        view.dispatch(state.tr.removeMark(range.from, range.to, link));
+      }
+      this.linkPopupOpen.set(false);
       view.focus();
     });
   }

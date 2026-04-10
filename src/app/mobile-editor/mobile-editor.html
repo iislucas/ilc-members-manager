@@ -58,6 +58,10 @@
             <span class="menu-icon">&larr;</span>
             @if (showDescriptions()) { <span>Unindent</span> }
           </div>
+          <div class="menu-item" (click)="toggleLink(); menuOpen.set(false)">
+            <span class="menu-icon"><app-icon name="link" width="1.2em" height="1.2em"></app-icon></span>
+            @if (showDescriptions()) { <span>Link</span> }
+          </div>
         </div>
       }
     </div>
@@ -66,4 +70,17 @@
   <div class="editor-content-wrapper">
     <div class="editor-content" #editorRef></div>
   </div>
+
+  @if (linkPopupOpen()) {
+    <div class="link-popup" [style.top.px]="linkPopupPos().top">
+      <input #linkInput [value]="linkUrl()" (keyup.enter)="updateLink(linkInput.value)"/>
+      <button (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
+        <app-icon name="check" width="1em" height="1em"></app-icon>
+      </button>
+      <button (click)="removeLink()" class="icon-only-button" title="Remove Link">
+        <app-icon name="trash" width="1em" height="1em"></app-icon>
+      </button>
+    </div>
+    <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
+  }
 </div>
