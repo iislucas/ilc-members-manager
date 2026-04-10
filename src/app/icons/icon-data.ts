@@ -113,6 +113,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  format: {
+    viewbox: '0 0 24 24',
+    fill: '#5f6368',
+    html: `<path d="M5 4v3h5.5v12h3V7H19V4H5z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   refresh: {
     viewbox: '0 -960 960 960',
     fill: '#5f6368',

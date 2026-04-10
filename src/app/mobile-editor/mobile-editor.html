@@ -3,7 +3,7 @@
   <div class="sticky-menu-wrapper">
     <div class="menu-container top-right-menu">
       <button (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
-        <app-icon name="more_vert" width="1em" height="1em"></app-icon>
+        <app-icon name="format" width="1em" height="1em"></app-icon>
       </button>
       @if (menuOpen()) {
         <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
