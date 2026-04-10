@@ -72,7 +72,7 @@
   </div>
 
   @if (linkPopupOpen()) {
-    <div class="link-popup" [style.top.px]="linkPopupPos().top">
+    <div class="link-popup" [style.top.px]="linkPopupPos().top" [style.left.px]="linkPopupPos().left">
       <input #linkInput [value]="linkUrl()" (keyup.enter)="updateLink(linkInput.value)"/>
       <button (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
         <app-icon name="check" width="1em" height="1em"></app-icon>
@@ -82,5 +82,16 @@
       </button>
     </div>
     <div class="menu-overlay" (click)="linkPopupOpen.set(false)"></div>
+  }
+
+  @if (linkPreviewOpen()) {
+    <div class="link-preview" [style.top.px]="linkPreviewPos().top" [style.left.px]="linkPreviewPos().left">
+      <span (click)="openLink()" class="preview-text">🔗 Open: {{ truncatedUrl() }}</span>
+      <div class="preview-actions">
+        <button (click)="toggleLink()" class="icon-only-button" title="Edit Link">
+          <app-icon name="edit" width="1em" height="1em"></app-icon>
+        </button>
+      </div>
+    </div>
   }
 </div>

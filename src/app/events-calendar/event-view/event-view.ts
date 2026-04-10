@@ -15,11 +15,12 @@ import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'fi
 import { FIREBASE_APP } from '../../app.config';
 import { IlcEvent } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
+import { MarkdownViewer } from '../../mobile-editor/markdown-viewer';
 
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [DatePipe, IconComponent, SpinnerComponent],
+  imports: [DatePipe, IconComponent, SpinnerComponent, MarkdownViewer],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })
@@ -36,19 +37,6 @@ export class EventViewComponent implements OnInit {
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
 
-  renderedDescription = computed(() => {
-    const ev = this.event();
-    if (!ev) return '';
-    if (ev.descriptionMarkdown) {
-      try {
-        return marked.parse(ev.descriptionMarkdown) as string;
-      } catch (e) {
-        console.error('Failed to parse markdown:', e);
-        return ev.descriptionMarkdown;
-      }
-    }
-    return ev.description;
-  });
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();

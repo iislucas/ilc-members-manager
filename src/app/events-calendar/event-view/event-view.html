@@ -52,8 +52,7 @@
 
       <div class="event-body">
         <div class="description-section">
-          <h2>About this Event</h2>
-          <div class="description-content" [innerHTML]="renderedDescription()"></div>
+          <app-markdown-viewer [markdown]="ev.descriptionMarkdown || ev.description || ''"></app-markdown-viewer>
         </div>
         
         <div class="actions-section">

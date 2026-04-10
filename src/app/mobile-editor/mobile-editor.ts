@@ -18,7 +18,7 @@
      as a library in the broader project.
 */
 
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal, computed } from '@angular/core';
 import { Editor, rootCtx, commandsCtx, defaultValueCtx, editorViewCtx, parserCtx } from '@milkdown/core';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, sinkListItemCommand, liftListItemCommand } from '@milkdown/preset-commonmark';
 import { history, undoCommand, redoCommand } from '@milkdown/plugin-history';
@@ -43,6 +43,17 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
   linkUrl = signal<string>('');
   currentLinkRange = signal<{ from: number; to: number } | null>(null);
+  
+  linkPreviewOpen = signal<boolean>(false);
+  linkPreviewPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
+  linkPreviewUrl = signal<string>('');
+  
+  truncatedUrl = computed(() => {
+    const url = this.linkPreviewUrl();
+    if (!url) return '';
+    if (url.length <= 40) return url;
+    return url.substring(0, 20) + '...' + url.substring(url.length - 15);
+  });
 
   @ViewChild('editorRef') editorRef!: ElementRef;
   private editor?: Editor;
@@ -63,6 +74,7 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     this.initEditor();
     this.setupTapHandlers();
+    this.setupLinkPreview();
   }
   
   private setupTapHandlers() {
@@ -258,12 +270,21 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
         
         // Get coordinates
         const coords = view.coordsAtPos($from.pos);
+        let left = coords.left;
+        const estimatedWidth = 320; // Approx width of popup
+        const viewportWidth = window.innerWidth;
+        
+        if (left + estimatedWidth > viewportWidth - 16) {
+          left = viewportWidth - estimatedWidth - 16;
+        }
+        if (left < 16) left = 16;
         
         this.linkPopupPos.set({
           top: coords.bottom + 8,
-          left: coords.left,
+          left: left,
         });
         
+        this.linkPreviewOpen.set(false);
         this.linkPopupOpen.set(true);
       } else {
         // No link at cursor, use popup for new link (with or without selection)
@@ -271,12 +292,21 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
         this.currentLinkRange.set({ from: $from.pos, to: $to.pos });
         
         const coords = view.coordsAtPos($from.pos);
+        let left = coords.left;
+        const estimatedWidth = 320;
+        const viewportWidth = window.innerWidth;
+        
+        if (left + estimatedWidth > viewportWidth - 16) {
+          left = viewportWidth - estimatedWidth - 16;
+        }
+        if (left < 16) left = 16;
         
         this.linkPopupPos.set({
           top: coords.bottom + 8,
-          left: coords.left,
+          left: left,
         });
         
+        this.linkPreviewOpen.set(false);
         this.linkPopupOpen.set(true);
       }
       view.focus();
@@ -368,7 +398,67 @@ export class MobileEditor implements AfterViewInit, OnDestroy {
         view.dispatch(state.tr.removeMark(range.from, range.to, link));
       }
       this.linkPopupOpen.set(false);
+      this.linkPreviewOpen.set(false);
       view.focus();
     });
+  }
+
+  private setupLinkPreview() {
+    const el = this.editorRef.nativeElement;
+    const checkLink = () => {
+      // Wait for ProseMirror to update selection after click/keyup!
+      setTimeout(() => {
+        this.editor?.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          const { state } = view;
+          const { $from } = state.selection;
+          const mark = $from.marks().find(m => m.type.name === 'link');
+          
+          if (mark) {
+            const url = mark.attrs['href'];
+            this.linkPreviewUrl.set(url);
+            
+            // Find range for remove/edit actions!
+            let $pos = $from;
+            let from = $pos.pos;
+            let to = $pos.pos;
+            while (from > 0 && mark.isInSet(state.doc.resolve(from - 1).marks())) from--;
+            while (to < state.doc.content.size && mark.isInSet(state.doc.resolve(to).marks())) to++;
+            
+            this.currentLinkRange.set({ from, to });
+            
+            const coords = view.coordsAtPos($from.pos);
+            let left = coords.left;
+            const estimatedWidth = 200; // Approx width of preview
+            const viewportWidth = window.innerWidth;
+            
+            if (left + estimatedWidth > viewportWidth - 16) {
+              left = viewportWidth - estimatedWidth - 16;
+            }
+            if (left < 16) left = 16;
+            
+            this.linkPreviewPos.set({
+              top: coords.bottom + 8,
+              left: left,
+            });
+            this.linkPreviewOpen.set(true);
+          } else {
+            this.linkPreviewOpen.set(false);
+          }
+        });
+      }, 0);
+    };
+    
+    el.addEventListener('click', checkLink);
+    el.addEventListener('keyup', checkLink);
+    el.addEventListener('touchstart', checkLink);
+  }
+
+  openLink() {
+    const url = this.linkPreviewUrl();
+    if (url) {
+      window.open(url, '_blank');
+    }
+    this.linkPreviewOpen.set(false);
   }
 }
