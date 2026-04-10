@@ -73,6 +73,18 @@
       textarea {
         min-height: 100px;
       }
+
+      .description-container {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: white;
+        padding: 0;
+        
+        app-mobile-editor {
+          display: block;
+          width: 100%;
+        }
+      }
     }
 
     .leading-instructor-name {

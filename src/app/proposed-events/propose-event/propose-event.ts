@@ -10,11 +10,12 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData } from '../../../../functions/src/data-model';
 import { AutocompleteComponent } from '../../autocomplete/autocomplete';
+import { MobileEditor } from '../../mobile-editor/mobile-editor';
 
 @Component({
   selector: 'app-propose-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MobileEditor],
   templateUrl: './propose-event.html',
   styleUrl: './propose-event.scss'
 })
@@ -69,6 +70,11 @@ export class ProposeEventComponent {
 
   updateLeadingInstructorId(id: string) {
     this.eventModel.update(m => ({ ...m, leadingInstructorId: id }));
+    this.proposeForm().dirty();
+  }
+
+  onDescriptionChanged(val: string) {
+    this.eventModel.update(m => ({ ...m, description: val }));
     this.proposeForm().dirty();
   }
 

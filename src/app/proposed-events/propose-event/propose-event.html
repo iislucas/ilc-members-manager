@@ -86,11 +86,12 @@
 
     <div class="input-field">
       <label for="description">Description</label>
-      <textarea
-        id="description"
-        [formField]="proposeForm.description"
-        placeholder="Event Description"
-      ></textarea>
+      <div class="description-container">
+        <app-mobile-editor
+          [initialValue]="eventModel().description"
+          (changed)="onDescriptionChanged($event)"
+        ></app-mobile-editor>
+      </div>
     </div>
 
     @if (errorMessage(); as msg) {
