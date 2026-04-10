@@ -113,7 +113,7 @@
 
 .actions-section {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   border-top: 1px solid #eaeaea;
   padding-top: 1.5rem;
 
@@ -125,28 +125,25 @@
     border-radius: 8px;
     font-weight: 600;
     text-decoration: none;
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease;
+    transition: background 0.2s ease;
     cursor: pointer;
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: #eee;
     }
   }
 
   .primary-action {
-    background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%);
-    color: white;
-    box-shadow: 0 2px 8px rgba(123, 31, 162, 0.2);
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ccc;
 
     app-icon {
-      color: white;
+      color: #555;
+    }
+
+    &:hover {
+      background: #e0e0e0;
     }
   }
 }
