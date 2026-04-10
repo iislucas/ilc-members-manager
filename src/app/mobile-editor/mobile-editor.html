@@ -1,8 +1,6 @@
 <div class="mobile-editor-container">
-  <div class="editor-content-wrapper">
-    <div class="editor-content" #editorRef></div>
-    
-    <!-- Dropdown Menu for Formatting -->
+  <!-- Dropdown Menu for Formatting -->
+  <div class="sticky-menu-wrapper">
     <div class="menu-container top-right-menu">
       <button (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
         <app-icon name="more_vert" width="1em" height="1em"></app-icon>
@@ -63,5 +61,9 @@
         </div>
       }
     </div>
+  </div>
+
+  <div class="editor-content-wrapper">
+    <div class="editor-content" #editorRef></div>
   </div>
 </div>

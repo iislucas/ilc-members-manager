@@ -52,3 +52,25 @@
   color: #155724;
   font-size: 0.9em;
 }
+
+.description-label {
+  grid-column: 1 / -1;
+  text-align: left !important;
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-top: 0.5em;
+  padding-left: 0.5em;
+}
+
+.description-container {
+  grid-column: 1 / -1;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  padding: 0;
+  
+  app-mobile-editor {
+    display: block;
+    width: 100%;
+  }
+}

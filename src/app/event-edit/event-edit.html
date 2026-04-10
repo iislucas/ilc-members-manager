@@ -50,8 +50,8 @@
           <input type="text" id="event-location" [formField]="form.location" />
         </div>
 
-        <label for="event-description" class="align-top">Description</label>
-        <div class="rhs">
+        <label for="event-description" class="description-label">Description</label>
+        <div class="description-container">
           <app-mobile-editor
             [initialValue]="eventFormModel().description"
             (changed)="onDescriptionChanged($event)"
