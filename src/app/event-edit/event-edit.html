@@ -52,11 +52,10 @@
 
         <label for="event-description" class="align-top">Description</label>
         <div class="rhs">
-          <div
-            id="event-description"
-            #editorContainer
-            class="milkdown-editor-container"
-          ></div>
+          <app-mobile-editor
+            [initialValue]="eventFormModel().description"
+            (changed)="onDescriptionChanged($event)"
+          ></app-mobile-editor>
         </div>
       </div>
 

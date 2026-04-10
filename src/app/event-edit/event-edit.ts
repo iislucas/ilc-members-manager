@@ -29,7 +29,7 @@ import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/d
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
-import { Crepe } from '@milkdown/crepe';
+import { MobileEditor } from '../mobile-editor/mobile-editor';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
@@ -60,21 +60,13 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventEditComponent implements OnInit {
-  private _editorContainer!: ElementRef;
-  private crepeInstance: Crepe | undefined;
 
-  @ViewChild('editorContainer') set editorContainer(el: ElementRef) {
-    if (el && !this.crepeInstance) {
-      this._editorContainer = el;
-      this.initMilkdown(el.nativeElement);
-    }
-  }
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
@@ -270,28 +262,7 @@ export class EventEditComponent implements OnInit {
     }
   }
 
-  private initMilkdown(element: HTMLElement) {
-    element.style.setProperty('--crepe-max-width', '100%');
-    element.style.setProperty('--crepe-padding-top', '20px');
-    element.style.setProperty('--crepe-padding-bottom', '20px');
-
-    const crepe = new Crepe({
-      root: element,
-      defaultValue: this.eventFormModel().description,
-    });
-
-    crepe.on((listener) => {
-      listener.markdownUpdated((ctx, markdown) => {
-        this.eventFormModel.update((m) => ({ ...m, description: markdown }));
-      });
-    });
-
-    crepe.create()
-      .then(() => {
-        this.crepeInstance = crepe;
-      })
-      .catch((error) => {
-        console.error('Failed to initialize Milkdown Crepe:', error);
-      });
+  onDescriptionChanged(markdown: string) {
+    this.eventFormModel.update((m) => ({ ...m, description: markdown }));
   }
 }
