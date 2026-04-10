@@ -1,3 +1,5 @@
+@use 'markdown-styles' as *;
+
 :host {
   display: block;
   height: 100%;
@@ -6,7 +8,7 @@
 
 .mobile-editor-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse; /* Move toolbar to bottom by default */
   height: 100%;
   width: 100%;
 }
@@ -16,7 +18,7 @@
   gap: 8px;
   padding: 8px;
   background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
+  border-top: 1px solid #ddd; /* Border on top since it's at bottom */
   overflow-x: auto; /* Allow horizontal scrolling on mobile */
   white-space: nowrap;
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -51,47 +53,8 @@
   
   /* Override Milkdown default padding and add basic markdown styles */
   ::ng-deep .ProseMirror {
-    padding: 12px !important; /* Added some padding for readability */
     outline: none;
     
-    ul {
-      list-style-type: disc !important;
-      padding-left: 24px !important;
-      margin: 8px 0 !important;
-    }
-    
-    ol {
-      list-style-type: decimal !important;
-      padding-left: 24px !important;
-      margin: 8px 0 !important;
-    }
-    
-    li {
-      display: list-item !important;
-      margin: 4px 0 !important;
-    }
-    
-    h1 { font-size: 1.8em; margin: 0.67em 0; font-weight: bold; }
-    h2 { font-size: 1.5em; margin: 0.83em 0; font-weight: bold; }
-    h3 { font-size: 1.2em; margin: 1em 0; font-weight: bold; }
-    
-    p { margin: 8px 0; }
-    
-    strong { font-weight: bold; }
-    em { font-style: italic; }
-  }
-}
-
-/* Mobile scroll handling when keyboard is active */
-@media (max-height: 500px) {
-  .toolbar {
-    position: sticky;
-    bottom: 0;
-    border-bottom: none;
-    border-top: 1px solid #ddd;
-  }
-  
-  .mobile-editor-container {
-    flex-direction: column-reverse;
+    @include markdown-display-styles;
   }
 }

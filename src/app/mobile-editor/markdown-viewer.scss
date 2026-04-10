@@ -1,0 +1,15 @@
+@use 'markdown-styles' as *;
+
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.markdown-viewer {
+  /* Use ng-deep to style content inserted via innerHTML */
+  ::ng-deep {
+    @include markdown-display-styles;
+  }
+}

@@ -8,26 +8,152 @@
     <link rel="stylesheet" href="../dist/mobile-editor-wc/browser/styles.css">
     <style>
         body { font-family: sans-serif; padding: 0; margin: 0; background: #f9f9f9; }
-        h1 { color: #333; padding: 10px; margin: 0; font-size: 1.5rem; }
+        
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        h1 { color: #333; margin: 0; font-size: 1.5rem; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }
+        
+        .btn:hover { background: #f0f0f0; }
+        
+        .split-view {
+            display: flex;
+            flex-direction: row;
+            height: 75vh;
+            border-top: 1px solid #ddd;
+        }
+        
+        .pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .pane + .pane {
+            border-left: 1px solid #ddd;
+        }
+        
+        .pane-header {
+            background: #eee;
+            padding: 8px;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        app-mobile-editor, app-markdown-viewer {
+            display: block;
+            background: white;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
         .output-box { padding: 10px; }
         pre { background: #2d2d2d; color: #ccc; padding: 15px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
-        /* Ensure the custom element has a height */
-        app-mobile-editor {
+        
+        /* Checkered Grid Overlay */
+        .debug-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            background-image: 
+                linear-gradient(45deg, rgba(0, 0, 0, 0.03) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(0, 0, 0, 0.03) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.03) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.03) 75%);
+            background-size: 40px 40px;
+            background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+        }
+        
+        .debug-grid.active {
             display: block;
-            border: 1px solid #ddd;
-            background: white;
-            height: 50vh;
+        }
+        
+        /* Baseline Grid (Horizontal lines) */
+        .baseline-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 9998;
+            display: none;
+            background-image: linear-gradient(rgba(255, 0, 0, 0.1) 1px, transparent 1px);
+            background-size: 100% 24px; /* Match line-height */
+        }
+        
+        .baseline-grid.active {
+            display: block;
+        }
+        
+        /* Mobile view */
+        @media (max-width: 768px) {
+            .split-view {
+                flex-direction: column;
+                height: auto;
+            }
+            .pane + .pane {
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
+            app-mobile-editor, app-markdown-viewer {
+                height: 40vh;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Mobile Editor Test (Angular Web Component)</h1>
+    <div class="header-bar">
+        <h1>Mobile Editor Test (Angular Web Component)</h1>
+        <div class="controls">
+            <button id="toggle-grid" class="btn">Toggle Checkered Grid</button>
+            <button id="toggle-baseline" class="btn">Toggle 24px Baseline</button>
+        </div>
+    </div>
     
-    <!-- The Web Component -->
-    <app-mobile-editor id="my-editor"></app-mobile-editor>
+    <!-- Debug Grids -->
+    <div id="grid-overlay" class="debug-grid"></div>
+    <div id="baseline-overlay" class="baseline-grid"></div>
+    
+    <div class="split-view">
+        <div class="pane">
+            <div class="pane-header">Editor</div>
+            <app-mobile-editor id="my-editor"></app-mobile-editor>
+        </div>
+        <div class="pane">
+            <div class="pane-header">Viewer (Marked)</div>
+            <app-markdown-viewer id="my-viewer"></app-markdown-viewer>
+        </div>
+    </div>
 
     <div class="output-box">
-        <h3>Final Markdown Output:</h3>
+        <h3>Raw Markdown Output:</h3>
         <pre id="markdown-output">Waiting for changes...</pre>
     </div>
 
@@ -35,13 +161,32 @@
     <script type="module" src="../dist/mobile-editor-wc/browser/main.js"></script>
     
     <script>
-        // Wait for the element to be defined
-        customElements.whenDefined('app-mobile-editor').then(() => {
+        // Wait for the elements to be defined
+        Promise.all([
+            customElements.whenDefined('app-mobile-editor'),
+            customElements.whenDefined('app-markdown-viewer')
+        ]).then(() => {
             const editor = document.getElementById('my-editor');
+            const viewer = document.getElementById('my-viewer');
             const output = document.getElementById('markdown-output');
             
-            // Set initial value
-            editor.initialValue = `# Mobile Editor Test
+            const gridBtn = document.getElementById('toggle-grid');
+            const baselineBtn = document.getElementById('toggle-baseline');
+            const gridOverlay = document.getElementById('grid-overlay');
+            const baselineOverlay = document.getElementById('baseline-overlay');
+            
+            // Toggle logic
+            gridBtn.addEventListener('click', () => {
+                gridOverlay.classList.toggle('active');
+                gridBtn.textContent = gridOverlay.classList.contains('active') ? 'Hide Checkered Grid' : 'Show Checkered Grid';
+            });
+            
+            baselineBtn.addEventListener('click', () => {
+                baselineOverlay.classList.toggle('active');
+                baselineBtn.textContent = baselineOverlay.classList.contains('active') ? 'Hide Baseline' : 'Show Baseline';
+            });
+            
+            const initialText = `# Mobile Editor Test
 
 This is a **Milkdown** editor running as an Angular Web Component.
 
@@ -56,11 +201,17 @@ This is a **Milkdown** editor running as an Angular Web Component.
 3. See the output below
 
 Enjoy editing!`;
+
+            // Set initial value
+            editor.initialValue = initialText;
+            viewer.markdown = initialText;
             
             // Listen for changes
             editor.addEventListener('changed', (event) => {
                 console.log('Changed event:', event);
-                output.textContent = event.detail;
+                const markdown = event.detail;
+                output.textContent = markdown;
+                viewer.markdown = markdown;
             });
         });
     </script>

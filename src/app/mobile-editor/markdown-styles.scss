@@ -1,0 +1,64 @@
+@mixin markdown-display-styles {
+  font-family: sans-serif !important; /* Consolidate font */
+  padding: 12px !important; /* Shared padding */
+  
+  ul {
+    list-style-type: disc !important;
+    padding-left: 24px !important;
+    margin: 8px 0 !important;
+  }
+  
+  ol {
+    list-style-type: decimal !important;
+    padding-left: 24px !important;
+    margin: 8px 0 !important;
+  }
+  
+  li {
+    display: list-item !important;
+    margin: 4px 0 !important;
+    padding: 0 !important;
+    line-height: 1.5 !important; /* Consolidated line spacing */
+    
+    /* Reset margin for paragraphs inside list items to prevent double spacing */
+    p {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  }
+  
+  h1 { 
+    font-size: 1.8em !important; 
+    margin: 0.67em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important; /* Consolidated line spacing */
+  }
+  h2 { 
+    font-size: 1.5em !important; 
+    margin: 0.83em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important;
+  }
+  h3 { 
+    font-size: 1.2em !important; 
+    margin: 1em 0 !important; 
+    font-weight: bold !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.2 !important;
+  }
+  
+  p { 
+    margin: 8px 0 !important; 
+    padding: 0 !important;
+    font-family: sans-serif !important;
+    line-height: 1.5 !important; /* Consolidated line spacing */
+  }
+  
+  strong { font-weight: bold !important; }
+  em { font-style: italic !important; }
+}
