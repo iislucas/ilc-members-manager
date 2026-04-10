@@ -1,15 +1,67 @@
 <div class="mobile-editor-container">
-  <div class="toolbar">
-    <button (click)="toggleBold()" aria-label="Bold">B</button>
-    <button (click)="toggleItalic()" aria-label="Italic">I</button>
-    <button (click)="wrapInHeading(1)" aria-label="H1">H1</button>
-    <button (click)="wrapInHeading(2)" aria-label="H2">H2</button>
-    <button (click)="wrapInHeading(3)" aria-label="H3">H3</button>
-    <button (click)="toggleBulletList()" aria-label="Bullet List">•</button>
-    <button (click)="unindent()" aria-label="Un-indent">⬅</button>
-    <button (click)="indent()" aria-label="Indent">➡</button>
-    <button (click)="undo()" aria-label="Undo">↶</button>
-    <button (click)="redo()" aria-label="Redo">↷</button>
+  <div class="editor-content-wrapper">
+    <div class="editor-content" #editorRef></div>
+    
+    <!-- Dropdown Menu for Formatting -->
+    <div class="menu-container top-right-menu">
+      <button (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
+        <app-icon name="more_vert" width="1em" height="1em"></app-icon>
+      </button>
+      @if (menuOpen()) {
+        <div class="menu-overlay" (click)="menuOpen.set(false)"></div>
+        <div class="menu" [class.collapsed]="!showDescriptions()">
+          <!-- Menu Header with Info Button -->
+          <div class="menu-header">
+            @if (showDescriptions()) {
+              <span class="menu-title">Actions</span>
+            }
+            <button (click)="showDescriptions.set(!showDescriptions()); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
+              <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
+            </button>
+          </div>
+          
+          <div class="menu-item" (click)="undo(); menuOpen.set(false)">
+            <span class="menu-icon">⎌</span>
+            @if (showDescriptions()) { <span>Undo</span> }
+          </div>
+          <div class="menu-item" (click)="redo(); menuOpen.set(false)">
+            <span class="menu-icon redo-icon">⎌</span>
+            @if (showDescriptions()) { <span>Redo</span> }
+          </div>
+          <div class="menu-item" (click)="toggleBold(); menuOpen.set(false)">
+            <span class="menu-icon">B</span>
+            @if (showDescriptions()) { <span>Bold</span> }
+          </div>
+          <div class="menu-item" (click)="toggleItalic(); menuOpen.set(false)">
+            <span class="menu-icon">I</span>
+            @if (showDescriptions()) { <span>Italic</span> }
+          </div>
+          <div class="menu-item" (click)="wrapInHeading(1); menuOpen.set(false)">
+            <span class="menu-icon">H1</span>
+            @if (showDescriptions()) { <span>Heading 1</span> }
+          </div>
+          <div class="menu-item" (click)="wrapInHeading(2); menuOpen.set(false)">
+            <span class="menu-icon">H2</span>
+            @if (showDescriptions()) { <span>Heading 2</span> }
+          </div>
+          <div class="menu-item" (click)="wrapInHeading(3); menuOpen.set(false)">
+            <span class="menu-icon">H3</span>
+            @if (showDescriptions()) { <span>Heading 3</span> }
+          </div>
+          <div class="menu-item" (click)="toggleBulletList(); menuOpen.set(false)">
+            <span class="menu-icon">&bull;</span>
+            @if (showDescriptions()) { <span>Bullet List</span> }
+          </div>
+          <div class="menu-item" (click)="indent(); menuOpen.set(false)">
+            <span class="menu-icon">&rarr;</span>
+            @if (showDescriptions()) { <span>Indent</span> }
+          </div>
+          <div class="menu-item" (click)="unindent(); menuOpen.set(false)">
+            <span class="menu-icon">&larr;</span>
+            @if (showDescriptions()) { <span>Unindent</span> }
+          </div>
+        </div>
+      }
+    </div>
   </div>
-  <div #editorRef class="editor-content"></div>
 </div>

@@ -18,16 +18,17 @@
      as a library in the broader project.
 */
 
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, input, output, effect, signal } from '@angular/core';
 import { Editor, rootCtx, commandsCtx, defaultValueCtx, editorViewCtx, parserCtx } from '@milkdown/core';
 import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCommand, wrapInBulletListCommand, sinkListItemCommand, liftListItemCommand } from '@milkdown/preset-commonmark';
 import { history, undoCommand, redoCommand } from '@milkdown/plugin-history';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { indent as indentPlugin } from '@milkdown/plugin-indent';
+import { IconComponent } from '../icons/icon.component';
 
 @Component({
   selector: 'app-mobile-editor',
-  imports: [],
+  imports: [IconComponent],
   templateUrl: './mobile-editor.html',
   styleUrl: './mobile-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +36,8 @@ import { indent as indentPlugin } from '@milkdown/plugin-indent';
 export class MobileEditor implements AfterViewInit, OnDestroy {
   initialValue = input<string>('');
   changed = output<string>();
+  menuOpen = signal<boolean>(false);
+  showDescriptions = signal<boolean>(false);
 
   @ViewChild('editorRef') editorRef!: ElementRef;
   private editor?: Editor;
