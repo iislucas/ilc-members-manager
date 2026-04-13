@@ -145,43 +145,42 @@
         }
       </div>
 
-      <div class="form-actions">
-        <div class="left-actions">
-          <a
-            class="subtle-button"
-            [href]="routingService.hrefWithParams(backUrl())"
-          >
-            <app-icon name="arrow_back" /> Back
-          </a>
-          @if (canDelete()) {
-            <button
-              type="button"
-              class="subtle-button"
-              (click)="deleteEvent()"
-              style="color: #d9534f"
-            >
-              <app-icon name="trash" /> Delete
-            </button>
-          }
-        </div>
-        <div class="right-actions">
-          @if (errorMessage()) {
-            <span class="error-message">{{ errorMessage() }}</span>
-          }
-          @if (successMessage()) {
-            <span class="success-message">{{ successMessage() }}</span>
-          }
-          @if (isSaving()) {
-            <app-spinner></app-spinner>
-          }
+      <div class="custom-actions-container">
+        <button
+          type="submit"
+          class="button"
+          [disabled]="isSaving() || !isDirty()"
+        >
+          Save Changes
+        </button>
+        @if (errorMessage()) {
+          <span class="error-message">{{ errorMessage() }}</span>
+        }
+        @if (successMessage()) {
+          <span class="success-message">{{ successMessage() }}</span>
+        }
+        @if (isSaving()) {
+          <app-spinner></app-spinner>
+        }
+        @if (canDelete()) {
+          <div class="flex-spacer"></div>
           <button
-            type="submit"
-            class="button"
-            [disabled]="isSaving() || !isDirty()"
+            type="button"
+            class="subtle-button"
+            (click)="deleteEvent()"
+            style="color: #d9534f"
           >
-            Save Changes
+            <app-icon name="trash" /> Delete
           </button>
-        </div>
+        }
+      </div>
+      <div style="margin-top: 1em; padding-bottom: 1em;">
+        <a
+          class="subtle-button"
+          [href]="routingService.hrefWithParams(backUrl())"
+        >
+          <app-icon name="arrow_back" /> Back
+        </a>
       </div>
     </form>
   </div>
