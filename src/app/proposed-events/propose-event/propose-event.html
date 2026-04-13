@@ -85,17 +85,30 @@
     </div>
 
     <div class="input-field">
-      <label for="hero-image">Hero Image</label>
+      <label>Hero Image</label>
       <div class="rhs">
-        @if (imagePreviewUrl()) {
-          <div class="hero-image-preview" style="margin-bottom: 10px; display: flex; align-items: center;">
-            <img [src]="imagePreviewUrl()" alt="Hero Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" />
-            <button type="button" class="subtle-button" (click)="removeHeroImage()" style="margin-left: 10px;">
-              <app-icon name="close" /> Remove
+        @if (showImageUploader()) {
+          <app-image-upload-preview
+            (imageCropped)="onImageCropped($event)"
+          />
+          @if (imagePreviewUrl()) {
+            <button type="button" class="subtle-button" (click)="showImageUploader.set(false)" style="margin-top: 10px;">
+              Cancel
             </button>
+          }
+        } @else {
+          <div class="hero-image-preview" style="position: relative; display: inline-block;">
+            <img [src]="imagePreviewUrl()" alt="Hero Image" style="max-width: 100%; max-height: 200px; border-radius: 8px;" />
+            <div class="image-actions" style="position: absolute; top: 10px; right: 10px; display: flex; gap: 5px;">
+              <button type="button" class="subtle-button" (click)="showImageUploader.set(true)" title="Edit Crop">
+                <app-icon name="edit" />
+              </button>
+              <button type="button" class="subtle-button" (click)="removeHeroImage()" title="Remove Image">
+                <app-icon name="close" />
+              </button>
+            </div>
           </div>
         }
-        <input type="file" id="hero-image" (change)="onHeroImageSelected($event)" accept="image/*" />
         @if (isUploadingImage()) {
           <app-spinner>Uploading...</app-spinner>
         }

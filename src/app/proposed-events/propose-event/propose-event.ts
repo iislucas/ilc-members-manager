@@ -11,13 +11,14 @@ import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData } from '../../../../functions/src/data-model';
 import { AutocompleteComponent } from '../../autocomplete/autocomplete';
 import { MobileEditor } from '../../mobile-editor/mobile-editor';
+import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 @Component({
   selector: 'app-propose-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MobileEditor],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MobileEditor, ImageUploadPreviewComponent],
   templateUrl: './propose-event.html',
   styleUrl: './propose-event.scss'
 })
@@ -31,6 +32,9 @@ export class ProposeEventComponent {
   isUploadingImage = signal(false);
   selectedImageFile = signal<File | null>(null);
   imagePreviewUrl = signal<string | null>(null);
+  croppedThumbBlob = signal<Blob | null>(null);
+  croppedLargeBlob = signal<Blob | null>(null);
+  showImageUploader = signal(true);
 
   constructor() {
     window.scrollTo(0, 0);
@@ -84,19 +88,23 @@ export class ProposeEventComponent {
     this.proposeForm().dirty();
   }
 
-  onHeroImageSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-
-    const file = input.files[0];
-    this.selectedImageFile.set(file);
-    this.imagePreviewUrl.set(URL.createObjectURL(file));
+  onImageCropped(event: { thumbBlob: Blob, largeBlob: Blob, originalFile?: File }) {
+    this.croppedThumbBlob.set(event.thumbBlob);
+    this.croppedLargeBlob.set(event.largeBlob);
+    if (event.originalFile) {
+      this.selectedImageFile.set(event.originalFile);
+    }
+    this.imagePreviewUrl.set(URL.createObjectURL(event.largeBlob));
+    this.showImageUploader.set(false);
     this.proposeForm().dirty();
   }
 
   removeHeroImage() {
+    this.croppedThumbBlob.set(null);
+    this.croppedLargeBlob.set(null);
     this.selectedImageFile.set(null);
     this.imagePreviewUrl.set(null);
+    this.showImageUploader.set(true);
     this.proposeForm().dirty();
   }
 
@@ -121,19 +129,41 @@ export class ProposeEventComponent {
 
       if (result.data.success) {
         const docId = result.data.docId;
-        const file = this.selectedImageFile();
+        const thumbBlob = this.croppedThumbBlob();
+        const largeBlob = this.croppedLargeBlob();
+        const originalFile = this.selectedImageFile();
         
-        if (file) {
+        if (thumbBlob && largeBlob) {
           this.isUploadingImage.set(true);
           try {
             const storage = getStorage(this.firebaseApp);
-            const storageRef = ref(storage, `events/${docId}/heroImage`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
+            
+            // Upload Large (600x400)
+            const largeRef = ref(storage, `events/${docId}/images/heroImage_large`);
+            await uploadBytes(largeRef, largeBlob);
+            const largeUrl = await getDownloadURL(largeRef);
+
+            // Upload Thumb (120x80)
+            const thumbRef = ref(storage, `events/${docId}/images/heroImage_thumb`);
+            await uploadBytes(thumbRef, thumbBlob);
+            const thumbUrl = await getDownloadURL(thumbRef);
+
+            // Upload Original (if present)
+            let originalUrl = '';
+            if (originalFile) {
+              const originalRef = ref(storage, `events/${docId}/images/heroImage_original`);
+              await uploadBytes(originalRef, originalFile);
+              originalUrl = await getDownloadURL(originalRef);
+            }
             
             const db = getFirestore(this.firebaseApp);
             const docRef = doc(db, 'events', docId);
-            await updateDoc(docRef, { heroImageUrl: url });
+            await updateDoc(docRef, { 
+              heroImageUrl: largeUrl,
+              heroImageLargeUrl: largeUrl,
+              heroImageThumbUrl: thumbUrl,
+              heroImageOriginalUrl: originalUrl
+            });
           } catch (uploadError) {
             console.error('Error uploading image after proposal:', uploadError);
             this.errorMessage.set('Event proposed, but image upload failed.');
@@ -154,6 +184,9 @@ export class ProposeEventComponent {
         });
         this.selectedImageFile.set(null);
         this.imagePreviewUrl.set(null);
+        this.croppedThumbBlob.set(null);
+        this.croppedLargeBlob.set(null);
+        this.showImageUploader.set(true);
         localStorage.removeItem('proposeEventFormData');
       }
     } catch (error: any) {
