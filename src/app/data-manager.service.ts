@@ -48,6 +48,7 @@ import {
   SquareSpaceOrder,
   SquareSpaceLineItem,
   IlcEvent,
+  initEvent,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -97,6 +98,22 @@ export type OrderSearchCriteriaDateRange = {
 
 export type OrderSearchCriteria = OrderSearchCriteriaTerm | OrderSearchCriteriaDateRange;
 
+export type EventSearchCriteriaTerm = {
+  kind: 'term';
+  searchField: 'title' | 'location' | 'ownerEmail' | 'leadingInstructorId';
+  term: string;
+  statusFilter?: string;
+};
+
+export type EventSearchCriteriaDateRange = {
+  kind: 'date';
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  statusFilter?: string;
+};
+
+export type EventSearchCriteria = EventSearchCriteriaTerm | EventSearchCriteriaDateRange;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -108,6 +125,7 @@ export class DataManagerService {
   private membersCollection = collection(this.db, 'members');
   private instructorsPublicCollection = collection(this.db, 'instructors');
   private ordersCollection = collection(this.db, 'orders');
+  private eventsCollection = collection(this.db, 'events');
   private snapshotsToUnsubscribe: (() => void)[] = [];
   loadingState = linkedSignal<DataServiceState>(() => {
     if (
@@ -497,6 +515,67 @@ export class DataManagerService {
     return [];
   }
 
+  async getRecentEvents(limitCount: number = 100, status?: string): Promise<IlcEvent[]> {
+    try {
+      let q = query(
+        this.eventsCollection,
+        orderBy('lastUpdated', 'desc'),
+        limit(limitCount),
+      );
+      
+      if (status) {
+        q = query(q, where('status', '==', status));
+      }
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+    } catch (error: any) {
+      console.error('Failed to get recent events', error);
+      return [];
+    }
+  }
+
+  async searchEvents(criteria: EventSearchCriteria): Promise<IlcEvent[]> {
+    const status = criteria.statusFilter;
+
+    if (criteria.kind === 'term') {
+      const term = criteria.term.trim();
+      const field = criteria.searchField;
+      if (!term) return [];
+
+      let q = query(this.eventsCollection, where(field, '==', term));
+      
+      if (status) {
+        q = query(q, where('status', '==', status));
+      }
+
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+    } else if (criteria.kind === 'date') {
+      let q = query(this.eventsCollection);
+
+      if (criteria.startDate) {
+        q = query(q, where('start', '>=', criteria.startDate));
+      }
+
+      if (criteria.endDate) {
+        q = query(q, where('start', '<=', criteria.endDate + 'T23:59:59.999Z'));
+      }
+
+      q = query(q, orderBy('start', 'desc'), limit(500));
+
+      try {
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+      } catch (error) {
+        console.error('Error searching events by date bounds:', error);
+        return [];
+      }
+    }
+
+    return [];
+  }
+
   async getOrderByIdOrRef(idOrRef: string): Promise<Order | undefined> {
     if (!idOrRef) return undefined;
 
@@ -519,6 +598,32 @@ export class DataManagerService {
     }
 
     return undefined;
+  }
+
+  async getEventById(id: string): Promise<IlcEvent | undefined> {
+    if (!id) return undefined;
+    try {
+      const docRef = doc(this.db, 'events', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...initEvent(), ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+      }
+
+      const q = query(
+        this.eventsCollection,
+        where('sourceId', '==', id)
+      );
+      const querySnap = await getDocs(q);
+
+      if (!querySnap.empty) {
+        const d = querySnap.docs[0];
+        return { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent;
+      }
+      return undefined;
+    } catch (error) {
+      console.error('Error getting event by ID:', error);
+      return undefined;
+    }
   }
 
   async updateMyStudentsSync(user: UserDetails) {

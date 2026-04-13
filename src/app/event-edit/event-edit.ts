@@ -25,12 +25,14 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, initEvent } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
+import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
 import { MobileEditor } from '../mobile-editor/mobile-editor';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -44,16 +46,21 @@ type EventFormModel = {
   description: string;
   location: string;
   status: string;
+  heroImageUrl: string;
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
   return {
-    title: event.title || '',
-    start: event.start ? event.start.split('T')[0] : '',
-    end: event.end ? event.end.split('T')[0] : '',
-    description: event.descriptionMarkdown || event.description || '',
-    location: event.location || '',
-    status: event.status || EventStatus.Proposed,
+    title: event.title,
+    // We split by 'T' to get the date part (YYYY-MM-DD) for the date input.
+    // String.prototype.split() is guaranteed to return an array with at least one string element,
+    // even if the delimiter 'T' is not found or the string is empty, so [0] is always a string.
+    start: event.start.split('T')[0],
+    end: event.end.split('T')[0],
+    description: event.descriptionMarkdown || event.description,
+    location: event.location,
+    status: event.status,
+    heroImageUrl: event.heroImageUrl,
   };
 }
 
@@ -71,6 +78,7 @@ export class EventEditComponent implements OnInit {
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   firebaseState = inject(FirebaseStateService);
+  private dataService = inject(DataManagerService);
 
   // Constants for template
   EventStatus = EventStatus;
@@ -78,6 +86,7 @@ export class EventEditComponent implements OnInit {
 
   // Input: event ID from route
   eventId = input.required<string>();
+  titleLoaded = output<string>();
 
   // Loaded event data from Firestore
   event = signal<IlcEvent | null>(null);
@@ -88,6 +97,7 @@ export class EventEditComponent implements OnInit {
   eventFormModel = signal<EventFormModel>({
     title: '', start: '', end: '', description: '', location: '',
     status: EventStatus.Proposed,
+    heroImageUrl: '',
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -107,6 +117,7 @@ export class EventEditComponent implements OnInit {
   });
 
   isSaving = signal(false);
+  isUploadingImage = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
@@ -168,12 +179,8 @@ export class EventEditComponent implements OnInit {
     this.loadError.set(null);
     try {
       const id = this.eventId();
-
-      // Try loading by docId first
-      const docRef = doc(this.db, 'events', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = { ...docSnap.data(), docId: docSnap.id } as IlcEvent;
+      const data = await this.dataService.getEventById(id);
+      if (data) {
         if (data.descriptionMarkdown) {
           if (looksLikeHtml(data.descriptionMarkdown)) {
             data.descriptionMarkdown = htmlToMarkdown(data.descriptionMarkdown);
@@ -183,36 +190,53 @@ export class EventEditComponent implements OnInit {
         }
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
-        return;
-      }
-
-      // Fall back to sourceId
-      const q = query(
-        collection(this.db, 'events'),
-        where('sourceId', '==', id)
-      );
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        const data = { ...querySnap.docs[0].data(), docId: querySnap.docs[0].id } as IlcEvent;
-        if (data.descriptionMarkdown) {
-          if (looksLikeHtml(data.descriptionMarkdown)) {
-            data.descriptionMarkdown = htmlToMarkdown(data.descriptionMarkdown);
-          }
-        } else if (data.description) {
-          data.descriptionMarkdown = htmlToMarkdown(data.description);
-        }
-        this.event.set(data);
-        this.eventFormModel.set(toFormModel(data));
+        this.titleLoaded.emit(data.title);
       } else {
         this.loadError.set('Event not found.');
+        this.titleLoaded.emit('Event Not Found');
       }
     } catch (error) {
       console.error('Error loading event:', error);
       this.loadError.set('Failed to load event.');
+      this.titleLoaded.emit('Error Loading Event');
     } finally {
       this.isLoadingEvent.set(false);
     }
+  }
+
+  async onHeroImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    const ev = this.event();
+    if (!ev || !ev.docId) {
+      this.errorMessage.set('Cannot upload image: event has no document ID.');
+      return;
+    }
+
+    this.isUploadingImage.set(true);
+    this.errorMessage.set(null);
+
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const storageRef = ref(storage, `events/${ev.docId}/heroImage`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      this.eventFormModel.update((m) => ({ ...m, heroImageUrl: url }));
+      this.successMessage.set('Image uploaded successfully. Remember to save changes.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error uploading image:', error);
+      this.errorMessage.set('Failed to upload image: ' + message);
+    } finally {
+      this.isUploadingImage.set(false);
+    }
+  }
+
+  removeHeroImage() {
+    this.eventFormModel.update((m) => ({ ...m, heroImageUrl: '' }));
   }
 
   async saveEvent(e: Event) {
@@ -242,7 +266,9 @@ export class EventEditComponent implements OnInit {
         descriptionMarkdown: formData.description,
         location: formData.location,
         status: formData.status,
+        heroImageUrl: formData.heroImageUrl,
         lastUpdated: new Date().toISOString(),
+        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
       this.successMessage.set('Event saved successfully.');
       // Update the local event data so isDirty resets
@@ -251,7 +277,9 @@ export class EventEditComponent implements OnInit {
         ...formData,
         descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
+        heroImageUrl: formData.heroImageUrl,
         lastUpdated: new Date().toISOString(),
+        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

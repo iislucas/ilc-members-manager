@@ -13,6 +13,17 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
     
+    match /events/{eventId}/heroImage {
+      allow read: if true;
+      allow write: if isAdmin() || (
+        request.auth != null &&
+        (
+          request.auth.token.email == firestore.get(/databases/(default)/documents/events/$(eventId)).data.ownerEmail ||
+          request.auth.token.email in firestore.get(/databases/(default)/documents/events/$(eventId)).data.get('managerEmails', [])
+        )
+      );
+    }
+
     match /{allPaths=**} {
       // Deny by default
       allow read, write: if false;

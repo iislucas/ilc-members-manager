@@ -5,16 +5,13 @@
     <span class="error-message">{{ errorMessage() }}</span>
   </div>
 } @else {
-  <div class="search-header">
-    <div class="search-box">
-      <app-icon class="search-icon" name="search"></app-icon>
-      <input
-        type="text"
-        [value]="searchTerm()"
-        placeholder="Search events by title, location, or description..."
-        (input)="onSearch($event)"
-      />
+  <div class="input-group">
+    <div class="search-mode-toggle">
+      <button [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
+      <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
+      <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Event Date</button>
     </div>
+
     <div class="sort-controls">
       <label class="sort-label" for="sort-field-select">Sort:</label>
       <select
@@ -30,23 +27,18 @@
         class="sort-direction-btn"
         (click)="toggleSortDirection()"
         [attr.aria-label]="
-          sortDirection() === SortDirection.Asc
-            ? 'Sort ascending'
-            : 'Sort descending'
+          sortDirection() === SortDirection.Asc ? 'Sort ascending' : 'Sort descending'
         "
-        [attr.title]="
-          sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'
-        "
+        [attr.title]="sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'"
       >
         <app-icon
           [name]="
-            sortDirection() === SortDirection.Asc
-              ? 'arrow_downward'
-              : 'arrow_upward'
+            sortDirection() === SortDirection.Asc ? 'arrow_downward' : 'arrow_upward'
           "
         ></app-icon>
       </button>
     </div>
+
     <div class="status-filter-container">
       <button
         class="filter-btn"
@@ -62,17 +54,24 @@
           (click)="statusFilterMenuOpen.set(false)"
         ></div>
         <div class="menu">
-          <div class="filter-header">Filter by status</div>
-          @for (status of [EventStatus.Proposed, EventStatus.Listed, EventStatus.Rejected, EventStatus.Cancelled]; track status) {
+          <div
+            class="menu-item"
+            [class.active]="statusFilter() === ''"
+            (click)="statusFilter.set(''); onFilterChange(); statusFilterMenuOpen.set(false)"
+          >
+            <app-icon
+              [name]="statusFilter() === '' ? 'check_box' : 'check_box_outline_blank'"
+            ></app-icon>
+            <span>All Events</span>
+          </div>
+          @for (status of statusOptions; track status) {
             <div
               class="menu-item"
-              [class.active]="isStatusSelected(status)"
-              (click)="onSelectStatus(status)"
+              [class.active]="statusFilter() === status"
+              (click)="statusFilter.set(status); onFilterChange(); statusFilterMenuOpen.set(false)"
             >
               <app-icon
-                [name]="
-                  isStatusSelected(status) ? 'check_box' : 'check_box_outline_blank'
-                "
+                [name]="statusFilter() === status ? 'check_box' : 'check_box_outline_blank'"
               ></app-icon>
               <span>{{ status }}</span>
             </div>
@@ -80,29 +79,49 @@
         </div>
       }
     </div>
-  </div>
 
-  @if (hasStatusFilter()) {
-    <div class="active-status-filter">
-      @for (status of selectedStatuses(); track status) {
-        <span class="active-status-chip" [class]="'status-' + status">
-          {{ status }}
-          <button
-            class="chip-clear-btn"
-            (click)="onSelectStatus(status)"
-            [attr.aria-label]="'Remove filter: ' + status"
-          >
-            <app-icon name="close"></app-icon>
-          </button>
-        </span>
-      }
-      @if (selectedStatuses().size > 1) {
-        <button class="chip-clear-btn clear-all-btn" (click)="clearStatusFilter()">
-          Clear all
+    @if (searchMode() === 'term') {
+      <div class="search-controls-row">
+        <select [ngModel]="searchField()" (ngModelChange)="searchField.set($event)" class="field-select">
+          <option value="title">Title</option>
+          <option value="location">Location</option>
+          <option value="ownerEmail">Owner Email</option>
+          <option value="leadingInstructorId">Instructor ID</option>
+        </select>
+        <input
+          type="text"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+          placeholder="Search within selected field..."
+          (keyup.enter)="search()"
+        />
+        <button (click)="search()" class="primary">
+          <app-icon name="search"></app-icon>
+          Search
         </button>
-      }
-    </div>
-  }
+      </div>
+    } @else if (searchMode() === 'date') {
+      <div class="search-controls-row">
+        <input
+          type="date"
+          title="Start Date"
+          [ngModel]="startDate()"
+          (ngModelChange)="startDate.set($event)"
+        />
+        <span>to</span>
+        <input
+          type="date"
+          title="End Date"
+          [ngModel]="endDate()"
+          (ngModelChange)="endDate.set($event)"
+        />
+        <button (click)="search()" class="primary">
+          <app-icon name="search"></app-icon>
+          Search
+        </button>
+      </div>
+    }
+  </div>
 
   @let eventsList = events();
   @if (eventsList.length === 0) {
@@ -114,26 +133,29 @@
       @for (ev of eventsList; track ev.docId || ev.sourceId) {
         <a class="event-management-card event-card-link" [href]="editLink(ev)">
           <div class="event-card-header">
+            @if (ev.ownerEmail) {
+            <div class="owner">
+              Owner: {{ ev.ownerEmail }} ({{ ev.ownerDocId }})
+            </div>
+            }
+            @if (ev.lastUpdated) {
+              <div class="proposed-by">
+                {{ ev.lastUpdated }} 
+                @if(ev.updatedByEmail) {
+                  by {{ ev.updatedByEmail }}
+                }
+              </div>
+            }
             <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
             @if (ev.kind) {
               <span class="kind-chip">{{ ev.kind }}</span>
             }
           </div>
           <app-event-item [event]="ev" />
-          @if (ev.ownerEmail) {
-            <div class="proposed-by">
-              Owner: {{ ev.ownerEmail }} ({{ ev.ownerDocId }})
-            </div>
-          }
+          
         </a>
       }
-      @if (eventsList.length < totalFiltered()) {
-        <div class="show-more-container">
-          <button class="show-more-button" (click)="showAll()">
-            Show all {{ totalFiltered() }} events
-          </button>
-        </div>
-      }
+
     </div>
   }
 }

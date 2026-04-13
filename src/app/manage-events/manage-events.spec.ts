@@ -2,8 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { RoutingService } from '../routing.service';
-import { FIREBASE_APP } from '../app.config';
+import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { ManageEventsComponent } from './manage-events';
+import { DataManagerService } from '../data-manager.service';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -18,28 +19,39 @@ vi.mock('firebase/firestore', () => ({
 describe('ManageEventsComponent', () => {
   let component: ManageEventsComponent;
   let fixture: ComponentFixture<ManageEventsComponent>;
-  let mockRoutingService: RoutingService<any>;
+  let mockRoutingService: RoutingService<AppPathPatterns>;
+  let mockDataManagerService: DataManagerService;
 
   beforeEach(async () => {
     mockRoutingService = {
-      matchedPatternId: signal('manageEvents'),
+      matchedPatternId: signal(Views.ManageEvents),
       signals: {
-        manageEvents: {
+        [Views.ManageEvents]: {
           urlParams: {
             q: signal(''),
             status: signal(''),
             sortBy: signal(''),
             sortDir: signal(''),
+            searchMode: signal(''),
+            searchField: signal(''),
+            startDate: signal(''),
+            endDate: signal(''),
           },
         },
       },
-    } as never as RoutingService<any>;
+    } as unknown as RoutingService<AppPathPatterns>;
+
+    mockDataManagerService = {
+      getRecentEvents: vi.fn().mockResolvedValue([]),
+      searchEvents: vi.fn().mockResolvedValue([]),
+    } as unknown as DataManagerService;
 
     await TestBed.configureTestingModule({
       imports: [ManageEventsComponent],
       providers: [
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} },
+        { provide: DataManagerService, useValue: mockDataManagerService },
       ]
     })
     .compileComponents();

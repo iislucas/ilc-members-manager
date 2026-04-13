@@ -45,7 +45,7 @@ app-event-item {
 
 .list-search-header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 1em;
   align-items: center;
   justify-content: start; /* Force override global styles */

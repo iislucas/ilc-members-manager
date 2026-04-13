@@ -13,8 +13,9 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
-import { IlcEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, initEvent } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
+import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../mobile-editor/markdown-viewer';
 
 @Component({
@@ -29,6 +30,7 @@ export class EventViewComponent implements OnInit {
   firebaseState = inject(FirebaseStateService);
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
+  private dataService = inject(DataManagerService);
 
   eventId = input.required<string>();
   titleLoaded = output<string>();
@@ -90,28 +92,10 @@ export class EventViewComponent implements OnInit {
     this.errorMessage.set(null);
     try {
       const eventId = this.eventId();
-
-      // First try loading by docId (for firebase-sourced events).
-      const docRef = doc(this.db, 'events', eventId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = { ...docSnap.data(), docId: docSnap.id } as IlcEvent;
-        this.event.set(data);
-        this.titleLoaded.emit(data.title);
-        return;
-      }
-
-      // Fall back to searching by sourceId (for calendar-sourced events).
-      const q = query(
-        collection(this.db, 'events'),
-        where('sourceId', '==', eventId)
-      );
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        const data = { ...querySnap.docs[0].data(), docId: querySnap.docs[0].id } as IlcEvent;
-        this.event.set(data);
-        this.titleLoaded.emit(data.title);
+      const event = await this.dataService.getEventById(eventId);
+      if (event) {
+        this.event.set(event);
+        this.titleLoaded.emit(event.title);
       } else {
         this.errorMessage.set('Event not found.');
       }

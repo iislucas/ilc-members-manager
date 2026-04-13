@@ -85,6 +85,24 @@
     </div>
 
     <div class="input-field">
+      <label for="hero-image">Hero Image</label>
+      <div class="rhs">
+        @if (imagePreviewUrl()) {
+          <div class="hero-image-preview" style="margin-bottom: 10px; display: flex; align-items: center;">
+            <img [src]="imagePreviewUrl()" alt="Hero Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" />
+            <button type="button" class="subtle-button" (click)="removeHeroImage()" style="margin-left: 10px;">
+              <app-icon name="close" /> Remove
+            </button>
+          </div>
+        }
+        <input type="file" id="hero-image" (change)="onHeroImageSelected($event)" accept="image/*" />
+        @if (isUploadingImage()) {
+          <app-spinner>Uploading...</app-spinner>
+        }
+      </div>
+    </div>
+
+    <div class="input-field">
       <label for="description">Description</label>
       <div class="description-container">
         <app-mobile-editor

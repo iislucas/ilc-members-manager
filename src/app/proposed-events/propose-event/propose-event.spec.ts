@@ -3,6 +3,7 @@ import { ProposeEventComponent } from './propose-event';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../../firebase-state.service';
 import { RoutingService } from '../../routing.service';
 import { DataManagerService } from '../../data-manager.service';
+import { FIREBASE_APP } from '../../app.config';
 
 describe('ProposeEventComponent', () => {
   let component: ProposeEventComponent;
@@ -14,6 +15,7 @@ describe('ProposeEventComponent', () => {
       providers: [
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: RoutingService, useValue: { navigateToParts: () => {} } },
+        { provide: FIREBASE_APP, useValue: {} },
         { 
           provide: DataManagerService, 
           useValue: { 

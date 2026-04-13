@@ -891,13 +891,14 @@ export type IlcEvent = {
   end: string;             // ISO date-time or YYYY-MM-DD
   description: string;     // Always HTML if from calendar
   descriptionMarkdown?: string; // Markdown version for editing and display
+  heroImageUrl: string;   // URL of the hero image
   location: string;
   status: EventStatus;
   // Google Calendar sync fields
   sourceId?: string;       // Google Calendar event ID; used by sync for upsert matching
   googleMapsUrl?: string;
   googleCalEventLink?: string;
-  kind?: EventSourceKind;  // used by sync pruning
+  kind: EventSourceKind;  // used by sync pruning
   createdAt?: string;      // ISO date-time
   ownerDocId: string;
   ownerEmail: string;
@@ -905,6 +906,7 @@ export type IlcEvent = {
   managerDocIds: string[];
   managerEmails: string[];
   lastUpdated?: string;    // ISO date-time; managed by sync logic
+  updatedByEmail: string; // Email of user who last updated the event. Defaults to ''.
 };
 
 export function initEvent(): IlcEvent {
@@ -914,13 +916,16 @@ export function initEvent(): IlcEvent {
     start: '',
     end: '',
     description: '',
+    heroImageUrl: '',
     location: '',
+    kind: EventSourceKind.FirebaseSourced,
     status: EventStatus.Proposed,
     ownerDocId: '',
     ownerEmail: '',
     leadingInstructorId: '',
     managerDocIds: [],
     managerEmails: [],
+    updatedByEmail: '',
   };
 }
 

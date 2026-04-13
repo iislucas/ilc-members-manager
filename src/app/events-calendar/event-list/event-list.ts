@@ -16,10 +16,11 @@ import {
   query,
   getFirestore,
   Unsubscribe,
+  where,
 } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
 import { CalendarEvent } from '../event.model';
-import { IlcEvent, EventStatus } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, initEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
@@ -193,7 +194,14 @@ export class EventListComponent implements OnDestroy {
     const path = this.collectionPath();
     console.info(`Subscribing to events at path: ${path}`);
     const eventsCollection = collection(this.db, path);
-    const q = query(eventsCollection);
+    
+    let q = query(eventsCollection);
+    if (path === 'events') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      q = query(eventsCollection, where('start', '>=', todayStr));
+    }
 
     this.isLoading.set(true);
     this.errorMessage.set(null);
@@ -202,7 +210,7 @@ export class EventListComponent implements OnDestroy {
       q,
       (snapshot) => {
         const events = snapshot.docs.map(
-          (doc) => ({ ...doc.data(), docId: doc.id } as IlcEvent),
+          (doc) => ({ ...initEvent(), ...doc.data(), docId: doc.id } as IlcEvent),
         );
         this.events.set(events);
         this.isLoading.set(false);

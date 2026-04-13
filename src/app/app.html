@@ -100,16 +100,19 @@
           @case (Views.EventEdit) {
             <app-event-edit
               [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-edit>
           }
           @case (Views.MyEventEdit) {
             <app-event-edit
               [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-edit>
           }
           @case (Views.ManageEventEdit) {
             <app-event-edit
               [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
             ></app-event-edit>
           }
           @case (Views.ProposeEvent) {
@@ -216,7 +219,7 @@
             <app-order-list></app-order-list>
           }
           @case (Views.OrderView) {
-            <app-order-view></app-order-view>
+            <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
           }
         }
       }

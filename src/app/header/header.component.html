@@ -31,7 +31,11 @@
       @if (breadcrumbs().length > 0) {
         @let lastCrumb = breadcrumbs()[breadcrumbs().length - 1];
         <div class="title current-page-title" [class.doc-id]="lastCrumb.label.includes('doc:')">
-          {{ lastCrumb.label }}
+          @if (lastCrumb.isLoading) {
+            <div class="loading-slider"></div>
+          } @else {
+            {{ lastCrumb.label }}
+          }
         </div>
       }
     </div>

@@ -11,6 +11,7 @@ const BACKUP_COLLECTIONS = [
   'orders',
   'acl',
   'system',
+  'events',
 ];
 
 /**

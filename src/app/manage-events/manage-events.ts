@@ -13,8 +13,11 @@ import {
   computed,
   OnDestroy,
   ChangeDetectionStrategy,
+  effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+
+import { DataManagerService } from '../data-manager.service';
 import {
   getFirestore,
   collection,
@@ -25,7 +28,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { FIREBASE_APP, Views } from '../app.config';
-import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, initEvent } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
@@ -63,82 +66,49 @@ export class ManageEventsComponent implements OnDestroy {
   private firebaseApp = inject(FIREBASE_APP);
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
+  private dataService = inject(DataManagerService);
 
   // Constants for template
   EventStatus = EventStatus;
   SortDirection = SortDirection;
   sortFieldOptions = EVENT_SORT_FIELD_LABELS;
+  // TODO: is there a more robust way to do this than hardcoding the status list?
+  statusOptions = [
+    EventStatus.Proposed,
+    EventStatus.Listed,
+    EventStatus.Rejected,
+    EventStatus.Cancelled,
+  ];
 
   // State
-  private allEvents = signal<IlcEvent[]>([]);
-  isLoading = signal(true);
-  errorMessage = signal<string | null>(null);
-  statusFilterMenuOpen = signal(false);
-  limit = signal(50);
-
-  private unsubscribe: Unsubscribe | null = null;
+  public rawEvents = signal<IlcEvent[]>([]);
+  public isLoading = signal(false);
+  public errorMessage = signal<string | null>(null);
+  public statusFilterMenuOpen = signal(false);
+  public searched = signal(false);
 
   // URL-param backed state
-  searchTerm = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match !== Views.ManageEvents) return '';
-    return this.routingService.signals[Views.ManageEvents].urlParams.q() || '';
-  });
+  public searchMode = signal<'recent' | 'term' | 'date'>('recent');
+  public searchField = signal<'title' | 'location' | 'ownerEmail' | 'leadingInstructorId'>('title');
+  public searchTerm = signal('');
+  public startDate = signal<string>('');
+  public endDate = signal<string>('');
 
-  selectedStatuses = computed<Set<string>>(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match !== Views.ManageEvents) return new Set([EventStatus.Proposed, EventStatus.Listed]);
-    const raw = this.routingService.signals[Views.ManageEvents].urlParams.status() || '';
-    if (raw) return new Set(raw.split(',').map(s => s.trim()).filter(Boolean));
-    return new Set([EventStatus.Proposed, EventStatus.Listed]);
-  });
+  public sortField = signal<EventSortField>(EventSortField.Start);
+  public sortDirection = signal<SortDirection>(SortDirection.Desc);
+  public statusFilter = signal<string>('');
 
-  hasStatusFilter = computed(() => this.selectedStatuses().size > 0 && this.selectedStatuses().size < 4);
-
-  sortField = computed<EventSortField>(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match !== Views.ManageEvents) return EventSortField.Start;
-    const val = this.routingService.signals[Views.ManageEvents].urlParams.sortBy() as EventSortField;
-    if (Object.values(EventSortField).includes(val)) return val;
-    return EventSortField.Start;
-  });
-
-  sortDirection = computed<SortDirection>(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match !== Views.ManageEvents) return SortDirection.Desc;
-    const val = this.routingService.signals[Views.ManageEvents].urlParams.sortDir();
-    if (val === SortDirection.Asc || val === SortDirection.Desc) return val;
-    return SortDirection.Desc;
-  });
+  private eventSignals = this.routingService.signals[Views.ManageEvents];
+  private initialised = false;
 
   // Filtered and sorted events
-  private searchFiltered = computed(() => {
-    const all = this.allEvents();
-    const term = this.searchTerm().toLowerCase().trim();
-    if (!term) return all;
-    return all.filter(e =>
-      e.title.toLowerCase().includes(term) ||
-      e.location.toLowerCase().includes(term) ||
-      (e.description || '').toLowerCase().includes(term) ||
-      (e.ownerEmail || '').toLowerCase().includes(term)
-    );
-  });
-
-  private statusFiltered = computed(() => {
-    const all = this.searchFiltered();
-    const statuses = this.selectedStatuses();
-    if (statuses.size === 0) return all;
-    return all.filter(e => statuses.has(e.status));
-  });
-
-  // Sort with proposed events prioritised at top
   events = computed(() => {
-    const all = this.statusFiltered();
+    const raw = this.rawEvents();
     const field = this.sortField();
     const dir = this.sortDirection();
     const mul = dir === SortDirection.Asc ? 1 : -1;
 
-    const sorted = [...all].sort((a, b) => {
+    const sorted = [...raw].sort((a, b) => {
       // Proposed events always at top
       if (a.status === EventStatus.Proposed && b.status !== EventStatus.Proposed) return -1;
       if (b.status === EventStatus.Proposed && a.status !== EventStatus.Proposed) return 1;
@@ -157,84 +127,166 @@ export class ManageEventsComponent implements OnDestroy {
       }
     });
 
-    return sorted.slice(0, this.limit());
+    return sorted;
   });
 
-  totalFiltered = computed(() => this.statusFiltered().length);
-
   constructor() {
-    this.subscribeToEvents();
+    effect(() => {
+      const urlMode = this.eventSignals.urlParams['searchMode']() as 'recent' | 'term' | 'date';
+      const urlField = this.eventSignals.urlParams['searchField']() as any;
+      const urlQ = this.eventSignals.urlParams['q']();
+      const urlStart = this.eventSignals.urlParams['startDate']();
+      const urlEnd = this.eventSignals.urlParams['endDate']();
+      const urlSortBy = this.eventSignals.urlParams['sortBy']();
+      const urlSortDir = this.eventSignals.urlParams['sortDir']();
+      const urlStatus = this.eventSignals.urlParams['status']();
+
+      if (this.initialised) return;
+      this.initialised = true;
+
+      this.searchMode.set(urlMode || 'recent');
+      this.searchField.set(urlField || 'title');
+      this.searchTerm.set(urlQ || '');
+      this.startDate.set(urlStart || '');
+      this.endDate.set(urlEnd || '');
+      this.sortField.set((urlSortBy as EventSortField) || EventSortField.Start);
+      this.sortDirection.set((urlSortDir === 'asc' || urlSortDir === 'desc') ? urlSortDir as SortDirection : SortDirection.Desc);
+      this.statusFilter.set(urlStatus || '');
+
+      if (urlMode === 'term' && urlQ) {
+        this.search();
+      } else if (urlMode === 'date' && (urlStart || urlEnd)) {
+        this.search();
+      } else {
+        this.loadRecentEvents();
+      }
+    });
   }
 
   ngOnDestroy() {
-    this.unsubscribe?.();
+    // No unsubscribe needed as we use getDocs instead of onSnapshot
   }
 
-  private subscribeToEvents() {
-    const colRef = collection(this.db, 'events');
-    const q = query(colRef);
+  public syncUrlParams() {
+    this.eventSignals.urlParams['searchMode'].set(this.searchMode());
+    this.eventSignals.urlParams['searchField'].set(this.searchField());
+    this.eventSignals.urlParams['q'].set(this.searchTerm());
+    this.eventSignals.urlParams['startDate'].set(this.startDate());
+    this.eventSignals.urlParams['endDate'].set(this.endDate());
+    this.eventSignals.urlParams['sortBy'].set(this.sortField());
+    this.eventSignals.urlParams['sortDir'].set(this.sortDirection());
+    this.eventSignals.urlParams['status'].set(this.statusFilter());
+  }
+
+  async setSearchMode(mode: 'recent' | 'term' | 'date') {
+    this.searchMode.set(mode);
+    if (mode === 'recent') {
+      this.searchTerm.set('');
+      this.startDate.set('');
+      this.endDate.set('');
+      this.searched.set(false);
+      this.syncUrlParams();
+      await this.loadRecentEvents();
+    } else if (mode === 'date') {
+      this.syncUrlParams();
+      await this.search();
+    } else {
+      this.syncUrlParams();
+    }
+  }
+
+  async loadRecentEvents() {
+    this.isLoading.set(true);
+    try {
+      const results = await this.dataService.getRecentEvents(100, this.statusFilter());
+      this.rawEvents.set(results);
+    } catch (e) {
+      console.error(e);
+      this.errorMessage.set('Failed to load events.');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async search() {
+    const mode = this.searchMode();
+    const field = this.searchField();
+    const term = this.searchTerm().trim();
+    const start = this.startDate();
+    const end = this.endDate();
+
+    if (mode === 'recent') {
+      this.searched.set(false);
+      this.syncUrlParams();
+      await this.loadRecentEvents();
+      return;
+    }
+    if (mode === 'term' && !term) {
+      this.searched.set(false);
+      this.syncUrlParams();
+      await this.loadRecentEvents();
+      return;
+    }
 
     this.isLoading.set(true);
-    this.unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const events = snapshot.docs.map(
-          (d) => ({ ...d.data(), docId: d.id } as IlcEvent)
-        );
-        this.allEvents.set(events);
-        this.isLoading.set(false);
-      },
-      (error) => {
-        console.error('Error fetching events:', error);
-        this.errorMessage.set('Failed to load events.');
-        this.isLoading.set(false);
+    this.searched.set(true);
+    this.syncUrlParams();
+    try {
+      let results: IlcEvent[] = [];
+      if (mode === 'term') {
+        results = await this.dataService.searchEvents({
+          kind: 'term',
+          searchField: field,
+          term,
+          statusFilter: this.statusFilter(),
+        });
+      } else {
+        results = await this.dataService.searchEvents({
+          kind: 'date',
+          startDate: start,
+          endDate: end,
+          statusFilter: this.statusFilter(),
+        });
       }
-    );
-  }
-
-  // URL-param actions
-  onSearch(event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    this.routingService.signals[Views.ManageEvents].urlParams.q.set(value);
-    this.limit.set(50);
+      this.rawEvents.set(results);
+    } catch (e) {
+      console.error(e);
+      this.errorMessage.set('Failed to search events.');
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   onSortFieldChange(value: EventSortField) {
-    this.routingService.signals[Views.ManageEvents].urlParams.sortBy.set(value);
+    this.sortField.set(value);
+    this.syncUrlParams();
   }
 
   toggleSortDirection() {
     const next = this.sortDirection() === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
-    this.routingService.signals[Views.ManageEvents].urlParams.sortDir.set(next);
+    this.sortDirection.set(next);
+    this.syncUrlParams();
   }
 
-  isStatusSelected(status: string): boolean {
-    return this.selectedStatuses().has(status);
-  }
-
-  onSelectStatus(status: string) {
-    const current = new Set(this.selectedStatuses());
-    if (current.has(status)) {
-      current.delete(status);
+  onFilterChange() {
+    this.syncUrlParams();
+    if (this.searchMode() === 'term' && this.searchTerm()) {
+      this.search();
+    } else if (this.searchMode() === 'date' && (this.startDate() || this.endDate())) {
+      this.search();
     } else {
-      current.add(status);
+      this.loadRecentEvents();
     }
-    this.routingService.signals[Views.ManageEvents].urlParams.status.set([...current].join(','));
-    this.limit.set(50);
-  }
-
-  clearStatusFilter() {
-    this.routingService.signals[Views.ManageEvents].urlParams.status.set('');
-    this.statusFilterMenuOpen.set(false);
-    this.limit.set(50);
   }
 
   toggleStatusMenu() {
     this.statusFilterMenuOpen.update(v => !v);
   }
 
-  showAll() {
-    this.limit.set(Infinity);
+  clearStatusFilter() {
+    this.statusFilter.set('');
+    this.statusFilterMenuOpen.set(false);
+    this.onFilterChange();
   }
 
   // Admin quick actions

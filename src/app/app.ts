@@ -92,9 +92,14 @@ export class App {
     inject(RoutingService);
   public menuOpen = signal(false);
   public loadedEventTitle = signal<string | null>(null);
+  public loadedOrderTitle = signal<string | null>(null);
 
   onEventTitleLoaded(title: string) {
     this.loadedEventTitle.set(title);
+  }
+
+  onOrderTitleLoaded(title: string) {
+    this.loadedOrderTitle.set(title);
   }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
@@ -170,7 +175,11 @@ export class App {
       } else if (view === Views.ManageEvents) {
         // No parent breadcrumb needed for manage events
       }
-      baseBreadcrumbs.push({ label: this.currentViewTitle() });
+      const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
+      const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
+      const isOrderView = view === Views.OrderView;
+      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle());
+      baseBreadcrumbs.push({ label: this.currentViewTitle(), isLoading });
     }
     return baseBreadcrumbs;
   });
@@ -242,8 +251,13 @@ export class App {
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
       const view = this.routingService.matchedPatternId();
 
-      if (view !== Views.EventView) {
+      const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
+      const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
+      if (!isEventView && !isEventEdit) {
         this.loadedEventTitle.set(null);
+      }
+      if (view !== Views.OrderView) {
+        this.loadedOrderTitle.set(null);
       }
 
       if (isLoggedOut && (!view || view === Views.Home)) {
@@ -344,9 +358,7 @@ export class App {
       case Views.ManageOrders:
         return 'Manage Orders';
       case Views.OrderView:
-        const orderId =
-          this.routingService.signals[viewId].pathVars['orderId']();
-        return `Order ${orderId}`;
+        return this.loadedOrderTitle() || 'Order Details';
       case Views.MembersAreaPost:
       case Views.InstructorsAreaPost:
         return 'Article';

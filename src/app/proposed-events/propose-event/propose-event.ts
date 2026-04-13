@@ -4,13 +4,15 @@ import { form, required, FieldTree, FormField } from '@angular/forms/signals';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { httpsCallable } from 'firebase/functions';
 import { RoutingService } from '../../routing.service';
-import { AppPathPatterns } from '../../app.config';
+import { AppPathPatterns, FIREBASE_APP } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData } from '../../../../functions/src/data-model';
 import { AutocompleteComponent } from '../../autocomplete/autocomplete';
 import { MobileEditor } from '../../mobile-editor/mobile-editor';
+import { getFirestore, doc, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 @Component({
   selector: 'app-propose-event',
@@ -23,8 +25,12 @@ export class ProposeEventComponent {
   private firebaseState = inject(FirebaseStateService);
   private routingService = inject(RoutingService<AppPathPatterns>);
   protected membersService = inject(DataManagerService);
+  private firebaseApp = inject(FIREBASE_APP);
 
   isSaving = signal(false);
+  isUploadingImage = signal(false);
+  selectedImageFile = signal<File | null>(null);
+  imagePreviewUrl = signal<string | null>(null);
 
   constructor() {
     window.scrollTo(0, 0);
@@ -78,6 +84,22 @@ export class ProposeEventComponent {
     this.proposeForm().dirty();
   }
 
+  onHeroImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.selectedImageFile.set(file);
+    this.imagePreviewUrl.set(URL.createObjectURL(file));
+    this.proposeForm().dirty();
+  }
+
+  removeHeroImage() {
+    this.selectedImageFile.set(null);
+    this.imagePreviewUrl.set(null);
+    this.proposeForm().dirty();
+  }
+
   async onSubmit() {
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -98,6 +120,28 @@ export class ProposeEventComponent {
       const result = await submitFn(this.eventModel());
 
       if (result.data.success) {
+        const docId = result.data.docId;
+        const file = this.selectedImageFile();
+        
+        if (file) {
+          this.isUploadingImage.set(true);
+          try {
+            const storage = getStorage(this.firebaseApp);
+            const storageRef = ref(storage, `events/${docId}/heroImage`);
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
+            
+            const db = getFirestore(this.firebaseApp);
+            const docRef = doc(db, 'events', docId);
+            await updateDoc(docRef, { heroImageUrl: url });
+          } catch (uploadError) {
+            console.error('Error uploading image after proposal:', uploadError);
+            this.errorMessage.set('Event proposed, but image upload failed.');
+          } finally {
+            this.isUploadingImage.set(false);
+          }
+        }
+
         this.successMessage.set('Event proposal submitted successfully!');
         this.proposeForm().reset();
         this.eventModel.set({
@@ -108,6 +152,8 @@ export class ProposeEventComponent {
           description: '',
           leadingInstructorId: '',
         });
+        this.selectedImageFile.set(null);
+        this.imagePreviewUrl.set(null);
         localStorage.removeItem('proposeEventFormData');
       }
     } catch (error: any) {

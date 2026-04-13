@@ -9,6 +9,7 @@ export interface Breadcrumb {
   shortLabel?: string;
   url?: string;
   isRoute?: boolean; // If true, treats url as a hash route, or standard href
+  isLoading?: boolean;
 }
 
 @Component({

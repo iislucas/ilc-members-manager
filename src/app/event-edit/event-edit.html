@@ -50,6 +50,22 @@
           <input type="text" id="event-location" [formField]="form.location" />
         </div>
 
+        <label for="event-hero-image">Hero Image</label>
+        <div class="rhs">
+          @if (eventFormModel().heroImageUrl) {
+            <div class="hero-image-preview" style="margin-bottom: 10px; display: flex; align-items: center;">
+              <img [src]="eventFormModel().heroImageUrl" alt="Hero Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" />
+              <button type="button" class="subtle-button" (click)="removeHeroImage()" style="margin-left: 10px;">
+                <app-icon name="close" /> Remove
+              </button>
+            </div>
+          }
+          <input type="file" id="event-hero-image" (change)="onHeroImageSelected($event)" accept="image/*" />
+          @if (isUploadingImage()) {
+            <app-spinner>Uploading...</app-spinner>
+          }
+        </div>
+
         <label for="event-description" class="description-label">Description</label>
         <div class="description-container">
           <app-mobile-editor
@@ -96,6 +112,13 @@
             <label>Last Updated</label>
             <div class="rhs">
               <span class="readonly-value timestamp">{{ ev.lastUpdated }}</span>
+            </div>
+          }
+
+          @if (ev.updatedByEmail) {
+            <label>Updated By</label>
+            <div class="rhs">
+              <span class="readonly-value">{{ ev.updatedByEmail }}</span>
             </div>
           }
 

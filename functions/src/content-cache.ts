@@ -235,7 +235,7 @@ async function syncCollection(
   collectionPath: string,
   freshItems: Record<string, unknown>[],
   sourceIdField: string,
-  options?: { kindFilter?: string },
+  options?: { kindFilter?: string; disablePruning?: boolean },
 ): Promise<SyncResult> {
   const colRef = db.collection(collectionPath);
   const now = new Date().toISOString();
@@ -301,6 +301,9 @@ async function syncCollection(
   }
 
   // Phase 2: Prune — delete docs no longer present in the source.
+  if (options?.disablePruning) {
+    return { total: freshMap.size, updated, removed: 0, unchanged };
+  }
   const staleIds: string[] = [];
 
   // Docs with a source ID that no longer appears in the fresh set.
@@ -387,8 +390,7 @@ async function refreshEventsCache(db: admin.firestore.Firestore): Promise<SyncRe
     key: calendarApiKey.value(),
     singleEvents: true,
     orderBy: 'startTime',
-    timeMin: new Date().toISOString(),
-    maxResults: 100,
+    maxResults: 2500,
   };
 
   const calendarApiUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
@@ -406,6 +408,7 @@ async function refreshEventsCache(db: admin.firestore.Firestore): Promise<SyncRe
 
   const result = await syncCollection(db, 'events', freshItems, 'sourceId', {
     kindFilter: EventSourceKind.CalendarSourced,
+    disablePruning: true,
   });
   logger.info(
     `Events cache synced: ${result.total} total, ${result.updated} updated, ` +

@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, computed } from '@angular/core';
+import { Component, effect, inject, signal, computed, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
 import { Order, OrderStatus } from '../../../functions/src/data-model';
@@ -23,6 +23,7 @@ export class OrderView {
 
   public orderId = this.routingService.signals[Views.OrderView].pathVars['orderId'];
   public order = signal<Order | null>(null);
+  public titleLoaded = output<string>();
   public loading = signal(false);
   public error = signal<string | null>(null);
   public reprocessing = signal(false);
@@ -45,6 +46,19 @@ export class OrderView {
     });
   }
 
+  computeOrderTitle(o: Order): string {
+    if (o.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+      const name = [o.billingAddress?.firstName, o.billingAddress?.lastName].filter(Boolean).join(' ');
+      const date = o.createdOn ? new Date(o.createdOn).toLocaleDateString() : '';
+      return `Order #${o.orderNumber} - ${date} - ${name}`;
+    }
+    // (o.ilcAppOrderKind === 'ilc-2005-sheets-db-import')
+    else {
+      const name = [o.firstName, o.lastName].filter(Boolean).join(' ');
+      return `Order #${o.referenceNumber} - ${o.datePaid} - ${name}`;
+    }
+  }
+
   async fetchOrder(id: string) {
     this.loading.set(true);
     this.error.set(null);
@@ -52,11 +66,14 @@ export class OrderView {
       const result = await this.dataService.getOrderByIdOrRef(id);
       if (result) {
         this.order.set(result);
+        this.titleLoaded.emit(this.computeOrderTitle(result));
       } else {
         this.error.set('Order not found');
+        this.titleLoaded.emit('Order Not Found');
       }
     } catch (e: any) {
       this.error.set(e.message || 'Failed to fetch order');
+      this.titleLoaded.emit('Error Loading Order');
     } finally {
       this.loading.set(false);
     }

@@ -123,3 +123,34 @@
     display: inline-block;
   }
 }
+
+.loading-slider {
+  width: 100px;
+  height: 4px;
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 auto;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: -50%;
+    width: 50%;
+    height: 100%;
+    background-color: $theme-border-color;
+    animation: loading-anim 1.5s infinite linear;
+  }
+}
+
+@keyframes loading-anim {
+  0% {
+    left: -50%;
+  }
+  100% {
+    left: 100%;
+  }
+}
