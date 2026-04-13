@@ -892,6 +892,9 @@ export type IlcEvent = {
   description: string;     // Always HTML if from calendar
   descriptionMarkdown?: string; // Markdown version for editing and display
   heroImageUrl: string;   // URL of the hero image
+  heroImageLargeUrl?: string; // URL of the 600x400 large image
+  heroImageThumbUrl?: string; // URL of the 120x80 thumbnail
+  heroImageOriginalUrl?: string; // URL of the original uncropped image
   location: string;
   status: EventStatus;
   // Google Calendar sync fields
@@ -917,6 +920,9 @@ export function initEvent(): IlcEvent {
     end: '',
     description: '',
     heroImageUrl: '',
+    heroImageLargeUrl: '',
+    heroImageThumbUrl: '',
+    heroImageOriginalUrl: '',
     location: '',
     kind: EventSourceKind.FirebaseSourced,
     status: EventStatus.Proposed,

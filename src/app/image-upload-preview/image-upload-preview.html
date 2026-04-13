@@ -1,0 +1,58 @@
+<div class="image-uploader-container">
+  @if (!imageUrl()) {
+    <label for="file-upload" class="upload-prompt">
+      <span class="button">
+        <app-icon name="add" /> Choose Image
+      </span>
+      <input type="file" id="file-upload" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
+      <p>Select a high-resolution image for the event.</p>
+    </label>
+  } @else {
+    <div class="preview-area">
+      <div 
+        #container
+        class="crop-container" 
+        [style.aspect-ratio]="aspectRatio()"
+        (mousedown)="onMouseDown($event)"
+        (mousemove)="onMouseMove($event)"
+        (mouseup)="onMouseUp()"
+        (mouseleave)="onMouseUp()"
+        (wheel)="onWheel($event)"
+      >
+        <img 
+          #previewImg
+          [src]="imageUrl()" 
+          alt="Preview" 
+          (load)="onImageLoad()"
+          [style.transform]="'translate(' + translateX() + 'px, ' + translateY() + 'px) scale(' + totalScale() + ')'"
+          style="transform-origin: 0 0; cursor: move; user-select: none;"
+        />
+        <div class="crop-frame"></div>
+      </div>
+
+      <div class="controls">
+        <div class="zoom-control">
+          <label for="zoom">Zoom:</label>
+          <input 
+            type="range" 
+            id="zoom" 
+            [value]="scale()" 
+            min="1" 
+            max="5" 
+            step="0.1" 
+            (input)="onZoomChange($event)" 
+          />
+          <span>{{ scaleText() }}x</span>
+          <button type="button" class="subtle-button" (click)="resetView()" style="margin-left: 10px;">Reset View</button>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="button" (click)="applyCrop()">Use this image</button>
+          <button type="button" class="subtle-button" (click)="onCancel()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <canvas #previewCanvas style="display: none;"></canvas>
+</div>

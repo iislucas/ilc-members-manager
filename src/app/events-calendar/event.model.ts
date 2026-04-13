@@ -8,5 +8,8 @@ export interface CalendarEvent {
   googleMapsUrl?: string;
   googleCalEventLink?: string;
   heroImageUrl?: string;
+  heroImageThumbUrl?: string;
+  heroImageLargeUrl?: string;
+  heroImageOriginalUrl?: string;
 }
 

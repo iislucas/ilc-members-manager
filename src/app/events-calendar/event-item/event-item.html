@@ -1,7 +1,7 @@
 <div class="event-item-layout">
-  @if (event().heroImageUrl) {
+  @if (event().heroImageThumbUrl || event().heroImageUrl) {
     <div class="event-image-container">
-      <img [src]="event().heroImageUrl" alt="Event Image" class="event-image" />
+      <img [src]="event().heroImageThumbUrl || event().heroImageUrl" alt="Event Image" class="event-image" />
     </div>
   }
   <div class="event-content">

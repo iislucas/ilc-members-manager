@@ -31,6 +31,7 @@ import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
 import { MobileEditor } from '../mobile-editor/mobile-editor';
+import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
@@ -47,10 +48,13 @@ type EventFormModel = {
   location: string;
   status: string;
   heroImageUrl: string;
+  heroImageLargeUrl?: string;
+  heroImageThumbUrl?: string;
+  heroImageOriginalUrl?: string;
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
-  return {
+  const model: EventFormModel = {
     title: event.title,
     // We split by 'T' to get the date part (YYYY-MM-DD) for the date input.
     // String.prototype.split() is guaranteed to return an array with at least one string element,
@@ -62,12 +66,22 @@ function toFormModel(event: IlcEvent): EventFormModel {
     status: event.status,
     heroImageUrl: event.heroImageUrl,
   };
+  if (event.heroImageLargeUrl !== undefined) {
+    model.heroImageLargeUrl = event.heroImageLargeUrl;
+  }
+  if (event.heroImageThumbUrl !== undefined) {
+    model.heroImageThumbUrl = event.heroImageThumbUrl;
+  }
+  if (event.heroImageOriginalUrl !== undefined) {
+    model.heroImageOriginalUrl = event.heroImageOriginalUrl;
+  }
+  return model;
 }
 
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor],
+  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor, ImageUploadPreviewComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,6 +112,9 @@ export class EventEditComponent implements OnInit {
     title: '', start: '', end: '', description: '', location: '',
     status: EventStatus.Proposed,
     heroImageUrl: '',
+    heroImageLargeUrl: '',
+    heroImageThumbUrl: '',
+    heroImageOriginalUrl: '',
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -117,6 +134,7 @@ export class EventEditComponent implements OnInit {
   });
 
   isSaving = signal(false);
+  isEditingCrop = signal(false);
   isUploadingImage = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
@@ -204,11 +222,8 @@ export class EventEditComponent implements OnInit {
     }
   }
 
-  async onHeroImageSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-
-    const file = input.files[0];
+  async onImageCropped(event: { thumbBlob: Blob, largeBlob: Blob, originalFile?: File }) {
+    const { thumbBlob, largeBlob, originalFile } = event;
     const ev = this.event();
     if (!ev || !ev.docId) {
       this.errorMessage.set('Cannot upload image: event has no document ID.');
@@ -220,12 +235,34 @@ export class EventEditComponent implements OnInit {
 
     try {
       const storage = getStorage(this.firebaseApp);
-      const storageRef = ref(storage, `events/${ev.docId}/heroImage`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
       
-      this.eventFormModel.update((m) => ({ ...m, heroImageUrl: url }));
-      this.successMessage.set('Image uploaded successfully. Remember to save changes.');
+      // Upload Large (600x400)
+      const largeRef = ref(storage, `events/${ev.docId}/images/heroImage_large`);
+      await uploadBytes(largeRef, largeBlob);
+      const largeUrl = await getDownloadURL(largeRef);
+
+      // Upload Thumb (120x80)
+      const thumbRef = ref(storage, `events/${ev.docId}/images/heroImage_thumb`);
+      await uploadBytes(thumbRef, thumbBlob);
+      const thumbUrl = await getDownloadURL(thumbRef);
+
+      // Upload Original (if present)
+      let originalUrl = ev.heroImageOriginalUrl || '';
+      if (originalFile) {
+        const originalRef = ref(storage, `events/${ev.docId}/images/heroImage_original`);
+        await uploadBytes(originalRef, originalFile);
+        originalUrl = await getDownloadURL(originalRef);
+      }
+
+      this.eventFormModel.update((m) => ({ 
+        ...m, 
+        heroImageUrl: largeUrl,
+        heroImageLargeUrl: largeUrl,
+        heroImageThumbUrl: thumbUrl,
+        heroImageOriginalUrl: originalUrl
+      }));
+      this.isEditingCrop.set(false);
+      this.successMessage.set('Images uploaded successfully. Remember to save changes.');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error uploading image:', error);
@@ -237,6 +274,14 @@ export class EventEditComponent implements OnInit {
 
   removeHeroImage() {
     this.eventFormModel.update((m) => ({ ...m, heroImageUrl: '' }));
+  }
+
+  editHeroImageCrop() {
+    this.isEditingCrop.set(true);
+  }
+
+  onCancelCrop() {
+    this.isEditingCrop.set(false);
   }
 
   async saveEvent(e: Event) {
@@ -267,6 +312,9 @@ export class EventEditComponent implements OnInit {
         location: formData.location,
         status: formData.status,
         heroImageUrl: formData.heroImageUrl,
+        heroImageLargeUrl: formData.heroImageLargeUrl,
+        heroImageThumbUrl: formData.heroImageThumbUrl,
+        heroImageOriginalUrl: formData.heroImageOriginalUrl,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
@@ -279,6 +327,9 @@ export class EventEditComponent implements OnInit {
         descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,
+        heroImageLargeUrl: formData.heroImageLargeUrl,
+        heroImageThumbUrl: formData.heroImageThumbUrl,
+        heroImageOriginalUrl: formData.heroImageOriginalUrl,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',

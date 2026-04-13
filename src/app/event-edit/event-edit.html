@@ -55,12 +55,23 @@
           @if (eventFormModel().heroImageUrl) {
             <div class="hero-image-preview" style="margin-bottom: 10px; display: flex; align-items: center;">
               <img [src]="eventFormModel().heroImageUrl" alt="Hero Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" />
-              <button type="button" class="subtle-button" (click)="removeHeroImage()" style="margin-left: 10px;">
-                <app-icon name="close" /> Remove
-              </button>
+              <div style="display: flex; flex-direction: column; gap: 5px; margin-left: 10px;">
+                <button type="button" class="subtle-button" (click)="editHeroImageCrop()">
+                  <app-icon name="edit" /> Edit Crop
+                </button>
+                <button type="button" class="subtle-button" (click)="removeHeroImage()">
+                  <app-icon name="close" /> Remove
+                </button>
+              </div>
             </div>
           }
-          <input type="file" id="event-hero-image" (change)="onHeroImageSelected($event)" accept="image/*" />
+          @if (!eventFormModel().heroImageUrl || isEditingCrop()) {
+            <app-image-upload-preview 
+              [initialImageUrl]="eventFormModel().heroImageUrl" 
+              (imageCropped)="onImageCropped($event)" 
+              (cancel)="onCancelCrop()"
+            />
+          }
           @if (isUploadingImage()) {
             <app-spinner>Uploading...</app-spinner>
           }

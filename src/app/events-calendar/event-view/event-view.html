@@ -8,6 +8,11 @@
       </div>
     </div>
   } @else if (event(); as ev) {
+    @if (ev.heroImageLargeUrl || ev.heroImageUrl) {
+      <div class="event-hero-image-container" style="margin-bottom: 20px; text-align: center;">
+        <img [src]="ev.heroImageLargeUrl || ev.heroImageUrl" alt="Hero Image" style="width: 100%; max-width: 600px; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+      </div>
+    }
     <div class="event-detail-card">
       <div class="event-header">
         <div class="event-meta">

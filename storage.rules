@@ -13,7 +13,7 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
     
-    match /events/{eventId}/heroImage {
+    match /events/{eventId}/images/{fileId} {
       allow read: if true;
       allow write: if isAdmin() || (
         request.auth != null &&
