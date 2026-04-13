@@ -34,6 +34,7 @@ export class ProposeEventComponent {
   imagePreviewUrl = signal<string | null>(null);
   croppedThumbBlob = signal<Blob | null>(null);
   croppedLargeBlob = signal<Blob | null>(null);
+  originalImagePreviewUrl = signal<string | null>(null);
   showImageUploader = signal(true);
 
   constructor() {
@@ -93,6 +94,7 @@ export class ProposeEventComponent {
     this.croppedLargeBlob.set(event.largeBlob);
     if (event.originalFile) {
       this.selectedImageFile.set(event.originalFile);
+      this.originalImagePreviewUrl.set(URL.createObjectURL(event.originalFile));
     }
     this.imagePreviewUrl.set(URL.createObjectURL(event.largeBlob));
     this.showImageUploader.set(false);
@@ -104,6 +106,7 @@ export class ProposeEventComponent {
     this.croppedLargeBlob.set(null);
     this.selectedImageFile.set(null);
     this.imagePreviewUrl.set(null);
+    this.originalImagePreviewUrl.set(null);
     this.showImageUploader.set(true);
     this.proposeForm().dirty();
   }

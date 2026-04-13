@@ -3,10 +3,7 @@
 } @else if (loadError()) {
   <div class="error-container">
     <span class="error-message">{{ loadError() }}</span>
-    <a
-      class="subtle-button"
-      [href]="routingService.hrefWithParams(backUrl())"
-    >
+    <a class="subtle-button" [href]="routingService.hrefWithParams(backUrl())">
       <app-icon name="arrow_back" /> Back
     </a>
   </div>
@@ -50,25 +47,49 @@
           <input type="text" id="event-location" [formField]="form.location" />
         </div>
 
-        <label for="event-hero-image">Hero Image</label>
+        <label for="event-hero-image">Image</label>
         <div class="rhs">
           @if (eventFormModel().heroImageUrl) {
-            <div class="hero-image-preview" style="margin-bottom: 10px; display: flex; align-items: center;">
-              <img [src]="eventFormModel().heroImageUrl" alt="Hero Image" style="max-width: 200px; max-height: 200px; border-radius: 8px; object-fit: cover;" />
-              <div style="display: flex; flex-direction: column; gap: 5px; margin-left: 10px;">
-                <button type="button" class="subtle-button" (click)="editHeroImageCrop()">
+            <div
+              class="hero-image-preview"
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                margin-bottom: 10px;
+              "
+            >
+              <img
+                [src]="eventFormModel().heroImageUrl"
+                alt="Hero Image"
+                style="max-width: 100%; max-height: 200px; border-radius: 8px"
+              />
+              <div class="image-actions" style="display: flex; gap: 10px">
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="editHeroImageCrop()"
+                >
                   <app-icon name="edit" /> Edit Crop
                 </button>
-                <button type="button" class="subtle-button" (click)="removeHeroImage()">
-                  <app-icon name="close" /> Remove
+                <button
+                  type="button"
+                  class="subtle-button"
+                  (click)="removeHeroImage()"
+                >
+                  <app-icon name="close" /> Remove Image
                 </button>
               </div>
             </div>
           }
           @if (!eventFormModel().heroImageUrl || isEditingCrop()) {
-            <app-image-upload-preview 
-              [initialImageUrl]="eventFormModel().heroImageUrl" 
-              (imageCropped)="onImageCropped($event)" 
+            <app-image-upload-preview
+              [initialImageUrl]="
+                eventFormModel().heroImageOriginalUrl ||
+                eventFormModel().heroImageUrl
+              "
+              (imageCropped)="onImageCropped($event)"
               (cancel)="onCancelCrop()"
             />
           }
@@ -77,7 +98,9 @@
           }
         </div>
 
-        <label for="event-description" class="description-label">Description</label>
+        <label for="event-description" class="description-label"
+          >Description</label
+        >
         <div class="description-container">
           <app-mobile-editor
             [initialValue]="eventFormModel().description"
@@ -185,7 +208,7 @@
           </button>
         }
       </div>
-      <div style="margin-top: 1em; padding-bottom: 1em;">
+      <div style="margin-top: 1em; padding-bottom: 1em">
         <a
           class="subtle-button"
           [href]="routingService.hrefWithParams(backUrl())"
