@@ -1,45 +1,55 @@
-<div class="card-header">
-  <div class="card-title">
-    <div class="title-text">{{ event().title }}</div>
-  </div>
-  <div class="card-subtitle">
-    <div class="subtitle-group">
-      <!-- date & icon link to cal -->
-      <span>
-        @if (event().googleCalEventLink) {
-          <a class="icon-only-button"
-            [href]="event().googleCalEventLink"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View on Google Calendar"
-          >
-            <app-icon name="event"></app-icon>
-          </a>
-        }
-        @if (event().start === event().end) {
-          {{ event().start | date: "mediumDate" }}
-        } @else {
-          {{ event().start | date: "mediumDate" }} -
-          {{ event().end | date: "mediumDate" }}
-        }
-      </span>
+<div class="event-item-layout">
+  @if (event().heroImageUrl) {
+    <div class="event-image-container">
+      <img [src]="event().heroImageUrl" alt="Event Image" class="event-image" />
+    </div>
+  }
+  <div class="event-content">
+    <div class="card-header">
+      <div class="card-title">
+        <div class="title-text">{{ event().title }}</div>
+      </div>
+      <div class="card-subtitle">
+        <div class="subtitle-group">
+          <!-- date & icon link to cal -->
+          <span>
+            @if (event().googleCalEventLink) {
+              <a class="icon-only-button"
+                [href]="event().googleCalEventLink"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View on Google Calendar"
+              >
+                <app-icon name="event"></app-icon>
+              </a>
+            }
+            @if (event().start === event().end) {
+              {{ event().start | date: "mediumDate" }}
+            } @else {
+              {{ event().start | date: "mediumDate" }} -
+              {{ event().end | date: "mediumDate" }}
+            }
+          </span>
 
-      <!-- location & map link -->
-      @if (event().location) {
-        <span>
-          @if (event().googleMapsUrl) {
-            <a class="icon-only-button"
-              [href]="event().googleMapsUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="View on Google Maps"
-            >
-              <app-icon name="map"></app-icon>
-            </a>
+          <!-- location & map link -->
+          @if (event().location) {
+            <span>
+              @if (event().googleMapsUrl) {
+                <a class="icon-only-button"
+                  [href]="event().googleMapsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="View on Google Maps"
+                >
+                  <app-icon name="map"></app-icon>
+                </a>
+              }
+              {{ event().location }}
+            </span>
           }
-          {{ event().location }}
-        </span>
-      }
+        </div>
+      </div>
     </div>
   </div>
 </div>
+

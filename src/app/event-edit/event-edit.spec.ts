@@ -6,12 +6,13 @@ import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { EventEditComponent } from './event-edit';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
-import { IlcEvent, EventStatus } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
+import { updateDoc } from 'firebase/firestore';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(),
-  doc: vi.fn(),
+  doc: vi.fn().mockReturnValue({ id: 'test-doc-id' }),
   getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
   collection: vi.fn(),
   query: vi.fn(),
@@ -97,7 +98,39 @@ describe('EventEditComponent', () => {
     expect(component.isDirty()).toBe(false);
     expect(component.event()?.title).toBe('New Title');
     expect(component.event()?.status).toBe(EventStatus.Listed);
+    expect(component.event()?.heroImageUrl).toBe('http://example.com/image.jpg');
+    
+    // Verify updateDoc was called with heroImageUrl and kind
+    expect(updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        heroImageUrl: 'http://example.com/image.jpg',
+        kind: EventSourceKind.FirebaseSourced
+      })
+    );
   });
+
+  it('should preserve heroImageUrl when loading event', async () => {
+    const mockEvent: IlcEvent = {
+      docId: 'test-doc-id',
+      title: 'Test Event Title',
+      start: '2026-04-13',
+      end: '2026-04-13',
+      description: 'Description',
+      location: 'Location',
+      status: EventStatus.Proposed,
+      heroImageUrl: 'http://example.com/hero.jpg',
+      ownerDocId: 'owner-id',
+    } as IlcEvent;
+
+    (mockDataManagerService.getEventById as any).mockResolvedValue(mockEvent);
+    
+    await component.loadEvent();
+    
+    expect(component.eventFormModel().heroImageUrl).toBe('http://example.com/hero.jpg');
+    expect(component.event()?.heroImageUrl).toBe('http://example.com/hero.jpg');
+  });
+
   it('should emit titleLoaded when event is loaded', async () => {
     const mockEvent: IlcEvent = {
       docId: 'test-doc-id',

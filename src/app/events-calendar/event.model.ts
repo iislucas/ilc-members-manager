@@ -7,4 +7,6 @@ export interface CalendarEvent {
   location?: string;
   googleMapsUrl?: string;
   googleCalEventLink?: string;
+  heroImageUrl?: string;
 }
+

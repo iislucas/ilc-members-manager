@@ -280,6 +280,11 @@ async function syncCollection(
       const newData = freshMap.get(sourceId)!;
       const existing = existingBySourceId.get(sourceId);
 
+      if (existing && existing.data.kind === EventSourceKind.FirebaseSourced) {
+        unchanged++;
+        continue;
+      }
+
       if (existing && !contentChanged(existing.data, newData)) {
         unchanged++;
         continue;

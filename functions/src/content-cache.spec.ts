@@ -359,6 +359,12 @@ describe('contentChanged', () => {
     expect(contentChanged(existing, incoming)).toBe(false);
   });
 
+  it('should ignore fields in existing that are not in incoming', () => {
+    const existing = { title: 'Hello', heroImageUrl: 'http://example.com/image.jpg' };
+    const incoming = { title: 'Hello' };
+    expect(contentChanged(existing, incoming)).toBe(false);
+  });
+
   it('should detect number changes', () => {
     const existing = { publishOn: 1000 };
     const incoming = { publishOn: 2000 };

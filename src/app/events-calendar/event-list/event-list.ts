@@ -197,10 +197,11 @@ export class EventListComponent implements OnDestroy {
     
     let q = query(eventsCollection);
     if (path === 'events') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
-      q = query(eventsCollection, where('start', '>=', todayStr));
+      const date = new Date();
+      date.setDate(date.getDate() - 3);
+      date.setHours(0, 0, 0, 0);
+      const threeDaysAgoStr = date.toISOString().split('T')[0];
+      q = query(eventsCollection, where('end', '>=', threeDaysAgoStr));
     }
 
     this.isLoading.set(true);

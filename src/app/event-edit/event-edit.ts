@@ -267,6 +267,7 @@ export class EventEditComponent implements OnInit {
         location: formData.location,
         status: formData.status,
         heroImageUrl: formData.heroImageUrl,
+        kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
@@ -278,6 +279,7 @@ export class EventEditComponent implements OnInit {
         descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,
+        kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
