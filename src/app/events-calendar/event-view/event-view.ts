@@ -38,6 +38,7 @@ export class EventViewComponent implements OnInit {
   event = signal<IlcEvent | null>(null);
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
+  imageLoaded = signal(false);
 
 
   isOwner = computed(() => {
