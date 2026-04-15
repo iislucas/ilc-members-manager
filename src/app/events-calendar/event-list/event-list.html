@@ -35,6 +35,9 @@
         <app-icon name="calendar_today"></app-icon>
       </a>
     }
+    @if (collectionPath() !== 'events') {
+      <a class="button organise-event-btn" [href]="routingService.hrefForView(Views.ProposeEvent, {})">Organise Event</a>
+    }
   </div>
 
   @if (searchResults().matched.length === 0 && searchResults().unmatched.length === 0) {

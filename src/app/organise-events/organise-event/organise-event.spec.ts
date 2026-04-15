@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ProposeEventComponent } from './propose-event';
+import { ProposeEventComponent } from './organise-event';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../../firebase-state.service';
 import { RoutingService } from '../../routing.service';
 import { DataManagerService } from '../../data-manager.service';

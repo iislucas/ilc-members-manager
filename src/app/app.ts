@@ -37,7 +37,7 @@ import { EventListComponent } from './events-calendar/event-list/event-list';
 import { EventViewComponent } from './events-calendar/event-view/event-view';
 import { ManageEventsComponent } from './manage-events/manage-events';
 import { EventEditComponent } from './event-edit/event-edit';
-import { ProposeEventComponent } from './proposed-events/propose-event/propose-event';
+import { ProposeEventComponent } from './organise-events/organise-event/organise-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { MembershipType } from '../../functions/src/data-model';
 
@@ -350,7 +350,7 @@ export class App {
       case Views.EventEdit:
         return this.loadedEventTitle() ? `Edit: ${this.loadedEventTitle()}` : 'Edit Event';
       case Views.ProposeEvent:
-        return 'Propose Organising an Event';
+        return 'Organise Event';
       case Views.ManageEvents:
         return 'Manage Events';
       case Views.ClassVideoLibrary:

@@ -16,11 +16,11 @@ import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 @Component({
-  selector: 'app-propose-event',
+  selector: 'app-organise-event',
   standalone: true,
   imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MobileEditor, ImageUploadPreviewComponent],
-  templateUrl: './propose-event.html',
-  styleUrl: './propose-event.scss'
+  templateUrl: './organise-event.html',
+  styleUrl: './organise-event.scss'
 })
 export class ProposeEventComponent {
   private firebaseState = inject(FirebaseStateService);

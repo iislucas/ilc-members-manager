@@ -18,7 +18,8 @@ import {
   Unsubscribe,
   where,
 } from 'firebase/firestore';
-import { FIREBASE_APP } from '../../app.config';
+import { FIREBASE_APP, Views } from '../../app.config';
+import { RoutingService } from '../../routing.service';
 import { CalendarEvent } from '../event.model';
 import { IlcEvent, EventStatus, initEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
@@ -60,6 +61,9 @@ type SearchableCalendarEvent = IlcEvent & { id: string };
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventListComponent implements OnDestroy {
+  protected routingService = inject(RoutingService);
+  protected Views = Views;
+
   // --- Component State Signals ---
   errorMessage = signal<string | null>(null);
   inputCalendarId = signal('');

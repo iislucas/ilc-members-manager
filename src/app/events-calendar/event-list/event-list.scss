@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 :host {
   display: block;
   margin: 1em;
@@ -75,5 +77,35 @@ app-event-item {
       box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       outline: none;
     }
+  }
+}
+
+.organise-event-btn {
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: 500;
+  border-radius: 0.3em;
+  color: $button-text-color;
+  background-color: $button-bg-color;
+  border: 1px solid $button-border-color;
+  cursor: pointer;
+  box-shadow: 0 2px 4px $shadow-color;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: 0.3em 0.4em;
+  text-decoration: none;
+
+  &:hover {
+    background-color: $button-hover-bg-color;
+    box-shadow: 0 4px 8px $shadow-color-hover;
+  }
+
+  &:active {
+    transform: translateY(2px);
+    background-color: $button-active-bg-color;
+    box-shadow: 0 1px 2px $shadow-color-active;
   }
 }
