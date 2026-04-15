@@ -49,7 +49,7 @@
 
         <label for="event-hero-image">Image</label>
         <div class="rhs">
-          @if (eventFormModel().heroImageUrl) {
+          @if (eventFormModel().heroImageUrl && !isEditingCrop()) {
             <div
               class="hero-image-preview"
               style="

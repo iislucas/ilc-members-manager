@@ -273,7 +273,13 @@ export class EventEditComponent implements OnInit {
   }
 
   removeHeroImage() {
-    this.eventFormModel.update((m) => ({ ...m, heroImageUrl: '' }));
+    this.eventFormModel.update((m) => ({ 
+      ...m, 
+      heroImageUrl: '',
+      heroImageLargeUrl: '',
+      heroImageThumbUrl: '',
+      heroImageOriginalUrl: ''
+    }));
   }
 
   editHeroImageCrop() {
