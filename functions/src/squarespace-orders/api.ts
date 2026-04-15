@@ -383,9 +383,9 @@ export async function executeOrderDownstreamLogic(
   // The Squarespace UUID needed for API endpoint URLs (e.g. fulfillments).
   const squarespaceId = orderData.id;
 
-  // If the order has already been processed, do nothing
-  if (orderData.ilcAppOrderStatus) {
-    logger.info(`Order ${orderId} has already been processed. Skipping.`);
+  // If the order has already been fully processed, do nothing
+  if (orderData.ilcAppOrderStatus === 'processed') {
+    logger.info(`Order ${orderId} has already been fully processed. Skipping.`);
     return;
   }
 
@@ -403,6 +403,12 @@ export async function executeOrderDownstreamLogic(
 
   for (const lineItem of lineItems) {
     if (lineItem.ilcAppProcessingStatus === 'processed') {
+      continue;
+    }
+
+    if (lineItem.ilcAppProcessingStatus === 'error') {
+      allItemsFulfilled = false;
+      orderStatus = 'error';
       continue;
     }
 
@@ -464,9 +470,13 @@ export async function executeOrderDownstreamLogic(
     }
 
     // --- Unknown SKU ---
-    allItemsFulfilled = false;
-    lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
-    orderStatus = 'needs-manual-processing';
+    if (orderData.fulfillmentStatus === 'FULFILLED') {
+      lineItem.ilcAppProcessingStatus = 'processed';
+    } else {
+      allItemsFulfilled = false;
+      lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
+      orderStatus = 'needs-manual-processing';
+    }
   }
 
   if (allItemsFulfilled) {

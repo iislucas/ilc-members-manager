@@ -135,4 +135,103 @@ describe('executeOrderDownstreamLogic with physical products', () => {
     expect(updateData.ilcAppOrderStatus).toBe('processed');
     expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
   });
+
+  it('should mark unknown SKUs as processed if order is FULFILLED', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'FULFILLED',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'PRINT-3SGUIDE',
+          quantity: '1',
+          unitPricePaid: { value: '25.00' },
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).toHaveBeenCalled();
+    const updateData = mockUpdate.mock.calls[0][0];
+    expect(updateData.ilcAppOrderStatus).toBe('processed');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
+  });
+
+  it('should reprocess orders with status needs-manual-processing when fulfilled', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'FULFILLED',
+      ilcAppOrderStatus: 'needs-manual-processing',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'PHYSICAL-SKU',
+          lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+          quantity: '1',
+          unitPricePaid: { value: '10.00' },
+          ilcAppProcessingStatus: 'needs-manual-processing',
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).toHaveBeenCalled();
+    const updateData = mockUpdate.mock.calls[0][0];
+    expect(updateData.ilcAppOrderStatus).toBe('processed');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
+  });
+
+  it('should NOT reprocess line items with status error when order is fulfilled', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'FULFILLED',
+      ilcAppOrderStatus: 'error',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'MEM-YEAR-REG',
+          quantity: '1',
+          unitPricePaid: { value: '85.00' },
+          ilcAppProcessingStatus: 'error',
+          ilcAppProcessingIssue: 'Some error',
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).toHaveBeenCalled();
+    const updateData = mockUpdate.mock.calls[0][0];
+    expect(updateData.ilcAppOrderStatus).toBe('error');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('error');
+  });
 });
