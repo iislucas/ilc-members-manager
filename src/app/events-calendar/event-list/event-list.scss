@@ -4,6 +4,13 @@
   display: block;
 }
 
+.event-list-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 
 .event-list {
   display: flex;
