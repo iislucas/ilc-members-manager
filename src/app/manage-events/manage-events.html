@@ -85,7 +85,7 @@
         <select [ngModel]="searchField()" (ngModelChange)="searchField.set($event)" class="field-select">
           <option value="title">Title</option>
           <option value="location">Location</option>
-          <option value="ownerEmail">Owner Email</option>
+          <option value="ownerEmails">Owner Email</option>
           <option value="leadingInstructorId">Instructor ID</option>
         </select>
         <input
@@ -133,9 +133,9 @@
       @for (ev of eventsList; track ev.docId || ev.sourceId) {
         <a class="event-management-card event-card-link" [href]="editLink(ev)">
           <div class="event-card-header">
-            @if (ev.ownerEmail) {
+            @if (ev.ownerEmails && ev.ownerEmails.length > 0) {
             <div class="owner">
-              Owner: {{ ev.ownerEmail }} ({{ ev.ownerDocId }})
+              Owner: {{ ev.ownerEmails.join(', ') }} ({{ ev.ownerDocId }})
             </div>
             }
             @if (ev.lastUpdated) {

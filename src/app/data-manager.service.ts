@@ -100,7 +100,7 @@ export type OrderSearchCriteria = OrderSearchCriteriaTerm | OrderSearchCriteriaD
 
 export type EventSearchCriteriaTerm = {
   kind: 'term';
-  searchField: 'title' | 'location' | 'ownerEmail' | 'leadingInstructorId';
+  searchField: 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId';
   term: string;
   statusFilter?: string;
 };
@@ -543,7 +543,12 @@ export class DataManagerService {
       const field = criteria.searchField;
       if (!term) return [];
 
-      let q = query(this.eventsCollection, where(field, '==', term));
+      let q;
+      if (field === 'ownerEmails') {
+        q = query(this.eventsCollection, where('ownerEmails', 'array-contains', term));
+      } else {
+        q = query(this.eventsCollection, where(field, '==', term));
+      }
       
       if (status) {
         q = query(q, where('status', '==', status));

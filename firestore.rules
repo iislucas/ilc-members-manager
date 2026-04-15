@@ -126,12 +126,14 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow delete: if isAdmin() || (
         request.auth != null && 
-        (request.auth.token.email == resource.data.ownerEmail || request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        (request.auth.token.email in resource.data.get('ownerEmails', []) || 
+         request.auth.token.email in resource.data.get('managerEmails', [])) &&
         resource.data.status == 'proposed'
       );
       allow update: if isAdmin() || (
         request.auth != null && 
-        (request.auth.token.email == resource.data.ownerEmail || request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        (request.auth.token.email in resource.data.get('ownerEmails', []) || 
+         request.auth.token.email in resource.data.get('managerEmails', [])) &&
         request.resource.data.status == resource.data.status
       );
     }

@@ -25,13 +25,14 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, initEvent } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, initEvent, Member, InstructorPublicData } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
 import { MobileEditor } from '../mobile-editor/mobile-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
+import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
@@ -51,6 +52,8 @@ type EventFormModel = {
   heroImageLargeUrl?: string;
   heroImageThumbUrl?: string;
   heroImageOriginalUrl?: string;
+  ownerDocId: string;
+  managerDocIds: string[];
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -65,6 +68,8 @@ function toFormModel(event: IlcEvent): EventFormModel {
     location: event.location,
     status: event.status,
     heroImageUrl: event.heroImageUrl,
+    ownerDocId: event.ownerDocId || '',
+    managerDocIds: event.managerDocIds || [],
   };
   if (event.heroImageLargeUrl !== undefined) {
     model.heroImageLargeUrl = event.heroImageLargeUrl;
@@ -81,7 +86,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor, ImageUploadPreviewComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor, ImageUploadPreviewComponent, AutocompleteComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,7 +97,7 @@ export class EventEditComponent implements OnInit {
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   firebaseState = inject(FirebaseStateService);
-  private dataService = inject(DataManagerService);
+  public dataService = inject(DataManagerService);
 
   // Constants for template
   EventStatus = EventStatus;
@@ -115,6 +120,8 @@ export class EventEditComponent implements OnInit {
     heroImageLargeUrl: '',
     heroImageThumbUrl: '',
     heroImageOriginalUrl: '',
+    ownerDocId: '',
+    managerDocIds: [],
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -290,6 +297,50 @@ export class EventEditComponent implements OnInit {
     this.isEditingCrop.set(false);
   }
 
+  userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+
+  instructorDisplayFns = {
+    toChipId: (i: InstructorPublicData) => i.instructorId,
+    toName: (i: InstructorPublicData) => i.name,
+  };
+
+  memberDisplayFns = {
+    toChipId: (m: Member) => m.memberId,
+    toName: (m: Member) => m.name,
+  };
+
+  updateOwnerDocId(instructorId: string) {
+    const instructor = this.dataService.instructors.get(instructorId);
+    if (instructor) {
+      this.eventFormModel.update((m) => ({ ...m, ownerDocId: instructor.docId }));
+    }
+  }
+
+  updateManagerDocId(index: number, instructorId: string) {
+    this.eventFormModel.update((m) => {
+      const managerDocIds = [...m.managerDocIds];
+      const instructor = this.dataService.instructors.get(instructorId);
+      if (instructor) {
+        managerDocIds[index] = instructor.docId;
+      }
+      return { ...m, managerDocIds };
+    });
+  }
+
+  addEmptyManagerRow() {
+    this.eventFormModel.update((m) => ({
+      ...m,
+      managerDocIds: [...m.managerDocIds, '']
+    }));
+  }
+
+  removeManagerDocId(index: number) {
+    this.eventFormModel.update((m) => ({
+      ...m,
+      managerDocIds: m.managerDocIds.filter((_, i) => i !== index)
+    }));
+  }
+
   async saveEvent(e: Event) {
     e.preventDefault();
     this.errorMessage.set(null);
@@ -321,6 +372,8 @@ export class EventEditComponent implements OnInit {
         heroImageLargeUrl: formData.heroImageLargeUrl,
         heroImageThumbUrl: formData.heroImageThumbUrl,
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
+        ownerDocId: formData.ownerDocId,
+        managerDocIds: formData.managerDocIds.filter(Boolean),
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
@@ -330,6 +383,7 @@ export class EventEditComponent implements OnInit {
       this.event.set({
         ...eventData,
         ...formData,
+        managerDocIds: formData.managerDocIds.filter(Boolean),
         descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,

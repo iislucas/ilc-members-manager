@@ -126,14 +126,76 @@
         </div>
 
         @if (ev) {
-          @if (ev.ownerEmail) {
-            <label>Owner</label>
-            <div class="rhs">
-              <span class="readonly-value"
-                >{{ ev.ownerEmail }} ({{ ev.ownerDocId }})</span
-              >
+        <label for="event-owner">Owner</label>
+        <div class="rhs">
+          @if (userIsAdmin()) {
+            <app-autocomplete
+              [searchableSet]="dataService.instructors"
+              [placeholder]="'Search for a member'"
+              [displayFns]="instructorDisplayFns"
+              [initSearchTerm]="dataService.members.get(eventFormModel().ownerDocId)?.instructorId || ''"
+              (textUpdated)="updateOwnerDocId($event)"
+            ></app-autocomplete>
+          } @else {
+            @let owner = dataService.members.get(eventFormModel().ownerDocId);
+            <span class="readonly-value">{{ owner?.name || eventFormModel().ownerDocId }}</span>
+          }
+          @if (eventFormModel().ownerDocId) {
+            @let owner = dataService.members.get(eventFormModel().ownerDocId);
+            @if (owner) {
+              <div class="note" style="display: flex; gap: 10px; align-items: center;">
+                <span>{{ owner.name }}</span>
+                <span class="identifier-chip">{{ owner.memberId }}</span>
+              </div>
+            }
+          }
+        </div>
+
+        <label>Managers</label>
+        <div class="rhs">
+          @let managerIds = eventFormModel().managerDocIds;
+          @for (managerId of managerIds; track $index; let last = $last) {
+            <div class="manager-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+              @if (userIsAdmin()) {
+                <app-autocomplete
+                  [searchableSet]="dataService.instructors"
+                  [placeholder]="'Search for a manager'"
+                  [displayFns]="instructorDisplayFns"
+                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
+                  (textUpdated)="updateManagerDocId($index, $event)"
+                ></app-autocomplete>
+              } @else {
+                <app-autocomplete
+                  [searchableSet]="dataService.instructors"
+                  [placeholder]="'Search for a manager'"
+                  [displayFns]="instructorDisplayFns"
+                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
+                  (textUpdated)="updateManagerDocId($index, $event)"
+                ></app-autocomplete>
+              }
+              @let manager = dataService.members.get(managerId);
+              @if (manager) {
+                <span class="note">{{ manager.name }}</span>
+                <span class="identifier-chip">{{ manager.memberId }}</span>
+              }
+              <button type="button" class="icon-only-button" (click)="removeManagerDocId($index)" title="Remove manager">
+                <app-icon name="trash" />
+              </button>
+              @if (last) {
+                <button type="button" class="icon-only-button add-manager-btn" (click)="addEmptyManagerRow()" title="Add another manager">
+                  <app-icon name="add" />
+                </button>
+              }
             </div>
           }
+          @if (managerIds.length === 0) {
+            <div class="add-new-row">
+              <button type="button" class="subtle-button" (click)="addEmptyManagerRow()">
+                + add manager
+              </button>
+            </div>
+          }
+        </div>
 
           @if (ev.createdAt) {
             <label>Created</label>

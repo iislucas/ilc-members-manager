@@ -8,6 +8,7 @@ import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebas
 import { DataManagerService } from '../data-manager.service';
 import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
 import { updateDoc } from 'firebase/firestore';
+import { SearchableSet } from '../searchable-set';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -36,6 +37,8 @@ describe('EventEditComponent', () => {
 
     mockDataManagerService = {
       getEventById: vi.fn().mockResolvedValue(undefined),
+      members: new SearchableSet(['name'], 'docId', []),
+      instructors: new SearchableSet(['instructorId'], 'instructorId', []),
     } as unknown as DataManagerService;
 
     await TestBed.configureTestingModule({
@@ -84,6 +87,8 @@ describe('EventEditComponent', () => {
       location: 'New Location',
       status: EventStatus.Listed,
       heroImageUrl: 'http://example.com/image.jpg',
+      ownerDocId: 'owner-id',
+      managerDocIds: [],
     });
 
     // Trigger computed signals
@@ -151,5 +156,32 @@ describe('EventEditComponent', () => {
     await component.loadEvent();
     
     expect(titleLoadedSpy).toHaveBeenCalledWith('Test Event Title');
+  });
+
+  it('should update ownerDocId via instructor lookup', () => {
+    const mockInstructor = {
+      docId: 'instructor-member-doc-id',
+      instructorId: 'I-101',
+      name: 'Instructor Name',
+    };
+    (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
+
+    component.updateOwnerDocId('I-101');
+
+    expect(component.eventFormModel().ownerDocId).toBe('instructor-member-doc-id');
+  });
+
+  it('should update managerDocIds via instructor lookup', () => {
+    const mockInstructor = {
+      docId: 'instructor-member-doc-id',
+      instructorId: 'I-101',
+      name: 'Instructor Name',
+    };
+    (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
+    component.eventFormModel.set({ ...component.eventFormModel(), managerDocIds: [''] });
+
+    component.updateManagerDocId(0, 'I-101');
+
+    expect(component.eventFormModel().managerDocIds[0]).toBe('instructor-member-doc-id');
   });
 });

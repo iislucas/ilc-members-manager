@@ -904,7 +904,7 @@ export type IlcEvent = {
   kind: EventSourceKind;  // used by sync pruning
   createdAt?: string;      // ISO date-time
   ownerDocId: string;
-  ownerEmail: string;
+  ownerEmails: string[];
   leadingInstructorId: string; // Primary instructor leading the event
   managerDocIds: string[];
   managerEmails: string[];
@@ -927,7 +927,7 @@ export function initEvent(): IlcEvent {
     kind: EventSourceKind.FirebaseSourced,
     status: EventStatus.Proposed,
     ownerDocId: '',
-    ownerEmail: '',
+    ownerEmails: [],
     leadingInstructorId: '',
     managerDocIds: [],
     managerEmails: [],

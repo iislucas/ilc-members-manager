@@ -56,7 +56,7 @@ export const submitProposedEvent = onCall(
 
     // Check limit of 3 proposed events
     const proposedEventsQuery = await db.collection('events')
-      .where('ownerEmail', '==', request.auth.token.email)
+      .where('ownerEmails', 'array-contains', request.auth.token.email)
       .where('status', '==', EventStatus.Proposed)
       .get();
     
@@ -76,7 +76,7 @@ export const submitProposedEvent = onCall(
       kind: EventSourceKind.FirebaseSourced,
       createdAt: new Date().toISOString(),
       ownerDocId: member.docId,
-      ownerEmail: request.auth.token.email,
+      ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [request.auth.token.email],
       leadingInstructorId: data.leadingInstructorId || '',
     };
 
@@ -96,6 +96,31 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   if (!before || !after) return;
 
+  // Resolve emails if missing or if owner/managers changed
+  const db = admin.firestore();
+  
+  const ownerDoc = await db.collection('members').doc(after.ownerDocId).get();
+  const ownerEmails = ownerDoc.data()?.emails || [];
+
+  const managerEmails: string[] = [];
+  for (const id of (after.managerDocIds || [])) {
+    const mgrDoc = await db.collection('members').doc(id).get();
+    const emails = mgrDoc.data()?.emails || [];
+    managerEmails.push(...emails);
+  }
+
+  const ownerEmailsChanged = JSON.stringify(ownerEmails) !== JSON.stringify(after.ownerEmails || []);
+  const managerEmailsChanged = JSON.stringify(managerEmails) !== JSON.stringify(after.managerEmails || []);
+
+  if (ownerEmailsChanged || managerEmailsChanged) {
+    logger.info(`Updating emails for event ${event.params.docId}.`);
+    await event.data.after.ref.update({
+      ownerEmails,
+      managerEmails
+    });
+    return; // Let the next trigger handle mirroring
+  }
+
   // Mirror to member subcollections for owner and managers
   const previousTargets = new Set([before.ownerDocId, ...(before.managerDocIds || [])].filter(Boolean));
   const currentTargets = new Set([after.ownerDocId, ...(after.managerDocIds || [])].filter(Boolean));
@@ -114,13 +139,17 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   }
 
   // Update/Add to all current targets
+  // Destructuring extracts ownerEmails and managerEmails to ignore them (renaming to _ and __ to avoid
+  // collision with variables in scope). The rest operator (...) puts the remaining fields in eventToMirror.
+  const { ownerEmails: _, managerEmails: __, ...eventToMirror } = after;
+
   for (const docId of currentTargets) {
     await admin.firestore()
       .collection('members')
       .doc(docId)
       .collection('events')
       .doc(event.params.docId)
-      .set(after);
+      .set(eventToMirror);
     logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
   }
   // Only sync firebase-sourced events (calendar-sourced events are managed by the calendar sync).
@@ -186,19 +215,26 @@ export const onEventCreated = onDocumentCreated('/events/{docId}', async (event)
   if (!snap) return;
 
   const eventData = snap.data() as IlcEvent;
-  const eventDocId = snap.id;
 
-  const allTargetDocIds = new Set([eventData.ownerDocId, ...(eventData.managerDocIds || [])].filter(Boolean));
+  // Resolve emails for owner and managers
+  const db = admin.firestore();
   
-  for (const docId of allTargetDocIds) {
-    const ref = admin.firestore()
-      .collection('members')
-      .doc(docId)
-      .collection('events')
-      .doc(eventDocId);
-    await ref.set(eventData);
-    logger.info(`Mirrored event ${eventDocId} to member ${docId} subcollection.`);
+  const ownerDoc = await db.collection('members').doc(eventData.ownerDocId).get();
+  const ownerEmails = ownerDoc.data()?.emails || [];
+
+  const managerEmails: string[] = [];
+  for (const id of (eventData.managerDocIds || [])) {
+    const mgrDoc = await db.collection('members').doc(id).get();
+    const emails = mgrDoc.data()?.emails || [];
+    managerEmails.push(...emails);
   }
+
+  logger.info(`Enriching event ${snap.id} with emails.`);
+  await snap.ref.update({
+    ownerEmails,
+    managerEmails
+  });
+  // Mirroring will be handled by onEventUpdated when it triggers from this update.
 });
 
 export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event) => {

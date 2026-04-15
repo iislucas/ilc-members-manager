@@ -89,7 +89,7 @@ export class ManageEventsComponent implements OnDestroy {
 
   // URL-param backed state
   public searchMode = signal<'recent' | 'term' | 'date'>('recent');
-  public searchField = signal<'title' | 'location' | 'ownerEmail' | 'leadingInstructorId'>('title');
+  public searchField = signal<'title' | 'location' | 'ownerEmails' | 'leadingInstructorId'>('title');
   public searchTerm = signal('');
   public startDate = signal<string>('');
   public endDate = signal<string>('');
