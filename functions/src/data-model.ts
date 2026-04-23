@@ -176,6 +176,27 @@ export enum ApplicationLevel {
   Level6 = '6',
 }
 
+export const gradingProgression = [
+  "Student Entry",
+  "Student 1",
+  "Student 2",
+  "Student 3",
+  "Application 1",
+  "Student 4",
+  "Application 2",
+  "Student 5",
+  "Student 6",
+  "Application 3",
+  "Student 7",
+  "Student 8",
+  "Application 4",
+  "Student 9",
+  "Student 10",
+  "Application 5",
+  "Student 11",
+  "Application 6",
+]
+
 export enum InstructorLicenseType {
   None = 'None',
   Annual = 'Annual',

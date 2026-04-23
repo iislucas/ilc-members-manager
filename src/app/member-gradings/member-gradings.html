@@ -3,12 +3,28 @@
   <div class="gradings-summary">
     <div class="summary-item">
       <span class="label">Current Level:</span>
-      <span class="value">{{ currentLevel() || "None" }}</span>
+      <span class="value">{{ currentLevelDisplay() }}</span>
     </div>
-    @if (nextLevel()) {
+    @if (nextGrading()) {
       <div class="summary-item">
         <span class="label">Next Grading:</span>
-        <span class="value">{{ nextLevel() }}</span>
+        <span class="value">
+          {{ nextGrading() }}
+          @if (nextGradingPurchased()) {
+            <span class="purchased-badge">
+              <app-icon name="check" /> Purchased
+            </span>
+          } @else {
+            <a
+              href="https://www.iliqchuan.com/products/gradings"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="subtle-button purchase-btn"
+            >
+              <app-icon name="arrow_forward" /> Purchase
+            </a>
+          }
+        </span>
       </div>
     }
   </div>

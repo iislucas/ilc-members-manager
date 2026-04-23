@@ -23,8 +23,30 @@
       font-size: 1.25em;
       font-weight: 600;
       color: var(--text-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
   }
+}
+
+// Smaller sizing for the subtle-button when used inline in the summary card.
+.purchase-btn {
+  font-size: 0.75em;
+  padding: 0.2em 0.6em;
+}
+
+.purchased-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75em;
+  font-weight: 500;
+  color: var(--success-color, #2e7d32);
+  padding: 2px 10px;
+  border: 1px solid var(--success-color, #2e7d32);
+  border-radius: 16px;
 }
 
 .tabs {
