@@ -4,7 +4,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
 import { IconComponent } from '../icons/icon.component';
-import { gradingProgression } from '../../../functions/src/data-model';
+import { gradingProgression, GradingStatus } from '../../../functions/src/data-model';
 
 @Component({
   selector: 'app-member-gradings',
@@ -80,13 +80,14 @@ export class MemberGradingsComponent {
     return '';
   });
 
-  // Whether a grading for the next level has already been purchased.
+  // Whether a grading for the next level has already been purchased
+  // (ignoring gradings the student didn't pass).
   nextGradingPurchased = computed(() => {
     const next = this.nextGrading();
     if (!next) return false;
     return this.dataService.myGradings
       .entries()
-      .some((g) => g.level === next);
+      .some((g) => g.level === next && g.status !== GradingStatus.NotPassed);
   });
 
   setActiveTab(tab: 'examined' | 'students' | 'mine') {
