@@ -1270,6 +1270,23 @@ export class DataManagerService {
     return result.data.backups;
   }
 
+  async listResources() {
+    const listResourcesFn = httpsCallable<
+      undefined,
+      { resources: { name: string; fullPath: string; contentType: string; timeCreated: string; size: string; downloadUrl: string }[] }
+    >(this.functions, 'listResources');
+    const result = await listResourcesFn();
+    return result.data.resources;
+  }
+
+  async deleteResource(fullPath: string) {
+    const deleteResourceFn = httpsCallable<
+      { fullPath: string },
+      { success: boolean }
+    >(this.functions, 'deleteResource');
+    await deleteResourceFn({ fullPath });
+  }
+
   async saveCounters(data: Counters) {
     return setDoc(doc(this.db, 'system', 'counters'), data);
   }

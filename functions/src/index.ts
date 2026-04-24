@@ -44,3 +44,5 @@ export { scheduleAccountDeletion, cancelAccountDeletion, dailyAccountCleanup } f
 
 export { submitProposedEvent, onEventUpdated, onEventCreated, onEventDeleted } from './proposed-events';
 
+export { listResources, deleteResource } from './resources';
+

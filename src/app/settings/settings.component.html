@@ -7,6 +7,8 @@
       (click)="setActiveTab('backups')">Backups</button>
     <button class="tab-button" [class.active]="activeTab() === 'content-cache'"
       (click)="setActiveTab('content-cache')">Content Cache</button>
+    <button class="tab-button" [class.active]="activeTab() === 'resources'"
+      (click)="setActiveTab('resources')">Resources</button>
   </div>
 
   @if (activeTab() === 'counters') {
@@ -30,6 +32,12 @@
   @if (activeTab() === 'content-cache') {
   <div class="tab-content">
     <app-content-cache></app-content-cache>
+  </div>
+  }
+
+  @if (activeTab() === 'resources') {
+  <div class="tab-content">
+    <app-resources></app-resources>
   </div>
   }
 </div>

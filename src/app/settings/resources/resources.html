@@ -1,0 +1,153 @@
+<div class="control-panel">
+  <div class="panel-header">
+    <h2>Resource Files</h2>
+    <p class="subtitle">Upload and manage shared resource files (PDFs, documents, etc.)</p>
+  </div>
+
+  <div class="upload-card">
+    <div class="card-content">
+      <div class="card-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+      </div>
+      <div class="card-text">
+        <h3>Upload Files</h3>
+        <p>Select one or more files to upload to the shared resources area.</p>
+      </div>
+    </div>
+    <div class="card-action">
+      @if (isUploading()) {
+      <div class="spinner-wrapper">
+        <app-spinner></app-spinner>
+        <span>Uploading...</span>
+      </div>
+      } @else {
+      <label class="action-button primary-action upload-label" for="resource-file-input">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        Choose Files
+      </label>
+      <input
+        id="resource-file-input"
+        type="file"
+        multiple
+        class="file-input-hidden"
+        (change)="onFileSelected($event)" />
+      }
+    </div>
+  </div>
+
+  @if (statusMessage()) {
+  <div class="alert success-alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+    {{ statusMessage() }}
+  </div>
+  }
+
+  @if (errorMessage()) {
+  <div class="alert error-alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    {{ errorMessage() }}
+  </div>
+  }
+
+  <div class="table-section">
+    <div class="table-header">
+      <div class="table-title">
+        <h3>Uploaded Resources</h3>
+        <span class="badge">{{ resources().length }}</span>
+      </div>
+      <button class="action-button secondary-action" (click)="loadResources()" [disabled]="isLoading()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class.spinning]="isLoading()">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    @if (isLoading()) {
+    <div class="loading-state">
+      <app-spinner></app-spinner>
+      <p>Loading resources...</p>
+    </div>
+    }
+
+    @if (resources().length > 0 && !isLoading()) {
+    <div class="table-container">
+      <table class="premium-table">
+        <thead>
+          <tr>
+            <th>File Name</th>
+            <th>Type</th>
+            <th>Uploaded</th>
+            <th>Size</th>
+            <th class="actions-cell">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (resource of resources(); track resource.fullPath) {
+          <tr class="table-row">
+            <td class="file-name-cell">
+              <span class="file-type-indicator" [class]="fileTypeClass(resource.contentType)"></span>
+              {{ resource.name }}
+            </td>
+            <td class="type-cell">
+              <span class="type-badge">{{ resource.contentType }}</span>
+            </td>
+            <td class="date-cell">{{ resource.timeCreated | date:'medium' }}</td>
+            <td class="size-cell">
+              <span class="size-badge">{{ formatSize(resource.size) }}</span>
+            </td>
+            <td class="actions-cell">
+              <a [href]="resource.downloadUrl" target="_blank" download class="download-link" title="Download">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download
+              </a>
+              <button class="delete-button" (click)="deleteFile(resource)" title="Delete">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Delete
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+
+    @if (!isLoading() && resources().length === 0 && !errorMessage()) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </div>
+      <h3>No resources uploaded</h3>
+      <p>Upload PDF files, documents, or other resources using the button above.</p>
+    </div>
+    }
+  </div>
+</div>

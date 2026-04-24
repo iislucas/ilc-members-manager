@@ -1,0 +1,144 @@
+/* resources.ts
+ *
+ * Settings tab component for managing resource files (PDFs, documents, etc.)
+ * stored in Firebase Storage. Provides upload, listing, download, and delete
+ * functionality. Admin-only.
+ *
+ * Upload is done client-side via the Firebase Storage SDK. Listing and
+ * deletion go through callable Cloud Functions (listResources, deleteResource)
+ * to leverage admin-signed download URLs.
+ */
+
+import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { DataManagerService } from '../../data-manager.service';
+import { FirebaseStateService } from '../../firebase-state.service';
+import { FIREBASE_APP } from '../../app.config';
+import { SpinnerComponent } from '../../spinner/spinner.component';
+import { getStorage, ref, uploadBytes } from 'firebase/storage';
+import { DatePipe } from '@angular/common';
+
+// Matches the shape returned by the listResources Cloud Function.
+interface ResourceFile {
+  name: string;
+  fullPath: string;
+  contentType: string;
+  timeCreated: string;
+  size: string;
+  downloadUrl: string;
+}
+
+@Component({
+  selector: 'app-resources',
+  standalone: true,
+  imports: [SpinnerComponent, DatePipe],
+  templateUrl: './resources.html',
+  styleUrl: './resources.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ResourcesComponent implements OnInit {
+  private dataManager = inject(DataManagerService);
+  private firebaseApp = inject(FIREBASE_APP);
+
+  resources = signal<ResourceFile[]>([]);
+  isLoading = signal(false);
+  isUploading = signal(false);
+  statusMessage = signal('');
+  errorMessage = signal('');
+
+  ngOnInit() {
+    this.loadResources();
+  }
+
+  async loadResources() {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    try {
+      const list = await this.dataManager.listResources();
+      this.resources.set(list);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessage.set(`Error loading resources: ${message}`);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    this.isUploading.set(true);
+    this.statusMessage.set('');
+    this.errorMessage.set('');
+
+    const storage = getStorage(this.firebaseApp);
+    let uploadedCount = 0;
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const storageRef = ref(storage, `resources/${file.name}`);
+        await uploadBytes(storageRef, file, {
+          contentType: file.type || 'application/octet-stream',
+        });
+        uploadedCount++;
+      }
+
+      this.statusMessage.set(
+        `Successfully uploaded ${uploadedCount} file${uploadedCount !== 1 ? 's' : ''}.`
+      );
+
+      // Reset the file input so the same file can be re-uploaded.
+      input.value = '';
+
+      // Refresh the list to show newly uploaded files.
+      await this.loadResources();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessage.set(`Upload failed: ${message}`);
+    } finally {
+      this.isUploading.set(false);
+    }
+  }
+
+  async deleteFile(resource: ResourceFile) {
+    if (!confirm(`Are you sure you want to delete "${resource.name}"?`)) return;
+
+    this.statusMessage.set('');
+    this.errorMessage.set('');
+
+    try {
+      await this.dataManager.deleteResource(resource.fullPath);
+      this.statusMessage.set(`Deleted "${resource.name}".`);
+      await this.loadResources();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessage.set(`Failed to delete: ${message}`);
+    }
+  }
+
+  // Formats byte count into a human-readable string.
+  formatSize(sizeStr: string): string {
+    const bytes = parseInt(sizeStr, 10);
+    if (isNaN(bytes) || bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let unitIndex = 0;
+    let size = bytes;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+  }
+
+  // Returns a CSS class name based on the file's content type.
+  fileTypeClass(contentType: string): string {
+    if (contentType.includes('pdf')) return 'file-pdf';
+    if (contentType.includes('image')) return 'file-image';
+    if (contentType.includes('video')) return 'file-video';
+    if (contentType.includes('word') || contentType.includes('document')) return 'file-doc';
+    if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'file-sheet';
+    return 'file-generic';
+  }
+}

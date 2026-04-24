@@ -24,6 +24,13 @@ service firebase.storage {
       );
     }
 
+    match /resources/{fileId} {
+      // Any authenticated user can read resource files.
+      allow read: if request.auth != null;
+      // Only admins can upload or delete resource files.
+      allow write: if isAdmin();
+    }
+
     match /{allPaths=**} {
       // Deny by default
       allow read, write: if false;

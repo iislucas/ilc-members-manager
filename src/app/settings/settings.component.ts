@@ -1,21 +1,24 @@
-import { Component, signal, WritableSignal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
 import { CountersComponent } from './counters/counters';
 import { CountryCodesComponent } from './country-codes/country-codes';
 import { Backups } from './backups/backups';
 import { ContentCacheComponent } from './content-cache/content-cache';
+import { ResourcesComponent } from './resources/resources';
+
+type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, CountersComponent, CountryCodesComponent, Backups, ContentCacheComponent],
+  imports: [CountersComponent, CountryCodesComponent, Backups, ContentCacheComponent, ResourcesComponent],
   templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+  styleUrls: ['./settings.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent {
-  activeTab: WritableSignal<'counters' | 'country-codes' | 'backups' | 'content-cache'> = signal('counters');
+  activeTab: WritableSignal<SettingsTab> = signal('counters');
 
-  setActiveTab(tab: 'counters' | 'country-codes' | 'backups' | 'content-cache') {
+  setActiveTab(tab: SettingsTab) {
     this.activeTab.set(tab);
   }
 }
