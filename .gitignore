@@ -55,6 +55,9 @@ firebase-debug.log
 firestore-debug.log
 secret.keys.txt
 
+# Auto-generated version stamp (scripts/stamp-version.ts)
+src/app/version.ts
+
 # Mini-tools (logo maker)
 mini-tools/logo-maker/build/
 mini-tools/logo-maker/node_modules/

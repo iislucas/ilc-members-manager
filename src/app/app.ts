@@ -40,6 +40,7 @@ import { EventEditComponent } from './event-edit/event-edit';
 import { ProposeEventComponent } from './organise-events/organise-event/organise-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { MembershipType } from '../../functions/src/data-model';
+import { APP_VERSION } from './version';
 
 @Component({
   selector: 'app-root',
@@ -85,6 +86,7 @@ import { MembershipType } from '../../functions/src/data-model';
 })
 export class App {
   protected title = 'ilc-members-manager';
+  protected readonly appVersion = APP_VERSION;
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   public findInstructorsService = inject(FindInstructorsService);

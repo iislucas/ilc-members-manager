@@ -77,3 +77,24 @@ main {
     font-size: 1em;
   }
 }
+
+.version-badge {
+  position: fixed;
+  bottom: 0.4em;
+  right: 0.6em;
+  font-size: 0.6em;
+  color: #777;
+  background: #fff;
+  padding: 0.2em 0.4em;
+  opacity: 0.7;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+  z-index: 9999;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1.0;
+  }
+}

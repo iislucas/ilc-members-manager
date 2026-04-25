@@ -5,6 +5,8 @@
     "ng": "ng",
     "start": "ng serve --project ilc-members-manager",
     "start:wc": "ng serve --project find-an-instructor-wc",
+    "stamp-version": "ts-node -O '{\"module\": \"commonjs\"}' scripts/stamp-version.ts",
+    "prebuild": "pnpm run stamp-version",
     "build": "ng build --project ilc-members-manager",
     "build:wc": "ng build --project find-an-instructor-wc",
     "build:functions": "pnpm --prefix functions run build",
