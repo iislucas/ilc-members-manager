@@ -35,6 +35,12 @@ export class EventsViewerComponent {
   // Example: "https://app.iliqchuan.com/#/events/"
   eventLinkPrefix = input<string>('https://app.iliqchuan.com/#/events/');
 
+  // Base URL prefix for instructor profile links. Defaults to the main
+  // app's Find an Instructor page so clicks navigate correctly from any host.
+  instructorLinkPrefix = input<string>(
+    'https://app.iliqchuan.com/#/find-an-instructor?instructorId=',
+  );
+
   // Optional initial search query to pre-populate the search field.
   // Example: <app-events-viewer initial-query="Seminar"></app-events-viewer>
   initialQuery = input<string>('');

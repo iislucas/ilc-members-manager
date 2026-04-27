@@ -52,7 +52,7 @@
         <div class="event-list">
           @for (event of searchResults().matched; track event.sourceId) {
             <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
-              <app-event-item [event]="event" />
+              <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
           }
         </div>
@@ -65,7 +65,7 @@
         <div class="event-list">
           @for (event of searchResults().unmatched; track event.sourceId) {
             <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
-              <app-event-item [event]="event" />
+              <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
           }
         </div>

@@ -94,6 +94,11 @@ export class EventListComponent implements OnDestroy {
   // links point to an external domain — useful for the standalone WC.
   eventLinkPrefix = input<string>('');
 
+  // Optional prefix for instructor profile links. When empty (default),
+  // uses the in-app hash route. When set (e.g. by the standalone WC),
+  // instructor links point to the specified external URL.
+  instructorLinkPrefix = input<string>('');
+
   // Resolved link prefix: uses the explicit input if provided, otherwise
   // falls back to the default hash-based route for the current collection.
   protected resolvedEventLinkPrefix = computed(() => {
