@@ -23,12 +23,7 @@
                 <app-icon name="event"></app-icon>
               </a>
             }
-            @if (event().start === event().end) {
-              {{ event().start | date: "mediumDate" }}
-            } @else {
-              {{ event().start | date: "mediumDate" }} -
-              {{ event().end | date: "mediumDate" }}
-            }
+            {{ dateDisplay() }}
           </span>
 
           <!-- location & map link -->

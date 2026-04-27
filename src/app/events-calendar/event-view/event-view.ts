@@ -5,7 +5,7 @@
  */
 
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { formatDateRange } from '../format-date-range';
 import { marked } from 'marked';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
@@ -21,7 +21,7 @@ import { MarkdownViewer } from '../../mobile-editor/markdown-viewer';
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [DatePipe, IconComponent, SpinnerComponent, MarkdownViewer],
+  imports: [IconComponent, SpinnerComponent, MarkdownViewer],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })
@@ -39,6 +39,12 @@ export class EventViewComponent implements OnInit {
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
   imageLoaded = signal(false);
+
+  dateDisplay = computed(() => {
+    const ev = this.event();
+    if (!ev) return '';
+    return formatDateRange(ev.start, ev.end);
+  });
 
 
   isOwner = computed(() => {

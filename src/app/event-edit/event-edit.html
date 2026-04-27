@@ -47,6 +47,22 @@
           <input type="text" id="event-location" [formField]="form.location" />
         </div>
 
+        <label for="event-instructor">Instructor</label>
+        <div class="rhs">
+          <app-autocomplete
+            [searchableSet]="dataService.instructors"
+            [placeholder]="'Search for an instructor'"
+            [displayFns]="instructorDisplayFns"
+            [initSearchTerm]="eventFormModel().leadingInstructorId"
+            (textUpdated)="updateLeadingInstructorId($event)"
+          ></app-autocomplete>
+          @if (dataService.instructors.get(eventFormModel().leadingInstructorId); as instructorData) {
+            <div class="note" style="display: flex; gap: 10px; align-items: center;">
+              <span>{{ instructorData.name }}</span>
+              <span class="identifier-chip">{{ instructorData.instructorId }}</span>
+            </div>
+          }
+        </div>
         <label for="event-hero-image">Image</label>
         <div class="rhs">
           @if (eventFormModel().heroImageUrl && !isEditingCrop()) {

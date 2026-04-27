@@ -54,6 +54,7 @@ type EventFormModel = {
   heroImageOriginalUrl?: string;
   ownerDocId: string;
   managerDocIds: string[];
+  leadingInstructorId: string;
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -70,6 +71,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     heroImageUrl: event.heroImageUrl,
     ownerDocId: event.ownerDocId || '',
     managerDocIds: event.managerDocIds || [],
+    leadingInstructorId: event.leadingInstructorId || '',
   };
   if (event.heroImageLargeUrl !== undefined) {
     model.heroImageLargeUrl = event.heroImageLargeUrl;
@@ -122,6 +124,7 @@ export class EventEditComponent implements OnInit {
     heroImageOriginalUrl: '',
     ownerDocId: '',
     managerDocIds: [],
+    leadingInstructorId: '',
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -309,6 +312,10 @@ export class EventEditComponent implements OnInit {
     toName: (m: Member) => m.name,
   };
 
+  updateLeadingInstructorId(instructorId: string) {
+    this.eventFormModel.update((m) => ({ ...m, leadingInstructorId: instructorId }));
+  }
+
   updateOwnerDocId(instructorId: string) {
     const instructor = this.dataService.instructors.get(instructorId);
     if (instructor) {
@@ -374,6 +381,7 @@ export class EventEditComponent implements OnInit {
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
         ownerDocId: formData.ownerDocId,
         managerDocIds: formData.managerDocIds.filter(Boolean),
+        leadingInstructorId: formData.leadingInstructorId,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',

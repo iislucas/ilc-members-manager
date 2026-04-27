@@ -6,6 +6,7 @@ import {
   computed,
   input,
   output,
+  linkedSignal,
   effect,
   OnDestroy,
 } from '@angular/core';
@@ -68,8 +69,14 @@ export class EventListComponent implements OnDestroy {
   errorMessage = signal<string | null>(null);
   inputCalendarId = signal('');
 
+  // Optional initial search query. When provided (e.g. via the web component
+  // attribute), the search field is pre-populated with this value.
+  initialQuery = input<string>('');
+
   // This signal is bound to the search input field and updates on every keystroke.
-  searchInput = signal('');
+  // It is seeded from `initialQuery` via linkedSignal so it re-derives if the
+  // parent changes the attribute, but can still be freely edited by the user.
+  searchInput = linkedSignal(() => this.initialQuery());
 
   // --- Component Inputs ---
   calendarId = input<string>(environment.googleCalendar.calendarId);

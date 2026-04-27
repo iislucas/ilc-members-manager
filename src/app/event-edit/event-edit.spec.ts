@@ -89,6 +89,7 @@ describe('EventEditComponent', () => {
       heroImageUrl: 'http://example.com/image.jpg',
       ownerDocId: 'owner-id',
       managerDocIds: [],
+      leadingInstructorId: '',
     });
 
     // Trigger computed signals

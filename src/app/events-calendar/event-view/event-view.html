@@ -29,11 +29,7 @@
             } @else {
               <app-icon name="calendar_today"></app-icon>
             }
-            @if (ev.start === ev.end) {
-              {{ ev.start | date : "mediumDate" }}
-            } @else {
-              {{ ev.start | date : "mediumDate" }} - {{ ev.end | date : "mediumDate" }}
-            }
+            {{ dateDisplay() }}
           </div>
           @if (ev.location) {
             <div class="meta-item location-chip">

@@ -48,6 +48,7 @@ import {
   SquareSpaceOrder,
   SquareSpaceLineItem,
   IlcEvent,
+  EventStatus,
   initEvent,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
@@ -527,7 +528,28 @@ export class DataManagerService {
         q = query(q, where('status', '==', status));
       }
       
-      const snapshot = await getDocs(q);
+      const recentPromise = getDocs(q);
+
+      // When no status filter is active, also fetch all proposed events so
+      // they always surface on the default page even if they haven't been
+      // recently updated.
+      if (!status) {
+        const proposedQ = query(
+          this.eventsCollection,
+          where('status', '==', EventStatus.Proposed),
+        );
+        const [recentSnap, proposedSnap] = await Promise.all([recentPromise, getDocs(proposedQ)]);
+        const merged = new Map<string, IlcEvent>();
+        for (const d of recentSnap.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        for (const d of proposedSnap.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        return Array.from(merged.values());
+      }
+
+      const snapshot = await recentPromise;
       return snapshot.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
     } catch (error: any) {
       console.error('Failed to get recent events', error);

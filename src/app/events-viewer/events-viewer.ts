@@ -5,9 +5,12 @@
  * of ILC events. Uses ShadowDom encapsulation so it can be embedded
  * in any external page without style conflicts.
  *
- * The `event-link-prefix` attribute controls where event detail links
- * point. When set (e.g. "https://app.iliqchuan.com/#/events/"), clicks
- * navigate to the main app. When empty, links are relative hash routes.
+ * Attributes:
+ *   event-link-prefix – Controls where event detail links point.
+ *     When set (e.g. "https://app.iliqchuan.com/#/events/"), clicks
+ *     navigate to the main app. When empty, links are relative hash routes.
+ *   initial-query – Optional initial search query to pre-populate the
+ *     search field (e.g. "Seminar").
  */
 
 import {
@@ -31,4 +34,8 @@ export class EventsViewerComponent {
   // Base URL prefix for event detail links. Passed through to EventListComponent.
   // Example: "https://app.iliqchuan.com/#/events/"
   eventLinkPrefix = input<string>('https://app.iliqchuan.com/#/events/');
+
+  // Optional initial search query to pre-populate the search field.
+  // Example: <app-events-viewer initial-query="Seminar"></app-events-viewer>
+  initialQuery = input<string>('');
 }
