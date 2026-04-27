@@ -13,7 +13,7 @@ import { InstructorCardComponent } from '../instructor-card/instructor-card';
 import { FindInstructorsService } from '../find-instructors.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns } from '../app.config';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-find-an-instructor',
@@ -32,27 +32,30 @@ import { AppPathPatterns } from '../app.config';
 })
 export class FindAnInstructorComponent {
   findInstructorsService = inject(FindInstructorsService);
-  routingService = inject(RoutingService<AppPathPatterns>);
+  routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
 
-  searchTerm = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
-  });
+  private viewSignals = this.routingService.signals[Views.FindAnInstructor];
+
+  // Read the instructorId URL param for direct instructor lookup.
+  private instructorIdParam = computed(() => this.viewSignals.urlParams.instructorId());
+
+  searchTerm = computed(() => this.viewSignals.urlParams.q());
 
   onSearch(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    const match = this.routingService.matchedPatternId();
-    if (match) {
-      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-      if (sigs?.urlParams?.q) {
-        sigs.urlParams.q.set(value);
-      }
-    }
+    this.viewSignals.urlParams.q.set(value);
+    // Clear the instructorId filter when the user starts typing a search.
+    this.viewSignals.urlParams.instructorId.set('');
   }
 
   filteredInstructors = computed(() => {
+    // When instructorId is set, show only that specific instructor.
+    const instructorId = this.instructorIdParam();
+    if (instructorId) {
+      const match = this.findInstructorsService.instructors.get(instructorId);
+      return match ? [match] : [];
+    }
+
     return this.findInstructorsService.instructors
       .search(this.searchTerm(), { strictDigits: true, interpretQuotesAsStrict: true })
       .filter((i) => i.instructorLicenseType !== 'None' && (i.instructorLicenseType as string) !== '');

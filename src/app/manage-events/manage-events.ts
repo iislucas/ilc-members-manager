@@ -132,20 +132,20 @@ export class ManageEventsComponent implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const urlMode = this.eventSignals.urlParams['searchMode']() as 'recent' | 'term' | 'date';
-      const urlField = this.eventSignals.urlParams['searchField']() as any;
-      const urlQ = this.eventSignals.urlParams['q']();
-      const urlStart = this.eventSignals.urlParams['startDate']();
-      const urlEnd = this.eventSignals.urlParams['endDate']();
-      const urlSortBy = this.eventSignals.urlParams['sortBy']();
-      const urlSortDir = this.eventSignals.urlParams['sortDir']();
-      const urlStatus = this.eventSignals.urlParams['status']();
+      const urlMode = this.eventSignals.urlParams.searchMode() as 'recent' | 'term' | 'date';
+      const urlField = this.eventSignals.urlParams.searchField();
+      const urlQ = this.eventSignals.urlParams.q();
+      const urlStart = this.eventSignals.urlParams.startDate();
+      const urlEnd = this.eventSignals.urlParams.endDate();
+      const urlSortBy = this.eventSignals.urlParams.sortBy();
+      const urlSortDir = this.eventSignals.urlParams.sortDir();
+      const urlStatus = this.eventSignals.urlParams.status();
 
       if (this.initialised) return;
       this.initialised = true;
 
       this.searchMode.set(urlMode || 'recent');
-      this.searchField.set(urlField || 'title');
+      this.searchField.set((urlField || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId');
       this.searchTerm.set(urlQ || '');
       this.startDate.set(urlStart || '');
       this.endDate.set(urlEnd || '');
@@ -168,14 +168,14 @@ export class ManageEventsComponent implements OnDestroy {
   }
 
   public syncUrlParams() {
-    this.eventSignals.urlParams['searchMode'].set(this.searchMode());
-    this.eventSignals.urlParams['searchField'].set(this.searchField());
-    this.eventSignals.urlParams['q'].set(this.searchTerm());
-    this.eventSignals.urlParams['startDate'].set(this.startDate());
-    this.eventSignals.urlParams['endDate'].set(this.endDate());
-    this.eventSignals.urlParams['sortBy'].set(this.sortField());
-    this.eventSignals.urlParams['sortDir'].set(this.sortDirection());
-    this.eventSignals.urlParams['status'].set(this.statusFilter());
+    this.eventSignals.urlParams.searchMode.set(this.searchMode());
+    this.eventSignals.urlParams.searchField.set(this.searchField());
+    this.eventSignals.urlParams.q.set(this.searchTerm());
+    this.eventSignals.urlParams.startDate.set(this.startDate());
+    this.eventSignals.urlParams.endDate.set(this.endDate());
+    this.eventSignals.urlParams.sortBy.set(this.sortField());
+    this.eventSignals.urlParams.sortDir.set(this.sortDirection());
+    this.eventSignals.urlParams.status.set(this.statusFilter());
   }
 
   async setSearchMode(mode: 'recent' | 'term' | 'date') {
@@ -309,5 +309,48 @@ export class ManageEventsComponent implements OnDestroy {
   viewLink(event: IlcEvent): string {
     const id = event.docId || event.sourceId || '';
     return `#/manage-events/${id}`;
+  }
+
+  // Resolve the event owner to a "Name (MemberId)" chip label.
+  ownerLabel(event: IlcEvent): string {
+    if (!event.ownerDocId) return '';
+    const member = this.dataService.getMemberByDocId(event.ownerDocId);
+    if (member) {
+      return `${member.name} (${member.memberId || event.ownerDocId})`;
+    }
+    // Fallback: show email if available, otherwise just the docId.
+    if (event.ownerEmails?.length) {
+      return `${event.ownerEmails[0]} (${event.ownerDocId})`;
+    }
+    return event.ownerDocId;
+  }
+
+  // Build a link to the member view for the event owner.
+  ownerLink(event: IlcEvent): string {
+    if (!event.ownerDocId) return '';
+    return this.routingService.hrefForView(Views.ManageMemberView, {
+      memberId: event.ownerDocId,
+    });
+  }
+
+  // Resolve the leading instructor to a "Name (InstructorId)" chip label.
+  instructorLabel(event: IlcEvent): string {
+    const id = event.leadingInstructorId;
+    if (!id) return '';
+    const instructor = this.dataService.instructors.get(id);
+    if (instructor) {
+      return `${instructor.name} (${id})`;
+    }
+    return id;
+  }
+
+  // Build a link to the Find an Instructor view for the leading instructor.
+  // instructorId is a URL param (not a path variable) on this route.
+  instructorLink(event: IlcEvent): string {
+    const id = event.leadingInstructorId;
+    if (!id) return '';
+    return this.routingService.hrefWithParams(
+      `/find-an-instructor?instructorId=${encodeURIComponent(id)}`,
+    );
   }
 }

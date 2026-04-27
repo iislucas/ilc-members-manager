@@ -18,23 +18,20 @@ import { FirebaseStateService } from '../firebase-state.service';
   styleUrls: ['./school-list.scss'],
 })
 export class SchoolListComponent {
-  routingService = inject(RoutingService<AppPathPatterns>);
+  routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   stateService = inject(FirebaseStateService);
   private dataManager = inject(DataManagerService);
 
-  searchTerm = computed(() => {
+  // Both ManageSchools and MySchools share the same URL param shape (q, schoolId).
+  private viewSignals = computed(() => {
     const match = this.routingService.matchedPatternId();
-    if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
+    if (match === Views.MySchools) return this.routingService.signals[Views.MySchools];
+    return this.routingService.signals[Views.ManageSchools];
   });
 
-  urlSchoolId = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (!match) return '';
-    const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-    return sigs?.urlParams?.schoolId ? sigs.urlParams.schoolId() : '';
-  });
+  searchTerm = computed(() => this.viewSignals().urlParams.q());
+
+  urlSchoolId = computed(() => this.viewSignals().urlParams.schoolId());
 
   isAddingSchool = signal(false);
   newSchool = signal<School>(initSchool());
@@ -69,23 +66,13 @@ export class SchoolListComponent {
 
   onSearch(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    const match = this.routingService.matchedPatternId();
-    if (match) {
-      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-      if (sigs?.urlParams?.q) {
-        sigs.urlParams.q.set(value);
-      }
-    }
+    this.viewSignals().urlParams.q.set(value);
     this.limit.set(50);
   }
 
   setExpandedSchool(schoolId: string) {
-    const match = this.routingService.matchedPatternId();
-    if (match && schoolId) {
-      const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
-      if (sigs?.urlParams?.schoolId) {
-        sigs.urlParams.schoolId.set(schoolId);
-      }
+    if (schoolId) {
+      this.viewSignals().urlParams.schoolId.set(schoolId);
     }
   }
 

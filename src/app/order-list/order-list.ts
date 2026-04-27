@@ -48,7 +48,7 @@ function compareOrdersByDefault(a: Order, b: Order): number {
 })
 export class OrderList {
   private dataService = inject(DataManagerService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
+  private routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   private orderSignals = this.routingService.signals[Views.ManageOrders];
 
   public searchMode = signal<SearchMode>('recent');
@@ -112,15 +112,15 @@ export class OrderList {
   constructor() {
     // Read URL params on init and trigger the appropriate search.
     effect(() => {
-      const urlMode = this.orderSignals.urlParams['searchMode']() as SearchMode;
-      const urlField = this.orderSignals.urlParams['searchField']() as SearchField;
-      const urlQ = this.orderSignals.urlParams['q']();
-      const urlStart = this.orderSignals.urlParams['startDate']();
-      const urlEnd = this.orderSignals.urlParams['endDate']();
-      const urlSortBy = this.orderSignals.urlParams['sortBy']();
-      const urlSortDir = this.orderSignals.urlParams['sortDir']();
-      const urlStatus = this.orderSignals.urlParams['status']();
-      const urlKind = this.orderSignals.urlParams['kind']();
+      const urlMode = this.orderSignals.urlParams.searchMode() as SearchMode;
+      const urlField = this.orderSignals.urlParams.searchField() as SearchField;
+      const urlQ = this.orderSignals.urlParams.q();
+      const urlStart = this.orderSignals.urlParams.startDate();
+      const urlEnd = this.orderSignals.urlParams.endDate();
+      const urlSortBy = this.orderSignals.urlParams.sortBy();
+      const urlSortDir = this.orderSignals.urlParams.sortDir();
+      const urlStatus = this.orderSignals.urlParams.status();
+      const urlKind = this.orderSignals.urlParams.kind();
 
       // Only apply URL → local signals on first run.
       if (this.initialised) return;
@@ -151,15 +151,15 @@ export class OrderList {
 
   /** Write current search state into URL params so the URL is shareable. */
   public syncUrlParams() {
-    this.orderSignals.urlParams['searchMode'].set(this.searchMode());
-    this.orderSignals.urlParams['searchField'].set(this.searchField());
-    this.orderSignals.urlParams['q'].set(this.searchTerm());
-    this.orderSignals.urlParams['startDate'].set(this.startDate());
-    this.orderSignals.urlParams['endDate'].set(this.endDate());
-    this.orderSignals.urlParams['sortBy'].set(this.sortField());
-    this.orderSignals.urlParams['sortDir'].set(this.sortDirection());
-    this.orderSignals.urlParams['status'].set(this.statusFilter());
-    this.orderSignals.urlParams['kind'].set(this.kindFilter());
+    this.orderSignals.urlParams.searchMode.set(this.searchMode());
+    this.orderSignals.urlParams.searchField.set(this.searchField());
+    this.orderSignals.urlParams.q.set(this.searchTerm());
+    this.orderSignals.urlParams.startDate.set(this.startDate());
+    this.orderSignals.urlParams.endDate.set(this.endDate());
+    this.orderSignals.urlParams.sortBy.set(this.sortField());
+    this.orderSignals.urlParams.sortDir.set(this.sortDirection());
+    this.orderSignals.urlParams.status.set(this.statusFilter());
+    this.orderSignals.urlParams.kind.set(this.kindFilter());
   }
 
   public onFilterChange() {

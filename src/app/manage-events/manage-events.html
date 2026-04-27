@@ -133,26 +133,28 @@
       @for (ev of eventsList; track ev.docId || ev.sourceId) {
         <a class="event-management-card event-card-link" [href]="editLink(ev)">
           <div class="event-card-header">
-            @if (ev.ownerEmails && ev.ownerEmails.length > 0) {
-            <div class="owner">
-              Owner: {{ ev.ownerEmails.join(', ') }} ({{ ev.ownerDocId }})
-            </div>
+            <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
+            @if (ownerLabel(ev)) {
+              <a class="person-chip owner-chip" [href]="ownerLink(ev)"
+                title="View organiser's member profile"
+                (click)="$event.stopPropagation()">
+                <app-icon name="person"></app-icon>
+                {{ ownerLabel(ev) }}
+              </a>
             }
             @if (ev.lastUpdated) {
-              <div class="proposed-by">
-                {{ ev.lastUpdated }} 
-                @if(ev.updatedByEmail) {
+              <span class="last-updated">
+                {{ ev.lastUpdated }}
+                @if (ev.updatedByEmail) {
                   by {{ ev.updatedByEmail }}
                 }
-              </div>
-            }
-            <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
-            @if (ev.kind) {
-              <span class="kind-chip">{{ ev.kind }}</span>
+              </span>
             }
           </div>
           <app-event-item [event]="ev" />
-          
+          @if (ev.kind) {
+            <div class="kind-label">{{ ev.kind }}</div>
+          }
         </a>
       }
 

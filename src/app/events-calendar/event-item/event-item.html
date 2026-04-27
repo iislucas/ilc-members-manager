@@ -50,6 +50,17 @@
               {{ event().location }}
             </span>
           }
+
+          <!-- instructor -->
+          @if (instructorLabel()) {
+            <a class="instructor-link"
+              [href]="instructorLink()"
+              title="View instructor profile"
+              (click)="$event.stopPropagation()">
+              <app-icon name="salut"></app-icon>
+              Instructor: {{ instructorLabel() }}
+            </a>
+          }
         </div>
       </div>
     </div>

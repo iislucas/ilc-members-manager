@@ -126,6 +126,20 @@
       color: #1976d2;
     }
   }
+
+  .instructor-chip {
+    text-decoration: none;
+    color: #4a4a4a;
+    transition: background-color 0.15s;
+
+    app-icon {
+      color: #7b1fa2;
+    }
+
+    &:hover {
+      background-color: #f3e5f5;
+    }
+  }
 }
 
 .event-body {

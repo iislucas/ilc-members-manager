@@ -46,6 +46,24 @@ export class EventViewComponent implements OnInit {
     return formatDateRange(ev.start, ev.end);
   });
 
+  instructorLabel = computed(() => {
+    const ev = this.event();
+    const id = ev?.leadingInstructorId;
+    if (!id) return '';
+    const instructor = this.dataService.instructors.get(id);
+    if (instructor) {
+      return `${instructor.name} (${id})`;
+    }
+    return id;
+  });
+
+  instructorLink = computed(() => {
+    const ev = this.event();
+    const id = ev?.leadingInstructorId;
+    if (!id) return '';
+    return `#/find-an-instructor?instructorId=${encodeURIComponent(id)}`;
+  });
+
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();

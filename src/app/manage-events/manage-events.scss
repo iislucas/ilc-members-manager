@@ -231,13 +231,12 @@
   text-transform: capitalize;
 }
 
-.kind-chip {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+.kind-label {
   font-size: 0.75em;
-  background-color: #e8eaf6;
-  color: #3949ab;
+  color: #999;
+  text-align: right;
+  padding-right: 0.5em;
+  padding-bottom: 0.25em;
 }
 
 .event-cards {
@@ -266,6 +265,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   padding-bottom: 0.5em;
   padding-top: 0.5em;
 }
@@ -276,10 +276,50 @@
   color: inherit;
 }
 
-.proposed-by {
-  font-size: 0.85em;
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+
+  app-icon {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.owner-chip {
+  background-color: #e3f2fd;
+  color: #1565c0;
+
+  &:hover {
+    background-color: #bbdefb;
+  }
+}
+
+.instructor-chip {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+
+  &:hover {
+    background-color: #e1bee7;
+  }
+}
+
+.last-updated {
+  font-size: 0.8em;
   color: v.$text-muted;
   font-style: italic;
+  margin-left: auto;
 }
 
 .empty-list-notice {

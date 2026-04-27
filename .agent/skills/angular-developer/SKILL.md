@@ -190,13 +190,70 @@ protected routingService = inject(RoutingService);
 
 ## Routing
 
-Use my routing service to handle routing.
+Use the custom `RoutingService` for hash-based routing. Routes are defined in `app.config.ts` using `pathPattern` and `addUrlParams`.
+
+### Accessing URL Params (Critical Pattern)
+
+When a component needs to read or write URL parameters, **always use the explicit type annotation** on `routingService` and access signals via `Views.XXX` directly. This enables dot notation on `urlParams` and avoids `as any` casts.
+
+> [!CAUTION]
+> **NEVER use `as any` to access URL params.** The explicit type annotation on `routingService` resolves the mapped types so the compiler allows dot notation.
+
+**❌ Bad (dynamic lookup with `as any`):**
+```typescript
+routingService = inject(RoutingService<AppPathPatterns>);
+
+searchTerm = computed(() => {
+  const match = this.routingService.matchedPatternId();
+  if (!match) return '';
+  const sigs = this.routingService.signals[match as keyof AppPathPatterns] as any;
+  return sigs?.urlParams?.q ? sigs.urlParams.q() : '';
+});
+```
+
+**✅ Good (single-view component — direct signal access):**
+```typescript
+// Explicit type annotation is REQUIRED for dot notation to work.
+routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
+
+// Access signals directly via the Views enum.
+private viewSignals = this.routingService.signals[Views.FindAnInstructor];
+
+// Read URL params with dot notation — fully typed.
+searchTerm = computed(() => this.viewSignals.urlParams.q());
+instructorId = computed(() => this.viewSignals.urlParams.instructorId());
+
+// Write URL params with dot notation.
+onSearch(event: Event) {
+  this.viewSignals.urlParams.q.set((event.target as HTMLInputElement).value);
+}
+```
+
+**✅ Good (multi-view component — computed signal dispatch):**
+```typescript
+routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
+
+// When a component serves multiple views with the same URL param shape,
+// use a computed to dispatch to the correct signals.
+private viewSignals = computed(() => {
+  const match = this.routingService.matchedPatternId();
+  if (match === Views.MySchools) return this.routingService.signals[Views.MySchools];
+  return this.routingService.signals[Views.ManageSchools];
+});
+
+searchTerm = computed(() => this.viewSignals().urlParams.q());
+```
+
+### Building Navigation Links
+
+Use `hrefForView` for routes with path variables, and `hrefWithParams` for routes with only URL params:
 
 ```typescript
-import { addUrlParams, pathPattern, pv } from "./routing.utils";
-import { RoutingConfig } from "./routing.service";
+// Route with path variable: members/:memberId
+memberLink = this.routingService.hrefForView(Views.ManageMemberView, { memberId: 'abc123' });
 
-// TODO: add more details here.
+// Route with URL param only: find-an-instructor?instructorId=1
+instructorLink = this.routingService.hrefWithParams('/find-an-instructor?instructorId=1');
 ```
 
 ---

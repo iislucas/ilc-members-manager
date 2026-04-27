@@ -52,6 +52,12 @@
               <span>{{ ev.location }}</span>
             </div>
           }
+          @if (instructorLabel()) {
+            <a class="meta-item instructor-chip" [href]="instructorLink()">
+              <app-icon name="salut"></app-icon>
+              <span>Instructor: {{ instructorLabel() }}</span>
+            </a>
+          }
         </div>
       </div>
 

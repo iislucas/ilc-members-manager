@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
   signal,
 } from '@angular/core';
-import { CalendarEvent } from '../event.model';
+import { IlcEvent } from '../../../../functions/src/data-model';
 import { IconComponent } from '../../icons/icon.component';
 import { formatDateRange } from '../format-date-range';
+import { DataManagerService } from '../../data-manager.service';
 
 @Component({
   selector: 'app-event-item',
@@ -18,8 +20,29 @@ import { formatDateRange } from '../format-date-range';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventItemComponent {
-  event = input.required<CalendarEvent>();
+  private dataService = inject(DataManagerService);
+
+  event = input.required<IlcEvent>();
   readonly dateDisplay = computed(() => formatDateRange(this.event().start, this.event().end));
+
+  // Resolve the leading instructor to a display label: "Name (InstructorId)".
+  readonly instructorLabel = computed(() => {
+    const id = this.event().leadingInstructorId;
+    if (!id) return '';
+    const instructor = this.dataService.instructors.get(id);
+    if (instructor) {
+      return `${instructor.name} (${id})`;
+    }
+    return id;
+  });
+
+  // Build a link to the Find an Instructor view.
+  readonly instructorLink = computed(() => {
+    const id = this.event().leadingInstructorId;
+    if (!id) return '';
+    return `#/find-an-instructor?instructorId=${encodeURIComponent(id)}`;
+  });
+
   readonly expandMoreName = 'expand_more' as const;
   readonly expandLessName = 'expand_less' as const;
   expandIconName = signal<'expand_more' | 'expand_less'>(this.expandMoreName);

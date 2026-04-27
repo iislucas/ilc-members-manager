@@ -113,3 +113,20 @@ a {
   }
 }
 
+.instructor-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: $text-muted;
+  text-decoration: none;
+  transition: color 0.15s;
+
+  app-icon {
+    font-size: 1.1rem;
+  }
+
+  &:hover {
+    color: $text-primary;
+    text-decoration: underline;
+  }
+}
