@@ -57,6 +57,7 @@ import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { deepObjEq } from './utils';
+import { FindInstructorsService } from './find-instructors.service';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -120,11 +121,11 @@ export type EventSearchCriteria = EventSearchCriteriaTerm | EventSearchCriteriaD
 })
 export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
+  private findInstructorsService = inject(FindInstructorsService);
   private db = getFirestore(this.firebaseService.app);
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
   private membersCollection = collection(this.db, 'members');
-  private instructorsPublicCollection = collection(this.db, 'instructors');
   private ordersCollection = collection(this.db, 'orders');
   private eventsCollection = collection(this.db, 'events');
   private snapshotsToUnsubscribe: (() => void)[] = [];
@@ -159,21 +160,11 @@ export class DataManagerService {
     ],
     'docId',
   );
-  public instructors = new SearchableSet<'instructorId', InstructorPublicData>(
-    [
-      'memberId',
-      'instructorId',
-      'name',
-      'publicEmail',
-      'memberId',
-      'publicRegionOrCity',
-      'publicCountyOrState',
-      'publicPhone',
-      'country',
-      'tags',
-    ],
-    'instructorId',
-  );
+  // Delegate to FindInstructorsService for a single, shared instructor cache
+  // that works both in the authenticated main app and the standalone WC.
+  public get instructors() {
+    return this.findInstructorsService.instructors;
+  }
   public myStudents = new SearchableSet<'docId', Member>(
     [
       'memberId',
@@ -284,7 +275,7 @@ export class DataManagerService {
       this.unsubscribeSnapshots();
       const user = await this.firebaseService.loggedIn();
       this.updateMembersSync(user);
-      this.updateInstructorsSync();
+      // Instructors are loaded by FindInstructorsService (no auth required).
       this.updateMyStudentsSync(user);
       this.updateSchoolsSync();
       this.updateCountersSync();
@@ -399,22 +390,7 @@ export class DataManagerService {
     );
   }
 
-  async updateInstructorsSync() {
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(
-        this.instructorsPublicCollection,
-        (snapshot) => {
-          const instructors = snapshot.docs.map(
-            firestoreDocToInstructorPublicData,
-          );
-          this.instructors.setEntries(instructors);
-        },
-        (error) => {
-          this.instructors.setError(error.message);
-        },
-      ),
-    );
-  }
+  // Instructor data is now managed by FindInstructorsService.
 
   async updateOrdersSync() {
     try {
