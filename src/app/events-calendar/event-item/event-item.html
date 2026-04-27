@@ -22,6 +22,10 @@
               >
                 <app-icon name="event"></app-icon>
               </a>
+            } @else {
+              <span class="icon-only-button">
+                <app-icon name="event"></app-icon>
+              </span>
             }
             {{ dateDisplay() }}
           </span>
@@ -38,6 +42,10 @@
                 >
                   <app-icon name="map"></app-icon>
                 </a>
+              } @else {
+                <span class="icon-only-button">
+                  <app-icon name="map"></app-icon>
+                </span>
               }
               {{ event().location }}
             </span>

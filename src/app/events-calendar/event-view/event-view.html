@@ -27,7 +27,9 @@
                 <app-icon name="calendar_today"></app-icon>
               </a>
             } @else {
-              <app-icon name="calendar_today"></app-icon>
+              <span class="icon-only-button">
+                <app-icon name="calendar_today"></app-icon>
+              </span>
             }
             {{ dateDisplay() }}
           </div>
@@ -43,7 +45,9 @@
                   <app-icon name="map"></app-icon>
                 </a>
               } @else {
-                <app-icon name="map"></app-icon>
+                <span class="icon-only-button">
+                  <app-icon name="map"></app-icon>
+                </span>
               }
               <span>{{ ev.location }}</span>
             </div>
