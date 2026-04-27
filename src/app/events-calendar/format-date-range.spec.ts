@@ -39,4 +39,12 @@ describe('formatDateRange', () => {
   it('should handle January to December span in the same year', () => {
     expect(formatDateRange('2026-01-15', '2026-12-20')).toBe('15 Jan – 20 Dec 2026');
   });
+
+  it('should treat same-day dates with different time parts as a single date', () => {
+    expect(formatDateRange('2026-05-02T10:00:00', '2026-05-02T14:00:00')).toBe('2 May 2026');
+  });
+
+  it('should treat same-day dates with and without time parts as a single date', () => {
+    expect(formatDateRange('2026-05-02', '2026-05-02T18:30:00')).toBe('2 May 2026');
+  });
 });

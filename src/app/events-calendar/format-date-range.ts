@@ -32,12 +32,12 @@ export function formatDateRange(start: string, end: string): string {
 
   const s = parseLocalDate(start);
 
+  const e = end ? parseLocalDate(end) : null;
+
   // No end date, or same date → single date.
-  if (!end || start === end) {
+  if (!e || (s.day === e.day && s.month === e.month && s.year === e.year)) {
     return `${s.day} ${MONTHS[s.month]} ${s.year}`;
   }
-
-  const e = parseLocalDate(end);
 
   if (s.year === e.year && s.month === e.month) {
     // Same month & year: "3–7 May 2026"
