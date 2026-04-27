@@ -1,4 +1,150 @@
+// Import SCSS variables used by the global style subset below.
+@use "../../scss_variables" as *;
+@use "sass:color";
+
+// ============================================================================
+//  Shadow DOM Global Style Subset
+//
+//  Because the events-viewer wrapper uses ViewEncapsulation.ShadowDom, styles
+//  from the application's global styles.scss do NOT penetrate the shadow
+//  boundary. Child components (EventListComponent, EventItemComponent) use
+//  Emulated encapsulation and expect certain global styles to be available.
+//
+//  This file re-declares the subset of src/styles.scss that those children
+//  actually reference. Keep this in sync with styles.scss if the originals
+//  change.
+// ============================================================================
+
 :host {
   display: block;
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+// --- Typography ---------------------------------------------------------
+
+h2 {
+  color: $text-primary;
+}
+
+// --- Input base styles --------------------------------------------------
+// Used by the search box in event-list.html (input[type="text"])
+input[type="text"] {
+  background-color: unset;
+  width: auto;
+  max-width: 30em;
+  flex-grow: 1;
+  padding: 8px;
+  border: none;
+  border-bottom: 1px solid $border-color-light;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+// --- .subtle-button -----------------------------------------------------
+// Used for the back-link in event-list.html
+.subtle-button {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: #222;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.4em 0.8em;
+  border-radius: 4px;
+  font-size: 1em;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $menu-item-hover-color;
+    box-shadow: none;
+    color: $text-primary;
+  }
+
+  &:active {
+    background-color: color.adjust($menu-item-hover-color, $lightness: -5%);
+    transform: translateY(1px);
+  }
+
+  app-icon {
+    font-size: 1.25em;
+  }
+}
+
+// --- .icon-only-button ---------------------------------------------------
+// Used in event-item.html for calendar/map icon links.
+// The global version provides padding: 4px for a proper click target.
+.icon-only-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 100%;
+  background-color: unset;
+  border: unset;
+  box-shadow: unset;
+  opacity: 0.8;
+
+  &:hover {
+    background-color: unset;
+    box-shadow: unset;
+    opacity: 1;
+  }
+  &:active {
+    background-color: $button-active-bg-color;
+    box-shadow: unset;
+    opacity: 1;
+  }
+  &:disabled {
+    opacity: 0.7;
+    background-color: unset;
+    box-shadow: unset;
+  }
+}
+
+// --- .list-search-header ------------------------------------------------
+// Used in event-list.html for the search/filter bar layout.
+// Provides flex-grow search box layout.
+.list-search-header {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 200px;
+    gap: 0.4rem;
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: $text-placeholder;
+    }
+
+    input[type="text"] {
+      padding: 8px 8px 8px 35px;
+      border: 1px solid $border-color-light;
+      border-radius: 20px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      width: 100%;
+      max-width: unset;
+
+      &:focus {
+        border-color: $focus-ring-color;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        outline: none;
+      }
+    }
+  }
 }
