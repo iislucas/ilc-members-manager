@@ -157,25 +157,30 @@ Deploy just firebase rules
 pnpm run deploy:firestore-rules
 ```
 
-#### Deploying the Find an Instructor web-component
+#### Deploying web components
+
+Web components are deployed to subdirectories under a shared Cloud Storage bucket root, configured by `CLOUD_BUCKET_NAME_AND_ROOT_PATH` in `functions/src/environment/environment.ts` (e.g. `resources.zxd.fr`). Each component deploys to its own subdirectory:
+
+| Component | Deploy command | Bucket path |
+|---|---|---|
+| Find an Instructor | `pnpm run deploy:find-instructor-wc` | `gs://<ROOT_PATH>/find-an-instructor/` |
+| Events Viewer | `pnpm run deploy:events-wc` | `gs://<ROOT_PATH>/calendar-viewer/` |
+
+To manually build and deploy the Find an Instructor web component:
 
 ```sh
 # Build the web-component files
-pnpm run build:wc
-# Set the cloud bucket name/path
-CLOUD_BUCKET_NAME_AND_PATH= # .. Cloud bucket name and path....
+pnpm run build:find-instructor-wc
+# Set the cloud bucket root path
+CLOUD_BUCKET_NAME_AND_ROOT_PATH= # .. e.g. resources.zxd.fr
 # Copy files to the cloud bucket.
 gcloud storage cp -R ./dist/find-an-instructor-wc/browser/* \
-  gs://${CLOUD_BUCKET_NAME_AND_PATH}
+  gs://${CLOUD_BUCKET_NAME_AND_ROOT_PATH}/find-an-instructor
 ```
 
 In order for the web-component to be loaded from the cloud bucket, you need to set the CORS configuration for the bucket to include the server that will be hosting the web-component. For example, if you are hosting the web-component on Squarespace, you need to set the CORS configuration for the bucket to include the Squarespace domain. 
 
-The CORS configuration is managed in code via `CORS_CONFIG` in `functions/src/environment/environment.ts` (and its `.template.ts`). Both the web component deployment and the CORS setting updates are handled automatically when you run:
-
-```sh
-pnpm run deploy:wc
-```
+The CORS configuration is managed in code via `CORS_CONFIG` in `functions/src/environment/environment.ts` (and its `.template.ts`). Both the web component deployment and the CORS setting updates are handled automatically by the deploy commands above.
 
 ## Troubleshooting
 

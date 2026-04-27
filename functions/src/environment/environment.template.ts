@@ -13,7 +13,7 @@ const domains = [
 ];
 export const environment = {
   domains,
-  CLOUD_BUCKET_NAME_AND_PATH: 'resources.zxd.fr/find-an-instructor',
+  CLOUD_BUCKET_NAME_AND_ROOT_PATH: 'resources.zxd.fr',
   CORS_CONFIG: [
     {
       origin: [...domains, 'https://storage.googleapis.com'],

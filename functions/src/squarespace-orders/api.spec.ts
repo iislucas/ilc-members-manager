@@ -167,7 +167,7 @@ describe('executeOrderDownstreamLogic with physical products', () => {
     expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
   });
 
-  it('should reprocess orders with status needs-manual-processing when fulfilled', async () => {
+  it('should skip orders with status needs-manual-processing (use reprocessOrder to re-run)', async () => {
     const order = {
       orderNumber: '123',
       fulfillmentStatus: 'FULFILLED',
@@ -193,15 +193,13 @@ describe('executeOrderDownstreamLogic with physical products', () => {
       }),
     } as unknown as admin.firestore.Firestore;
 
+    // The function should skip because ilcAppOrderStatus is already set.
     await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
 
-    expect(mockUpdate).toHaveBeenCalled();
-    const updateData = mockUpdate.mock.calls[0][0];
-    expect(updateData.ilcAppOrderStatus).toBe('processed');
-    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it('should NOT reprocess line items with status error when order is fulfilled', async () => {
+  it('should skip orders with status error (use reprocessOrder to re-run)', async () => {
     const order = {
       orderNumber: '123',
       fulfillmentStatus: 'FULFILLED',
@@ -227,11 +225,46 @@ describe('executeOrderDownstreamLogic with physical products', () => {
       }),
     } as unknown as admin.firestore.Firestore;
 
+    // The function should skip because ilcAppOrderStatus is already set.
+    await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should process after clearOrderProcessingState clears the status', async () => {
+    const order = {
+      orderNumber: '123',
+      fulfillmentStatus: 'FULFILLED',
+      ilcAppOrderStatus: 'needs-manual-processing',
+      lineItems: [
+        {
+          id: 'item1',
+          sku: 'PHYSICAL-SKU',
+          lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+          quantity: '1',
+          unitPricePaid: { value: '10.00' },
+          ilcAppProcessingStatus: 'needs-manual-processing',
+        },
+      ],
+    } as unknown as SquareSpaceOrder;
+
+    // Simulate the reprocessOrder flow: clear state first, then call executeOrderDownstreamLogic.
+    clearOrderProcessingState(order);
+
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const mockDb = {
+      collection: vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({
+          update: mockUpdate,
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
     await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
 
     expect(mockUpdate).toHaveBeenCalled();
     const updateData = mockUpdate.mock.calls[0][0];
-    expect(updateData.ilcAppOrderStatus).toBe('error');
-    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('error');
+    expect(updateData.ilcAppOrderStatus).toBe('processed');
+    expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
   });
 });

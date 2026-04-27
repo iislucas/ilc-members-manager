@@ -110,7 +110,7 @@
             "outputPath": "dist/find-an-instructor-wc",
             "index": "src/find-an-instructor.wc.html",
             "browser": "src/find-an-instructor.wc.ts",
-            "tsConfig": "tsconfig.wc.json",
+            "tsConfig": "tsconfig.find-instructor.wc.json",
             "inlineStyleLanguage": "scss",
             "assets": [],
             "styles": ["src/styles.scss"],
@@ -243,6 +243,89 @@
             },
             "development": {
               "buildTarget": "mobile-editor-wc:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@analogjs/vitest-angular:test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json",
+            "inlineStyleLanguage": "scss"
+          }
+        }
+      }
+    },
+    "events-viewer-wc": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "events-viewer.wc",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/events-viewer-wc",
+            "index": "src/events-viewer.wc.html",
+            "browser": "src/events-viewer.wc.ts",
+            "tsConfig": "tsconfig.events-viewer.wc.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [],
+            "styles": ["src/styles.scss"],
+            "allowedCommonJsDependencies": ["papaparse", "fast-deep-equal"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2MB",
+                  "maximumError": "4MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "12kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "none",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.local.ts"
+                }
+              ]
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.local.ts"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "events-viewer-wc:build:production"
+            },
+            "development": {
+              "buildTarget": "events-viewer-wc:build:development"
             }
           },
           "defaultConfiguration": "development"

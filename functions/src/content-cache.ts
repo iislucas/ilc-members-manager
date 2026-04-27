@@ -31,7 +31,7 @@
  *                                and per-sync update/removal stats
  *
  * Triggers:
- *   refreshContentCache  — scheduled every 30 minutes
+ *   refreshContentCache  — scheduled every 2 hours
  *   manualRefreshCache   — callable by admins
  */
 
@@ -491,9 +491,9 @@ async function updateCacheMetadata(
 // Exported Cloud Functions
 // ------------------------------------------------------------------
 
-// Scheduled: runs every 30 minutes.
+// Scheduled: runs every 2 hours.
 export const refreshContentCache = onSchedule(
-  { schedule: 'every 30 minutes', secrets: [calendarApiKey] },
+  { schedule: 'every 2 hours', secrets: [calendarApiKey] },
   async () => {
     const db = admin.firestore();
     try {

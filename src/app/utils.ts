@@ -53,6 +53,10 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/\u00a0/g, ' ');
   md = md.replace(/&amp;/gi, '&');
 
+  // Strip <span> tags (with or without attributes), keeping inner content.
+  md = md.replace(/<span[^>]*>/gi, '');
+  md = md.replace(/<\/span>/gi, '');
+
   // Remove empty styling tags (handles nested tags like <b><u></u></b>)
   let oldMd;
   do {

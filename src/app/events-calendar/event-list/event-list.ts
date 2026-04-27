@@ -80,6 +80,20 @@ export class EventListComponent implements OnDestroy {
   // The Firestore collection path to load events from.
   // Defaults to 'events' for the public events list.
   collectionPath = input<string>('events');
+
+  // Optional prefix for event detail links. When empty (default), the
+  // component uses hash-based routes relative to the current page
+  // (e.g. '#/events/'). When set (e.g. 'https://app.iliqchuan.com/#/events/'),
+  // links point to an external domain — useful for the standalone WC.
+  eventLinkPrefix = input<string>('');
+
+  // Resolved link prefix: uses the explicit input if provided, otherwise
+  // falls back to the default hash-based route for the current collection.
+  protected resolvedEventLinkPrefix = computed(() => {
+    const explicit = this.eventLinkPrefix();
+    if (explicit) return explicit;
+    return this.collectionPath() === 'events' ? '#/events/' : '#/my-events/';
+  });
   private events = signal<IlcEvent[]>([]);
 
   // --- Firestore direct subscription ---

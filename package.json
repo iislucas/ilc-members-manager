@@ -4,11 +4,13 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --project ilc-members-manager",
-    "start:wc": "ng serve --project find-an-instructor-wc",
+    "start:find-instructor-wc": "ng serve --project find-an-instructor-wc",
+    "start:events-wc": "ng serve --project events-viewer-wc",
     "stamp-version": "ts-node -O '{\"module\": \"commonjs\"}' scripts/stamp-version.ts",
     "prebuild": "pnpm run stamp-version",
     "build": "ng build --project ilc-members-manager",
-    "build:wc": "ng build --project find-an-instructor-wc",
+    "build:find-instructor-wc": "ng build --project find-an-instructor-wc",
+    "build:events-wc": "ng build --project events-viewer-wc",
     "build:functions": "pnpm --prefix functions run build",
     "build:all": "pnpm run build && pnpm run build:functions",
     "watch": "ng build --watch --configuration development --project ilc-members-manager",
@@ -22,7 +24,8 @@
     "deploy:firestore-rules": "firebase deploy --only firestore:rules",
     "deploy:functions": "pnpm run build:functions && firebase deploy --only functions",
     "deploy:hosting": "pnpm run build && firebase deploy --only hosting",
-    "deploy:wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-wc.ts",
+    "deploy:find-instructor-wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-find-instructor-wc.ts",
+    "deploy:events-wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-events-wc.ts",
     "mcp": "ng mcp"
   },
   "pnpm": {

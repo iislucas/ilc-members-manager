@@ -134,6 +134,7 @@ export async function fetchAndSyncOrders(
     let latestModifiedOn = modifiedAfterStr;
     let newOrderCount = 0;
     let updatedOrderCount = 0;
+    let skippedOrderCount = 0;
 
     // 3. Process each order by saving it to Firestore
     for (const orderData of orders) {
@@ -165,7 +166,17 @@ export async function fetchAndSyncOrders(
         let docRef;
         if (!existingOrderQuery.empty) {
           docRef = existingOrderQuery.docs[0].ref;
-          preserveIlcAppLineItemFields(existingOrderQuery.docs[0].data(), orderToSave);
+          const existingData = existingOrderQuery.docs[0].data();
+
+          // Skip writing if the Squarespace data hasn't changed since last sync.
+          // This prevents unnecessary Firestore writes and trigger invocations
+          // that can cause a re-processing cascade.
+          if (existingData.modifiedOn && existingData.modifiedOn === orderData.modifiedOn) {
+            skippedOrderCount++;
+            continue;
+          }
+
+          preserveIlcAppLineItemFields(existingData, orderToSave);
           await docRef.set(orderToSave, { merge: true });
           updatedOrderCount++;
         } else {
@@ -177,7 +188,15 @@ export async function fetchAndSyncOrders(
 
           if (!fallbackQuery.empty) {
             docRef = fallbackQuery.docs[0].ref;
-            preserveIlcAppLineItemFields(fallbackQuery.docs[0].data(), orderToSave);
+            const existingFallbackData = fallbackQuery.docs[0].data();
+
+            // Same no-op skip for the fallback lookup path.
+            if (existingFallbackData.modifiedOn && existingFallbackData.modifiedOn === orderData.modifiedOn) {
+              skippedOrderCount++;
+              continue;
+            }
+
+            preserveIlcAppLineItemFields(existingFallbackData, orderToSave);
             await docRef.set(orderToSave, { merge: true });
             updatedOrderCount++;
           } else {
@@ -190,7 +209,7 @@ export async function fetchAndSyncOrders(
       }
     }
 
-    logger.info(`Sync batch complete: ${orders.length} orders fetched, ${newOrderCount} new, ${updatedOrderCount} updated (modifiedAfter=${modifiedAfterStr}).`);
+    logger.info(`Sync batch complete: ${orders.length} orders fetched, ${newOrderCount} new, ${updatedOrderCount} updated, ${skippedOrderCount} unchanged (modifiedAfter=${modifiedAfterStr}).`);
 
     // 4. Update the sync state document so we don't process these orders again.
     if (dryRun) {
@@ -215,7 +234,7 @@ export async function fetchAndSyncOrders(
 // It merely fetches the orders and stores them raw in the `orders` Firestore collection.
 export const syncSquarespaceOrders = onSchedule(
   {
-    schedule: 'every 15 minutes',
+    schedule: 'every 1 hours',
     secrets: [squarespaceApiKey],
   },
   async (event) => {
@@ -383,9 +402,15 @@ export async function executeOrderDownstreamLogic(
   // The Squarespace UUID needed for API endpoint URLs (e.g. fulfillments).
   const squarespaceId = orderData.id;
 
-  // If the order has already been fully processed, do nothing
-  if (orderData.ilcAppOrderStatus === 'processed') {
-    logger.info(`Order ${orderId} has already been fully processed. Skipping.`);
+  // If the order already has a processing status, skip. This prevents the
+  // Firestore onDocumentWritten trigger from creating an infinite re-trigger
+  // loop: the function writes back to the order doc at the end of processing,
+  // which re-fires the trigger. By skipping any order that already has a
+  // status ('processed', 'error', or 'needs-manual-processing'), we break
+  // the loop. To re-process an order, use the `reprocessOrder` callable
+  // which calls `clearOrderProcessingState` before invoking this function.
+  if (orderData.ilcAppOrderStatus) {
+    logger.info(`Order ${orderId} already has status '${orderData.ilcAppOrderStatus}'. Skipping trigger processing.`);
     return;
   }
 

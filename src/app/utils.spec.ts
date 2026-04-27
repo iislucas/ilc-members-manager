@@ -102,6 +102,20 @@ More details at the mini-site: [**Master Hsin C's workshop on Structure, Relaxat
       expect(htmlToMarkdown(html)).toBe(expected);
     });
 
+    it('should strip span tags and keep their content', () => {
+      const html =
+        '<p>Hello <span style="color:red">world</span> and <span>plain</span> text.</p>';
+      const expected = 'Hello world and plain text.';
+      expect(htmlToMarkdown(html)).toBe(expected);
+    });
+
+    it('should strip nested span tags', () => {
+      const html =
+        '<p><span><span style="font-size:12pt">Important</span></span> info</p>';
+      const expected = 'Important info';
+      expect(htmlToMarkdown(html)).toBe(expected);
+    });
+
     it('should return empty string for empty input', () => {
       expect(htmlToMarkdown('')).toBe('');
     });
