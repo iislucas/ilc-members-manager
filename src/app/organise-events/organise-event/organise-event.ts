@@ -175,22 +175,8 @@ export class ProposeEventComponent {
           }
         }
 
-        this.successMessage.set('Event proposal submitted successfully!');
-        this.proposeForm().reset();
-        this.eventModel.set({
-          title: '',
-          start: '',
-          end: '',
-          location: '',
-          description: '',
-          leadingInstructorId: '',
-        });
-        this.selectedImageFile.set(null);
-        this.imagePreviewUrl.set(null);
-        this.croppedThumbBlob.set(null);
-        this.croppedLargeBlob.set(null);
-        this.showImageUploader.set(true);
         localStorage.removeItem('proposeEventFormData');
+        this.routingService.navigateToParts(['my-events', docId, 'edit']);
       }
     } catch (error: any) {
       console.error('Error submitting event proposal:', error);
