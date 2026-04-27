@@ -1,3 +1,5 @@
+@use "../../scss_variables" as *;
+
 .calendar-actions {
   margin-bottom: 0.5rem;
 
@@ -57,7 +59,7 @@
   padding: 10px;
 
   &:not(.card, :last-child, :has(+ .card)) {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid $separator-color;
   }
 }
 

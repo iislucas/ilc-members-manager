@@ -1,3 +1,4 @@
+@use "../../../scss_variables" as *;
 /* Modern, premium styles for Backups */
 
 .control-panel {
@@ -25,7 +26,7 @@
   
   .subtitle {
     margin: 0.5rem 0 0 0;
-    color: #666;
+    color: $text-muted;
     font-size: 0.95rem;
   }
 }

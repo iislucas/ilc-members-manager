@@ -8,7 +8,7 @@
 
 .separator {
   height: 1px;
-  background-color: #eee;
+  background-color: $separator-color;
   margin: 1.5rem 0;
 }
 
@@ -32,7 +32,7 @@
   transition:
     transform 0.2s,
     box-shadow 0.2s;
-  border: 1px solid #eee;
+  border: 1px solid $separator-color;
 
   &:hover {
     transform: translateY(-2px);
@@ -54,12 +54,12 @@
     h2 {
       margin: 0 0 0.5rem 0;
       font-size: 1.25rem;
-      color: #333;
+      color: $text-primary;
     }
 
     p {
       margin: 0;
-      color: #666;
+      color: $text-muted;
       font-size: 0.9rem;
       line-height: 1.4;
     }

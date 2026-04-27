@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 .fields-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -27,7 +29,7 @@ label {
 }
 .small {
   font-size: 0.85rem;
-  color: #888;
+  color: $text-placeholder;
 }
 .notes-box {
   white-space: pre-wrap;

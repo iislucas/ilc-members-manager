@@ -1,3 +1,5 @@
+@use "../../scss_variables" as *;
+
 :host {
   display: block;
   width: 100%;
@@ -46,11 +48,11 @@
 
     h2 {
       margin-top: 0;
-      color: #333;
+      color: $text-primary;
     }
 
     p {
-      color: #666;
+      color: $text-muted;
       line-height: 1.5;
     }
   }

@@ -70,7 +70,7 @@
     .switcher-header {
       font-size: 0.7em;
       text-transform: uppercase;
-      color: #666;
+      color: $text-muted;
       letter-spacing: 0.05em;
       margin-bottom: 5px;
       padding-left: 5px;
@@ -111,12 +111,12 @@
 
       .admin-badge {
         font-size: 0.7em;
-        background-color: #eee;
+        background-color: $separator-color;
         padding: 1px 4px;
         border-radius: 3px;
         margin: 0 5px;
         font-weight: normal;
-        color: #333;
+        color: $text-primary;
       }
 
       .check-icon {

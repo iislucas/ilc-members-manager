@@ -1,3 +1,4 @@
+@use "../../scss_variables.scss" as v;
 @use "../edit-form.scss" as *;
 
 .milkdown-editor-container {
@@ -36,9 +37,9 @@
       padding-left: 1.5em;
     }
     blockquote {
-      border-left: 4px solid #eee;
+      border-left: 4px solid v.$separator-color;
       padding-left: 1em;
-      color: #666;
+      color: v.$text-muted;
     }
     code {
       background: #f4f4f4;
@@ -64,7 +65,7 @@
 
 .description-container {
   grid-column: 1 / -1;
-  border: 1px solid #ccc;
+  border: 1px solid v.$border-color-light;
   border-radius: 4px;
   background: white;
   padding: 0 0.5em;

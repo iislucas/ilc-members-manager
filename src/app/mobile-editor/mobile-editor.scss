@@ -1,4 +1,5 @@
 @use "markdown-styles" as *;
+@use "../../scss_variables" as *;
 
 /* Host component setup */
 :host {
@@ -58,7 +59,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
@@ -74,7 +75,7 @@
   top: 36px; /* Adjusted for smaller button */
   right: 0;
   background-color: white;
-  border: 1px solid #ddd;
+  border: 1px solid $border-color-light;
   border-radius: 5px;
   box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1);
   min-width: 40px;
@@ -135,14 +136,14 @@
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid $separator-color;
   margin-bottom: 4px;
   gap: 8px;
 
   .menu-title {
     font-size: 12px;
     font-weight: bold;
-    color: #999;
+    color: $text-placeholder;
     text-transform: uppercase;
   }
 
@@ -154,7 +155,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: $text-muted;
     border-radius: 50%;
     box-shadow: none;
 
@@ -181,7 +182,7 @@
     width: 24px;
     text-align: center;
     font-weight: bold;
-    color: #666;
+    color: $text-muted;
 
     &.undo-icon,
     &.redo-icon {
@@ -195,7 +196,7 @@
 
   span {
     font-size: 14px;
-    color: #333;
+    color: $text-primary;
     white-space: nowrap;
   }
 }
@@ -216,7 +217,7 @@
   width: calc(100% - 32px);
   max-width: 40ch;
   background: white;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 4px;
   padding: 8px 12px;
   display: flex;
@@ -227,7 +228,7 @@
 
   input {
     flex: 1;
-    border: 1px solid #ddd;
+    border: 1px solid $border-color-light;
     border-radius: 2px;
     padding: 6px;
     font-size: 14px;
@@ -250,7 +251,7 @@
     justify-content: center;
 
     &:hover {
-      background: #eee;
+      background: $separator-color;
       border-radius: 2px;
     }
   }
@@ -259,13 +260,13 @@
 .link-preview {
   position: fixed;
   background: white;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 4px;
   padding: 3px 6px;
   font-size: 11px;
   z-index: 210;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  color: #333;
+  color: $text-primary;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -306,7 +307,7 @@
       box-shadow: none !important;
 
       &:hover {
-        background: #eee;
+        background: $separator-color;
       }
     }
   }

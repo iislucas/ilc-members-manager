@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 .fields-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -27,7 +29,7 @@ label {
 }
 .small {
   font-size: 0.85rem;
-  color: #888;
+  color: $text-placeholder;
 }
 
 .line-items-container {
@@ -62,7 +64,7 @@ label {
 }
 .customizations-table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid $separator-color;
   font-size: 0.95rem;
 }
 .customizations-table tr:last-child td {
@@ -70,13 +72,13 @@ label {
 }
 .custom-label {
   font-weight: 600;
-  color: #555;
+  color: $text-secondary;
   width: 40%;
   background: #fafafa;
   vertical-align: top;
 }
 .custom-value {
-  color: #333;
+  color: $text-primary;
   white-space: pre-wrap;
 }
 .raw-data-scroll {
@@ -189,7 +191,7 @@ label {
 }
 
 .entity-name {
-  color: #333;
+  color: $text-primary;
 }
 
 .entity-warning {
@@ -223,13 +225,13 @@ label {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
+  color: $text-muted;
 }
 
 .expiry-date-value {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #333;
+  color: $text-primary;
 }
 
 .expiry-preview-note {
@@ -238,7 +240,7 @@ label {
   gap: 0.3rem;
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: #666;
+  color: $text-muted;
   font-style: italic;
 
   app-icon {
@@ -269,7 +271,7 @@ label {
     font-size: 1.1rem;
     width: 1.1rem;
     height: 1.1rem;
-    color: #666;
+    color: $text-muted;
   }
 }
 
@@ -284,7 +286,7 @@ label {
   flex: 0 0 auto;
   width: 160px;
   padding: 0.4rem 0.6rem;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 4px;
   font-size: 0.9rem;
 
@@ -350,7 +352,7 @@ label {
 
 .results-header {
   font-size: 0.8rem;
-  color: #666;
+  color: $text-muted;
   padding: 0.4rem 0.7rem;
   background: #fafafa;
   border-bottom: 1px solid #e0e0e0;
@@ -358,7 +360,7 @@ label {
 
 .no-results {
   font-size: 0.85rem;
-  color: #888;
+  color: $text-placeholder;
   padding: 0.6rem 0.7rem;
 }
 
@@ -393,7 +395,7 @@ label {
 
 .result-dob {
   font-size: 0.8rem;
-  color: #888;
+  color: $text-placeholder;
 }
 
 .select-icon {
@@ -413,7 +415,7 @@ label {
     left: 0;
     min-width: 180px;
     background-color: white;
-    border: 1px solid #ccc;
+    border: 1px solid $border-color-light;
     border-radius: 5px;
     padding: 0.4em;
     z-index: 100;
@@ -444,7 +446,7 @@ label {
   padding: 0.5rem 0.75rem;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #333;
+  color: $text-primary;
   border-radius: 4px;
 
   &:hover {

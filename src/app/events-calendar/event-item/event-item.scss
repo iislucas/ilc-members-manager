@@ -56,7 +56,7 @@ a {
 
 .card-subtitle {
   margin-top: 0.4em;
-  color: #666;
+  color: $text-muted;
   font-size: 0.875rem;
 }
 
@@ -100,7 +100,7 @@ a {
 
   &:hover {
     background-color: $menu-item-hover-color;
-    color: #333;
+    color: $text-primary;
     text-decoration: none;
   }
 

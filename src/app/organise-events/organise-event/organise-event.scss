@@ -1,7 +1,7 @@
 @use "../../../scss_variables" as *;
 
 .organise-event-container {
-  max-width: 800px;
+  max-width: $max-main-width;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -9,7 +9,7 @@
 
   .intro-text {
     font-weight: 500;
-    color: #555;
+    color: $text-secondary;
     font-size: 0.9rem;
   }
 
@@ -29,7 +29,7 @@
     h2 {
       margin: 0;
       font-size: 1.5rem;
-      color: #333;
+      color: $text-primary;
     }
   }
 
@@ -45,7 +45,7 @@
 
       label {
         font-weight: 500;
-        color: #555;
+        color: $text-secondary;
         font-size: 0.9rem;
 
         &.invalid {
@@ -59,13 +59,13 @@
       textarea {
         width: 100%;
         max-width: 100%;
-        border: 1px solid #ccc;
+        border: 1px solid $border-color-light;
         border-radius: 4px;
         padding: 0.5rem;
         font-size: 1rem;
 
         &:focus {
-          border-color: #007bff;
+          border-color: $focus-ring-color;
           outline: none;
         }
       }
@@ -75,7 +75,7 @@
       }
 
       .description-container {
-        border: 1px solid #ccc;
+        border: 1px solid $border-color-light;
         border-radius: 4px;
         background: white;
         padding: 0;

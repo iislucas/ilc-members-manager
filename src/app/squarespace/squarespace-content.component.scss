@@ -1,3 +1,5 @@
+@use "../../scss_variables" as *;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -25,7 +27,7 @@
 
     p {
       margin-top: 1.5rem;
-      color: #666;
+      color: $text-muted;
       font-size: 1.1rem;
     }
   }

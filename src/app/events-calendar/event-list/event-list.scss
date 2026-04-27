@@ -5,7 +5,7 @@
 }
 
 .event-list-container {
-  max-width: 800px;
+  max-width: $max-main-width;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -69,18 +69,18 @@ app-event-item {
   .search-icon {
     position: absolute;
     left: 10px;
-    color: #888;
+    color: $text-placeholder;
   }
 
   input[type="text"] {
     padding: 8px 8px 8px 35px;
-    border: 1px solid #ccc;
+    border: 1px solid $border-color-light;
     border-radius: 20px;
     width: 100%;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 
     &:focus {
-      border-color: #007bff;
+      border-color: $focus-ring-color;
       box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       outline: none;
     }

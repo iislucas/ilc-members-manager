@@ -19,6 +19,31 @@ body {
 }
 
 // ----------------------------------------------------------------------------
+//  Global Typography
+//  These apply app-wide. Component SCSS should NOT redefine heading colors or
+//  paragraph text colors — use these defaults and the $text-* variables.
+// ----------------------------------------------------------------------------
+
+h2 {
+  color: $text-primary;
+}
+
+// ----------------------------------------------------------------------------
+//  Centered Container
+//  Use on page-level wrapper divs to constrain content width with auto margins.
+//  Override max-width in component SCSS only when a wider/narrower layout is needed.
+// ----------------------------------------------------------------------------
+
+.centered-container {
+  max-width: $max-main-width;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1em;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+// ----------------------------------------------------------------------------
 //  Buttons
 // ----------------------------------------------------------------------------
 
@@ -59,8 +84,8 @@ button {
 
 .delete-button {
   background-color: unset;
-  border: 1px solid #ccc;
-  color: #666;
+  border: 1px solid $border-color-light;
+  color: $text-muted;
 }
 
 .delete-button:hover {
@@ -161,7 +186,7 @@ button:disabled {
   &:hover {
     background-color: $menu-item-hover-color;
     box-shadow: none;
-    color: #333;
+    color: $text-primary;
   }
 
   &:active {
@@ -206,7 +231,7 @@ select {
   flex-grow: 1;
   padding: 8px;
   border: none;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid $border-color-light;
   border-radius: 4px;
   box-sizing: border-box; /* Ensures padding doesn't affect width */
 }
@@ -216,7 +241,7 @@ textarea {
   flex-grow: 1;
   // field-sizing: content;
   padding: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 4px;
   box-sizing: border-box; /* Ensures padding doesn't affect width */
 }
@@ -238,7 +263,7 @@ input[type="date"] {
   min-width: 120px;
   max-width: 10em;
   padding: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 4px;
   box-sizing: border-box;
 
@@ -250,7 +275,7 @@ input[type="date"] {
 input:disabled,
 select:disabled,
 textarea:disabled {
-  background-color: #eee;
+  background-color: $separator-color;
   border: none;
 }
 
@@ -279,19 +304,19 @@ textarea:disabled {
     .search-icon {
       position: absolute;
       left: 10px;
-      color: #888;
+      color: $text-placeholder;
     }
 
     input[type="text"] {
       padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
-      border: 1px solid #ccc;
+      border: 1px solid $border-color-light;
       border-radius: 20px;
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
       width: 100%;
       max-width: unset;
 
       &:focus {
-        border-color: #007bff;
+        border-color: $focus-ring-color;
         box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
         outline: none;
       }
@@ -360,7 +385,7 @@ textarea:disabled {
   }
 
   &.expired-old {
-    background-color: #EEEEEE;
+    background-color: $separator-color;
   }
 
   &.status-issue {
@@ -377,8 +402,8 @@ textarea:disabled {
 
   &.instructor-id {
     font-size: 0.9em;
-    color: #666;
-    background-color: #eee;
+    color: $text-muted;
+    background-color: $separator-color;
     border: unset;
     background-color: unset;
   }
@@ -433,7 +458,7 @@ textarea:disabled {
 // ----------------------------------------------------------------------------
 .menu-style {
   background-color: white;
-  border: 1px solid #ccc;
+  border: 1px solid $border-color-light;
   border-radius: 5px;
   padding: 0.4em;
   z-index: 100;

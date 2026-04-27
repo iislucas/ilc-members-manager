@@ -13,7 +13,7 @@
   display: flex;
   gap: 0.5rem;
   width: 100%;
-  max-width: 800px;
+  max-width: v.$max-main-width;
   flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
@@ -98,7 +98,7 @@
   select {
     padding: 4px 8px;
     border-radius: 4px;
-    border: 1px solid #ccc;
+    border: 1px solid v.$border-color-light;
     font-size: 0.9em;
   }
 }
@@ -110,7 +110,7 @@
 
 %icon-button {
   background: none;
-  border: 1px solid #ccc;
+  border: 1px solid v.$border-color-light;
   border-radius: 4px;
   cursor: pointer;
   padding: 4px;
@@ -145,8 +145,8 @@
   padding: 8px 16px;
   font-weight: 600;
   font-size: 0.9em;
-  color: #555;
-  border-bottom: 1px solid #eee;
+  color: v.$text-secondary;
+  border-bottom: 1px solid v.$separator-color;
 }
 
 .menu-item {
@@ -200,7 +200,7 @@
 
 .clear-all-btn {
   font-size: 0.85em;
-  color: #666;
+  color: v.$text-muted;
   text-decoration: underline;
 }
 
@@ -278,14 +278,14 @@
 
 .proposed-by {
   font-size: 0.85em;
-  color: #666;
+  color: v.$text-muted;
   font-style: italic;
 }
 
 .empty-list-notice {
   text-align: center;
   padding: 2em;
-  color: #888;
+  color: v.$text-placeholder;
 }
 
 .show-more-container {
@@ -295,7 +295,7 @@
 
 .show-more-button {
   padding: 8px 24px;
-  border: 1px solid #ccc;
+  border: 1px solid v.$border-color-light;
   border-radius: 20px;
   background: white;
   cursor: pointer;

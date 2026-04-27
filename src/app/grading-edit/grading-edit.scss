@@ -1,3 +1,5 @@
+@use "../../scss_variables" as *;
+
 @use "../edit-form.scss" as *;
 
 .status-chip {
@@ -37,7 +39,7 @@
 
 .instructor-info {
   font-size: 0.9em;
-  color: #555;
+  color: $text-secondary;
 }
 
 .assistant-row {

@@ -1,4 +1,40 @@
-// Color Palette
+// ============================================================================
+//  Text Colors
+//  Used for headings, body copy, labels, and metadata throughout the app.
+// ============================================================================
+$text-primary: #333;          // Main body text, headings (e.g. card titles, form values)
+$text-secondary: #555;        // Labels, secondary descriptions, form hints
+$text-muted: #666;            // De-emphasised text (e.g. card descriptions, timestamps)
+$text-placeholder: #888;      // Placeholder-like text, search icons, breadcrumb separators
+
+// ============================================================================
+//  Border & Separator Colors
+//  Used for input borders, card outlines, dividers, and section separators.
+// ============================================================================
+$border-color-light: #ccc;    // Generic borders on inputs, cards, menus, and dividers
+$separator-color: #eee;       // Subtle separators between list items, sections, and backgrounds
+
+// ============================================================================
+//  Brand / Theme Colors
+//  The warm red/pink palette that defines the ILC brand identity.
+//  Used for the header, footer, card backgrounds, and form section headings.
+// ============================================================================
+$theme-bg-color: #ffeeee;              // Light pink — header, footer, card, form section bg
+$theme-border-color: #955;             // Dark red — header/footer border stripe
+$theme-heading-color-subtle: #777;     // Form section heading text
+$heading-accent-color: #722;           // Bold heading accent (e.g. edit-form h3)
+
+// ============================================================================
+//  Interactive / Focus Colors
+//  Used for focus rings on search inputs and active tab indicators.
+// ============================================================================
+$focus-ring-color: #007bff;   // Focus border on search inputs, active tab underlines
+
+// ============================================================================
+//  Button Colors
+//  Base styling for all <button> elements. See styles.scss for variants
+//  like .icon-only-button, .delete-button, .subtle-button, etc.
+// ============================================================================
 $button-bg-color: #bbf;
 $button-border-color: #66a;
 $button-text-color: #222;
@@ -8,26 +44,36 @@ $shadow-color: rgba(0, 0, 0, 0.1);
 $shadow-color-hover: rgba(0, 0, 0, 0.15);
 $shadow-color-active: rgba(0, 0, 0, 0.2);
 
-$theme-bg-color: #ffeeee;
-$theme-border-color: #955;
-$theme-heading-color-subtle: #777;
-
+// ============================================================================
+//  Chip Colors
+//  Used for .level-chip, .identifier-chip, .email-chip (warm pink)
+//  and .tag-chip (blue tint). See styles.scss for all chip classes.
+// ============================================================================
 $theme-chip-bg-color: #eedddd;
 $theme-chip-border-color: #caa;
 
 $theme-tag-bg-color: #e0f2fe;
 $theme-tag-border-color: #bae6fd;
 
-
-$max-main-width: 800px;
-
+// ============================================================================
+//  Menu Colors
+//  Used by .menu-style, .menu-item, and .subtle-button hover states.
+// ============================================================================
 $menu-item-hover-color: #ddf;
 $menu-sep-color: #ddd;
 
+// ============================================================================
+//  Error Colors
+//  Used by .error-container and .error-message in styles.scss.
+// ============================================================================
 $theme-error-text-color: #744;
 $theme-error-bg-color: #ffdddd;
 $theme-error-border-color: #c99;
 
+// ============================================================================
+//  Layout Constants
+// ============================================================================
+$max-main-width: 1000px;       // Default max-width for centered page containers
 $card-padding: 10px;
 $card-sep: 0.75em;
 

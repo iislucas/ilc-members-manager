@@ -4,7 +4,7 @@ h3 {
   text-align: center;
   font-weight: bold;
   padding-bottom: 0.2em;
-  color: #722;
+  color: v.$heading-accent-color;
 }
 
 .row {
@@ -38,7 +38,7 @@ h3 {
   margin-bottom: 20px;
   margin-top: 0.5em;
   padding-top: 0.5em;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid v.$border-color-light;
 
   h3 {
     // text-align: center;
@@ -83,7 +83,7 @@ h3 {
       padding-left: 0;
       font-size: 0.9em;
       font-weight: 500;
-      color: #555;
+      color: v.$text-secondary;
     }
 
     input[type="text"],
@@ -172,7 +172,7 @@ h3 {
 }
 
 :host(.is-open) .form-section {
-  border-top-color: #ccc;
+  border-top-color: v.$border-color-light;
 }
 
 .timestamp {
@@ -182,10 +182,10 @@ h3 {
 
 .note {
   font-size: small;
-  color: #555;
+  color: v.$text-secondary;
 }
 
 .readonly-value {
   padding: 6px 0;
-  color: #333;
+  color: v.$text-primary;
 }

@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 /* Styles for Content Cache admin panel — follows the Backups panel pattern */
 
 .control-panel {
@@ -25,7 +27,7 @@
 
   .subtitle {
     margin: 0.5rem 0 0 0;
-    color: #666;
+    color: $text-muted;
     font-size: 0.95rem;
   }
 }

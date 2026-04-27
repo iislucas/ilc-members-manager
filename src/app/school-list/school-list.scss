@@ -28,12 +28,12 @@
   .search-icon {
     position: absolute;
     left: 10px;
-    color: #888;
+    color: v.$text-placeholder;
   }
 
   input[type="text"] {
     padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
-    border: 1px solid #ccc;
+    border: 1px solid v.$border-color-light;
     border-radius: 20px;
     transition:
       border-color 0.3s ease,
@@ -41,7 +41,7 @@
     flex-grow: 1;
 
     &:focus {
-      border-color: #007bff;
+      border-color: v.$focus-ring-color;
       box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       outline: none;
     }
@@ -123,7 +123,7 @@ app-school-edit {
     font-size: 1em;
     cursor: pointer;
     background-color: #f0f0f0;
-    border: 1px solid #ccc;
+    border: 1px solid v.$border-color-light;
     border-radius: 4px;
     transition: background-color 0.2s;
 
