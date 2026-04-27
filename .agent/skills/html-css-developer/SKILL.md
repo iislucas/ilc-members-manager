@@ -106,7 +106,7 @@ These are set globally — do not redefine heading colors in component SCSS:
 ┌─────────────────────────────┐
 │  app-header (.nav-bar)      │  ← $theme-bg-color, border-bottom: 2px solid $theme-border-color
 ├─────────────────────────────┤
-│  main                       │  ← flex-column, margin: 0 1em, flex-grow: 1
+│         main                │  ← max-width: $max-main-width, centered, padding: 0 1em
 │    ┌───────────────────┐    │
 │    │  page content     │    │
 │    └───────────────────┘    │
@@ -116,17 +116,12 @@ These are set globally — do not redefine heading colors in component SCSS:
 ```
 
 - `.app-container`: `display: flex; flex-direction: column; min-height: 100vh`
-- `main`: `flex-grow: 1; gap: 1em;` content stretches vertically
+- `main`: `max-width: $max-main-width` (900px), `margin: 0 auto`, `padding: 0 1em`, `flex-grow: 1`
+- **All page content is automatically width-constrained by `main`.** Do NOT add `max-width: $max-main-width` to individual component `:host` blocks or wrapper divs — it is redundant and inconsistent.
 
 ### Common Page Layouts
 
-1. **Centered container** — use the `.centered-container` class from `styles.scss`:
-   ```html
-   <div class="centered-container">
-     <!-- page content -->
-   </div>
-   ```
-   This applies `max-width: $max-main-width` (1000px), `margin: 0 auto`, and `padding: 0 1em`. Override `max-width` in component SCSS only when a wider/narrower layout is needed.
+1. **Default** — just render content directly. The `main` element handles the max-width constraint automatically.
 
 2. **Full-stretch list** (`:host` as flex column):
    ```scss

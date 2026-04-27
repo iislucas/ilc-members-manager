@@ -12,8 +12,11 @@
 }
 
 main {
-  margin-left: 1em;
-  margin-right: 1em;
+  max-width: $max-main-width;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1em;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: start;
