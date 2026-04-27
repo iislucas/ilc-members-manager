@@ -18,6 +18,54 @@
     margin-bottom: 20px;
   }
 
+  .active-tag-filter {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.75em;
+    gap: 0.4em;
+  }
+
+  .active-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px 3px 10px;
+    background-color: v.$theme-tag-bg-color;
+    color: v.$focus-ring-color;
+    border-radius: 16px;
+    font-size: 0.85em;
+    font-weight: 500;
+  }
+
+  .tag-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    box-shadow: none;
+    cursor: pointer;
+    padding: 2px;
+    color: v.$focus-ring-color;
+    border-radius: 50%;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(v.$focus-ring-color, 0.12);
+      box-shadow: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
+    }
+
+    app-icon {
+      font-size: 0.85em;
+    }
+  }
+
   .search-box {
     position: relative;
     display: flex;
@@ -51,14 +99,14 @@
 
   app-instructor-card {
     display: block;
-    border-top: 1px solid #ebebeb;
+    border-top: 1px solid v.$row-border-color;
     padding: v.$card-padding;
     padding-bottom: calc(v.$card-padding + v.$card-sep);
     transition: background-color 0.2s ease;
     flex-grow: 1;
 
     &:hover {
-      background-color: #fcfcfc;
+      background-color: v.$separator-color;
     }
   }
 

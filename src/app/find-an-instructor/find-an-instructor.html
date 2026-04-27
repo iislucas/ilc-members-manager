@@ -10,6 +10,21 @@
     />
   </div>
 
+  @if (instructorIdParam()) {
+    <div class="active-tag-filter">
+      <span class="active-tag-chip">
+        Instructor #{{ instructorIdParam() }}@if (instructorFilterName()) {: {{ instructorFilterName() }}}
+        <button
+          class="tag-clear-btn"
+          (click)="clearInstructorFilter()"
+          aria-label="Remove instructor filter"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+      </span>
+    </div>
+  }
+
   @if (findInstructorsService.instructors.loading()) {
     <div class="center">
       <app-spinner></app-spinner>

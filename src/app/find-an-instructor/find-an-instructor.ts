@@ -37,7 +37,19 @@ export class FindAnInstructorComponent {
   private viewSignals = this.routingService.signals[Views.FindAnInstructor];
 
   // Read the instructorId URL param for direct instructor lookup.
-  private instructorIdParam = computed(() => this.viewSignals.urlParams.instructorId());
+  instructorIdParam = computed(() => this.viewSignals.urlParams.instructorId());
+
+  /** The resolved name of the filtered instructor, for display in the chip. */
+  instructorFilterName = computed(() => {
+    const id = this.instructorIdParam();
+    if (!id) return '';
+    const match = this.findInstructorsService.instructors.get(id);
+    return match?.name || '';
+  });
+
+  clearInstructorFilter() {
+    this.viewSignals.urlParams.instructorId.set('');
+  }
 
   searchTerm = computed(() => this.viewSignals.urlParams.q());
 
