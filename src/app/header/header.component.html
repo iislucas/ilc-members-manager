@@ -1,14 +1,16 @@
 <div class="nav-bar" [class.logged-out]="!isLoggedIn()">
   <div class="title-and-menu">
     @if (isLoggedIn()) {
-      <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-        <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
-      </button>
-      @if (menuOpen()) {
-        <app-navigation-menu
-          (closeMenu)="menuOpen.set(false)"
-        ></app-navigation-menu>
-      }
+      <div class="menu-anchor">
+        <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
+          <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
+        </button>
+        @if (menuOpen()) {
+          <app-navigation-menu
+            (closeMenu)="menuOpen.set(false)"
+          ></app-navigation-menu>
+        }
+      </div>
     }
 
     <div class="title-container">

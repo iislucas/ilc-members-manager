@@ -68,7 +68,7 @@ All colors are defined as SCSS variables in `src/scss_variables.scss`. **Always 
 | **Errors** | `$theme-error-text-color`, `$theme-error-bg-color`, `$theme-error-border-color` | Error containers |
 | **Focus** | `$focus-ring-color` | Search input focus rings, active tab indicators |
 | **Headings** | `$heading-accent-color` | Bold accent color for edit-form h3 headings |
-| **Lists** | `$row-border-color`, `$row-highlight-bg`, `$row-highlight-border` | Row borders, jump-to-item highlighting |
+| **Lists** | `$row-border-color`, `$row-highlight-bg`, `$row-highlight-border` | Row borders, hover/selection highlighting, jump-to-item flash |
 | **Layout** | `$max-main-width`, `$card-padding`, `$card-sep` | Content width caps, card spacing |
 
 ---
@@ -226,6 +226,73 @@ Use the `.card` class from `styles.scss` — it provides `$theme-bg-color` backg
 
 The home page overrides `.card` with white background and interactive hover (lift effect) — this is one of the few cases where a component legitimately overrides a global class.
 
+### Interactive List Rows (Row Highlight)
+
+The app uses a standardised **row-highlight** pattern for clickable list items and detail page headers. It provides a subtle left-border accent with a light blue background, giving the user clear hover and selection feedback on desktop.
+
+The pattern is built from two SCSS mixins in `scss_variables.scss`:
+
+| Mixin | Effect |
+| --- | --- |
+| `row-highlight-base` | Adds a 4px transparent left border with a smooth transition (background + border color) |
+| `row-highlight-active` | Sets `background-color: $row-highlight-bg` and `border-left-color: $row-highlight-border` |
+
+**Pattern A — Hover highlight (list items, table rows):**
+
+Apply `row-highlight-base` on the element, `row-highlight-active` on `:hover`. This is the standard pattern for any clickable list row.
+
+```scss
+// In component SCSS (e.g. member-list.scss):
+@use "../../scss_variables.scss" as v;
+
+.member-card {
+  display: block;
+  border-bottom: 1px solid v.$row-border-color;
+  @include v.row-highlight-base;
+  cursor: pointer;
+  padding: 0.2em;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    @include v.row-highlight-active;
+  }
+}
+```
+
+```html
+<!-- In the template: -->
+<a class="member-card" [href]="memberLink(member)">
+  <app-member-row-header [member]="member"></app-member-row-header>
+</a>
+```
+
+**Pattern B — Permanent "selected" highlight (detail page headers):**
+
+Apply both mixins unconditionally so the header looks permanently selected, visually connecting the detail page back to the list the user navigated from.
+
+```scss
+// In component SCSS (e.g. member-details.scss):
+@use "../../scss_variables.scss" as v;
+
+app-member-row-header {
+  display: block;
+  @include v.row-highlight-base;
+  @include v.row-highlight-active;  // Always active — permanent selection
+  padding: 0.2em;
+}
+```
+
+**Pattern C — Jump-to-item flash animation:**
+
+Combine with a keyframe animation that fades from the active state back to transparent. See `member-list.scss` for the `flashHighlight` keyframe.
+
+> [!IMPORTANT]
+> These are **mixins**, not global CSS classes. You must `@use "../../scss_variables.scss" as v;` and then `@include v.row-highlight-base;` in your component SCSS. The patterns and variables are documented in the "Interactive List Rows" comment block in `styles.scss`.
+
+**Currently used by:** `member-list` (hover + jump-highlight), `member-details` (permanent header), `order-list` (hover on table rows).
+
+
 ### Chips
 
 Chips are **all globally defined in `styles.scss`**. Do not create new chip styles in component SCSS — pick the correct existing class:
@@ -238,7 +305,7 @@ Chips are **all globally defined in `styles.scss`**. Do not create new chip styl
 | `.email-chip` | Email addresses | `$theme-chip-bg-color` (monospace) |
 | `.missing-identifier-chip` | Missing data placeholders | Dashed border, no fill |
 | `.dynamic-identifier-chip` | Editable/dynamic IDs | Dashed border |
-| `.active-tag-chip` | Active filter indicators | Blue pill with clear button |
+| `.active-tag-chip` + `.tag-clear-btn` | Active filter indicators with dismiss | Blue pill with clear (X) button |
 
 The `.identifier-chip` also supports status modifiers: `.expired-recent`, `.expired-old`, `.status-issue`, `.status-inactive`, `.instructor-id`.
 
@@ -249,6 +316,35 @@ Wrap chips in a `.level-info` flex container:
   <div class="level-chip">Student 3</div>
 </div>
 ```
+
+#### Active Filter Chips
+
+The `.active-tag-chip` and `.tag-clear-btn` classes (globally defined in `styles.scss`) provide a dismissible filter chip pattern — a blue pill with a small "X" button. Use this anywhere you need to show the user their active filter and let them remove it:
+
+```html
+<div class="active-tag-filter">
+  <span class="active-tag-chip">
+    Filter Label
+    <button class="tag-clear-btn" (click)="removeFilter()">
+      <app-icon name="close"></app-icon>
+    </button>
+  </span>
+</div>
+```
+
+The wrapper `.active-tag-filter` is a simple flex container with wrap and gap — define it in your component SCSS if you have multiple chips:
+
+```scss
+.active-tag-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.75em;
+  gap: 0.4em;
+}
+```
+
+**Currently used by:** `member-list` (tag filters), `find-an-instructor` (instructor ID filter).
 
 > [!IMPORTANT]
 > If you need a small rounded badge with a background color, it is almost certainly one of the chip classes above. Do not create a new one.

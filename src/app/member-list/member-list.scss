@@ -160,46 +160,6 @@
   margin-bottom: 0.75em;
   gap: 0.4em;
 
-  .active-tag-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 6px 3px 10px;
-    background-color: #e8f0fe;
-    color: #1a73e8;
-    border-radius: 16px;
-    font-size: 0.85em;
-    font-weight: 500;
-  }
-
-  .tag-clear-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    box-shadow: none;
-    cursor: pointer;
-    padding: 2px;
-    color: #1a73e8;
-    border-radius: 50%;
-    transition: background-color 0.15s ease;
-
-    &:hover {
-      background-color: rgba(26, 115, 232, 0.12);
-      box-shadow: none;
-    }
-
-    &:active {
-      transform: none;
-      box-shadow: none;
-    }
-
-    app-icon {
-      font-size: 0.85em;
-    }
-  }
-
   .clear-all-btn {
     font-size: 0.8em;
     padding: 3px 8px;

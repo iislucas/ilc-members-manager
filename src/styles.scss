@@ -324,6 +324,98 @@ textarea:disabled {
 }
 
 // ----------------------------------------------------------------------------
+//  Interactive List Rows
+//  Row-level hover and selection styling for clickable lists and detail headers.
+//
+//  Uses the row-highlight-base / row-highlight-active mixins from
+//  scss_variables.scss.  The mixins provide a 4px transparent left border
+//  that transitions to $row-highlight-border with a $row-highlight-bg
+//  background when active.
+//
+//  Pattern A — Hover highlight (list items, table rows):
+//    Apply row-highlight-base on the element, row-highlight-active on :hover.
+//
+//      .my-list-item {
+//        @include v.row-highlight-base;
+//        cursor: pointer;
+//        &:hover { @include v.row-highlight-active; }
+//      }
+//
+//  Pattern B — Permanent "selected" highlight (detail page headers):
+//    Apply both mixins unconditionally so the row looks permanently selected,
+//    visually connecting it to the list the user navigated from.
+//
+//      app-member-row-header {
+//        @include v.row-highlight-base;
+//        @include v.row-highlight-active;
+//      }
+//
+//  Pattern C — Jump-to-item flash animation:
+//    Combine with a keyframe animation that fades from the active state back
+//    to transparent.  See member-list.scss for the flashHighlight keyframe.
+//
+//  Currently used by: member-list, member-details, order-list.
+// ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+//  Active Filter Chips
+//  Blue pill chips with a clear (X) button, used to show active filter
+//  state and let the user remove individual filters.
+//
+//  Usage:
+//    <div class="active-tag-filter">
+//      <span class="active-tag-chip">
+//        Filter Label
+//        <button class="tag-clear-btn" (click)="remove()">
+//          <app-icon name="close"></app-icon>
+//        </button>
+//      </span>
+//    </div>
+//
+//  Currently used by: member-list, find-an-instructor.
+// ----------------------------------------------------------------------------
+
+.active-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 10px;
+  background-color: $theme-tag-bg-color;
+  color: $focus-ring-color;
+  border-radius: 16px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.tag-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  padding: 2px;
+  color: $focus-ring-color;
+  border-radius: 50%;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba($focus-ring-color, 0.12);
+    box-shadow: none;
+  }
+
+  &:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  app-icon {
+    font-size: 0.85em;
+  }
+}
+
+// ----------------------------------------------------------------------------
 //  Chips and text styles
 // ----------------------------------------------------------------------------
 

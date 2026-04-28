@@ -19,7 +19,7 @@ import {
   Unsubscribe,
   where,
 } from 'firebase/firestore';
-import { FIREBASE_APP, Views } from '../../app.config';
+import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { RoutingService } from '../../routing.service';
 import { CalendarEvent } from '../event.model';
 import { IlcEvent, EventStatus, initEvent } from '../../../../functions/src/data-model';
@@ -62,7 +62,7 @@ type SearchableCalendarEvent = IlcEvent & { id: string };
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventListComponent implements OnDestroy {
-  protected routingService = inject(RoutingService);
+  protected routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   protected Views = Views;
 
   // --- Component State Signals ---
@@ -73,10 +73,23 @@ export class EventListComponent implements OnDestroy {
   // attribute), the search field is pre-populated with this value.
   initialQuery = input<string>('');
 
+  // The URL `q` parameter for the current events view, or empty when on a
+  // view that does not support URL params (e.g. the standalone web component).
+  private urlSearchQuery = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.EventsCalendar) {
+      return this.routingService.signals[Views.EventsCalendar].urlParams.q();
+    }
+    if (match === Views.MyEvents) {
+      return this.routingService.signals[Views.MyEvents].urlParams.q();
+    }
+    return '';
+  });
+
   // This signal is bound to the search input field and updates on every keystroke.
-  // It is seeded from `initialQuery` via linkedSignal so it re-derives if the
-  // parent changes the attribute, but can still be freely edited by the user.
-  searchInput = linkedSignal(() => this.initialQuery());
+  // It is seeded from the URL `q` param (if present) or `initialQuery` (for the
+  // web component), and can still be freely edited by the user.
+  searchInput = linkedSignal(() => this.urlSearchQuery() || this.initialQuery());
 
   // --- Component Inputs ---
   calendarId = input<string>(environment.googleCalendar.calendarId);
@@ -281,5 +294,13 @@ export class EventListComponent implements OnDestroy {
 
   onSearchInputChange(value: string): void {
     this.searchInput.set(value);
+
+    // Sync the search term back to the URL for shareable links.
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.EventsCalendar) {
+      this.routingService.signals[Views.EventsCalendar].urlParams.q.set(value);
+    } else if (match === Views.MyEvents) {
+      this.routingService.signals[Views.MyEvents].urlParams.q.set(value);
+    }
   }
 }

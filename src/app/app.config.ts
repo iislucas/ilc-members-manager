@@ -103,7 +103,7 @@ export const initPathPatterns = {
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
   [Views.NewMember]: addUrlParams(pathPattern`new-member`, ['basePath']),
   [Views.Statistics]: pathPattern`statistics`,
-  [Views.EventsCalendar]: pathPattern`events`,
+  [Views.EventsCalendar]: addUrlParams(pathPattern`events`, ['q']),
   [Views.EventView]: pathPattern`events/${pv('eventId')}`,
   [Views.MyEventView]: pathPattern`my-events/${pv('eventId')}`,
   [Views.ManageEventView]: pathPattern`manage-events/${pv('eventId')}`,

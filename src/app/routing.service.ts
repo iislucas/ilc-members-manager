@@ -20,6 +20,30 @@ Key Principles:
    automatically updates the browser URL, and navigation events instantly reflect back into the
    Signals.
 
+CRITICAL — Explicit Type Annotation Required:
+
+When injecting RoutingService, you MUST use an explicit type annotation on the property.
+Without the annotation, TypeScript's mapped types are not resolved, and dot notation on
+`urlParams` and `pathVars` will fail with TS4111 errors. Never use bracket notation
+(e.g. `['q']`) as a workaround.
+
+  ❌ BAD:   routingService = inject(RoutingService<AppPathPatterns>);
+  ✅ GOOD:  routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
+
+Then access signals directly via the Views enum with dot notation:
+
+  // Single-view: store direct reference to avoid repeated lookups.
+  private viewSignals = this.routingService.signals[Views.FindAnInstructor];
+  searchTerm = computed(() => this.viewSignals.urlParams.q());
+
+  // Multi-view: use a computed to dispatch.
+  private viewSignals = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MySchools) return this.routingService.signals[Views.MySchools];
+    return this.routingService.signals[Views.ManageSchools];
+  });
+  searchTerm = computed(() => this.viewSignals().urlParams.q());
+
 Example Usage:
 
 // 1. Define routes (typically in app.config.ts)
@@ -33,7 +57,10 @@ export type MyRoutes = typeof myRoutes;
 
 // 2. Inject and use in a component
 export class ProfileComponent {
-  constructor(private router: RoutingService<MyRoutes>) {
+  // MUST have an explicit type annotation for dot notation to work!
+  router: RoutingService<MyRoutes> = inject(RoutingService<MyRoutes>);
+
+  constructor() {
     // Read parameters reactively with complete type safety
     effect(() => {
       if (this.router.matchedPatternId() === 'profile') {

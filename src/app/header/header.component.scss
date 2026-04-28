@@ -36,8 +36,11 @@
   }
 }
 
+.menu-anchor {
+  position: relative; /* Positioning context for the dropdown menu */
+}
+
 .title-and-menu {
-  position: relative; /* Establish a positioning context for the menu */
   display: flex;
   flex-direction: row;
   align-items: center;
