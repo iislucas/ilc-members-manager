@@ -27,7 +27,7 @@
                 <app-icon name="event"></app-icon>
               </span>
             }
-            {{ dateDisplay() }}
+            <span class="detail-text">{{ dateDisplay() }}</span>
           </span>
 
           <!-- location & map link -->
@@ -47,21 +47,23 @@
                   <app-icon name="map"></app-icon>
                 </span>
               }
-              {{ event().location }}
+              <span class="detail-text">{{ event().location }}</span>
             </span>
           }
-
-          <!-- instructor -->
-          @if (instructorLabel()) {
-            <a class="instructor-link"
-              [href]="instructorLink()"
-              title="View instructor profile"
-              (click)="$event.stopPropagation()">
-              <app-icon name="salut"></app-icon>
-              Instructor: {{ instructorLabel() }}
-            </a>
-          }
         </div>
+
+        <!-- instructor (always on its own line) -->
+        @if (instructorLabel()) {
+          <a class="instructor-link"
+            [href]="instructorLink()"
+            title="View instructor profile"
+            (click)="$event.stopPropagation()">
+            <span class="icon-only-button">
+              <app-icon name="salut"></app-icon>
+            </span>
+            <span class="detail-text">Instructor: {{ instructorLabel() }}</span>
+          </a>
+        }
       </div>
     </div>
   </div>
