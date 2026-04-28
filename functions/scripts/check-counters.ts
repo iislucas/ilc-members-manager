@@ -6,7 +6,8 @@
  * With --fix, updates any counters that are too low.
  *
  * Counters must be strictly greater than the max seen ID so that the next
- * allocated ID is always unique.
+ * allocated ID is always unique. Additionally, no counter should ever be
+ * below MINIMUM_COUNTER (100) to avoid low-numbered IDs.
  *
  * Usage:
  *   cd functions
@@ -25,6 +26,9 @@ import {
   extractCountersFromMember,
   extractCountersFromSchool,
 } from '../src/counters';
+
+// No new ID should ever be less than this value.
+const MINIMUM_COUNTER = 100;
 
 const argv = yargs(hideBin(process.argv))
   .option('project', {
@@ -169,7 +173,7 @@ async function main() {
     // The ensureCountersAreAtLeast function uses calculateNextCounterValue
     // which does Math.max(current, lastSeenId) + 1, meaning the stored
     // counter after processing should be maxSeen + 1.
-    const needed = maxSeen + 1;
+    const needed = Math.max(maxSeen + 1, MINIMUM_COUNTER);
     if (stored >= needed) {
       console.log(
         `  [${code}] stored=${stored} maxSeen=${maxSeen} needed≥${needed} ✅`,
@@ -185,7 +189,7 @@ async function main() {
 
   // Instructor counter
   const instrStored = counters.instructorIdCounter || 0;
-  const instrNeeded = derivedInstructorCounter + 1;
+  const instrNeeded = Math.max(derivedInstructorCounter + 1, MINIMUM_COUNTER);
   if (instrStored >= instrNeeded) {
     console.log(
       `  [instructor] stored=${instrStored} maxSeen=${derivedInstructorCounter} needed≥${instrNeeded} ✅`,
@@ -200,7 +204,7 @@ async function main() {
 
   // School counter
   const schoolStored = counters.schoolIdCounter || 0;
-  const schoolNeeded = derivedSchoolCounter + 1;
+  const schoolNeeded = Math.max(derivedSchoolCounter + 1, MINIMUM_COUNTER);
   if (schoolStored >= schoolNeeded) {
     console.log(
       `  [school] stored=${schoolStored} maxSeen=${derivedSchoolCounter} needed≥${schoolNeeded} ✅`,

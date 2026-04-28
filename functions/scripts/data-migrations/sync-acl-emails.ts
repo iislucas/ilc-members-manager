@@ -1,20 +1,22 @@
+/*. Script to synchronize member emails with the ACL collection.
+
+Loads all members and ACLs into memory, then valuates how many ACL documents 
+have memberDocIds corresponding to a Member document that does not list that 
+ACL doc's email. Finally, it ensures that every ACL document lists every 
+memberDocId for every member that contains that email.
+
+Usage:
+
+cd functions
+pnpm run sync-acl-emails --project <YOUR_PROJECT_ID>        # Dry run
+pnpm run sync-acl-emails --fix --project <YOUR_PROJECT_ID>  # Actualize changes
+
+*/
+
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
-/*
-Script to synchronize member emails with the ACL collection.
-It loads all members and ACLs into memory.
-It evaluates how many ACL documents have memberDocIds corresponding to a Member 
-document that does not list that ACL doc's email.
-Finally, it ensures that every ACL document lists every memberDocId for every 
-member that contains that email.
-
-Usage:
-cd functions
-pnpm run sync-acl-emails --project <YOUR_PROJECT_ID>        # Dry run
-pnpm run sync-acl-emails --fix --project <YOUR_PROJECT_ID>  # Actualize changes
-*/
 
 const argv = yargs(hideBin(process.argv))
   .option('project', {
@@ -68,7 +70,7 @@ async function run() {
 
   // 3. Calculate expected ACL memberDocIds mapping
   const expectedAclMembers = new Map<string, Set<string>>(); // email -> Set of memberDocIds
-  
+
   for (const [memberDocId, memberData] of members.entries()) {
     const emails: string[] = memberData.emails || [];
     for (const email of emails) {
@@ -106,7 +108,7 @@ async function run() {
     emailsProcessed.add(email);
     const expectedIdsSet = expectedAclMembers.get(email) || new Set<string>();
     const expectedIds = Array.from(expectedIdsSet).sort();
-    
+
     const currentIds: string[] = aclData.memberDocIds || [];
     const currentIdsSet = new Set(currentIds);
 
@@ -169,7 +171,7 @@ async function run() {
   console.log(`Total missing memberDocIds across all ACLs: ${totalMissingMemberRefs}`);
   console.log(`Missing ACL docs that need to be created: ${aclsToCreate}`);
   console.log('======================================');
-  
+
   if (!argv['fix']) {
     console.log('Run with --fix to actualize these changes.');
   } else {
