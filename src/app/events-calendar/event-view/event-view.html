@@ -16,46 +16,50 @@
     <div class="event-detail-card">
       <div class="event-header">
         <div class="event-meta">
-          <div class="meta-item date-chip">
-            @if (ev.googleCalEventLink) {
-              <a class="icon-only-button"
-                [href]="ev.googleCalEventLink"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="View on Google Calendar"
-              >
-                <app-icon name="calendar_today"></app-icon>
-              </a>
-            } @else {
-              <span class="icon-only-button">
-                <app-icon name="calendar_today"></app-icon>
-              </span>
-            }
-            {{ dateDisplay() }}
-          </div>
-          @if (ev.location) {
-            <div class="meta-item location-chip">
-              @if (ev.googleMapsUrl) {
+          <div class="meta-row">
+            <div class="meta-item date-chip">
+              @if (ev.googleCalEventLink) {
                 <a class="icon-only-button"
-                  [href]="ev.googleMapsUrl"
+                  [href]="ev.googleCalEventLink"
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="View on Google Maps"
+                  title="View on Google Calendar"
                 >
-                  <app-icon name="map"></app-icon>
+                  <app-icon name="calendar_today"></app-icon>
                 </a>
               } @else {
                 <span class="icon-only-button">
-                  <app-icon name="map"></app-icon>
+                  <app-icon name="calendar_today"></app-icon>
                 </span>
               }
-              <span>{{ ev.location }}</span>
+              <span class="detail-text">{{ dateDisplay() }}</span>
             </div>
-          }
+            @if (ev.location) {
+              <div class="meta-item location-chip">
+                @if (ev.googleMapsUrl) {
+                  <a class="icon-only-button"
+                    [href]="ev.googleMapsUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View on Google Maps"
+                  >
+                    <app-icon name="map"></app-icon>
+                  </a>
+                } @else {
+                  <span class="icon-only-button">
+                    <app-icon name="map"></app-icon>
+                  </span>
+                }
+                <span class="detail-text">{{ ev.location }}</span>
+              </div>
+            }
+          </div>
           @if (instructorLabel()) {
-            <a class="meta-item instructor-chip" [href]="instructorLink()">
-              <app-icon name="salut"></app-icon>
-              <span>Instructor: {{ instructorLabel() }}</span>
+            <a class="instructor-chip" [href]="instructorLink()">
+              <span class="icon-only-button">
+                <app-icon name="salut"></app-icon>
+              </span>
+              <span class="detail-text">Instructor: {{ instructorLabel() }}</span>
             </a>
           }
         </div>
