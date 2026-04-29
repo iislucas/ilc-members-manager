@@ -138,8 +138,6 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(app.routingService.navigateTo).toHaveBeenCalledWith('events?q=yoga', { clearUrlParams: true });
-    // returnUrl should be cleared after use
-    expect(app.routingService.signals[Views.Login].urlParams.returnUrl()).toBe('');
   });
 
   it('should show Find an Instructor and correct breadcrumbs when logged out', async () => {

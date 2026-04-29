@@ -288,10 +288,12 @@ export class App {
         if (view === Views.Login) {
           // After login, redirect to the returnUrl if one was provided
           // (e.g., the user came from a public page), otherwise go Home.
+          // Note: we do NOT clear returnUrl here — mutating a signal inside
+          // an effect would re-trigger it before the hash navigation completes,
+          // causing a fallthrough to the Home redirect. The signal is naturally
+          // overwritten from the URL the next time the login route is visited.
           const returnUrl = this.routingService.signals[Views.Login].urlParams.returnUrl();
           if (returnUrl) {
-            // Clear the returnUrl so it's not reused on subsequent navigations.
-            this.routingService.signals[Views.Login].urlParams.returnUrl.set('');
             this.routingService.navigateTo(returnUrl, { clearUrlParams: true });
           } else {
             this.routingService.navigateToParts(['']);
