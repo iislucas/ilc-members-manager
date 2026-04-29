@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<!--
+  Tab Style Explorer — Mini-tool for experimenting with tab UI patterns.
+
+  Open this file directly in a browser (or via the Angular dev server) to
+  compare five different tab styles. Each variant demonstrates:
+    • Visual treatment (underline, pill, card, vertical sidebar, segmented)
+    • Active/hover states
+    • URL hash updating for shareable deep-links
+    • Responsive behaviour at narrow widths
+
+  Usage:
+    open src/tab-style-explorer.html
+    # or via dev server static assets
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tab Style Explorer — ILC Design Tool</title>
+  <style>
+    /* ================================================================
+       Reset & Base
+       ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ILC Brand Palette — mirrors scss_variables.scss */
+      --theme-bg:        #ffeeee;
+      --theme-border:    #955;
+      --heading-accent:  #722;
+      --chip-bg:         #eedddd;
+      --chip-border:     #caa;
+      --tag-bg:          #e0f2fe;
+      --tag-border:      #bae6fd;
+      --focus-ring:      #007bff;
+      --text-primary:    #333;
+      --text-secondary:  #555;
+      --text-muted:      #666;
+      --text-placeholder: #888;
+      --border-light:    #ccc;
+      --separator:       #eee;
+      --shadow:          rgba(0,0,0,0.1);
+      --shadow-hover:    rgba(0,0,0,0.15);
+      --button-bg:       #bbf;
+      --button-border:   #66a;
+      --menu-hover:      #ddf;
+      --row-highlight-bg:     #f4f9ff;
+      --row-highlight-border: #4da3ff;
+      --white:           #fff;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text-primary);
+      background: #f9f9f9;
+      line-height: 1.5;
+    }
+
+    /* ================================================================
+       Page Shell
+       ================================================================ */
+    .page-header {
+      background: var(--theme-bg);
+      border-bottom: 2px solid var(--theme-border);
+      padding: 1rem 1.5rem;
+      text-align: center;
+    }
+    .page-header h1 {
+      font-size: 1.4rem;
+      color: var(--heading-accent);
+      margin-bottom: 0.25rem;
+    }
+    .page-header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .page-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ================================================================
+       Variant Selector (top-level picker for which style to preview)
+       ================================================================ */
+    .variant-picker {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .variant-picker button {
+      padding: 0.5rem 1.2rem;
+      border: 1px solid var(--border-light);
+      background: var(--white);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+    .variant-picker button:hover {
+      background: var(--menu-hover);
+      border-color: var(--button-border);
+    }
+    .variant-picker button.active {
+      background: var(--button-bg);
+      border-color: var(--button-border);
+      color: var(--text-primary);
+      box-shadow: 0 2px 6px var(--shadow);
+    }
+
+    /* ================================================================
+       Variant Card (wrapper for each demo)
+       ================================================================ */
+    .variant-card {
+      background: var(--white);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .variant-card-header {
+      padding: 1rem 1.25rem 0.5rem;
+      border-bottom: 1px solid var(--separator);
+    }
+    .variant-card-header h2 {
+      font-size: 1.1rem;
+      color: var(--heading-accent);
+      margin-bottom: 0.15rem;
+    }
+    .variant-card-header p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .variant-body {
+      padding: 1.25rem;
+    }
+
+    /* Dummy tab content */
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .tab-panel h3 { font-size: 1rem; color: var(--heading-accent); margin-bottom: 0.5rem; }
+    .tab-panel p  { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+    .tab-panel .chip {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      margin-right: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+    .tab-panel .tag {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
+      margin-right: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+    .tab-panel .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .tab-panel .stat-card {
+      background: var(--theme-bg);
+      border: 1px solid var(--chip-border);
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      text-align: center;
+    }
+    .tab-panel .stat-card .stat-value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: var(--heading-accent);
+    }
+    .tab-panel .stat-card .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* URL indicator */
+    .url-indicator {
+      margin-top: 1rem;
+      padding: 0.5rem 0.75rem;
+      background: #f5f5f5;
+      border: 1px dashed var(--border-light);
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+    .url-indicator strong {
+      color: var(--text-primary);
+    }
+
+    /* ================================================================
+       VARIANT 1 — Underline Tabs (Material-ish)
+       ================================================================ */
+    .tabs-underline {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--separator);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabs-underline button {
+      position: relative;
+      padding: 0.65rem 1.2rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      transition: color 0.2s ease;
+    }
+    .tabs-underline button::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      transition: background 0.25s ease, transform 0.25s ease;
+      transform: scaleX(0);
+    }
+    .tabs-underline button:hover {
+      color: var(--text-primary);
+      background: var(--row-highlight-bg);
+    }
+    .tabs-underline button.active {
+      color: var(--heading-accent);
+      font-weight: 600;
+    }
+    .tabs-underline button.active::after {
+      background: var(--theme-border);
+      transform: scaleX(1);
+    }
+
+    /* ================================================================
+       VARIANT 2 — Pill / Capsule Tabs
+       ================================================================ */
+    .tabs-pill {
+      display: flex;
+      gap: 0.35rem;
+      padding: 0.3rem;
+      background: var(--separator);
+      border-radius: 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabs-pill button {
+      padding: 0.45rem 1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-radius: 8px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .tabs-pill button:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.6);
+    }
+    .tabs-pill button.active {
+      background: var(--white);
+      color: var(--heading-accent);
+      box-shadow: 0 1px 4px var(--shadow);
+      font-weight: 600;
+    }
+
+    /* ================================================================
+       VARIANT 3 — Card Tabs (classic browser-tab look)
+       ================================================================ */
+    .tabs-card-wrapper {
+      border-bottom: 2px solid var(--theme-border);
+    }
+    .tabs-card {
+      display: flex;
+      gap: 0.2rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabs-card button {
+      padding: 0.5rem 1.1rem;
+      border: 1px solid var(--border-light);
+      border-bottom: none;
+      background: var(--separator);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-radius: 6px 6px 0 0;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      position: relative;
+      top: 2px;
+    }
+    .tabs-card button:hover {
+      background: var(--theme-bg);
+      color: var(--text-primary);
+    }
+    .tabs-card button.active {
+      background: var(--white);
+      color: var(--heading-accent);
+      border-color: var(--theme-border);
+      border-bottom: 2px solid var(--white);
+      font-weight: 600;
+      z-index: 1;
+    }
+
+    /* ================================================================
+       VARIANT 4 — Vertical Sidebar Tabs
+       ================================================================ */
+    .tabs-sidebar-layout {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 200px;
+    }
+    .tabs-sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      background: #f8f8f8;
+      border-right: 1px solid var(--border-light);
+      flex-shrink: 0;
+    }
+    .tabs-sidebar button {
+      padding: 0.65rem 1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: left;
+      border-left: 3px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .tabs-sidebar button:hover {
+      background: var(--row-highlight-bg);
+      color: var(--text-primary);
+    }
+    .tabs-sidebar button.active {
+      background: var(--white);
+      color: var(--heading-accent);
+      border-left-color: var(--theme-border);
+      font-weight: 600;
+    }
+    .tabs-sidebar-content {
+      flex: 1;
+      padding: 1rem;
+    }
+
+    /* ================================================================
+       VARIANT 5 — Segmented Control (iOS-ish)
+       ================================================================ */
+    .tabs-segmented {
+      display: inline-flex;
+      border: 1.5px solid var(--theme-border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--white);
+    }
+    .tabs-segmented button {
+      padding: 0.5rem 1.1rem;
+      border: none;
+      border-right: 1px solid var(--theme-border);
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .tabs-segmented button:last-child { border-right: none; }
+    .tabs-segmented button:hover {
+      background: var(--theme-bg);
+      color: var(--text-primary);
+    }
+    .tabs-segmented button.active {
+      background: var(--theme-bg);
+      color: var(--heading-accent);
+      font-weight: 600;
+    }
+
+    /* ================================================================
+       Responsive
+       ================================================================ */
+    @media (max-width: 600px) {
+      .tabs-sidebar-layout {
+        flex-direction: column;
+      }
+      .tabs-sidebar {
+        flex-direction: row;
+        min-width: unset;
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+        overflow-x: auto;
+      }
+      .tabs-sidebar button {
+        border-left: none;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+      }
+      .tabs-sidebar button.active {
+        border-left-color: transparent;
+        border-bottom-color: var(--theme-border);
+      }
+
+      .tabs-segmented {
+        display: flex;
+        width: 100%;
+      }
+      .tabs-segmented button {
+        flex: 1;
+        padding: 0.5rem 0.5rem;
+        font-size: 0.78rem;
+      }
+    }
+
+    /* ================================================================
+       Utility
+       ================================================================ */
+    .hidden { display: none !important; }
+    .mt-1 { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <h1>🧪 Tab Style Explorer</h1>
+    <p>Compare 5 tab variants for the ILC Members Manager. Click each style to preview, and notice the URL updating.</p>
+  </header>
+
+  <div class="page-container">
+
+    <!-- ====== Top-level variant picker ====== -->
+    <div class="variant-picker" id="variantPicker">
+      <button data-variant="underline" class="active">① Underline</button>
+      <button data-variant="pill">② Pill</button>
+      <button data-variant="card">③ Card</button>
+      <button data-variant="sidebar">④ Sidebar</button>
+      <button data-variant="segmented">⑤ Segmented</button>
+    </div>
+
+    <!-- ====== VARIANT 1: Underline ====== -->
+    <div class="variant-card" id="variant-underline">
+      <div class="variant-card-header">
+        <h2>① Underline Tabs</h2>
+        <p>Clean, minimal — a coloured underline slides under the active tab. Great for content-dense pages with many tabs. Similar to Material Design / Google style.</p>
+      </div>
+      <div class="variant-body">
+        <div class="tabs-underline" data-tab-group="underline">
+          <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="members">Members</button>
+          <button data-tab="events">Events</button>
+          <button data-tab="settings">Settings</button>
+        </div>
+        <div class="tab-panels" data-panels="underline">
+          <div class="tab-panel active" data-panel="overview">
+            <h3>Overview</h3>
+            <p>This is the overview panel. The underline style keeps the chrome minimal and lets the content breathe.</p>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Members</div></div>
+              <div class="stat-card"><div class="stat-value">23</div><div class="stat-label">Instructors</div></div>
+              <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Schools</div></div>
+              <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Events</div></div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="members">
+            <h3>Members</h3>
+            <p>Member management area. Tags and levels are shown as chips:</p>
+            <span class="chip">Student 3</span>
+            <span class="chip">ID: 1042</span>
+            <span class="tag">instructor</span>
+            <span class="tag">senior</span>
+          </div>
+          <div class="tab-panel" data-panel="events">
+            <h3>Events & Workshops</h3>
+            <p>Upcoming events and workshop schedules. Each event can be filtered by date and instructor.</p>
+            <span class="tag">Workshop</span>
+            <span class="tag">Seminar</span>
+            <span class="chip">June 2026</span>
+          </div>
+          <div class="tab-panel" data-panel="settings">
+            <h3>Settings</h3>
+            <p>System counters, country codes, backups, and resource management live here.</p>
+            <span class="chip">Counters</span>
+            <span class="chip">Backups</span>
+            <span class="chip">Resources</span>
+          </div>
+        </div>
+        <div class="url-indicator" data-url-display="underline">
+          <strong>URL:</strong> <span>#underline/overview</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VARIANT 2: Pill ====== -->
+    <div class="variant-card hidden" id="variant-pill">
+      <div class="variant-card-header">
+        <h2>② Pill / Capsule Tabs</h2>
+        <p>Rounded pills on a tinted track. The active tab pops out with a white background and shadow. Modern, friendly feel — popular in dashboard UIs.</p>
+      </div>
+      <div class="variant-body">
+        <div class="tabs-pill" data-tab-group="pill">
+          <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="members">Members</button>
+          <button data-tab="events">Events</button>
+          <button data-tab="settings">Settings</button>
+        </div>
+        <div class="tab-panels mt-1" data-panels="pill">
+          <div class="tab-panel active" data-panel="overview">
+            <h3>Overview</h3>
+            <p>The pill style works well when you have 3–5 tabs and want them to feel like a toggle between modes rather than pages.</p>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Members</div></div>
+              <div class="stat-card"><div class="stat-value">23</div><div class="stat-label">Instructors</div></div>
+              <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Schools</div></div>
+              <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Events</div></div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="members">
+            <h3>Members</h3>
+            <p>Member management area. Tags and levels are shown as chips:</p>
+            <span class="chip">Student 3</span>
+            <span class="chip">ID: 1042</span>
+            <span class="tag">instructor</span>
+            <span class="tag">senior</span>
+          </div>
+          <div class="tab-panel" data-panel="events">
+            <h3>Events & Workshops</h3>
+            <p>Upcoming events and workshop schedules.</p>
+            <span class="tag">Workshop</span>
+            <span class="tag">Seminar</span>
+            <span class="chip">June 2026</span>
+          </div>
+          <div class="tab-panel" data-panel="settings">
+            <h3>Settings</h3>
+            <p>System counters, country codes, backups, and resource management.</p>
+            <span class="chip">Counters</span>
+            <span class="chip">Backups</span>
+            <span class="chip">Resources</span>
+          </div>
+        </div>
+        <div class="url-indicator" data-url-display="pill">
+          <strong>URL:</strong> <span>#pill/overview</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VARIANT 3: Card ====== -->
+    <div class="variant-card hidden" id="variant-card">
+      <div class="variant-card-header">
+        <h2>③ Card / Browser Tabs</h2>
+        <p>Classic raised-card look — the active tab visually connects to the content panel below by sharing its background colour. Familiar, clear hierarchy.</p>
+      </div>
+      <div class="variant-body">
+        <div class="tabs-card-wrapper">
+          <div class="tabs-card" data-tab-group="card">
+            <button class="active" data-tab="overview">Overview</button>
+            <button data-tab="members">Members</button>
+            <button data-tab="events">Events</button>
+            <button data-tab="settings">Settings</button>
+          </div>
+        </div>
+        <div class="tab-panels mt-1" data-panels="card">
+          <div class="tab-panel active" data-panel="overview">
+            <h3>Overview</h3>
+            <p>Card tabs give a strong sense of "you are here" by making the active tab part of the content area.</p>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Members</div></div>
+              <div class="stat-card"><div class="stat-value">23</div><div class="stat-label">Instructors</div></div>
+              <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Schools</div></div>
+              <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Events</div></div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="members">
+            <h3>Members</h3>
+            <p>Member management area. Tags and levels are shown as chips:</p>
+            <span class="chip">Student 3</span>
+            <span class="chip">ID: 1042</span>
+            <span class="tag">instructor</span>
+            <span class="tag">senior</span>
+          </div>
+          <div class="tab-panel" data-panel="events">
+            <h3>Events & Workshops</h3>
+            <p>Upcoming events and workshop schedules.</p>
+            <span class="tag">Workshop</span>
+            <span class="tag">Seminar</span>
+            <span class="chip">June 2026</span>
+          </div>
+          <div class="tab-panel" data-panel="settings">
+            <h3>Settings</h3>
+            <p>System counters, country codes, backups, and resource management.</p>
+            <span class="chip">Counters</span>
+            <span class="chip">Backups</span>
+            <span class="chip">Resources</span>
+          </div>
+        </div>
+        <div class="url-indicator" data-url-display="card">
+          <strong>URL:</strong> <span>#card/overview</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VARIANT 4: Sidebar ====== -->
+    <div class="variant-card hidden" id="variant-sidebar">
+      <div class="variant-card-header">
+        <h2>④ Vertical Sidebar Tabs</h2>
+        <p>Tabs run vertically along the left edge. Best for Settings-type pages with many sections, or when tab labels are longer. Collapses to horizontal on mobile.</p>
+      </div>
+      <div class="variant-body">
+        <div class="tabs-sidebar-layout">
+          <div class="tabs-sidebar" data-tab-group="sidebar">
+            <button class="active" data-tab="overview">Overview</button>
+            <button data-tab="members">Members</button>
+            <button data-tab="events">Events</button>
+            <button data-tab="settings">Settings</button>
+          </div>
+          <div class="tabs-sidebar-content">
+            <div class="tab-panels" data-panels="sidebar">
+              <div class="tab-panel active" data-panel="overview">
+                <h3>Overview</h3>
+                <p>Sidebar tabs give generous vertical space for content and work well with scroll-heavy panels.</p>
+                <div class="stat-grid">
+                  <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Members</div></div>
+                  <div class="stat-card"><div class="stat-value">23</div><div class="stat-label">Instructors</div></div>
+                  <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Schools</div></div>
+                  <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Events</div></div>
+                </div>
+              </div>
+              <div class="tab-panel" data-panel="members">
+                <h3>Members</h3>
+                <p>Member management area.</p>
+                <span class="chip">Student 3</span>
+                <span class="chip">ID: 1042</span>
+                <span class="tag">instructor</span>
+                <span class="tag">senior</span>
+              </div>
+              <div class="tab-panel" data-panel="events">
+                <h3>Events & Workshops</h3>
+                <p>Upcoming events and workshop schedules.</p>
+                <span class="tag">Workshop</span>
+                <span class="tag">Seminar</span>
+              </div>
+              <div class="tab-panel" data-panel="settings">
+                <h3>Settings</h3>
+                <p>System counters, country codes, backups.</p>
+                <span class="chip">Counters</span>
+                <span class="chip">Backups</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="url-indicator" data-url-display="sidebar">
+          <strong>URL:</strong> <span>#sidebar/overview</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VARIANT 5: Segmented Control ====== -->
+    <div class="variant-card hidden" id="variant-segmented">
+      <div class="variant-card-header">
+        <h2>⑤ Segmented Control</h2>
+        <p>Compact, bordered toggle — reminiscent of iOS segmented controls. Works best for 2–4 short-labelled tabs. Excellent for toggling between views of the same data.</p>
+      </div>
+      <div class="variant-body">
+        <div class="tabs-segmented" data-tab-group="segmented">
+          <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="members">Members</button>
+          <button data-tab="events">Events</button>
+          <button data-tab="settings">Settings</button>
+        </div>
+        <div class="tab-panels mt-1" data-panels="segmented">
+          <div class="tab-panel active" data-panel="overview">
+            <h3>Overview</h3>
+            <p>Segmented controls feel like a toggle rather than navigation — ideal for switching data views.</p>
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-value">142</div><div class="stat-label">Members</div></div>
+              <div class="stat-card"><div class="stat-value">23</div><div class="stat-label">Instructors</div></div>
+              <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Schools</div></div>
+              <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Events</div></div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="members">
+            <h3>Members</h3>
+            <p>Member management area.</p>
+            <span class="chip">Student 3</span>
+            <span class="chip">ID: 1042</span>
+            <span class="tag">instructor</span>
+          </div>
+          <div class="tab-panel" data-panel="events">
+            <h3>Events & Workshops</h3>
+            <p>Upcoming events and workshop schedules.</p>
+            <span class="tag">Workshop</span>
+            <span class="tag">Seminar</span>
+          </div>
+          <div class="tab-panel" data-panel="settings">
+            <h3>Settings</h3>
+            <p>System counters, country codes, backups.</p>
+            <span class="chip">Counters</span>
+            <span class="chip">Backups</span>
+          </div>
+        </div>
+        <div class="url-indicator" data-url-display="segmented">
+          <strong>URL:</strong> <span>#segmented/overview</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.page-container -->
+
+  <script>
+    /*
+     * Tab Style Explorer — interactive logic.
+     *
+     * URL hash format: #<variant>/<tab>
+     * e.g. #pill/members  → shows Pill variant with Members tab active.
+     *
+     * Supports browser back/forward for full shareability.
+     */
+    (function () {
+      const VARIANTS = ['underline', 'pill', 'card', 'sidebar', 'segmented'];
+      const DEFAULT_TAB = 'overview';
+
+      // ── Parse hash ─────────────────────────────────────────────
+      function parseHash() {
+        const raw = location.hash.replace(/^#\/?/, '');
+        const [variant, tab] = raw.split('/');
+        return {
+          variant: VARIANTS.includes(variant) ? variant : VARIANTS[0],
+          tab: tab || DEFAULT_TAB,
+        };
+      }
+
+      // ── Apply state ────────────────────────────────────────────
+      function applyState({ variant, tab }) {
+        // Variant picker
+        document.querySelectorAll('#variantPicker button').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.variant === variant);
+        });
+
+        // Show/hide variant cards
+        VARIANTS.forEach(v => {
+          const el = document.getElementById('variant-' + v);
+          if (el) el.classList.toggle('hidden', v !== variant);
+        });
+
+        // Activate tab within the visible variant
+        const tabGroup = document.querySelector(`[data-tab-group="${variant}"]`);
+        if (tabGroup) {
+          tabGroup.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+          });
+        }
+
+        const panelsContainer = document.querySelector(`[data-panels="${variant}"]`);
+        if (panelsContainer) {
+          let foundTab = false;
+          panelsContainer.querySelectorAll('.tab-panel').forEach(panel => {
+            const isActive = panel.dataset.panel === tab;
+            if (isActive) foundTab = true;
+            panel.classList.toggle('active', isActive);
+          });
+          // If the requested tab doesn't exist, activate the first one
+          if (!foundTab) {
+            const first = panelsContainer.querySelector('.tab-panel');
+            if (first) first.classList.add('active');
+          }
+        }
+
+        // Update URL indicator
+        const urlDisplay = document.querySelector(`[data-url-display="${variant}"] span`);
+        if (urlDisplay) {
+          urlDisplay.textContent = `#${variant}/${tab}`;
+        }
+      }
+
+      // ── Update hash without triggering hashchange ──────────────
+      function setHash(variant, tab) {
+        const newHash = `#${variant}/${tab}`;
+        if (location.hash !== newHash) {
+          history.pushState(null, '', newHash);
+        }
+        applyState({ variant, tab });
+      }
+
+      // ── Event Listeners ────────────────────────────────────────
+
+      // Variant picker buttons
+      document.querySelectorAll('#variantPicker button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const variant = btn.dataset.variant;
+          // Keep the current tab if it exists in the new variant, otherwise default
+          const current = parseHash();
+          setHash(variant, current.tab);
+        });
+      });
+
+      // Tab buttons within each variant
+      document.querySelectorAll('[data-tab-group] button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const group = btn.closest('[data-tab-group]').dataset.tabGroup;
+          setHash(group, btn.dataset.tab);
+        });
+      });
+
+      // Back/forward navigation
+      window.addEventListener('hashchange', () => {
+        applyState(parseHash());
+      });
+
+      // ── Initial state ──────────────────────────────────────────
+      if (!location.hash) {
+        history.replaceState(null, '', '#underline/overview');
+      }
+      applyState(parseHash());
+    })();
+  </script>
+</body>
+</html>
