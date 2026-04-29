@@ -271,6 +271,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  bullet_list: {
+    viewbox: '0 -960 960 960',
+    fill: '#5f6368',
+    html: `<circle cx="200" cy="-760" r="60"/><rect x="320" y="-800" width="480" height="80" rx="10"/><circle cx="200" cy="-480" r="60"/><rect x="320" y="-520" width="480" height="80" rx="10"/><circle cx="200" cy="-200" r="60"/><rect x="320" y="-240" width="480" height="80" rx="10"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   bar_chart: {
     viewbox: '0 -960 960 960',
     fill: '#5f6368',

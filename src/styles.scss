@@ -532,6 +532,22 @@ textarea:disabled {
   border-radius: 4px;
   font-size: 0.9em;
   padding: 0.5em;
+
+  &.with-details {
+    flex-direction: column;
+    gap: 0.3em;
+  }
+}
+
+.error-details {
+  margin: 0;
+  padding-left: 1.5em;
+  color: $theme-error-text-color;
+  font-size: 0.95em;
+
+  li {
+    margin-bottom: 0.15em;
+  }
 }
 
 .error-message {

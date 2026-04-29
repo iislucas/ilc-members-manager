@@ -2,7 +2,7 @@
   <!-- Dropdown Menu for Formatting -->
   <div class="sticky-menu-wrapper">
     <div class="menu-container top-right-menu">
-      <button (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
+      <button type="button" (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
         <app-icon name="format" width="1em" height="1em"></app-icon>
       </button>
       @if (menuOpen()) {
@@ -13,7 +13,7 @@
             @if (showDescriptions()) {
               <span class="menu-title">Actions</span>
             }
-            <button (click)="showDescriptions.set(!showDescriptions()); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
+            <button type="button" (click)="showDescriptions.set(!showDescriptions()); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
               <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
             </button>
           </div>
@@ -47,7 +47,7 @@
             @if (showDescriptions()) { <span>Heading 3</span> }
           </div>
           <div class="menu-item" (click)="toggleBulletList(); menuOpen.set(false)">
-            <span class="menu-icon">&bull;</span>
+            <span class="menu-icon"><app-icon name="bullet_list" width="1.2em" height="1.2em"></app-icon></span>
             @if (showDescriptions()) { <span>Bullet List</span> }
           </div>
           <div class="menu-item" (click)="indent(); menuOpen.set(false)">
@@ -74,10 +74,10 @@
   @if (linkPopupOpen()) {
     <div class="link-popup" [style.top.px]="linkPopupPos().top" [style.left.px]="linkPopupPos().left">
       <input #linkInput [value]="linkUrl()" (keyup.enter)="updateLink(linkInput.value)"/>
-      <button (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
+      <button type="button" (click)="updateLink(linkInput.value)" class="icon-only-button" title="Save Link">
         <app-icon name="check" width="1em" height="1em"></app-icon>
       </button>
-      <button (click)="removeLink()" class="icon-only-button" title="Remove Link">
+      <button type="button" (click)="removeLink()" class="icon-only-button" title="Remove Link">
         <app-icon name="trash" width="1em" height="1em"></app-icon>
       </button>
     </div>
@@ -88,7 +88,7 @@
     <div class="link-preview" [style.top.px]="linkPreviewPos().top" [style.left.px]="linkPreviewPos().left">
       <span (click)="openLink()" class="preview-text">🔗 Open: {{ truncatedUrl() }}</span>
       <div class="preview-actions">
-        <button (click)="toggleLink()" class="icon-only-button" title="Edit Link">
+        <button type="button" (click)="toggleLink()" class="icon-only-button" title="Edit Link">
           <app-icon name="edit" width="1em" height="1em"></app-icon>
         </button>
       </div>

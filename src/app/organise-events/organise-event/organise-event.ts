@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { form, required, FieldTree, FormField } from '@angular/forms/signals';
 import { FirebaseStateService } from '../../firebase-state.service';
@@ -74,6 +74,25 @@ export class ProposeEventComponent {
     required(schema.end, { message: 'End date required.' });
   });
 
+  // Reactively collects specific validation error messages from required fields.
+  missingFields = computed(() => {
+    const errors: string[] = [];
+    const fields = [
+      { field: this.proposeForm.title, label: 'Title' },
+      { field: this.proposeForm.start, label: 'Start date' },
+      { field: this.proposeForm.end, label: 'End date' },
+    ];
+    for (const { field, label } of fields) {
+      const fieldErrors = field().errors();
+      if (fieldErrors.length > 0) {
+        for (const err of fieldErrors) {
+          errors.push(err.message || `${label} is required.`);
+        }
+      }
+    }
+    return errors;
+  });
+
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
     toName: (i: InstructorPublicData) => i.name,
@@ -114,11 +133,6 @@ export class ProposeEventComponent {
   async onSubmit() {
     this.errorMessage.set(null);
     this.successMessage.set(null);
-
-    if (!this.proposeForm().valid()) {
-      this.errorMessage.set('Please fix the errors in the form.');
-      return;
-    }
 
     this.isSaving.set(true);
 

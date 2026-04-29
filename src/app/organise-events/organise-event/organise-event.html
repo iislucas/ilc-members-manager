@@ -151,10 +151,21 @@
       </div>
     </div>
 
-    @if (errorMessage(); as msg) {
-      <div class="error-container">
-        <span class="error-message">{{ msg }}</span>
+    @if (missingFields().length > 0) {
+      <div class="error-container with-details">
+        <span class="error-message">Missing required fields:</span>
+        <ul class="error-details">
+          @for (detail of missingFields(); track detail) {
+            <li>{{ detail }}</li>
+          }
+        </ul>
       </div>
+    }
+
+    @if (errorMessage(); as msg) {
+        <div class="error-container">
+          <span class="error-message">{{ msg }}</span>
+        </div>
     }
 
     @if (successMessage(); as msg) {
