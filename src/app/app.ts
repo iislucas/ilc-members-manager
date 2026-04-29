@@ -96,6 +96,21 @@ export class App {
   public loadedEventTitle = signal<string | null>(null);
   public loadedOrderTitle = signal<string | null>(null);
 
+  // Views that are accessible without login.
+  private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
+    Views.FindAnInstructor,
+    Views.FindSchool,
+    Views.EventsCalendar,
+    Views.EventView,
+    Views.ClassCalendarView,
+    Views.SchoolCalendarView,
+  ]);
+
+  public isPublicPage = computed(() => {
+    const view = this.currentView();
+    return !!view && App.PUBLIC_VIEWS.has(view);
+  });
+
   onEventTitleLoaded(title: string) {
     this.loadedEventTitle.set(title);
   }
@@ -262,8 +277,13 @@ export class App {
         this.loadedOrderTitle.set(null);
       }
 
+      const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
       if (isLoggedOut && (!view || view === Views.Home)) {
         this.routingService.navigateToParts(['login']);
+      } else if (isLoggedOut && view === Views.Login) {
+        // Stay on login page
+      } else if (isLoggedOut && isOnPublicPage) {
+        // Stay on public page — login is in the nav bar
       } else if (isLoggedIn) {
         if (view === Views.Login) {
           // Redirect to Home

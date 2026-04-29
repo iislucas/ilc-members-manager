@@ -1,4 +1,4 @@
-<div class="nav-bar" [class.logged-out]="!isLoggedIn()">
+<div class="nav-bar" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
   <div class="title-and-menu">
     @if (isLoggedIn()) {
       <div class="menu-anchor">
@@ -44,5 +44,7 @@
   </div>
   @if (isLoggedIn()) {
     <app-profile-menu></app-profile-menu>
+  } @else if (isPublicPage()) {
+    <a class="nav-sign-in-link" [href]="'#/' + routingService.resolveUrlWithParams('login')">Sign In</a>
   }
 </div>

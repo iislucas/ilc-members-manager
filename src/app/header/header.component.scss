@@ -157,3 +157,26 @@
     left: 100%;
   }
 }
+
+.nav-sign-in-link {
+  text-decoration: none;
+  color: $text-primary;
+  font-size: 0.9em;
+  font-weight: 500;
+  padding: 0.35em 1em;
+  border-radius: 6px;
+  border: 1px solid $theme-border-color;
+  background-color: transparent;
+  white-space: nowrap;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    background-color: $menu-item-hover-color;
+    border-color: $button-border-color;
+    color: $text-primary;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}

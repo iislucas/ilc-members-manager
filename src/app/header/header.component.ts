@@ -1,8 +1,10 @@
-import { Component, input, model } from '@angular/core';
+import { Component, input, model, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { NavigationMenuComponent } from '../navigation-menu/navigation-menu.component';
 import { ProfileMenuComponent } from '../profile-menu/profile-menu';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 
 export interface Breadcrumb {
   label: string;
@@ -25,8 +27,10 @@ export interface Breadcrumb {
   styleUrl: './header.component.scss',
 })
 export class HeaderComponent {
+  routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   breadcrumbs = input<Breadcrumb[]>([]);
   abbreviateParents = input<boolean>(true);
   isLoggedIn = input<boolean>(false);
+  isPublicPage = input<boolean>(false);
   menuOpen = model<boolean>(false);
 }

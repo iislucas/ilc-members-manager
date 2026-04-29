@@ -1,314 +1,270 @@
 <div class="app-container">
   @let user = firebaseService.user();
 
-  <!-- @if(firebaseService.loggingIn()) { Logging
-  in... } @else 
-   -->
   <app-header
     [breadcrumbs]="breadcrumbs()"
     [abbreviateParents]="currentView() !== Views.Home && currentView() !== Views.Login"
     [isLoggedIn]="!!user"
+    [isPublicPage]="isPublicPage()"
     [(menuOpen)]="menuOpen"
   ></app-header>
-  @if (user) {
-    @if (logoutError(); as message) {
-      <div class="error-container">
-        Logout error: <span>{{ message }}</span>
-        <button class="icon-only-button" (click)="dismissMessages()">
-          <app-icon name="close"></app-icon>
-        </button>
-      </div>
-    }
-    <main>
-      @if (dataService.loadingState() !== DataServiceState.Loaded) {
-        <app-spinner>Loading app data...</app-spinner>
-      } @else if (incompleteProfile()) {
-        <app-complete-profile></app-complete-profile>
-      } @else {
-        @switch (currentView()) {
-          @case (Views.Home) {
-            <app-home></app-home>
-          }
-          @case (Views.MyProfile) {
-            <app-member-details
-              [allMembers]="dataService.members.entries()"
-              [member]="user.member"
-              (close)="routingService.navigateToParts([''])"
-            ></app-member-details>
-          }
-          @case (Views.ManageMembers) {
-            <app-filtered-members
-              [memberSet]="dataService.members"
-              basePath="members"
-            ></app-filtered-members>
-          }
-          @case (Views.ImportExport) {
-            <app-import-export></app-import-export>
-          }
-          @case (Views.FindAnInstructor) {
-            <app-find-an-instructor></app-find-an-instructor>
-          }
-          @case (Views.ManageSchools) {
-            <app-school-list></app-school-list>
-          }
-          @case (Views.SchoolMembers) {
-            <app-school-members></app-school-members>
-          }
-          @case (Views.InstructorStudents) {
-            <app-instructor-students></app-instructor-students>
-          }
-          @case (Views.FindSchool) {
-            <app-find-school></app-find-school>
-          }
-          @case (Views.ClassCalendarView) {
-            <app-class-calendar
-              [calendarId]="instructorCalendarId()"
-              [calendarOwnerName]="instructorCalendarOwnerName()"
-              backLabel="Find an Instructor"
-              backUrl="find-an-instructor"
-            ></app-class-calendar>
-          }
-          @case (Views.SchoolCalendarView) {
-            <app-class-calendar
-              [calendarId]="schoolCalendarId()"
-              [calendarOwnerName]="schoolCalendarOwnerName()"
-              backLabel="Find a School"
-              backUrl="find-school"
-            ></app-class-calendar>
-          }
-          @case (Views.EventsCalendar) {
-            <app-event-list></app-event-list>
-          }
-          @case (Views.EventView) {
-            <app-event-view
-              [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-view>
-          }
-          @case (Views.MyEventView) {
-            <app-event-view
-              [eventId]="routingService.signals[Views.MyEventView].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-view>
-          }
-          @case (Views.ManageEventView) {
-            <app-event-view
-              [eventId]="routingService.signals[Views.ManageEventView].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-view>
-          }
-          @case (Views.EventEdit) {
-            <app-event-edit
-              [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-edit>
-          }
-          @case (Views.MyEventEdit) {
-            <app-event-edit
-              [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-edit>
-          }
-          @case (Views.ManageEventEdit) {
-            <app-event-edit
-              [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-edit>
-          }
-          @case (Views.ProposeEvent) {
-            <app-organise-event></app-organise-event>
-          }
-          @case (Views.ManageEvents) {
-            <app-manage-events></app-manage-events>
-          }
-          @case (Views.MyStudents) {
-            <app-filtered-members
-              [memberSet]="dataService.myStudents"
-              basePath="my-students"
-              [hideInactive]="true"
-            ></app-filtered-members>
-          }
-          @case (Views.MyEvents) {
-            <app-event-list
-              [collectionPath]="'members/' + user.member.docId + '/events'"
-              [showBackButton]="true"
-              backLabel="Back to Home"
-              backUrl="#/"
-            ></app-event-list>
-          }
-          @case (Views.MySchools) {
-            <app-school-list
-              [schoolSet]="dataService.mySchools"
-            ></app-school-list>
-          }
-          @case (Views.NewMember) {
-            <app-member-create
-              [basePath]="routingService.signals[Views.NewMember].urlParams.basePath() || 'members'"
-            ></app-member-create>
-          }
-          @case (Views.ManageMemberView) {
-            <app-member-view
-              [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
-              basePath="members"
-              backLabel="Members List"
-            ></app-member-view>
-          }
-          @case (Views.SchoolMemberView) {
-            <app-member-view
-              [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
-              [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
-              [backLabel]="'School ' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + ' Members'"
-            ></app-member-view>
-          }
-          @case (Views.InstructorStudentView) {
-            <app-member-view
-              [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
-              [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
-              backLabel="Students List"
-            ></app-member-view>
-          }
-          @case (Views.MyStudentView) {
-            <app-member-view
-              [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
-              basePath="my-students"
-              backLabel="My Students"
-            ></app-member-view>
-          }
-          @case (Views.MembersAreaCategory) {
-            <app-squarespace-content
-              path="members-post"
-              pageTitle="Active Members Area"
-            ></app-squarespace-content>
-          }
-          @case (Views.InstructorsAreaCategory) {
-            <app-squarespace-content
-              path="instructors-post"
-              pageTitle="Active Instructors Area"
-            ></app-squarespace-content>
-          }
-          @case (Views.MembersAreaPost) {
-            <app-squarespace-article
-              collection="members-post"
-              [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
-            ></app-squarespace-article>
-          }
-          @case (Views.InstructorsAreaPost) {
-            <app-squarespace-article
-              collection="instructors-post"
-              [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
-            ></app-squarespace-article>
-          }
-          @case (Views.ManageGradings) {
-            <app-grading-list
-              [gradingSet]="dataService.gradings"
-            ></app-grading-list>
-          }
-          @case (Views.MemberGradings) {
-            <app-member-gradings></app-member-gradings>
-          }
-          @case (Views.Settings) {
-            <app-settings></app-settings>
-          }
-          @case (Views.Statistics) {
-            <app-statistics></app-statistics>
-          }
-          @case (Views.ClassVideoLibrary) {
-            <app-class-video-library></app-class-video-library>
-          }
-          @case (Views.ManageOrders) {
-            <app-order-list></app-order-list>
-          }
-          @case (Views.OrderView) {
-            <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
-          }
+
+  @if (user && logoutError(); as message) {
+    <div class="error-container">
+      Logout error: <span>{{ message }}</span>
+      <button class="icon-only-button" (click)="dismissMessages()">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  <main>
+    @if (isPublicPage()) {
+      <!-- Public pages: render immediately, regardless of auth/data-loading state.
+           This single block replaces the duplicate public-view cases that were
+           previously in both the logged-in and logged-out branches, eliminating
+           the visible "re-load" flash when the user auto-logs in. -->
+      @switch (currentView()) {
+        @case (Views.FindAnInstructor) {
+          <app-find-an-instructor></app-find-an-instructor>
+        }
+        @case (Views.FindSchool) {
+          <app-find-school></app-find-school>
+        }
+        @case (Views.ClassCalendarView) {
+          <app-class-calendar
+            [calendarId]="instructorCalendarId()"
+            [calendarOwnerName]="instructorCalendarOwnerName()"
+            backLabel="Find an Instructor"
+            backUrl="find-an-instructor"
+          ></app-class-calendar>
+        }
+        @case (Views.SchoolCalendarView) {
+          <app-class-calendar
+            [calendarId]="schoolCalendarId()"
+            [calendarOwnerName]="schoolCalendarOwnerName()"
+            backLabel="Find a School"
+            backUrl="find-school"
+          ></app-class-calendar>
+        }
+        @case (Views.EventsCalendar) {
+          <app-event-list></app-event-list>
+        }
+        @case (Views.EventView) {
+          <app-event-view
+            [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-view>
         }
       }
-    </main>
-  } @else {
-    <main>
+    } @else if (!user) {
+      <!-- Restricted page, not logged in: show initialisation or login -->
       @if (
         firebaseService.loginStatus() === LoginStatus.FirebaseLoadingStatus
       ) {
         <app-spinner>Initialising app...</app-spinner>
       } @else {
-        @switch (currentView()) {
-          @case (Views.FindAnInstructor) {
-            <div class="public-action-bar">
-              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
-                <app-icon name="arrow_back"></app-icon> Back
-              </button>
-            </div>
-            <app-find-an-instructor></app-find-an-instructor>
-          }
-          @case (Views.FindSchool) {
-            <div class="public-action-bar">
-              <button (click)="routingService.navigateToParts(['login'])" class="back-button subtle-button">
-                <app-icon name="arrow_back"></app-icon> Back
-              </button>
-            </div>
-            <app-find-school></app-find-school>
-          }
-          @case (Views.ClassCalendarView) {
-            <app-class-calendar
-              [calendarId]="instructorCalendarId()"
-              [calendarOwnerName]="instructorCalendarOwnerName()"
-              backLabel="Find an Instructor"
-              backUrl="find-an-instructor"
-            ></app-class-calendar>
-          }
-          @case (Views.SchoolCalendarView) {
-            <app-class-calendar
-              [calendarId]="schoolCalendarId()"
-              [calendarOwnerName]="schoolCalendarOwnerName()"
-              backLabel="Find a School"
-              backUrl="find-school"
-            ></app-class-calendar>
-          }
-          @case (Views.EventsCalendar) {
-            <app-event-list
-              [showBackButton]="true"
-              backLabel="Back to Login"
-              [backUrl]="'#/' + routingService.resolveUrlWithParams('login')"
-            ></app-event-list>
-          }
-          @case (Views.EventView) {
-            <app-event-view
-              [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
-              backLabel="Events List"
-              (titleLoaded)="onEventTitleLoaded($event)"
-            ></app-event-view>
-          }
-          @default {
-            @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
-              <div class="app-info">
-                <p>
-                  Welcome to the ILC App for Management of Members and Instructors of
-                  <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
-                  acts as a portal for members to manage their profile, membership
-                  status, licenses, gradings, public instructor listing, and other
-                  records related to the practice.
-                </p>
-              </div>
+        @if (firebaseService.loginStatus() !== LoginStatus.LoggingIn) {
+          <div class="app-info">
+            <p>
+              Welcome to the ILC App for Management of Members and Instructors of
+              <a href="https://iliqchuan.com">Zhong Xin Dao I Liq Chuan</a>. It
+              acts as a portal for members to manage their profile, membership
+              status, licenses, gradings, public instructor listing, and other
+              records related to the practice.
+            </p>
+          </div>
 
-              <div class="public-options">
-                <button (click)="routingService.navigateToParts(['find-an-instructor'])">
-                  Find an Instructor
-                </button>
-                <button (click)="routingService.navigateToParts(['events'])">
-                  Events & Workshops
-                </button>
-                <!-- <button (click)="routingService.navigateToParts(['find-school'])">
-                  Find a School
-                </button> -->
-              </div>
-            }
+          <div class="public-options">
+            <button (click)="routingService.navigateToParts(['find-an-instructor'])">
+              Find an Instructor
+            </button>
+            <button (click)="routingService.navigateToParts(['events'])">
+              Events &amp; Workshops
+            </button>
+            <!-- <button (click)="routingService.navigateToParts(['find-school'])">
+              Find a School
+            </button> -->
+          </div>
+        }
 
-            <app-login></app-login>
-          }
+        <app-login></app-login>
+      }
+    } @else if (dataService.loadingState() !== DataServiceState.Loaded) {
+      <!-- Restricted page, logged in, data loading -->
+      <app-spinner>Loading app data...</app-spinner>
+    } @else if (incompleteProfile()) {
+      <app-complete-profile></app-complete-profile>
+    } @else {
+      <!-- Restricted page, logged in, data loaded -->
+      @switch (currentView()) {
+        @case (Views.Home) {
+          <app-home></app-home>
+        }
+        @case (Views.MyProfile) {
+          <app-member-details
+            [allMembers]="dataService.members.entries()"
+            [member]="user.member"
+            (close)="routingService.navigateToParts([''])"
+          ></app-member-details>
+        }
+        @case (Views.ManageMembers) {
+          <app-filtered-members
+            [memberSet]="dataService.members"
+            basePath="members"
+          ></app-filtered-members>
+        }
+        @case (Views.ImportExport) {
+          <app-import-export></app-import-export>
+        }
+        @case (Views.ManageSchools) {
+          <app-school-list></app-school-list>
+        }
+        @case (Views.SchoolMembers) {
+          <app-school-members></app-school-members>
+        }
+        @case (Views.InstructorStudents) {
+          <app-instructor-students></app-instructor-students>
+        }
+        @case (Views.MyEventView) {
+          <app-event-view
+            [eventId]="routingService.signals[Views.MyEventView].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-view>
+        }
+        @case (Views.ManageEventView) {
+          <app-event-view
+            [eventId]="routingService.signals[Views.ManageEventView].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-view>
+        }
+        @case (Views.EventEdit) {
+          <app-event-edit
+            [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-edit>
+        }
+        @case (Views.MyEventEdit) {
+          <app-event-edit
+            [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-edit>
+        }
+        @case (Views.ManageEventEdit) {
+          <app-event-edit
+            [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
+            (titleLoaded)="onEventTitleLoaded($event)"
+          ></app-event-edit>
+        }
+        @case (Views.ProposeEvent) {
+          <app-organise-event></app-organise-event>
+        }
+        @case (Views.ManageEvents) {
+          <app-manage-events></app-manage-events>
+        }
+        @case (Views.MyStudents) {
+          <app-filtered-members
+            [memberSet]="dataService.myStudents"
+            basePath="my-students"
+            [hideInactive]="true"
+          ></app-filtered-members>
+        }
+        @case (Views.MyEvents) {
+          <app-event-list
+            [collectionPath]="'members/' + user.member.docId + '/events'"
+            [showBackButton]="true"
+            backLabel="Back to Home"
+            backUrl="#/"
+          ></app-event-list>
+        }
+        @case (Views.MySchools) {
+          <app-school-list
+            [schoolSet]="dataService.mySchools"
+          ></app-school-list>
+        }
+        @case (Views.NewMember) {
+          <app-member-create
+            [basePath]="routingService.signals[Views.NewMember].urlParams.basePath() || 'members'"
+          ></app-member-create>
+        }
+        @case (Views.ManageMemberView) {
+          <app-member-view
+            [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
+            basePath="members"
+            backLabel="Members List"
+          ></app-member-view>
+        }
+        @case (Views.SchoolMemberView) {
+          <app-member-view
+            [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
+            [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
+            [backLabel]="'School ' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + ' Members'"
+          ></app-member-view>
+        }
+        @case (Views.InstructorStudentView) {
+          <app-member-view
+            [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
+            [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
+            backLabel="Students List"
+          ></app-member-view>
+        }
+        @case (Views.MyStudentView) {
+          <app-member-view
+            [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
+            basePath="my-students"
+            backLabel="My Students"
+          ></app-member-view>
+        }
+        @case (Views.MembersAreaCategory) {
+          <app-squarespace-content
+            path="members-post"
+            pageTitle="Active Members Area"
+          ></app-squarespace-content>
+        }
+        @case (Views.InstructorsAreaCategory) {
+          <app-squarespace-content
+            path="instructors-post"
+            pageTitle="Active Instructors Area"
+          ></app-squarespace-content>
+        }
+        @case (Views.MembersAreaPost) {
+          <app-squarespace-article
+            collection="members-post"
+            [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
+          ></app-squarespace-article>
+        }
+        @case (Views.InstructorsAreaPost) {
+          <app-squarespace-article
+            collection="instructors-post"
+            [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
+          ></app-squarespace-article>
+        }
+        @case (Views.ManageGradings) {
+          <app-grading-list
+            [gradingSet]="dataService.gradings"
+          ></app-grading-list>
+        }
+        @case (Views.MemberGradings) {
+          <app-member-gradings></app-member-gradings>
+        }
+        @case (Views.Settings) {
+          <app-settings></app-settings>
+        }
+        @case (Views.Statistics) {
+          <app-statistics></app-statistics>
+        }
+        @case (Views.ClassVideoLibrary) {
+          <app-class-video-library></app-class-video-library>
+        }
+        @case (Views.ManageOrders) {
+          <app-order-list></app-order-list>
+        }
+        @case (Views.OrderView) {
+          <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
         }
       }
-    </main>
-  }
+    }
+  </main>
   <app-footer></app-footer>
 </div>
 <span class="version-badge" [title]="'Build: ' + appVersion">v{{ appVersion }}</span>
