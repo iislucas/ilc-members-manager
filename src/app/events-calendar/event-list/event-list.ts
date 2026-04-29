@@ -240,9 +240,7 @@ export class EventListComponent implements OnDestroy {
     // Re-subscribe whenever the collection path or the *committed* fromDate changes.
     effect(() => {
       this.unsubscribe?.();
-      const _path = this.collectionPath();
-      const _fromDate = this.activeFromDate();
-      this.subscribeToEvents();
+      this.subscribeToEvents(this.collectionPath(), this.activeFromDate());
     });
 
     // Rebuild the MiniSearch index whenever the cache data changes.
@@ -275,9 +273,7 @@ export class EventListComponent implements OnDestroy {
     this.unsubscribe?.();
   }
 
-  private subscribeToEvents(): void {
-    const path = this.collectionPath();
-    const fromDateValue = this.activeFromDate();
+  private subscribeToEvents(path: string, fromDateValue: string): void {
     console.info(`Subscribing to events at path: ${path}, fromDate: ${fromDateValue || '(default)'}`);
     const eventsCollection = collection(this.db, path);
 
