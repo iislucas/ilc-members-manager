@@ -87,15 +87,21 @@ export class ManageEventsComponent implements OnDestroy {
   public statusFilterMenuOpen = signal(false);
   public searched = signal(false);
 
-  // URL-param backed state
-  public searchMode = signal<'recent' | 'term' | 'date'>('recent');
+  // URL-param backed state — defaults show upcoming/recent events (3 days ago → future).
+  private defaultStartDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    return d.toISOString().split('T')[0];
+  })();
+
+  public searchMode = signal<'recent' | 'term' | 'date'>('date');
   public searchField = signal<'title' | 'location' | 'ownerEmails' | 'leadingInstructorId'>('title');
   public searchTerm = signal('');
-  public startDate = signal<string>('');
+  public startDate = signal<string>(this.defaultStartDate);
   public endDate = signal<string>('');
 
   public sortField = signal<EventSortField>(EventSortField.Start);
-  public sortDirection = signal<SortDirection>(SortDirection.Desc);
+  public sortDirection = signal<SortDirection>(SortDirection.Asc);
   public statusFilter = signal<string>('');
 
   private eventSignals = this.routingService.signals[Views.ManageEvents];
@@ -144,18 +150,20 @@ export class ManageEventsComponent implements OnDestroy {
       if (this.initialised) return;
       this.initialised = true;
 
-      this.searchMode.set(urlMode || 'recent');
+      // Apply URL params with correct defaults for each field.
+      const mode = (urlMode || 'date') as 'recent' | 'term' | 'date';
+      this.searchMode.set(mode);
       this.searchField.set((urlField || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId');
       this.searchTerm.set(urlQ || '');
-      this.startDate.set(urlStart || '');
+      this.startDate.set(urlStart || this.defaultStartDate);
       this.endDate.set(urlEnd || '');
       this.sortField.set((urlSortBy as EventSortField) || EventSortField.Start);
-      this.sortDirection.set((urlSortDir === 'asc' || urlSortDir === 'desc') ? urlSortDir as SortDirection : SortDirection.Desc);
+      this.sortDirection.set((urlSortDir === 'asc' || urlSortDir === 'desc') ? urlSortDir as SortDirection : SortDirection.Asc);
       this.statusFilter.set(urlStatus || '');
 
-      if (urlMode === 'term' && urlQ) {
+      if (mode === 'term' && this.searchTerm()) {
         this.search();
-      } else if (urlMode === 'date' && (urlStart || urlEnd)) {
+      } else if (mode === 'date') {
         this.search();
       } else {
         this.loadRecentEvents();
