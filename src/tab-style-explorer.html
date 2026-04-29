@@ -473,6 +473,117 @@
        ================================================================ */
     .hidden { display: none !important; }
     .mt-1 { margin-top: 1rem; }
+
+    /* ================================================================
+       Palette Picker (pill variant only)
+       ================================================================ */
+    .palette-picker {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .palette-picker-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-right: 0.25rem;
+    }
+    .palette-swatch {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #f5f5f5;
+      color: var(--text-secondary);
+      box-shadow: none;
+    }
+    .palette-swatch:hover {
+      border-color: var(--border-light);
+      box-shadow: none;
+    }
+    .palette-swatch:active {
+      transform: none;
+      box-shadow: none;
+    }
+    .palette-swatch.active {
+      border-color: var(--focus-ring);
+      background: white;
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .palette-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+      flex-shrink: 0;
+    }
+
+    /* Palette overrides via data attribute on .tabs-pill */
+    .tabs-pill[data-palette="blue-selection"] {
+      background: #e8f0fe;
+    }
+    .tabs-pill[data-palette="blue-selection"] button.active {
+      background: white;
+      color: #007bff;
+      box-shadow: 0 1px 4px rgba(0,123,255,0.2);
+    }
+    .tabs-pill[data-palette="blue-selection"] button:hover:not(.active) {
+      background: rgba(255,255,255,0.7);
+      color: #005ec2;
+    }
+
+    .tabs-pill[data-palette="soft-blue"] {
+      background: #edf2f7;
+    }
+    .tabs-pill[data-palette="soft-blue"] button.active {
+      background: white;
+      color: #2b6cb0;
+      box-shadow: 0 1px 4px rgba(43,108,176,0.15);
+    }
+    .tabs-pill[data-palette="soft-blue"] button:hover:not(.active) {
+      background: rgba(255,255,255,0.6);
+      color: #2c5282;
+    }
+
+    .tabs-pill[data-palette="brand-tint"] {
+      background: #ffeeee;
+    }
+    .tabs-pill[data-palette="brand-tint"] button {
+      color: #955;
+    }
+    .tabs-pill[data-palette="brand-tint"] button.active {
+      background: white;
+      color: #722;
+      box-shadow: 0 1px 4px rgba(153,85,85,0.15);
+    }
+    .tabs-pill[data-palette="brand-tint"] button:hover:not(.active) {
+      background: rgba(255,255,255,0.6);
+      color: #722;
+    }
+
+    .tabs-pill[data-palette="slate"] {
+      background: #e2e8f0;
+    }
+    .tabs-pill[data-palette="slate"] button {
+      color: #64748b;
+    }
+    .tabs-pill[data-palette="slate"] button.active {
+      background: white;
+      color: #1e293b;
+      box-shadow: 0 1px 4px rgba(30,41,59,0.12);
+    }
+    .tabs-pill[data-palette="slate"] button:hover:not(.active) {
+      background: rgba(255,255,255,0.6);
+      color: #334155;
+    }
   </style>
 </head>
 <body>
@@ -553,6 +664,29 @@
         <p>Rounded pills on a tinted track. The active tab pops out with a white background and shadow. Modern, friendly feel — popular in dashboard UIs.</p>
       </div>
       <div class="variant-body">
+        <div class="palette-picker" id="palettePicker">
+          <span class="palette-picker-label">Palette:</span>
+          <button class="palette-swatch active" data-palette="current">
+            <span class="palette-dot" style="background:#eee; border-color:#722"></span>
+            Current (Warm)
+          </button>
+          <button class="palette-swatch" data-palette="blue-selection">
+            <span class="palette-dot" style="background:#e8f0fe; border-color:#007bff"></span>
+            Blue Selection
+          </button>
+          <button class="palette-swatch" data-palette="soft-blue">
+            <span class="palette-dot" style="background:#edf2f7; border-color:#2b6cb0"></span>
+            Soft Blue
+          </button>
+          <button class="palette-swatch" data-palette="brand-tint">
+            <span class="palette-dot" style="background:#ffeeee; border-color:#722"></span>
+            Brand Tint
+          </button>
+          <button class="palette-swatch" data-palette="slate">
+            <span class="palette-dot" style="background:#e2e8f0; border-color:#1e293b"></span>
+            Slate
+          </button>
+        </div>
         <div class="tabs-pill" data-tab-group="pill">
           <button class="active" data-tab="overview" data-label="Overview">Overview</button>
           <button data-tab="members" data-label="Members">Members</button>
@@ -853,6 +987,25 @@
         btn.addEventListener('click', () => {
           const group = btn.closest('[data-tab-group]').dataset.tabGroup;
           setHash(group, btn.dataset.tab);
+        });
+      });
+
+      // Palette picker (pill variant only)
+      document.querySelectorAll('#palettePicker .palette-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Update active swatch
+          document.querySelectorAll('#palettePicker .palette-swatch').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          // Apply palette to the pill tabs
+          const palette = btn.dataset.palette;
+          const pillTabs = document.querySelector('[data-tab-group="pill"]');
+          if (pillTabs) {
+            if (palette === 'current') {
+              pillTabs.removeAttribute('data-palette');
+            } else {
+              pillTabs.setAttribute('data-palette', palette);
+            }
+          }
         });
       });
 
