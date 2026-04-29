@@ -14,6 +14,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
+  position: relative;
 }
 
 .editor-content-wrapper {
@@ -215,8 +216,8 @@
 }
 
 .link-popup {
-  position: fixed;
-  /* left is set by JS */
+  position: absolute;
+  /* top/left are set by JS, relative to .markdown-editor-container */
   width: calc(100% - 32px);
   max-width: 40ch;
   background: white;
@@ -261,7 +262,7 @@
 }
 
 .link-preview {
-  position: fixed;
+  position: absolute;
   background: white;
   border: 1px solid $border-color-light;
   border-radius: 4px;

@@ -57,6 +57,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
   @ViewChild('editorRef') editorRef!: ElementRef;
   @ViewChild('contentWrapper') contentWrapperRef!: ElementRef;
+  @ViewChild('editorContainer') containerRef!: ElementRef;
   private editor?: Editor;
   private isFirstLoad = true;
   private lastTap = 0;
@@ -130,6 +131,28 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
 
     wrapper.addEventListener('click', handleClick);
     editorEl.addEventListener('click', handleClick);
+  }
+  // Converts viewport-relative coordinates from ProseMirror's
+  // coordsAtPos into coordinates relative to the editor container
+  // element, so absolutely-positioned popups stay anchored when
+  // the page scrolls.
+  private toContainerCoords(
+    coords: { left: number; bottom: number },
+    estimatedWidth: number,
+  ): { top: number; left: number } {
+    const rect = this.containerRef.nativeElement.getBoundingClientRect();
+    const containerWidth = rect.width;
+    let left = coords.left - rect.left;
+
+    if (left + estimatedWidth > containerWidth - 16) {
+      left = containerWidth - estimatedWidth - 16;
+    }
+    if (left < 0) left = 0;
+
+    return {
+      top: coords.bottom - rect.top + 8,
+      left,
+    };
   }
 
   ngOnDestroy() {
@@ -302,21 +325,10 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         
         this.currentLinkRange.set({ from, to });
         
-        // Get coordinates
+        // Get coordinates relative to the editor container so the
+        // popup scrolls with the content instead of staying fixed.
         const coords = view.coordsAtPos($from.pos);
-        let left = coords.left;
-        const estimatedWidth = 320; // Approx width of popup
-        const viewportWidth = window.innerWidth;
-        
-        if (left + estimatedWidth > viewportWidth - 16) {
-          left = viewportWidth - estimatedWidth - 16;
-        }
-        if (left < 16) left = 16;
-        
-        this.linkPopupPos.set({
-          top: coords.bottom + 8,
-          left: left,
-        });
+        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
         
         this.linkPreviewOpen.set(false);
         this.linkPopupOpen.set(true);
@@ -326,19 +338,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         this.currentLinkRange.set({ from: $from.pos, to: $to.pos });
         
         const coords = view.coordsAtPos($from.pos);
-        let left = coords.left;
-        const estimatedWidth = 320;
-        const viewportWidth = window.innerWidth;
-        
-        if (left + estimatedWidth > viewportWidth - 16) {
-          left = viewportWidth - estimatedWidth - 16;
-        }
-        if (left < 16) left = 16;
-        
-        this.linkPopupPos.set({
-          top: coords.bottom + 8,
-          left: left,
-        });
+        this.linkPopupPos.set(this.toContainerCoords(coords, 320));
         
         this.linkPreviewOpen.set(false);
         this.linkPopupOpen.set(true);
@@ -462,19 +462,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
             this.currentLinkRange.set({ from, to });
             
             const coords = view.coordsAtPos($from.pos);
-            let left = coords.left;
-            const estimatedWidth = 200; // Approx width of preview
-            const viewportWidth = window.innerWidth;
-            
-            if (left + estimatedWidth > viewportWidth - 16) {
-              left = viewportWidth - estimatedWidth - 16;
-            }
-            if (left < 16) left = 16;
-            
-            this.linkPreviewPos.set({
-              top: coords.bottom + 8,
-              left: left,
-            });
+            this.linkPreviewPos.set(this.toContainerCoords(coords, 200));
             this.linkPreviewOpen.set(true);
           } else {
             this.linkPreviewOpen.set(false);
