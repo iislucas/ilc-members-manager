@@ -16,7 +16,7 @@ import { FIREBASE_APP } from '../../app.config';
 import { IlcEvent, initEvent } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { MarkdownViewer } from '../../mobile-editor/markdown-viewer';
+import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
 
 @Component({
   selector: 'app-event-view',

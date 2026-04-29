@@ -144,10 +144,10 @@
     <div class="input-field">
       <label for="description">Description</label>
       <div class="description-container">
-        <app-mobile-editor
+        <app-markdown-editor
           [initialValue]="eventModel().description"
           (changed)="onDescriptionChanged($event)"
-        ></app-mobile-editor>
+        ></app-markdown-editor>
       </div>
     </div>
 

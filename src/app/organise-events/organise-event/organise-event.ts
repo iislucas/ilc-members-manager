@@ -10,7 +10,7 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData } from '../../../../functions/src/data-model';
 import { AutocompleteComponent } from '../../autocomplete/autocomplete';
-import { MobileEditor } from '../../mobile-editor/mobile-editor';
+import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -18,7 +18,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MobileEditor, ImageUploadPreviewComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MarkdownEditor, ImageUploadPreviewComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })

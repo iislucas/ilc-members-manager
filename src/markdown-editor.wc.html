@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Editor Test</title>
+    <title>Markdown Editor Test</title>
     <style>
         body { font-family: sans-serif; padding: 0; margin: 0; background: #f9f9f9; }
         
@@ -59,7 +59,7 @@
             border-bottom: 1px solid #ddd;
         }
         
-        app-mobile-editor, app-markdown-viewer {
+        app-markdown-editor, app-markdown-viewer {
             display: block;
             background: white;
             flex: 1;
@@ -120,7 +120,7 @@
                 border-left: none;
                 border-top: 1px solid #ddd;
             }
-            app-mobile-editor, app-markdown-viewer {
+            app-markdown-editor, app-markdown-viewer {
                 height: 40vh;
             }
         }
@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="header-bar">
-        <h1>Mobile Editor Test (Angular Web Component)</h1>
+        <h1>Markdown Editor Test (Angular Web Component)</h1>
         <div class="controls">
             <button id="toggle-grid" class="btn">Toggle Checkered Grid</button>
             <button id="toggle-baseline" class="btn">Toggle 24px Baseline</button>
@@ -142,7 +142,7 @@
     <div class="split-view">
         <div class="pane">
             <div class="pane-header">Editor</div>
-            <app-mobile-editor id="my-editor"></app-mobile-editor>
+            <app-markdown-editor id="my-editor"></app-markdown-editor>
         </div>
         <div class="pane">
             <div class="pane-header">Viewer (Marked)</div>
@@ -158,7 +158,7 @@
     <script>
         // Wait for the elements to be defined
         Promise.all([
-            customElements.whenDefined('app-mobile-editor'),
+            customElements.whenDefined('app-markdown-editor'),
             customElements.whenDefined('app-markdown-viewer')
         ]).then(() => {
             const editor = document.getElementById('my-editor');

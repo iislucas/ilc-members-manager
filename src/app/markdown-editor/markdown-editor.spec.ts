@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MobileEditor } from './mobile-editor';
+import { MarkdownEditor } from './markdown-editor';
 import { editorViewCtx } from '@milkdown/core';
 
-describe('MobileEditor', () => {
-  let component: MobileEditor;
-  let fixture: ComponentFixture<MobileEditor>;
+describe('MarkdownEditor', () => {
+  let component: MarkdownEditor;
+  let fixture: ComponentFixture<MarkdownEditor>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MobileEditor]
+      imports: [MarkdownEditor]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(MobileEditor);
+    fixture = TestBed.createComponent(MarkdownEditor);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

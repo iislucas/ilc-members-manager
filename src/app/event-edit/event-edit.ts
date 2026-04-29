@@ -30,7 +30,7 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
-import { MobileEditor } from '../mobile-editor/mobile-editor';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
@@ -88,7 +88,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MobileEditor, ImageUploadPreviewComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

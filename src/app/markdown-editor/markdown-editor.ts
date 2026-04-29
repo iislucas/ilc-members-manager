@@ -2,7 +2,7 @@
   A lightweight, touch-friendly Markdown editor for Angular 21 (Zoneless).
 
   ## Philosophy & Approach:
-  1. Mobile-First Design: The editor is optimized for mobile screens and virtual keyboards.
+  1. Mobile-Friendly Design: The editor is optimized for both desktop and mobile screens.
      - Toolbar buttons are 44px touch targets and horizontally scrollable.
      - Layout adjusts to ensure the editor fills the available space without page scrolling.
   2. Zoneless Angular 21: Leverages signals and standalone components for maximum performance
@@ -10,7 +10,7 @@
   3. Minimal Milkdown Core: We avoid heavy presets like `milkdown/crepe` to maintain control
      over the UI and bundle size. We use only core plugins (commonmark, history, listener, indent).
   4. Custom UI over Default Themes: We provide our own CSS for markdown nodes (headings, lists)
-     in `mobile-editor.scss` rather than relying on a heavy Milkdown theme plugin, ensuring a native feel.
+      in `markdown-editor.scss` rather than relying on a heavy Milkdown theme plugin, ensuring a native feel.
   5. Focus Retention: Every action restores focus to the editor (`view.focus()`) to keep the
      mobile keyboard visible and preserve the user's cursor position.
   6. Web Component Friendly: The component is designed to be exported as a Custom Element for
@@ -27,13 +27,13 @@ import { indent as indentPlugin } from '@milkdown/plugin-indent';
 import { IconComponent } from '../icons/icon.component';
 
 @Component({
-  selector: 'app-mobile-editor',
+  selector: 'app-markdown-editor',
   imports: [IconComponent],
-  templateUrl: './mobile-editor.html',
-  styleUrl: './mobile-editor.scss',
+  templateUrl: './markdown-editor.html',
+  styleUrl: './markdown-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MobileEditor implements AfterViewInit, OnDestroy {
+export class MarkdownEditor implements AfterViewInit, OnDestroy {
   initialValue = input<string>('');
   changed = output<string>();
   menuOpen = signal<boolean>(false);

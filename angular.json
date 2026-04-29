@@ -176,7 +176,7 @@
         }
       }
     },
-    "mobile-editor-wc": {
+    "markdown-editor-wc": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -185,15 +185,15 @@
       },
       "root": "",
       "sourceRoot": "src",
-      "prefix": "mobile-editor.wc",
+      "prefix": "markdown-editor.wc",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/mobile-editor-wc",
-            "index": "src/mobile-editor.wc.html",
-            "browser": "src/mobile-editor.wc.ts",
-            "tsConfig": "tsconfig.mobile-editor.wc.json",
+            "outputPath": "dist/markdown-editor-wc",
+            "index": "src/markdown-editor.wc.html",
+            "browser": "src/markdown-editor.wc.ts",
+            "tsConfig": "tsconfig.markdown-editor.wc.json",
             "inlineStyleLanguage": "scss",
             "assets": [],
             "styles": ["src/styles.scss"],
@@ -239,10 +239,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "mobile-editor-wc:build:production"
+              "buildTarget": "markdown-editor-wc:build:production"
             },
             "development": {
-              "buildTarget": "mobile-editor-wc:build:development"
+              "buildTarget": "markdown-editor-wc:build:development"
             }
           },
           "defaultConfiguration": "development"

@@ -1,7 +1,7 @@
 import { createApplication } from '@angular/platform-browser';
 import { createCustomElement } from '@angular/elements';
-import { MobileEditor } from './app/mobile-editor/mobile-editor';
-import { MarkdownViewer } from './app/mobile-editor/markdown-viewer';
+import { MarkdownEditor } from './app/markdown-editor/markdown-editor';
+import { MarkdownViewer } from './app/markdown-editor/markdown-viewer';
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 
 export const appConfig: ApplicationConfig = {
@@ -13,10 +13,10 @@ export const appConfig: ApplicationConfig = {
 (async () => {
   const app = await createApplication(appConfig);
   
-  const editorElement = createCustomElement(MobileEditor, {
+  const editorElement = createCustomElement(MarkdownEditor, {
     injector: app.injector,
   });
-  customElements.define('app-mobile-editor', editorElement);
+  customElements.define('app-markdown-editor', editorElement);
   
   const viewerElement = createCustomElement(MarkdownViewer, {
     injector: app.injector,
