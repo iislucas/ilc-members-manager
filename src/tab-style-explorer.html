@@ -271,7 +271,7 @@
       display: flex;
       gap: 0.35rem;
       padding: 0.3rem;
-      background: var(--separator);
+      background: #e2e8f0;
       border-radius: 10px;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
@@ -283,7 +283,7 @@
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 500;
-      color: var(--text-muted);
+      color: #64748b;
       border-radius: 8px;
       white-space: nowrap;
       box-shadow: none;
@@ -299,7 +299,7 @@
       pointer-events: none;
     }
     .tabs-pill button:hover {
-      color: var(--text-primary);
+      color: #334155;
       background: rgba(255,255,255,0.6);
       box-shadow: none;
     }
@@ -308,9 +308,9 @@
       box-shadow: none;
     }
     .tabs-pill button.active {
-      background: var(--white);
-      color: var(--heading-accent);
-      box-shadow: 0 1px 4px var(--shadow);
+      background: white;
+      color: #1e293b;
+      box-shadow: 0 1px 4px rgba(30,41,59,0.12);
       font-weight: 600;
     }
 
@@ -569,20 +569,20 @@
       color: #722;
     }
 
-    .tabs-pill[data-palette="slate"] {
-      background: #e2e8f0;
+    .tabs-pill[data-palette="warm-original"] {
+      background: #eee;
     }
-    .tabs-pill[data-palette="slate"] button {
-      color: #64748b;
+    .tabs-pill[data-palette="warm-original"] button {
+      color: #666;
     }
-    .tabs-pill[data-palette="slate"] button.active {
+    .tabs-pill[data-palette="warm-original"] button.active {
       background: white;
-      color: #1e293b;
-      box-shadow: 0 1px 4px rgba(30,41,59,0.12);
+      color: #722;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
-    .tabs-pill[data-palette="slate"] button:hover:not(.active) {
+    .tabs-pill[data-palette="warm-original"] button:hover:not(.active) {
       background: rgba(255,255,255,0.6);
-      color: #334155;
+      color: #333;
     }
   </style>
 </head>
@@ -667,8 +667,8 @@
         <div class="palette-picker" id="palettePicker">
           <span class="palette-picker-label">Palette:</span>
           <button class="palette-swatch active" data-palette="current">
-            <span class="palette-dot" style="background:#eee; border-color:#722"></span>
-            Current (Warm)
+            <span class="palette-dot" style="background:#e2e8f0; border-color:#1e293b"></span>
+            Slate (Active)
           </button>
           <button class="palette-swatch" data-palette="blue-selection">
             <span class="palette-dot" style="background:#e8f0fe; border-color:#007bff"></span>
@@ -682,9 +682,9 @@
             <span class="palette-dot" style="background:#ffeeee; border-color:#722"></span>
             Brand Tint
           </button>
-          <button class="palette-swatch" data-palette="slate">
-            <span class="palette-dot" style="background:#e2e8f0; border-color:#1e293b"></span>
-            Slate
+          <button class="palette-swatch" data-palette="warm-original">
+            <span class="palette-dot" style="background:#eee; border-color:#722"></span>
+            Warm (Original)
           </button>
         </div>
         <div class="tabs-pill" data-tab-group="pill">
