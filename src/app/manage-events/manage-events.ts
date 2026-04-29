@@ -106,6 +106,7 @@ export class ManageEventsComponent implements OnDestroy {
 
   private eventSignals = this.routingService.signals[Views.ManageEvents];
   private initialised = false;
+  private syncEnabled = false;
 
   // Filtered and sorted events
   events = computed(() => {
@@ -168,6 +169,10 @@ export class ManageEventsComponent implements OnDestroy {
       } else {
         this.loadRecentEvents();
       }
+
+      // Enable URL syncing only after the initial load completes,
+      // so defaults don't pollute the URL.
+      this.syncEnabled = true;
     });
   }
 
@@ -176,6 +181,7 @@ export class ManageEventsComponent implements OnDestroy {
   }
 
   public syncUrlParams() {
+    if (!this.syncEnabled) return;
     this.eventSignals.urlParams.searchMode.set(this.searchMode());
     this.eventSignals.urlParams.searchField.set(this.searchField());
     this.eventSignals.urlParams.q.set(this.searchTerm());
