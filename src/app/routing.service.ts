@@ -206,6 +206,11 @@ export class RoutingService<T extends PathPatterns> {
     return queryString ? `?${queryString}` : '';
   }
 
+  // Tracks the previous matched pattern so we can scroll to the top when the
+  // user navigates to a different page, but not when only URL params change
+  // within the same page.
+  private previousPatternId: keyof T | null = null;
+
   private handleUrlChange() {
     let hashlessUrlPart = window.location.hash.substring(1);
     if (hashlessUrlPart.startsWith('/')) {
@@ -213,6 +218,8 @@ export class RoutingService<T extends PathPatterns> {
     }
     const match = matchUrl(hashlessUrlPart, this.config.validPathPatterns);
     if (match) {
+      const patternChanged = this.previousPatternId !== match.patternId;
+      this.previousPatternId = match.patternId;
       this.matchedPatternId.set(match.patternId);
       updateSignalsFromSubsts(
         match.pathParams,
@@ -222,7 +229,11 @@ export class RoutingService<T extends PathPatterns> {
         match.urlParams,
         this.signals[match.patternId].urlParams,
       );
+      if (patternChanged) {
+        window.scrollTo(0, 0);
+      }
     } else {
+      this.previousPatternId = null;
       this.matchedPatternId.set(null);
     }
   }
