@@ -286,8 +286,16 @@ export class App {
         // Stay on public page — login is in the nav bar
       } else if (isLoggedIn) {
         if (view === Views.Login) {
-          // Redirect to Home
-          this.routingService.navigateToParts(['']);
+          // After login, redirect to the returnUrl if one was provided
+          // (e.g., the user came from a public page), otherwise go Home.
+          const returnUrl = this.routingService.signals[Views.Login].urlParams.returnUrl();
+          if (returnUrl) {
+            // Clear the returnUrl so it's not reused on subsequent navigations.
+            this.routingService.signals[Views.Login].urlParams.returnUrl.set('');
+            this.routingService.navigateTo(returnUrl, { clearUrlParams: true });
+          } else {
+            this.routingService.navigateToParts(['']);
+          }
         } else if (view === Views.MembersArea) {
           this.routingService.navigateToParts(['members-area', 'category', 'All']);
         } else if (view === Views.InstructorsArea) {

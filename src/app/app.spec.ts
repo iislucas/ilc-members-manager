@@ -89,13 +89,13 @@ describe('App', () => {
     expect(app.routingService.navigateToParts).toHaveBeenCalledWith(['login']);
   });
 
-  it('should redirect logged-in users on Login to home', async () => {
+  it('should redirect logged-in users on Login to home when no returnUrl', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
 
     vi.spyOn(app.routingService, 'navigateToParts');
 
-    // Simulate being on the login page while logged in
+    // Simulate being on the login page while logged in (no returnUrl set)
     firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
     firebaseStateServiceMock.user!.set({
       member: {
@@ -112,6 +112,34 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(app.routingService.navigateToParts).toHaveBeenCalledWith(['']);
+  });
+
+  it('should redirect logged-in users on Login to returnUrl when set', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    vi.spyOn(app.routingService, 'navigateTo');
+
+    // Simulate being on the login page with a returnUrl
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+    } as unknown as UserDetails);
+    app.routingService.matchedPatternId.set(Views.Login);
+    app.routingService.signals[Views.Login].urlParams.returnUrl.set('events?q=yoga');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(app.routingService.navigateTo).toHaveBeenCalledWith('events?q=yoga', { clearUrlParams: true });
+    // returnUrl should be cleared after use
+    expect(app.routingService.signals[Views.Login].urlParams.returnUrl()).toBe('');
   });
 
   it('should show Find an Instructor and correct breadcrumbs when logged out', async () => {

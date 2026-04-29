@@ -45,6 +45,6 @@
   @if (isLoggedIn()) {
     <app-profile-menu></app-profile-menu>
   } @else if (isPublicPage()) {
-    <a class="nav-sign-in-link" [href]="'#/' + routingService.resolveUrlWithParams('login')">Sign In</a>
+    <a class="nav-sign-in-link" [href]="'#/login?returnUrl=' + encodeCurrentUrl()">Sign In</a>
   }
 </div>
