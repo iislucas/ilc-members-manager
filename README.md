@@ -1,5 +1,7 @@
 # ILC Members Portal
 
+🌐 **Project site:** [iislucas.github.io/ilc-members-manager](https://iislucas.github.io/ilc-members-manager/)
+
 A web application serving as the **member-facing portal** for the
 [I Liq Chuan](https://www.iliqchuan.com/) kung fu community. This app is used
 by **all members** of the organisation — not just administrators — to manage
@@ -156,6 +158,28 @@ Deploy just firebase rules
 ```sh
 pnpm run deploy:firestore-rules
 ```
+
+### GitHub Pages site
+
+The project has a public-facing GitHub Pages site at
+[iislucas.github.io/ilc-members-manager](https://iislucas.github.io/ilc-members-manager/).
+It hosts documentation, mini-tools (Logo Maker, Yin-Yang Designer, etc.), and
+other project resources.
+
+The site source lives in the `ghpages-site/` directory on the `main` branch.
+Deployment is handled automatically by the GitHub Actions workflow
+`.github/workflows/deploy-pages.yml`, which:
+
+1. Triggers on pushes to `main` that touch `ghpages-site/`, `docs/`, or the
+   workflow file itself.
+2. Builds any mini-tools that require a build step (e.g. Logo Maker).
+3. Assembles a `public_site/` directory from `ghpages-site/` and `docs/`.
+4. Pushes the result to the `gh-pages` branch via the
+   `peaceiris/actions-gh-pages` action.
+
+To update the site, simply edit files in `ghpages-site/` and push to `main`.
+
+
 
 #### Deploying web components
 

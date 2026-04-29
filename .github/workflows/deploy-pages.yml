@@ -42,8 +42,8 @@ jobs:
         run: |
           mkdir -p public_site
           
-          # Copy root landing page
-          cp ghpages-site/index.html public_site/index.html
+          # Copy root landing page and assets
+          cp ghpages-site/index.html ghpages-site/ilc.svg public_site/
           
           # Copy docs
           mkdir -p public_site/docs
