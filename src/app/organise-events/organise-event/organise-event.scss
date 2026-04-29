@@ -76,7 +76,8 @@
         border: 1px solid $border-color-light;
         border-radius: 4px;
         background: white;
-        padding: 0;
+        padding-left: 0.25em;
+        padding-right: 0.25em;
         
         app-markdown-editor {
           display: block;

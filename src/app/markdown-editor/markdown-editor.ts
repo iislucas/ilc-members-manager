@@ -56,6 +56,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   });
 
   @ViewChild('editorRef') editorRef!: ElementRef;
+  @ViewChild('contentWrapper') contentWrapperRef!: ElementRef;
   private editor?: Editor;
   private isFirstLoad = true;
   private lastTap = 0;
@@ -75,6 +76,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     this.initEditor();
     this.setupTapHandlers();
     this.setupLinkPreview();
+    this.setupClickBelowContent();
   }
   
   private setupTapHandlers() {
@@ -96,6 +98,38 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
         e.preventDefault();
       }
     }, { passive: false });
+  }
+
+  // When the user clicks in the empty space below the last line of
+  // content, focus the editor and move the cursor to the very end.
+  private setupClickBelowContent() {
+    const wrapper = this.contentWrapperRef.nativeElement;
+    const editorEl = this.editorRef.nativeElement;
+
+    const handleClick = (e: MouseEvent) => {
+      // Only act when the click target is the wrapper or the
+      // editor-content container itself (i.e. empty space, not a
+      // ProseMirror content node inside).
+      if (e.target !== wrapper && e.target !== editorEl) return;
+
+      this.editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const { state } = view;
+        // Position inside the last block node (doc.content.size is
+        // after the last block, which isn't a valid cursor position).
+        const endPos = Math.max(0, state.doc.content.size - 1);
+        // Use the same pattern as selectWord/selectLine in this file.
+        const SelectionConstructor = state.selection.constructor as never as {
+          create: (doc: typeof state.doc, pos: number) => typeof state.selection;
+        };
+        const sel = SelectionConstructor.create(state.doc, endPos);
+        view.dispatch(state.tr.setSelection(sel));
+        view.focus();
+      });
+    };
+
+    wrapper.addEventListener('click', handleClick);
+    editorEl.addEventListener('click', handleClick);
   }
 
   ngOnDestroy() {
