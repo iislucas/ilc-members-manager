@@ -1,32 +1,9 @@
-@use "../../scss_variables" as *;
+/* Settings component — uses global pill-tab styles from styles.scss.
+ * Local SCSS only contains layout specific to this page.
+ */
 
 .page-layout {
   padding: 1rem;
-}
-
-.tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid #dee2e6;
-  padding-bottom: 0.5rem;
-}
-
-.tab-button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #dee2e6;
-  background-color: #f8f9fa;
-  cursor: pointer;
-  border-radius: 4px 4px 0 0;
-  border-bottom: none;
-  font-weight: 500;
-  
-  &.active {
-    background-color: var(--primary-color, #fff);
-    color: var(--primary-color, #000);
-    border-bottom: 2px solid var(--primary-color, #000);
-    margin-bottom: -0.5rem;
-  }
 }
 
 .control-panel {
@@ -49,32 +26,6 @@
   }
 }
 
-.action-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: var(--primary-color-dark);
-  }
-  
-  &:disabled {
-    background-color: $border-color-light;
-    cursor: default;
-  }
-}
-
-.status-message {
-  margin-top: 10px;
-  font-weight: bold;
-  color: var(--primary-color);
-}
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -89,15 +40,5 @@
   th {
     background-color: var(--surface-color);
     font-weight: 500;
-  }
-}
-
-.action-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-weight: 500;
-  
-  &:hover {
-    text-decoration: underline;
   }
 }

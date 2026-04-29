@@ -226,6 +226,23 @@ Use the `.card` class from `styles.scss` — it provides `$theme-bg-color` backg
 
 The home page overrides `.card` with white background and interactive hover (lift effect) — this is one of the few cases where a component legitimately overrides a global class.
 
+### Pill Tabs
+
+The app uses a **global pill-tab system** for in-page tab navigation (settings, gradings, import-export, members/instructors area). Tabs sit on a tinted track; the active tab pops out with a white background and subtle shadow.
+
+Use the global classes from `styles.scss` — **do not define local tab styles in component SCSS**:
+
+```html
+<div class="pill-tabs">
+  <button class="pill-tab" [class.active]="activeTab() === 'first'" (click)="setActiveTab('first')">First</button>
+  <button class="pill-tab" [class.active]="activeTab() === 'second'" (click)="setActiveTab('second')">Second</button>
+</div>
+```
+
+**URL integration**: Tabs should be URL-synced via the routing service for shareable deep-links. Add a `tab` URL parameter to the route in `app.config.ts`, then derive the active tab from `viewSignals.urlParams.tab()`.
+
+**Currently used by:** `settings`, `member-gradings`, `import-export`, `squarespace-content` (members-area / instructors-area).
+
 ### Interactive List Rows (Row Highlight)
 
 The app uses a standardised **row-highlight** pattern for clickable list items and detail page headers. It provides a subtle left-border accent with a light blue background, giving the user clear hover and selection feedback on desktop.

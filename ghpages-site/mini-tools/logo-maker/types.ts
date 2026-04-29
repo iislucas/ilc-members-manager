@@ -29,6 +29,8 @@ export interface LogoParams {
   textOffsetUpper: number; // fine-tune arc position
   textOffsetLower: number;
   textLetterSpacingLower: number;
+  fontFamilyChinese: string; // CSS font-family for the Chinese text arc
+  fontFamilyLatin: string; // CSS font-family for the Latin text arc
 
   nsewDecorationDistance: number;
 

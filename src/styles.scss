@@ -611,3 +611,87 @@ textarea:disabled {
     background-color: transparent;
   }
 }
+
+// ----------------------------------------------------------------------------
+//  Pill Tabs
+//  A consistent tab system used across the app (settings, gradings,
+//  import-export, members/instructors area). Tabs sit on a tinted track;
+//  the active tab pops out with a white background and subtle shadow.
+//
+//  IMPORTANT: Each .pill-tab button must have a data-label attribute matching
+//  its text content. This is used by a ::after pseudo-element to pre-reserve
+//  the bold-weight width, preventing layout shift when toggling active state.
+//
+//  Usage (static labels):
+//    <div class="pill-tabs">
+//      <button class="pill-tab" data-label="Label" [class.active]="...">Label</button>
+//      ...
+//    </div>
+//
+//  Usage (dynamic labels, e.g. @for):
+//    <button class="pill-tab" [attr.data-label]="item" ...>{{ item }}</button>
+//
+//  Currently used by: settings, member-gradings, import-export,
+//  squarespace-content (members-area / instructors-area).
+// ----------------------------------------------------------------------------
+
+.pill-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  background: $separator-color;
+  border-radius: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.pill-tab {
+  padding: 0.45rem 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: $text-muted;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: none;
+
+  // Reserve the width of the bold label so tabs don't shift when
+  // font-weight changes between inactive (500) and active (600).
+  // The ::after pseudo-element renders a bold copy of the label text
+  // (via data-label) as a block with height: 0 + overflow: hidden.
+  // This sets the button's minimum width to the bold measurement
+  // without adding any vertical space.
+  text-align: center;
+
+  &::after {
+    content: attr(data-label);
+    display: block;
+    height: 0;
+    font-weight: 600;
+    visibility: hidden;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
+  }
+
+  &:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.active {
+    background: white;
+    color: $heading-accent-color;
+    box-shadow: 0 1px 4px $shadow-color;
+    font-weight: 600;
+  }
+}

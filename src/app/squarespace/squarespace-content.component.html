@@ -16,10 +16,11 @@
         } @else if (blogEntries().length > 0) {
         
         @if (categories().length > 1) {
-        <div class="category-tabs">
+        <div class="pill-tabs">
             @for (cat of categories(); track cat) {
             <button 
-              class="tab-btn" 
+              class="pill-tab"
+              [attr.data-label]="cat"
               [class.active]="selectedCategory() === cat"
               (click)="selectCategory(cat)">
               {{ cat }}

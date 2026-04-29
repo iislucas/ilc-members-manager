@@ -163,6 +163,10 @@ function init(): void {
     el.addEventListener('input', update);
   }
 
+  // Font family selects trigger update on change
+  $('fontFamilyChinese').addEventListener('change', update);
+  $('fontFamilyLatin').addEventListener('change', update);
+
   $('transparentBg').addEventListener('change', update);
 
   // Save / Load

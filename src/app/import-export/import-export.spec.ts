@@ -8,16 +8,21 @@ import {
 } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { signal } from '@angular/core';
+import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
 
 describe('ImportExportComponent', () => {
   let component: ImportExportComponent;
   let fixture: ComponentFixture<ImportExportComponent>;
 
   beforeEach(async () => {
+    // Clear the hash before each test so routing starts clean.
+    window.location.hash = '';
+
     await TestBed.configureTestingModule({
       imports: [ImportExportComponent],
       providers: [
         provideZonelessChangeDetection(),
+        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
         {
           provide: FirebaseStateService,
           useValue: createFirebaseStateServiceMock(),
@@ -47,11 +52,11 @@ describe('ImportExportComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have activeTab signal', () => {
+  it('should have activeTab signal defaulting to members', () => {
     expect(component.activeTab()).toBe('members');
   });
 
-  it('should switch tabs', () => {
+  it('should switch tabs via URL params', () => {
     component.setActiveTab('schools');
     expect(component.activeTab()).toBe('schools');
     component.setActiveTab('members');

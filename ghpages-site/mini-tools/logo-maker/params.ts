@@ -28,6 +28,8 @@ export function getParams(): LogoParams {
     textOffsetUpper: numVal('textOffsetUpper'),
     textOffsetLower: numVal('textOffsetLower'),
     textLetterSpacingLower: numVal('textLetterSpacingLower'),
+    fontFamilyChinese: strVal('fontFamilyChinese'),
+    fontFamilyLatin: strVal('fontFamilyLatin'),
 
     nsewDecorationDistance: numVal('nsewDecorationDistance'),
     diagonalDecorationDistance: numVal('diagonalDecorationDistance'),
@@ -81,6 +83,8 @@ export function applyParams(p: Partial<LogoParams>): void {
     if (p.textOffsetUpper !== undefined) setInputVal('textOffsetUpper', p.textOffsetUpper);
     if (p.textOffsetLower !== undefined) setInputVal('textOffsetLower', p.textOffsetLower);
     if (p.textLetterSpacingLower !== undefined) setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
+    if (p.fontFamilyChinese !== undefined) setInputVal('fontFamilyChinese', p.fontFamilyChinese);
+    if (p.fontFamilyLatin !== undefined) setInputVal('fontFamilyLatin', p.fontFamilyLatin);
     if (p.nsewDecorationDistance !== undefined) setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
     if (p.diagonalDecorationDistance !== undefined) setInputVal('diagonalDecorationDistance', p.diagonalDecorationDistance);
     if (p.nsewDecorationLength !== undefined) setInputVal('nsewDecorationLength', p.nsewDecorationLength);

@@ -22,6 +22,8 @@ export function getParams() {
         textOffsetUpper: numVal('textOffsetUpper'),
         textOffsetLower: numVal('textOffsetLower'),
         textLetterSpacingLower: numVal('textLetterSpacingLower'),
+        fontFamilyChinese: strVal('fontFamilyChinese'),
+        fontFamilyLatin: strVal('fontFamilyLatin'),
         nsewDecorationDistance: numVal('nsewDecorationDistance'),
         diagonalDecorationDistance: numVal('diagonalDecorationDistance'),
         nsewDecorationLength: numVal('nsewDecorationLength'),
@@ -83,6 +85,10 @@ export function applyParams(p) {
             setInputVal('textOffsetLower', p.textOffsetLower);
         if (p.textLetterSpacingLower !== undefined)
             setInputVal('textLetterSpacingLower', p.textLetterSpacingLower);
+        if (p.fontFamilyChinese !== undefined)
+            setInputVal('fontFamilyChinese', p.fontFamilyChinese);
+        if (p.fontFamilyLatin !== undefined)
+            setInputVal('fontFamilyLatin', p.fontFamilyLatin);
         if (p.nsewDecorationDistance !== undefined)
             setInputVal('nsewDecorationDistance', p.nsewDecorationDistance);
         if (p.diagonalDecorationDistance !== undefined)

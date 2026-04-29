@@ -286,11 +286,26 @@
       color: var(--text-muted);
       border-radius: 8px;
       white-space: nowrap;
-      transition: all 0.2s ease;
+      box-shadow: none;
+      text-align: center;
+    }
+    .tabs-pill button::after {
+      content: attr(data-label);
+      display: block;
+      height: 0;
+      font-weight: 600;
+      visibility: hidden;
+      overflow: hidden;
+      pointer-events: none;
     }
     .tabs-pill button:hover {
       color: var(--text-primary);
       background: rgba(255,255,255,0.6);
+      box-shadow: none;
+    }
+    .tabs-pill button:active {
+      transform: none;
+      box-shadow: none;
     }
     .tabs-pill button.active {
       background: var(--white);
@@ -471,15 +486,15 @@
 
     <!-- ====== Top-level variant picker ====== -->
     <div class="variant-picker" id="variantPicker">
-      <button data-variant="underline" class="active">① Underline</button>
-      <button data-variant="pill">② Pill</button>
+      <button data-variant="underline">① Underline</button>
+      <button data-variant="pill" class="active">② Pill</button>
       <button data-variant="card">③ Card</button>
       <button data-variant="sidebar">④ Sidebar</button>
       <button data-variant="segmented">⑤ Segmented</button>
     </div>
 
     <!-- ====== VARIANT 1: Underline ====== -->
-    <div class="variant-card" id="variant-underline">
+    <div class="variant-card hidden" id="variant-underline">
       <div class="variant-card-header">
         <h2>① Underline Tabs</h2>
         <p>Clean, minimal — a coloured underline slides under the active tab. Great for content-dense pages with many tabs. Similar to Material Design / Google style.</p>
@@ -532,17 +547,17 @@
     </div>
 
     <!-- ====== VARIANT 2: Pill ====== -->
-    <div class="variant-card hidden" id="variant-pill">
+    <div class="variant-card" id="variant-pill">
       <div class="variant-card-header">
         <h2>② Pill / Capsule Tabs</h2>
         <p>Rounded pills on a tinted track. The active tab pops out with a white background and shadow. Modern, friendly feel — popular in dashboard UIs.</p>
       </div>
       <div class="variant-body">
         <div class="tabs-pill" data-tab-group="pill">
-          <button class="active" data-tab="overview">Overview</button>
-          <button data-tab="members">Members</button>
-          <button data-tab="events">Events</button>
-          <button data-tab="settings">Settings</button>
+          <button class="active" data-tab="overview" data-label="Overview">Overview</button>
+          <button data-tab="members" data-label="Members">Members</button>
+          <button data-tab="events" data-label="Events">Events</button>
+          <button data-tab="settings" data-label="Settings">Settings</button>
         </div>
         <div class="tab-panels mt-1" data-panels="pill">
           <div class="tab-panel active" data-panel="overview">
@@ -756,7 +771,7 @@
      * Supports browser back/forward for full shareability.
      */
     (function () {
-      const VARIANTS = ['underline', 'pill', 'card', 'sidebar', 'segmented'];
+      const VARIANTS = ['pill', 'underline', 'card', 'sidebar', 'segmented'];
       const DEFAULT_TAB = 'overview';
 
       // ── Parse hash ─────────────────────────────────────────────
@@ -848,7 +863,7 @@
 
       // ── Initial state ──────────────────────────────────────────
       if (!location.hash) {
-        history.replaceState(null, '', '#underline/overview');
+        history.replaceState(null, '', '#pill/overview');
       }
       applyState(parseHash());
     })();

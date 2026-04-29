@@ -117,12 +117,12 @@ export function buildTextSvg(cx: number, cy: number, p: LogoParams): string {
   parts.push(`</defs>`);
 
   // Chinese text (upper arc) — rendered in light color on the dark band
-  parts.push(`<text font-size="${p.textSizeUpper}" fill="${p.fillLight}" font-family="'Noto Serif SC', 'SimSun', serif" font-weight="700">`);
+  parts.push(`<text font-size="${p.textSizeUpper}" fill="${p.fillLight}" font-family="${p.fontFamilyChinese}" font-weight="700">`);
   parts.push(`  <textPath href="#upper-arc" startOffset="50%" text-anchor="middle">意 力 拳</textPath>`);
   parts.push(`</text>`);
 
   // Latin text (lower arc) — rendered in light color on the dark band
-  parts.push(`<text font-size="${p.textSizeLower}" fill="${p.fillLight}" font-family="'Times New Roman', 'Noto Serif', serif" font-weight="700" letter-spacing="${p.textLetterSpacingLower}">`);
+  parts.push(`<text font-size="${p.textSizeLower}" fill="${p.fillLight}" font-family="${p.fontFamilyLatin}" font-weight="700" letter-spacing="${p.textLetterSpacingLower}">`);
   parts.push(`  <textPath href="#lower-arc" startOffset="50%" text-anchor="middle">I  LIQ  CHUAN</textPath>`);
   parts.push(`</text>`);
 

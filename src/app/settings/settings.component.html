@@ -1,13 +1,13 @@
 <div class="page-layout">
-  <div class="tabs">
-    <button class="tab-button" [class.active]="activeTab() === 'counters'"
+  <div class="pill-tabs">
+    <button class="pill-tab" data-label="Counters" [class.active]="activeTab() === 'counters'"
       (click)="setActiveTab('counters')">Counters</button>
-    <button class="tab-button" [class.active]="activeTab() === 'country-codes'" (click)="setActiveTab('country-codes')">Country Codes</button>
-    <button class="tab-button" [class.active]="activeTab() === 'backups'"
+    <button class="pill-tab" data-label="Country Codes" [class.active]="activeTab() === 'country-codes'" (click)="setActiveTab('country-codes')">Country Codes</button>
+    <button class="pill-tab" data-label="Backups" [class.active]="activeTab() === 'backups'"
       (click)="setActiveTab('backups')">Backups</button>
-    <button class="tab-button" [class.active]="activeTab() === 'content-cache'"
+    <button class="pill-tab" data-label="Content Cache" [class.active]="activeTab() === 'content-cache'"
       (click)="setActiveTab('content-cache')">Content Cache</button>
-    <button class="tab-button" [class.active]="activeTab() === 'resources'"
+    <button class="pill-tab" data-label="Resources" [class.active]="activeTab() === 'resources'"
       (click)="setActiveTab('resources')">Resources</button>
   </div>
 

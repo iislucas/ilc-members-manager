@@ -197,35 +197,12 @@
     }
   }
 
-  .category-tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
+  // Tabs now use global .pill-tabs / .pill-tab classes from styles.scss.
+  // Local overrides for centered layout in this context:
+  .pill-tabs {
     justify-content: center;
-
-    .tab-btn {
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      border: 1px solid #e5e7eb;
-      background: white;
-      color: #4b5563;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background: #f3f4f6;
-        border-color: #d1d5db;
-      }
-
-      &.active {
-        background: var(--primary-color, #3a5af1);
-        color: white;
-        border-color: var(--primary-color, #3a5af1);
-      }
-    }
   }
+
 
   .blog-grid {
     display: flex;

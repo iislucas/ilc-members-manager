@@ -5,6 +5,12 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
 import { IconComponent } from '../icons/icon.component';
 import { gradingProgression, GradingStatus } from '../../../functions/src/data-model';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
+
+type GradingTab = 'examined' | 'students' | 'mine';
+const VALID_TABS: GradingTab[] = ['examined', 'students', 'mine'];
+const DEFAULT_TAB: GradingTab = 'mine';
 
 @Component({
   selector: 'app-member-gradings',
@@ -16,6 +22,7 @@ import { gradingProgression, GradingStatus } from '../../../functions/src/data-m
 export class MemberGradingsComponent {
   firebaseStateService = inject(FirebaseStateService);
   dataService = inject(DataManagerService);
+  private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   user = this.firebaseStateService.user;
 
@@ -24,7 +31,21 @@ export class MemberGradingsComponent {
     return !!(u && u.member.instructorId);
   });
 
-  activeTab = signal<'examined' | 'students' | 'mine'>('mine');
+  // Derive the active tab from the URL `tab` parameter.
+  // Selects the correct view signals based on which grading route matched.
+  private viewSignals = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.ManageGradings) return this.routingService.signals[Views.ManageGradings];
+    return this.routingService.signals[Views.MemberGradings];
+  });
+
+  activeTab = computed<GradingTab>(() => {
+    const urlTab = this.viewSignals().urlParams.tab();
+    if (urlTab && VALID_TABS.includes(urlTab as GradingTab)) {
+      return urlTab as GradingTab;
+    }
+    return DEFAULT_TAB;
+  });
 
   // Display string for the current levels, e.g. "Student 6, Application 3".
   currentLevelDisplay = computed(() => {
@@ -90,8 +111,8 @@ export class MemberGradingsComponent {
       .some((g) => g.level === next && g.status !== GradingStatus.NotPassed);
   });
 
-  setActiveTab(tab: 'examined' | 'students' | 'mine') {
-    this.activeTab.set(tab);
+  setActiveTab(tab: GradingTab) {
+    this.viewSignals().urlParams.tab.set(tab);
   }
 
   // Returns true if `levelValue` is at or below `currentValue` within

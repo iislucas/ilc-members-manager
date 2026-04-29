@@ -30,23 +30,26 @@
   </div>
 
   @if (isInstructor()) {
-    <div class="tabs">
+    <div class="pill-tabs">
       <button
-        class="tab-button"
+        class="pill-tab"
+        data-label="Gradings as examiner"
         [class.active]="activeTab() === 'examined'"
         (click)="setActiveTab('examined')"
       >
         Gradings as examiner
       </button>
       <button
-        class="tab-button"
+        class="pill-tab"
+        data-label="My Students' Gradings"
         [class.active]="activeTab() === 'students'"
         (click)="setActiveTab('students')"
       >
         My Students' Gradings
       </button>
       <button
-        class="tab-button"
+        class="pill-tab"
+        data-label="My Gradings"
         [class.active]="activeTab() === 'mine'"
         (click)="setActiveTab('mine')"
       >
