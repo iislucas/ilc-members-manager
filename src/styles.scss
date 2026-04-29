@@ -648,6 +648,10 @@ textarea:disabled {
 }
 
 .pill-tab {
+  // Override global `button` styles (display:flex, gap, transition, etc.)
+  display: block;
+  gap: 0;
+  transition: none;
   padding: 0.45rem 1rem;
   border: none;
   background: transparent;
