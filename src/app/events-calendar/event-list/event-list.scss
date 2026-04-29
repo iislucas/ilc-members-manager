@@ -1,4 +1,5 @@
 @use "../../../scss_variables" as *;
+@use "../../../styles" as *;
 
 :host {
   display: block;
@@ -78,6 +79,41 @@ app-event-item {
       box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       outline: none;
     }
+  }
+}
+
+.options-menu-container {
+  position: relative;
+}
+
+.options-menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 100;
+
+  a.menu-item {
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+.from-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-left: 0.5em;
+  margin-bottom: 1em;
+  padding: 0.5em 0.75em;
+  background-color: $theme-tag-bg-color;
+  border: 1px solid $theme-tag-border-color;
+  border-radius: 8px;
+
+  label {
+    font-size: 0.9em;
+    color: $text-secondary;
+    white-space: nowrap;
   }
 }
 

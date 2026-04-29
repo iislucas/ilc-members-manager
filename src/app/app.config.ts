@@ -103,7 +103,7 @@ export const initPathPatterns = {
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
   [Views.NewMember]: addUrlParams(pathPattern`new-member`, ['basePath']),
   [Views.Statistics]: pathPattern`statistics`,
-  [Views.EventsCalendar]: addUrlParams(pathPattern`events`, ['q']),
+  [Views.EventsCalendar]: addUrlParams(pathPattern`events`, ['q', 'fromDate']),
   [Views.EventView]: pathPattern`events/${pv('eventId')}`,
   [Views.MyEventView]: pathPattern`my-events/${pv('eventId')}`,
   [Views.ManageEventView]: pathPattern`manage-events/${pv('eventId')}`,
@@ -112,7 +112,7 @@ export const initPathPatterns = {
   [Views.ManageEventEdit]: pathPattern`manage-events/${pv('eventId')}/edit`,
   [Views.ProposeEvent]: pathPattern`organise-event`,
   [Views.ManageEvents]: addUrlParams(pathPattern`manage-events`, ['q', 'status', 'sortBy', 'sortDir', 'searchMode', 'searchField', 'startDate', 'endDate']),
-  [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'status', 'sortBy', 'sortDir']),
+  [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'fromDate', 'status', 'sortBy', 'sortDir']),
 };
 
 // Santiy check for type correctness...

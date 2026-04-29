@@ -68,6 +68,16 @@ export class EventListComponent implements OnDestroy {
   // --- Component State Signals ---
   errorMessage = signal<string | null>(null);
   inputCalendarId = signal('');
+  optionsMenuOpen = signal(false);
+  showFromDateFilter = signal(false);
+
+  // The default "from" date used when no custom date is set (3 days ago).
+  private readonly defaultFromDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  })();
 
   // Optional initial search query. When provided (e.g. via the web component
   // attribute), the search field is pre-populated with this value.
@@ -86,10 +96,32 @@ export class EventListComponent implements OnDestroy {
     return '';
   });
 
+  // The URL `fromDate` parameter — controls the Firestore query start date.
+  private urlFromDate = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.EventsCalendar) {
+      return this.routingService.signals[Views.EventsCalendar].urlParams.fromDate();
+    }
+    if (match === Views.MyEvents) {
+      return this.routingService.signals[Views.MyEvents].urlParams.fromDate();
+    }
+    return '';
+  });
+
   // This signal is bound to the search input field and updates on every keystroke.
   // It is seeded from the URL `q` param (if present) or `initialQuery` (for the
   // web component), and can still be freely edited by the user.
   searchInput = linkedSignal(() => this.urlSearchQuery() || this.initialQuery());
+
+  // The date picker input value (UI-only, does not trigger Firestore re-query).
+  fromDateInput = linkedSignal(() => this.urlFromDate() || '');
+
+  // The committed "from" date that actually drives the Firestore query.
+  // Only updated when the user clicks "Search" or when restoring from URL.
+  activeFromDate = linkedSignal(() => this.urlFromDate() || '');
+
+  // True when the date picker differs from the committed query date.
+  fromDateDirty = computed(() => this.fromDateInput() !== this.activeFromDate());
 
   // --- Component Inputs ---
   calendarId = input<string>(environment.googleCalendar.calendarId);
@@ -205,9 +237,11 @@ export class EventListComponent implements OnDestroy {
       idField: 'id',
     });
 
-    // Re-subscribe whenever the collection path changes.
+    // Re-subscribe whenever the collection path or the *committed* fromDate changes.
     effect(() => {
       this.unsubscribe?.();
+      const _path = this.collectionPath();
+      const _fromDate = this.activeFromDate();
       this.subscribeToEvents();
     });
 
@@ -227,6 +261,14 @@ export class EventListComponent implements OnDestroy {
         this.inputCalendarId.set(calendarId);
       }
     });
+
+    // Restore the from-date filter visibility from URL params.
+    effect(() => {
+      const fd = this.urlFromDate();
+      if (fd) {
+        this.showFromDateFilter.set(true);
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -235,16 +277,15 @@ export class EventListComponent implements OnDestroy {
 
   private subscribeToEvents(): void {
     const path = this.collectionPath();
-    console.info(`Subscribing to events at path: ${path}`);
+    const fromDateValue = this.activeFromDate();
+    console.info(`Subscribing to events at path: ${path}, fromDate: ${fromDateValue || '(default)'}`);
     const eventsCollection = collection(this.db, path);
-    
+
     let q = query(eventsCollection);
     if (path === 'events') {
-      const date = new Date();
-      date.setDate(date.getDate() - 3);
-      date.setHours(0, 0, 0, 0);
-      const threeDaysAgoStr = date.toISOString().split('T')[0];
-      q = query(eventsCollection, where('end', '>=', threeDaysAgoStr));
+      // Use the committed fromDate if set, otherwise default to 3 days ago.
+      const startDateStr = fromDateValue || this.defaultFromDate;
+      q = query(eventsCollection, where('end', '>=', startDateStr));
     }
 
     this.isLoading.set(true);
@@ -301,6 +342,45 @@ export class EventListComponent implements OnDestroy {
       this.routingService.signals[Views.EventsCalendar].urlParams.q.set(value);
     } else if (match === Views.MyEvents) {
       this.routingService.signals[Views.MyEvents].urlParams.q.set(value);
+    }
+  }
+
+  // Toggle the "Find events from date" filter and sync state to URL.
+  toggleFromDateFilter(): void {
+    const show = !this.showFromDateFilter();
+    this.showFromDateFilter.set(show);
+    this.optionsMenuOpen.set(false);
+    if (show) {
+      // Pre-fill with the current default date so the user sees the baseline.
+      if (!this.fromDateInput()) {
+        this.fromDateInput.set(this.defaultFromDate);
+      }
+    } else {
+      // Clear both input and active date, resetting to default query.
+      this.fromDateInput.set('');
+      this.activeFromDate.set('');
+      this.syncFromDateToUrl('');
+    }
+  }
+
+  // Called when the user edits the date picker (UI only, no query).
+  onFromDateChange(value: string): void {
+    this.fromDateInput.set(value);
+  }
+
+  // Commit the date input to the active query and sync to URL.
+  searchFromDate(): void {
+    const value = this.fromDateInput();
+    this.activeFromDate.set(value);
+    this.syncFromDateToUrl(value);
+  }
+
+  private syncFromDateToUrl(value: string): void {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.EventsCalendar) {
+      this.routingService.signals[Views.EventsCalendar].urlParams.fromDate.set(value);
+    } else if (match === Views.MyEvents) {
+      this.routingService.signals[Views.MyEvents].urlParams.fromDate.set(value);
     }
   }
 }

@@ -25,21 +25,60 @@
         name="searchTerm"
       />
     </div>
-    @if (inputCalendarId()) {
-      <a
-        href="https://calendar.google.com/calendar/embed?mode=AGENDA&src={{
-          inputCalendarId()
-        }}"
-        target="_blank"
-        aria-label="Open in Google Calendar"
+    <div class="options-menu-container">
+      <button
+        class="icon-only-button"
+        (click)="optionsMenuOpen.update(v => !v)"
+        aria-label="More options"
+        title="More options"
       >
-        <app-icon name="calendar_today"></app-icon>
-      </a>
-    }
+        <app-icon name="more_vert"></app-icon>
+      </button>
+      @if (optionsMenuOpen()) {
+        <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false)"></div>
+        <div class="options-menu">
+          <div class="menu-item" (click)="toggleFromDateFilter()">
+            <app-icon [name]="showFromDateFilter() ? 'check_box' : 'check_box_outline_blank'"></app-icon>
+            <span>Find events from date</span>
+          </div>
+          @if (inputCalendarId()) {
+            <a
+              class="menu-item"
+              href="https://calendar.google.com/calendar/embed?mode=AGENDA&src={{ inputCalendarId() }}"
+              target="_blank"
+              (click)="optionsMenuOpen.set(false)"
+            >
+              <app-icon name="calendar_today"></app-icon>
+              <span>Open in Google Calendar</span>
+            </a>
+          }
+        </div>
+      }
+    </div>
     @if (collectionPath() !== 'events') {
       <a class="button organise-event-btn" [href]="routingService.hrefForView(Views.ProposeEvent)">Organise Event</a>
     }
   </div>
+
+  @if (showFromDateFilter()) {
+    <div class="from-date-filter">
+      <label for="fromDateInput">Show events from:</label>
+      <input
+        type="date"
+        id="fromDateInput"
+        [ngModel]="fromDateInput()"
+        (ngModelChange)="onFromDateChange($event)"
+        (keyup.enter)="searchFromDate()"
+      />
+      <button [disabled]="!fromDateDirty()" (click)="searchFromDate()">
+        <app-icon name="search"></app-icon>
+        Search
+      </button>
+      <button class="icon-only-button" (click)="toggleFromDateFilter()" title="Remove date filter">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
 
   @if (searchResults().matched.length === 0 && searchResults().unmatched.length === 0) {
     <div>
