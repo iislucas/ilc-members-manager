@@ -36,6 +36,44 @@
         margin-bottom: 3rem;
         max-width: 800px;
       }
+      .hero-image-wrapper {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+      }
+      .hero-image-wrapper::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(56, 189, 248, 0.15) 0%,
+          rgba(56, 189, 248, 0.05) 40%,
+          transparent 70%
+        );
+        animation: hero-pulse 4s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .hero-image {
+        width: 180px;
+        height: 180px;
+        filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.25))
+          drop-shadow(0 0 48px rgba(56, 189, 248, 0.1));
+        position: relative;
+      }
+
+      @keyframes hero-pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.6;
+          transform: scale(1.08);
+        }
+      }
       h1 {
         font-size: 2.5rem;
         color: var(--accent-color);
@@ -128,6 +166,13 @@
   </head>
   <body>
     <header>
+      <div class="hero-image-wrapper">
+        <img
+          src="ilc.svg"
+          alt="I Liq Chuan emblem"
+          class="hero-image"
+        />
+      </div>
       <h1>I Liq Chuan Portal</h1>
       <p class="subtitle">
         Internal tools, experiments, and documentation for the ILC Portal
@@ -211,8 +256,10 @@
         <h2>Documentation</h2>
         <ul>
           <li>
-            <a href="docs/gradings.md">Gradings System</a> - Information about
-            the grading structure.
+            <a href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md"
+              >Gradings System</a
+            >
+            - Information about the grading structure.
           </li>
         </ul>
       </section>
