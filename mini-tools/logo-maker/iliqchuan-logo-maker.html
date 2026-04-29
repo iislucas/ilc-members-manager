@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>I Liq Chuan Logo Maker</title>
+    <!-- Web fonts for Chinese text options -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&family=Noto+Sans+SC:wght@700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
     <style>
       * {
         box-sizing: border-box;
@@ -99,6 +103,30 @@
         color: #666;
         margin-top: 2px;
         font-style: italic;
+      }
+      .select-row {
+        margin-bottom: 12px;
+      }
+      .select-row label {
+        display: block;
+        font-size: 13px;
+        color: #a0a0b0;
+        margin-bottom: 4px;
+      }
+      .select-row select {
+        width: 100%;
+        background: #0a192f;
+        color: #e0e0e0;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        appearance: auto;
+      }
+      .select-row select:focus {
+        outline: 1px solid #e94560;
+        border-color: #e94560;
       }
 
       /* Main content area */
@@ -453,7 +481,36 @@
           step="0.5"
           value="9"
         />
-      </div>      <div class="section-title">Ornamental Tips</div>
+      </div>
+
+      <div class="select-row">
+        <label>Chinese font family</label>
+        <select id="fontFamilyChinese">
+          <option value="'Noto Serif SC', 'SimSun', serif">Noto Serif SC (default)</option>
+          <option value="'CloudShuiZhuGBK', 'Noto Serif SC', serif">CloudShuiZhuGBK</option>
+          <option value="'Ma Shan Zheng', cursive">Ma Shan Zheng (calligraphic)</option>
+          <option value="'Noto Sans SC', 'Microsoft YaHei', sans-serif">Noto Sans SC</option>
+          <option value="'SimSun', 'Songti SC', serif">SimSun / Songti SC</option>
+          <option value="'KaiTi', 'STKaiti', serif">KaiTi / STKaiti</option>
+          <option value="serif">Generic serif</option>
+        </select>
+      </div>
+
+      <div class="select-row">
+        <label>Latin font family</label>
+        <select id="fontFamilyLatin">
+          <option value="'Times New Roman', 'Times', serif">Times New Roman (default)</option>
+          <option value="'Times', 'Times New Roman', serif">Times Roman</option>
+          <option value="'CloudShuiZhuGBK', 'Times New Roman', serif">CloudShuiZhuGBK</option>
+          <option value="'Noto Serif', 'Georgia', serif">Noto Serif</option>
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Garamond', 'EB Garamond', serif">Garamond</option>
+          <option value="'Palatino Linotype', 'Palatino', serif">Palatino</option>
+          <option value="serif">Generic serif</option>
+        </select>
+      </div>
+
+      <div class="section-title">Ornamental Tips</div>
 
       <div class="control-group">
         <label
