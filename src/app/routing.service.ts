@@ -193,12 +193,15 @@ export class RoutingService<T extends PathPatterns> {
     if (!patternId) {
       return this.urlHashParams();
     }
+    const patternSignals = this.signals[patternId];
+    const defaults = patternSignals.urlParamDefaults;
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries<WritableSignal<string>>(
-      this.signals[patternId].urlParams,
+      patternSignals.urlParams,
     )) {
       const v = value();
-      if (v !== '') {
+      // Only write to the URL if the value differs from the default.
+      if (v !== (defaults[key] ?? '')) {
         params.set(key, v);
       }
     }
@@ -228,6 +231,7 @@ export class RoutingService<T extends PathPatterns> {
       updateSignalsFromSubsts(
         match.urlParams,
         this.signals[match.patternId].urlParams,
+        this.signals[match.patternId].urlParamDefaults,
       );
       if (patternChanged) {
         window.scrollTo(0, 0);
@@ -283,12 +287,13 @@ export class RoutingService<T extends PathPatterns> {
 
     // Carry forward current signal values for the matched pattern's URL params.
     const patternSignals = this.signals[match.patternId as keyof T];
+    const defaults = patternSignals.urlParamDefaults;
     for (const [key, sig] of Object.entries<WritableSignal<string>>(
       patternSignals.urlParams,
     )) {
       if (!existingParams.has(key)) {
         const val = sig();
-        if (val !== '') {
+        if (val !== (defaults[key] ?? '')) {
           existingParams.set(key, val);
         }
       }

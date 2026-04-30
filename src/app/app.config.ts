@@ -111,7 +111,13 @@ export const initPathPatterns = {
   [Views.MyEventEdit]: pathPattern`my-events/${pv('eventId')}/edit`,
   [Views.ManageEventEdit]: pathPattern`manage-events/${pv('eventId')}/edit`,
   [Views.ProposeEvent]: pathPattern`organise-event`,
-  [Views.ManageEvents]: addUrlParams(pathPattern`manage-events`, ['q', 'status', 'sortBy', 'sortDir', 'searchMode', 'searchField', 'startDate', 'endDate']),
+  [Views.ManageEvents]: addUrlParams(pathPattern`manage-events`, [
+    'q', 'status', 'startDate', 'endDate',
+    { name: 'sortBy', default: 'start' },
+    { name: 'sortDir', default: 'asc' },
+    { name: 'searchMode', default: 'date' },
+    { name: 'searchField', default: 'title' },
+  ]),
   [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'fromDate', 'status', 'sortBy', 'sortDir']),
 };
 

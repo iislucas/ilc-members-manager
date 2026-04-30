@@ -88,6 +88,9 @@ export class ManageEventsComponent implements OnDestroy {
   public searched = signal(false);
 
   // URL-param backed state — defaults show upcoming/recent events (3 days ago → future).
+  // Note: sortBy, sortDir, searchMode, searchField have non-empty defaults
+  // configured in app.config.ts, so the routing system handles them.
+  // startDate is dynamic (today - 3 days), so it's computed here.
   private defaultStartDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 3);
@@ -106,7 +109,6 @@ export class ManageEventsComponent implements OnDestroy {
 
   private eventSignals = this.routingService.signals[Views.ManageEvents];
   private initialised = false;
-  private syncEnabled = false;
 
   // Filtered and sorted events
   events = computed(() => {
@@ -139,40 +141,36 @@ export class ManageEventsComponent implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const urlMode = this.eventSignals.urlParams.searchMode() as 'recent' | 'term' | 'date';
-      const urlField = this.eventSignals.urlParams.searchField();
-      const urlQ = this.eventSignals.urlParams.q();
-      const urlStart = this.eventSignals.urlParams.startDate();
-      const urlEnd = this.eventSignals.urlParams.endDate();
-      const urlSortBy = this.eventSignals.urlParams.sortBy();
-      const urlSortDir = this.eventSignals.urlParams.sortDir();
-      const urlStatus = this.eventSignals.urlParams.status();
+      // Read URL params — the routing system returns configured defaults
+      // (from app.config.ts) when params are absent from the URL.
+      const mode = this.eventSignals.urlParams.searchMode() as 'recent' | 'term' | 'date';
+      const field = this.eventSignals.urlParams.searchField();
+      const q = this.eventSignals.urlParams.q();
+      const start = this.eventSignals.urlParams.startDate();
+      const end = this.eventSignals.urlParams.endDate();
+      const sortBy = this.eventSignals.urlParams.sortBy();
+      const sortDir = this.eventSignals.urlParams.sortDir();
+      const status = this.eventSignals.urlParams.status();
 
       if (this.initialised) return;
       this.initialised = true;
 
-      // Apply URL params with correct defaults for each field.
-      const mode = (urlMode || 'date') as 'recent' | 'term' | 'date';
       this.searchMode.set(mode);
-      this.searchField.set((urlField || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId');
-      this.searchTerm.set(urlQ || '');
-      this.startDate.set(urlStart || this.defaultStartDate);
-      this.endDate.set(urlEnd || '');
-      this.sortField.set((urlSortBy as EventSortField) || EventSortField.Start);
-      this.sortDirection.set((urlSortDir === 'asc' || urlSortDir === 'desc') ? urlSortDir as SortDirection : SortDirection.Asc);
-      this.statusFilter.set(urlStatus || '');
+      this.searchField.set((field || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId');
+      this.searchTerm.set(q);
+      this.startDate.set(start || this.defaultStartDate);
+      this.endDate.set(end);
+      this.sortField.set((sortBy as EventSortField) || EventSortField.Start);
+      this.sortDirection.set((sortDir === 'asc' || sortDir === 'desc') ? sortDir as SortDirection : SortDirection.Asc);
+      this.statusFilter.set(status);
 
-      if (mode === 'term' && this.searchTerm()) {
+      if (mode === 'term' && q) {
         this.search();
       } else if (mode === 'date') {
         this.search();
       } else {
         this.loadRecentEvents();
       }
-
-      // Enable URL syncing only after the initial load completes,
-      // so defaults don't pollute the URL.
-      this.syncEnabled = true;
     });
   }
 
@@ -181,7 +179,6 @@ export class ManageEventsComponent implements OnDestroy {
   }
 
   public syncUrlParams() {
-    if (!this.syncEnabled) return;
     this.eventSignals.urlParams.searchMode.set(this.searchMode());
     this.eventSignals.urlParams.searchField.set(this.searchField());
     this.eventSignals.urlParams.q.set(this.searchTerm());

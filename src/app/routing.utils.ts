@@ -42,22 +42,33 @@ export function makeUrlParams<T extends string>(
   return urlParams;
 }
 
+// A URL param definition: either a plain string name (default='') or an
+// object with a name and a non-empty default value.
+export type UrlParamDef<T extends string> = T | { name: T; default: string };
+
 // Add URL params to a PathPattern that doesn't have them.
-// const foo = makeUrlParams(['a', 'b']); ==> foo: { a: string; b: string; }
+// Accepts plain strings (default '') or { name, default } objects.
+//
+//   addUrlParams(pattern, ['q', 'tab'])
+//   addUrlParams(pattern, ['q', { name: 'sortDir', default: 'asc' }])
 export function addUrlParams<
   P1 extends string,
   U1 extends string,
   U2 extends string
 >(
   pathPattern: PathPattern<P1, U1>,
-  urlParamNames: U2[]
+  urlParamDefs: UrlParamDef<U2>[]
 ): PathPattern<P1, U1 | U2> {
   const newPathPattern: PathPattern<P1, U1 | U2> = {
     ...(pathPattern as PathPattern<P1, U1 | U2>),
   };
   newPathPattern.urlParams = { ...newPathPattern.urlParams };
-  for (const n of urlParamNames) {
-    newPathPattern.urlParams[n] = '';
+  for (const def of urlParamDefs) {
+    if (typeof def === 'string') {
+      newPathPattern.urlParams[def] = '';
+    } else {
+      newPathPattern.urlParams[def.name] = def.default;
+    }
   }
   return newPathPattern;
 }
@@ -157,15 +168,18 @@ PathPattern<TemplateArgName<(typeof args)[number]>, never> {
 // }
 
 // Returns any remaining invalid substitutions.
+// When a param is absent from the URL, it is reset to its default value
+// (from the pattern definition) rather than always ''.
 export function updateSignalsFromSubsts(
   substs: { [key: string]: string },
-  signals: { [key: string]: WritableSignal<string> }
+  signals: { [key: string]: WritableSignal<string> },
+  defaults?: { [key: string]: string },
 ): { [key: string]: string } {
   for (const key of Object.keys(signals)) {
     if (substs[key]) {
       signals[key].set(substs[key]);
     } else {
-      signals[key].set('');
+      signals[key].set(defaults?.[key] ?? '');
     }
     delete substs[key];
   }
@@ -190,6 +204,8 @@ export type UrlParamNames<T extends PathPattern<string, string>> =
 export class PatternSignals<PathVars extends string, UrlParams extends string> {
   pathVars: { [key in PathVars]: WritableSignal<string> };
   urlParams: { [key in UrlParams]: WritableSignal<string> };
+  // Stored defaults so the routing service can skip writing default values to the URL.
+  urlParamDefaults: { [key: string]: string };
 
   constructor(pattern: PathPattern<PathVars, UrlParams>) {
     this.pathVars = {} as {
@@ -201,11 +217,13 @@ export class PatternSignals<PathVars extends string, UrlParams extends string> {
     }
 
     pattern.urlParams ??= {} as { [key in UrlParams]: string };
+    this.urlParamDefaults = {};
     this.urlParams = {} as {
       [key in UrlParams]: WritableSignal<string>;
     };
     for (const key of Object.keys(pattern.urlParams)) {
       const typedKey = key as UrlParams;
+      this.urlParamDefaults[key] = pattern.urlParams[typedKey];
       this.urlParams[typedKey] = signal(pattern.urlParams[typedKey]);
     }
   }
