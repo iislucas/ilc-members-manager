@@ -89,7 +89,7 @@ describe('RoutingService', () => {
     await configureTestBed(testConfig);
 
     service.matchedPatternId.set(Views.ManageMembers);
-    // All URL params are empty by default
+    // All URL params are at default values
     await fixture.whenStable();
     expect(window.location.hash).toBe('#/members');
   });
@@ -156,14 +156,15 @@ describe('RoutingService', () => {
     service.signals[Views.ManageMembers].urlParams['q'].set('search');
     service.signals[Views.ManageMembers].urlParams['jumpTo'].set('M42');
     service.signals[Views.ManageMembers].urlParams['sortBy'].set('name');
-    service.signals[Views.ManageMembers].urlParams['sortDir'].set('desc');
+    // 'asc' differs from the default 'desc', so it will appear in the URL
+    service.signals[Views.ManageMembers].urlParams['sortDir'].set('asc');
     await fixture.whenStable();
     const hash = window.location.hash;
-    // All non-empty params should be present
+    // All non-default params should be present
     expect(hash).toContain('q=search');
     expect(hash).toContain('jumpTo=M42');
     expect(hash).toContain('sortBy=name');
-    expect(hash).toContain('sortDir=desc');
+    expect(hash).toContain('sortDir=asc');
   });
 
   it('should encode special characters in path vars', async () => {
@@ -185,7 +186,7 @@ describe('RoutingService', () => {
     expect(service.signals[Views.ManageMemberView].pathVars['memberId']()).toBe('Row 1561');
   });
 
-  it('should reset URL param signals to empty when absent from URL', async () => {
+  it('should reset URL param signals to default when absent from URL', async () => {
     await configureTestBed(testConfig);
 
     // First set a value
@@ -198,6 +199,8 @@ describe('RoutingService', () => {
     window.dispatchEvent(new HashChangeEvent('hashchange'));
     await fixture.whenStable();
     expect(service.signals[Views.ManageMembers].urlParams['q']()).toBe('');
+    // sortBy resets to its configured default, not empty string
+    expect(service.signals[Views.ManageMembers].urlParams['sortBy']()).toBe('lastUpdated');
   });
 
   // ── resolveUrlWithParams ──
@@ -248,12 +251,12 @@ describe('RoutingService', () => {
     expect(resolved).not.toContain('q=old-search');
   });
 
-  it('resolveUrlWithParams should skip empty signal values', async () => {
+  it('resolveUrlWithParams should skip default signal values', async () => {
     await configureTestBed(testConfig);
 
     service.matchedPatternId.set(Views.ManageMembers);
     service.signals[Views.ManageMembers].urlParams['q'].set('search');
-    // sortBy is left empty
+    // sortBy left at default ('lastUpdated'), should not appear in URL
     await fixture.whenStable();
 
     window.location.hash = '#/members/M1';

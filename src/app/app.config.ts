@@ -58,14 +58,26 @@ export enum Views {
 }
 
 export const memberListPathPatterns = {
-  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag']),
+  [Views.MyStudents]: addUrlParams(pathPattern`my-students`, [
+    'jumpTo', 'q', 'tag',
+    { name: 'sortBy', default: 'lastUpdated' },
+    { name: 'sortDir', default: 'desc' },
+  ]),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,
-    ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag'],
+    [
+      'jumpTo', 'q', 'tag',
+      { name: 'sortBy', default: 'lastUpdated' },
+      { name: 'sortDir', default: 'desc' },
+    ],
   ),
   [Views.InstructorStudents]: addUrlParams(
     pathPattern`instructor/${pv('instructorId')}/students`,
-    ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag'],
+    [
+      'jumpTo', 'q', 'tag',
+      { name: 'sortBy', default: 'lastUpdated' },
+      { name: 'sortDir', default: 'desc' },
+    ],
   ),
 };
 
@@ -83,7 +95,11 @@ export const initPathPatterns = {
   [Views.FindSchool]: addUrlParams(pathPattern`find-school`, ['schoolId', 'q']),
   [Views.ManageSchools]: addUrlParams(pathPattern`schools`, ['schoolId', 'q']),
   [Views.MyProfile]: pathPattern`myProfile`,
-  [Views.ManageMembers]: addUrlParams(pathPattern`members`, ['jumpTo', 'q', 'sortBy', 'sortDir', 'tag']),
+  [Views.ManageMembers]: addUrlParams(pathPattern`members`, [
+    'jumpTo', 'q', 'tag',
+    { name: 'sortBy', default: 'lastUpdated' },
+    { name: 'sortDir', default: 'desc' },
+  ]),
   [Views.ManageMemberView]: pathPattern`members/${pv('memberId')}`,
   [Views.SchoolMemberView]: pathPattern`school/${pv('schoolId')}/members/${pv('memberId')}`,
   [Views.InstructorStudentView]: pathPattern`instructor/${pv('instructorId')}/students/${pv('memberId')}`,
@@ -97,7 +113,13 @@ export const initPathPatterns = {
   [Views.MemberGradings]: addUrlParams(pathPattern`my-gradings`, ['tab']),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
-  [Views.ManageOrders]: addUrlParams(pathPattern`orders`, ['orderId', 'searchMode', 'searchField', 'q', 'startDate', 'endDate', 'sortBy', 'sortDir', 'status', 'kind']),
+  [Views.ManageOrders]: addUrlParams(pathPattern`orders`, [
+    'orderId', 'q', 'startDate', 'endDate', 'status', 'kind',
+    { name: 'searchMode', default: 'recent' },
+    { name: 'searchField', default: 'email' },
+    { name: 'sortBy', default: 'default' },
+    { name: 'sortDir', default: 'desc' },
+  ]),
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
   [Views.MembersAreaPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
