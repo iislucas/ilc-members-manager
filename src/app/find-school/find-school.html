@@ -12,14 +12,13 @@
     @for (school of filteredSchools(); track school.docId) {
     <div class="school-card">
       <div class="school-header">
-        <h3>{{ school.schoolName }}</h3>
-        <div class="school-location">
-          {{ school.schoolCity }}
-          @if (school.schoolCountyOrState) {
-          , {{ school.schoolCountyOrState }}
+        <div class="school-header-row">
+          <h3>{{ school.schoolName }}</h3>
+          @if (school.schoolId) {
+            <span class="school-id-chip">{{ school.schoolId }}</span>
           }
-          , {{ school.schoolCountry }}
         </div>
+        <div class="school-location">@if (school.schoolCity) {{{ school.schoolCity }}@if (school.schoolCountyOrState || school.schoolCountry) {, }}@if (school.schoolCountyOrState) {{{ school.schoolCountyOrState }}@if (school.schoolCountry) {, }}@if (school.schoolCountry) {{{ school.schoolCountry }}}</div>
       </div>
 
       <div class="school-details">

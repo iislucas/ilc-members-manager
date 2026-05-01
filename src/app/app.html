@@ -120,6 +120,12 @@
         @case (Views.ManageSchools) {
           <app-school-list></app-school-list>
         }
+        @case (Views.ManageSchoolEdit) {
+          <app-school-edit
+            [schoolId]="routingService.signals[Views.ManageSchoolEdit].pathVars.schoolId()"
+            (titleLoaded)="onSchoolTitleLoaded($event)"
+          ></app-school-edit>
+        }
         @case (Views.SchoolMembers) {
           <app-school-members></app-school-members>
         }
@@ -181,6 +187,12 @@
           <app-school-list
             [schoolSet]="dataService.mySchools"
           ></app-school-list>
+        }
+        @case (Views.MySchoolEdit) {
+          <app-school-edit
+            [schoolId]="routingService.signals[Views.MySchoolEdit].pathVars.schoolId()"
+            (titleLoaded)="onSchoolTitleLoaded($event)"
+          ></app-school-edit>
         }
         @case (Views.NewMember) {
           <app-member-create

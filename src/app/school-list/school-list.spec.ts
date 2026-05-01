@@ -1,3 +1,9 @@
+/* school-list.spec.ts
+ *
+ * Tests for the SchoolListComponent which displays a searchable list
+ * of schools with links to dedicated edit pages.
+ */
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SchoolListComponent } from './school-list';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -6,20 +12,7 @@ import { AppPathPatterns } from '../app.config';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { School, initSchool } from '../../../functions/src/data-model';
-import { signal, Component, Input } from '@angular/core';
-import { SchoolEditComponent } from '../school-edit/school-edit';
-
-@Component({
-  selector: 'app-school-edit',
-  standalone: true,
-  template: '',
-})
-class MockSchoolEditComponent {
-  @Input() school: any;
-  @Input() allSchools: any;
-  @Input() collapse: any;
-  @Input() canDelete: any;
-}
+import { signal } from '@angular/core';
 
 describe('SchoolListComponent', () => {
   let component: SchoolListComponent;
@@ -39,6 +32,7 @@ describe('SchoolListComponent', () => {
       const s = initSchool();
       s.docId = `school-${i}`;
       s.schoolName = `School ${i}`;
+      s.schoolId = `SCH-${i}`;
       schools.push(s);
     }
     const schoolSet = new SearchableSet<'docId', School>(
@@ -49,10 +43,15 @@ describe('SchoolListComponent', () => {
 
     mockDataManagerService = {
       schools: schoolSet,
+      instructors: new SearchableSet<'instructorId', any>(
+        ['name'],
+        'instructorId',
+        [],
+      ),
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
-      imports: [SchoolListComponent, MockSchoolEditComponent],
+      imports: [SchoolListComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
         { provide: DataManagerService, useValue: mockDataManagerService },
@@ -60,15 +59,13 @@ describe('SchoolListComponent', () => {
           provide: RoutingService,
           useValue: {
             matchedPatternId: signal('schools'),
-            signals: { schools: { urlParams: { q: signal(''), schoolId: signal('') } } }
+            signals: { schools: { urlParams: { q: signal('') } } },
+            hrefForView: vi.fn(),
+            navigateTo: vi.fn(),
           }
         }
       ],
     })
-      .overrideComponent(SchoolListComponent, {
-        remove: { imports: [SchoolEditComponent] },
-        add: { imports: [MockSchoolEditComponent] },
-      })
       .compileComponents();
 
     fixture = TestBed.createComponent(SchoolListComponent);
@@ -100,9 +97,17 @@ describe('SchoolListComponent', () => {
 
     const input = document.createElement('input');
     input.value = 'School';
-    const event = { target: input } as any;
+    const event = { target: input } as never as Event;
     component.onSearch(event);
 
     expect(component.limit()).toBe(50);
+  });
+
+  it('should generate correct edit link', () => {
+    const school = initSchool();
+    school.docId = 'test-doc-id';
+    school.schoolId = 'SCH-123';
+    const link = component.editLink(school);
+    expect(link).toBe('#/schools/test-doc-id/edit');
   });
 });

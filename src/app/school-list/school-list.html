@@ -4,82 +4,110 @@
 } @else if (error()) {
   <p class="error">{{ error() }}</p>
 } @else {
-  <div class="search-header">
-    <div class="search-box">
-      <app-icon class="search-icon" name="search"></app-icon>
-        <input
-          id="search-input"
-          type="text"
-          [value]="searchTerm()"
-          placeholder="Search schools by name, ID, city or country..."
-          (input)="onSearch($event)"
-        />
-    </div>
-    @if (u.isAdmin) {
-      <button (click)="onNewSchool()">New School</button>
-    }
-  </div>
-
-  @if (errorsExist()) {
-    <div class="error-box">
-      <div class="error-box-header" (click)="toggleErrors()">
-        <app-icon
-          [name]="showErrors() ? 'expand_more' : 'expand_less'"
-        ></app-icon>
-        <span
-          >There are entries with duplicate IDs ({{
-            duplicateEntries().length
-          }})</span
-        >
+  <div class="school-search-container">
+    <div class="search-header">
+      <div class="search-box">
+        <app-icon class="search-icon" name="search"></app-icon>
+          <input
+            id="search-input"
+            type="text"
+            [value]="searchTerm()"
+            placeholder="Search schools by name, ID, city or country..."
+            (input)="onSearch($event)"
+          />
       </div>
-      @if (showErrors()) {
-        <div class="error-box-content">
-          <p class="error-hint">
-            Please resolve these duplicate IDs to ensure data integrity.
-          </p>
-          <div class="member-cards">
-            @for (school of duplicateEntries(); track school.docId) {
-              <div class="member-card duplicate">
-                <app-school-edit
-                  [school]="school"
-                  [allSchools]="schools()"
-                ></app-school-edit>
+      @if (u.isAdmin) {
+        <button (click)="onNewSchool()">New School</button>
+      }
+    </div>
+
+    @if (errorsExist()) {
+      <div class="error-box">
+        <div class="error-box-header" (click)="toggleErrors()">
+          <app-icon
+            [name]="showErrors() ? 'expand_more' : 'expand_less'"
+          ></app-icon>
+          <span
+            >There are entries with duplicate IDs ({{
+              duplicateEntries().length
+            }})</span
+          >
+        </div>
+        @if (showErrors()) {
+          <div class="error-box-content">
+            <p class="error-hint">
+              Please resolve these duplicate IDs to ensure data integrity.
+            </p>
+            <div class="results-container">
+              @for (school of duplicateEntries(); track school.docId) {
+                <a class="school-card duplicate" [href]="editLink(school)">
+                  <div class="school-header">
+                    <h3>{{ school.schoolName }}</h3>
+                    @if (school.schoolId) {
+                      <span class="identifier-chip">{{ school.schoolId }}</span>
+                    }
+                  </div>
+                </a>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+    <div class="results-container">
+      @for (school of schools(); track school.docId) {
+        <a class="school-card" [href]="editLink(school)">
+          <div class="school-header">
+            <div class="school-header-row">
+              <h3>{{ school.schoolName || '[Name needs to be entered]' }}</h3>
+              @if (school.schoolId) {
+                <span class="school-id-chip">{{ school.schoolId }}</span>
+              }
+              @let licenseStatus = schoolLicenseStatus(school);
+              @if (licenseStatus !== ExpiryStatus.Valid) {
+                <span class="identifier-chip"
+                  [class.expired-recent]="licenseStatus === ExpiryStatus.Recent"
+                  [class.expired-old]="licenseStatus === ExpiryStatus.Expired">
+                  @if (licenseStatus === ExpiryStatus.Recent) {
+                    recently expired
+                  } @else {
+                    license expired
+                  }
+                </span>
+              }
+            </div>
+            <div class="school-location">@if (school.schoolCity) {{{ school.schoolCity }}@if (school.schoolCountyOrState || school.schoolCountry) {, }}@if (school.schoolCountyOrState) {{{ school.schoolCountyOrState }}@if (school.schoolCountry) {, }}@if (school.schoolCountry) {{{ school.schoolCountry }}}</div>
+          </div>
+
+          <div class="school-details">
+            @if (school.schoolWebsite) {
+              <div class="detail-row">
+                <app-icon name="link"></app-icon>
+                <span>{{ school.schoolWebsite }}</span>
+              </div>
+            }
+            @if (ownerLabel(school)) {
+              <div class="detail-row">
+                <app-icon name="person"></app-icon>
+                <span>School Owner: {{ ownerLabel(school) }}</span>
+              </div>
+            }
+            @if (school.schoolClassGoogleCalendarId) {
+              <div class="detail-row">
+                <app-icon name="calendar_today"></app-icon>
+                <span>Class Calendar</span>
               </div>
             }
           </div>
+        </a>
+      }
+      @if (schools().length < totalSchools()) {
+        <div class="show-more-container">
+          <button class="show-more-button" (click)="showAll()">
+            Show all {{ totalSchools() }} schools
+          </button>
         </div>
       }
     </div>
-  }
-  <div class="member-cards">
-    @if (isAddingSchool()) {
-      <div class="member-card">
-        <app-school-edit
-          [school]="newSchool()"
-          [allSchools]="schools()"
-          [collapse]="false"
-          (close)="onNewSchoolClose()"
-          [canDelete]="false"
-        ></app-school-edit>
-      </div>
-    }
-    @for (school of schools(); track school.docId) {
-      <div class="member-card">
-        <app-school-edit
-          [school]="school"
-          [allSchools]="schools()"
-          [collapse]="school.docId !== urlSchoolId() && school.schoolId !== urlSchoolId()"
-          (opened)="setExpandedSchool(school.schoolId)"
-          (close)="setExpandedSchool('')"
-        ></app-school-edit>
-      </div>
-    }
-    @if (schools().length < totalSchools()) {
-      <div class="show-more-container">
-        <button class="show-more-button" (click)="showAll()">
-          Show all {{ totalSchools() }} schools
-        </button>
-      </div>
-    }
   </div>
 }

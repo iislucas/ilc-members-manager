@@ -9,21 +9,29 @@
   flex-grow: 1;
 }
 
+.school-search-container {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .search-header {
   display: flex;
   flex-direction: row;
   gap: 1em;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1em;
+  margin-bottom: 20px;
   flex-grow: 0;
+  flex-wrap: wrap;
+}
 
-  .search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex-grow: 1;
-  }
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
 
   .search-icon {
     position: absolute;
@@ -32,13 +40,14 @@
   }
 
   input[type="text"] {
-    padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
+    padding: 8px 8px 8px 35px;
     border: 1px solid v.$border-color-light;
     border-radius: 20px;
     transition:
       border-color 0.3s ease,
       box-shadow 0.3s ease;
     flex-grow: 1;
+    width: 100%;
 
     &:focus {
       border-color: v.$focus-ring-color;
@@ -48,26 +57,81 @@
   }
 }
 
-.member-cards {
+.results-container {
   display: flex;
   flex-direction: column;
-  justify-content: start;
   align-items: stretch;
-  gap: v.$card-sep;
-  flex-grow: 1;
+  justify-content: start;
+  overflow-y: auto;
 }
 
-app-school-edit {
+.school-card {
   display: block;
-  border-top: 1px solid #ddd;
-  transition:
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+  border-top: 1px solid #ebebeb;
+  padding: v.$card-padding;
+  padding-bottom: calc(v.$card-padding + v.$card-sep);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  @include v.row-highlight-base;
 
   &:hover {
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    // box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    @include v.row-highlight-active;
+  }
+
+  &.duplicate {
+    border-color: #fecaca;
+  }
+
+  .school-header {
+    margin-bottom: 12px;
+
+    .school-header-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5em;
+      flex-wrap: wrap;
+    }
+
+    h3 {
+      margin: 0 0 4px 0;
+      color: v.$text-primary;
+      font-size: 1.2rem;
+    }
+
+    .school-id-chip {
+      font-size: 0.75rem;
+      color: v.$text-muted;
+      background-color: #f0f0f0;
+      padding: 1px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .school-location {
+      color: v.$text-muted;
+      font-size: 0.9rem;
+    }
+  }
+
+  .school-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: v.$text-secondary;
+      font-size: 0.95rem;
+
+      app-icon {
+        width: 18px;
+        height: 18px;
+        color: v.$text-placeholder;
+      }
+    }
   }
 }
 
@@ -106,10 +170,6 @@ app-school-edit {
       font-size: 0.9em;
       color: #7f1d1d;
     }
-  }
-
-  .member-card.duplicate {
-    border-color: #fecaca;
   }
 }
 

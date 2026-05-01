@@ -1,3 +1,9 @@
+/* school-edit.spec.ts
+ *
+ * Tests for the SchoolEditComponent which is now a standalone page
+ * that loads a school by its schoolId (passed as a route path variable).
+ */
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SchoolEditComponent } from './school-edit';
 import { DataManagerService } from '../data-manager.service';
@@ -35,6 +41,12 @@ describe('SchoolEditComponent', () => {
   };
 
   function createTestBed(userDetails: UserDetails) {
+    const schoolSet = new SearchableSet<'schoolId', School>(
+      ['schoolName'],
+      'schoolId',
+      [mockSchool],
+    );
+
     dataManagerServiceMock = {
       setSchool: vi.fn().mockResolvedValue(undefined),
       createNextSchoolId: vi.fn(),
@@ -45,11 +57,7 @@ describe('SchoolEditComponent', () => {
         'instructorId',
         [],
       ),
-      schools: new SearchableSet<'schoolId', School>(
-        ['schoolName'],
-        'schoolId',
-        [],
-      ),
+      schools: schoolSet,
       counters: signal(null),
     };
 
@@ -76,8 +84,16 @@ describe('SchoolEditComponent', () => {
     await createTestBed(userDetails);
     fixture = TestBed.createComponent(SchoolEditComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('school', structuredClone(mockSchool));
-    fixture.componentRef.setInput('allSchools', [mockSchool]);
+    // Set the schoolId input to match the mock school's schoolId.
+    fixture.componentRef.setInput('schoolId', 'S001');
+    await fixture.whenStable();
+  }
+
+  async function setupNewSchoolComponent(userDetails: UserDetails) {
+    await createTestBed(userDetails);
+    fixture = TestBed.createComponent(SchoolEditComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('schoolId', 'new');
     await fixture.whenStable();
   }
 
@@ -114,25 +130,17 @@ describe('SchoolEditComponent', () => {
       expect(component).toBeTruthy();
     });
 
+    it('should resolve school from schoolId', () => {
+      expect(component.school()).toBeTruthy();
+      expect(component.school()!.schoolName).toBe('Test School');
+    });
+
     it('should not be dirty initially', () => {
       expect(component.isDirty()).toBe(false);
     });
 
-    it('should preserve dirty state when school input is re-set with same data', async () => {
-      // Make a change to the form
-      component.form.schoolAddress().value.set('New Address');
-      component.form.schoolAddress().markAsDirty();
-      expect(component.isDirty()).toBe(true);
-      expect(component.form.schoolAddress().value()).toBe('New Address');
-
-      // Simulate parent re-rendering with same data but new object reference
-      // (e.g. when another school in the list is saved)
-      fixture.componentRef.setInput('school', structuredClone(mockSchool));
-      await fixture.whenStable();
-
-      // The edit should NOT have been wiped
-      expect(component.isDirty()).toBe(true);
-      expect(component.form.schoolAddress().value()).toBe('New Address');
+    it('should identify existing school (not new)', () => {
+      expect(component.isNewSchool()).toBe(false);
     });
 
     it('should be dirty after editing schoolName', () => {
@@ -250,7 +258,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: save button should be disabled when owner is also a manager', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -266,6 +273,24 @@ describe('SchoolEditComponent', () => {
         fixture.nativeElement.querySelector('button[type="submit"]');
       expect(saveButton).toBeTruthy();
       expect(saveButton!.disabled).toBe(true);
+    });
+  });
+
+  describe('new school', () => {
+    beforeEach(async () => {
+      await setupNewSchoolComponent(adminUser);
+    });
+
+    it('should create', () => {
+      expect(component).toBeTruthy();
+    });
+
+    it('should identify as new school', () => {
+      expect(component.isNewSchool()).toBe(true);
+    });
+
+    it('should not resolve any school', () => {
+      expect(component.school()).toBeNull();
     });
   });
 
@@ -357,8 +382,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: typing in schoolAddress input should make form dirty', async () => {
-      // Expand the form first
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -379,7 +402,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: typing in schoolWebsite input should make form dirty', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -400,7 +422,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: save button should appear and be enabled for manager after edit', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -426,7 +447,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: schoolCity and schoolCountry inputs should be enabled in the DOM for manager', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -448,7 +468,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: typing in schoolName input should make form dirty', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -466,7 +485,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: typing in schoolCity input should make form dirty', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -484,7 +502,6 @@ describe('SchoolEditComponent', () => {
     });
 
     it('DOM: admin-visible save button should be enabled after edit', async () => {
-      component.collapsed.set(false);
       await fixture.whenStable();
       fixture.detectChanges();
 

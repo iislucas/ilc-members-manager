@@ -63,11 +63,27 @@
 
     .school-header {
       margin-bottom: 12px;
+
+      .school-header-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5em;
+        flex-wrap: wrap;
+      }
       
       h3 {
         margin: 0 0 4px 0;
         color: v.$text-primary;
         font-size: 1.2rem;
+      }
+
+      .school-id-chip {
+        font-size: 0.75rem;
+        color: v.$text-muted;
+        background-color: #f0f0f0;
+        padding: 1px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
       }
 
       .school-location {

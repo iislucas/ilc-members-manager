@@ -1,3 +1,11 @@
+/* school-edit.ts
+ *
+ * Standalone school edit page, accessible via a dedicated URL like
+ * /schools/:schoolId/edit or /my-schools/:schoolId/edit.
+ * Loads the school by its schoolId or docId from the data service.
+ * Follows the same page-edit pattern as event-edit.
+ */
+
 import {
   Component,
   input,
@@ -5,12 +13,10 @@ import {
   effect,
   inject,
   signal,
-  HostBinding,
-  ElementRef,
   computed,
   linkedSignal,
+  ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   School,
   Member,
@@ -43,7 +49,6 @@ import { FirebaseStateService } from '../firebase-state.service';
   selector: 'app-school-edit',
   standalone: true,
   imports: [
-    CommonModule,
     FormField,
     IconComponent,
     SpinnerComponent,
@@ -52,22 +57,48 @@ import { FirebaseStateService } from '../firebase-state.service';
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SchoolEditComponent {
-  private elementRef = inject(ElementRef);
   membersService = inject(DataManagerService);
   stateService = inject(FirebaseStateService);
+  private routingService: RoutingService<AppPathPatterns> =
+    inject(RoutingService);
 
-  school = input.required<School>();
-  allSchools = input.required<School[]>();
-  canDelete = input<boolean>(true);
-  collapse = input<boolean | null>(null);
-  close = output();
-  opened = output<void>();
+  // The schoolId comes from the route path variable, passed in by app.html.
+  schoolId = input.required<string>();
+  titleLoaded = output<string>();
 
   // Constants
   AssignKind = AssignKind;
   ExpiryStatus = ExpiryStatus;
+
+  // Resolve the school from the data service using the URL's schoolId.
+  school = computed<School | null>(() => {
+    const id = this.schoolId();
+    if (!id || id === 'new') return null;
+    // Try by schoolId first (e.g. SCH-123), then by docId
+    const bySchoolId = this.membersService.schools.get(id);
+    if (bySchoolId) return bySchoolId;
+    // Search by docId among all schools
+    const all = this.membersService.schools.entries();
+    return all.find(s => s.docId === id) || null;
+  });
+
+  isNewSchool = computed(() => {
+    const id = this.schoolId();
+    return !id || id === 'new';
+  });
+
+  // Emit the title when the school is loaded (for breadcrumbs).
+  private _emitTitle = effect(() => {
+    const s = this.school();
+    if (s) {
+      this.titleLoaded.emit(s.schoolName || s.schoolId || 'School');
+    } else if (this.isNewSchool()) {
+      this.titleLoaded.emit('New School');
+    }
+  });
 
   // The signal holding the data model for the form.
   // Uses a signal + effect pattern because linkedSignal always re-derives
@@ -80,7 +111,11 @@ export class SchoolEditComponent {
     if (this.form().dirty()) {
       return;
     }
-    this.schoolFormModel.set(structuredClone(s));
+    if (s) {
+      this.schoolFormModel.set(structuredClone(s));
+    } else if (this.isNewSchool()) {
+      this.schoolFormModel.set(initSchool());
+    }
   });
 
   // Use form() to create a FieldTree for validation and state tracking.
@@ -132,7 +167,9 @@ export class SchoolEditComponent {
   todayIsoString = signal(new Date().toISOString().split('T')[0]);
 
   isSchoolLicenseExpired = computed((): ExpiryStatus => {
-    const expires = this.school().schoolLicenseExpires;
+    const s = this.school();
+    if (!s) return ExpiryStatus.Valid;
+    const expires = s.schoolLicenseExpires;
     if (!expires || expires >= this.todayIsoString()) return ExpiryStatus.Valid;
 
     const expireDate = new Date(expires);
@@ -172,9 +209,6 @@ export class SchoolEditComponent {
   isSaving = signal(false);
   isDeleting = signal(false);
   deleteProgress = signal('');
-  collapsed = linkedSignal<boolean>(() => {
-    return this.collapse() ?? true;
-  });
   isDirty = computed(
     () =>
       this.form().dirty() ||
@@ -196,7 +230,7 @@ export class SchoolEditComponent {
     );
   });
 
-  isNewSchool = computed(() => !this.school()?.docId);
+  allSchools = computed(() => this.membersService.schools.entries());
 
   expectedNextSchoolId = computed(() => {
     const counters = this.membersService.counters();
@@ -205,7 +239,8 @@ export class SchoolEditComponent {
   });
 
   initSchoolIdAssignment(): Assignment {
-    if (this.school().schoolId.trim() === '') {
+    const s = this.school();
+    if (!s || s.schoolId.trim() === '') {
       return {
         kind: AssignKind.AssignNewAutoId,
         curId: '',
@@ -213,7 +248,7 @@ export class SchoolEditComponent {
     } else {
       return {
         kind: AssignKind.UnchangedExistingId,
-        curId: this.school().schoolId,
+        curId: s.schoolId,
       };
     }
   }
@@ -251,26 +286,28 @@ export class SchoolEditComponent {
     toName: (i: InstructorPublicData) => i.name,
   };
 
-  @HostBinding('class.is-open')
-  get isOpen() {
-    return !this.collapsed();
-  }
+  // Build the back navigation URL based on context.
+  backUrl = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MySchoolEdit) {
+      return '#/my-schools';
+    }
+    return '#/schools';
+  });
 
-  @HostBinding('class.is-dirty')
-  get isDirtyClass() {
-    return this.isDirty();
-  }
+  backLabel = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MySchoolEdit) {
+      return 'My Schools';
+    }
+    return 'Manage Schools';
+  });
 
   constructor() {
-    effect(() => {
-      const collapse = this.collapse();
-      if (collapse !== null) {
-        this.collapsed.set(collapse);
-      }
-    });
     effect(async () => {
-      const orig = this.school()?.schoolId;
+      const s = this.school();
       const current = this.editableSchool()?.schoolId;
+      const orig = s?.schoolId;
       if (orig && current && orig !== current) {
         const count = await this.membersService.countMembersWithSchoolId(orig);
         this.studentsToUpdateCount.set(count);
@@ -336,29 +373,28 @@ export class SchoolEditComponent {
     this.schoolIdAssignment.set(this.initSchoolIdAssignment());
     $event.preventDefault();
     $event.stopPropagation();
-    this.collapsed.set(true);
-    this.close.emit();
+    this.navigateBack();
   }
 
-  toggle($event: Event) {
-    $event.preventDefault();
-    $event.stopPropagation();
-    if (this.isDirty() && !this.collapsed()) {
-      this.elementRef.nativeElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
-      return;
+  private navigateBack() {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MySchoolEdit) {
+      this.routingService.navigateTo('/my-schools');
+    } else {
+      this.routingService.navigateTo('/schools');
     }
-    this.collapsed.set(!this.collapsed());
-    if (!this.collapsed()) {
-      this.opened.emit();
-    }
+  }
+
+  gotoMembers() {
+    const s = this.school() || this.editableSchool();
+    this.routingService.matchedPatternId.set(Views.SchoolMembers);
+    const signals = this.routingService.signals[Views.SchoolMembers];
+    signals.pathVars.schoolId.set(s.schoolId);
   }
 
   isDupSchoolId = computed(() => {
     const school = this.editableSchool();
-    if (!this.allSchools || !school) {
+    if (!school) {
       return false;
     }
     return this.allSchools().some(
@@ -381,7 +417,8 @@ export class SchoolEditComponent {
         throw new Error(`School ID cannot be empty.`);
       }
 
-      const origId = this.school().schoolId;
+      const origSchool = this.school();
+      const origId = origSchool?.schoolId || '';
 
       if (this.updateStudentsCheckbox() && this.studentsToUpdateCount() > 0 && origId && school.schoolId && origId !== school.schoolId) {
         await this.membersService.setSchoolAndUpdateMembers(school, origId);
@@ -393,14 +430,13 @@ export class SchoolEditComponent {
         // all initSchool() defaults get written to Firestore, backfilling any
         // missing fields. Non-admins (school managers) need the diff to stay
         // within the Firestore rules' affectedKeys().hasOnly(...) constraint.
-        const oldSchoolForDiff = this.userIsAdmin() ? undefined : this.school();
+        const oldSchoolForDiff = this.userIsAdmin() ? undefined : origSchool || undefined;
         await this.membersService.setSchool(school, oldSchoolForDiff);
       }
 
       this.form().reset();
       this.isSaving.set(false);
-      this.collapsed.set(true);
-      this.close.emit();
+      this.navigateBack();
     } catch (e: unknown) {
       console.error(e);
       this.asyncError.set(e as Error);
@@ -424,6 +460,7 @@ export class SchoolEditComponent {
             this.editableSchool().docId,
             (msg) => this.deleteProgress.set(msg)
           );
+          this.navigateBack();
         } catch (e: unknown) {
           console.error(e);
           this.asyncError.set(e as Error);
@@ -437,17 +474,6 @@ export class SchoolEditComponent {
 
   closeErrors() {
     this.asyncError.set(null);
-  }
-
-  private routingService: RoutingService<AppPathPatterns> =
-    inject(RoutingService);
-  gotoMembers() {
-    this.routingService.matchedPatternId.set(Views.SchoolMembers);
-    const signals = this.routingService.signals[Views.SchoolMembers];
-    // TODO: should we do a single asignement for all params, that way we don't
-    // miss any? This means a single signal for all path params at once. Path
-    // params are not optional. Url Params can keep the same pattern;
-    signals.pathVars.schoolId.set(this.school().schoolId);
   }
 
   asyncError = signal<Error | null>(null);

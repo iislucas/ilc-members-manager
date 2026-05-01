@@ -1,19 +1,28 @@
-@if (editableSchool(); as s) {
+@let s = editableSchool();
+@if (!s && !isNewSchool()) {
+  <app-spinner>Loading school...</app-spinner>
+} @else {
+  <div class="back-link-container">
+    <a class="back-link subtle-button" [href]="backUrl()">
+      <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
+    </a>
+  </div>
+
   <div class="edit-form">
-    <div class="edit-form-header" (click)="toggle($event)">
-      <div class="identifier">
+    <div class="school-header">
+      <div class="school-header-row">
         @if (s.schoolId) {
-          <span>{{ s.schoolId }}</span>
+          <span class="identifier-chip">{{ s.schoolId }}</span>
         }
-      </div>
-      <div class="name">
-        @if (s.schoolName.trim() === "") {
-          [Name needs to be entered]
-        }
-        {{ s.schoolName }}
-        @if (isDirty()) {
-          <span>*</span>
-        }
+        <span class="school-header-name">
+          @if (s.schoolName.trim() === "") {
+            [Name needs to be entered]
+          }
+          {{ s.schoolName }}
+          @if (isDirty()) {
+            <span>*</span>
+          }
+        </span>
       </div>
       @if (isSchoolLicenseExpired() !== ExpiryStatus.Valid) {
         <span class="identifier-chip" [class.expired-recent]="isSchoolLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isSchoolLicenseExpired() === ExpiryStatus.Expired">
@@ -48,282 +57,269 @@
         }
         <span class="country">{{ s.schoolCountry }}</span>
       </div>
-      <div class="unfold-button">
-        <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
-      </div>
     </div>
 
-    @if (!collapsed()) {
-      <form (submit)="saveSchool($event)">
-        <div class="form-section">
-          @if (userIsAdmin() || userIsSchoolManager()) {
-            <a class="subtle-button" href="#/school/{{ s.schoolId }}/members" (click)="gotoMembers(); $event.preventDefault()">
-              <app-icon name="salut" /> Students</a>
-          }
-          <h3>School Details</h3>
-          <label for="schoolName">School Name</label>
-          <div class="rhs">
-            <input
-              class="long"
-              type="text"
-              id="schoolName"
-              [formField]="form.schoolName"
-            />
-            @let schoolNameErrors = form.schoolName().errors();
-            @if (schoolNameErrors.length > 0 && schoolNameErrors[0]; as error) {
-              <div class="error-message">{{ error.message }}</div>
-            }
-          </div>
-
-          <label for="schoolId">School ID</label>
-          <div class="rhs">
-            <app-id-assignment
-              [initAssignment]="schoolIdAssignment()"
-              [canBeUnset]="false"
-              [expectedNextId]="expectedNextSchoolId()"
-              [canEdit]="userIsAdmin()"
-              (assignment)="handleSchoolIdAssignmentChange($event)"
-            ></app-id-assignment>
-            @if (studentsToUpdateCount() > 0 && schoolIdAssignment().kind !== AssignKind.UnchangedExistingId) {
-              <div class="note">
-                <input type="checkbox" id="updateStudents" [checked]="updateStudentsCheckbox()" (change)="updateStudentsCheckbox.set(!updateStudentsCheckbox())" />
-                <label for="updateStudents" style="display:inline; font-weight:normal; font-size: 0.9em; margin-left: 4px;">
-                  Update all {{ studentsToUpdateCount() }} students to have the new school ID
-                </label>
-              </div>
-            }
-            @if (isDupSchoolId()) {
-              <div class="error-message">This school ID is already in use.</div>
-            }
-          </div>
-
-          <label for="schoolAddress" class="align-top">Address</label>
-          <div class="rhs">
-            <textarea
-              class="long"
-              id="schoolAddress"
-              [formField]="form.schoolAddress"
-            ></textarea>
-          </div>
-
-          <label for="schoolCity">City</label>
-          <div class="rhs">
-            <input type="text" id="schoolCity" [formField]="form.schoolCity" />
-          </div>
-
-          <label for="schoolZipCode">Zip Code</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="schoolZipCode"
-              [formField]="form.schoolZipCode"
-            />
-          </div>
-
-          <label for="schoolCountyOrState">County/State</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="schoolCountyOrState"
-              [formField]="form.schoolCountyOrState"
-            />
-          </div>
-
-          <label for="schoolCountry">Country</label>
-          <div class="rhs">
-            <input
-              type="text"
-              id="schoolCountry"
-              [formField]="form.schoolCountry"
-            />
-          </div>
-
-          <label for="schoolWebsite">Website</label>
-          <div class="rhs">
-            <input
-              class="long"
-              type="text"
-              id="schoolWebsite"
-              [formField]="form.schoolWebsite"
-            />
-          </div>
-
-          <label for="schoolClassGoogleCalendarId">Calendar ID</label>
-          <div class="rhs">
-            <input
-              class="long"
-              type="text"
-              id="schoolClassGoogleCalendarId"
-              placeholder="e.g. abc123@group.calendar.google.com"
-              [formField]="form.schoolClassGoogleCalendarId"
-            />
-            <span class="note">Google Calendar ID for public class schedule</span>
-          </div>
-
-          <h3>License</h3>
-          <label for="schoolLicenseRenewalDate">License Renewal</label>
-          <div class="rhs">
-            <input
-              type="date"
-              id="schoolLicenseRenewalDate"
-              [formField]="form.schoolLicenseRenewalDate"
-            />
-          </div>
-
-          <label for="schoolLicenseExpires">License Expires</label>
-          <div class="rhs">
-            <input
-              type="date"
-              id="schoolLicenseExpires"
-              [formField]="form.schoolLicenseExpires"
-            />
-          </div>
-
-          <h3>Management</h3>
-          <label for="owner">Owner</label>
-          <div class="rhs">
-            @if (userIsAdmin()) {
-              <app-autocomplete
-                name="owner"
-                [searchableSet]="membersService.instructors"
-                [placeholder]="'Search instructor for owner'"
-                [displayFns]="instructorDisplayFns"
-                [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
-                [initSearchTerm]="form.ownerInstructorId().value()"
-                (textUpdated)="updateOwner($event)"
-              ></app-autocomplete>
-            } @else {
-              <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
-            }
-            @if (s.ownerInstructorId === "") {
-              <div class="error-message">No owner set</div>
-            } @else if (
-              membersService.instructors.get(s.ownerInstructorId);
-              as ownerData
-            ) {
-              <div class="note">{{ ownerData.name }}</div>
-            } @else {
-              <div class="error-message">
-                Invalid Owner (Instructor) ID:
-                <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
-              </div>
-            }
-          </div>
-
-          <label class="align-top" for="managers">Managers</label>
-          <div class="rhs">
-            @for (managerMemberId of s.managerInstructorIds; track $index; let i = $index) {
-              <div class="member-search-with-details" id="managers">
-                @if (userIsAdmin() || userIsSchoolManager()) {
-                  <div class="oneLine">
-                    <app-autocomplete
-                      name="owner"
-                      [searchableSet]="membersService.instructors"
-                      [placeholder]="'Search instructor for owner'"
-                      [displayFns]="instructorDisplayFns"
-                      [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
-                      [initSearchTerm]="s.managerInstructorIds[i]"
-                      (textUpdated)="updateManagerId(i, $event)"
-                    ></app-autocomplete>
-                    <button
-                      class="icon-only-button"
-                      type="button"
-                      (click)="removeManager(i)"
-                    >
-                      <app-icon name="close" />
-                    </button>
-                  </div>
-                }
-                @if (s.managerInstructorIds[i] === "") {
-                  <div class="error-message">No manager set</div>
-                } @else if (
-                  membersService.instructors.get(s.managerInstructorIds[i]);
-                  as managerData
-                ) {
-                  <div class="note">
-                    @if (!userIsAdmin() && !userIsSchoolManager()) {
-                      <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
-                    }
-                    {{ managerData.name }}
-                  </div>
-                } @else {
-                  <div class="error-message">
-                    Invalid Owner (Instructor) ID:
-                    <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
-                  </div>
-                }
-              </div>
-            }
-            @if (userIsAdmin() || userIsSchoolManager()) {
-              <button type="button" (click)="addManager()">Add Manager</button>
-            }
-          </div>
-        </div>
-
-        @if (errorMessage().length > 0) {
-          <div class="error-container">
-            <div class="error-message">
-              <ul>
-                @for (error of errorMessage(); track error) {
-                  <li>{{ error }}</li>
-                }
-              </ul>
-            </div>
-            <button
-              type="button"
-              class="icon-only-button"
-              (click)="closeErrors()"
-            >
-              <app-icon name="close" />
-            </button>
-          </div>
+    <form (submit)="saveSchool($event)">
+      <div class="form-section">
+        @if (userIsAdmin() || userIsSchoolManager()) {
+          <a class="subtle-button" href="#/school/{{ s.schoolId }}/members" (click)="gotoMembers(); $event.preventDefault()">
+            <app-icon name="salut" /> Students</a>
         }
-        <div class="form-actions">
-          <div class="left-actions">
-            @if (isSaving()) {
-              <app-spinner></app-spinner>
-            } @else {
-              @if (isDirty()) {
-                <button
-                  type="submit"
-                  [disabled]="isDupSchoolId() || form().invalid() || hasOwnerAsManager()"
-                >
-                  Save
-                </button>
-              }
-              <button type="button" (click)="cancel($event)">
-                @if (isDirty()) {
-                  Cancel
-                } @else {
-                  Close
-                }
-              </button>
-            }
-          </div>
-          <div class="right-actions">
-            <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
-            @if (isDeleting()) {
-              <div class="deleting-status">
-                <app-spinner></app-spinner>
-                <span class="progress-message">{{ deleteProgress() }}</span>
-              </div>
-            } @else if (canDelete() && userIsAdmin()) {
-              <button class="delete-button" (click)="deleteSchool($event)">
-                <app-icon name="trash" fill="#000" />
-                Delete
-              </button>
-            }
-          </div>
+        <h3>School Details</h3>
+        <label for="schoolName">School Name</label>
+        <div class="rhs">
+          <input
+            class="long"
+            type="text"
+            id="schoolName"
+            [formField]="form.schoolName"
+          />
+          @let schoolNameErrors = form.schoolName().errors();
+          @if (schoolNameErrors.length > 0 && schoolNameErrors[0]; as error) {
+            <div class="error-message">{{ error.message }}</div>
+          }
         </div>
-      </form>
-    }
-  </div>
-} @else {
-  <div class="edit-form">
-    <div class="error-container">
-      <div class="error-message">
-        <p>No school is selected for editing.</p>
+
+        <label for="schoolId">School ID</label>
+        <div class="rhs">
+          <app-id-assignment
+            [initAssignment]="schoolIdAssignment()"
+            [canBeUnset]="false"
+            [expectedNextId]="expectedNextSchoolId()"
+            [canEdit]="userIsAdmin()"
+            (assignment)="handleSchoolIdAssignmentChange($event)"
+          ></app-id-assignment>
+          @if (studentsToUpdateCount() > 0 && schoolIdAssignment().kind !== AssignKind.UnchangedExistingId) {
+            <div class="note">
+              <input type="checkbox" id="updateStudents" [checked]="updateStudentsCheckbox()" (change)="updateStudentsCheckbox.set(!updateStudentsCheckbox())" />
+              <label for="updateStudents" style="display:inline; font-weight:normal; font-size: 0.9em; margin-left: 4px;">
+                Update all {{ studentsToUpdateCount() }} students to have the new school ID
+              </label>
+            </div>
+          }
+          @if (isDupSchoolId()) {
+            <div class="error-message">This school ID is already in use.</div>
+          }
+        </div>
+
+        <label for="schoolAddress" class="align-top">Address</label>
+        <div class="rhs">
+          <textarea
+            class="long"
+            id="schoolAddress"
+            [formField]="form.schoolAddress"
+          ></textarea>
+        </div>
+
+        <label for="schoolCity">City</label>
+        <div class="rhs">
+          <input type="text" id="schoolCity" [formField]="form.schoolCity" />
+        </div>
+
+        <label for="schoolZipCode">Zip Code</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="schoolZipCode"
+            [formField]="form.schoolZipCode"
+          />
+        </div>
+
+        <label for="schoolCountyOrState">County/State</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="schoolCountyOrState"
+            [formField]="form.schoolCountyOrState"
+          />
+        </div>
+
+        <label for="schoolCountry">Country</label>
+        <div class="rhs">
+          <input
+            type="text"
+            id="schoolCountry"
+            [formField]="form.schoolCountry"
+          />
+        </div>
+
+        <label for="schoolWebsite">Website</label>
+        <div class="rhs">
+          <input
+            class="long"
+            type="text"
+            id="schoolWebsite"
+            [formField]="form.schoolWebsite"
+          />
+        </div>
+
+        <label for="schoolClassGoogleCalendarId">Calendar ID</label>
+        <div class="rhs">
+          <input
+            class="long"
+            type="text"
+            id="schoolClassGoogleCalendarId"
+            placeholder="e.g. abc123@group.calendar.google.com"
+            [formField]="form.schoolClassGoogleCalendarId"
+          />
+          <span class="note">Google Calendar ID for public class schedule</span>
+        </div>
+
+        <h3>License</h3>
+        <label for="schoolLicenseRenewalDate">License Renewal</label>
+        <div class="rhs">
+          <input
+            type="date"
+            id="schoolLicenseRenewalDate"
+            [formField]="form.schoolLicenseRenewalDate"
+          />
+        </div>
+
+        <label for="schoolLicenseExpires">License Expires</label>
+        <div class="rhs">
+          <input
+            type="date"
+            id="schoolLicenseExpires"
+            [formField]="form.schoolLicenseExpires"
+          />
+        </div>
+
+        <h3>Management</h3>
+        <label for="owner">Owner</label>
+        <div class="rhs">
+          @if (userIsAdmin()) {
+            <app-autocomplete
+              name="owner"
+              [searchableSet]="membersService.instructors"
+              [placeholder]="'Search instructor for owner'"
+              [displayFns]="instructorDisplayFns"
+              [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
+              [initSearchTerm]="form.ownerInstructorId().value()"
+              (textUpdated)="updateOwner($event)"
+            ></app-autocomplete>
+          } @else {
+            <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
+          }
+          @if (s.ownerInstructorId === "") {
+            <div class="error-message">No owner set</div>
+          } @else if (
+            membersService.instructors.get(s.ownerInstructorId);
+            as ownerData
+          ) {
+            <div class="note">{{ ownerData.name }}</div>
+          } @else {
+            <div class="error-message">
+              Invalid Owner (Instructor) ID:
+              <span class="identifier-chip">{{ s.ownerInstructorId }}</span>
+            </div>
+          }
+        </div>
+
+        <label class="align-top" for="managers">Managers</label>
+        <div class="rhs">
+          @for (managerMemberId of s.managerInstructorIds; track $index; let i = $index) {
+            <div class="member-search-with-details" id="managers">
+              @if (userIsAdmin() || userIsSchoolManager()) {
+                <div class="oneLine">
+                  <app-autocomplete
+                    name="owner"
+                    [searchableSet]="membersService.instructors"
+                    [placeholder]="'Search instructor for owner'"
+                    [displayFns]="instructorDisplayFns"
+                    [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
+                    [initSearchTerm]="s.managerInstructorIds[i]"
+                    (textUpdated)="updateManagerId(i, $event)"
+                  ></app-autocomplete>
+                  <button
+                    class="icon-only-button"
+                    type="button"
+                    (click)="removeManager(i)"
+                  >
+                    <app-icon name="close" />
+                  </button>
+                </div>
+              }
+              @if (s.managerInstructorIds[i] === "") {
+                <div class="error-message">No manager set</div>
+              } @else if (
+                membersService.instructors.get(s.managerInstructorIds[i]);
+                as managerData
+              ) {
+                <div class="note">
+                  @if (!userIsAdmin() && !userIsSchoolManager()) {
+                    <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
+                  }
+                  {{ managerData.name }}
+                </div>
+              } @else {
+                <div class="error-message">
+                  Invalid Owner (Instructor) ID:
+                  <span class="identifier-chip">{{ s.managerInstructorIds[i] }}</span>
+                </div>
+              }
+            </div>
+          }
+          @if (userIsAdmin() || userIsSchoolManager()) {
+            <button type="button" (click)="addManager()">Add Manager</button>
+          }
+        </div>
       </div>
-    </div>
+
+      @if (errorMessage().length > 0) {
+        <div class="error-container">
+          <div class="error-message">
+            <ul>
+              @for (error of errorMessage(); track error) {
+                <li>{{ error }}</li>
+              }
+            </ul>
+          </div>
+          <button
+            type="button"
+            class="icon-only-button"
+            (click)="closeErrors()"
+          >
+            <app-icon name="close" />
+          </button>
+        </div>
+      }
+      <div class="form-actions">
+        <div class="left-actions">
+          @if (isSaving()) {
+            <app-spinner></app-spinner>
+          } @else {
+            @if (isDirty()) {
+              <button
+                type="submit"
+                [disabled]="isDupSchoolId() || form().invalid() || hasOwnerAsManager()"
+              >
+                Save
+              </button>
+            }
+            <button type="button" (click)="cancel($event)">
+              @if (isDirty()) {
+                Cancel
+              } @else {
+                Back
+              }
+            </button>
+          }
+        </div>
+        <div class="right-actions">
+          <p class="timestamp">Last updated: {{ s.lastUpdated }}</p>
+          @if (isDeleting()) {
+            <div class="deleting-status">
+              <app-spinner></app-spinner>
+              <span class="progress-message">{{ deleteProgress() }}</span>
+            </div>
+          } @else if (userIsAdmin() && !isNewSchool()) {
+            <button class="delete-button" (click)="deleteSchool($event)">
+              <app-icon name="trash" fill="#000" />
+              Delete
+            </button>
+          }
+        </div>
+      </div>
+    </form>
   </div>
 }

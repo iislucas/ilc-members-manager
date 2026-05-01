@@ -11,6 +11,7 @@ import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { FindInstructorsService } from './find-instructors.service';
 import { SchoolListComponent } from './school-list/school-list';
+import { SchoolEditComponent } from './school-edit/school-edit';
 import { DataManagerService, DataServiceState } from './data-manager.service';
 import { SchoolMembersComponent } from './school-members/school-members';
 import { InstructorStudentsComponent } from './instructor-students/instructor-students';
@@ -54,6 +55,7 @@ import { APP_VERSION } from './version';
     SpinnerComponent,
     FindAnInstructorComponent,
     SchoolListComponent,
+    SchoolEditComponent,
     SchoolMembersComponent,
     InstructorStudentsComponent,
     FilteredMembersComponent,
@@ -95,6 +97,7 @@ export class App {
   public menuOpen = signal(false);
   public loadedEventTitle = signal<string | null>(null);
   public loadedOrderTitle = signal<string | null>(null);
+  public loadedSchoolTitle = signal<string | null>(null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
@@ -117,6 +120,10 @@ export class App {
 
   onOrderTitleLoaded(title: string) {
     this.loadedOrderTitle.set(title);
+  }
+
+  onSchoolTitleLoaded(title: string) {
+    this.loadedSchoolTitle.set(title);
   }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
@@ -191,11 +198,16 @@ export class App {
         baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
       } else if (view === Views.ManageEvents) {
         // No parent breadcrumb needed for manage events
+      } else if (view === Views.ManageSchoolEdit) {
+        baseBreadcrumbs.push({ label: 'Manage Schools', url: '#/schools' });
+      } else if (view === Views.MySchoolEdit) {
+        baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
       }
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
       const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
       const isOrderView = view === Views.OrderView;
-      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle());
+      const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
+      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle());
       baseBreadcrumbs.push({ label: this.currentViewTitle(), isLoading });
     }
     return baseBreadcrumbs;
@@ -270,11 +282,15 @@ export class App {
 
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
       const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
+      const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
       if (!isEventView && !isEventEdit) {
         this.loadedEventTitle.set(null);
       }
       if (view !== Views.OrderView) {
         this.loadedOrderTitle.set(null);
+      }
+      if (!isSchoolEdit) {
+        this.loadedSchoolTitle.set(null);
       }
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
@@ -325,6 +341,10 @@ export class App {
         return 'Find an Instructor';
       case Views.ManageSchools:
         return 'Manage Schools';
+      case Views.ManageSchoolEdit:
+        return this.loadedSchoolTitle() ? `Edit: ${this.loadedSchoolTitle()}` : 'Edit School';
+      case Views.MySchoolEdit:
+        return this.loadedSchoolTitle() || 'My School';
       case Views.FindSchool:
         return 'Find a School';
       case Views.ClassCalendarView:
