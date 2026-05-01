@@ -228,10 +228,11 @@
     <div class="member-cards">
       @for (member of membersList; track member.docId) {
         <a
-          class="member-card"
+          class="member-card selectable-card"
           [class.inactive]="isMemberInactive(member)"
           [id]="'member-' + (member.memberId || member.docId)"
           [href]="memberLink(member)"
+          (click)="onCardClick($event)"
         >
           <app-member-row-header [member]="member"></app-member-row-header>
         </a>

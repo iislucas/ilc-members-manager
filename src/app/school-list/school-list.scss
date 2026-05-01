@@ -131,6 +131,21 @@
         height: 18px;
         color: v.$text-placeholder;
       }
+
+      // External links (website, mailto, etc.) get standard blue underline
+      a[target="_blank"] {
+        color: v.$focus-ring-color;
+        text-decoration: none;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+
+      // Internal app links use subtle-button; shrink padding for inline context
+      .subtle-button {
+        padding: 0.1em 0.3em;
+        font-size: inherit;
+      }
     }
   }
 }

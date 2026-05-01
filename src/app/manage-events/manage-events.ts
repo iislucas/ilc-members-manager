@@ -364,4 +364,12 @@ export class ManageEventsComponent implements OnDestroy {
       `/find-an-instructor?instructorId=${encodeURIComponent(id)}`,
     );
   }
+
+  // Prevent navigation when the user is selecting text by drag.
+  onCardClick(event: MouseEvent) {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      event.preventDefault();
+    }
+  }
 }

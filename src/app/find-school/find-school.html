@@ -32,14 +32,14 @@
         @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
         <div class="detail-row">
           <app-icon name="person"></app-icon>
-          <span>School Owner: {{ owner.name }}</span>
+          <span>School Owner: <a class="subtle-button" [href]="'#/find-an-instructor?instructorId=' + school.ownerInstructorId">{{ owner.name }}</a></span>
         </div>
         }
 
         @if (school.schoolClassGoogleCalendarId) {
         <div class="detail-row">
           <app-icon name="calendar_today"></app-icon>
-          <a [href]="'#/calendar/school/' + school.schoolId">Class Calendar</a>
+          <a class="subtle-button" [href]="'#/calendar/school/' + school.schoolId">Class Calendar</a>
         </div>
         }
       </div>

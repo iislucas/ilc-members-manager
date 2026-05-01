@@ -131,7 +131,7 @@
   } @else {
     <div class="event-cards">
       @for (ev of eventsList; track ev.docId || ev.sourceId) {
-        <a class="event-management-card event-card-link" [href]="editLink(ev)">
+        <a class="event-management-card event-card-link selectable-card" [href]="editLink(ev)" (click)="onCardClick($event)">
           <div class="event-card-header">
             <span class="status-chip" [class]="'status-' + ev.status">{{ ev.status }}</span>
             @if (ownerLabel(ev)) {

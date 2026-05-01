@@ -36,26 +36,26 @@
       @if (schoolLicenseDateMismatch(); as warning) {
         <span class="warning-message" style="font-size: small;">⚠ {{ warning }}</span>
       }
-      @if (owner(); as o) {
-        <div class="primary-instructor">
-          {{ o.name }}
-          @if (isOwnerLicenseExpired() !== ExpiryStatus.Valid) {
-            <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isOwnerLicenseExpired() === ExpiryStatus.Expired" style="margin-left: 8px;">
-              @if (isOwnerLicenseExpired() === ExpiryStatus.Recent) {
-                owner's instructor license recently expired
-              } @else {
-                owner's instructor license expired
-              }
-            </span>
-          }
-        </div>
-      }
-      <div class="city-or-country">
-        <span class="city">{{ s.schoolCity }}, </span>
-        @if (s.schoolCountyOrState) {
-          <span class="county-state">{{ s.schoolCountyOrState }}, </span>
+      <div class="school-header-details">
+        @if (owner(); as o) {
+          <div class="header-detail">
+            <app-icon name="person"></app-icon>
+            <a class="subtle-button" [href]="'#/members/' + o.docId">{{ o.name }}</a>
+            @if (isOwnerLicenseExpired() !== ExpiryStatus.Valid) {
+              <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isOwnerLicenseExpired() === ExpiryStatus.Expired">
+                @if (isOwnerLicenseExpired() === ExpiryStatus.Recent) {
+                  owner's license recently expired
+                } @else {
+                  owner's license expired
+                }
+              </span>
+            }
+          </div>
         }
-        <span class="country">{{ s.schoolCountry }}</span>
+        <div class="header-detail">
+          <app-icon name="location_on"></app-icon>
+          <span>@if (s.schoolCity) {{{ s.schoolCity }}@if (s.schoolCountyOrState || s.schoolCountry) {, }}@if (s.schoolCountyOrState) {{{ s.schoolCountyOrState }}@if (s.schoolCountry) {, }}@if (s.schoolCountry) {{{ s.schoolCountry }}}</span>
+        </div>
       </div>
     </div>
 

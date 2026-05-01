@@ -358,6 +358,27 @@ textarea:disabled {
 // ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
+//  Selectable Card Links
+//  Applied to <a> elements used as card containers in list views. Allows
+//  text selection by drag (desktop) or long-press (mobile) while still
+//  navigating on a clean click. Prevents the browser's default link-drag
+//  behavior that would otherwise block text selection.
+//
+//  Usage: add class="selectable-card" to the <a> element, then bind
+//  (click)="onCardClick($event)" with the shared handler that checks
+//  window.getSelection().
+//
+//  Currently used by: member-list, school-list, event-list.
+// ----------------------------------------------------------------------------
+
+a.selectable-card {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-user-drag: none;
+  cursor: pointer;
+}
+
+// ----------------------------------------------------------------------------
 //  Active Filter Chips
 //  Blue pill chips with a clear (X) button, used to show active filter
 //  state and let the user remove individual filters.

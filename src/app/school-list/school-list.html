@@ -8,13 +8,13 @@
     <div class="search-header">
       <div class="search-box">
         <app-icon class="search-icon" name="search"></app-icon>
-          <input
-            id="search-input"
-            type="text"
-            [value]="searchTerm()"
-            placeholder="Search schools by name, ID, city or country..."
-            (input)="onSearch($event)"
-          />
+        <input
+          id="search-input"
+          type="text"
+          [value]="searchTerm()"
+          placeholder="Search schools by name, ID, city or country..."
+          (input)="onSearch($event)"
+        />
       </div>
       @if (u.isAdmin) {
         <button (click)="onNewSchool()">New School</button>
@@ -56,18 +56,24 @@
     }
     <div class="results-container">
       @for (school of schools(); track school.docId) {
-        <a class="school-card" [href]="editLink(school)">
+        <a
+          class="school-card selectable-card"
+          [href]="editLink(school)"
+          (click)="onCardClick($event)"
+        >
           <div class="school-header">
             <div class="school-header-row">
-              <h3>{{ school.schoolName || '[Name needs to be entered]' }}</h3>
+              <h3>{{ school.schoolName || "[Name needs to be entered]" }}</h3>
               @if (school.schoolId) {
                 <span class="school-id-chip">{{ school.schoolId }}</span>
               }
               @let licenseStatus = schoolLicenseStatus(school);
               @if (licenseStatus !== ExpiryStatus.Valid) {
-                <span class="identifier-chip"
+                <span
+                  class="identifier-chip"
                   [class.expired-recent]="licenseStatus === ExpiryStatus.Recent"
-                  [class.expired-old]="licenseStatus === ExpiryStatus.Expired">
+                  [class.expired-old]="licenseStatus === ExpiryStatus.Expired"
+                >
                   @if (licenseStatus === ExpiryStatus.Recent) {
                     recently expired
                   } @else {
@@ -76,26 +82,69 @@
                 </span>
               }
             </div>
-            <div class="school-location">@if (school.schoolCity) {{{ school.schoolCity }}@if (school.schoolCountyOrState || school.schoolCountry) {, }}@if (school.schoolCountyOrState) {{{ school.schoolCountyOrState }}@if (school.schoolCountry) {, }}@if (school.schoolCountry) {{{ school.schoolCountry }}}</div>
+            <div class="school-location">
+              @if (school.schoolCity) {
+                {{ school.schoolCity }}
+                @if (school.schoolCountyOrState || school.schoolCountry) {
+                  ,
+                }
+              }
+              @if (school.schoolCountyOrState) {
+                {{ school.schoolCountyOrState }}
+                @if (school.schoolCountry) {
+                  ,
+                }
+              }
+              @if (school.schoolCountry) {
+                {{ school.schoolCountry }}
+              }
+            </div>
           </div>
 
           <div class="school-details">
             @if (school.schoolWebsite) {
               <div class="detail-row">
                 <app-icon name="link"></app-icon>
-                <span>{{ school.schoolWebsite }}</span>
+                <a
+                  [href]="ensureHttps(school.schoolWebsite)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  (click)="$event.stopPropagation()"
+                  >{{ school.schoolWebsite }}</a
+                >
               </div>
             }
-            @if (ownerLabel(school)) {
-              <div class="detail-row">
-                <app-icon name="person"></app-icon>
-                <span>School Owner: {{ ownerLabel(school) }}</span>
-              </div>
+            @if (school.ownerInstructorId) {
+              @if (
+                membersService.instructors.get(school.ownerInstructorId);
+                as owner
+              ) {
+                <div class="detail-row">
+                  <app-icon name="person"></app-icon>
+                  <span
+                    >Owner:
+                    <a
+                      class="subtle-button"
+                      [href]="
+                        '#/find-an-instructor?instructorId=' +
+                        school.ownerInstructorId
+                      "
+                      (click)="$event.stopPropagation()"
+                      >{{ owner.name }}</a
+                    ></span
+                  >
+                </div>
+              }
             }
             @if (school.schoolClassGoogleCalendarId) {
               <div class="detail-row">
                 <app-icon name="calendar_today"></app-icon>
-                <span>Class Calendar</span>
+                <a
+                  class="subtle-button"
+                  [href]="'#/calendar/school/' + school.schoolId"
+                  (click)="$event.stopPropagation()"
+                  >Class Calendar</a
+                >
               </div>
             }
           </div>

@@ -27,7 +27,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 export class SchoolListComponent {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   stateService = inject(FirebaseStateService);
-  private dataManager = inject(DataManagerService);
+  membersService = inject(DataManagerService);
 
   // Constants
   ExpiryStatus = ExpiryStatus;
@@ -46,7 +46,7 @@ export class SchoolListComponent {
   // Expose signals from the service to the template
   @Input() schoolSet: SearchableSet<'schoolId', School> | null = null;
 
-  targetSchoolSet = computed<SearchableSet<'schoolId', School>>(() => this.schoolSet || this.dataManager.schools);
+  targetSchoolSet = computed<SearchableSet<'schoolId', School>>(() => this.schoolSet || this.membersService.schools);
 
   limit = signal(50);
   schools = computed(() => {
@@ -88,11 +88,12 @@ export class SchoolListComponent {
   }
 
 
-  // Resolve the owner instructor to a display name.
-  ownerLabel(school: School): string {
-    if (!school.ownerInstructorId) return '';
-    const owner = this.dataManager.instructors.get(school.ownerInstructorId);
-    return owner?.name || '';
+  // Ensure a URL has a protocol prefix.
+  ensureHttps(url: string): string {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return 'https://' + url;
+    }
+    return url;
   }
 
   // Check school license expiry status.
@@ -112,6 +113,14 @@ export class SchoolListComponent {
       this.routingService.navigateTo('/my-schools/new/edit');
     } else {
       this.routingService.navigateTo('/schools/new/edit');
+    }
+  }
+
+  // Prevent navigation when the user is selecting text by drag.
+  onCardClick(event: MouseEvent) {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      event.preventDefault();
     }
   }
 }

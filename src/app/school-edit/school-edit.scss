@@ -37,6 +37,32 @@
   font-size: 1.1em;
 }
 
+.school-header-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em 1.5em;
+  margin-top: 0.3em;
+
+  .header-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    color: v.$text-secondary;
+    font-size: 0.9em;
+
+    app-icon {
+      width: 18px;
+      height: 18px;
+      color: v.$text-placeholder;
+    }
+
+    .subtle-button {
+      padding: 0.1em 0.3em;
+      font-size: inherit;
+    }
+  }
+}
+
 .member-details {
   font-size: small;
 }

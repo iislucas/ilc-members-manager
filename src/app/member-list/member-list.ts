@@ -399,4 +399,12 @@ export class MemberListComponent {
     return MemberListComponent.INACTIVE_TYPES.includes(member.membershipType);
   }
 
+  // Prevent navigation when the user is selecting text by drag.
+  onCardClick(event: MouseEvent) {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      event.preventDefault();
+    }
+  }
+
 }

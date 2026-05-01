@@ -220,6 +220,64 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 > [!IMPORTANT]
 > If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
 
+### Links
+
+The app enforces a **strict visual distinction** between external and internal links:
+
+| Link Type | Visual Style | Implementation |
+| --- | --- | --- |
+| **External** (leaves the site) | Standard blue underlined text | Plain `<a href="https://..." target="_blank">` — browser-default or `color: blue; text-decoration: underline` |
+| **Internal** (navigates within the app) | Button or subtle-button look | Use `.subtle-button`, `.icon-only-button`, `.inline-link-button`, or a card-like pattern — **never** blue underlined text |
+
+> [!CAUTION]
+> **Blue underlined text must NEVER be used for links that navigate within the app.** Internal links should always look like buttons, subtle-buttons, or card/chip affordances — not like traditional web hyperlinks.
+
+#### External links (leave the site)
+
+These are standard HTML anchor tags. They should look like classic blue underlined text so the user immediately recognises they are leaving the app.
+
+```html
+<!-- External website -->
+<a href="https://iliqchuan.com" target="_blank" rel="noopener noreferrer">iliqchuan.com</a>
+
+<!-- Email / phone (also "external") -->
+<a [href]="'mailto:' + email">{{ email }}</a>
+<a [href]="'tel:' + phone">{{ phone }}</a>
+```
+
+External links include: `https://...`, `mailto:`, `tel:`, download URLs, and links to static pages like `/tos.html` or `/privacy.html`.
+
+#### Internal links (navigate within the app)
+
+These use `#/...` hash-based routes. Always apply a button-style class:
+
+```html
+<!-- Back / navigation link -->
+<a class="subtle-button" [href]="routingService.hrefWithParams('members')">
+  <app-icon name="arrow_back" /> Back to Members
+</a>
+
+<!-- Inline icon link (e.g. "view profile" button) -->
+<a class="icon-only-button" [href]="'#/members/' + docId" title="View profile">
+  <app-icon name="visibility" />
+</a>
+
+<!-- Inline text link in a sentence (e.g. duplicate warning) -->
+<a class="inline-link-button" href="#/members/{{ docId }}">{{ name }}</a>
+
+<!-- Card-as-link (list rows) -->
+<a class="member-card selectable-card" [href]="memberLink(member)">
+  ...
+</a>
+```
+
+**Quick decision guide:**
+
+- Is it a full row / card the user clicks? → Use a card class (e.g. `.member-card`, `.school-card`, `.selectable-card`)
+- Is it a navigation action (back, view, go-to)? → `.subtle-button`
+- Is it an inline icon action? → `.icon-only-button`
+- Is it an inline text reference inside a sentence? → `.inline-link-button`
+
 ### Cards
 
 Use the `.card` class from `styles.scss` — it provides `$theme-bg-color` background, `$theme-border-color` border, rounded corners, and flex-column layout. Do not redefine card styles locally.
