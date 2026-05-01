@@ -2,6 +2,12 @@
 
 .event-item-layout {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-row {
+  display: flex;
   flex-direction: row;
   gap: 1rem;
   align-items: start;
@@ -63,6 +69,7 @@ a {
 .subtitle-group {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   justify-content: start;
   align-items: center;
   gap: 0.5rem;

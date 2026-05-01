@@ -59,7 +59,7 @@ export async function assignNextMemberId(
       COUNTERS_MIN_DEFAULT,
     );
     counters.memberIdCounters[countryCode.toUpperCase()] = nextId;
-    transaction.set(countersRef, counters);
+    transaction.set(countersRef, counters, { merge: true });
     return nextId;
   });
   return `${countryCode.toUpperCase()}${newId}`;
@@ -95,7 +95,7 @@ async function nextInstructorIdHelper(request: CallableRequest<unknown>) {
         COUNTERS_MIN_DEFAULT,
       );
       counters.instructorIdCounter = nextId;
-      transaction.set(countersRef, counters);
+      transaction.set(countersRef, counters, { merge: true });
       return nextId;
     });
     return { newId };
@@ -119,7 +119,7 @@ async function nextSchoolIdHelper(request: CallableRequest<unknown>) {
         COUNTERS_MIN_DEFAULT,
       );
       counters.schoolIdCounter = nextId;
-      transaction.set(countersRef, counters);
+      transaction.set(countersRef, counters, { merge: true });
       return nextId;
     });
     return { newId: `SCH-${newId}` };
@@ -206,7 +206,7 @@ export const updateCounters = onCall<
       }
 
       if (changed) {
-        transaction.set(countersRef, counters);
+        transaction.set(countersRef, counters, { merge: true });
       }
     });
   } catch (e) {
@@ -310,7 +310,7 @@ export async function ensureCountersAreAtLeast(member: Member) {
       }
 
       if (changed) {
-        transaction.set(countersRef, counters);
+        transaction.set(countersRef, counters, { merge: true });
       }
     });
   } catch (e) {
@@ -342,7 +342,7 @@ export async function ensureSchoolCountersAreAtLeast(school: School) {
       }
 
       if (changed) {
-        transaction.set(countersRef, counters);
+        transaction.set(countersRef, counters, { merge: true });
       }
     });
   } catch (e) {

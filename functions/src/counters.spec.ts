@@ -125,7 +125,8 @@ describe('Counters', () => {
                 expect.any(Object),
                 expect.objectContaining({
                     memberIdCounters: { 'US': 101 } // 100 + 1
-                })
+                }),
+                { merge: true }
             );
         });
 
@@ -147,7 +148,8 @@ describe('Counters', () => {
                 expect.any(Object),
                 expect.objectContaining({
                     instructorIdCounter: 101
-                })
+                }),
+                { merge: true }
             );
         });
 
@@ -208,7 +210,8 @@ describe('Counters', () => {
                 expect.any(Object),
                 expect.objectContaining({
                     schoolIdCounter: 101 // 100 + 1
-                })
+                }),
+                { merge: true }
             );
         });
 

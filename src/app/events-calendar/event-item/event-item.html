@@ -1,14 +1,14 @@
 <div class="event-item-layout">
-  @if (event().heroImageThumbUrl || event().heroImageUrl) {
-    <div class="event-image-container">
-      <img [src]="event().heroImageThumbUrl || event().heroImageUrl" alt="Event Image" class="event-image" />
-    </div>
-  }
-  <div class="event-content">
-    <div class="card-header">
-      <div class="card-title">
-        <div class="title-text">{{ event().title }}</div>
+  <div class="card-title">
+    <div class="title-text">{{ event().title }}</div>
+  </div>
+  <div class="detail-row">
+    @if (event().heroImageThumbUrl || event().heroImageUrl) {
+      <div class="event-image-container">
+        <img [src]="event().heroImageThumbUrl || event().heroImageUrl" alt="Event Image" class="event-image" />
       </div>
+    }
+    <div class="event-content">
       <div class="card-subtitle">
         <div class="subtitle-group">
           <!-- date & icon link to cal -->
@@ -40,11 +40,11 @@
                   rel="noopener noreferrer"
                   title="View on Google Maps"
                 >
-                  <app-icon name="map"></app-icon>
+                  <app-icon name="location_on"></app-icon>
                 </a>
               } @else {
                 <span class="icon-only-button">
-                  <app-icon name="map"></app-icon>
+                  <app-icon name="location_on"></app-icon>
                 </span>
               }
               <span class="detail-text">{{ event().location }}</span>
@@ -68,4 +68,6 @@
     </div>
   </div>
 </div>
+
+
 

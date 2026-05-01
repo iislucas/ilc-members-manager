@@ -664,7 +664,11 @@ export class DataManagerService {
         if (doc.exists()) {
           this.counters.set(doc.data() as Counters);
         } else {
-          setDoc(countersRef, {
+          // Don't write to Firestore here — creating/resetting counters is an
+          // admin-only operation. Just provide a local default so the UI
+          // doesn't hang.
+          console.warn('system/counters document does not exist.');
+          this.counters.set({
             memberIdCounters: {},
             instructorIdCounter: 100,
             schoolIdCounter: 100,
@@ -672,7 +676,7 @@ export class DataManagerService {
         }
       }, (error) => {
         console.error('Error fetching counters:', error);
-        // Counters is a regular signal, not a SearchableSet, but we could handle the error somehow, 
+        // Counters is a regular signal, not a SearchableSet, but we could handle the error somehow,
         // e.g. setting an error symbol or empty counters if needed to avoid hanging.
       }),
     );

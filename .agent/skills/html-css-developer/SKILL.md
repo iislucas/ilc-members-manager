@@ -214,7 +214,7 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 | `.icon-only-button` | Circular, transparent, icon-only | Dismiss, toggle, inline actions |
 | `.round-button` | Fully circular with padding | Floating actions |
 | `.delete-button` | Neutral by default, red on hover | Destructive actions |
-| `.inline-link-button` | Looks like a text link | Inline text links that are buttons |
+| `.inline-link-button` | Looks like a dark text link (underlined) | Inline internal text references in sentences |
 | `.subtle-button` | Transparent with soft hover | Back/navigation, secondary actions |
 
 > [!IMPORTANT]
@@ -226,15 +226,15 @@ The app enforces a **strict visual distinction** between external and internal l
 
 | Link Type | Visual Style | Implementation |
 | --- | --- | --- |
-| **External** (leaves the site) | Standard blue underlined text | Plain `<a href="https://..." target="_blank">` — browser-default or `color: blue; text-decoration: underline` |
-| **Internal** (navigates within the app) | Button or subtle-button look | Use `.subtle-button`, `.icon-only-button`, `.inline-link-button`, or a card-like pattern — **never** blue underlined text |
+| **External** (leaves the site) | **Blue** underlined text | Plain `<a href="https://..." target="_blank">` — browser-default or `color: blue; text-decoration: underline` |
+| **Internal** (navigates within the app) | Button/subtle-button, or **black** underline | Use `.subtle-button`, `.icon-only-button`, `.inline-link-button`, or a card-like pattern |
 
 > [!CAUTION]
-> **Blue underlined text must NEVER be used for links that navigate within the app.** Internal links should always look like buttons, subtle-buttons, or card/chip affordances — not like traditional web hyperlinks.
+> **Blue text must NEVER be used for links that navigate within the app.** Blue underlined text is reserved exclusively for external links. Internal links should use buttons, subtle-buttons, card/chip affordances, or black underlined text (`.inline-link-button`).
 
 #### External links (leave the site)
 
-These are standard HTML anchor tags. They should look like classic blue underlined text so the user immediately recognises they are leaving the app.
+These are standard HTML anchor tags. They should look like classic **blue** underlined text so the user immediately recognises they are leaving the app.
 
 ```html
 <!-- External website -->
@@ -249,7 +249,7 @@ External links include: `https://...`, `mailto:`, `tel:`, download URLs, and lin
 
 #### Internal links (navigate within the app)
 
-These use `#/...` hash-based routes. Always apply a button-style class:
+These use `#/...` hash-based routes. Always apply a button-style class, or use `.inline-link-button` (black underline) for inline text references:
 
 ```html
 <!-- Back / navigation link -->
@@ -262,7 +262,7 @@ These use `#/...` hash-based routes. Always apply a button-style class:
   <app-icon name="visibility" />
 </a>
 
-<!-- Inline text link in a sentence (e.g. duplicate warning) -->
+<!-- Inline text reference in a sentence (black underline, NOT blue) -->
 <a class="inline-link-button" href="#/members/{{ docId }}">{{ name }}</a>
 
 <!-- Card-as-link (list rows) -->
@@ -276,7 +276,7 @@ These use `#/...` hash-based routes. Always apply a button-style class:
 - Is it a full row / card the user clicks? → Use a card class (e.g. `.member-card`, `.school-card`, `.selectable-card`)
 - Is it a navigation action (back, view, go-to)? → `.subtle-button`
 - Is it an inline icon action? → `.icon-only-button`
-- Is it an inline text reference inside a sentence? → `.inline-link-button`
+- Is it an inline text reference inside a sentence? → `.inline-link-button` (black underline, never blue)
 
 ### Cards
 
