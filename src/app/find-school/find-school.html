@@ -13,12 +13,23 @@
     <div class="school-card">
       <div class="school-header">
         <div class="school-header-row">
-          <h3>{{ school.schoolName }}</h3>
           @if (school.schoolId) {
             <span class="school-id-chip">{{ school.schoolId }}</span>
           }
+          <h3>{{ school.schoolName }}</h3>
         </div>
-        <div class="school-location">@if (school.schoolCity) {{{ school.schoolCity }}@if (school.schoolCountyOrState || school.schoolCountry) {, }}@if (school.schoolCountyOrState) {{{ school.schoolCountyOrState }}@if (school.schoolCountry) {, }}@if (school.schoolCountry) {{{ school.schoolCountry }}}</div>
+        <div class="school-header-details">
+          @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
+            <div class="header-detail">
+              <app-icon name="person"></app-icon>
+              <a class="subtle-button" [href]="'#/find-an-instructor?instructorId=' + school.ownerInstructorId">{{ owner.name }}</a>
+            </div>
+          }
+          <div class="header-detail">
+            <app-icon name="location_on"></app-icon>
+            <span>@if (school.schoolCity) {{{ school.schoolCity }}@if (school.schoolCountyOrState || school.schoolCountry) {, }}@if (school.schoolCountyOrState) {{{ school.schoolCountyOrState }}@if (school.schoolCountry) {, }}@if (school.schoolCountry) {{{ school.schoolCountry }}}</span>
+          </div>
+        </div>
       </div>
 
       <div class="school-details">
@@ -26,13 +37,6 @@
         <div class="detail-row">
           <app-icon name="link"></app-icon>
           <a [href]="ensureHttps(school.schoolWebsite)" target="_blank" rel="noopener noreferrer">{{ school.schoolWebsite }}</a>
-        </div>
-        }
-
-        @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
-        <div class="detail-row">
-          <app-icon name="person"></app-icon>
-          <span>School Owner: <a class="subtle-button" [href]="'#/find-an-instructor?instructorId=' + school.ownerInstructorId">{{ owner.name }}</a></span>
         </div>
         }
 
