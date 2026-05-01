@@ -73,7 +73,69 @@ async function updateACL(aclUpdate: {
   }
 }
 
-async function refreshACLAdminStatus(email: string) {
+// Returns the membership expiry string for a member profile:
+// "life" for Life members, the YYYY-MM-DD expiry date for Annual,
+// or "" for anything else (Inactive, Deceased, NotYetAMember, etc.).
+function getMembershipExpiry(data: FirebaseFirestore.DocumentData): string {
+  const type = data.membershipType;
+  if (type === 'Life') return 'life';
+  if (type === 'Annual') return data.currentMembershipExpires || '';
+  return '';
+}
+
+// Returns the instructor license expiry string for a member profile:
+// "life" for Life license, the YYYY-MM-DD expiry date for Annual,
+// or "" if not an instructor or no license.
+function getInstructorLicenseExpiry(data: FirebaseFirestore.DocumentData): string {
+  if (!data.instructorId) return '';
+  const type = data.instructorLicenseType;
+  if (type === 'Life') return 'life';
+  if (type === 'Annual') return data.instructorLicenseExpires || '';
+  return '';
+}
+
+// Returns the "best" (latest / most permissive) expiry across values.
+// "life" always wins, then the latest YYYY-MM-DD string, then "".
+export function bestExpiry(values: string[]): string {
+  let best = '';
+  for (const v of values) {
+    if (v === 'life') return 'life';
+    // YYYY-MM-DD strings sort lexicographically by date, so > works.
+    if (v && v > best) best = v;
+  }
+  return best;
+}
+
+// Returns the best school license expiry across all schools the user
+// owns or manages, identified by their instructorIds.
+async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> {
+  const validIds = instructorIds.filter(id => !!id);
+  if (validIds.length === 0) return '';
+
+  const expiries: string[] = [];
+
+  // Query schools where this user is the owner.
+  for (const instId of validIds) {
+    const ownerSnap = await db.collection('schools')
+      .where('ownerInstructorId', '==', instId).get();
+    for (const doc of ownerSnap.docs) {
+      expiries.push(doc.data().schoolLicenseExpires || '');
+    }
+  }
+
+  // Query schools where this user is a manager.
+  for (const instId of validIds) {
+    const managerSnap = await db.collection('schools')
+      .where('managerInstructorIds', 'array-contains', instId).get();
+    for (const doc of managerSnap.docs) {
+      expiries.push(doc.data().schoolLicenseExpires || '');
+    }
+  }
+
+  return bestExpiry(expiries);
+}
+
+export async function refreshACLAdminStatus(email: string) {
   const aclRef = db.collection('acl').doc(email);
   const aclSnap = await aclRef.get();
 
@@ -103,20 +165,32 @@ async function refreshACLAdminStatus(email: string) {
       snap.exists && snap.data()?.membershipType !== 'NotYetAMember',
   );
 
+  // Compute the best (latest / most permissive) expiry dates across
+  // all linked member profiles.
+  const membershipExpiries: string[] = [];
+  const instructorExpiries: string[] = [];
   const newInstructorIds = new Set<string>();
+
   for (const snap of memberSnaps) {
-    if (snap.exists) {
-      const instId = snap.data()?.instructorId;
-      if (instId) {
-        newInstructorIds.add(instId);
-      }
+    if (!snap.exists) continue;
+    const d = snap.data()!;
+    membershipExpiries.push(getMembershipExpiry(d));
+    instructorExpiries.push(getInstructorLicenseExpiry(d));
+    if (d.instructorId) {
+      newInstructorIds.add(d.instructorId);
     }
   }
+
+  // Look up school license expiry for all instructor IDs this user has.
+  const schoolLicenseExpires = await getSchoolLicenseExpiry(Array.from(newInstructorIds));
 
   await aclRef.update({
     isAdmin: anyAdmin,
     instructorIds: Array.from(newInstructorIds),
     notYetLinkedToMember: !anyFullMember,
+    membershipExpires: bestExpiry(membershipExpiries),
+    instructorLicenseExpires: bestExpiry(instructorExpiries),
+    schoolLicenseExpires,
   });
 }
 

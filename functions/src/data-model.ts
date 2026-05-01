@@ -203,6 +203,36 @@ export enum InstructorLicenseType {
   Life = 'Life',
 }
 
+/** Access level tiers for resource uploads, matching storage directory names. */
+export enum ResourceAccessLevel {
+  Public = 'public',
+  Members = 'members',
+  Instructors = 'instructors',
+  SchoolOwners = 'school-owners',
+  Admins = 'admins',
+}
+
+/** All resource access levels in order from most to least permissive. */
+export const RESOURCE_ACCESS_LEVELS = Object.values(ResourceAccessLevel);
+
+/** Human-readable labels for each access level. */
+export const ACCESS_LEVEL_LABELS: Record<ResourceAccessLevel, string> = {
+  [ResourceAccessLevel.Public]: 'Public',
+  [ResourceAccessLevel.Members]: 'Members',
+  [ResourceAccessLevel.Instructors]: 'Instructors',
+  [ResourceAccessLevel.SchoolOwners]: 'School Owners',
+  [ResourceAccessLevel.Admins]: 'Admins',
+};
+
+/** Short descriptions for each access level. */
+export const ACCESS_LEVEL_DESCRIPTIONS: Record<ResourceAccessLevel, string> = {
+  [ResourceAccessLevel.Public]: 'Anyone can view, no login required',
+  [ResourceAccessLevel.Members]: 'Active members only',
+  [ResourceAccessLevel.Instructors]: 'Licensed instructors and admins only',
+  [ResourceAccessLevel.SchoolOwners]: 'School owners/managers and admins',
+  [ResourceAccessLevel.Admins]: 'Admins only',
+};
+
 export enum MasterLevel {
   Good = 'Good Hands',
   Wonder = 'Wonder Hands',
@@ -769,10 +799,26 @@ export function initInstructor(): InstructorPublicData {
 // ==================================================================
 // Firestore path: /acl/{email}
 // Maps an email to the member IDs it is allowed to manage.
+// The expiry date fields are computed by the on-member-update and
+// on-school-update triggers, and checked by Firebase Storage rules
+// for resource access control.
+// Values: "life" (never expires), "YYYY-MM-DD" (expiry date), or "" / undefined (no membership).
 export type ACL = {
   memberDocIds: string[];
   instructorIds: string[];
   isAdmin: boolean;
+  // The latest membership expiry date across all linked member profiles.
+  // "life" if any profile has Life membership, "YYYY-MM-DD" for the
+  // furthest Annual expiry, or "" if no active membership.
+  membershipExpires: string;
+  // The latest instructor license expiry date across all linked profiles.
+  // "life" if any profile has Life license, "YYYY-MM-DD" for the
+  // furthest Annual expiry, or "" if not an instructor.
+  instructorLicenseExpires: string;
+  // The latest school license expiry date across all schools this user
+  // owns or manages (matched by instructorId). "YYYY-MM-DD" for the
+  // furthest expiry, or "" if not a school owner/manager.
+  schoolLicenseExpires: string;
 };
 
 export type ACLFirebaseDoc = ACL;

@@ -1,8 +1,16 @@
 /* resources.ts
  *
  * Cloud functions for managing resource files (PDFs, etc.) stored in
- * Firebase Storage under the `resources/` prefix. Provides listing with
- * signed download URLs and deletion. Both operations are admin-only.
+ * Firebase Storage under the `resources/` prefix. Files are organised
+ * into subdirectories by access level:
+ *   resources/public/     — readable by anyone
+ *   resources/members/    — readable by authenticated users
+ *   resources/instructors/ — readable by instructors and admins
+ *   resources/school-owners/ — readable by school owners/managers and admins
+ *   resources/admins/     — readable by admins only
+ *
+ * Provides listing with signed download URLs and deletion. Both
+ * operations are admin-only.
  *
  * Follows the same pattern as backup.ts for listing Storage files.
  */
@@ -11,6 +19,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
+import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS } from './data-model';
 
 export interface ResourceFileInfo {
   name: string;
@@ -19,6 +28,27 @@ export interface ResourceFileInfo {
   timeCreated: string;
   size: string;
   downloadUrl: string;
+  accessLevel: ResourceAccessLevel;
+}
+
+// Extracts the access level from a storage path like `resources/members/file.pdf`.
+// Returns undefined if the path doesn't match an expected access level.
+function extractAccessLevel(filePath: string): ResourceAccessLevel | undefined {
+  const parts = filePath.split('/');
+  if (parts.length < 3 || parts[0] !== 'resources') return undefined;
+  const level = parts[1] as ResourceAccessLevel;
+  if (RESOURCE_ACCESS_LEVELS.includes(level)) return level;
+  return undefined;
+}
+
+// Strips the `resources/{accessLevel}/` prefix for display.
+function displayName(filePath: string): string {
+  const parts = filePath.split('/');
+  if (parts.length >= 3 && parts[0] === 'resources') {
+    return parts.slice(2).join('/');
+  }
+  // Legacy fallback: strip just `resources/`.
+  return filePath.replace(/^resources\//, '');
 }
 
 // Callable Cloud Function to list available resource files with download URLs.
@@ -34,8 +64,10 @@ export const listResources = onCall(
 
       const fileList: ResourceFileInfo[] = await Promise.all(
         files
-          // Exclude the directory placeholder itself (if any).
-          .filter((f) => f.name !== 'resources/')
+          // Exclude directory placeholders (paths ending with `/`).
+          .filter((f) => !f.name.endsWith('/'))
+          // Only include files in known access-level subdirectories.
+          .filter((f) => extractAccessLevel(f.name) !== undefined)
           .map(async (file) => {
             const [metadata] = await file.getMetadata();
 
@@ -46,16 +78,14 @@ export const listResources = onCall(
               expires: Date.now() + 60 * 60 * 1000,
             });
 
-            // Strip the `resources/` prefix for display.
-            const displayName = file.name.replace(/^resources\//, '');
-
             return {
-              name: displayName,
+              name: displayName(file.name),
               fullPath: file.name,
               contentType: (metadata.contentType as string) || 'application/octet-stream',
               timeCreated: (metadata.timeCreated as string) || '',
               size: String(metadata.size || '0'),
               downloadUrl: url,
+              accessLevel: extractAccessLevel(file.name)!,
             };
           })
       );
@@ -83,6 +113,11 @@ export const deleteResource = onCall(
     const data = request.data as { fullPath?: string };
     if (!data.fullPath || !data.fullPath.startsWith('resources/')) {
       throw new HttpsError('invalid-argument', 'A valid resource file path is required.');
+    }
+
+    // Validate that the path is within a known access-level subdirectory.
+    if (extractAccessLevel(data.fullPath) === undefined) {
+      throw new HttpsError('invalid-argument', 'Resource path must be within a valid access-level subdirectory.');
     }
 
     try {

@@ -50,6 +50,7 @@ import {
   IlcEvent,
   EventStatus,
   initEvent,
+  ResourceAccessLevel,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -1271,7 +1272,7 @@ export class DataManagerService {
   async listResources() {
     const listResourcesFn = httpsCallable<
       undefined,
-      { resources: { name: string; fullPath: string; contentType: string; timeCreated: string; size: string; downloadUrl: string }[] }
+      { resources: { name: string; fullPath: string; contentType: string; timeCreated: string; size: string; downloadUrl: string; accessLevel: ResourceAccessLevel }[] }
     >(this.functions, 'listResources');
     const result = await listResourcesFn();
     return result.data.resources;

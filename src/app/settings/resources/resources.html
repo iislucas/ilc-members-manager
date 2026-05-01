@@ -18,28 +18,41 @@
         <p>Select one or more files to upload to the shared resources area.</p>
       </div>
     </div>
-    <div class="card-action">
-      @if (isUploading()) {
-      <div class="spinner-wrapper">
-        <app-spinner></app-spinner>
-        <span>Uploading...</span>
+    <div class="card-controls">
+      <div class="access-level-selector">
+        <label for="access-level-select">Access Level</label>
+        <select id="access-level-select" (change)="onAccessLevelChange($event)" [value]="selectedAccessLevel()">
+          @for (level of accessLevels; track level) {
+            <option [value]="level" [selected]="level === selectedAccessLevel()">
+              {{ accessLevelLabels[level] }}
+            </option>
+          }
+        </select>
+        <span class="access-description">{{ accessLevelDescriptions[selectedAccessLevel()] }}</span>
       </div>
-      } @else {
-      <label class="action-button primary-action upload-label" for="resource-file-input">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 12 3 7 8"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-        Choose Files
-      </label>
-      <input
-        id="resource-file-input"
-        type="file"
-        multiple
-        class="file-input-hidden"
-        (change)="onFileSelected($event)" />
-      }
+      <div class="card-action">
+        @if (isUploading()) {
+        <div class="spinner-wrapper">
+          <app-spinner></app-spinner>
+          <span>Uploading...</span>
+        </div>
+        } @else {
+        <label class="action-button primary-action upload-label" for="resource-file-input">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Choose Files
+        </label>
+        <input
+          id="resource-file-input"
+          type="file"
+          multiple
+          class="file-input-hidden"
+          (change)="onFileSelected($event)" />
+        }
+      </div>
     </div>
   </div>
 
@@ -93,6 +106,7 @@
         <thead>
           <tr>
             <th>File Name</th>
+            <th>Access</th>
             <th>Type</th>
             <th>Uploaded</th>
             <th>Size</th>
@@ -105,6 +119,11 @@
             <td class="file-name-cell">
               <span class="file-type-indicator" [class]="fileTypeClass(resource.contentType)"></span>
               {{ resource.name }}
+            </td>
+            <td class="access-cell">
+              <span class="access-chip" [class]="accessLevelClass(resource.accessLevel)">
+                {{ accessLabel(resource.accessLevel) }}
+              </span>
             </td>
             <td class="type-cell">
               <span class="type-badge">{{ resource.contentType }}</span>
@@ -122,7 +141,7 @@
                 </svg>
                 Download
               </a>
-              <button class="delete-button" (click)="deleteFile(resource)" title="Delete">
+              <button class="delete-button" (click)="deleteResource(resource)" title="Delete">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

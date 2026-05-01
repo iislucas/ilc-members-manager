@@ -1,7 +1,7 @@
 /* Styles for the Resources settings tab.
  * Reuses the parent settings.component.scss patterns (control-panel,
- * action-button, etc.) and adds resource-specific styling for upload
- * and file type indicators.
+ * action-button, etc.) and adds resource-specific styling for upload,
+ * access level selection, and file type indicators.
  */
 
 .file-input-hidden {
@@ -22,7 +22,7 @@
   padding: 1.25rem;
   margin-bottom: 1.5rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
@@ -56,8 +56,52 @@
     }
   }
 
+  .card-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
   .card-action {
     flex-shrink: 0;
+  }
+}
+
+.access-level-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: var(--muted-text-color, #6b7280);
+  }
+
+  select {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background-color: white;
+    cursor: pointer;
+    min-width: 140px;
+    transition: border-color 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color, #2563eb);
+    }
+  }
+
+  .access-description {
+    font-size: 0.75rem;
+    color: var(--muted-text-color, #6b7280);
+    font-style: italic;
   }
 }
 
@@ -185,6 +229,54 @@
 
   &.file-generic {
     background-color: #9ca3af;
+  }
+}
+
+// Access level chips — colour-coded to visually distinguish permission tiers.
+.access-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &.access-public {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  &.access-members {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  &.access-instructors {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  &.access-school-owners {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #e9d5ff;
+  }
+
+  &.access-admins {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  &.access-unknown {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
   }
 }
 
@@ -329,5 +421,21 @@
   p {
     margin: 0;
     font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .upload-card {
+    flex-direction: column;
+    align-items: stretch;
+
+    .card-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  .access-level-selector select {
+    width: 100%;
   }
 }

@@ -6,7 +6,7 @@
  *
  * Usage:
  *   cd functions
- *   pnpm exec ts-node scripts/check-recent-members.ts [--days 60] [--project prod]
+ *   pnpm exec ts-node scripts/check-recent-members.ts [--days 60] [--project <PROJECT_ID>]
  */
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
@@ -16,8 +16,7 @@ import { Member } from '../src/data-model';
 const argv = yargs(hideBin(process.argv))
   .option('project', {
     type: 'string',
-    default: 'prod',
-    describe: 'Firebase project alias: prod or dev',
+    description: 'Firebase Project ID',
   })
   .option('days', {
     type: 'number',
@@ -27,9 +26,11 @@ const argv = yargs(hideBin(process.argv))
   .parseSync();
 
 const projectId =
-  argv.project === 'dev' ? 'ilc-class-tracker-dev' : 'ilc-paris-class-tracker';
+  argv.project ||
+  process.env.GCLOUD_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT;
 
-admin.initializeApp({ projectId });
+admin.initializeApp(projectId ? { projectId } : undefined);
 const db = admin.firestore();
 
 async function main() {

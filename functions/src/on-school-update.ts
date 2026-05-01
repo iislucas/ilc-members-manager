@@ -6,6 +6,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { School } from './data-model';
 import { ensureSchoolCountersAreAtLeast } from './counters';
+import { refreshACLAdminStatus } from './on-member-update';
 
 const db = admin.firestore();
 
@@ -102,15 +103,36 @@ export const onSchoolUpdated = onDocumentUpdated(
     const schoolAfter = snap.after.data() as School;
     const schoolBefore = snap.before.data() as School;
 
-    if (schoolAfter.ownerInstructorId !== schoolBefore.ownerInstructorId ||
-      JSON.stringify(schoolAfter.managerInstructorIds) !== JSON.stringify(schoolBefore.managerInstructorIds) ||
-      !schoolAfter.ownerEmails ||
-        !schoolAfter.managerEmails) {
+    const ownershipChanged =
+      schoolAfter.ownerInstructorId !== schoolBefore.ownerInstructorId ||
+      JSON.stringify(schoolAfter.managerInstructorIds) !== JSON.stringify(schoolBefore.managerInstructorIds);
+
+    if (ownershipChanged || !schoolAfter.ownerEmails || !schoolAfter.managerEmails) {
       await updateSchoolEmails(snap.after.id, schoolAfter);
     }
 
     if (schoolAfter.schoolId !== schoolBefore.schoolId) {
       await ensureSchoolCountersAreAtLeast(schoolAfter);
+    }
+
+    // When school license expiry or ownership changes, refresh the
+    // ACLs of all affected owner/manager emails so their
+    // schoolLicenseExpires field stays in sync.
+    const licenseChanged =
+      schoolAfter.schoolLicenseExpires !== schoolBefore.schoolLicenseExpires;
+    if (licenseChanged || ownershipChanged) {
+      // Collect all emails that might be affected (before + after).
+      const affectedEmails = new Set<string>([
+        ...(schoolAfter.ownerEmails || []),
+        ...(schoolAfter.managerEmails || []),
+        ...(schoolBefore.ownerEmails || []),
+        ...(schoolBefore.managerEmails || []),
+      ]);
+      for (const email of affectedEmails) {
+        if (email) {
+          await refreshACLAdminStatus(email);
+        }
+      }
     }
   }
 );

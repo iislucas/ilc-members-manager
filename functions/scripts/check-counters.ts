@@ -11,12 +11,12 @@
  *
  * Usage:
  *   cd functions
- *   pnpm exec ts-node scripts/check-counters.ts [--project prod|dev] [--fix]
+ *   pnpm exec ts-node scripts/check-counters.ts [--project <PROJECT_ID>] [--fix]
  *
  * Examples:
- *   pnpm exec ts-node scripts/check-counters.ts              # check prod
- *   pnpm exec ts-node scripts/check-counters.ts --fix        # fix prod
- *   pnpm exec ts-node scripts/check-counters.ts --project dev --fix
+ *   pnpm exec ts-node scripts/check-counters.ts                                          # check (default credentials)
+ *   pnpm exec ts-node scripts/check-counters.ts --fix                                    # fix (default credentials)
+ *   pnpm exec ts-node scripts/check-counters.ts --project ilc-paris-class-tracker --fix   # fix prod
  */
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
@@ -33,8 +33,7 @@ const MINIMUM_COUNTER = 100;
 const argv = yargs(hideBin(process.argv))
   .option('project', {
     type: 'string',
-    default: 'prod',
-    describe: 'Firebase project alias: prod or dev',
+    description: 'Firebase Project ID',
   })
   .option('fix', {
     type: 'boolean',
@@ -44,9 +43,11 @@ const argv = yargs(hideBin(process.argv))
   .parseSync();
 
 const projectId =
-  argv.project === 'dev' ? 'ilc-class-tracker-dev' : 'ilc-paris-class-tracker';
+  argv.project ||
+  process.env.GCLOUD_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT;
 
-admin.initializeApp({ projectId });
+admin.initializeApp(projectId ? { projectId } : undefined);
 const db = admin.firestore();
 
 async function main() {

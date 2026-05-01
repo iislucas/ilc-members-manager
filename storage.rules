@@ -24,10 +24,70 @@ service firebase.storage {
       );
     }
 
-    match /resources/{fileId} {
-      // Any authenticated user can read resource files.
-      allow read: if request.auth != null;
-      // Only admins can upload or delete resource files.
+    // Construct today's date as a YYYY-MM-DD string from request.time.
+    // Used for lexicographic comparison against stored expiry dates.
+    function todayStr() {
+      let y = string(request.time.year());
+      let rawM = request.time.month();
+      let m = rawM < 10 ? ('0' + string(rawM)) : string(rawM);
+      let rawD = request.time.day();
+      let d = rawD < 10 ? ('0' + string(rawD)) : string(rawD);
+      return y + '-' + m + '-' + d;
+    }
+
+    // Check if the ACL's membershipExpires field grants access.
+    // Values: "life" (always valid — 'l' > '9' in ASCII), "YYYY-MM-DD"
+    // (valid if >= today), or "" / missing (no membership).
+    function hasActiveMembership() {
+      let email = request.auth.token.email;
+      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
+      let expires = aclData.membershipExpires;
+      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+    }
+
+    // Check if the ACL's instructorLicenseExpires field grants access.
+    // Same value semantics as hasActiveMembership().
+    function hasActiveInstructorLicense() {
+      let email = request.auth.token.email;
+      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
+      let expires = aclData.instructorLicenseExpires;
+      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+    }
+
+    // Check if the ACL's schoolLicenseExpires field grants access.
+    // The field tracks the latest school license expiry across all
+    // schools this user owns or manages.
+    function hasActiveSchoolLicense() {
+      let email = request.auth.token.email;
+      let aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
+      let expires = aclData.schoolLicenseExpires;
+      return email != null && expires is string && expires.size() > 0 && expires >= todayStr();
+    }
+
+    // Resources are organised into subdirectories by access level.
+    // Write access (upload/delete) is always admin-only.
+    match /resources/public/{fileId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /resources/members/{fileId} {
+      // Requires an active membership (Life or non-expired Annual).
+      allow read: if request.auth != null && (isAdmin() || hasActiveMembership());
+      allow write: if isAdmin();
+    }
+    match /resources/instructors/{fileId} {
+      // Requires a valid instructor license.
+      allow read: if request.auth != null && (isAdmin() || hasActiveInstructorLicense());
+      allow write: if isAdmin();
+    }
+    match /resources/school-owners/{fileId} {
+      // Requires an active school license (owner or manager of a
+      // school with a valid license).
+      allow read: if request.auth != null && (isAdmin() || hasActiveSchoolLicense());
+      allow write: if isAdmin();
+    }
+    match /resources/admins/{fileId} {
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
