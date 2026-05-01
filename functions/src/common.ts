@@ -101,27 +101,17 @@ export async function assertAdminOrSchoolManager(
     return member;
   }
 
-  // School manager/owner query
-  const schoolsOwnedQuery = db
-    .collection('schools')
-    .where('owner', '==', member.instructorId)
-    .get();
-  const schoolsManagedQuery = db
-    .collection('schools')
-    .where('managers', 'array-contains', member.instructorId)
-    .get();
-
-  const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
-    schoolsOwnedQuery,
-    schoolsManagedQuery,
-  ]);
-
-  if (schoolsOwnedSnapshot.empty && schoolsManagedSnapshot.empty) {
-    throw new HttpsError(
-      'permission-denied',
-      'You do not have permission to perform this action.',
-    );
+  // Check the ACL for cached schoolDocIds instead of querying schools.
+  const aclDoc = await db.collection('acl').doc(request.auth.token.email).get();
+  if (aclDoc.exists) {
+    const aclData = aclDoc.data() as { schoolDocIds?: string[] };
+    if (aclData.schoolDocIds && aclData.schoolDocIds.length > 0) {
+      return member;
+    }
   }
 
-  return member;
+  throw new HttpsError(
+    'permission-denied',
+    'You do not have permission to perform this action.',
+  );
 }

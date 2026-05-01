@@ -277,7 +277,10 @@ export type School = {
   // The `instructorId`s (human readable) of people allowed to manage people within this school.
   managerInstructorIds: string[];
 
-  // Redundant email addresses for firestore rules.
+  // @deprecated — These email arrays were previously used by Firestore
+  // security rules to check school ownership/management. Rules now use
+  // the ACL document's schoolDocIds field instead. These fields are kept
+  // for backward compatibility and will be removed in a future cleanup.
   ownerEmails: string[];
   managerEmails: string[];
 
@@ -733,6 +736,7 @@ export type Grading = {
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   assistantInstructorIds: string[]; // InstructorIds of assistant instructors.
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
+  schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
   studentMemberDocId: string; // The Firestore doc ID of the student member document.
   status: GradingStatus; // pending, passed, rejected.
@@ -763,6 +767,7 @@ export function initGrading(): Grading {
     gradingInstructorId: '',
     assistantInstructorIds: [],
     schoolId: '',
+    schoolDocId: '',
     studentMemberId: '',
     studentMemberDocId: '',
     status: GradingStatus.Pending,
@@ -806,6 +811,10 @@ export function initInstructor(): InstructorPublicData {
 export type ACL = {
   memberDocIds: string[];
   instructorIds: string[];
+  // Firestore document IDs of schools this user owns or manages
+  // (resolved via instructorId matching against ownerInstructorId /
+  // managerInstructorIds on school documents).
+  schoolDocIds: string[];
   isAdmin: boolean;
   // The latest membership expiry date across all linked member profiles.
   // "life" if any profile has Life membership, "YYYY-MM-DD" for the

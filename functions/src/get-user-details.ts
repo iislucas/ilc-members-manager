@@ -95,7 +95,7 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       }
     }
 
-    const aclData = aclDoc.data() as { memberDocIds: string[] };
+    const aclData = aclDoc.data() as { memberDocIds: string[]; schoolDocIds?: string[] };
     const memberDocIds = aclData.memberDocIds || [];
 
     const memberRefs = memberDocIds.map((id) => db.collection('members').doc(id));
@@ -110,35 +110,15 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
       return { userMemberProfiles: [], isAdmin: false, schoolsManaged: [] };
     }
 
-    // For simplicity, we use the first profile to determine "primary" permissions
-    // like isAdmin or schoolsManaged, though in the UI the user can switch.
-    // The data-manager.service.ts will handle the switching logic.
     const primaryMember = userMemberProfiles[0];
 
-    // School manager/owner query
-    // NOTE: This now checks across ALL profiles? Or just the primary?
-    // Let's check across the primary for now as per current app logic.
-    const schoolsOwnedQuery = db
-      .collection('schools')
-      .where('ownerInstructorId', '==', primaryMember.instructorId)
-      .get();
-    const schoolsManagedQuery = db
-      .collection('schools')
-      .where('managerInstructorIds', 'array-contains', primaryMember.instructorId)
-      .get();
-
-    const [schoolsOwnedSnapshot, schoolsManagedSnapshot] = await Promise.all([
-      schoolsOwnedQuery,
-      schoolsManagedQuery,
-    ]);
-
-    const schoolIds = new Set<string>();
-    schoolsOwnedSnapshot.forEach((doc) => schoolIds.add(doc.id));
-    schoolsManagedSnapshot.forEach((doc) => schoolIds.add(doc.id));
+    // School docIds are now cached in the ACL document, so no
+    // additional queries are needed.
+    const schoolsManaged = aclData.schoolDocIds || [];
 
     return {
       userMemberProfiles,
-      schoolsManaged: [...schoolIds],
+      schoolsManaged,
       isAdmin: primaryMember.isAdmin,
     };
   } catch (error: unknown) {

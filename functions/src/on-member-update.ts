@@ -106,12 +106,13 @@ export function bestExpiry(values: string[]): string {
   return best;
 }
 
-// Returns the best school license expiry across all schools the user
-// owns or manages, identified by their instructorIds.
-async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> {
+// Returns the school document IDs and best school license expiry
+// across all schools the user owns or manages, identified by their instructorIds.
+async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[], expiry: string}> {
   const validIds = instructorIds.filter(id => !!id);
-  if (validIds.length === 0) return '';
+  if (validIds.length === 0) return { docIds: [], expiry: '' };
 
+  const docIdSet = new Set<string>();
   const expiries: string[] = [];
 
   // Query schools where this user is the owner.
@@ -119,6 +120,7 @@ async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> 
     const ownerSnap = await db.collection('schools')
       .where('ownerInstructorId', '==', instId).get();
     for (const doc of ownerSnap.docs) {
+      docIdSet.add(doc.id);
       expiries.push(doc.data().schoolLicenseExpires || 'life');
     }
   }
@@ -128,11 +130,12 @@ async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> 
     const managerSnap = await db.collection('schools')
       .where('managerInstructorIds', 'array-contains', instId).get();
     for (const doc of managerSnap.docs) {
+      docIdSet.add(doc.id);
       expiries.push(doc.data().schoolLicenseExpires || 'life');
     }
   }
 
-  return bestExpiry(expiries);
+  return { docIds: Array.from(docIdSet), expiry: bestExpiry(expiries) };
 }
 
 export async function refreshACLAdminStatus(email: string) {
@@ -181,16 +184,17 @@ export async function refreshACLAdminStatus(email: string) {
     }
   }
 
-  // Look up school license expiry for all instructor IDs this user has.
-  const schoolLicenseExpires = await getSchoolLicenseExpiry(Array.from(newInstructorIds));
+  // Look up school info (docIds + license expiry) for all instructor IDs this user has.
+  const schoolInfo = await getSchoolInfo(Array.from(newInstructorIds));
 
   await aclRef.update({
     isAdmin: anyAdmin,
     instructorIds: Array.from(newInstructorIds),
+    schoolDocIds: schoolInfo.docIds,
     notYetLinkedToMember: !anyFullMember,
     membershipExpires: bestExpiry(membershipExpiries),
     instructorLicenseExpires: bestExpiry(instructorExpiries),
-    schoolLicenseExpires,
+    schoolLicenseExpires: schoolInfo.expiry,
   });
 }
 

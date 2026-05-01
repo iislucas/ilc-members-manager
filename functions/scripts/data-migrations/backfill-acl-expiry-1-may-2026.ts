@@ -1,13 +1,12 @@
 /*
- * Backfill ACL Expiry Dates Script
+ * Backfill ACL Expiry Dates and School DocIDs Script
  *
  * Iterates all ACL documents and recomputes the expiry date fields
  * (membershipExpires, instructorLicenseExpires, schoolLicenseExpires)
- * based on the current member and school data. This is a one-time
- * migration script for populating these fields on existing ACL docs.
+ * and the schoolDocIds field based on the current member and school data.
  *
- * The script reuses refreshACLAdminStatus() from on-member-update.ts
- * which already computes all three fields.
+ * The script builds in-memory lookup maps from the members and schools
+ * collections for efficient processing of the entire ACL collection.
  *
  * Usage:
  *   cd functions
@@ -20,7 +19,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { ACL, Member } from '../src/data-model';
+import { ACL, Member } from '../../src/data-model';
 
 const argv = yargs(hideBin(process.argv))
   .option('project', {
@@ -67,12 +66,16 @@ function bestExpiry(values: string[]): string {
   }
   return best;
 }
+
+// School info used for both docId and expiry lookups.
+type SchoolEntry = { docId: string; expiry: string };
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
   const isDryRun = argv['dry-run'];
 
-  console.log(`\n🔑 Backfill ACL expiry dates for project: ${projectId}`);
+  console.log(`\n🔑 Backfill ACL expiry dates and schoolDocIds for project: ${projectId}`);
   if (isDryRun) {
     console.log('🔍 DRY RUN — no changes will be written\n');
   } else {
@@ -101,17 +104,20 @@ async function main() {
   }
 
   // Schools indexed by ownerInstructorId and managerInstructorIds.
-  // Each map entry is instructorId → list of school license expiry strings.
-  const schoolsByOwner = new Map<string, string[]>();
-  const schoolsByManager = new Map<string, string[]>();
+  // Each map entry is instructorId → list of {docId, expiry}.
+  const schoolsByOwner = new Map<string, SchoolEntry[]>();
+  const schoolsByManager = new Map<string, SchoolEntry[]>();
 
   for (const doc of schoolsSnap.docs) {
     const school = doc.data();
-    const expiry = school.schoolLicenseExpires || 'life';
+    const entry: SchoolEntry = {
+      docId: doc.id,
+      expiry: school.schoolLicenseExpires || 'life',
+    };
 
     if (school.ownerInstructorId) {
       const list = schoolsByOwner.get(school.ownerInstructorId) || [];
-      list.push(expiry);
+      list.push(entry);
       schoolsByOwner.set(school.ownerInstructorId, list);
     }
 
@@ -119,7 +125,7 @@ async function main() {
     for (const mgr of managerIds) {
       if (mgr) {
         const list = schoolsByManager.get(mgr) || [];
-        list.push(expiry);
+        list.push(entry);
         schoolsByManager.set(mgr, list);
       }
     }
@@ -129,17 +135,28 @@ async function main() {
   console.log(`  🔗 School manager entries: ${schoolsByManager.size}`);
   console.log('');
 
-  // Helper: get best school license expiry from in-memory maps.
-  function getSchoolLicenseExpiry(instructorIds: string[]): string {
+  // Helper: get school docIds and best license expiry from in-memory maps.
+  function getSchoolInfo(instructorIds: string[]): { docIds: string[]; expiry: string } {
+    const docIdSet = new Set<string>();
     const expiries: string[] = [];
     for (const id of instructorIds) {
       if (!id) continue;
-      const ownerExpiries = schoolsByOwner.get(id);
-      if (ownerExpiries) expiries.push(...ownerExpiries);
-      const mgrExpiries = schoolsByManager.get(id);
-      if (mgrExpiries) expiries.push(...mgrExpiries);
+      const ownerEntries = schoolsByOwner.get(id);
+      if (ownerEntries) {
+        for (const e of ownerEntries) {
+          docIdSet.add(e.docId);
+          expiries.push(e.expiry);
+        }
+      }
+      const mgrEntries = schoolsByManager.get(id);
+      if (mgrEntries) {
+        for (const e of mgrEntries) {
+          docIdSet.add(e.docId);
+          expiries.push(e.expiry);
+        }
+      }
     }
-    return bestExpiry(expiries);
+    return { docIds: Array.from(docIdSet), expiry: bestExpiry(expiries) };
   }
 
   // 3. Process each ACL document.
@@ -186,17 +203,20 @@ async function main() {
 
       const newMembershipExpires = bestExpiry(membershipExpiries);
       const newInstructorLicenseExpires = bestExpiry(instructorExpiries);
-      const newSchoolLicenseExpires = getSchoolLicenseExpiry(instructorIds);
+      const schoolInfo = getSchoolInfo(instructorIds);
 
       // Check if anything actually changed.
       const oldMembership = aclData.membershipExpires || '';
       const oldInstructor = aclData.instructorLicenseExpires || '';
       const oldSchool = aclData.schoolLicenseExpires || '';
+      const oldSchoolDocIds = (aclData.schoolDocIds || []).sort();
+      const newSchoolDocIds = schoolInfo.docIds.sort();
 
       if (
         oldMembership === newMembershipExpires &&
         oldInstructor === newInstructorLicenseExpires &&
-        oldSchool === newSchoolLicenseExpires
+        oldSchool === schoolInfo.expiry &&
+        JSON.stringify(oldSchoolDocIds) === JSON.stringify(newSchoolDocIds)
       ) {
         alreadyCorrectCount++;
         continue;
@@ -210,8 +230,11 @@ async function main() {
       if (oldInstructor !== newInstructorLicenseExpires) {
         changes.push(`instructor: "${oldInstructor}" → "${newInstructorLicenseExpires}"`);
       }
-      if (oldSchool !== newSchoolLicenseExpires) {
-        changes.push(`school: "${oldSchool}" → "${newSchoolLicenseExpires}"`);
+      if (oldSchool !== schoolInfo.expiry) {
+        changes.push(`school: "${oldSchool}" → "${schoolInfo.expiry}"`);
+      }
+      if (JSON.stringify(oldSchoolDocIds) !== JSON.stringify(newSchoolDocIds)) {
+        changes.push(`schoolDocIds: [${oldSchoolDocIds.join(', ')}] → [${newSchoolDocIds.join(', ')}]`);
       }
       console.log(`  📝 ${email}: ${changes.join(', ')}`);
 
@@ -220,7 +243,8 @@ async function main() {
         batch.update(db.collection('acl').doc(email), {
           membershipExpires: newMembershipExpires,
           instructorLicenseExpires: newInstructorLicenseExpires,
-          schoolLicenseExpires: newSchoolLicenseExpires,
+          schoolLicenseExpires: schoolInfo.expiry,
+          schoolDocIds: schoolInfo.docIds,
         });
         batchCount++;
         if (batchCount >= BATCH_SIZE) {

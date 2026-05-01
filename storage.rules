@@ -8,18 +8,30 @@ service firebase.storage {
       return email != null && firestore.get(aclPath).data.isAdmin == true;
     }
 
+    // Returns the list of member document IDs linked to this user's ACL.
+    function getUserMemberDocIds() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/(default)/documents/acl/$(email);
+      return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.memberDocIds : [];
+    }
+
     match /backups/{backupFile} {
       // Only admins can read/write the backups
       allow read, write: if isAdmin();
     }
     
+    // Event image uploads are allowed for the event's owner or managers,
+    // checked via the ACL's memberDocIds against the event's ownerDocId
+    // and managerDocIds fields.
     match /events/{eventId}/images/{fileId} {
       allow read: if true;
       allow write: if isAdmin() || (
         request.auth != null &&
         (
-          request.auth.token.email == firestore.get(/databases/(default)/documents/events/$(eventId)).data.ownerEmail ||
-          request.auth.token.email in firestore.get(/databases/(default)/documents/events/$(eventId)).data.get('managerEmails', [])
+          firestore.get(/databases/(default)/documents/events/$(eventId)).data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(
+            firestore.get(/databases/(default)/documents/events/$(eventId)).data.get('managerDocIds', [])
+          )
         )
       );
     }

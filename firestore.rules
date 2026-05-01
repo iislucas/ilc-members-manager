@@ -30,19 +30,24 @@ service cloud.firestore {
       return email != null && exists(aclPath) && get(aclPath).data.get('instructorIds', []).size() > 0;
     }
 
+    // Returns the list of school document IDs this user owns or manages,
+    // as cached in their ACL document by Cloud Functions triggers.
+    function getUserSchoolDocIds() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/$(database)/documents/acl/$(email);
+      return (email != null && exists(aclPath)) ? get(aclPath).data.get('schoolDocIds', []) : [];
+    }
+
     match /members/{memberDocId} {
       function isOwner() {
         return (request.auth.token.email in resource.data.emails) || 
                (memberDocId in getUserMemberDocIds());
       }
+      // Checks whether the authenticated user manages the school that
+      // this member belongs to, using the ACL's cached schoolDocIds.
       function isManagerOfMemberSchool() {
-        let member = resource.data;
-        let schoolDocId = member.primarySchoolDocId;
-        let schoolPath = /databases/$(database)/documents/schools/$(schoolDocId);
-        return schoolDocId != "" && exists(schoolPath) && (
-          request.auth.token.email in get(schoolPath).data.get('ownerEmails', []) || 
-          request.auth.token.email in get(schoolPath).data.get('managerEmails', [])
-        );
+        let schoolDocId = resource.data.primarySchoolDocId;
+        return schoolDocId != "" && schoolDocId in getUserSchoolDocIds();
       }
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
@@ -73,11 +78,10 @@ service cloud.firestore {
     }
 
     match /schools/{schoolDocId} {
+      // Uses the ACL's cached schoolDocIds instead of looking up
+      // ownerEmails/managerEmails on the school document.
       function isSchoolManager() {
-        let school = get(/databases/$(database)/documents/schools/$(schoolDocId)).data;
-        return 
-            request.auth.token.email in school.get('ownerEmails', []) || 
-            request.auth.token.email in school.get('managerEmails', []);
+        return schoolDocId in getUserSchoolDocIds();
       }
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
@@ -121,19 +125,23 @@ service cloud.firestore {
     }
 
     // Cached calendar events — publicly readable as events are public.
+    // Owner/manager access uses the ACL's memberDocIds rather than
+    // redundant email arrays on the event document.
     match /events/{eventId} {
+      function isEventOwnerOrManager() {
+        return request.auth != null && (
+          resource.data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(resource.data.get('managerDocIds', []))
+        );
+      }
       allow read: if true;
       allow create: if isAdmin();
       allow delete: if isAdmin() || (
-        request.auth != null && 
-        (request.auth.token.email in resource.data.get('ownerEmails', []) || 
-         request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        isEventOwnerOrManager() &&
         resource.data.status == 'proposed'
       );
       allow update: if isAdmin() || (
-        request.auth != null && 
-        (request.auth.token.email in resource.data.get('ownerEmails', []) || 
-         request.auth.token.email in resource.data.get('managerEmails', [])) &&
+        isEventOwnerOrManager() &&
         request.resource.data.status == resource.data.status
       );
     }
@@ -173,13 +181,11 @@ service cloud.firestore {
         let asst = 'assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : [];
         return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst);
       }
+      // Uses the ACL's cached schoolDocIds instead of looking up
+      // ownerEmails/managerEmails on the school document.
       function isGradingSchoolManager() {
-        let schoolId = resource.data.schoolId;
-        let schoolPath = /databases/$(database)/documents/schools/$(schoolId);
-        return schoolId != "" && exists(schoolPath) && (
-          request.auth.token.email in get(schoolPath).data.ownerEmails ||
-          request.auth.token.email in get(schoolPath).data.managerEmails
-        );
+        let schoolDocId = resource.data.get('schoolDocId', '');
+        return schoolDocId != "" && schoolDocId in getUserSchoolDocIds();
       }
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;

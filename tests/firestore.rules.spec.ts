@@ -35,6 +35,7 @@ async function setupMember(db: Firestore, member: Member) {
       .set({
         memberDocIds: [member.docId],
         isAdmin: false,
+        schoolDocIds: [],
       });
   }
 }
@@ -72,6 +73,7 @@ async function setupAdmin(db: Firestore, email: string) {
   await db.collection('acl').doc(email).set({
     isAdmin: true,
     memberDocIds: [],
+    schoolDocIds: [],
   });
 }
 
@@ -158,6 +160,21 @@ describe('Firestore Rules', () => {
         primaryInstructorId: 'INST-002',
         primarySchoolId: 'hq',
       } as Member);
+
+      // Setup school manager/owner ACLs with schoolDocIds
+      // School owner: school_owner@ilc.com manages FirestoreDocID-school1
+      await db.collection('acl').doc('school_owner@ilc.com').set({
+        memberDocIds: [],
+        isAdmin: false,
+        schoolDocIds: ['FirestoreDocID-school1'],
+      });
+
+      // School manager: school_manager@ilc.com manages FirestoreDocID-school1
+      await db.collection('acl').doc('school_manager@ilc.com').set({
+        memberDocIds: [],
+        isAdmin: false,
+        schoolDocIds: ['FirestoreDocID-school1'],
+      });
     });
   });
 
@@ -298,7 +315,7 @@ describe('Firestore Rules', () => {
       );
     });
 
-    // 4. School Manager Access
+    // 4. School Manager Access (now uses ACL schoolDocIds)
     it('should allow school manager to read members of their school', async () => {
       const db = testEnv
         .authenticatedContext('owner_user', { email: 'school_owner@ilc.com' })
@@ -559,6 +576,67 @@ describe('Firestore Rules', () => {
     });
   });
 
+  describe('Events Collection', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await db.collection('events').doc('test-event').set({
+          title: 'Test Event',
+          status: 'proposed',
+          ownerDocId: 'FirestoreDocID-member1',
+          ownerEmails: ['member1@ilc.com'],
+          managerDocIds: ['FirestoreDocID-instructor1'],
+          managerEmails: ['instructor1@ilc.com'],
+        });
+      });
+    });
+
+    it('should allow event owner to update their proposed event', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('events').doc('test-event').update({
+          title: 'Updated Event',
+          status: 'proposed',
+        }),
+      );
+    });
+
+    it('should allow event manager to update the event', async () => {
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('events').doc('test-event').update({
+          title: 'Updated by manager',
+          status: 'proposed',
+        }),
+      );
+    });
+
+    it('should deny non-owner/manager from updating event', async () => {
+      const db = testEnv
+        .authenticatedContext('other_user', { email: 'other@test.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          title: 'Hacked!',
+          status: 'proposed',
+        }),
+      );
+    });
+
+    it('should allow event owner to delete a proposed event', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('events').doc('test-event').delete(),
+      );
+    });
+  });
+
   describe('Blog Posts Collections', () => {
     it('should allow anyone logged in to read members blog posts', async () => {
       const db = testEnv
@@ -579,6 +657,43 @@ describe('Firestore Rules', () => {
         .authenticatedContext('member1', { email: 'member1@ilc.com' })
         .firestore();
       await assertFails(db.collection('instructors-post').doc('post1').get());
+    });
+  });
+
+  describe('Gradings Collection', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await db.collection('gradings').doc('grading-1').set({
+          gradingInstructorId: 'INST-001',
+          assistantInstructorIds: [],
+          studentMemberDocId: 'FirestoreDocID-student1',
+          schoolId: 'SCH-001',
+          schoolDocId: 'FirestoreDocID-school1',
+          status: 'pending',
+          lastUpdated: new Date(),
+        });
+      });
+    });
+
+    it('should allow school manager to read gradings in their school', async () => {
+      const db = testEnv
+        .authenticatedContext('school_manager', {
+          email: 'school_manager@ilc.com',
+        })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').get(),
+      );
+    });
+
+    it('should deny non-manager from reading gradings of a school', async () => {
+      const db = testEnv
+        .authenticatedContext('other_user', { email: 'other@test.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').get(),
+      );
     });
   });
 });
