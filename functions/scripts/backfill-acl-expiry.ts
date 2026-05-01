@@ -67,32 +67,6 @@ function bestExpiry(values: string[]): string {
   }
   return best;
 }
-
-async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> {
-  const validIds = instructorIds.filter(id => !!id);
-  if (validIds.length === 0) return '';
-
-  const expiries: string[] = [];
-
-  for (const instId of validIds) {
-    const ownerSnap = await db.collection('schools')
-      .where('ownerInstructorId', '==', instId).get();
-    for (const doc of ownerSnap.docs) {
-      expiries.push(doc.data().schoolLicenseExpires || '');
-    }
-  }
-
-  for (const instId of validIds) {
-    const managerSnap = await db.collection('schools')
-      .where('managerInstructorIds', 'array-contains', instId).get();
-    for (const doc of managerSnap.docs) {
-      expiries.push(doc.data().schoolLicenseExpires || '');
-    }
-  }
-
-  return bestExpiry(expiries);
-}
-
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -105,16 +79,75 @@ async function main() {
     console.log('🔧 LIVE MODE — changes will be written to Firestore\n');
   }
 
-  // 1. Load all ACL documents.
-  const aclSnap = await db.collection('acl').get();
-  console.log(`📋 Total ACL documents: ${aclSnap.size}\n`);
+  // 1. Pre-load all collections into memory.
+  console.log('⏳ Loading all collections...');
 
+  const [aclSnap, membersSnap, schoolsSnap] = await Promise.all([
+    db.collection('acl').get(),
+    db.collection('members').get(),
+    db.collection('schools').get(),
+  ]);
+
+  console.log(`  📋 ACL docs:    ${aclSnap.size}`);
+  console.log(`  👤 Members:     ${membersSnap.size}`);
+  console.log(`  🏫 Schools:     ${schoolsSnap.size}`);
+
+  // 2. Build in-memory lookup maps.
+
+  // Members by docId.
+  const membersById = new Map<string, FirebaseFirestore.DocumentData>();
+  for (const doc of membersSnap.docs) {
+    membersById.set(doc.id, doc.data());
+  }
+
+  // Schools indexed by ownerInstructorId and managerInstructorIds.
+  // Each map entry is instructorId → list of school license expiry strings.
+  const schoolsByOwner = new Map<string, string[]>();
+  const schoolsByManager = new Map<string, string[]>();
+
+  for (const doc of schoolsSnap.docs) {
+    const school = doc.data();
+    const expiry = school.schoolLicenseExpires || '';
+
+    if (school.ownerInstructorId) {
+      const list = schoolsByOwner.get(school.ownerInstructorId) || [];
+      list.push(expiry);
+      schoolsByOwner.set(school.ownerInstructorId, list);
+    }
+
+    const managerIds: string[] = school.managerInstructorIds || [];
+    for (const mgr of managerIds) {
+      if (mgr) {
+        const list = schoolsByManager.get(mgr) || [];
+        list.push(expiry);
+        schoolsByManager.set(mgr, list);
+      }
+    }
+  }
+
+  console.log(`  🔗 School owner entries:   ${schoolsByOwner.size}`);
+  console.log(`  🔗 School manager entries: ${schoolsByManager.size}`);
+  console.log('');
+
+  // Helper: get best school license expiry from in-memory maps.
+  function getSchoolLicenseExpiry(instructorIds: string[]): string {
+    const expiries: string[] = [];
+    for (const id of instructorIds) {
+      if (!id) continue;
+      const ownerExpiries = schoolsByOwner.get(id);
+      if (ownerExpiries) expiries.push(...ownerExpiries);
+      const mgrExpiries = schoolsByManager.get(id);
+      if (mgrExpiries) expiries.push(...mgrExpiries);
+    }
+    return bestExpiry(expiries);
+  }
+
+  // 3. Process each ACL document.
   let updatedCount = 0;
   let skippedCount = 0;
   let alreadyCorrectCount = 0;
   let errorCount = 0;
 
-  // Collect pending updates, then flush in batches of BATCH_SIZE.
   const BATCH_SIZE = 100;
   let batch = db.batch();
   let batchCount = 0;
@@ -130,27 +163,20 @@ async function main() {
     const email = aclDoc.id;
     const aclData = aclDoc.data() as ACL;
 
-    // Skip ACL docs with no linked members (they would be deleted by the trigger).
     if (!aclData.memberDocIds || aclData.memberDocIds.length === 0) {
       skippedCount++;
       continue;
     }
 
     try {
-      // 2. Fetch all linked member profiles.
-      const memberRefs = aclData.memberDocIds.map(id =>
-        db.collection('members').doc(id),
-      );
-      const memberSnaps = await db.getAll(...memberRefs);
-
-      // 3. Compute expiry dates.
+      // Look up linked members from the in-memory map.
       const membershipExpiries: string[] = [];
       const instructorExpiries: string[] = [];
       const instructorIds: string[] = [];
 
-      for (const snap of memberSnaps) {
-        if (!snap.exists) continue;
-        const d = snap.data()!;
+      for (const docId of aclData.memberDocIds) {
+        const d = membersById.get(docId);
+        if (!d) continue;
         membershipExpiries.push(getMembershipExpiry(d));
         instructorExpiries.push(getInstructorLicenseExpiry(d));
         if (d.instructorId) {
@@ -160,9 +186,9 @@ async function main() {
 
       const newMembershipExpires = bestExpiry(membershipExpiries);
       const newInstructorLicenseExpires = bestExpiry(instructorExpiries);
-      const newSchoolLicenseExpires = await getSchoolLicenseExpiry(instructorIds);
+      const newSchoolLicenseExpires = getSchoolLicenseExpiry(instructorIds);
 
-      // 4. Check if anything actually changed.
+      // Check if anything actually changed.
       const oldMembership = aclData.membershipExpires || '';
       const oldInstructor = aclData.instructorLicenseExpires || '';
       const oldSchool = aclData.schoolLicenseExpires || '';
@@ -176,7 +202,7 @@ async function main() {
         continue;
       }
 
-      // 5. Log the change.
+      // Log the change.
       const changes: string[] = [];
       if (oldMembership !== newMembershipExpires) {
         changes.push(`membership: "${oldMembership}" → "${newMembershipExpires}"`);
@@ -189,7 +215,7 @@ async function main() {
       }
       console.log(`  📝 ${email}: ${changes.join(', ')}`);
 
-      // 6. Queue the update in the current batch.
+      // Queue the update in the current batch.
       if (!isDryRun) {
         batch.update(db.collection('acl').doc(email), {
           membershipExpires: newMembershipExpires,
@@ -214,7 +240,7 @@ async function main() {
     await flushBatch();
   }
 
-  // 7. Summary.
+  // 4. Summary.
   console.log('\n' + '='.repeat(60));
   console.log(`📊 Summary${isDryRun ? ' (DRY RUN)' : ''}:`);
   console.log(`  Total ACL docs:     ${aclSnap.size}`);
