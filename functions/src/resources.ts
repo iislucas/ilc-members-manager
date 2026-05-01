@@ -27,7 +27,6 @@ export interface ResourceFileInfo {
   contentType: string;
   timeCreated: string;
   size: string;
-  downloadUrl: string;
   accessLevel: ResourceAccessLevel;
 }
 
@@ -70,21 +69,12 @@ export const listResources = onCall(
           .filter((f) => extractAccessLevel(f.name) !== undefined)
           .map(async (file) => {
             const [metadata] = await file.getMetadata();
-
-            // Generate a signed URL that expires in 1 hour.
-            const [url] = await file.getSignedUrl({
-              version: 'v4',
-              action: 'read',
-              expires: Date.now() + 60 * 60 * 1000,
-            });
-
             return {
               name: displayName(file.name),
               fullPath: file.name,
               contentType: (metadata.contentType as string) || 'application/octet-stream',
               timeCreated: (metadata.timeCreated as string) || '',
               size: String(metadata.size || '0'),
-              downloadUrl: url,
               accessLevel: extractAccessLevel(file.name)!,
             };
           })
@@ -99,6 +89,49 @@ export const listResources = onCall(
     } catch (error) {
       logger.error('Error listing resources:', error);
       throw new HttpsError('internal', 'Failed to list resources.');
+    }
+  }
+);
+
+// Callable Cloud Function to generate a signed download URL for a single
+// resource file. This is called on-demand when the user clicks "Download",
+// avoiding the cost of generating signed URLs for every file on page load.
+export const getResourceDownloadUrl = onCall(
+  { cors: allowedOrigins },
+  async (request) => {
+    logger.info('getResourceDownloadUrl called');
+    await assertAdmin(request);
+
+    const data = request.data as { fullPath?: string };
+    if (!data.fullPath || !data.fullPath.startsWith('resources/')) {
+      throw new HttpsError('invalid-argument', 'A valid resource file path is required.');
+    }
+
+    if (extractAccessLevel(data.fullPath) === undefined) {
+      throw new HttpsError('invalid-argument', 'Resource path must be within a valid access-level subdirectory.');
+    }
+
+    try {
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(data.fullPath);
+
+      const [exists] = await file.exists();
+      if (!exists) {
+        throw new HttpsError('not-found', 'Resource file not found.');
+      }
+
+      // Generate a signed URL that expires in 1 hour.
+      const [url] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
+
+      return { downloadUrl: url };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error('Error generating download URL:', error);
+      throw new HttpsError('internal', 'Failed to generate download URL.');
     }
   }
 );

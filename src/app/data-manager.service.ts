@@ -1276,7 +1276,7 @@ export class DataManagerService {
   async listResources() {
     const listResourcesFn = httpsCallable<
       undefined,
-      { resources: { name: string; fullPath: string; contentType: string; timeCreated: string; size: string; downloadUrl: string; accessLevel: ResourceAccessLevel }[] }
+      { resources: { name: string; fullPath: string; contentType: string; timeCreated: string; size: string; accessLevel: ResourceAccessLevel }[] }
     >(this.functions, 'listResources');
     const result = await listResourcesFn();
     return result.data.resources;
@@ -1288,6 +1288,16 @@ export class DataManagerService {
       { success: boolean }
     >(this.functions, 'deleteResource');
     await deleteResourceFn({ fullPath });
+  }
+
+  // Generates a signed download URL for a single resource file on-demand.
+  async getResourceDownloadUrl(fullPath: string): Promise<string> {
+    const fn = httpsCallable<
+      { fullPath: string },
+      { downloadUrl: string }
+    >(this.functions, 'getResourceDownloadUrl');
+    const result = await fn({ fullPath });
+    return result.data.downloadUrl;
   }
 
   async saveCounters(data: Counters) {

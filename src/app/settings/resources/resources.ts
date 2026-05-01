@@ -52,7 +52,6 @@ interface ResourceFile {
   contentType: string;
   timeCreated: string;
   size: string;
-  downloadUrl: string;
   accessLevel: ResourceAccessLevel;
 }
 
@@ -83,6 +82,7 @@ export class ResourcesComponent implements OnInit {
   openMenuId = signal<string | null>(null);
   menuPosition = signal<{ top: string; left: string }>({ top: '0', left: '0' });
   uploadExpanded = signal(false);
+  downloadingId = signal<string | null>(null);
 
   // The currently selected access level for uploads.
   selectedAccessLevel = signal<ResourceAccessLevel>(ResourceAccessLevel.Members);
@@ -217,5 +217,21 @@ export class ResourcesComponent implements OnInit {
       left: `${rect.right - 160}px`, // 160px = min-width of menu; right-align
     });
     this.openMenuId.set(id);
+  }
+
+  // Fetches a signed download URL on-demand and opens it in a new tab.
+  async downloadResource(resource: ResourceFile) {
+    if (this.downloadingId()) return;
+    this.downloadingId.set(resource.fullPath);
+    this.openMenuId.set(null);
+    try {
+      const url = await this.dataManager.getResourceDownloadUrl(resource.fullPath);
+      window.open(url, '_blank');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.errorMessage.set(`Download failed: ${message}`);
+    } finally {
+      this.downloadingId.set(null);
+    }
   }
 }

@@ -106,9 +106,10 @@
           <tr class="table-row">
             <td class="file-info-cell">
               <div class="file-name-row">
-                <a [href]="resource.downloadUrl" target="_blank" download class="file-download-link" [title]="'Download ' + resource.name">
-                  {{ resource.name }}
-                </a>
+                <span class="file-name">{{ resource.name }}</span>
+                @if (downloadingId() === resource.fullPath) {
+                  <app-spinner></app-spinner>
+                }
               </div>
               <div class="file-meta-row">
                 <span class="type-badge">{{ resource.contentType }}</span>
@@ -130,9 +131,9 @@
                 @if (openMenuId() === resource.fullPath) {
                   <div class="menu-overlay transparent" (click)="openMenuId.set(null); $event.stopPropagation()"></div>
                   <div class="menu" [style.top]="menuPosition().top" [style.left]="menuPosition().left">
-                    <a class="menu-item" [href]="resource.downloadUrl" target="_blank" download>
+                    <div class="menu-item" (click)="downloadResource(resource)">
                       <app-icon name="arrow_downward"></app-icon> <span>Download</span>
-                    </a>
+                    </div>
                     <div class="menu-item delete-menu-item" (click)="deleteResource(resource); openMenuId.set(null)">
                       <app-icon name="trash"></app-icon> <span>Delete</span>
                     </div>

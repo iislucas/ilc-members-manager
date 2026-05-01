@@ -153,10 +153,10 @@ Deploy just functions
 pnpm run deploy:functions
 ```
 
-Deploy just firebase rules
+Deploy just firebase rules (Firestore and Storage)
 
 ```sh
-pnpm run deploy:firestore-rules
+pnpm run deploy:rules
 ```
 
 ### GitHub Pages site

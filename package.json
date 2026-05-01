@@ -21,7 +21,7 @@
     "test:rules:in_emulator": "vitest run --config vitest.rules.config.ts --no-color",
     "test:rules": "pnpm exec firebase emulators:exec --only firestore \"pnpm test:rules:in_emulator\"",
     "deploy": "pnpm run build:all && firebase deploy",
-    "deploy:firestore-rules": "firebase deploy --only firestore:rules",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage",
     "deploy:functions": "pnpm run build:functions && firebase deploy --only functions",
     "deploy:hosting": "pnpm run build && firebase deploy --only hosting",
     "deploy:find-instructor-wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-find-instructor-wc.ts",
