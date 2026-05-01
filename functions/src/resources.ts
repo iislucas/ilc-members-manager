@@ -93,23 +93,134 @@ export const listResources = onCall(
   }
 );
 
+// Formats today's date as YYYY-MM-DD for expiry comparison.
+function todayStr(): string {
+  const now = new Date();
+  const y = now.getFullYear().toString();
+  const m = (now.getMonth() + 1).toString().padStart(2, '0');
+  const d = now.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Checks whether the caller has access to a resource at the given access level.
+// Throws a descriptive HttpsError if access is denied, so the frontend can
+// display a helpful message (e.g. "Your membership expired on 2025-03-15").
+async function assertResourceAccess(
+  request: import('firebase-functions/v2/https').CallableRequest<unknown>,
+  accessLevel: ResourceAccessLevel,
+): Promise<void> {
+  // Public resources: no auth required.
+  if (accessLevel === ResourceAccessLevel.Public) return;
+
+  // All other levels require authentication.
+  if (!request.auth || !request.auth.token.email) {
+    throw new HttpsError(
+      'unauthenticated',
+      'You must be logged in to access this resource.',
+    );
+  }
+
+  const email = request.auth.token.email;
+  const db = admin.firestore();
+
+  // Look up the ACL document for this user.
+  const aclDoc = await db.collection('acl').doc(email).get();
+  if (!aclDoc.exists) {
+    throw new HttpsError(
+      'permission-denied',
+      'No access record found for your account. Please contact an administrator.',
+    );
+  }
+  const acl = aclDoc.data()!;
+
+  // Admins always have access to everything.
+  if (acl.isAdmin) return;
+
+  const today = todayStr();
+
+  switch (accessLevel) {
+    case ResourceAccessLevel.Members: {
+      const expires = acl.membershipExpires as string | undefined;
+      if (!expires) {
+        throw new HttpsError(
+          'permission-denied',
+          'This resource is for active members. You do not have an active membership.',
+        );
+      }
+      if (expires < today) {
+        throw new HttpsError(
+          'permission-denied',
+          `This resource is for active members. Your membership expired on ${expires}.`,
+        );
+      }
+      return;
+    }
+    case ResourceAccessLevel.Instructors: {
+      const expires = acl.instructorLicenseExpires as string | undefined;
+      if (!expires) {
+        throw new HttpsError(
+          'permission-denied',
+          'This resource is for licensed instructors. You do not have an instructor license.',
+        );
+      }
+      if (expires < today) {
+        throw new HttpsError(
+          'permission-denied',
+          `This resource is for licensed instructors. Your instructor license expired on ${expires}.`,
+        );
+      }
+      return;
+    }
+    case ResourceAccessLevel.SchoolOwners: {
+      const expires = acl.schoolLicenseExpires as string | undefined;
+      if (!expires) {
+        throw new HttpsError(
+          'permission-denied',
+          'This resource is for school owners/managers. You do not have an active school license.',
+        );
+      }
+      if (expires < today) {
+        throw new HttpsError(
+          'permission-denied',
+          `This resource is for school owners/managers. Your school license expired on ${expires}.`,
+        );
+      }
+      return;
+    }
+    case ResourceAccessLevel.Admins: {
+      throw new HttpsError(
+        'permission-denied',
+        'This resource is restricted to administrators.',
+      );
+    }
+  }
+}
+
 // Callable Cloud Function to generate a signed download URL for a single
 // resource file. This is called on-demand when the user clicks "Download",
 // avoiding the cost of generating signed URLs for every file on page load.
+//
+// Access is checked per-tier: public files need no auth, member/instructor/
+// school-owner files check the ACL's expiry fields, admin files require
+// isAdmin. Returns a structured denial reason so the frontend can show
+// helpful messages (e.g. "Your membership expired on 2025-12-31").
 export const getResourceDownloadUrl = onCall(
   { cors: allowedOrigins },
   async (request) => {
     logger.info('getResourceDownloadUrl called');
-    await assertAdmin(request);
 
     const data = request.data as { fullPath?: string };
     if (!data.fullPath || !data.fullPath.startsWith('resources/')) {
       throw new HttpsError('invalid-argument', 'A valid resource file path is required.');
     }
 
-    if (extractAccessLevel(data.fullPath) === undefined) {
+    const accessLevel = extractAccessLevel(data.fullPath);
+    if (accessLevel === undefined) {
       throw new HttpsError('invalid-argument', 'Resource path must be within a valid access-level subdirectory.');
     }
+
+    // Check access based on the resource's tier.
+    await assertResourceAccess(request, accessLevel);
 
     try {
       const bucket = admin.storage().bucket();

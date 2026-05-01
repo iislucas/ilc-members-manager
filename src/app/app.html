@@ -56,6 +56,9 @@
             (titleLoaded)="onEventTitleLoaded($event)"
           ></app-event-view>
         }
+        @case (Views.DownloadResource) {
+          <app-download-resource></app-download-resource>
+        }
       }
     } @else if (!user) {
       <!-- Restricted page, not logged in: show initialisation or login -->

@@ -1,0 +1,89 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: start;
+  flex-grow: 1;
+  padding: 2em 1em;
+}
+
+.download-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5em;
+  max-width: 500px;
+  width: 100%;
+}
+
+.download-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+
+  h1 {
+    margin: 0;
+    font-size: 1.4em;
+  }
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  padding: 1em;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  width: 100%;
+  text-align: center;
+}
+
+.file-name {
+  font-family: monospace;
+  font-size: 1.1em;
+  word-break: break-all;
+}
+
+.message-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75em;
+  padding: 1em 1.2em;
+  border-radius: 8px;
+  width: 100%;
+
+  p {
+    margin: 0;
+  }
+
+  .message-title {
+    font-weight: bold;
+    margin-bottom: 0.3em;
+  }
+}
+
+.info-box {
+  background-color: #eef6ff;
+  border: 1px solid #b8d4f0;
+  color: #1a4971;
+}
+
+.success-box {
+  background-color: #edf7ed;
+  border: 1px solid #b2dfb2;
+  color: #1b5e20;
+}
+
+.error-box {
+  background-color: v.$theme-error-bg-color;
+  border: 1px solid v.$theme-error-border-color;
+  color: v.$theme-error-text-color;
+}
+
+// Keep the login form centered and bounded.
+app-login {
+  width: 100%;
+}

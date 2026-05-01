@@ -40,6 +40,7 @@ import { ManageEventsComponent } from './manage-events/manage-events';
 import { EventEditComponent } from './event-edit/event-edit';
 import { ProposeEventComponent } from './organise-events/organise-event/organise-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
+import { DownloadResourceComponent } from './download-resource/download-resource';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 
@@ -82,6 +83,7 @@ import { APP_VERSION } from './version';
     EventEditComponent,
     ProposeEventComponent,
     CompleteProfileComponent,
+    DownloadResourceComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -107,6 +109,7 @@ export class App {
     Views.EventView,
     Views.ClassCalendarView,
     Views.SchoolCalendarView,
+    Views.DownloadResource,
   ]);
 
   public isPublicPage = computed(() => {
@@ -414,6 +417,8 @@ export class App {
       case Views.MembersAreaPost:
       case Views.InstructorsAreaPost:
         return 'Article';
+      case Views.DownloadResource:
+        return 'Download Resource';
       case Views.Login:
         return 'Login';
       case Views.NewMember:

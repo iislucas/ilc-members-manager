@@ -57,6 +57,7 @@ export enum Views {
   ManageEventView = 'manageEventView',
   MyEventEdit = 'myEventEdit',
   ManageEventEdit = 'manageEventEdit',
+  DownloadResource = 'downloadResource',
 }
 
 export const memberListPathPatterns = {
@@ -145,6 +146,7 @@ export const initPathPatterns = {
     { name: 'searchField', default: 'title' },
   ]),
   [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'fromDate', 'status', 'sortBy', 'sortDir']),
+  [Views.DownloadResource]: pathPattern`resources/${pv('accessLevel')}/${pv('fileName')}`,
 };
 
 // Santiy check for type correctness...

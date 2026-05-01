@@ -1,0 +1,60 @@
+<div class="download-page">
+  @let currentState = state();
+  @let level = accessLevel();
+  @let file = fileName();
+
+  <div class="download-header">
+    <app-icon name="arrow_downward" width="2em" height="2em"></app-icon>
+    <h1>Download Resource</h1>
+  </div>
+
+  <div class="file-info">
+    <div class="file-name">{{ file }}</div>
+    @if (level) {
+      <span class="identifier-chip">{{ accessLabel() }}</span>
+    }
+  </div>
+
+  @switch (currentState.kind) {
+    @case ('idle') {
+      <app-spinner>Preparing download…</app-spinner>
+    }
+    @case ('downloading') {
+      <app-spinner>Verifying access and generating download link…</app-spinner>
+    }
+    @case ('login-required') {
+      <div class="message-box info-box">
+        <app-icon name="admin" width="1.4em" height="1.4em"></app-icon>
+        <div>
+          <p class="message-title">Login Required</p>
+          <p>This resource requires {{ accessLabel() }} access. Please log in to download it.</p>
+        </div>
+      </div>
+      <app-login></app-login>
+    }
+    @case ('done') {
+      <div class="message-box success-box">
+        <app-icon name="check" width="1.4em" height="1.4em"></app-icon>
+        <div>
+          <p class="message-title">Download Started</p>
+          <p>Your download of "{{ currentState.fileName }}" should begin shortly. If it didn't start, click below.</p>
+        </div>
+      </div>
+      <button (click)="retry()">Download Again</button>
+    }
+    @case ('error') {
+      <div class="message-box error-box">
+        <app-icon name="error" width="1.4em" height="1.4em"></app-icon>
+        <div>
+          <p class="message-title">Access Denied</p>
+          <p>{{ currentState.message }}</p>
+        </div>
+      </div>
+      @if (loginStatus() === LoginStatus.SignedIn) {
+        <button class="subtle-button" (click)="retry()">
+          <app-icon name="refresh"></app-icon> Try Again
+        </button>
+      }
+    }
+  }
+</div>

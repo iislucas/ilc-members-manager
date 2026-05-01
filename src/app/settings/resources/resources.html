@@ -106,7 +106,10 @@
           <tr class="table-row">
             <td class="file-info-cell">
               <div class="file-name-row">
-                <span class="file-name">{{ resource.name }}</span>
+                <a class="inline-link-button file-name"
+                   [href]="'#/resources/' + resource.accessLevel + '/' + resource.name"
+                   [title]="'Download ' + resource.name"
+                >{{ resource.name }}</a>
                 @if (downloadingId() === resource.fullPath) {
                   <app-spinner></app-spinner>
                 }
@@ -133,6 +136,9 @@
                   <div class="menu" [style.top]="menuPosition().top" [style.left]="menuPosition().left">
                     <div class="menu-item" (click)="downloadResource(resource)">
                       <app-icon name="arrow_downward"></app-icon> <span>Download</span>
+                    </div>
+                    <div class="menu-item" (click)="copyDownloadLink(resource); openMenuId.set(null)">
+                      <app-icon name="link"></app-icon> <span>Copy Link</span>
                     </div>
                     <div class="menu-item delete-menu-item" (click)="deleteResource(resource); openMenuId.set(null)">
                       <app-icon name="trash"></app-icon> <span>Delete</span>
