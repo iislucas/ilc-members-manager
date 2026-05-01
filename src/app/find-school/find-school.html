@@ -12,12 +12,10 @@
     @for (school of filteredSchools(); track school.docId) {
     <div class="school-card">
       <div class="school-header">
-        <div class="school-header-row">
-          @if (school.schoolId) {
-            <span class="school-id-chip">{{ school.schoolId }}</span>
-          }
-          <h3>{{ school.schoolName }}</h3>
-        </div>
+        @if (school.schoolId) {
+          <span class="school-id-chip">{{ school.schoolId }}</span>
+        }
+        <h3>{{ school.schoolName }}</h3>
         <div class="school-header-details">
           @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
             <div class="header-detail">

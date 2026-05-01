@@ -64,12 +64,7 @@
     .school-header {
       margin-bottom: 12px;
 
-      .school-header-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5em;
-        flex-wrap: wrap;
-      }
+
       
       h3 {
         margin: 0 0 4px 0;
@@ -108,6 +103,13 @@
           .subtle-button {
             padding: 0.1em 0.3em;
             font-size: inherit;
+            color: v.$text-primary;
+            text-decoration: none;
+            border-radius: 4px;
+
+            &:hover {
+              background-color: v.$menu-item-hover-color;
+            }
           }
         }
       }
@@ -144,6 +146,13 @@
         .subtle-button {
           padding: 0.1em 0.3em;
           font-size: inherit;
+          color: v.$text-primary;
+          text-decoration: none;
+          border-radius: 4px;
+
+          &:hover {
+            background-color: v.$menu-item-hover-color;
+          }
         }
       }
     }

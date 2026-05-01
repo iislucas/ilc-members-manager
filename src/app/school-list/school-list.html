@@ -62,10 +62,10 @@
           (click)="onCardClick($event)"
         >
           <div class="school-header">
+            @if (school.schoolId) {
+              <span class="school-id-chip">{{ school.schoolId }}</span>
+            }
             <div class="school-header-row">
-              @if (school.schoolId) {
-                <span class="school-id-chip">{{ school.schoolId }}</span>
-              }
               <h3>{{ school.schoolName || "[Name needs to be entered]" }}</h3>
               @let licenseStatus = schoolLicenseStatus(school);
               @if (licenseStatus !== ExpiryStatus.Valid) {
