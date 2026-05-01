@@ -3,6 +3,8 @@
  * action-button, etc.) and adds resource-specific styling for upload,
  * access level selection, and file type indicators.
  */
+@use "../../../scss_variables.scss" as v;
+@use "../../../styles" as *;
 
 .file-input-hidden {
   display: none;
@@ -13,6 +15,29 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+
+  // Mirror global button styling so the <label> looks like a standard button.
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: 500;
+  border-radius: 0.3em;
+  color: var(--button-text-color, #374151);
+  background-color: var(--button-bg-color, #f5f5f5);
+  border: 1px solid var(--button-border-color, #d1d5db);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease-in-out;
+  padding: 0.3em 0.4em;
+
+  &:hover {
+    background-color: var(--button-hover-bg-color, #e8e8e8);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active {
+    transform: translateY(2px);
+    background-color: var(--button-active-bg-color, #ddd);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
 }
 
 .upload-card {
@@ -58,7 +83,7 @@
 
   .card-controls {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
     flex-shrink: 0;
@@ -193,44 +218,34 @@
   }
 }
 
-.file-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
-  word-break: break-all;
-}
-
-.file-type-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-
-  &.file-pdf {
-    background-color: #ef4444;
+.file-info-cell {
+  .file-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    word-break: break-all;
   }
 
-  &.file-image {
-    background-color: #8b5cf6;
+  .file-download-link {
+    color: var(--primary-color, #2563eb);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
-  &.file-video {
-    background-color: #f59e0b;
-  }
-
-  &.file-doc {
-    background-color: #3b82f6;
-  }
-
-  &.file-sheet {
-    background-color: #22c55e;
-  }
-
-  &.file-generic {
-    background-color: #9ca3af;
+  .file-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
   }
 }
+
+
 
 // Access level chips — colour-coded to visually distinguish permission tiers.
 .access-chip {
@@ -280,19 +295,17 @@
   }
 }
 
-.type-cell {
-  .type-badge {
-    display: inline-block;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    background-color: #f3f4f6;
-    color: #4b5563;
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.type-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .size-badge {
@@ -300,60 +313,52 @@
   color: var(--muted-text-color, #6b7280);
 }
 
-.actions-cell {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  white-space: nowrap;
+.menu-cell {
+  width: 2rem;
+  text-align: center;
 }
 
-.download-link {
+.menu-container {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--primary-color, #2563eb);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.85rem;
 
-  &:hover {
-    text-decoration: underline;
+  .menu {
+    position: fixed;
+    min-width: 160px;
+    background-color: white;
+    border: 1px solid v.$border-color-light;
+    border-radius: 5px;
+    padding: 0.4em;
+    z-index: 200;
+    box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.5em;
+    cursor: pointer;
+    white-space: nowrap;
+    margin: 0.2em;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 4px;
+
+    &:hover {
+      background-color: v.$menu-item-hover-color;
+    }
+  }
+
+  .delete-menu-item {
+    color: #dc2626;
   }
 }
 
-.delete-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: none;
-  border: none;
-  color: #dc2626;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.4rem;
-  border-radius: 4px;
 
-  &:hover {
-    background-color: #fef2f2;
-  }
-}
-
-.primary-action {
-  background-color: var(--primary-color, #2563eb);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-
-  &:hover {
-    filter: brightness(0.9);
-  }
-}
 
 .secondary-action {
   display: inline-flex;

@@ -37,12 +37,7 @@
           <span>Uploading...</span>
         </div>
         } @else {
-        <label class="action-button primary-action upload-label" for="resource-file-input">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
+        <label class="upload-label" for="resource-file-input">
           Choose Files
         </label>
         <input
@@ -105,49 +100,53 @@
       <table class="premium-table">
         <thead>
           <tr>
-            <th>File Name</th>
-            <th>Access</th>
-            <th>Type</th>
+            <th>File</th>
             <th>Uploaded</th>
             <th>Size</th>
-            <th class="actions-cell">Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           @for (resource of resources(); track resource.fullPath) {
           <tr class="table-row">
-            <td class="file-name-cell">
-              <span class="file-type-indicator" [class]="fileTypeClass(resource.contentType)"></span>
-              {{ resource.name }}
-            </td>
-            <td class="access-cell">
-              <span class="access-chip" [class]="accessLevelClass(resource.accessLevel)">
-                {{ accessLabel(resource.accessLevel) }}
-              </span>
-            </td>
-            <td class="type-cell">
-              <span class="type-badge">{{ resource.contentType }}</span>
+            <td class="file-info-cell">
+              <div class="file-name-row">
+                <a [href]="resource.downloadUrl" target="_blank" download class="file-download-link" [title]="'Download ' + resource.name">
+                  {{ resource.name }}
+                </a>
+              </div>
+              <div class="file-meta-row">
+                <span class="access-chip" [class]="accessLevelClass(resource.accessLevel)">
+                  {{ accessLabel(resource.accessLevel) }}
+                </span>
+                <span class="type-badge">{{ resource.contentType }}</span>
+              </div>
             </td>
             <td class="date-cell">{{ resource.timeCreated | date:'medium' }}</td>
             <td class="size-cell">
               <span class="size-badge">{{ formatSize(resource.size) }}</span>
             </td>
-            <td class="actions-cell">
-              <a [href]="resource.downloadUrl" target="_blank" download class="download-link" title="Download">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download
-              </a>
-              <button class="delete-button" (click)="deleteResource(resource)" title="Delete">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                Delete
-              </button>
+            <td class="menu-cell">
+              <div class="menu-container">
+                <button
+                  (click)="toggleMenu(resource.fullPath, $event)"
+                  class="icon-only-button"
+                  title="Resource Actions"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (openMenuId() === resource.fullPath) {
+                  <div class="menu-overlay transparent" (click)="openMenuId.set(null); $event.stopPropagation()"></div>
+                  <div class="menu" [style.top]="menuPosition().top" [style.left]="menuPosition().left">
+                    <a class="menu-item" [href]="resource.downloadUrl" target="_blank" download>
+                      <app-icon name="arrow_downward"></app-icon> <span>Download</span>
+                    </a>
+                    <div class="menu-item delete-menu-item" (click)="deleteResource(resource); openMenuId.set(null)">
+                      <app-icon name="trash"></app-icon> <span>Delete</span>
+                    </div>
+                  </div>
+                }
+              </div>
             </td>
           </tr>
           }

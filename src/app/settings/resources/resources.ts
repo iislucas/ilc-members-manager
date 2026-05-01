@@ -17,6 +17,7 @@ import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@ang
 import { DataManagerService } from '../../data-manager.service';
 import { FIREBASE_APP } from '../../app.config';
 import { SpinnerComponent } from '../../spinner/spinner.component';
+import { IconComponent } from '../../icons/icon.component';
 import { getStorage, ref, uploadBytes } from 'firebase/storage';
 import { DatePipe } from '@angular/common';
 import {
@@ -40,7 +41,7 @@ interface ResourceFile {
 @Component({
   selector: 'app-resources',
   standalone: true,
-  imports: [SpinnerComponent, DatePipe],
+  imports: [SpinnerComponent, DatePipe, IconComponent],
   templateUrl: './resources.html',
   styleUrl: './resources.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,6 +55,8 @@ export class ResourcesComponent implements OnInit {
   isUploading = signal(false);
   statusMessage = signal('');
   errorMessage = signal('');
+  openMenuId = signal<string | null>(null);
+  menuPosition = signal<{ top: string; left: string }>({ top: '0', left: '0' });
 
   // The currently selected access level for uploads.
   selectedAccessLevel = signal<ResourceAccessLevel>(ResourceAccessLevel.Members);
@@ -146,16 +149,6 @@ export class ResourcesComponent implements OnInit {
     return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   }
 
-  // Returns a CSS class name based on the file's content type.
-  fileTypeClass(contentType: string): string {
-    if (contentType.includes('pdf')) return 'file-pdf';
-    if (contentType.includes('image')) return 'file-image';
-    if (contentType.includes('video')) return 'file-video';
-    if (contentType.includes('word') || contentType.includes('document')) return 'file-doc';
-    if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'file-sheet';
-    return 'file-generic';
-  }
-
   // Returns a CSS class for the access level chip.
   accessLevelClass(level: string): string {
     const prefix = 'access-';
@@ -163,5 +156,20 @@ export class ResourcesComponent implements OnInit {
       return prefix + level;
     }
     return prefix + 'unknown';
+  }
+
+  toggleMenu(id: string, event: Event) {
+    event.stopPropagation();
+    if (this.openMenuId() === id) {
+      this.openMenuId.set(null);
+      return;
+    }
+    const btn = (event.currentTarget as HTMLElement);
+    const rect = btn.getBoundingClientRect();
+    this.menuPosition.set({
+      top: `${rect.bottom + 4}px`,
+      left: `${rect.right - 160}px`, // 160px = min-width of menu; right-align
+    });
+    this.openMenuId.set(id);
   }
 }
