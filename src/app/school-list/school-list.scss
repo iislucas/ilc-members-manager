@@ -76,8 +76,6 @@
   cursor: pointer;
   @include v.row-highlight-base;
 
-
-
   &:hover {
     @include v.row-highlight-active;
   }
@@ -87,7 +85,7 @@
   }
 
   .school-header {
-    margin-bottom: 12px;
+    margin-bottom: 4px;
 
     .school-header-row {
       display: flex;
@@ -97,9 +95,9 @@
     }
 
     h3 {
-      margin: 0 0 4px 0;
+      margin: 0.5em 0 0.5em 0;
       color: v.$text-primary;
-      font-size: 1.2rem;
+      font-size: 0.95rem;
     }
 
     .school-id-chip {
