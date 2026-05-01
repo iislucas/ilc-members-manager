@@ -4,29 +4,34 @@
 
   <div class="counter-section">
     <h3>Member ID Counters</h3>
-    <div class="counter-list">
+    <div class="counter-grid">
+      <span class="grid-header">Code</span>
+      <span class="grid-header">Country</span>
+      <span class="grid-header">Counter</span>
+      <span class="grid-header"></span>
       @for (counter of memberIdCounters(); track $index; let last = $last) {
-      <div class="counter-row">
-        <input type="text" [(ngModel)]="counter.countryCode" class="form-control" style="width: 80px;" placeholder="Code: US">
-        <input type="number" [(ngModel)]="counter.value" class="form-control" style="width: 150px;" placeholder="Count">
-        <button type="button" class="icon-only-button" (click)="removeMemberIdCounter($index)" title="Remove counter">
-          <app-icon name="trash" />
-        </button>
-        @if (last) {
-        <button type="button" class="icon-only-button add-counter-btn" (click)="addMemberIdCounter()" title="Add another counter">
-          <app-icon name="add" />
-        </button>
-        }
-      </div>
-      }
-      @if (memberIdCounters().length === 0) {
-      <div class="add-counter-row">
-        <button type="button" class="text-button" (click)="addMemberIdCounter()">
-          + Add Member ID Counter
-        </button>
-      </div>
+        <input type="text" [(ngModel)]="counter.countryCode" class="form-control" placeholder="US">
+        <span class="country-name">@if (counter.countryName) {({{ counter.countryName }})}</span>
+        <input type="number" [(ngModel)]="counter.value" class="form-control" placeholder="0">
+        <span class="row-actions">
+          <button type="button" class="icon-only-button" (click)="removeMemberIdCounter($index)" title="Remove counter">
+            <app-icon name="trash" />
+          </button>
+          @if (last) {
+          <button type="button" class="icon-only-button add-counter-btn" (click)="addMemberIdCounter()" title="Add another counter">
+            <app-icon name="add" />
+          </button>
+          }
+        </span>
       }
     </div>
+    @if (memberIdCounters().length === 0) {
+    <div class="add-counter-row">
+      <button type="button" class="text-button" (click)="addMemberIdCounter()">
+        + Add Member ID Counter
+      </button>
+    </div>
+    }
   </div>
 
   <div class="counter-section" style="margin-top: 20px;">

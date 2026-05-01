@@ -16,7 +16,9 @@ import { IconComponent } from '../../icons/icon.component';
 export class CountryCodesComponent {
   dataManager = inject(DataManagerService);
 
-  countryCodes = linkedSignal<CountryCode[]>(() => [...this.dataManager.countries.entries()]);
+  countryCodes = linkedSignal<CountryCode[]>(() =>
+    [...this.dataManager.countries.entries()].sort((a, b) => a.id.localeCompare(b.id))
+  );
   isSaving = signal(false);
   statusMessage = signal('');
 

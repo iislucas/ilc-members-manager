@@ -199,7 +199,7 @@ export const countryCodeList: CountryCode[] = [
   { name: 'Saint Pierre and Miquelon', id: 'PM' },
   { name: 'Saint Vincent and the Grenadines', id: 'VC' },
   { name: 'Samoa', id: 'WS' },
-  { name: 'San Marino', id: 'SMO' },
+  { name: 'San Marino', id: 'SM' },
   { name: 'Sao Tome and Principe', id: 'ST' },
   { name: 'Saudi Arabia', id: 'SA' },
   { name: 'Senegal', id: 'SN' },

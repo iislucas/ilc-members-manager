@@ -15,10 +15,16 @@ import { Counters } from '../../../../functions/src/data-model';
 export class CountersComponent {
   dataManager = inject(DataManagerService);
 
-  memberIdCounters = linkedSignal<{ countryCode: string, value: number }[]>(() => {
+  memberIdCounters = linkedSignal<{ countryCode: string, countryName: string, value: number }[]>(() => {
     const counters = this.dataManager.counters();
     if (!counters) return [];
-    return Object.entries(counters.memberIdCounters || {}).map(([countryCode, value]) => ({ countryCode, value }));
+    return Object.entries(counters.memberIdCounters || {})
+      .map(([countryCode, value]) => ({
+        countryCode,
+        countryName: this.dataManager.countries.get(countryCode)?.name || '',
+        value,
+      }))
+      .sort((a, b) => a.countryCode.localeCompare(b.countryCode));
   });
 
   instructorIdCounter = linkedSignal<number>(() => this.dataManager.counters()?.instructorIdCounter || 0);
@@ -28,7 +34,7 @@ export class CountersComponent {
   countersMessage = signal('');
 
   addMemberIdCounter() {
-    this.memberIdCounters.update(counters => [...counters, { countryCode: '', value: 0 }]);
+    this.memberIdCounters.update(counters => [...counters, { countryCode: '', countryName: '', value: 0 }]);
   }
 
   removeMemberIdCounter(index: number) {
