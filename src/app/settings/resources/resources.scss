@@ -40,58 +40,64 @@
   }
 }
 
-.upload-card {
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.upload-section {
+  margin-bottom: 1rem;
+}
+
+.upload-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-color, #374151);
+  box-shadow: none;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: var(--surface-color, #f9fafb);
+    box-shadow: none;
+  }
+
+  &:active {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.upload-body {
+  margin-top: 0.75rem;
+  padding: 1rem;
   background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
   border: 1px solid #c8e1f8;
   border-radius: 8px;
-  padding: 1.25rem;
-  margin-bottom: 1.5rem;
+}
+
+.card-controls {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+}
 
-  .card-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .card-icon {
-    flex-shrink: 0;
-    color: var(--primary-color, #2563eb);
-
-    svg {
-      width: 32px;
-      height: 32px;
-    }
-  }
-
-  .card-text {
-    h3 {
-      margin: 0 0 0.25rem;
-      font-size: 1rem;
-    }
-
-    p {
-      margin: 0;
-      font-size: 0.875rem;
-      color: var(--muted-text-color, #6b7280);
-    }
-  }
-
-  .card-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .card-action {
-    flex-shrink: 0;
-  }
+.card-action {
+  flex-shrink: 0;
 }
 
 .access-level-selector {
@@ -159,26 +165,6 @@
   }
 }
 
-.table-section {
-  .table-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-  }
-
-  .table-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    h3 {
-      margin: 0;
-      font-size: 1.1rem;
-    }
-  }
-}
-
 .badge {
   background-color: var(--primary-color, #2563eb);
   color: white;
@@ -186,6 +172,29 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.resource-group {
+  margin-bottom: 1.5rem;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+}
+
+.group-audience {
+  font-size: 0.8rem;
+  color: var(--muted-text-color, #6b7280);
+  font-style: italic;
 }
 
 .table-container {
@@ -430,14 +439,9 @@
 }
 
 @media (max-width: 600px) {
-  .upload-card {
+  .card-controls {
     flex-direction: column;
     align-items: stretch;
-
-    .card-controls {
-      flex-direction: column;
-      align-items: stretch;
-    }
   }
 
   .access-level-selector select {

@@ -1,54 +1,59 @@
 <div class="control-panel">
   <div class="panel-header">
-    <h2>Resource Files</h2>
+    <div class="panel-title-row">
+      <h2>Resource Files</h2>
+      <button class="action-button secondary-action" (click)="loadResources()" [disabled]="isLoading()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class.spinning]="isLoading()">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Refresh
+      </button>
+    </div>
     <p class="subtitle">Upload and manage shared resource files (PDFs, documents, etc.)</p>
   </div>
 
-  <div class="upload-card">
-    <div class="card-content">
-      <div class="card-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 12 3 7 8"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-      </div>
-      <div class="card-text">
-        <h3>Upload Files</h3>
-        <p>Select one or more files to upload to the shared resources area.</p>
-      </div>
-    </div>
-    <div class="card-controls">
-      <div class="access-level-selector">
-        <label for="access-level-select">Access Level</label>
-        <select id="access-level-select" (change)="onAccessLevelChange($event)" [value]="selectedAccessLevel()">
-          @for (level of accessLevels; track level) {
-            <option [value]="level" [selected]="level === selectedAccessLevel()">
-              {{ accessLevelLabels[level] }}
-            </option>
-          }
-        </select>
-        <span class="access-description">{{ accessLevelDescriptions[selectedAccessLevel()] }}</span>
-      </div>
-      <div class="card-action">
-        @if (isUploading()) {
-        <div class="spinner-wrapper">
-          <app-spinner></app-spinner>
-          <span>Uploading...</span>
+  <div class="upload-section">
+    <button class="upload-toggle" (click)="uploadExpanded.set(!uploadExpanded())">
+      <app-icon [name]="uploadExpanded() ? 'expand_less' : 'expand_more'" width="1.2em" height="1.2em"></app-icon>
+      Upload Files
+    </button>
+    @if (uploadExpanded()) {
+    <div class="upload-body">
+      <div class="card-controls">
+        <div class="access-level-selector">
+          <label for="access-level-select">Access Level</label>
+          <select id="access-level-select" (change)="onAccessLevelChange($event)" [value]="selectedAccessLevel()">
+            @for (level of accessLevels; track level) {
+              <option [value]="level" [selected]="level === selectedAccessLevel()">
+                {{ accessLevelLabels[level] }}
+              </option>
+            }
+          </select>
+          <span class="access-description">{{ accessLevelDescriptions[selectedAccessLevel()] }}</span>
         </div>
-        } @else {
-        <label class="upload-label" for="resource-file-input">
-          Choose Files
-        </label>
-        <input
-          id="resource-file-input"
-          type="file"
-          multiple
-          class="file-input-hidden"
-          (change)="onFileSelected($event)" />
-        }
+        <div class="card-action">
+          @if (isUploading()) {
+          <div class="spinner-wrapper">
+            <app-spinner></app-spinner>
+            <span>Uploading...</span>
+          </div>
+          } @else {
+          <label class="upload-label" for="resource-file-input">
+            Choose Files
+          </label>
+          <input
+            id="resource-file-input"
+            type="file"
+            multiple
+            class="file-input-hidden"
+            (change)="onFileSelected($event)" />
+          }
+        </div>
       </div>
     </div>
+    }
   </div>
 
   @if (statusMessage()) {
@@ -72,30 +77,20 @@
   </div>
   }
 
-  <div class="table-section">
-    <div class="table-header">
-      <div class="table-title">
-        <h3>Uploaded Resources</h3>
-        <span class="badge">{{ resources().length }}</span>
-      </div>
-      <button class="action-button secondary-action" (click)="loadResources()" [disabled]="isLoading()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class.spinning]="isLoading()">
-          <polyline points="23 4 23 10 17 10"></polyline>
-          <polyline points="1 20 1 14 7 14"></polyline>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-        </svg>
-        Refresh
-      </button>
-    </div>
+  @if (isLoading()) {
+  <div class="loading-state">
+    <app-spinner></app-spinner>
+    <p>Loading resources...</p>
+  </div>
+  }
 
-    @if (isLoading()) {
-    <div class="loading-state">
-      <app-spinner></app-spinner>
-      <p>Loading resources...</p>
+  @for (group of resourceGroups(); track group.level) {
+  <div class="resource-group">
+    <div class="group-header">
+      <h3>{{ group.header }}</h3>
+      <span class="badge">{{ group.files.length }}</span>
+      <span class="group-audience">{{ group.audience }}</span>
     </div>
-    }
-
-    @if (resources().length > 0 && !isLoading()) {
     <div class="table-container">
       <table class="premium-table">
         <thead>
@@ -107,7 +102,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (resource of resources(); track resource.fullPath) {
+          @for (resource of group.files; track resource.fullPath) {
           <tr class="table-row">
             <td class="file-info-cell">
               <div class="file-name-row">
@@ -116,9 +111,6 @@
                 </a>
               </div>
               <div class="file-meta-row">
-                <span class="access-chip" [class]="accessLevelClass(resource.accessLevel)">
-                  {{ accessLabel(resource.accessLevel) }}
-                </span>
                 <span class="type-badge">{{ resource.contentType }}</span>
               </div>
             </td>
@@ -153,19 +145,20 @@
         </tbody>
       </table>
     </div>
-    }
-
-    @if (!isLoading() && resources().length === 0 && !errorMessage()) {
-    <div class="empty-state">
-      <div class="empty-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-        </svg>
-      </div>
-      <h3>No resources uploaded</h3>
-      <p>Upload PDF files, documents, or other resources using the button above.</p>
-    </div>
-    }
   </div>
+  }
+
+  @if (!isLoading() && resources().length === 0 && !errorMessage()) {
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+    </div>
+    <h3>No resources uploaded</h3>
+    <p>Upload PDF files, documents, or other resources using the upload section above.</p>
+  </div>
+  }
 </div>
+

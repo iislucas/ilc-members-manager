@@ -13,7 +13,7 @@
  * to leverage admin-signed download URLs.
  */
 
-import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { DataManagerService } from '../../data-manager.service';
 import { FIREBASE_APP } from '../../app.config';
 import { SpinnerComponent } from '../../spinner/spinner.component';
@@ -27,6 +27,24 @@ import {
   ACCESS_LEVEL_DESCRIPTIONS,
 } from '../../../../functions/src/data-model';
 
+/** Descriptive section headers for each access level file group. */
+const ACCESS_LEVEL_FILE_HEADERS: Record<ResourceAccessLevel, string> = {
+  [ResourceAccessLevel.Public]: 'Public Files',
+  [ResourceAccessLevel.Members]: 'Member Files',
+  [ResourceAccessLevel.Instructors]: 'Instructor Files',
+  [ResourceAccessLevel.SchoolOwners]: 'School Owner Files',
+  [ResourceAccessLevel.Admins]: 'Admin Files',
+};
+
+/** Who can access each tier, shown as a subtitle. */
+const ACCESS_LEVEL_AUDIENCE: Record<ResourceAccessLevel, string> = {
+  [ResourceAccessLevel.Public]: 'Anyone — no login required',
+  [ResourceAccessLevel.Members]: 'Active members, instructors & admins',
+  [ResourceAccessLevel.Instructors]: 'Licensed instructors & admins',
+  [ResourceAccessLevel.SchoolOwners]: 'School owners/managers & admins',
+  [ResourceAccessLevel.Admins]: 'Admins only',
+};
+
 // Matches the shape returned by the listResources Cloud Function.
 interface ResourceFile {
   name: string;
@@ -36,6 +54,13 @@ interface ResourceFile {
   size: string;
   downloadUrl: string;
   accessLevel: ResourceAccessLevel;
+}
+
+interface ResourceGroup {
+  level: ResourceAccessLevel;
+  header: string;
+  audience: string;
+  files: ResourceFile[];
 }
 
 @Component({
@@ -57,9 +82,30 @@ export class ResourcesComponent implements OnInit {
   errorMessage = signal('');
   openMenuId = signal<string | null>(null);
   menuPosition = signal<{ top: string; left: string }>({ top: '0', left: '0' });
+  uploadExpanded = signal(false);
 
   // The currently selected access level for uploads.
   selectedAccessLevel = signal<ResourceAccessLevel>(ResourceAccessLevel.Members);
+
+  /** Resources grouped by access level, only including levels that have files. */
+  resourceGroups = computed<ResourceGroup[]>(() => {
+    const all = this.resources();
+    const byLevel = new Map<ResourceAccessLevel, ResourceFile[]>();
+    for (const r of all) {
+      const list = byLevel.get(r.accessLevel) || [];
+      list.push(r);
+      byLevel.set(r.accessLevel, list);
+    }
+    // Return groups in the canonical RESOURCE_ACCESS_LEVELS order.
+    return RESOURCE_ACCESS_LEVELS
+      .filter(level => byLevel.has(level))
+      .map(level => ({
+        level,
+        header: ACCESS_LEVEL_FILE_HEADERS[level],
+        audience: ACCESS_LEVEL_AUDIENCE[level],
+        files: byLevel.get(level)!,
+      }));
+  });
 
   // Expose constants to the template.
   readonly accessLevels = RESOURCE_ACCESS_LEVELS;
