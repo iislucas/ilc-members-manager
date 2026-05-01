@@ -81,6 +81,11 @@
   background-color: v.$theme-error-bg-color;
   border: 1px solid v.$theme-error-border-color;
   color: v.$theme-error-text-color;
+
+  .renewal-link {
+    margin-top: 0.6em;
+    font-size: 1.05em;
+  }
 }
 
 // Keep the login form centered and bounded.

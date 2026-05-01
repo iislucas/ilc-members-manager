@@ -7,7 +7,8 @@
  * The page checks the user's authentication and access tier, then calls
  * the getResourceDownloadUrl Cloud Function to obtain a signed download
  * URL. It shows helpful error messages when access is denied (e.g.
- * expired membership or instructor license).
+ * expired membership or instructor license), including links to renew
+ * the relevant subscription.
  *
  * Public resources can be downloaded without logging in. All other
  * tiers require the user to be authenticated with the appropriate
@@ -29,11 +30,21 @@ import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { IconComponent } from '../icons/icon.component';
 import { LoginComponent } from '../login/login';
+import { environment } from '../../environments/environment';
 import {
   ResourceAccessLevel,
   RESOURCE_ACCESS_LEVELS,
   ACCESS_LEVEL_LABELS,
 } from '../../../functions/src/data-model';
+
+// Structured error info parsed from the Cloud Function's error details.
+interface AccessError {
+  title: string;
+  message: string;
+  // If set, the user can renew/fix their access at this URL.
+  renewalUrl?: string;
+  renewalLabel?: string;
+}
 
 // Represents the current state of the download flow.
 type DownloadState =
@@ -42,7 +53,7 @@ type DownloadState =
   | { kind: 'login-required' }
   | { kind: 'downloading' }
   | { kind: 'done'; fileName: string }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; error: AccessError };
 
 @Component({
   selector: 'app-download-resource',
@@ -102,7 +113,10 @@ export class DownloadResourceComponent {
       if (login === LoginStatus.LoggingIn) return;
 
       if (!path || !level) {
-        this.state.set({ kind: 'error', message: 'Invalid resource URL.' });
+        this.state.set({
+          kind: 'error',
+          error: { title: 'Invalid Link', message: 'This resource link is not valid.' },
+        });
         return;
       }
 
@@ -137,8 +151,8 @@ export class DownloadResourceComponent {
       // Open in a new tab to trigger the browser's download.
       window.open(url, '_blank');
     } catch (err: unknown) {
-      const message = this.extractErrorMessage(err);
-      this.state.set({ kind: 'error', message });
+      const error = this.parseAccessError(err);
+      this.state.set({ kind: 'error', error });
     }
   }
 
@@ -151,11 +165,85 @@ export class DownloadResourceComponent {
     }
   }
 
-  private extractErrorMessage(err: unknown): string {
-    if (err instanceof Error) {
-      // Firebase callable errors include the server's message in .message.
-      return err.message;
+  // Parses a Firebase callable error into a user-friendly AccessError with
+  // appropriate renewal links based on the structured `details` object
+  // returned by the Cloud Function.
+  private parseAccessError(err: unknown): AccessError {
+    // Firebase callable errors have .code, .message, and .details.
+    const firebaseErr = err as {
+      code?: string;
+      message?: string;
+      details?: {
+        reason?: string;
+        tier?: string;
+        expiryDate?: string;
+      };
+    };
+
+    const code = firebaseErr.code || '';
+    const details = firebaseErr.details;
+    const serverMessage = firebaseErr.message || 'An unknown error occurred.';
+
+    // Not-found: could be a genuinely missing file or an admin-only resource
+    // being accessed by a non-admin (Cloud Function masks admin resources as not-found).
+    if (code === 'functions/not-found' || code === 'not-found') {
+      return {
+        title: 'Resource Not Found',
+        message: 'This resource could not be found. The link may be outdated, or you may not have access.',
+      };
     }
-    return String(err);
+
+    // Permission denied with structured details from assertResourceAccess.
+    if (details?.tier) {
+      switch (details.tier) {
+        case 'membership':
+          return details.reason === 'expired'
+            ? {
+                title: 'Membership Expired',
+                message: `Your membership expired on ${details.expiryDate}. Please renew it to access this resource.`,
+                renewalUrl: environment.links.membership,
+                renewalLabel: 'Renew Membership',
+              }
+            : {
+                title: 'Members Only',
+                message: 'This resource is for active members. You do not currently have an active membership.',
+                renewalUrl: environment.links.membership,
+                renewalLabel: 'Get Membership',
+              };
+
+        case 'instructor':
+          return details.reason === 'expired'
+            ? {
+                title: 'Instructor License Expired',
+                message: `Your instructor license expired on ${details.expiryDate}. Please renew it to access this resource.`,
+                renewalUrl: environment.links.license,
+                renewalLabel: 'Renew License',
+              }
+            : {
+                title: 'Instructors Only',
+                message: 'This resource is for licensed instructors. You do not currently have an instructor license.',
+                renewalUrl: environment.links.license,
+                renewalLabel: 'Get Instructor License',
+              };
+
+        case 'school':
+          return details.reason === 'expired'
+            ? {
+                title: 'School License Expired',
+                message: `Your school license expired on ${details.expiryDate}. Please renew it to access this resource.`,
+                renewalUrl: environment.links.license,
+                renewalLabel: 'Renew License',
+              }
+            : {
+                title: 'School Owners Only',
+                message: 'This resource is for school owners and managers. You do not currently have an active school license.',
+                renewalUrl: environment.links.license,
+                renewalLabel: 'Get School License',
+              };
+      }
+    }
+
+    // Fallback: use the raw server message.
+    return { title: 'Access Denied', message: serverMessage };
   }
 }

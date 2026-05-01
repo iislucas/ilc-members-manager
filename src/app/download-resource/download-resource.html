@@ -43,11 +43,17 @@
       <button (click)="retry()">Download Again</button>
     }
     @case ('error') {
+      @let error = currentState.error;
       <div class="message-box error-box">
         <app-icon name="error" width="1.4em" height="1.4em"></app-icon>
         <div>
-          <p class="message-title">Access Denied</p>
-          <p>{{ currentState.message }}</p>
+          <p class="message-title">{{ error.title }}</p>
+          <p>{{ error.message }}</p>
+          @if (error.renewalUrl) {
+            <p class="renewal-link">
+              <a [href]="error.renewalUrl" target="_blank" rel="noopener noreferrer">{{ error.renewalLabel }}</a>
+            </p>
+          }
         </div>
       </div>
       @if (loginStatus() === LoginStatus.SignedIn) {

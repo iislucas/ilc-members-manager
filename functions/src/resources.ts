@@ -129,6 +129,7 @@ async function assertResourceAccess(
     throw new HttpsError(
       'permission-denied',
       'No access record found for your account. Please contact an administrator.',
+      { reason: 'no-acl' },
     );
   }
   const acl = aclDoc.data()!;
@@ -145,12 +146,14 @@ async function assertResourceAccess(
         throw new HttpsError(
           'permission-denied',
           'This resource is for active members. You do not have an active membership.',
+          { reason: 'missing', tier: 'membership' },
         );
       }
       if (expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for active members. Your membership expired on ${expires}.`,
+          { reason: 'expired', tier: 'membership', expiryDate: expires },
         );
       }
       return;
@@ -161,12 +164,14 @@ async function assertResourceAccess(
         throw new HttpsError(
           'permission-denied',
           'This resource is for licensed instructors. You do not have an instructor license.',
+          { reason: 'missing', tier: 'instructor' },
         );
       }
       if (expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for licensed instructors. Your instructor license expired on ${expires}.`,
+          { reason: 'expired', tier: 'instructor', expiryDate: expires },
         );
       }
       return;
@@ -177,20 +182,25 @@ async function assertResourceAccess(
         throw new HttpsError(
           'permission-denied',
           'This resource is for school owners/managers. You do not have an active school license.',
+          { reason: 'missing', tier: 'school' },
         );
       }
       if (expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for school owners/managers. Your school license expired on ${expires}.`,
+          { reason: 'expired', tier: 'school', expiryDate: expires },
         );
       }
       return;
     }
     case ResourceAccessLevel.Admins: {
+      // For non-admins, return not-found to avoid revealing that admin
+      // resources exist at this path.
       throw new HttpsError(
-        'permission-denied',
-        'This resource is restricted to administrators.',
+        'not-found',
+        'This resource was not found.',
+        { reason: 'admin-only' },
       );
     }
   }
