@@ -89,7 +89,7 @@
       <!-- Matched Events -->
       @if (searchResults().matched.length > 0) {
         <div class="event-list">
-          @for (event of searchResults().matched; track event.sourceId) {
+          @for (event of searchResults().matched; track event.docId) {
             <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
@@ -102,7 +102,7 @@
         <hr />
         <h2>Other Events</h2>
         <div class="event-list">
-          @for (event of searchResults().unmatched; track event.sourceId) {
+          @for (event of searchResults().unmatched; track event.docId) {
             <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
