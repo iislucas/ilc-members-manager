@@ -119,7 +119,7 @@ async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> 
     const ownerSnap = await db.collection('schools')
       .where('ownerInstructorId', '==', instId).get();
     for (const doc of ownerSnap.docs) {
-      expiries.push(doc.data().schoolLicenseExpires || '');
+      expiries.push(doc.data().schoolLicenseExpires || 'life');
     }
   }
 
@@ -128,7 +128,7 @@ async function getSchoolLicenseExpiry(instructorIds: string[]): Promise<string> 
     const managerSnap = await db.collection('schools')
       .where('managerInstructorIds', 'array-contains', instId).get();
     for (const doc of managerSnap.docs) {
-      expiries.push(doc.data().schoolLicenseExpires || '');
+      expiries.push(doc.data().schoolLicenseExpires || 'life');
     }
   }
 

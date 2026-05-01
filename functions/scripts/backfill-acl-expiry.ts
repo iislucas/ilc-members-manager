@@ -107,7 +107,7 @@ async function main() {
 
   for (const doc of schoolsSnap.docs) {
     const school = doc.data();
-    const expiry = school.schoolLicenseExpires || '';
+    const expiry = school.schoolLicenseExpires || 'life';
 
     if (school.ownerInstructorId) {
       const list = schoolsByOwner.get(school.ownerInstructorId) || [];
