@@ -199,6 +199,19 @@ button:disabled {
   }
 }
 
+// A subtle-button variant with a visible border. Use for secondary actions
+// that need to be clearly clickable, e.g. file upload triggers, optional
+// selection inputs.  Pair with an icon for clarity.
+//
+// Usage:
+//   <button class="outlined-button" (click)="selectFile()">
+//     <app-icon name="upload_file" /> select a file
+//   </button>
+.outlined-button {
+  @extend .subtle-button;
+  border: 1px dashed $border-color-light;
+}
+
 // ----------------------------------------------------------------------------
 //  Card style
 // ----------------------------------------------------------------------------
@@ -579,6 +592,40 @@ a.selectable-card {
 .warning-message {
   color: #b8860b; // Dark goldenrod — distinct amber for warnings
   flex: 1;
+}
+
+// Compact inline error with a dismiss button. Use next to the element that
+// triggered the error (e.g. below an upload button) so the user sees it
+// in context. Long text (e.g. filenames) is hard-wrapped via overflow-wrap.
+//
+// Usage:
+//   <div class="inline-error">
+//     <span>{{ errorMessage }}</span>
+//     <button class="icon-only-button" (click)="dismiss()"><app-icon name="close" /></button>
+//   </div>
+.inline-error {
+  display: flex;
+  align-items: start;
+  gap: 0.5em;
+  border: 1px solid $theme-error-border-color;
+  background-color: $theme-error-bg-color;
+  color: $theme-error-text-color;
+  border-radius: 4px;
+  font-size: 0.85em;
+  padding: 0.4em 0.6em;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  span {
+    flex: 1;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    min-width: 0;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
 }
 
 // ----------------------------------------------------------------------------

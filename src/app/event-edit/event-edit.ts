@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, initEvent, Member, InstructorPublicData } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, initEvent, Member, InstructorPublicData, EventDocument } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -55,6 +55,7 @@ type EventFormModel = {
   ownerDocId: string;
   managerDocIds: string[];
   leadingInstructorId: string;
+  documents: EventDocument[];
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -72,6 +73,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     ownerDocId: event.ownerDocId || '',
     managerDocIds: event.managerDocIds || [],
     leadingInstructorId: event.leadingInstructorId || '',
+    documents: event.documents || [],
   };
   if (event.heroImageLargeUrl !== undefined) {
     model.heroImageLargeUrl = event.heroImageLargeUrl;
@@ -125,6 +127,7 @@ export class EventEditComponent implements OnInit {
     ownerDocId: '',
     managerDocIds: [],
     leadingInstructorId: '',
+    documents: [],
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -147,7 +150,13 @@ export class EventEditComponent implements OnInit {
   isEditingCrop = signal(false);
   isUploadingImage = signal(false);
   errorMessage = signal<string | null>(null);
+  imageUploadError = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  isUploadingDocument = signal(false);
+  documentUploadError = signal<string | null>(null);
+
+  // Maximum number of documents allowed per event.
+  private readonly MAX_DOCUMENTS = 10;
 
   isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
 
@@ -175,6 +184,12 @@ export class EventEditComponent implements OnInit {
     if (view === Views.MyEventEdit) return 'my-events';
     if (view === Views.ManageEventEdit) return 'manage-events';
     return 'manage-events'; // Default fallback
+  });
+
+  viewEventUrl = computed(() => {
+    const prefix = this.backUrl();
+    const eventId = this.eventId();
+    return `${prefix}/${eventId}`;
   });
 
   async deleteEvent() {
@@ -236,12 +251,12 @@ export class EventEditComponent implements OnInit {
     const { thumbBlob, largeBlob, originalFile } = event;
     const ev = this.event();
     if (!ev || !ev.docId) {
-      this.errorMessage.set('Cannot upload image: event has no document ID.');
+      this.imageUploadError.set('Cannot upload image: event has no document ID.');
       return;
     }
 
     this.isUploadingImage.set(true);
-    this.errorMessage.set(null);
+    this.imageUploadError.set(null);
 
     try {
       const storage = getStorage(this.firebaseApp);
@@ -276,7 +291,7 @@ export class EventEditComponent implements OnInit {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error uploading image:', error);
-      this.errorMessage.set('Failed to upload image: ' + message);
+      this.imageUploadError.set('Failed to upload image: ' + message);
     } finally {
       this.isUploadingImage.set(false);
     }
@@ -348,6 +363,81 @@ export class EventEditComponent implements OnInit {
     }));
   }
 
+  // Document management methods
+
+  onDocumentFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    const ev = this.event();
+    if (!ev || !ev.docId) {
+      this.documentUploadError.set('Cannot upload document: event has no document ID. Please save the event first.');
+      return;
+    }
+
+    const currentDocs = this.eventFormModel().documents;
+    const remaining = this.MAX_DOCUMENTS - currentDocs.length;
+    if (remaining <= 0) {
+      this.documentUploadError.set(`Maximum of ${this.MAX_DOCUMENTS} documents reached.`);
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remaining);
+    this.uploadDocumentFiles(filesToUpload, ev.docId);
+
+    // Reset input so the same file can be re-selected
+    input.value = '';
+  }
+
+  private async uploadDocumentFiles(files: File[], eventDocId: string) {
+    this.isUploadingDocument.set(true);
+    this.documentUploadError.set(null);
+
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const newDocs: EventDocument[] = [];
+
+      for (const file of files) {
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `events/${eventDocId}/documents/${timestamp}_${safeName}`;
+        const fileRef = ref(storage, storagePath);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        newDocs.push({ name: file.name, url });
+      }
+
+      this.eventFormModel.update((m) => ({
+        ...m,
+        documents: [...m.documents, ...newDocs],
+      }));
+      this.successMessage.set(`${newDocs.length} document(s) uploaded. Remember to save changes.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error uploading document:', error);
+      this.documentUploadError.set('Failed to upload document: ' + message);
+    } finally {
+      this.isUploadingDocument.set(false);
+    }
+  }
+
+  updateDocumentName(index: number, event: Event) {
+    const name = (event.target as HTMLInputElement).value;
+    this.eventFormModel.update((m) => {
+      const documents = [...m.documents];
+      documents[index] = { ...documents[index], name };
+      return { ...m, documents };
+    });
+  }
+
+  removeDocument(index: number) {
+    this.eventFormModel.update((m) => ({
+      ...m,
+      documents: m.documents.filter((_, i) => i !== index),
+    }));
+  }
+
   async saveEvent(e: Event) {
     e.preventDefault();
     this.errorMessage.set(null);
@@ -382,6 +472,7 @@ export class EventEditComponent implements OnInit {
         ownerDocId: formData.ownerDocId,
         managerDocIds: formData.managerDocIds.filter(Boolean),
         leadingInstructorId: formData.leadingInstructorId,
+        documents: formData.documents,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
@@ -398,6 +489,7 @@ export class EventEditComponent implements OnInit {
         heroImageLargeUrl: formData.heroImageLargeUrl,
         heroImageThumbUrl: formData.heroImageThumbUrl,
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
+        documents: formData.documents,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',

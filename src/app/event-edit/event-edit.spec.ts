@@ -90,6 +90,7 @@ describe('EventEditComponent', () => {
       ownerDocId: 'owner-id',
       managerDocIds: [],
       leadingInstructorId: '',
+      documents: [],
     });
 
     // Trigger computed signals

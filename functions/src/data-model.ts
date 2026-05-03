@@ -957,6 +957,12 @@ export enum EventSourceKind {
   FirebaseSourced = 'firebase-sourced',
 }
 
+// A document attached to an event (e.g. flyer, schedule, waiver).
+export type EventDocument = {
+  name: string;   // Display name for the document
+  url: string;    // Download URL in Firebase Storage
+};
+
 // A single unified event type. All events live in /events/{docId}.
 // Calendar-synced events have kind='calendar-sourced' and status='listed'.
 // Member-proposed events have kind='firebase-sourced' and status='proposed'.
@@ -984,6 +990,9 @@ export type IlcEvent = {
   leadingInstructorId: string; // Primary instructor leading the event
   managerDocIds: string[];
   managerEmails: string[];
+  // Attached documents (max 10). Each entry has a display name and a
+  // Firebase Storage download URL.
+  documents: EventDocument[];
   lastUpdated?: string;    // ISO date-time; managed by sync logic
   updatedByEmail: string; // Email of user who last updated the event. Defaults to ''.
 };
@@ -1007,6 +1016,7 @@ export function initEvent(): IlcEvent {
     leadingInstructorId: '',
     managerDocIds: [],
     managerEmails: [],
+    documents: [],
     updatedByEmail: '',
   };
 }

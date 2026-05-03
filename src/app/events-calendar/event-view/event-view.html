@@ -69,7 +69,22 @@
         <div class="description-section">
           <app-markdown-viewer [markdown]="ev.descriptionMarkdown || ev.description || ''"></app-markdown-viewer>
         </div>
-        
+
+        @if (ev.documents && ev.documents.length > 0) {
+          <div class="documents-section">
+            <h4>Documents</h4>
+            <ul class="document-links">
+              @for (doc of ev.documents; track doc.url) {
+                <li>
+                  <a [href]="doc.url" target="_blank" rel="noopener noreferrer">
+                    <app-icon name="link"></app-icon>
+                    {{ doc.name }}
+                  </a>
+                </li>
+              }
+            </ul>
+          </div>
+        }
         <div class="actions-section">
           @if (ev.googleCalEventLink) {
             <a class="action-button primary-action"

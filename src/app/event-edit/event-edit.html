@@ -112,6 +112,14 @@
           @if (isUploadingImage()) {
             <app-spinner>Uploading...</app-spinner>
           }
+          @if (imageUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button type="button" class="icon-only-button" (click)="imageUploadError.set(null)" title="Dismiss">
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
         </div>
 
         <label for="event-description" class="description-label"
@@ -122,6 +130,81 @@
             [initialValue]="eventFormModel().description"
             (changed)="onDescriptionChanged($event)"
           ></app-markdown-editor>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Attached Documents</h3>
+
+        <div class="rhs document-list" style="grid-column: 1 / -1;">
+          @let docs = eventFormModel().documents;
+          @for (doc of docs; track $index; let last = $last) {
+            <div class="document-row">
+              <input
+                type="text"
+                [value]="doc.name"
+                (input)="updateDocumentName($index, $event)"
+                placeholder="Document name"
+              />
+              <a
+                class="icon-only-button"
+                [href]="doc.url"
+                target="_blank"
+                title="Open document"
+              >
+                <app-icon name="link" />
+              </a>
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="removeDocument($index)"
+                title="Remove document"
+              >
+                <app-icon name="trash" />
+              </button>
+              @if (last && docs.length < 10) {
+                <button
+                  type="button"
+                  class="icon-only-button add-document-btn"
+                  (click)="documentFileInput.click()"
+                  title="Add another document"
+                >
+                  <app-icon name="add" />
+                </button>
+              }
+            </div>
+          }
+          @if (docs.length === 0) {
+            <div>
+              <button
+                type="button"
+                class="outlined-button"
+                (click)="documentFileInput.click()"
+              >
+                <app-icon name="upload_file" /> select a document to upload
+              </button>
+            </div>
+          }
+          <input
+            #documentFileInput
+            type="file"
+            style="display: none"
+            (change)="onDocumentFileSelected($event)"
+          />
+          @if (isUploadingDocument()) {
+            <app-spinner>Uploading document...</app-spinner>
+          }
+          @if (documentUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button type="button" class="icon-only-button" (click)="documentUploadError.set(null)" title="Dismiss">
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
+          @if (docs.length >= 10) {
+            <span class="note">Maximum of 10 documents reached.</span>
+          }
         </div>
       </div>
 
@@ -205,7 +288,7 @@
             </div>
           }
           @if (managerIds.length === 0) {
-            <div class="add-new-row">
+            <div>
               <button type="button" class="subtle-button" (click)="addEmptyManagerRow()">
                 + add manager
               </button>
@@ -286,12 +369,18 @@
           </button>
         }
       </div>
-      <div style="margin-top: 1em; padding-bottom: 1em">
+      <div style="margin-top: 1em; padding-bottom: 1em; display: flex; gap: 1em; align-items: center;">
         <a
           class="subtle-button"
           [href]="routingService.hrefWithParams(backUrl())"
         >
           <app-icon name="arrow_back" /> Back
+        </a>
+        <a
+          class="subtle-button"
+          [href]="routingService.hrefWithParams(viewEventUrl())"
+        >
+          <app-icon name="visibility" /> View event page
         </a>
       </div>
     </form>

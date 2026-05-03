@@ -12,11 +12,45 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventSourceKind, MembershipType, Member, initEvent } from './data-model';
+import { IlcEvent, EventStatus, EventSourceKind, MembershipType, Member, EventDocument, initEvent } from './data-model';
 import { getMemberByEmail, allowedOrigins } from './common';
 import axios from 'axios';
 import { environment } from './environment/environment';
 import { contentChanged } from './content-cache';
+
+/**
+ * Extracts the Cloud Storage file path from a Firebase Storage download URL.
+ * URLs are like: https://firebasestorage.googleapis.com/v0/b/BUCKET/o/ENCODED_PATH?alt=media&token=...
+ * Returns the decoded path, or null if the URL doesn't match.
+ */
+function storagePathFromUrl(url: string): string | null {
+  try {
+    const match = url.match(/\/o\/([^?]+)/);
+    if (!match) return null;
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+/** Delete a list of Storage files by their download URLs. Logs errors but does not throw. */
+async function deleteStorageFiles(urls: string[]) {
+  if (urls.length === 0) return;
+  const bucket = admin.storage().bucket();
+  for (const url of urls) {
+    const path = storagePathFromUrl(url);
+    if (!path) {
+      logger.warn(`Could not extract storage path from URL: ${url}`);
+      continue;
+    }
+    try {
+      await bucket.file(path).delete();
+      logger.info(`Deleted storage file: ${path}`);
+    } catch (err) {
+      logger.warn(`Failed to delete storage file ${path}:`, err);
+    }
+  }
+}
 
 export function validateProposal(member: Member, data: Record<string, unknown>): string | null {
   if (!member.memberId || member.memberId.trim() === '') {
@@ -152,6 +186,16 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
       .set(eventToMirror);
     logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
   }
+
+  // Clean up Storage files for documents that were removed.
+  const beforeDocs: EventDocument[] = (before as any).documents || [];
+  const afterDocs: EventDocument[] = (after as any).documents || [];
+  const afterUrls = new Set(afterDocs.map(d => d.url));
+  const removedUrls = beforeDocs.map(d => d.url).filter(url => !afterUrls.has(url));
+  if (removedUrls.length > 0) {
+    logger.info(`Cleaning up ${removedUrls.length} removed document(s) for event ${event.params.docId}.`);
+    await deleteStorageFiles(removedUrls);
+  }
   // Only sync firebase-sourced events (calendar-sourced events are managed by the calendar sync).
   if (after.kind === EventSourceKind.CalendarSourced) return;
 
@@ -271,5 +315,16 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     } catch (err) {
       logger.error('Failed to delete from Google Calendar.', err);
     }
+  }
+  // Delete all uploaded documents and images from Storage.
+  const bucket = admin.storage().bucket();
+  try {
+    const [files] = await bucket.getFiles({ prefix: `events/${eventDocId}/` });
+    if (files.length > 0) {
+      await Promise.all(files.map(f => f.delete()));
+      logger.info(`Deleted ${files.length} storage file(s) for event ${eventDocId}.`);
+    }
+  } catch (err) {
+    logger.warn(`Failed to clean up storage for event ${eventDocId}:`, err);
   }
 });

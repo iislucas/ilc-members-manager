@@ -8,7 +8,7 @@ import { AppPathPatterns, FIREBASE_APP } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { InstructorPublicData } from '../../../../functions/src/data-model';
+import { InstructorPublicData, EventDocument } from '../../../../functions/src/data-model';
 import { AutocompleteComponent } from '../../autocomplete/autocomplete';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
@@ -36,6 +36,11 @@ export class ProposeEventComponent {
   croppedLargeBlob = signal<Blob | null>(null);
   originalImagePreviewUrl = signal<string | null>(null);
   showImageUploader = signal(true);
+  pendingDocumentFiles = signal<{ file: File; name: string }[]>([]);
+  isUploadingDocuments = signal(false);
+
+  // Maximum number of documents allowed per event.
+  private readonly MAX_DOCUMENTS = 10;
 
   constructor() {
     window.scrollTo(0, 0);
@@ -57,6 +62,8 @@ export class ProposeEventComponent {
     });
   }
   errorMessage = signal<string | null>(null);
+  imageUploadError = signal<string | null>(null);
+  documentUploadError = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
   eventModel = signal({
@@ -130,6 +137,45 @@ export class ProposeEventComponent {
     this.proposeForm().dirty();
   }
 
+  // Document staging methods (files are uploaded after proposal submission)
+
+  onDocumentFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    const current = this.pendingDocumentFiles();
+    const remaining = this.MAX_DOCUMENTS - current.length;
+    if (remaining <= 0) {
+      this.documentUploadError.set(`Maximum of ${this.MAX_DOCUMENTS} documents reached.`);
+      return;
+    }
+
+    const newEntries = Array.from(files).slice(0, remaining).map(f => ({
+      file: f,
+      name: f.name,
+    }));
+
+    this.pendingDocumentFiles.update(list => [...list, ...newEntries]);
+    this.proposeForm().dirty();
+
+    // Reset input so the same file can be re-selected
+    input.value = '';
+  }
+
+  updateDocumentName(index: number, event: Event) {
+    const name = (event.target as HTMLInputElement).value;
+    this.pendingDocumentFiles.update(list => {
+      const updated = [...list];
+      updated[index] = { ...updated[index], name };
+      return updated;
+    });
+  }
+
+  removeDocument(index: number) {
+    this.pendingDocumentFiles.update(list => list.filter((_, i) => i !== index));
+  }
+
   async onSubmit() {
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -183,9 +229,38 @@ export class ProposeEventComponent {
             });
           } catch (uploadError) {
             console.error('Error uploading image after proposal:', uploadError);
-            this.errorMessage.set('Event proposed, but image upload failed.');
+            this.imageUploadError.set('Event proposed, but image upload failed.');
           } finally {
             this.isUploadingImage.set(false);
+          }
+        }
+
+        // Upload pending documents
+        const pendingDocs = this.pendingDocumentFiles();
+        if (pendingDocs.length > 0) {
+          this.isUploadingDocuments.set(true);
+          try {
+            const storage = getStorage(this.firebaseApp);
+            const uploadedDocs: EventDocument[] = [];
+
+            for (const entry of pendingDocs) {
+              const timestamp = Date.now();
+              const safeName = entry.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+              const storagePath = `events/${docId}/documents/${timestamp}_${safeName}`;
+              const fileRef = ref(storage, storagePath);
+              await uploadBytes(fileRef, entry.file);
+              const url = await getDownloadURL(fileRef);
+              uploadedDocs.push({ name: entry.name, url });
+            }
+
+            const db = getFirestore(this.firebaseApp);
+            const docRef = doc(db, 'events', docId);
+            await updateDoc(docRef, { documents: uploadedDocs });
+          } catch (uploadError) {
+            console.error('Error uploading documents after proposal:', uploadError);
+            this.documentUploadError.set('Event proposed, but document upload failed.');
+          } finally {
+            this.isUploadingDocuments.set(false);
           }
         }
 
