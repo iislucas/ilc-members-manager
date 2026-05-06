@@ -12,6 +12,36 @@
 
   <div class="edit-form">
     <form (submit)="saveEvent($event)">
+      @if (canChangeStatus()) {
+        <div class="status-chip-container">
+          <button type="button" [class]="statusClass()" class="status-chip-btn" (click)="statusMenuOpen.update(v => !v)">
+            {{ statusLabel() }}
+            <app-icon name="expand_more" />
+          </button>
+          @if (statusMenuOpen()) {
+            <div class="menu-overlay transparent" (click)="statusMenuOpen.set(false)"></div>
+            <div class="status-dropdown">
+              @if (isAdmin()) {
+                @for (status of eventStatuses; track status) {
+                  <div class="menu-item" [class.active]="event()?.status === status" (click)="changeStatus(status)">
+                    <span class="event-status-chip" [class]="'event-status-chip status-' + status">{{ eventStatusLabelFn(status) }}</span>
+                  </div>
+                }
+              } @else {
+                <div class="menu-item" (click)="changeStatus(EventStatus.Cancelled)">
+                  <app-icon name="close" />
+                  <span>Cancel Event</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else if (statusLabel()) {
+        <div class="status-chip-container">
+          <span [class]="statusClass()">{{ statusLabel() }}</span>
+        </div>
+      }
+
       <div class="form-section">
         <h3>Event Details</h3>
 
@@ -210,19 +240,6 @@
 
       <div class="form-section">
         <h3>Status & Metadata</h3>
-
-        <label for="event-status">Status</label>
-        <div class="rhs">
-          @if (isAdmin()) {
-            <select id="event-status" [formField]="form.status">
-              @for (status of eventStatuses; track status) {
-                <option [value]="status">{{ status }}</option>
-              }
-            </select>
-          } @else {
-            <span class="readonly-value">{{ ev?.status }}</span>
-          }
-        </div>
 
         @if (ev) {
         <label for="event-owner">Owner</label>

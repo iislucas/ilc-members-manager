@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, initEvent, Member, InstructorPublicData, EventDocument } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -106,6 +106,7 @@ export class EventEditComponent implements OnInit {
   // Constants for template
   EventStatus = EventStatus;
   eventStatuses = Object.values(EventStatus);
+  eventStatusLabelFn = eventStatusLabel;
 
   // Input: event ID from route
   eventId = input.required<string>();
@@ -154,11 +155,24 @@ export class EventEditComponent implements OnInit {
   successMessage = signal<string | null>(null);
   isUploadingDocument = signal(false);
   documentUploadError = signal<string | null>(null);
+  statusMenuOpen = signal(false);
 
   // Maximum number of documents allowed per event.
   private readonly MAX_DOCUMENTS = 10;
 
   isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+
+  // Status chip display — uses the loaded event's status (not the form
+  // model) so it always reflects the persisted state.
+  statusLabel = computed(() => {
+    const ev = this.event();
+    return ev ? eventStatusLabel(ev.status) : '';
+  });
+  statusClass = computed(() =>
+    'event-status-chip status-' + (this.event()?.status || 'proposed'));
+
+  // Whether the current user can change the event status via the chip menu.
+  canChangeStatus = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();
@@ -191,6 +205,47 @@ export class EventEditComponent implements OnInit {
     const eventId = this.eventId();
     return `${prefix}/${eventId}`;
   });
+  // Change the event status via the chip dropdown. For non-admins only
+  // 'cancelled' is allowed, with a confirmation warning.
+  async changeStatus(newStatus: EventStatus) {
+    this.statusMenuOpen.set(false);
+    const ev = this.event();
+    if (!ev || !ev.docId) return;
+    if (ev.status === newStatus) return;
+
+    // Non-admin users can only cancel, and need to confirm.
+    if (!this.isAdmin()) {
+      if (newStatus !== EventStatus.Cancelled) return;
+      const confirmed = confirm(
+        'Are you sure you want to cancel this event? ' +
+        'This will mark the event as cancelled and it will no longer appear in public listings. ' +
+        'Only an admin can reverse this action.'
+      );
+      if (!confirmed) return;
+    }
+
+    this.isSaving.set(true);
+    this.errorMessage.set(null);
+    try {
+      const docRef = doc(this.db, 'events', ev.docId);
+      await updateDoc(docRef, {
+        status: newStatus,
+        lastUpdated: new Date().toISOString(),
+        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+      });
+      // Update local state so chip and form model reflect the change.
+      const updatedEvent = { ...ev, status: newStatus, lastUpdated: new Date().toISOString() };
+      this.event.set(updatedEvent);
+      this.eventFormModel.update(m => ({ ...m, status: newStatus }));
+      this.successMessage.set(`Status changed to "${eventStatusLabel(newStatus)}".`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error changing status:', error);
+      this.errorMessage.set('Failed to change status: ' + message);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
 
   async deleteEvent() {
     const ev = this.event();

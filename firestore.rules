@@ -141,8 +141,10 @@ service cloud.firestore {
         resource.data.status == 'proposed'
       );
       allow update: if isAdmin() || (
-        isEventOwnerOrManager() &&
-        request.resource.data.status == resource.data.status
+        isEventOwnerOrManager() && (
+          request.resource.data.status == resource.data.status ||
+          request.resource.data.status == 'cancelled'
+        )
       );
     }
 

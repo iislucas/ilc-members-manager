@@ -1,6 +1,33 @@
 @use "../../scss_variables.scss" as v;
 @use "../edit-form.scss" as *;
+@use "../../styles" as *;
 
+.status-chip-container {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.status-chip-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  border: none;
+  font-size: 0.9em;
+  padding: 6px 14px;
+
+  app-icon {
+    font-size: 1rem;
+  }
+}
+
+.status-dropdown {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px);
+  z-index: 100;
+}
 .milkdown-editor-container {
   border: 1px solid #ddd;
   border-radius: 4px;

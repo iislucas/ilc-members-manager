@@ -689,6 +689,7 @@ a.selectable-card {
   display: flex;
   align-items: center;
   gap: 0.75em;
+  @include row-highlight-base;
 }
 
 .menu-seperator {
@@ -696,8 +697,13 @@ a.selectable-card {
 }
 
 .menu-item:hover {
-  background-color: $menu-item-hover-color;
-  margin: 0.2em;
+  @include row-highlight-active;
+}
+
+.menu-item.active {
+  font-weight: 600;
+  background-color: $separator-color;
+  border-radius: 4px;
 }
 
 .menu-overlay {

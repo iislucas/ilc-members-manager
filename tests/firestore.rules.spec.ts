@@ -635,6 +635,41 @@ describe('Firestore Rules', () => {
         db.collection('events').doc('test-event').delete(),
       );
     });
+
+    it('should allow event owner to change status to cancelled', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('events').doc('test-event').update({
+          title: 'Test Event',
+          status: 'cancelled',
+        }),
+      );
+    });
+
+    it('should deny event owner from changing status to listed', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          title: 'Test Event',
+          status: 'listed',
+        }),
+      );
+    });
+
+    it('should deny non-owner from changing status to cancelled', async () => {
+      const db = testEnv
+        .authenticatedContext('other_user', { email: 'other@test.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          status: 'cancelled',
+        }),
+      );
+    });
   });
 
   describe('Blog Posts Collections', () => {

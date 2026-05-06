@@ -429,7 +429,7 @@ The wrapper `.active-tag-filter` is a simple flex container with wrap and gap �
 
 Three global classes in `styles.scss` provide the full menu system:
 - **`.menu-style`** — White container with border, shadow, and column flex layout
-- **`.menu-item`** — Row inside a menu with icon + label gap and hover state
+- **`.menu-item`** — Row inside a menu with icon + label gap. Uses the row-highlight pattern on hover and active states (left border + light blue background).
 - **`.menu-overlay`** — Full-screen click-away backdrop (add `.transparent` for invisible variant)
 
 To create a positioned dropdown in a component, `@extend .menu-style` and add positioning:
@@ -445,6 +445,9 @@ To create a positioned dropdown in a component, `@extend .menu-style` and add po
 ```
 
 Do not redefine the menu's background, border, shadow, or padding — it's all in the base class.
+
+> [!IMPORTANT]
+> **Exclusive Selection**: Do NOT use checkboxes for exclusive (single) selection in menus. Checkboxes imply multi-select. Instead, use the `.active` class on the `.menu-item` to indicate the selected item (it applies the row-highlight and bold text).
 
 ### Inputs
 
