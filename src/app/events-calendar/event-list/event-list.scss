@@ -38,6 +38,18 @@
   &:hover {
     @include row-highlight-active;
   }
+
+  &.selectable-card {
+    padding-left: 1em;
+  }
+}
+
+.event-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 0.5em;
 }
 
 app-event-item {

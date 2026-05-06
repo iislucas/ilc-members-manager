@@ -950,6 +950,22 @@ export enum EventStatus {
   Cancelled = 'cancelled',
 }
 
+// Maps an EventStatus value to a user-friendly display label.
+export function eventStatusLabel(status: EventStatus | undefined): string {
+  switch (status) {
+    case EventStatus.Proposed:
+      return 'Waiting for Approval';
+    case EventStatus.Listed:
+      return 'Listed Publicly';
+    case EventStatus.Rejected:
+      return 'Rejected';
+    case EventStatus.Cancelled:
+      return 'Cancelled';
+    default:
+      return '';
+  }
+}
+
 // Event source kind — used by sync pruning so that calendar-sourced
 // events can be pruned without deleting Firebase-sourced events.
 export enum EventSourceKind {

@@ -54,6 +54,7 @@
               </div>
             }
           </div>
+
           @if (instructorLabel()) {
             <a class="instructor-chip" [href]="instructorLink()">
               <span class="icon-only-button">
@@ -96,6 +97,9 @@
             </a>
           }
           @if (canEdit()) {
+            @if (statusLabel()) {
+              <span [class]="statusClass()">{{ statusLabel() }}</span>
+            }
             <a class="action-button secondary-action"
                [href]="editUrl()">
               <span>Edit Event</span>

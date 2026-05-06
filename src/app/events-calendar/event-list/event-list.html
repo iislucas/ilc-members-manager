@@ -90,7 +90,12 @@
       @if (searchResults().matched.length > 0) {
         <div class="event-list">
           @for (event of searchResults().matched; track event.docId) {
-            <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
+            <a class="event-card-link" [class.selectable-card]="isMyEvents()" [href]="resolvedEventLinkPrefix() + event.docId">
+              @if (isMyEvents()) {
+                <div class="event-card-header">
+                  <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                </div>
+              }
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
           }
@@ -103,7 +108,12 @@
         <h2>Other Events</h2>
         <div class="event-list">
           @for (event of searchResults().unmatched; track event.docId) {
-            <a class="event-card-link" [href]="resolvedEventLinkPrefix() + event.docId">
+            <a class="event-card-link" [class.selectable-card]="isMyEvents()" [href]="resolvedEventLinkPrefix() + event.docId">
+              @if (isMyEvents()) {
+                <div class="event-card-header">
+                  <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                </div>
+              }
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
             </a>
           }

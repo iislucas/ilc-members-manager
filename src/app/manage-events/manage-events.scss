@@ -203,32 +203,8 @@
   text-decoration: underline;
 }
 
-// Status colors
-.status-proposed {
-  background-color: #fff3cd;
-  color: #856404;
-}
-.status-listed {
-  background-color: #d4edda;
-  color: #155724;
-}
-.status-rejected {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-.status-cancelled {
-  background-color: #e2e3e5;
-  color: #383d41;
-}
-
-.status-chip {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  font-weight: 600;
-  text-transform: capitalize;
-}
+// Event status chip styles are now defined globally in styles.scss.
+// See: .event-status-chip and .status-proposed / .status-listed / etc.
 
 .kind-label {
   font-size: 0.75em;

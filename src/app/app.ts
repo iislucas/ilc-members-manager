@@ -401,8 +401,12 @@ export class App {
       case Views.EventsCalendar:
         return 'Events & Workshops';
       case Views.EventView:
+      case Views.MyEventView:
+      case Views.ManageEventView:
         return this.loadedEventTitle() || 'Event Details';
       case Views.EventEdit:
+      case Views.MyEventEdit:
+      case Views.ManageEventEdit:
         return this.loadedEventTitle() ? `Edit: ${this.loadedEventTitle()}` : 'Edit Event';
       case Views.ProposeEvent:
         return 'Organise Event';

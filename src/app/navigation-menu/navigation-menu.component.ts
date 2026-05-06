@@ -104,6 +104,14 @@ export class NavigationMenuComponent {
         return `Order ${orderId}`;
       case Views.ProposeEvent: return 'Organise Event';
       case Views.ManageEvents: return 'Manage Events';
+      case Views.EventView:
+      case Views.MyEventView:
+      case Views.ManageEventView:
+        return 'Event Details';
+      case Views.EventEdit:
+      case Views.MyEventEdit:
+      case Views.ManageEventEdit:
+        return 'Edit Event';
       default: return 'Unknown View';
     }
   }

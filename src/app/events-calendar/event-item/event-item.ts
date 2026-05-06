@@ -25,6 +25,8 @@ export class EventItemComponent {
   event = input.required<IlcEvent>();
   readonly dateDisplay = computed(() => formatDateRange(this.event().start, this.event().end));
 
+
+
   // Optional prefix for instructor profile links. When empty (default),
   // the component uses the in-app hash route. When set (e.g. by the
   // standalone WC), links point to the specified base URL.

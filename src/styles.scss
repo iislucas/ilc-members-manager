@@ -552,6 +552,44 @@ a.selectable-card {
 }
 
 // ----------------------------------------------------------------------------
+//  Event Status Chips
+//  Colored pill chips indicating event approval status.
+//  Each status has a distinct background + text color pairing.
+//
+//  Usage:
+//    <span class="event-status-chip status-proposed">Waiting for Approval</span>
+//
+//  Currently used by: event-item, event-view, manage-events.
+// ----------------------------------------------------------------------------
+
+.event-status-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.status-proposed {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.status-listed {
+  background-color: #d4edda;
+  color: #155724;
+}
+.status-rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+.status-cancelled {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+// ----------------------------------------------------------------------------
 //  Errors
 // ----------------------------------------------------------------------------
 
