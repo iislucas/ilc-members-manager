@@ -1,0 +1,30 @@
+/* grading-view.scss — Layout for the grading detail page.
+ * Follows the same pattern as event-view and member-view.
+ */
+
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  align-items: stretch;
+  flex-grow: 1;
+}
+
+.subtle-button {
+  align-self: flex-start;
+}
+
+app-grading-row-header {
+  display: block;
+  @include v.row-highlight-base;
+  @include v.row-highlight-active;
+  padding: 0.2em;
+}
+
+.no-results {
+  text-align: center;
+  color: v.$text-muted;
+  padding: 2em;
+}

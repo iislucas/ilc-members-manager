@@ -259,6 +259,12 @@
             [gradingSet]="dataService.gradings"
           ></app-grading-list>
         }
+        @case (Views.GradingView) {
+          <app-grading-view
+            [gradingId]="routingService.signals[Views.GradingView].pathVars.gradingId()"
+            (titleLoaded)="onGradingTitleLoaded($event)"
+          ></app-grading-view>
+        }
         @case (Views.MemberGradings) {
           <app-member-gradings></app-member-gradings>
         }

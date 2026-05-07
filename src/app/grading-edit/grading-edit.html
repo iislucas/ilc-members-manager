@@ -1,49 +1,6 @@
 @let e = editableGrading();
 
 <div class="edit-form">
-  <div
-    class="edit-form-header"
-    [class.can-toggle-collapse]="collapsable()"
-    (click)="collapsable() && toggleCollapseState($event)"
-  >
-    <div class="identifier">
-      @if (e.docId) {
-        <span
-          class="status-chip"
-          [class.passed]="e.status === GradingStatus.Passed"
-          [class.not-passed]="e.status === GradingStatus.NotPassed"
-          [class.in-review]="e.status === GradingStatus.RequiresReview"
-          [class.pending]="e.status === GradingStatus.Pending"
-          >{{ e.status }}</span
-        >
-      }
-    </div>
-    <div class="name">
-      @if (studentName()) {
-        {{ studentName() }}
-      } @else {
-        [New Grading]
-      }
-      @if (isDirty()) {
-        <span>*</span>
-      }
-    </div>
-    <div class="meta-info">
-      @if (e.level) {
-        <span class="level-chip">{{ formatLevel(e.level) }}</span>
-      }
-      @if (instructorName()) {
-        <span class="instructor-info">Instructor: {{ instructorName() }}</span>
-      }
-    </div>
-    @if (collapsable()) {
-      <div class="unfold-button">
-        <app-icon [name]="collapsed() ? 'expand_more' : 'expand_less'" />
-      </div>
-    }
-  </div>
-
-  @if (!collapsed()) {
     <form (submit)="saveGrading($event)">
       <div class="form-section">
         <h3>Grading Request Details</h3>
@@ -268,7 +225,7 @@
             @if (isDirty() && canEdit()) {
               <button type="submit" [disabled]="form().invalid()">Save</button>
             }
-            @if (collapsable()) {
+            @if (!grading().docId || isDirty()) {
               <button type="button" (click)="cancel($event)">
                 @if (isDirty()) {
                   Cancel
@@ -276,19 +233,13 @@
                   Close
                 }
               </button>
-            } @else {
-              @if (isDirty()) {
-                <button type="button" (click)="cancel($event)">
-                  Undo changes
-                </button>
-              }
             }
           }
         </div>
         <div class="right-actions">
           <p class="timestamp">Last updated: {{ e.lastUpdated }}</p>
 
-          @if (collapsable() && canDelete() && userIsAdmin()) {
+          @if (canDelete() && userIsAdmin()) {
             <button class="delete-button" (click)="deleteGrading($event)">
               <app-icon name="trash" fill="#000" />
               Delete
@@ -297,5 +248,4 @@
         </div>
       </div>
     </form>
-  }
 </div>

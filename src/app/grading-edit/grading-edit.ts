@@ -105,13 +105,7 @@ export class GradingEditComponent {
   editableGrading = computed<Grading>(() => this.gradingFormModel());
 
   // Visual state
-  collapsable = input<boolean>(true);
-  collapse = input<boolean | null>(null);
   close = output();
-  collapsed = linkedSignal<boolean>(() => {
-    return this.collapsable() && (this.collapse() ?? true);
-  });
-
   canDelete = input<boolean>(true);
 
   isDirty = computed(() => {
@@ -210,39 +204,14 @@ export class GradingEditComponent {
       : instructorId;
   });
 
-  // CSS host
-  @HostBinding('class.is-open')
-  get isOpen() {
-    return !this.collapsed();
-  }
-
-  @HostBinding('class.is-dirty')
-  get isDirtyClass() {
-    return this.isDirty();
-  }
-
-  toggleCollapseState($event: Event) {
-    $event.preventDefault();
-    $event.stopPropagation();
-    if (this.isDirty() && !this.collapsed()) {
-      this.elementRef.nativeElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
-      return;
-    }
-    this.collapsed.set(!this.collapsed());
-  }
+  // CSS host removed, moved to decorator host object
 
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
     this.form().reset();
     this.gradingFormModel.set(structuredClone(this.grading()));
-    this.collapsed.set(this.collapsable());
-    if (this.collapsable()) {
-      this.close.emit();
-    }
+    this.close.emit();
   }
 
   updateStudentMemberId(value: string) {
@@ -331,7 +300,6 @@ export class GradingEditComponent {
       }
       this.form().reset();
       this.isSaving.set(false);
-      this.collapsed.set(this.collapsable());
       this.close.emit();
     } catch (e: unknown) {
       console.error(e);

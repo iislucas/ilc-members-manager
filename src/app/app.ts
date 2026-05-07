@@ -23,6 +23,7 @@ import { ClassCalendarComponent } from './class-calendar/class-calendar';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 import { SquarespaceArticleComponent } from './squarespace/squarespace-article.component';
 import { GradingListComponent } from './grading-list/grading-list';
+import { GradingViewComponent } from './grading-view/grading-view';
 import { SettingsComponent } from './settings/settings.component';
 import { LoginComponent } from './login/login';
 import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
@@ -67,6 +68,7 @@ import { APP_VERSION } from './version';
     SquarespaceContentComponent,
     SquarespaceArticleComponent,
     GradingListComponent,
+    GradingViewComponent,
     SettingsComponent,
     LoginComponent,
     ClassVideoLibraryComponent,
@@ -100,6 +102,7 @@ export class App {
   public loadedEventTitle = signal<string | null>(null);
   public loadedOrderTitle = signal<string | null>(null);
   public loadedSchoolTitle = signal<string | null>(null);
+  public loadedGradingTitle = signal<string | null>(null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
@@ -127,6 +130,9 @@ export class App {
 
   onSchoolTitleLoaded(title: string) {
     this.loadedSchoolTitle.set(title);
+  }
+  onGradingTitleLoaded(title: string) {
+    this.loadedGradingTitle.set(title);
   }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
@@ -205,12 +211,15 @@ export class App {
         baseBreadcrumbs.push({ label: 'Manage Schools', url: '#/schools' });
       } else if (view === Views.MySchoolEdit) {
         baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
+      } else if (view === Views.GradingView) {
+        baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
       }
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
       const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
       const isOrderView = view === Views.OrderView;
       const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
-      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle());
+      const isGradingView = view === Views.GradingView;
+      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle()) || (isGradingView && !this.loadedGradingTitle());
       baseBreadcrumbs.push({ label: this.currentViewTitle(), isLoading });
     }
     return baseBreadcrumbs;
@@ -295,6 +304,9 @@ export class App {
       if (!isSchoolEdit) {
         this.loadedSchoolTitle.set(null);
       }
+      if (view !== Views.GradingView) {
+        this.loadedGradingTitle.set(null);
+      }
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
       if (isLoggedOut && (!view || view === Views.Home)) {
@@ -323,6 +335,11 @@ export class App {
           this.routingService.navigateToParts(['instructors-area', 'category', 'All']);
         }
       }
+    });
+
+    effect(() => {
+      const title = this.currentViewTitle();
+      document.title = title ? `${title} | I Liq Chuan Members Portal App` : 'I Liq Chuan Members Portal App';
     });
   }
 
@@ -394,6 +411,8 @@ export class App {
         return 'Manage Gradings';
       case Views.MemberGradings:
         return 'Gradings';
+      case Views.GradingView:
+        return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:
         return 'Settings';
       case Views.Statistics:

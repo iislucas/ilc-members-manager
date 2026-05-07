@@ -137,6 +137,9 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 After adding or changing anything non-trivial, run `pnpm test` (or the specific test for the affected files) to ensure that things are not broken. Also when making changes consider if new tests should be added.
 
+> [!IMPORTANT]
+> **Build Verification**: Test coverage does not cover everything (e.g., Angular template errors or complex type mismatches). After making changes and running tests, you **MUST** also run `pnpm build` to ensure the application builds successfully and catches any errors missed by unit tests.
+
 - Frameworks: `vitest`.
 - To run tests for specific angular UI components for a specific file: `pnpm ng test ilc-members-manager --include <filename>`
 - To run tests for firebase firestore rules: `pnpm test:rules`

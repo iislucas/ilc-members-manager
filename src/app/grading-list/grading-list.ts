@@ -8,19 +8,23 @@ import {
 import { Grading, initGrading } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
+import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { FirebaseStateService } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-grading-list',
   standalone: true,
-  imports: [GradingEditComponent, IconComponent, SpinnerComponent],
+  imports: [GradingEditComponent, GradingRowHeaderComponent, IconComponent, SpinnerComponent],
   templateUrl: './grading-list.html',
   styleUrl: './grading-list.scss',
 })
 export class GradingListComponent {
   firebaseStateService = inject(FirebaseStateService);
+  private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   user = this.firebaseStateService.user;
   canMakeNewGradings = computed(() => {
     const user = this.user();
@@ -99,5 +103,11 @@ export class GradingListComponent {
 
   onNewGradingClose() {
     this.isAddingGrading.set(false);
+  }
+
+  gradingLink(grading: Grading): string {
+    return this.routingService.hrefForView(Views.GradingView, {
+      gradingId: grading.docId,
+    });
   }
 }

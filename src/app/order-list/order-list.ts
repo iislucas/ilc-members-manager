@@ -87,7 +87,8 @@ export class OrderList {
 
     return [...filtered].sort((a, b) => {
       if (field === 'default') {
-        return compareOrdersByDefault(a, b);
+        const res = compareOrdersByDefault(a, b);
+        return dir === 'asc' ? -res : res;
       }
       if (field === 'date') {
         return mul * (a.lastUpdated || '').localeCompare(b.lastUpdated || '');
@@ -96,7 +97,7 @@ export class OrderList {
         const sA = a.ilcAppOrderStatus || '';
         const sB = b.ilcAppOrderStatus || '';
         if (sA !== sB) return mul * sA.localeCompare(sB);
-        return (b.lastUpdated || '').localeCompare(a.lastUpdated || '');
+        return mul * (a.lastUpdated || '').localeCompare(b.lastUpdated || '');
       }
       return 0;
     });

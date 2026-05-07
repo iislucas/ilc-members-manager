@@ -1,0 +1,29 @@
+@let g = grading();
+<div class="grading-row-content">
+  @if (g.docId) {
+    <span
+      class="status-chip"
+      [class.passed]="g.status === GradingStatus.Passed"
+      [class.not-passed]="g.status === GradingStatus.NotPassed"
+      [class.in-review]="g.status === GradingStatus.RequiresReview"
+      [class.pending]="g.status === GradingStatus.Pending"
+      >{{ g.status }}</span
+    >
+  }
+  
+  <span class="name">
+    @if (studentName()) {
+      {{ studentName() }}
+    } @else {
+      [New Grading]
+    }
+  </span>
+
+  @if (g.level) {
+    <span class="level-chip">{{ formatLevel(g.level) }}</span>
+  }
+
+  @if (instructorName()) {
+    <span class="instructor-info">Instructor: {{ instructorName() }}</span>
+  }
+</div>

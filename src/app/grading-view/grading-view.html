@@ -1,0 +1,18 @@
+<!-- Back navigation -->
+<a class="subtle-button" [href]="backHref()">
+  <app-icon name="arrow_back"></app-icon> Back to Gradings
+</a>
+
+@if (loading()) {
+  <app-spinner>Loading grading...</app-spinner>
+} @else if (grading(); as g) {
+  <!-- Grading header row (permanently highlighted) -->
+  <app-grading-row-header [grading]="g"></app-grading-row-header>
+
+  <!-- Full grading edit form -->
+  <app-grading-edit
+    [grading]="g"
+  ></app-grading-edit>
+} @else {
+  <p class="no-results">Grading not found.</p>
+}

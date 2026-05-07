@@ -171,10 +171,6 @@ h3 {
   flex-grow: 1;
 }
 
-:host(.is-open) .form-section {
-  border-top-color: v.$border-color-light;
-}
-
 .timestamp {
   font-family: "Courier New", Courier, monospace;
   font-size: small;
