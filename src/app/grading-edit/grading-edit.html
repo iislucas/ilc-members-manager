@@ -71,13 +71,33 @@
 
         <h3>Status (to be updated by the grading instructor)</h3>
 
-        <label for="status">Status</label>
+        <label for="status" class="align-top">
+          Status
+          <app-icon
+            name="info"
+            (click)="showStatusGuide.set(!showStatusGuide())"
+            style="cursor: pointer"
+          ></app-icon>
+        </label>
         <div class="rhs">
-          <select id="status" [formField]="form.status">
-            @for (status of gradingStatuses; track status) {
-              <option [value]="status">{{ status }}</option>
+          <div class="status-container">
+            <select id="status" [formField]="form.status">
+              @for (status of gradingStatuses; track status) {
+                <option [value]="status">{{ status }}</option>
+              }
+            </select>
+            @if (showStatusGuide()) {
+              <div class="note status-guide">
+                <strong>Status Guide:</strong>
+                <ul>
+                  <li><strong>Pending</strong>: Awaiting grading or result submission.</li>
+                  <li><strong>Passed</strong>: Student successfully achieved the level (updates student profile).</li>
+                  <li><strong>Not Passed</strong>: Student did not meet the requirements (referred to as 'rejected' in docs).</li>
+                  <li><strong>Requires Review</strong>: Automatically assigned if order details (email, level) do not match the member record.</li>
+                </ul>
+              </div>
             }
-          </select>
+          </div>
         </div>
 
         <label for="gradingInstructorId"

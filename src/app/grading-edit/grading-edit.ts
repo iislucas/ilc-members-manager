@@ -130,6 +130,7 @@ export class GradingEditComponent {
   });
   isSaving = signal(false);
   asyncError = signal<Error | null>(null);
+  protected showStatusGuide = signal(false);
 
   // User permissions
   userIsAdmin = computed(() => {
