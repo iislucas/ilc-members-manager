@@ -199,7 +199,7 @@ service cloud.firestore {
       allow update: if hasValidEditUpdate() && isGradingInstructor() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'notes',
-             'instructorAcceptedDate', 'assignedInstructorId',
+             'instructorAcceptedDate',
              'resultNotes', 'assistantInstructorIds', 'declineNotes']);
       allow update: if hasValidEditUpdate() && isGradingStudent() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(

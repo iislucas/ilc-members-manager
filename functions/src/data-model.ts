@@ -262,6 +262,27 @@ export enum GradingStatus {
   RequiresReview = 'in-review',
 }
 
+export function getPrettyGradingStatus(status: GradingStatus): string {
+  switch (status) {
+    case GradingStatus.Pending:
+      return 'Awaiting Request';
+    case GradingStatus.AwaitingAcceptance:
+      return 'Awaiting Confirmation';
+    case GradingStatus.AwaitingGrading:
+      return 'Awaiting Grading';
+    case GradingStatus.Declined:
+      return 'Awaiting Request';
+    case GradingStatus.Passed:
+      return 'Passed';
+    case GradingStatus.NotPassed:
+      return 'Not passed';
+    case GradingStatus.RequiresReview:
+      return 'Need Admin Review';
+    default:
+      return status;
+  }
+}
+
 // ==================================================================
 // # Schools and Members
 // ==================================================================
@@ -755,7 +776,6 @@ export type Grading = {
   notes: string; // Any notes about the grading.
   studentNotes: string; // Optional note from the student when requesting the grading.
   instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
-  assignedInstructorId: string; // InstructorId of the delegate if the grading instructor assigns to another.
   resultNotes: string; // Notes from the grading/assigned instructor to the student after grading.
   declineNotes: string; // Notes from the instructor explaining why they declined.
 };
@@ -791,7 +811,6 @@ export function initGrading(): Grading {
     notes: '',
     studentNotes: '',
     instructorAcceptedDate: '',
-    assignedInstructorId: '',
     resultNotes: '',
     declineNotes: '',
   };

@@ -6,8 +6,8 @@
       [class.passed]="g.status === GradingStatus.Passed"
       [class.not-passed]="g.status === GradingStatus.NotPassed"
       [class.in-review]="g.status === GradingStatus.RequiresReview"
-      [class.pending]="g.status === GradingStatus.Pending"
-      >{{ g.status }}</span
+      [class.pending]="g.status === GradingStatus.Pending || g.status === GradingStatus.AwaitingAcceptance || g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Declined"
+      >{{ getPrettyGradingStatus(g.status) }}</span
     >
   }
   

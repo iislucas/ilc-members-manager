@@ -6,7 +6,7 @@
  */
 
 import { Component, computed, inject, input } from '@angular/core';
-import { Grading, GradingStatus } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, getPrettyGradingStatus } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 
@@ -23,22 +23,19 @@ export class GradingRowHeaderComponent {
   grading = input.required<Grading>();
 
   GradingStatus = GradingStatus;
+  getPrettyGradingStatus = getPrettyGradingStatus;
 
   studentName = computed(() => {
-    const studentMemberId = this.grading().studentMemberId;
-    if (!studentMemberId) return '';
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === studentMemberId);
-    return member ? `${member.name} (${member.memberId})` : studentMemberId;
+    const docId = this.grading().studentMemberDocId;
+    if (!docId) return '';
+    const member = this.dataService.members.get(docId);
+    return member ? `${member.name} (${member.memberId})` : (this.grading().studentMemberId || docId);
   });
 
   instructorName = computed(() => {
     const instructorId = this.grading().gradingInstructorId;
     if (!instructorId) return '';
-    const instructor = this.dataService.instructors
-      .entries()
-      .find((i) => i.instructorId === instructorId);
+    const instructor = this.dataService.instructors.get(instructorId);
     return instructor
       ? `${instructor.name} (${instructor.instructorId})`
       : instructorId;

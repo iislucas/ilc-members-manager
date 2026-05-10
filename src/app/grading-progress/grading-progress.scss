@@ -38,7 +38,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid v.$border-color-light;
+  border: 2px dashed v.$border-color-light; /* Incomplete: dashed */
   background: #fff;
   display: flex;
   align-items: center;
@@ -60,7 +60,7 @@
 
 // Active step
 .step.active .step-marker {
-  border-color: v.$focus-ring-color;
+  border: 2px dashed v.$focus-ring-color; /* Active: dashed blue */
   background: #e8f0fe;
 }
 
@@ -75,8 +75,13 @@
 
 // Done step
 .step.done .step-marker {
-  border-color: #28a745;
+  border: 2px solid #28a745; /* Done: solid green */
   background: #d4edda;
+}
+
+.step.review .step-marker {
+  border: 2px solid v.$border-color-light; /* Review: solid grey */
+  background: #fff;
 }
 
 .step.done .step-label {
@@ -91,11 +96,6 @@
   background: v.$border-color-light;
   margin: 0 0.3em;
   margin-bottom: 1.5em; // aligns with the marker center
-  transition: background 0.2s ease-in-out;
-}
-
-.step-connector.done {
-  background: #28a745;
 }
 
 // ── Action panel ──
@@ -181,6 +181,10 @@
     ::ng-deep app-autocomplete input {
       background: #fff !important;
     }
+
+    button.icon-only-button {
+      align-self: flex-start;
+    }
   }
 
   .field-note {
@@ -191,7 +195,7 @@
   .field-actions {
     grid-column: 1 / -1;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 0.8em;
     padding-top: 0.3em;
   }
@@ -272,5 +276,24 @@
 
   .action-buttons {
     flex-direction: column;
+  }
+}
+
+.assistant-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  app-autocomplete {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  button {
+    flex-shrink: 0;
+    margin-top: 0;
   }
 }

@@ -26,10 +26,21 @@
   ></app-grading-progress>
 
 
-  <!-- Full grading edit form -->
-  <app-grading-edit
-    [grading]="g"
-  ></app-grading-edit>
+  @if (userIsAdmin()) {
+    <div class="admin-actions" style="margin-top: 1em;">
+      <button type="button" class="subtle-button" (click)="showFullEdit.set(!showFullEdit())">
+        <app-icon [name]="showFullEdit() ? 'expand_less' : 'expand_more'"></app-icon>
+        {{ showFullEdit() ? 'Hide' : 'Show' }} Full Edit Form (Admin Only)
+      </button>
+    </div>
+
+    @if (showFullEdit()) {
+      <!-- Full grading edit form -->
+      <app-grading-edit
+        [grading]="g"
+      ></app-grading-edit>
+    }
+  }
 } @else {
   <p class="no-results">Grading not found.</p>
 }

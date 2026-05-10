@@ -83,12 +83,7 @@
           </div>
         }
 
-        @if (e.assignedInstructorId) {
-          <label>Assigned to</label>
-          <div class="rhs">
-            <span class="readonly-value">{{ resolveAssignedInstructorName() }}</span>
-          </div>
-        }
+
 
         <label for="status" class="align-top">
           Status
@@ -102,17 +97,20 @@
           <div class="status-container">
             <select id="status" [formField]="form.status">
               @for (status of gradingStatuses; track status) {
-                <option [value]="status">{{ status }}</option>
+                <option [value]="status">{{ getPrettyGradingStatus(status) }}</option>
               }
             </select>
             @if (showStatusGuide()) {
               <div class="note status-guide">
                 <strong>Status Guide:</strong>
                 <ul>
-                  <li><strong>Pending</strong>: Awaiting grading or result submission.</li>
+                  <li><strong>Pending (Awaiting Request)</strong>: Initial state when purchased, waiting for student to select an instructor.</li>
+                  <li><strong>Awaiting Confirmation</strong>: Student has requested grading, waiting for instructor to accept or decline.</li>
+                  <li><strong>Awaiting Grading</strong>: Instructor has accepted, waiting for the event and result to be recorded.</li>
+                  <li><strong>Declined</strong>: Instructor declined the request. Student needs to select a different instructor.</li>
                   <li><strong>Passed</strong>: Student successfully achieved the level.</li>
                   <li><strong>Not Passed</strong>: Student did not pass the grading this time.</li>
-                  <li><strong>Requires Review</strong>: Automatically assigned if order details (email, level) do not match the member record.</li>
+                  <li><strong>Need Admin Review</strong>: Flagged for admin review (e.g. mismatch in automated processing).</li>
                 </ul>
               </div>
             }

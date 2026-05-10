@@ -10,7 +10,7 @@
  *      picks a grading event/date.
  *   2. Accept — instructor accepts, optionally assigning a delegate and
  *      setting the grading event/date.
- *   3. Result — grading/assigned instructor records Passed/NotPassed
+ *   3. Grading — grading/assigned instructor records Passed/NotPassed
  *      with result notes and confirms the date.
  */
 
@@ -35,22 +35,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 
-// The three workflow steps, derived from grading data (not stored).
-export type GradingStep = 'request' | 'accepted' | 'completed';
 
-// Derives the current workflow step from a Grading object.
-export function gradingStep(g: Grading): GradingStep {
-  if (
-    g.status === GradingStatus.Passed ||
-    g.status === GradingStatus.NotPassed
-  ) {
-    return 'completed';
-  }
-  if (g.status === GradingStatus.AwaitingGrading) {
-    return 'accepted';
-  }
-  return 'request';
-}
 
 @Component({
   selector: 'app-grading-progress',
@@ -69,8 +54,7 @@ export class GradingProgressComponent {
 
   GradingStatus = GradingStatus;
 
-  // Derived workflow step
-  step = computed(() => gradingStep(this.grading()));
+
 
   // --- User role checks ---
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
@@ -87,32 +71,19 @@ export class GradingProgressComponent {
     return user.member.instructorId === this.grading().gradingInstructorId;
   });
 
-  userIsAssignedInstructor = computed(() => {
-    const user = this.firebaseState.user();
-    if (!user || !user.member.instructorId) return false;
-    const g = this.grading();
-    return (
-      g.assignedInstructorId !== '' &&
-      g.assignedInstructorId === user.member.instructorId
-    );
-  });
-
   // Can the current user record a result?
   canRecordResult = computed(
-    () =>
-      this.userIsAdmin() ||
-      this.userIsGradingInstructor() ||
-      this.userIsAssignedInstructor(),
+    () => this.userIsGradingInstructor(),
   );
 
-  // Can the current user accept the request (grading instructor or admin)?
+  // Can the current user accept the request (grading instructor)?
   canAccept = computed(
-    () => this.userIsAdmin() || this.userIsGradingInstructor(),
+    () => this.userIsGradingInstructor(),
   );
 
   // Can the current user edit the student fields?
   canEditStudentFields = computed(
-    () => this.userIsAdmin() || this.userIsStudent(),
+    () => this.userIsStudent(),
   );
 
   // --- Display helpers ---
@@ -130,13 +101,6 @@ export class GradingProgressComponent {
     return instructor ? `(${instructor.instructorId}) ${instructor.name}` : id;
   });
 
-  assignedInstructorDisplayValue = computed(() => {
-    const id = this.editAssignedInstructorId();
-    if (!id) return '';
-    const instructor = this.dataService.instructors.get(id);
-    return instructor ? `(${instructor.instructorId}) ${instructor.name}` : id;
-  });
-
   instructorDisplayFns: DisplayFns<InstructorPublicData> = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
     toName: (i: InstructorPublicData) => i.name,
@@ -147,10 +111,9 @@ export class GradingProgressComponent {
   protected editStudentNotes = signal('');
   protected editGradingEvent = signal('');
   protected editGradingEventDate = signal('');
-  protected editAssignedInstructorId = signal('');
+  protected editAssistantIds = signal<string[]>([]);
   protected editResultNotes = signal('');
   protected editDeclineNotes = signal('');
-  protected showAssignPicker = signal(false);
   protected showDeclineForm = signal(false);
   protected isEditingRequest = signal(false);
   protected isSaving = signal(false);
@@ -162,7 +125,7 @@ export class GradingProgressComponent {
     this.editStudentNotes.set(g.studentNotes);
     this.editGradingEvent.set(g.gradingEvent);
     this.editGradingEventDate.set(g.gradingEventDate);
-    this.editAssignedInstructorId.set(g.assignedInstructorId);
+    this.editAssistantIds.set(g.assistantInstructorIds || []);
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
   });
@@ -192,19 +155,7 @@ export class GradingProgressComponent {
     }
   }
 
-  onAssignedInstructorTextUpdated(text: string) {
-    const match = text.match(/^\((\d+)\)/);
-    if (match) {
-      this.editAssignedInstructorId.set(match[1]);
-      return;
-    }
-    const instructor = this.dataService.instructors.entries().find(i => i.name === text || i.instructorId === text);
-    if (instructor) {
-      this.editAssignedInstructorId.set(instructor.instructorId);
-    } else {
-      this.editAssignedInstructorId.set(text);
-    }
-  }
+
 
   // Step 1: Save student request fields
   saveRequestFields() {
@@ -247,20 +198,18 @@ export class GradingProgressComponent {
     return instructor ? `${instructor.name} (${instructor.instructorId})` : id;
   }
 
-  addAssistantInstructor(id: string) {
-    const current = this.grading().assistantInstructorIds || [];
-    if (!current.includes(id)) {
-      this.gradingUpdated.emit({
-        assistantInstructorIds: [...current, id],
-      });
-    }
+  addAssistantInstructor() {
+    this.editAssistantIds.update((ids) => [...ids, '']);
   }
 
-  removeAssistant(id: string) {
-    const current = this.grading().assistantInstructorIds || [];
-    this.gradingUpdated.emit({
-      assistantInstructorIds: current.filter(a => a !== id),
-    });
+  removeAssistantInstructor(index: number) {
+    this.editAssistantIds.update((ids) => ids.filter((_, i) => i !== index));
+  }
+
+  updateAssistantInstructorId(index: number, value: string) {
+    const assistants = [...this.editAssistantIds()];
+    assistants[index] = value;
+    this.editAssistantIds.set(assistants);
   }
 
   declineRequest() {
@@ -269,7 +218,6 @@ export class GradingProgressComponent {
       status: GradingStatus.Declined,
       declineNotes: this.editDeclineNotes(),
       instructorAcceptedDate: '',
-      assignedInstructorId: '',
     });
     this.isSaving.set(false);
   }
@@ -280,29 +228,14 @@ export class GradingProgressComponent {
     this.gradingUpdated.emit({
       status: GradingStatus.AwaitingGrading,
       instructorAcceptedDate: today,
-      assignedInstructorId: '',
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
     });
+    this.showDeclineForm.set(false);
     this.isSaving.set(false);
   }
 
-  // Step 2: Instructor accepts and assigns to another instructor
-  acceptAndAssign() {
-    const assignedId = this.editAssignedInstructorId();
-    if (!assignedId) return;
-    this.isSaving.set(true);
-    const today = new Date().toISOString().split('T')[0];
-    this.gradingUpdated.emit({
-      status: GradingStatus.AwaitingGrading,
-      instructorAcceptedDate: today,
-      assignedInstructorId: assignedId,
-      gradingEvent: this.editGradingEvent(),
-      gradingEventDate: this.editGradingEventDate(),
-    });
-    this.showAssignPicker.set(false);
-    this.isSaving.set(false);
-  }
+
 
   // Step 3: Mark result
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
@@ -311,6 +244,7 @@ export class GradingProgressComponent {
       status,
       gradingEventDate: this.editGradingEventDate() || new Date().toISOString().split('T')[0],
       resultNotes: this.editResultNotes(),
+      assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
     };
     this.gradingUpdated.emit(update);
     this.isSaving.set(false);

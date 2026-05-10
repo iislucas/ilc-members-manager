@@ -13,6 +13,7 @@ import {
 import {
   Grading,
   GradingStatus,
+  getPrettyGradingStatus,
   StudentLevel,
   ApplicationLevel,
   Member,
@@ -51,6 +52,7 @@ export class GradingEditComponent {
   // Constants
   GradingStatus = GradingStatus;
   gradingStatuses = Object.values(GradingStatus);
+  getPrettyGradingStatus = getPrettyGradingStatus;
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
 
@@ -105,13 +107,10 @@ export class GradingEditComponent {
       schema.instructorAcceptedDate,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
-    disabled(
-      schema.assignedInstructorId,
-      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
-    );
+
     disabled(
       schema.resultNotes,
-      () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsAssignedInstructor(),
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
   });
 
@@ -148,7 +147,6 @@ export class GradingEditComponent {
       this.form.notes().value() !== original.notes ||
       this.form.studentNotes().value() !== original.studentNotes ||
       this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
-      this.form.assignedInstructorId().value() !== original.assignedInstructorId ||
       this.form.resultNotes().value() !== original.resultNotes
     );
   });
@@ -177,22 +175,13 @@ export class GradingEditComponent {
     return grading.studentMemberDocId === user.member.docId;
   });
 
-  userIsAssignedInstructor = computed(() => {
-    const user = this.firebaseState.user();
-    if (!user || !user.member.instructorId) return false;
-    const grading = this.editableGrading();
-    return (
-      grading.assignedInstructorId !== '' &&
-      grading.assignedInstructorId === user.member.instructorId
-    );
-  });
+
 
   canEdit = computed(
     () =>
       this.userIsAdmin() ||
       this.userIsGradingInstructor() ||
-      this.userIsStudent() ||
-      this.userIsAssignedInstructor(),
+      this.userIsStudent(),
   );
 
   // Resolve names for display
@@ -286,16 +275,7 @@ export class GradingEditComponent {
       : instructorId;
   }
 
-  resolveAssignedInstructorName(): string {
-    const assignedId = this.editableGrading().assignedInstructorId;
-    if (!assignedId) return '';
-    const instructor = this.dataService.instructors
-      .entries()
-      .find((i) => i.instructorId === assignedId);
-    return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
-      : assignedId;
-  }
+
 
   updateAssistantInstructorId(index: number, value: string) {
     const assistants = [...this.form.assistantInstructorIds().value()];
@@ -341,7 +321,6 @@ export class GradingEditComponent {
         notes: this.form.notes().value(),
         studentNotes: this.form.studentNotes().value(),
         instructorAcceptedDate: this.form.instructorAcceptedDate().value(),
-        assignedInstructorId: this.form.assignedInstructorId().value(),
         resultNotes: this.form.resultNotes().value(),
       };
       if (grading.docId) {

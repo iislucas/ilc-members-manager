@@ -16,6 +16,7 @@ import { GradingProgressComponent } from '../grading-progress/grading-progress';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
@@ -35,8 +36,12 @@ import { AppPathPatterns, Views } from '../app.config';
 })
 export class GradingViewComponent {
   private dataService = inject(DataManagerService);
-  protected routingService: RoutingService<AppPathPatterns> =
+  private routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService<AppPathPatterns>);
+  private firebaseState = inject(FirebaseStateService);
+
+  userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
+  showFullEdit = signal(false);
 
   gradingId = input.required<string>();
   titleLoaded = output<string>();
