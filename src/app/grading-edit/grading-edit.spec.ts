@@ -52,8 +52,8 @@ describe('GradingEditComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should start collapsed', () => {
-    expect(component.collapsed()).toBe(true);
+  it('should have the correct grading input', () => {
+    expect(component.grading().docId).toBe('test-grading');
   });
 
   it('should show edit controls for admin users', () => {

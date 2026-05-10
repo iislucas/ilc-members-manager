@@ -93,6 +93,26 @@ export class GradingEditComponent {
       schema.gradingEvent,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsStudent(),
     );
+
+    // Student can edit their own notes
+    disabled(
+      schema.studentNotes,
+      () => !this.userIsAdmin() && !this.userIsStudent(),
+    );
+
+    // Instructor acceptance fields
+    disabled(
+      schema.instructorAcceptedDate,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
+    disabled(
+      schema.assignedInstructorId,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
+    disabled(
+      schema.resultNotes,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsAssignedInstructor(),
+    );
   });
 
   // Sync input grading to the form model.
@@ -125,7 +145,11 @@ export class GradingEditComponent {
       this.form.status().value() !== original.status ||
       this.form.gradingEventDate().value() !== original.gradingEventDate ||
       this.form.gradingEvent().value() !== original.gradingEvent ||
-      this.form.notes().value() !== original.notes
+      this.form.notes().value() !== original.notes ||
+      this.form.studentNotes().value() !== original.studentNotes ||
+      this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
+      this.form.assignedInstructorId().value() !== original.assignedInstructorId ||
+      this.form.resultNotes().value() !== original.resultNotes
     );
   });
   isSaving = signal(false);
@@ -153,8 +177,22 @@ export class GradingEditComponent {
     return grading.studentMemberDocId === user.member.docId;
   });
 
+  userIsAssignedInstructor = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user || !user.member.instructorId) return false;
+    const grading = this.editableGrading();
+    return (
+      grading.assignedInstructorId !== '' &&
+      grading.assignedInstructorId === user.member.instructorId
+    );
+  });
+
   canEdit = computed(
-    () => this.userIsAdmin() || this.userIsGradingInstructor() || this.userIsStudent(),
+    () =>
+      this.userIsAdmin() ||
+      this.userIsGradingInstructor() ||
+      this.userIsStudent() ||
+      this.userIsAssignedInstructor(),
   );
 
   // Resolve names for display
@@ -248,6 +286,17 @@ export class GradingEditComponent {
       : instructorId;
   }
 
+  resolveAssignedInstructorName(): string {
+    const assignedId = this.editableGrading().assignedInstructorId;
+    if (!assignedId) return '';
+    const instructor = this.dataService.instructors
+      .entries()
+      .find((i) => i.instructorId === assignedId);
+    return instructor
+      ? `${instructor.name} (${instructor.instructorId})`
+      : assignedId;
+  }
+
   updateAssistantInstructorId(index: number, value: string) {
     const assistants = [...this.form.assistantInstructorIds().value()];
     assistants[index] = value;
@@ -290,6 +339,10 @@ export class GradingEditComponent {
         gradingEventDate: this.form.gradingEventDate().value(),
         gradingEvent: this.form.gradingEvent().value(),
         notes: this.form.notes().value(),
+        studentNotes: this.form.studentNotes().value(),
+        instructorAcceptedDate: this.form.instructorAcceptedDate().value(),
+        assignedInstructorId: this.form.assignedInstructorId().value(),
+        resultNotes: this.form.resultNotes().value(),
       };
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed

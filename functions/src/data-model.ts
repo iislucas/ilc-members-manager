@@ -246,9 +246,19 @@ export enum MemberIdUpdateStatus {
 }
 
 export enum GradingStatus {
+  /** Initial state when purchased, waiting for student to select an instructor. */
   Pending = 'pending',
+  /** Student has requested grading, waiting for instructor to accept or decline. */
+  AwaitingAcceptance = 'awaiting-instructor-acceptance',
+  /** Instructor has accepted, waiting for grading to happen and result to be recorded. */
+  AwaitingGrading = 'awaiting-instructor-grading',
+  /** Instructor declined the request. Student should select a different instructor. */
+  Declined = 'declined',
+  /** Student passed the grading. */
   Passed = 'passed',
+  /** Student did not pass the grading. */
   NotPassed = 'not-passed',
+  /** Flagged for admin review (e.g. mismatch in automated processing). */
   RequiresReview = 'in-review',
 }
 
@@ -739,10 +749,15 @@ export type Grading = {
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
   studentMemberDocId: string; // The Firestore doc ID of the student member document.
-  status: GradingStatus; // pending, passed, rejected.
+  status: GradingStatus; // See GradingStatus enum for details.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
   gradingEvent: string; // Text string for event/location/date of the grading.
   notes: string; // Any notes about the grading.
+  studentNotes: string; // Optional note from the student when requesting the grading.
+  instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
+  assignedInstructorId: string; // InstructorId of the delegate if the grading instructor assigns to another.
+  resultNotes: string; // Notes from the grading/assigned instructor to the student after grading.
+  declineNotes: string; // Notes from the instructor explaining why they declined.
 };
 
 export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
@@ -774,6 +789,11 @@ export function initGrading(): Grading {
     gradingEventDate: '',
     gradingEvent: '',
     notes: '',
+    studentNotes: '',
+    instructorAcceptedDate: '',
+    assignedInstructorId: '',
+    resultNotes: '',
+    declineNotes: '',
   };
 }
 

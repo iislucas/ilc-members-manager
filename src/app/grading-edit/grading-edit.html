@@ -68,8 +68,27 @@
           </select>
         </div>
 
+        <label for="studentNotes" class="align-top">Note from student (optional)</label>
+        <div class="rhs">
+          <textarea id="studentNotes" [formField]="form.studentNotes" placeholder="Any notes or requests for the grading instructor..."></textarea>
+        </div>
+
 
         <h3>Status (to be updated by the grading instructor)</h3>
+
+        @if (e.status === GradingStatus.AwaitingGrading || e.status === GradingStatus.Passed || e.status === GradingStatus.NotPassed) {
+          <label>Instructor Accepted</label>
+          <div class="rhs">
+            <span class="readonly-value">Yes ({{ e.instructorAcceptedDate || '—' }})</span>
+          </div>
+        }
+
+        @if (e.assignedInstructorId) {
+          <label>Assigned to</label>
+          <div class="rhs">
+            <span class="readonly-value">{{ resolveAssignedInstructorName() }}</span>
+          </div>
+        }
 
         <label for="status" class="align-top">
           Status
@@ -91,8 +110,8 @@
                 <strong>Status Guide:</strong>
                 <ul>
                   <li><strong>Pending</strong>: Awaiting grading or result submission.</li>
-                  <li><strong>Passed</strong>: Student successfully achieved the level (updates student profile).</li>
-                  <li><strong>Not Passed</strong>: Student did not meet the requirements (referred to as 'rejected' in docs).</li>
+                  <li><strong>Passed</strong>: Student successfully achieved the level.</li>
+                  <li><strong>Not Passed</strong>: Student did not pass the grading this time.</li>
                   <li><strong>Requires Review</strong>: Automatically assigned if order details (email, level) do not match the member record.</li>
                 </ul>
               </div>
@@ -213,9 +232,14 @@
           />
         </div>
 
-        <label for="notes" class="align-top">Notes</label>
+        <label for="notes" class="align-top">Internal Notes (admin)</label>
         <div class="rhs">
           <textarea id="notes" [formField]="form.notes"></textarea>
+        </div>
+
+        <label for="resultNotes" class="align-top">Notes for the student</label>
+        <div class="rhs">
+          <textarea id="resultNotes" [formField]="form.resultNotes" placeholder="Feedback or comments visible to the student..."></textarea>
         </div>
       </div>
 

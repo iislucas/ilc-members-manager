@@ -63,3 +63,16 @@
   flex-shrink: 1;
 }
 
+@media (max-width: 600px) {
+  .grading-row-content {
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+
+  .instructor-info {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+

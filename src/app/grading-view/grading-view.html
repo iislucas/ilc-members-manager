@@ -3,11 +3,28 @@
   <app-icon name="arrow_back"></app-icon> Back to Gradings
 </a>
 
+@if (asyncError(); as errMsg) {
+  <div class="error-container">
+    <span class="error-message">{{ errMsg }}</span>
+    <button class="icon-only-button" (click)="asyncError.set(null)">
+      <app-icon name="close"></app-icon>
+    </button>
+  </div>
+}
+
 @if (loading()) {
   <app-spinner>Loading grading...</app-spinner>
 } @else if (grading(); as g) {
-  <!-- Grading header row (permanently highlighted) -->
+  <!-- Grading header row (title/summary) -->
   <app-grading-row-header [grading]="g"></app-grading-row-header>
+
+  <!-- Workflow progress and contextual actions -->
+  <app-grading-progress
+    style="margin-top: 1em"
+    [grading]="g"
+    (gradingUpdated)="onProgressAction($event)"
+  ></app-grading-progress>
+
 
   <!-- Full grading edit form -->
   <app-grading-edit
