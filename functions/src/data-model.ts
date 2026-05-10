@@ -247,7 +247,7 @@ export enum MemberIdUpdateStatus {
 
 export enum GradingStatus {
   /** Initial state when purchased, waiting for student to select an instructor. */
-  Pending = 'pending',
+  AwaitingRequest = 'pending',
   /** Student has requested grading, waiting for instructor to accept or decline. */
   AwaitingAcceptance = 'awaiting-instructor-acceptance',
   /** Instructor has accepted, waiting for grading to happen and result to be recorded. */
@@ -264,7 +264,7 @@ export enum GradingStatus {
 
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
-    case GradingStatus.Pending:
+    case GradingStatus.AwaitingRequest:
       return 'Awaiting Request';
     case GradingStatus.AwaitingAcceptance:
       return 'Awaiting Confirmation';
@@ -805,7 +805,7 @@ export function initGrading(): Grading {
     schoolDocId: '',
     studentMemberId: '',
     studentMemberDocId: '',
-    status: GradingStatus.Pending,
+    status: GradingStatus.AwaitingRequest,
     gradingEventDate: '',
     gradingEvent: '',
     notes: '',

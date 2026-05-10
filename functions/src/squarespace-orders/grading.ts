@@ -70,7 +70,7 @@ export function parseGradingOrderInfo(
     currentApplicationLevel: canonicalizeApplicationLevel(currentApplicationLevel),
     gradingInfo: {
       ...initGrading(),
-      status: providedMemberId ? GradingStatus.Pending : GradingStatus.RequiresReview,
+      status: providedMemberId ? GradingStatus.AwaitingRequest : GradingStatus.RequiresReview,
       gradingPurchaseDate: purchaseDate,
       orderId: orderData.docId || '',
       level,
@@ -158,7 +158,7 @@ export async function processGradingOrder(
 
   const newGrading: Grading = {
     ...gradingInfo,
-    status: GradingStatus.Pending,
+    status: GradingStatus.AwaitingRequest,
     studentMemberDocId: memberDocRef.id,
   };
 

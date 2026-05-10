@@ -78,7 +78,7 @@ export class GradingProgressComponent {
 
   // Can the current user accept the request (grading instructor)?
   canAccept = computed(
-    () => this.userIsGradingInstructor(),
+    () => this.userIsGradingInstructor() && (this.grading().status === GradingStatus.AwaitingAcceptance || this.grading().status === GradingStatus.Declined),
   );
 
   // Can the current user edit the student fields?
@@ -166,7 +166,7 @@ export class GradingProgressComponent {
       studentNotes: this.editStudentNotes(),
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
-      status: instructorId ? GradingStatus.AwaitingAcceptance : GradingStatus.Pending,
+      status: instructorId ? GradingStatus.AwaitingAcceptance : GradingStatus.AwaitingRequest,
     };
 
     if (this.grading().status === GradingStatus.Declined) {
@@ -185,7 +185,7 @@ export class GradingProgressComponent {
       studentNotes: '',
       gradingEvent: '',
       gradingEventDate: '',
-      status: GradingStatus.Pending,
+      status: GradingStatus.AwaitingRequest,
     });
     this.isEditingRequest.set(false);
     this.isSaving.set(false);
