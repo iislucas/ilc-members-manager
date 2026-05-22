@@ -129,3 +129,132 @@ app-member-row-header {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
 }
+
+.permission-banner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  &.granted {
+    background-color: #e2fbf0;
+    border-color: #a3e9c9;
+    color: #0f5132;
+  }
+
+  &.denied {
+    background-color: #fde8e8;
+    border-color: #f8b4b4;
+    color: #9b1c1c;
+  }
+
+  &.default {
+    background-color: #fef8e7;
+    border-color: #fce8b2;
+    color: #b06000;
+  }
+
+  .request-permission-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    .subtle-button {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      background-color: #4d7cfe;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: #3562df;
+      }
+    }
+  }
+
+  .permission-granted-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    .subtle-button {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      background-color: #00c853;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: #00a040;
+      }
+    }
+  }
+}
+
+.notification-preferences-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 6px 0;
+
+  .toggle-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    input[type="checkbox"] {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: normal;
+      color: v.$text-secondary;
+      margin: 0;
+      cursor: pointer;
+    }
+  }
+}
+
+.master-toggle-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+
+  input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+
+  label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: v.$text-secondary;
+    margin: 0;
+    cursor: pointer;
+  }
+}

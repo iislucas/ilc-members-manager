@@ -1,0 +1,156 @@
+<div class="notifications-settings-container">
+  <div class="settings-card">
+    <div class="card-header">
+      <h2>Local Notification Settings</h2>
+      <p class="subtitle">
+        Configure how notifications behave on
+        <strong>this specific device</strong>. Your preferences are saved
+        locally so you can personalize alerts on your phone, tablet, or desktop
+        independently.
+      </p>
+    </div>
+
+    <!-- Permission & Test Status Section -->
+    <div class="settings-section">
+      <h3>Push Connection Status</h3>
+      @let perm = permissionStatus();
+
+      <div class="status-panel">
+        <div class="permission-banner" [class]="perm">
+          @if (perm === "granted") {
+            <span class="status-msg success"
+              >✔ Browser Push Notifications are approved on this device!</span
+            >
+          } @else if (perm === "denied") {
+            <span class="status-msg error"
+              >❌ Browser Push Notifications are blocked by your browser
+              settings.</span
+            >
+          } @else {
+            <div class="request-permission-container">
+              <span class="status-msg warning"
+                >⚠️ Push notifications are not configured yet.</span
+              >
+              <button
+                type="button"
+                class="action-btn"
+                (click)="notificationService.requestPermission()"
+              >
+                Enable Push Notifications
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Test Button placed cleanly below push alert status -->
+      @if (perm === "granted") {
+        <div class="test-trigger-container">
+          <button
+            type="button"
+            class="test-btn"
+            (click)="sendTestNotification()"
+          >
+            Send Test Notification
+          </button>
+          <span class="btn-note"
+            >Sends a mock notification to your home feed to test OS alert
+            slide-ins.</span
+          >
+        </div>
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Preferences toggles -->
+    <div class="settings-section">
+      <h3>Alert Options</h3>
+
+      <!-- Device Batch Controls -->
+      <div class="preferences-grid">
+        <div class="pref-row batch-controls-row">
+          <div class="pref-info">
+            <span class="pref-title">Configuration</span>
+          </div>
+          <div class="batch-buttons-group">
+            <div class="batch-category">
+              <span class="batch-label">Browser Push:</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="setAllPush(true)"
+              >
+                Enable All
+              </button>
+              <span class="bullet">•</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="setAllPush(false)"
+              >
+                Disable All
+              </button>
+            </div>
+            <div class="batch-category">
+              <span class="batch-label">Home Feed:</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="setAllHome(true)"
+              >
+                Enable All
+              </button>
+              <span class="bullet">•</span>
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="setAllHome(false)"
+              >
+                Disable All
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title-bar">
+          <h4>Customise Alerts by Kind</h4>
+        </div>
+
+        @for (kind of notificationKinds; track kind) {
+          <div class="pref-row">
+            <div class="pref-info">
+              <span class="pref-title">{{
+                getNotificationKindLabel(kind)
+              }}</span>
+            </div>
+            <div class="toggle-group">
+              <div class="toggle-control">
+                <input
+                  type="checkbox"
+                  [id]="'push-' + kind"
+                  [checked]="localSettings().pushEnabled[kind] !== false"
+                  (change)="
+                    togglePushNotification(kind, $any($event.target).checked)
+                  "
+                />
+                <label [for]="'push-' + kind">Browser Push</label>
+              </div>
+              <div class="toggle-control">
+                <input
+                  type="checkbox"
+                  [id]="'home-' + kind"
+                  [checked]="localSettings().homeEnabled[kind] !== false"
+                  (change)="
+                    toggleHomeNotification(kind, $any($event.target).checked)
+                  "
+                />
+                <label [for]="'home-' + kind">Home Feed</label>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

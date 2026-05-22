@@ -23,6 +23,7 @@ import {
   ApplicationLevel,
   AgeCategory,
   initMember,
+  NotificationKind,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -45,11 +46,12 @@ import {
 } from '../id-assignment/id-assignment';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { CountryCode } from '../country-codes';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, collection, addDoc, getFirestore } from 'firebase/firestore';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
 import { environment } from '../../environments/environment';
+import { NotificationService } from '../notification.service';
 
 @Component({
   selector: 'app-member-details',
@@ -84,6 +86,26 @@ export class MemberDetailsComponent {
   applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
   membershipLink = environment.links.membership;
+  notificationService = inject(NotificationService);
+  NotificationKind = NotificationKind;
+  notificationKinds = Object.values(NotificationKind);
+
+  getNotificationKindLabel(kind: NotificationKind): string {
+    switch (kind) {
+      case NotificationKind.GradingRequestAccepted:
+        return 'Grading Request Accepted';
+      case NotificationKind.GradingRequestsYouAsInstructor:
+        return 'Grading Requests (You as Instructor)';
+      case NotificationKind.BlogPost:
+        return 'New Blog Post / Update';
+      case NotificationKind.NewEventPosted:
+        return 'New Event Posted';
+      default:
+        return kind;
+    }
+  }
+
+
 
   // The core object of interest.
   member = input.required<Member>();
@@ -713,7 +735,6 @@ export class MemberDetailsComponent {
       }
     }
   }
-
 
   onMasterLevelChange(level: MasterLevel, event: Event) {
     const isChecked = (event.target as HTMLInputElement).checked;

@@ -79,6 +79,11 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - Prefer taking arguments that are existing object types rather than making special inline types for parts of an object. Types should capture the key conceptual components, and we should take these as arguments.
 - Don't use explicit boolean === value checks. Just use the boolean value directly. e.g. don't use `if (isNew === true)` use `if (isNew)`.
 
+### Data Modeling
+
+- **Avoid Partially Defined Objects**: For the main datatypes in this project, we strictly avoid partially defined or optional-field objects. We solve this by implementing an `initObject()` constructor (providing default values for all properties) and a `firestoreDocToObject(doc)` converter that merges database data over the initialized defaults. This guarantees that all application logic can assume defined values for all keys.
+- **Always Type Database Writes (Anti-Pattern: Untyped Writes)**: Never pass untyped or loosely typed object structures (like `Record<string, unknown>`) to database write operations (like Firestore's `set()` or `update()`). Instead, always explicitly bind the payload to its corresponding domain model type (e.g. `MemberNotification`) first. This ensures type safety at write time and prevents corrupted or schema-violating records from leaking into the database.
+
 ### Angular
 
 - Use signals for state management, and use signal forms.

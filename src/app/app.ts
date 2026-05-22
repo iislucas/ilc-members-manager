@@ -42,6 +42,7 @@ import { EventEditComponent } from './event-edit/event-edit';
 import { ProposeEventComponent } from './organise-events/organise-event/organise-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { DownloadResourceComponent } from './download-resource/download-resource';
+import { NotificationSettingsComponent } from './settings/notification-settings/notification-settings.component';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 
@@ -86,6 +87,7 @@ import { APP_VERSION } from './version';
     ProposeEventComponent,
     CompleteProfileComponent,
     DownloadResourceComponent,
+    NotificationSettingsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -415,6 +417,8 @@ export class App {
         return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:
         return 'Settings';
+      case Views.NotificationSettings:
+        return 'Notification Settings';
       case Views.Statistics:
         return 'Statistics';
       case Views.EventsCalendar:

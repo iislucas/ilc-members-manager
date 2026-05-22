@@ -1,0 +1,47 @@
+@if (notifications().length > 0) {
+  <div class="notifications-section">
+    <div class="section-header">
+      <div class="title-container">
+        <h2>Updates & Notifications</h2>
+        <span class="badge">{{ notifications().length }}</span>
+      </div>
+      <button class="dismiss-all-btn" (click)="onDismissAll()">
+        Dismiss All
+      </button>
+    </div>
+    <div class="notifications-list">
+      @for (n of notifications(); track n.docId) {
+        <div class="notification-card" [class]="n.kind" [class.clickable]="isGradingNotification(n)" (click)="onCardClick(n, $event)">
+          <div class="notification-icon">
+            @switch (n.kind) {
+              @case ('GradingRequestAccepted') {
+                <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+              }
+              @case ('GradingRequestDeclined') {
+                <app-icon name="salut" width="32px" height="32px" fill="#ef4444"></app-icon>
+              }
+              @case ('GradingRequestsYouAsInstructor') {
+                <app-icon name="salut" width="32px" height="32px" fill="#ef9a00"></app-icon>
+              }
+              @case ('BlogPost') {
+                <app-icon name="hands_lotus" width="32px" height="32px" fill="#00c853"></app-icon>
+              }
+              @case ('NewEventPosted') {
+                <app-icon name="event" width="32px" height="32px" fill="#00b0ff"></app-icon>
+              }
+            }
+          </div>
+          <div class="notification-content">
+            <div class="meta">
+              <span class="date">{{ n.createdAt | date:'short' }}</span>
+            </div>
+            <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
+          </div>
+          <button class="dismiss-btn" (click)="$event.stopPropagation(); onDismiss(n.docId)" aria-label="Dismiss">
+            <app-icon name="close" width="20px" height="20px" fill="#999"></app-icon>
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

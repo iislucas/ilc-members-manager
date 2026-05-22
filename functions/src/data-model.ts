@@ -345,6 +345,77 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
   return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
 }
 
+export enum NotificationKind {
+  GradingRequestAccepted = 'GradingRequestAccepted',
+  GradingRequestDeclined = 'GradingRequestDeclined',
+  GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
+  // BlogPost covers all types of blog posts (including Members Area Blog, Instructors Blog,
+  // and Zoom Classes which are cached as blog posts). Instead of individual kinds,
+  // a BlogPost notification specifies the collection query path (blogPath), optional
+  // category/tag filter (blogCategory), and a date cut-off (lastSeenDateStr) so the client
+  // can determine what new posts/classes are available to catch up on.
+  BlogPost = 'BlogPost',
+  NewEventPosted = 'NewEventPosted',
+}
+
+export interface MemberNotificationCommon {
+  docId: string;
+  markdown: string;
+  createdAt: string; // ISO string
+  dismissed: boolean;
+}
+
+export interface NotificationGradingData {
+  gradingDocId: string;
+  level: string;
+}
+
+export interface NotificationInstructorGradingData {
+  gradingDocId: string;
+  studentName: string;
+  level: string;
+}
+
+export interface NotificationBlogPostData {
+  blogPath: string;
+  blogCategory: string;
+  lastSeenDateStr: string;
+}
+
+export interface NotificationEventData {
+  eventId: string;
+  title: string;
+}
+
+export type MemberNotification = MemberNotificationCommon & (
+  | {
+    kind: NotificationKind.GradingRequestAccepted;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingRequestDeclined;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingRequestsYouAsInstructor;
+    data: NotificationInstructorGradingData;
+  }
+  | {
+    kind: NotificationKind.BlogPost;
+    data: NotificationBlogPostData;
+  }
+  | {
+    kind: NotificationKind.NewEventPosted;
+    data: NotificationEventData;
+  }
+);
+
+export interface MemberNotificationSettings {
+  pushEnabled: { [kind in NotificationKind]?: boolean };
+  homeEnabled: { [kind in NotificationKind]?: boolean };
+  globalPushEnabled?: boolean;
+}
+
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   // Note this is needed by SearchableSet.
@@ -423,11 +494,22 @@ export type Member = {
 
   // Scheduled Deletion Date (YYYY-MM-DD), empty if not scheduled.
   scheduledDeletionDate: string;
+
+  notificationSettings?: MemberNotificationSettings;
 };
 
 export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
+
+export function firestoreDocToMemberNotification(doc: GenericFirestoreDoc): MemberNotification {
+  const docData = doc.data() as any;
+  return {
+    ...initMemberNotification(),
+    ...docData,
+    docId: doc.id,
+  } as MemberNotification;
+}
 
 export function firestoreDocToMember(doc: GenericFirestoreDoc): Member {
   const docData = doc.data() as MemberFirestoreDoc & {
@@ -632,6 +714,21 @@ export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
   return { ...docData, lastUpdated, docId: doc.id } as Order;
 }
 
+export function initMemberNotification(): MemberNotification {
+  return {
+    docId: '',
+    markdown: '',
+    createdAt: new Date().toISOString(),
+    dismissed: false,
+    kind: NotificationKind.BlogPost,
+    data: {
+      blogPath: '',
+      blogCategory: '',
+      lastSeenDateStr: new Date().toISOString(),
+    },
+  };
+}
+
 // ==================================================================
 // # Initial values for Schools and Members
 // ==================================================================
@@ -701,6 +798,11 @@ export function initMember(): Member {
     notes: '',
 
     scheduledDeletionDate: '',
+
+    notificationSettings: {
+      pushEnabled: {},
+      homeEnabled: {},
+    },
   };
 }
 

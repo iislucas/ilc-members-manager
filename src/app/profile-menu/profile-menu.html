@@ -40,6 +40,11 @@
             </div>
           </div>
         }
+        <a href="#/settings/notifications" class="menu-link" (click)="menuOpen.set(false)">
+          <app-icon name="info" width="20px" height="20px"></app-icon>
+          Notification Settings
+        </a>
+
         <button (click)="logout()">
           <app-icon name="logout"></app-icon>
           Logout

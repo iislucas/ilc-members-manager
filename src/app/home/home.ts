@@ -3,6 +3,7 @@ import { environment } from '../../environments/environment';
 import { CommonModule } from '@angular/common';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
+import { NotificationsListComponent } from '../notifications-list/notifications-list';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { ExpiryStatus } from '../../../functions/src/data-model';
@@ -11,7 +12,7 @@ import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, NotificationsListComponent],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

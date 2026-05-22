@@ -59,7 +59,19 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
-           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
+           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
+           'notificationSettings']);
+
+      match /notifications/{notificationId} {
+        function isNotificationOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) || 
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read: if isNotificationOwner() || isAdmin();
+        allow create: if isNotificationOwner() || isAdmin();
+        allow delete: if isAdmin();
+        allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed']);
+      }
     }
 
     match /instructors/{instructorMemberDocId} {

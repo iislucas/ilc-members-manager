@@ -65,7 +65,7 @@ describe('parseGradingOrderInfo', () => {
       email: 'lucas.dixon@gmail.com',
       currentStudentLevel: 'Student 6',
       currentApplicationLevel: 'Application 3',
-      gradingInfo: {
+      gradingInfo: expect.objectContaining({
         docId: '',
         lastUpdated: expect.any(String),
         gradingPurchaseDate: '2026-02-22',
@@ -81,7 +81,7 @@ describe('parseGradingOrderInfo', () => {
         gradingEventDate: '',
         notes: 'Evaluating Instructor Name: Sam Chin',
         gradingEvent: 'Sam Chin Poland Retreat in November 2026'
-      }
+      })
     });
   });
 
@@ -125,7 +125,7 @@ describe('parseGradingOrderInfo', () => {
       email: 'test@example.com',
       currentStudentLevel: '',
       currentApplicationLevel: '',
-      gradingInfo: {
+      gradingInfo: expect.objectContaining({
         docId: '',
         lastUpdated: expect.any(String),
         gradingPurchaseDate: '2024-05-01',
@@ -141,7 +141,7 @@ describe('parseGradingOrderInfo', () => {
         gradingEventDate: '',
         notes: '',
         gradingEvent: ''
-      }
+      })
     });
   });
 });

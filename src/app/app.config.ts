@@ -59,6 +59,7 @@ export enum Views {
   MyEventEdit = 'myEventEdit',
   ManageEventEdit = 'manageEventEdit',
   DownloadResource = 'downloadResource',
+  NotificationSettings = 'notificationSettings',
 }
 
 export const memberListPathPatterns = {
@@ -119,6 +120,7 @@ export const initPathPatterns = {
   [Views.GradingView]: pathPattern`gradings/${pv('gradingId')}`,
   [Views.MemberGradings]: addUrlParams(pathPattern`my-gradings`, ['tab']),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
+  [Views.NotificationSettings]: pathPattern`settings/notifications`,
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
   [Views.ManageOrders]: addUrlParams(pathPattern`orders`, [
     'orderId', 'q', 'startDate', 'endDate', 'status', 'kind',
