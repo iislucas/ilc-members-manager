@@ -43,9 +43,9 @@ describe('MemberDetailsComponent', () => {
       createNextMemberId: vi.fn(),
       createNextInstructorId: vi.fn(),
       loadingState: signal(DataServiceState.Loaded),
-      members: new SearchableSet<'memberId', Member>(
+      members: new SearchableSet<'docId', Member>(
         ['name'],
-        'memberId',
+        'docId',
         [],
       ),
       instructors: new SearchableSet<'instructorId', InstructorPublicData>(
