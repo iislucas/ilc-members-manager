@@ -33,7 +33,7 @@ import {
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
+import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 
 
 
@@ -41,7 +41,7 @@ import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete'
   selector: 'app-grading-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, AutocompleteComponent],
+  imports: [IconComponent, InstructorSelectorComponent],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
@@ -68,7 +68,8 @@ export class GradingProgressComponent {
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user || !user.member.instructorId) return false;
-    return user.member.instructorId === this.grading().gradingInstructorId;
+    return user.member.instructorId === this.grading().gradingInstructorId ||
+      (this.grading().assistantInstructorIds || []).includes(user.member.instructorId);
   });
 
   // Can the current user record a result?
@@ -94,23 +95,11 @@ export class GradingProgressComponent {
     return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
   });
 
-  instructorDisplayValue = computed(() => {
-    const id = this.editInstructorId();
-    if (!id) return '';
-    const instructor = this.dataService.instructors.get(id);
-    return instructor ? `${instructor.name} [${instructor.instructorId}]` : id;
-  });
-
   gradingInstructor = computed(() => {
     const id = this.grading().gradingInstructorId;
     if (!id) return null;
     return this.dataService.instructors.get(id) ?? null;
   });
-
-  instructorDisplayFns: DisplayFns<InstructorPublicData> = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
 
   // --- Editable fields (local signals synced from grading input) ---
   protected editInstructorId = signal('');
@@ -147,22 +136,6 @@ export class GradingProgressComponent {
     );
   });
 
-  onInstructorTextUpdated(text: string) {
-    const match = text.match(/\[([^\]]+)\]$/);
-    if (match) {
-      this.editInstructorId.set(match[1]);
-      return;
-    }
-    const instructor = this.dataService.instructors.entries().find(i => i.name === text || i.instructorId === text);
-    if (instructor) {
-      this.editInstructorId.set(instructor.instructorId);
-    } else {
-      this.editInstructorId.set(text);
-    }
-  }
-
-
-
   // Step 1: Save student request fields
   saveRequestFields() {
     this.isSaving.set(true);
@@ -198,11 +171,6 @@ export class GradingProgressComponent {
   }
 
   // Step 2: Instructor accepts and will grade themselves
-  resolveAssistantName(id: string): string {
-    if (!id) return '';
-    const instructor = this.dataService.instructors.get(id);
-    return instructor ? `${instructor.name} (${instructor.instructorId})` : id;
-  }
 
   addAssistantInstructor() {
     this.editAssistantIds.update((ids) => [...ids, '']);

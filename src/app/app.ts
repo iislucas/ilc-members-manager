@@ -411,8 +411,13 @@ export class App {
         return 'Instructors Area';
       case Views.ManageGradings:
         return 'Manage Gradings';
-      case Views.MemberGradings:
-        return 'Gradings';
+      case Views.MemberGradings: {
+        const member = this.firebaseService.user()?.member;
+        if (member) {
+          return `My Gradings: (${member.memberId || 'No ID'}) ${member.name}`;
+        }
+        return 'My Gradings';
+      }
       case Views.GradingView:
         return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:

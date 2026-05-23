@@ -160,6 +160,11 @@
     padding-right: 0.3em;
   }
 
+  .align-top {
+    align-self: start;
+    padding-top: 8px;
+  }
+
   .field {
     display: flex;
     flex-direction: column;
@@ -184,10 +189,6 @@
 
     ::ng-deep app-autocomplete input {
       background: #fff !important;
-    }
-
-    button.icon-only-button {
-      align-self: flex-start;
     }
   }
 
@@ -284,20 +285,19 @@
 }
 
 .assistant-row {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 4px;
 
-  app-autocomplete {
-    flex: 1;
-    min-width: 200px;
-  }
 
-  button {
-    flex-shrink: 0;
-    margin-top: 0;
-  }
+}
+
+.selected-instructor-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  margin-top: 0;
 }

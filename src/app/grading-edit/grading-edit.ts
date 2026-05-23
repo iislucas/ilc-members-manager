@@ -32,6 +32,8 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
+import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { deepObjEq } from '../utils';
 
@@ -39,7 +41,7 @@ import { deepObjEq } from '../utils';
 @Component({
   selector: 'app-grading-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, InstructorSelectorComponent, MemberSelectorComponent, AutocompleteComponent],
   templateUrl: './grading-edit.html',
   styleUrl: './grading-edit.scss',
 })
@@ -185,46 +187,10 @@ export class GradingEditComponent {
   );
 
   // Resolve names for display
-  studentName = computed(() => {
-    const studentMemberId = this.editableGrading().studentMemberId;
-    if (!studentMemberId) return '';
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === studentMemberId);
-    return member ? `${member.name} (${member.memberId})` : studentMemberId;
-  });
-
-  memberDisplayFns = {
-    toChipId: (m: Member) => m.memberId,
-    toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
-  };
-
   schoolDisplayFns = {
     toChipId: (s: School) => s.schoolId,
     toName: (s: School) => s.schoolName,
   };
-
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
-
-  selectedStudent = computed(() => {
-    const id = this.form.studentMemberId().value();
-    if (!id) return null;
-    return this.dataService.members
-      .entries()
-      .find((m) => m.memberId === id) ?? null;
-  });
-
-  studentAutocompleteSearchTerm = computed(() => {
-    const id = this.form.studentMemberId().value();
-    if (!id) return '';
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === id);
-    return member ? `(${member.memberId}) ${member.name}` : id;
-  });
 
   formatLevel(lvl: string): string {
     if (!lvl) return '';
@@ -237,17 +203,6 @@ export class GradingEditComponent {
     }
     return lvl;
   }
-
-  instructorName = computed(() => {
-    const instructorId = this.editableGrading().gradingInstructorId;
-    if (!instructorId) return '';
-    const instructor = this.dataService.instructors
-      .entries()
-      .find((i) => i.instructorId === instructorId);
-    return instructor
-      ? `${instructor.name} [${instructor.instructorId}]`
-      : instructorId;
-  });
 
   selectedInstructor = computed(() => {
     const id = this.form.gradingInstructorId().value();
@@ -281,14 +236,11 @@ export class GradingEditComponent {
     const rawId = match ? match[1] : value;
     this.form.studentMemberId().value.set(rawId);
     this.form.studentMemberId().markAsDirty();
-    // Auto-populate the doc ID behind the scenes
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === rawId);
-    if (member) {
-      this.form.studentMemberDocId().value.set(member.docId);
-      this.form.studentMemberDocId().markAsDirty();
-    }
+  }
+
+  updateStudentMember(member: Member | null) {
+    this.form.studentMemberDocId().value.set(member ? member.docId : '');
+    this.form.studentMemberDocId().markAsDirty();
   }
 
   updateGradingInstructorId(value: string) {
@@ -310,15 +262,20 @@ export class GradingEditComponent {
       .entries()
       .find((i) => i.instructorId === instructorId);
     return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
+      ? `${instructor.name} [${instructor.instructorId}]`
       : instructorId;
   }
 
-
+  resolveAssistant(instructorId: string): InstructorPublicData | null {
+    if (!instructorId) return null;
+    return this.dataService.instructors.get(instructorId) ?? null;
+  }
 
   updateAssistantInstructorId(index: number, value: string) {
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
     const assistants = [...this.form.assistantInstructorIds().value()];
-    assistants[index] = value;
+    assistants[index] = rawId;
     this.form.assistantInstructorIds().value.set(assistants);
     this.form.assistantInstructorIds().markAsDirty();
   }

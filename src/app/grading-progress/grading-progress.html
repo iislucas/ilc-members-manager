@@ -165,19 +165,11 @@
           <div class="inline-form">
             <label>Grading Instructor</label>
             <div class="field">
-              <app-autocomplete
-                [searchableSet]="dataService.instructors"
+              <app-instructor-selector
                 [placeholder]="'Search for an instructor'"
-                [displayFns]="instructorDisplayFns"
-                [searchOptions]="{
-                  strictDigits: true,
-                  interpretQuotesAsStrict: true,
-                }"
-                [initSearchTerm]="instructorDisplayValue()"
-                [inputBoxIsChip]="false"
-                (itemSelected)="editInstructorId.set($event.instructorId)"
-                (textUpdated)="onInstructorTextUpdated($event)"
-              ></app-autocomplete>
+                [value]="editInstructorId()"
+                (valueChange)="editInstructorId.set($event)"
+              ></app-instructor-selector>
             </div>
 
             <label>Note for the instructor (optional)</label>
@@ -418,19 +410,14 @@
             ></textarea>
           </div>
 
-          <label>Assistant Instructors</label>
+          <label class="align-top">Assistant Instructors</label>
           <div class="field">
             @for (assistant of editAssistantIds(); track $index; let last = $last) {
               <div class="assistant-row">
-                <app-autocomplete
-                  [searchableSet]="dataService.instructors"
-                  [placeholder]="'Search for an instructor'"
-                  [displayFns]="instructorDisplayFns"
-                  [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
-                  [initSearchTerm]="resolveAssistantName(assistant)"
-                  [inputBoxIsChip]="false"
-                  (itemSelected)="updateAssistantInstructorId($index, $event.instructorId)"
-                ></app-autocomplete>
+                <app-instructor-selector
+                  [value]="assistant"
+                  (valueChange)="updateAssistantInstructorId($index, $event)"
+                ></app-instructor-selector>
                 <button
                   type="button"
                   class="icon-only-button"
