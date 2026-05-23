@@ -531,6 +531,7 @@
         class="action-message result-message"
         [class.passed]="g.status === GradingStatus.Passed"
         [class.not-passed]="g.status === GradingStatus.NotPassed"
+        [class.in-review]="g.status === GradingStatus.RequiresReview"
       >
         @if (g.status === GradingStatus.Passed) {
           <app-icon
@@ -540,12 +541,17 @@
             fill="#155724"
           ></app-icon>
           @if (userIsStudent()) {
-            Congratulations! You passed <strong>{{ g.level }}</strong
-            >.
+            Congratulations! You passed <strong>{{ g.level }}</strong>.
           } @else {
             <strong>{{ studentName() }}</strong> passed
-            <strong>{{ g.level }}</strong
-            >.
+            <strong>{{ g.level }}</strong>.
+          }
+        } @else if (g.status === GradingStatus.RequiresReview) {
+          <app-icon name="info" width="18" height="18"></app-icon>
+          @if (userIsStudent()) {
+            Your grading is being reviewed by HQ admin.
+          } @else {
+            The grading for <strong>{{ studentName() }}</strong> is being reviewed by HQ admin.
           }
         } @else {
           <app-icon name="info" width="18" height="18"></app-icon>
@@ -553,8 +559,7 @@
             You did not pass <strong>{{ g.level }}</strong> this time.
           } @else {
             <strong>{{ studentName() }}</strong> did not pass
-            <strong>{{ g.level }}</strong
-            >.
+            <strong>{{ g.level }}</strong>.
           }
         }
       </p>
