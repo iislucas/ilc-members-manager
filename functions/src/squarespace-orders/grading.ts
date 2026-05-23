@@ -14,7 +14,8 @@ import { inferMemberIdFromOrder } from './infer-member';
 
 export function parseGradingOrderInfo(
   orderData: SquareSpaceOrder,
-  gradingItem: SquareSpaceLineItem
+  gradingItem: SquareSpaceLineItem,
+  orderId?: string
 ): { email: string; currentStudentLevel: string; currentApplicationLevel: string; gradingInfo: Grading } {
   const customizations: SquareSpaceCustomization[] = gradingItem.customizations || [];
 
@@ -72,7 +73,7 @@ export function parseGradingOrderInfo(
       ...initGrading(),
       status: providedMemberId ? GradingStatus.AwaitingRequest : GradingStatus.RequiresReview,
       gradingPurchaseDate: purchaseDate,
-      orderId: orderData.docId || '',
+      orderId: orderId || orderData.docId || '',
       level,
       gradingInstructorId,
       studentMemberId: providedMemberId,
@@ -87,7 +88,7 @@ export async function processGradingOrder(
   orderData: SquareSpaceOrder, orderId: string, gradingItem: SquareSpaceLineItem,
   db: admin.firestore.Firestore
 ): Promise<GradingResult> {
-  const { email, currentStudentLevel, currentApplicationLevel, gradingInfo } = parseGradingOrderInfo(orderData, gradingItem);
+  const { email, currentStudentLevel, currentApplicationLevel, gradingInfo } = parseGradingOrderInfo(orderData, gradingItem, orderId);
   const level = gradingInfo.level || '';
 
   // Idempotency check: see if we already processed this order + level
@@ -158,6 +159,7 @@ export async function processGradingOrder(
 
   const newGrading: Grading = {
     ...gradingInfo,
+    orderId: orderId,
     status: GradingStatus.AwaitingRequest,
     studentMemberDocId: memberDocRef.id,
   };

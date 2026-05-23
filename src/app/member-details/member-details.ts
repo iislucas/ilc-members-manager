@@ -347,7 +347,7 @@ export class MemberDetailsComponent {
   };
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   updateStudentsCheckbox = signal<boolean>(true);
@@ -461,7 +461,9 @@ export class MemberDetailsComponent {
   }
 
   updatePrimaryInstructorId(value: string) {
-    this.form.primaryInstructorId().value.set(value);
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
+    this.form.primaryInstructorId().value.set(rawId);
     this.form.primaryInstructorId().markAsDirty();
   }
 

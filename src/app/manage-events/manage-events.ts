@@ -327,7 +327,10 @@ export class ManageEventsComponent implements OnDestroy {
     if (!event.ownerDocId) return '';
     const member = this.dataService.getMemberByDocId(event.ownerDocId);
     if (member) {
-      return `${member.name} (${member.memberId || event.ownerDocId})`;
+      if (member.instructorId) {
+        return `${member.name} [${member.instructorId}]`;
+      }
+      return member.memberId ? `(${member.memberId}) ${member.name}` : member.name;
     }
     // Fallback: show email if available, otherwise just the docId.
     if (event.ownerEmails?.length) {
@@ -355,7 +358,7 @@ export class ManageEventsComponent implements OnDestroy {
     if (!id) return '';
     const instructor = this.dataService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   }

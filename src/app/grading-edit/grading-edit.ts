@@ -196,7 +196,7 @@ export class GradingEditComponent {
 
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,
-    toName: (m: Member) => m.name,
+    toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
   };
 
   schoolDisplayFns = {
@@ -206,8 +206,25 @@ export class GradingEditComponent {
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
+
+  selectedStudent = computed(() => {
+    const id = this.form.studentMemberId().value();
+    if (!id) return null;
+    return this.dataService.members
+      .entries()
+      .find((m) => m.memberId === id) ?? null;
+  });
+
+  studentAutocompleteSearchTerm = computed(() => {
+    const id = this.form.studentMemberId().value();
+    if (!id) return '';
+    const member = this.dataService.members
+      .entries()
+      .find((m) => m.memberId === id);
+    return member ? `(${member.memberId}) ${member.name}` : id;
+  });
 
   formatLevel(lvl: string): string {
     if (!lvl) return '';
@@ -228,8 +245,25 @@ export class GradingEditComponent {
       .entries()
       .find((i) => i.instructorId === instructorId);
     return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
+      ? `${instructor.name} [${instructor.instructorId}]`
       : instructorId;
+  });
+
+  selectedInstructor = computed(() => {
+    const id = this.form.gradingInstructorId().value();
+    if (!id) return null;
+    return this.dataService.instructors
+      .entries()
+      .find((i) => i.instructorId === id) ?? null;
+  });
+
+  instructorAutocompleteSearchTerm = computed(() => {
+    const id = this.form.gradingInstructorId().value();
+    if (!id) return '';
+    const inst = this.dataService.instructors
+      .entries()
+      .find((i) => i.instructorId === id);
+    return inst ? `${inst.name} [${inst.instructorId}]` : id;
   });
 
   // CSS host removed, moved to decorator host object
@@ -243,12 +277,14 @@ export class GradingEditComponent {
   }
 
   updateStudentMemberId(value: string) {
-    this.form.studentMemberId().value.set(value);
+    const match = value.match(/^\(([^)]+)\)/);
+    const rawId = match ? match[1] : value;
+    this.form.studentMemberId().value.set(rawId);
     this.form.studentMemberId().markAsDirty();
     // Auto-populate the doc ID behind the scenes
     const member = this.dataService.members
       .entries()
-      .find((m) => m.memberId === value);
+      .find((m) => m.memberId === rawId);
     if (member) {
       this.form.studentMemberDocId().value.set(member.docId);
       this.form.studentMemberDocId().markAsDirty();
@@ -256,7 +292,10 @@ export class GradingEditComponent {
   }
 
   updateGradingInstructorId(value: string) {
-    this.form.gradingInstructorId().value.set(value);
+    // Extract the raw ID from "Name [ID]" if it matches that format
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
+    this.form.gradingInstructorId().value.set(rawId);
     this.form.gradingInstructorId().markAsDirty();
   }
 

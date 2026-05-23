@@ -164,8 +164,8 @@ export class App {
           return baseBreadcrumbs;
         }
         baseBreadcrumbs.push({ label: `Manage Members`, url: `#/members` });
-        baseBreadcrumbs.push({ label: `${instructor.name} (${instructorId})`, url: `#/members/${instructor.memberId}` });
-        baseBreadcrumbs.push({ label: `Students of ${instructor.name} (${instructorId})`, url: `#/instructor/${instructorId}/students` });
+        baseBreadcrumbs.push({ label: `${instructor.name} [${instructorId}]`, url: `#/members/${instructor.memberId}` });
+        baseBreadcrumbs.push({ label: `Students of ${instructor.name} [${instructorId}]`, url: `#/instructor/${instructorId}/students` });
         if (view === Views.InstructorStudentView) {
           const studentId = this.routingService.signals[Views.InstructorStudentView].pathVars.memberId();
           const student = this.dataService.getMember(studentId);

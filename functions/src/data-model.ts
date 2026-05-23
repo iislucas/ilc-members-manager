@@ -891,7 +891,14 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
   const lastUpdated = docData.lastUpdated
     ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
-  return { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
+  const grading = { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
+  if (grading.level) {
+    const lower = grading.level.toLowerCase().trim();
+    if (lower === 'entry level' || lower === 'entry') {
+      grading.level = 'Student Entry';
+    }
+  }
+  return grading;
 }
 
 export function initGrading(): Grading {

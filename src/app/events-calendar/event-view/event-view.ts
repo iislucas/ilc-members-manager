@@ -47,12 +47,11 @@ export class EventViewComponent implements OnInit {
   });
 
   instructorLabel = computed(() => {
-    const ev = this.event();
-    const id = ev?.leadingInstructorId;
+    const id = this.event()?.leadingInstructorId;
     if (!id) return '';
     const instructor = this.dataService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   });

@@ -102,10 +102,12 @@ export class ProposeEventComponent {
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
-  updateLeadingInstructorId(id: string) {
+  updateLeadingInstructorId(value: string) {
+    const match = value.match(/\[([^\]]+)\]$/);
+    const id = match ? match[1] : value;
     this.eventModel.update(m => ({ ...m, leadingInstructorId: id }));
     this.proposeForm().dirty();
   }

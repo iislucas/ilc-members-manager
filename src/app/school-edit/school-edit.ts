@@ -283,7 +283,7 @@ export class SchoolEditComponent {
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   // Build the back navigation URL based on context.
@@ -349,10 +349,12 @@ export class SchoolEditComponent {
     this.form.managerInstructorIds().markAsDirty();
   }
 
-  updateManagerId(index: number, memberDocId: string) {
+  updateManagerId(index: number, value: string) {
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
     this.form.managerInstructorIds().value.update((managers: string[]) => {
       const newManagers = [...managers];
-      newManagers[index] = memberDocId;
+      newManagers[index] = rawId;
       return newManagers;
     });
     this.form.managerInstructorIds().markAsDirty();
@@ -363,8 +365,10 @@ export class SchoolEditComponent {
     this.form.managerInstructorIds().markAsDirty();
   }
 
-  updateOwner(memberDocId: string) {
-    this.form.ownerInstructorId().value.set(memberDocId);
+  updateOwner(value: string) {
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
+    this.form.ownerInstructorId().value.set(rawId);
     this.form.ownerInstructorId().markAsDirty();
   }
 

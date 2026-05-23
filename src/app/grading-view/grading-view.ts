@@ -67,7 +67,7 @@ export class GradingViewComponent {
         .entries()
         .find((m) => m.memberId === studentMemberId);
       const studentLabel = member
-        ? `${member.name} (${member.memberId})`
+        ? `(${member.memberId}) ${member.name}`
         : studentMemberId || 'Unknown Student';
       this.titleLoaded.emit(`Grading: ${studentLabel}`);
     } else if (!this.loading()) {

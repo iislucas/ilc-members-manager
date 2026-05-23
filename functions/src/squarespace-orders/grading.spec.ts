@@ -94,6 +94,7 @@ describe('parseGradingOrderInfo', () => {
       { input: 'Student 3', expected: 'Student 3' },
       { input: 'Application 4', expected: 'Application 4' },
       { input: 'Entry', expected: 'Student Entry' },
+      { input: 'Entry Level', expected: 'Student Entry' },
       { input: '5', expected: 'Student 5' },
     ];
 

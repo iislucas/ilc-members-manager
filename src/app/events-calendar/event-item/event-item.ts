@@ -38,7 +38,7 @@ export class EventItemComponent {
     if (!id) return '';
     const instructor = this.findInstructorsService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   });

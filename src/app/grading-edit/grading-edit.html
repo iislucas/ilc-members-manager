@@ -36,11 +36,18 @@
             [searchableSet]="dataService.members"
             [placeholder]="'Search for a member'"
             [displayFns]="memberDisplayFns"
-            [initSearchTerm]="form.studentMemberId().value()"
+            [initSearchTerm]="studentAutocompleteSearchTerm()"
+            [inputBoxIsChip]="false"
             (textUpdated)="updateStudentMemberId($event)"
           ></app-autocomplete>
-          @if (studentName()) {
-            <div class="note">{{ studentName() }}</div>
+          @if (selectedStudent(); as m) {
+            <div class="note selected-instructor-note">
+              <a class="inline-link-button" [href]="'#/members/' + (m.memberId || m.docId)" style="text-decoration: underline;">
+                ({{ m.memberId || 'No ID' }}) {{ m.name }}
+              </a>
+            </div>
+          } @else if (form.studentMemberId().value()) {
+            <div class="error-message selected-instructor-note">Not Found</div>
           }
         </div>
 
@@ -127,11 +134,19 @@
             [placeholder]="'Search for an instructor'"
             [displayFns]="instructorDisplayFns"
             [searchOptions]="{ strictDigits: true, interpretQuotesAsStrict: true }"
-            [initSearchTerm]="form.gradingInstructorId().value()"
+            [initSearchTerm]="instructorAutocompleteSearchTerm()"
+            [inputBoxIsChip]="false"
             (textUpdated)="updateGradingInstructorId($event)"
           ></app-autocomplete>
-          @if (instructorName()) {
-            <div class="note">{{ instructorName() }}</div>
+          @if (selectedInstructor(); as inst) {
+            <div class="note selected-instructor-note">
+              <a class="inline-link-button" [href]="'#/find-an-instructor?instructorId=' + inst.instructorId" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: underline;">
+                <app-icon name="visibility" style="font-size: 1.1em;"></app-icon>
+                {{ inst.name }} [{{ inst.instructorId }}]
+              </a>
+            </div>
+          } @else if (form.gradingInstructorId().value()) {
+            <div class="error-message selected-instructor-note">Not Found</div>
           }
         </div>
 

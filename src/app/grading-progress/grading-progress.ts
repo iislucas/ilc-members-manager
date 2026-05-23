@@ -91,19 +91,25 @@ export class GradingProgressComponent {
     const docId = this.grading().studentMemberDocId;
     if (!docId) return '';
     const member = this.dataService.members.get(docId);
-    return member ? `${member.name} (${member.memberId})` : (this.grading().studentMemberId || docId);
+    return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
   });
 
   instructorDisplayValue = computed(() => {
     const id = this.editInstructorId();
     if (!id) return '';
     const instructor = this.dataService.instructors.get(id);
-    return instructor ? `(${instructor.instructorId}) ${instructor.name}` : id;
+    return instructor ? `${instructor.name} [${instructor.instructorId}]` : id;
+  });
+
+  gradingInstructor = computed(() => {
+    const id = this.grading().gradingInstructorId;
+    if (!id) return null;
+    return this.dataService.instructors.get(id) ?? null;
   });
 
   instructorDisplayFns: DisplayFns<InstructorPublicData> = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   // --- Editable fields (local signals synced from grading input) ---
@@ -142,7 +148,7 @@ export class GradingProgressComponent {
   });
 
   onInstructorTextUpdated(text: string) {
-    const match = text.match(/^\((\d+)\)/);
+    const match = text.match(/\[([^\]]+)\]$/);
     if (match) {
       this.editInstructorId.set(match[1]);
       return;

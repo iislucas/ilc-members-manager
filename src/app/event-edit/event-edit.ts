@@ -374,26 +374,34 @@ export class EventEditComponent implements OnInit {
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,
-    toName: (m: Member) => m.name,
+    toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
   };
 
-  updateLeadingInstructorId(instructorId: string) {
+  private extractInstructorId(value: string): string {
+    const match = value.match(/\[([^\]]+)\]$/);
+    return match ? match[1] : value;
+  }
+
+  updateLeadingInstructorId(value: string) {
+    const instructorId = this.extractInstructorId(value);
     this.eventFormModel.update((m) => ({ ...m, leadingInstructorId: instructorId }));
   }
 
-  updateOwnerDocId(instructorId: string) {
+  updateOwnerDocId(value: string) {
+    const instructorId = this.extractInstructorId(value);
     const instructor = this.dataService.instructors.get(instructorId);
     if (instructor) {
       this.eventFormModel.update((m) => ({ ...m, ownerDocId: instructor.docId }));
     }
   }
 
-  updateManagerDocId(index: number, instructorId: string) {
+  updateManagerDocId(index: number, value: string) {
+    const instructorId = this.extractInstructorId(value);
     this.eventFormModel.update((m) => {
       const managerDocIds = [...m.managerDocIds];
       const instructor = this.dataService.instructors.get(instructorId);

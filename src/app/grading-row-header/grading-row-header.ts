@@ -29,7 +29,7 @@ export class GradingRowHeaderComponent {
     const docId = this.grading().studentMemberDocId;
     if (!docId) return '';
     const member = this.dataService.members.get(docId);
-    return member ? `${member.name} (${member.memberId})` : (this.grading().studentMemberId || docId);
+    return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
   });
 
   instructorName = computed(() => {
@@ -37,7 +37,7 @@ export class GradingRowHeaderComponent {
     if (!instructorId) return '';
     const instructor = this.dataService.instructors.get(instructorId);
     return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
+      ? `${instructor.name} [${instructor.instructorId}]`
       : instructorId;
   });
 

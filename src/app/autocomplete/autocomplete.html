@@ -15,10 +15,14 @@
     <ul class="results-list">
       @for (item of filteredItems(); track item[idField()]) {
         <li (mousedown)="selectItem(item)">
-          @if (item[idField()]) {
-            <span class="identifier-chip">{{ chip(item) }}</span>
+          @if (inputBoxIsChip()) {
+            @if (item[idField()]) {
+              <span class="identifier-chip">{{ chip(item) }}</span>
+            }
+            {{ display(item) }}
+          } @else {
+            {{ display(item) }}
           }
-          {{ display(item) }}
         </li>
       }
     </ul>
