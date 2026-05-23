@@ -223,6 +223,8 @@
   gap: 0.8em;
   flex-wrap: wrap;
   margin-top: 0.8em;
+  align-items: center;
+  width: 100%;
 }
 
 .pass-button {
@@ -289,8 +291,6 @@
   align-items: center;
   justify-content: flex-start;
   gap: 4px;
-
-
 }
 
 .selected-instructor-note {
@@ -300,4 +300,16 @@
   font-size: 0.85em;
   color: v.$text-secondary;
   margin-top: 0;
+}
+
+.save-status-note {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #e65100;
+  font-weight: 500;
+  transition: all 0.3s ease-in-out;
+
+  &.saved {
+    color: #28a745;
+  }
 }

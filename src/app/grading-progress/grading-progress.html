@@ -475,6 +475,11 @@
           >
             Decline Request
           </button>
+          @if (saveStatus(); as status) {
+            <span class="save-status-note" [class.saved]="status === 'saved'">
+              {{ status }}
+            </span>
+          }
         </div>
 
         @if (showDeclineForm()) {

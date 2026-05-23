@@ -23,6 +23,7 @@ import {
   computed,
   signal,
   effect,
+  OnDestroy,
 } from '@angular/core';
 import {
   Grading,
@@ -45,7 +46,7 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
-export class GradingProgressComponent {
+export class GradingProgressComponent implements OnDestroy {
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
 
@@ -124,6 +125,88 @@ export class GradingProgressComponent {
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
   });
+
+  isDirty = computed(() => {
+    const g = this.grading();
+    return (
+      this.editGradingEvent() !== g.gradingEvent ||
+      this.editGradingEventDate() !== g.gradingEventDate ||
+      this.editResultNotes() !== g.resultNotes ||
+      JSON.stringify(this.editAssistantIds()) !== JSON.stringify(g.assistantInstructorIds || [])
+    );
+  });
+
+  saveStatus = signal<'Unsaved changes' | 'saving...' | 'saved' | ''>('');
+
+  private autoSaveTimer: any = null;
+
+  private autoSaveEffect = effect(() => {
+    const dirty = this.isDirty();
+    const event = this.editGradingEvent();
+    const date = this.editGradingEventDate();
+    const notes = this.editResultNotes();
+    const assistants = this.editAssistantIds();
+
+    if (!dirty) {
+      return;
+    }
+
+    this.saveStatus.set('Unsaved changes');
+
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+    }
+
+    this.autoSaveTimer = setTimeout(() => {
+      this.triggerAutoSave();
+    }, 5000);
+  });
+
+  async triggerAutoSave() {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+
+    if (!this.isDirty()) return;
+
+    this.saveStatus.set('saving...');
+    try {
+      const update: Partial<Grading> = {
+        gradingEvent: this.editGradingEvent(),
+        gradingEventDate: this.editGradingEventDate(),
+        resultNotes: this.editResultNotes(),
+        assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
+      };
+      this.gradingUpdated.emit(update);
+      this.saveStatus.set('saved');
+      setTimeout(() => {
+        if (this.saveStatus() === 'saved') {
+          this.saveStatus.set('');
+        }
+      }, 3000);
+    } catch (e) {
+      console.error('Auto-save failed:', e);
+      this.saveStatus.set('Unsaved changes');
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+
+    if (this.isDirty()) {
+      const update: Partial<Grading> = {
+        gradingEvent: this.editGradingEvent(),
+        gradingEventDate: this.editGradingEventDate(),
+        resultNotes: this.editResultNotes(),
+        assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
+      };
+      this.gradingUpdated.emit(update);
+    }
+  }
 
   // --- Step 1 dirty check: has the student changed anything? ---
   step1Dirty = computed(() => {
