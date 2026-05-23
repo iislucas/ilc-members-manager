@@ -505,8 +505,9 @@ a.selectable-card {
   padding: 0.2em;
 
   &.expired-recent {
-    background-color: $theme-chip-bg-color;
-    border-color: $theme-chip-border-color;
+    background-color: #fff3cd;
+    border-color: #d4a843;
+    color: #856404;
   }
 
   &.expired-old {
