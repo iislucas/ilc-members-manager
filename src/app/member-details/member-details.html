@@ -183,7 +183,7 @@
         />
       </div>
 
-      @if (e.memberId.trim() !== "") {
+      @if (e.memberId.trim() !== "" || userIsAdmin()) {
         <h3>Membership Status & Level</h3>
 
         @if (userIsMemberOrAdmin()) {
