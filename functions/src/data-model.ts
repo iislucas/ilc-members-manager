@@ -265,13 +265,13 @@ export enum GradingStatus {
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
-      return '(1) Student selecting grading instructor';
+      return '(1) Awaiting grading instructor selection';
     case GradingStatus.AwaitingAcceptance:
-      return '(2) Grading instructor accepts to grade the student';
+      return '(2) Awaiting instructor acceptance';
     case GradingStatus.AwaitingGrading:
-      return '(3) Grading instructor completes grading status';
+      return '(3) Awaiting grading & instructor notes';
     case GradingStatus.Declined:
-      return '(1b) Request declined, student to select new grading instructor';
+      return '(1b) (Declined) Awaiting re-selection of grading instructor';
     case GradingStatus.Passed:
       return '(4a) Passed';
     case GradingStatus.NotPassed:
