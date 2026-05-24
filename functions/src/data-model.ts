@@ -246,38 +246,38 @@ export enum MemberIdUpdateStatus {
 }
 
 export enum GradingStatus {
+  /** Flagged for admin review (e.g. mismatch in automated processing). */
+  RequiresReview = 'in-review',
   /** Initial state when purchased, waiting for student to select an instructor. */
   AwaitingRequest = 'pending',
   /** Student has requested grading, waiting for instructor to accept or decline. */
   AwaitingAcceptance = 'awaiting-instructor-acceptance',
-  /** Instructor has accepted, waiting for grading to happen and result to be recorded. */
-  AwaitingGrading = 'awaiting-instructor-grading',
   /** Instructor declined the request. Student should select a different instructor. */
   Declined = 'declined',
+  /** Instructor has accepted, waiting for grading to happen and result to be recorded. */
+  AwaitingGrading = 'awaiting-instructor-grading',
   /** Student passed the grading. */
   Passed = 'passed',
   /** Student did not pass the grading. */
   NotPassed = 'not-passed',
-  /** Flagged for admin review (e.g. mismatch in automated processing). */
-  RequiresReview = 'in-review',
 }
 
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
-      return 'Awaiting Request';
+      return '(1) Student selecting grading instructor';
     case GradingStatus.AwaitingAcceptance:
-      return 'Awaiting Confirmation';
+      return '(2) Grading instructor accepts to grade the student';
     case GradingStatus.AwaitingGrading:
-      return 'Awaiting Grading';
+      return '(3) Grading instructor completes grading status';
     case GradingStatus.Declined:
-      return 'Awaiting Request';
+      return '(1b) Request declined, student to select new grading instructor';
     case GradingStatus.Passed:
-      return 'Passed';
+      return '(4a) Passed';
     case GradingStatus.NotPassed:
-      return 'Not passed';
+      return '(4b) Not passed this time';
     case GradingStatus.RequiresReview:
-      return 'Need Admin Review';
+      return '(0) Required admin review';
     default:
       return status;
   }

@@ -119,31 +119,27 @@
               <strong>Status Guide:</strong>
               <ul>
                 <li>
-                  <strong>Pending (Awaiting Request)</strong>: Initial state
-                  when purchased, waiting for student to select an instructor.
+                  <strong>(1) Student selecting grading instructor</strong>: Initial state
+                  when purchased, or when the instructor declined the request. Waiting for student to select or re-select an instructor.
                 </li>
                 <li>
-                  <strong>Awaiting Confirmation</strong>: Student has requested
+                  <strong>(2) Grading instructor accepts to grade the student</strong>: Student has requested
                   grading, waiting for instructor to accept or decline.
                 </li>
                 <li>
-                  <strong>Awaiting Grading</strong>: Instructor has accepted,
+                  <strong>(3) Grading instructor completes grading status</strong>: Instructor has accepted,
                   waiting for the event and result to be recorded.
                 </li>
                 <li>
-                  <strong>Declined</strong>: Instructor declined the request.
-                  Student needs to select a different instructor.
-                </li>
-                <li>
-                  <strong>Passed</strong>: Student successfully achieved the
+                  <strong>(4a) Passed</strong>: Student successfully achieved the
                   level.
                 </li>
                 <li>
-                  <strong>Not Passed</strong>: Student did not pass the grading
+                  <strong>(4b) Not passed this time</strong>: Student did not pass the grading
                   this time.
                 </li>
                 <li>
-                  <strong>Need Admin Review</strong>: Flagged for admin review
+                  <strong>(0) Required admin review</strong>: Flagged for admin review
                   (e.g. mismatch in automated processing).
                 </li>
               </ul>
