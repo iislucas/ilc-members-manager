@@ -11,7 +11,7 @@ import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineIt
 import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, SubscriptionResult } from './common';
-import { inferMemberIdFromOrder } from './infer-member';
+import { inferMemberIdFromOrder, lookupMembersByEmail } from './infer-member';
 
 export interface LifeMembershipInfo {
   member: MembershipPurchaseInfo;
@@ -61,9 +61,21 @@ export async function processNewLifeMember(
     return { kind: 'error', message: issue };
   }
 
+  let existingMemberDocId: string | undefined;
+  if (pInfo.email) {
+    const existingMembers = await lookupMembersByEmail(pInfo.email, db);
+    if (existingMembers.length === 1) {
+      const match = existingMembers[0];
+      if (!match.memberId) {
+        existingMemberDocId = match.docId;
+        logger.info(`[Life Membership] Found existing guest profile "${match.docId}" for email "${pInfo.email}". Adopting it.`);
+      }
+    }
+  }
+
   // Check for name collision
   const nameQuery = await db.collection('members').where('name', '==', pInfo.name).limit(1).get();
-  if (!nameQuery.empty) {
+  if (!nameQuery.empty && (!existingMemberDocId || nameQuery.docs[0].id !== existingMemberDocId)) {
     const issue = `[Life Membership] Order ${orderId} is for a new ${label.toLowerCase()} but member with name "${pInfo.name}" already exists. Please process manually.`;
     logger.warn(issue);
     return { kind: 'error', message: issue };
@@ -104,10 +116,12 @@ export async function processNewLifeMember(
     currentMembershipExpires: '9999-12-31',
   };
 
-  const docRef = db.collection('members').doc();
+  const docRef = existingMemberDocId
+    ? db.collection('members').doc(existingMemberDocId)
+    : db.collection('members').doc();
   newMember.docId = docRef.id;
 
-  logger.info(`[Life Membership] Creating new ${label.toLowerCase()} ${newMemberId} (doc ${docRef.id}) for order ${orderId}: name=${pInfo.name}`);
+  logger.info(`[Life Membership] ${existingMemberDocId ? 'Updating' : 'Creating'} new ${label.toLowerCase()} ${newMemberId} (doc ${docRef.id}) for order ${orderId}: name=${pInfo.name}`);
 
   await docRef.set({
     ...newMember,

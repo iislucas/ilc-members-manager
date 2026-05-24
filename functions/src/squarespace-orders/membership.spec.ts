@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { parseMembershipRenewalInfo } from './membership';
-import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
+import { describe, it, expect, vi } from 'vitest';
+import { parseMembershipRenewalInfo, processMembershipRenewal } from './membership';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, MembershipType } from '../data-model';
 import { resolveCountryCode } from '../country-codes';
+import * as admin from 'firebase-admin';
 
 const realLineItem: SquareSpaceLineItem = {
   id: '69a46442795c546cc28cdac6',
@@ -300,5 +301,179 @@ describe('parseMembershipRenewalInfo → resolveCountryCode (end-to-end)', () =>
     const parsed = parseMembershipRenewalInfo(orderWithBillingCountry, lineItem);
     expect(parsed.member.country).toBe('France');
     expect(resolveCountryCode(parsed.member.country)).toBe('FR');
+  });
+});
+
+describe('processMembershipRenewal - Guest Adoption', () => {
+  it('should adopt an existing guest profile if it matches the email and lacks a memberId', async () => {
+    const newMemberLineItem: SquareSpaceLineItem = {
+      ...realLineItem,
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'Guest Adoptee', label: 'Name' },
+        { label: 'Email', value: 'guest@example.com' },
+        { label: 'Date of birth', value: '12/15/1995' },
+        { label: 'Country', value: 'United States' },
+      ],
+    };
+
+    const order: SquareSpaceOrder = {
+      ...realOrder,
+      lineItems: [newMemberLineItem],
+    };
+
+    // 1. Mock lookups by email to return a guest profile (no memberId).
+    const mockLookupDocs = [
+      {
+        id: 'guest-doc-id-123',
+        data: () => ({
+          memberId: '',
+          name: '',
+          emails: ['guest@example.com'],
+        }),
+      },
+    ];
+
+    const mockGet = vi.fn().mockResolvedValue({
+      empty: false,
+      docs: mockLookupDocs,
+    });
+
+    // Mock counters doc fetch for assignNextMemberId
+    const mockCountersGet = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({
+        memberIdCounters: { US: 100 },
+      }),
+    });
+
+    const mockSet = vi.fn().mockResolvedValue({});
+    const mockDoc = vi.fn().mockImplementation((path) => {
+      if (path === 'system/counters') {
+        return {
+          get: mockCountersGet,
+          set: mockSet,
+        };
+      }
+      return {
+        id: path || 'guest-doc-id-123',
+        set: mockSet,
+      };
+    });
+
+    const mockDb = {
+      runTransaction: vi.fn().mockImplementation(async (fn) => {
+        return fn({
+          get: vi.fn().mockImplementation(async (ref) => {
+            if (ref.get === mockCountersGet) return await mockCountersGet();
+            return { exists: false };
+          }),
+          set: vi.fn(),
+        });
+      }),
+      collection: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        get: mockGet,
+        doc: mockDoc,
+      }),
+      doc: mockDoc,
+    } as unknown as admin.firestore.Firestore;
+
+    const result = await processMembershipRenewal(order, 'ORD-123', newMemberLineItem, mockDb);
+
+    expect(result.kind).toBe('success');
+    
+    // It should have queried the existing member record by email.
+    expect(mockDb.collection).toHaveBeenCalledWith('members');
+    
+    // It should have targeted the existing guest's docId 'guest-doc-id-123' rather than creating a new doc.
+    expect(mockDoc).toHaveBeenCalledWith('guest-doc-id-123');
+    
+    // It should have saved the complete Member record to that doc, with a newly assigned member ID.
+    expect(mockSet).toHaveBeenCalled();
+    const savedData = mockSet.mock.calls[0][0];
+    expect(savedData.memberId).toBe('US101'); // US100 + 1
+    expect(savedData.docId).toBe('guest-doc-id-123');
+    expect(savedData.name).toBe('Guest Adoptee');
+    expect(savedData.membershipType).toBe(MembershipType.Annual);
+  });
+
+  it('should create a brand new member document if no matching guest profile exists', async () => {
+    const newMemberLineItem: SquareSpaceLineItem = {
+      ...realLineItem,
+      customizations: [
+        { label: 'Is this membership for a new member?', value: 'Yes, a new member' },
+        { value: 'Brand New Person', label: 'Name' },
+        { label: 'Email', value: 'newperson@example.com' },
+        { label: 'Date of birth', value: '12/15/1995' },
+        { label: 'Country', value: 'United States' },
+      ],
+    };
+
+    const order: SquareSpaceOrder = {
+      ...realOrder,
+      lineItems: [newMemberLineItem],
+    };
+
+    // Mock lookups by email to return empty.
+    const mockGet = vi.fn().mockResolvedValue({
+      empty: true,
+      docs: [],
+    });
+
+    const mockCountersGet = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({
+        memberIdCounters: { US: 200 },
+      }),
+    });
+
+    const mockSet = vi.fn().mockResolvedValue({});
+    const mockDoc = vi.fn().mockImplementation((path) => {
+      if (path === 'system/counters') {
+        return {
+          get: mockCountersGet,
+          set: mockSet,
+        };
+      }
+      return {
+        id: path || 'new-random-doc-id',
+        set: mockSet,
+      };
+    });
+
+    const mockDb = {
+      runTransaction: vi.fn().mockImplementation(async (fn) => {
+        return fn({
+          get: vi.fn().mockImplementation(async (ref) => {
+            if (ref.get === mockCountersGet) return await mockCountersGet();
+            return { exists: false };
+          }),
+          set: vi.fn(),
+        });
+      }),
+      collection: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        get: mockGet,
+        doc: mockDoc,
+      }),
+      doc: mockDoc,
+    } as unknown as admin.firestore.Firestore;
+
+    const result = await processMembershipRenewal(order, 'ORD-124', newMemberLineItem, mockDb);
+
+    expect(result.kind).toBe('success');
+    
+    // It should have targeted a new document reference
+    expect(mockDoc).not.toHaveBeenCalledWith('');
+    expect(mockDoc).not.toHaveBeenCalledWith(undefined);
+    
+    expect(mockSet).toHaveBeenCalled();
+    const savedData = mockSet.mock.calls[0][0];
+    expect(savedData.memberId).toBe('US201'); // US200 + 1
+    expect(savedData.name).toBe('Brand New Person');
+    expect(savedData.membershipType).toBe(MembershipType.Annual);
   });
 });
