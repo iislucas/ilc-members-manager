@@ -46,17 +46,35 @@ export class GradingViewComponent {
   gradingId = input.required<string>();
   titleLoaded = output<string>();
 
+  private fetchedGrading = signal<Grading | undefined>(undefined);
+  private fetchLoading = signal(false);
+
   protected grading = computed<Grading | undefined>(() => {
     const id = this.gradingId();
     if (!id) return undefined;
-    return this.dataService.gradings.get(id);
+
+    // Check local cache first (keeps it reactive for synced items)
+    const cached = this.dataService.gradings.get(id) ??
+      this.dataService.myGradings.get(id) ??
+      this.dataService.myGradingsAssessed.get(id);
+    if (cached) return cached;
+
+    return this.fetchedGrading();
   });
 
-  protected loading = computed(() => this.dataService.gradings.loading());
+  protected loading = computed(() => {
+    if (this.fetchLoading()) return true;
+    return this.dataService.gradings.loading() ||
+      this.dataService.myGradings.loading() ||
+      this.dataService.myGradingsAssessed.loading();
+  });
 
-  protected backHref = computed(() =>
-    this.routingService.hrefForView(Views.ManageGradings),
-  );
+  protected backHref = computed(() => {
+    if (this.userIsAdmin()) {
+      return this.routingService.hrefForView(Views.ManageGradings);
+    }
+    return this.routingService.hrefForView(Views.MemberGradings);
+  });
 
   // Emit the title when the grading is loaded.
   private _emitTitle = effect(() => {
@@ -77,6 +95,43 @@ export class GradingViewComponent {
 
   protected isSaving = signal(false);
   protected asyncError = signal<string | null>(null);
+
+  constructor() {
+    // Reactively fetch the grading from Firestore if it's not in the local cache.
+    effect(async () => {
+      const id = this.gradingId();
+      if (!id) {
+        this.fetchedGrading.set(undefined);
+        return;
+      }
+
+      // Wait until global loading completes
+      if (this.dataService.loadingState() === 'Loading') {
+        return;
+      }
+
+      // Check if cached already
+      const cached = this.dataService.gradings.get(id) ??
+        this.dataService.myGradings.get(id) ??
+        this.dataService.myGradingsAssessed.get(id);
+      if (cached) {
+        this.fetchedGrading.set(undefined);
+        return;
+      }
+
+      // Fetch directly from Firestore
+      this.fetchLoading.set(true);
+      try {
+        const g = await this.dataService.getGradingById(id);
+        this.fetchedGrading.set(g);
+      } catch (e) {
+        console.error('Error loading grading:', e);
+        this.fetchedGrading.set(undefined);
+      } finally {
+        this.fetchLoading.set(false);
+      }
+    });
+  }
 
   // Handle actions from the progress component (accept, assign, mark result).
   async onProgressAction(update: Partial<Grading>) {

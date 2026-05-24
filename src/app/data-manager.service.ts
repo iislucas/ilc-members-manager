@@ -630,6 +630,25 @@ export class DataManagerService {
     }
   }
 
+  async getGradingById(id: string): Promise<Grading | undefined> {
+    if (!id) return undefined;
+    const cached = this.gradings.get(id) ?? this.myGradings.get(id) ?? this.myGradingsAssessed.get(id);
+    if (cached) return cached;
+
+    try {
+      const docRef = doc(this.db, 'gradings', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return firestoreDocToGrading(docSnap as any);
+      }
+    } catch (error) {
+      console.error('Error getting grading by ID:', error);
+    }
+    return undefined;
+  }
+
+
+
   async updateMyStudentsSync(user: UserDetails) {
     // If the user is an instructor (has an instructorId), load their students.
     // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.

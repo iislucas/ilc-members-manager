@@ -58,8 +58,18 @@ describe('GradingViewComponent', () => {
         get: () => ({ ...initGrading(), docId: '123', studentMemberId: 'student-1' }),
         loading: () => false,
       } as never,
+      myGradings: {
+        get: () => undefined,
+        loading: () => false,
+      } as never,
+      myGradingsAssessed: {
+        get: () => undefined,
+        loading: () => false,
+      } as never,
       members: { entries: () => [] } as never,
       updateGrading: () => Promise.resolve(),
+      getGradingById: () => Promise.resolve({ ...initGrading(), docId: '123', studentMemberId: 'student-1' }),
+      loadingState: (() => 'Loaded') as never,
     };
 
     mockRoutingService = {
