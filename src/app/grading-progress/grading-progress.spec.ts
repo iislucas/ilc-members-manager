@@ -157,4 +157,23 @@ describe('GradingProgressComponent', () => {
     expect(component.userIsGradingInstructor()).toBe(true);
     expect(component.canAccept()).toBe(false);
   });
+
+  it('should correctly compute assistantInstructors signal', () => {
+    const instructorsMap = new Map<string, any>();
+    instructorsMap.set('assistant-1', { name: 'Assistant One', instructorId: 'assistant-1' });
+    
+    // Mock get on instructors
+    (mockDataService.instructors as any).get = (id: string) => instructorsMap.get(id) || null;
+
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      assistantInstructorIds: ['assistant-1', 'assistant-2'],
+    });
+    fixture.detectChanges();
+
+    const resolved = component.assistantInstructors();
+    expect(resolved.length).toBe(2);
+    expect(resolved[0]).toEqual({ id: 'assistant-1', data: { name: 'Assistant One', instructorId: 'assistant-1' } });
+    expect(resolved[1]).toEqual({ id: 'assistant-2', data: null });
+  });
 });

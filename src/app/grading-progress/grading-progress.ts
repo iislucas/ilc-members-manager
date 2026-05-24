@@ -102,6 +102,14 @@ export class GradingProgressComponent implements OnDestroy {
     return this.dataService.instructors.get(id) ?? null;
   });
 
+  assistantInstructors = computed<Array<{ id: string; data: InstructorPublicData | null }>>(() => {
+    const ids = this.grading().assistantInstructorIds || [];
+    return ids.map((id) => ({
+      id,
+      data: this.dataService.instructors.get(id) ?? null,
+    }));
+  });
+
   // --- Editable fields (local signals synced from grading input) ---
   protected editInstructorId = signal('');
   protected editStudentNotes = signal('');

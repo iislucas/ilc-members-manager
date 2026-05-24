@@ -3,7 +3,6 @@
 
 @let g = grading();
 
-
 <div class="progress-container">
   <!-- Step indicators -->
   <div class="steps-track">
@@ -11,11 +10,24 @@
     <div
       class="step"
       [class.review]="g.status === GradingStatus.RequiresReview"
-      [class.done]="g.status === GradingStatus.AwaitingAcceptance || g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed"
-      [class.active]="g.status === GradingStatus.AwaitingRequest || g.status === GradingStatus.Declined"
+      [class.done]="
+        g.status === GradingStatus.AwaitingAcceptance ||
+        g.status === GradingStatus.AwaitingGrading ||
+        g.status === GradingStatus.Passed ||
+        g.status === GradingStatus.NotPassed
+      "
+      [class.active]="
+        g.status === GradingStatus.AwaitingRequest ||
+        g.status === GradingStatus.Declined
+      "
     >
       <div class="step-marker">
-        @if (g.status === GradingStatus.AwaitingAcceptance || g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed) {
+        @if (
+          g.status === GradingStatus.AwaitingAcceptance ||
+          g.status === GradingStatus.AwaitingGrading ||
+          g.status === GradingStatus.Passed ||
+          g.status === GradingStatus.NotPassed
+        ) {
           <app-icon
             name="check"
             width="16"
@@ -35,11 +47,19 @@
     <div
       class="step"
       [class.review]="g.status === GradingStatus.RequiresReview"
-      [class.done]="g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed"
+      [class.done]="
+        g.status === GradingStatus.AwaitingGrading ||
+        g.status === GradingStatus.Passed ||
+        g.status === GradingStatus.NotPassed
+      "
       [class.active]="g.status === GradingStatus.AwaitingAcceptance"
     >
       <div class="step-marker">
-        @if (g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed) {
+        @if (
+          g.status === GradingStatus.AwaitingGrading ||
+          g.status === GradingStatus.Passed ||
+          g.status === GradingStatus.NotPassed
+        ) {
           <app-icon
             name="check"
             width="16"
@@ -59,11 +79,17 @@
     <div
       class="step"
       [class.review]="g.status === GradingStatus.RequiresReview"
-      [class.done]="g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed"
+      [class.done]="
+        g.status === GradingStatus.Passed ||
+        g.status === GradingStatus.NotPassed
+      "
       [class.active]="g.status === GradingStatus.AwaitingGrading"
     >
       <div class="step-marker">
-        @if (g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed) {
+        @if (
+          g.status === GradingStatus.Passed ||
+          g.status === GradingStatus.NotPassed
+        ) {
           <app-icon
             name="check"
             width="16"
@@ -81,9 +107,12 @@
   <!-- ====================================================================
        STEP 1: Request
        ==================================================================== -->
-  @if (g.status === GradingStatus.AwaitingRequest || g.status === GradingStatus.AwaitingAcceptance || g.status === GradingStatus.Declined) {
+  @if (
+    g.status === GradingStatus.AwaitingRequest ||
+    g.status === GradingStatus.AwaitingAcceptance ||
+    g.status === GradingStatus.Declined
+  ) {
     <div class="action-panel">
-
       @if (g.status === GradingStatus.Declined) {
         <p class="action-message result-message not-passed">
           <app-icon name="info" width="18" height="18"></app-icon>
@@ -91,8 +120,17 @@
             @if (gradingInstructor(); as inst) {
               <a
                 class="subtle-button"
-                [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-                style="display: inline-flex; align-items: center; padding: 2px 6px; font-size: 0.95em; vertical-align: middle; margin: 0 4px;"
+                [href]="
+                  '#/find-an-instructor?instructorId=' + inst.instructorId
+                "
+                style="
+                  display: inline-flex;
+                  align-items: center;
+                  padding: 2px 6px;
+                  font-size: 0.95em;
+                  vertical-align: middle;
+                  margin: 0 4px;
+                "
               >
                 <app-icon name="person" width="16" height="16"></app-icon>
                 {{ inst.name }} [{{ inst.instructorId }}]
@@ -113,7 +151,9 @@
 
       <!-- Context message -->
       @if (userIsStudent()) {
-        @if (g.status === GradingStatus.AwaitingAcceptance && !isEditingRequest()) {
+        @if (
+          g.status === GradingStatus.AwaitingAcceptance && !isEditingRequest()
+        ) {
           <!-- Read-only summary when request is sent -->
           <p class="action-message">
             <app-icon name="schedule" width="18" height="18"></app-icon>
@@ -122,8 +162,17 @@
               @if (gradingInstructor(); as inst) {
                 <a
                   class="subtle-button"
-                  [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-                  style="display: inline-flex; align-items: center; padding: 2px 6px; font-size: 0.95em; vertical-align: middle; margin: 0 4px;"
+                  [href]="
+                    '#/find-an-instructor?instructorId=' + inst.instructorId
+                  "
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 2px 6px;
+                    font-size: 0.95em;
+                    vertical-align: middle;
+                    margin: 0 4px;
+                  "
                 >
                   <app-icon name="person" width="16" height="16"></app-icon>
                   {{ inst.name }} [{{ inst.instructorId }}]
@@ -143,12 +192,18 @@
           @if (g.gradingEventDate) {
             <p class="detail-note">Preferred date: {{ g.gradingEventDate }}</p>
           }
-          
+
           <div class="action-buttons">
             <button (click)="isEditingRequest.set(true)">Edit Request</button>
-            <button class="not-pass-button" style="margin-left: auto" (click)="cancelRequest()" [disabled]="isSaving()">Cancel Request</button>
+            <button
+              class="not-pass-button"
+              style="margin-left: auto"
+              (click)="cancelRequest()"
+              [disabled]="isSaving()"
+            >
+              Cancel Request
+            </button>
           </div>
-
         } @else {
           <!-- Editable form: shown when Pending OR when user clicked Edit -->
           <p class="action-message">
@@ -204,13 +259,25 @@
 
             <div class="field-actions">
               @if (g.status === GradingStatus.AwaitingAcceptance) {
-                <button (click)="isEditingRequest.set(false)">Cancel Edit</button>
+                <button (click)="isEditingRequest.set(false)">
+                  Cancel Edit
+                </button>
               }
-              <button (click)="saveRequestFields()" [disabled]="isSaving() || !editInstructorId()">
+              <button
+                (click)="saveRequestFields()"
+                [disabled]="isSaving() || !editInstructorId()"
+              >
                 Submit Request
               </button>
               @if (g.status === GradingStatus.AwaitingAcceptance) {
-                <button class="not-pass-button" style="margin-left: auto" (click)="cancelRequest()" [disabled]="isSaving()">Cancel Request</button>
+                <button
+                  class="not-pass-button"
+                  style="margin-left: auto"
+                  (click)="cancelRequest()"
+                  [disabled]="isSaving()"
+                >
+                  Cancel Request
+                </button>
               }
             </div>
           </div>
@@ -220,9 +287,7 @@
         @if (g.status === GradingStatus.Declined) {
           <p class="action-message">
             <app-icon name="info" width="18" height="18"></app-icon>
-            <span>
-              You have declined this grading request.
-            </span>
+            <span> You have declined this grading request. </span>
           </p>
           <div class="action-buttons">
             <button (click)="acceptAndGradeMyself()" [disabled]="isSaving()">
@@ -233,8 +298,9 @@
           <p class="action-message">
             <app-icon name="info" width="18" height="18"></app-icon>
             <span>
-              <strong>{{ studentName() }}</strong> has requested you grade them for
-              <strong>{{ g.level }}</strong>.
+              <strong>{{ studentName() }}</strong> has requested you grade them
+              for <strong>{{ g.level }}</strong
+              >.
             </span>
           </p>
           @if (g.studentNotes) {
@@ -269,7 +335,11 @@
               Accept
             </button>
 
-            <button class="not-pass-button" (click)="showDeclineForm.set(!showDeclineForm())" [disabled]="isSaving()">
+            <button
+              class="not-pass-button"
+              (click)="showDeclineForm.set(!showDeclineForm())"
+              [disabled]="isSaving()"
+            >
               Decline
             </button>
           </div>
@@ -278,40 +348,53 @@
             <div class="assign-picker">
               <label>Reason for declining (optional):</label>
               <textarea
-                style="width: 100%; max-width: 100%; box-sizing: border-box;"
+                style="width: 100%; max-width: 100%; box-sizing: border-box"
                 [value]="editDeclineNotes()"
                 (input)="editDeclineNotes.set($any($event.target).value)"
                 placeholder="Let the student know why..."
                 rows="2"
               ></textarea>
-              <button class="not-pass-button" (click)="declineRequest()" [disabled]="isSaving()">
+              <button
+                class="not-pass-button"
+                (click)="declineRequest()"
+                [disabled]="isSaving()"
+              >
                 Confirm Decline
               </button>
             </div>
           }
         }
-
-
       } @else {
         <!-- No edit role: read-only summary -->
         <p class="action-message">
           <app-icon name="info" width="18" height="18"></app-icon>
           <span>
-            Grading request for <strong>{{ studentName() }}</strong>.
+            Grading request for <strong>{{ studentName() }}</strong
+            >.
             @if (g.status === GradingStatus.AwaitingAcceptance) {
               Waiting for confirmation from
               @if (gradingInstructor(); as inst) {
                 <a
                   class="subtle-button"
-                  [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-                  style="display: inline-flex; align-items: center; padding: 2px 6px; font-size: 0.95em; vertical-align: middle; margin: 0 4px;"
+                  [href]="
+                    '#/find-an-instructor?instructorId=' + inst.instructorId
+                  "
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 2px 6px;
+                    font-size: 0.95em;
+                    vertical-align: middle;
+                    margin: 0 4px;
+                  "
                 >
                   <app-icon name="person" width="16" height="16"></app-icon>
                   {{ inst.name }} [{{ inst.instructorId }}]
                 </a>
               } @else {
                 <strong>{{ g.gradingInstructorId }}</strong>
-              }.
+              }
+              .
             } @else if (g.status === GradingStatus.AwaitingRequest) {
               Status: Awaiting Request.
             }
@@ -344,17 +427,49 @@
             Your grading has been accepted by
             @if (gradingInstructor(); as inst) {
               <a
-                class="subtle-button"
-                [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-                style="display: inline-flex; align-items: center; padding: 2px 6px; font-size: 0.95em; vertical-align: middle; margin: 0 4px;"
+                class="instructor-link"
+                [href]="
+                  '#/find-an-instructor?instructorId=' + inst.instructorId
+                "
+                >{{ inst.name }} [{{ inst.instructorId }}]</a
               >
-                <app-icon name="person" width="16" height="16"></app-icon>
-                {{ inst.name }} [{{ inst.instructorId }}]
-              </a>
             } @else {
               <strong>{{ g.gradingInstructorId }}</strong>
-            }.
-
+            }
+            .
+            @let assistants = assistantInstructors();
+            @if (assistants.length > 0) {
+              Supporting instructors include:
+              @for (
+                assistant of assistants;
+                track assistant.id;
+                let last = $last
+              ) {
+                @if (assistant.data) {
+                  <a
+                    class="instructor-link"
+                    [href]="
+                      '#/find-an-instructor?instructorId=' +
+                      assistant.data.instructorId
+                    "
+                    >{{ assistant.data.name }} [{{
+                      assistant.data.instructorId
+                    }}]</a
+                  >
+                } @else {
+                  <strong>{{ assistant.id }}</strong>
+                }
+                @if (!last) {
+                  ,
+                } @else {
+                  .
+                }
+              }
+            }
+            <span
+              >Waiting for the grading to be completed and for notes and result
+              to be uploaded by the instructor(s).</span
+            >
           </span>
         </p>
         @if (g.gradingEvent) {
@@ -371,8 +486,7 @@
         <p class="action-message">
           <app-icon name="info" width="18" height="18"></app-icon>
           <span>
-            Grading accepted.
-            Fill in the result below after the grading event.
+            Grading accepted. Fill in the result below after the grading event.
           </span>
         </p>
         @if (g.studentNotes) {
@@ -412,7 +526,11 @@
 
           <label class="align-top">Assistant Instructors</label>
           <div class="field">
-            @for (assistant of editAssistantIds(); track $index; let last = $last) {
+            @for (
+              assistant of editAssistantIds();
+              track $index;
+              let last = $last
+            ) {
               <div class="assistant-row">
                 <app-instructor-selector
                   [value]="assistant"
@@ -485,14 +603,18 @@
         @if (showDeclineForm()) {
           <div class="assign-picker">
             <label>Reason for declining (optional):</label>
-              <textarea
-                style="width: 100%; max-width: 100%; box-sizing: border-box;"
-                [value]="editDeclineNotes()"
-                (input)="editDeclineNotes.set($any($event.target).value)"
-                placeholder="Let the student know why..."
-                rows="2"
-              ></textarea>
-            <button class="not-pass-button" (click)="declineRequest()" [disabled]="isSaving()">
+            <textarea
+              style="width: 100%; max-width: 100%; box-sizing: border-box"
+              [value]="editDeclineNotes()"
+              (input)="editDeclineNotes.set($any($event.target).value)"
+              placeholder="Let the student know why..."
+              rows="2"
+            ></textarea>
+            <button
+              class="not-pass-button"
+              (click)="declineRequest()"
+              [disabled]="isSaving()"
+            >
               Confirm Decline
             </button>
           </div>
@@ -502,7 +624,50 @@
         <p class="action-message">
           <app-icon name="schedule" width="18" height="18"></app-icon>
           <span>
-            Grading accepted. Waiting for the result.
+            Grading has been accepted by
+            @if (gradingInstructor(); as inst) {
+              <a
+                class="instructor-link"
+                [href]="
+                  '#/find-an-instructor?instructorId=' + inst.instructorId
+                "
+                >{{ inst.name }} [{{ inst.instructorId }}]</a
+              >
+            } @else {
+              <strong>{{ g.gradingInstructorId }}</strong>
+            }
+            .
+            @let assistants = assistantInstructors();
+            @if (assistants.length > 0) {
+              Supporting instructors include:
+              @for (
+                assistant of assistants;
+                track assistant.id;
+                let last = $last
+              ) {
+                @if (assistant.data) {
+                  <a
+                    class="instructor-link"
+                    [href]="
+                      '#/find-an-instructor?instructorId=' +
+                      assistant.data.instructorId
+                    "
+                    >{{ assistant.data.name }} [{{
+                      assistant.data.instructorId
+                    }}]</a
+                  >
+                } @else {
+                  <strong>{{ assistant.id }}</strong>
+                }
+                @if (!last) {
+                  ,
+                } @else {
+                  .
+                }
+              }
+            }
+            Waiting for the grading to be completed and for notes and result to
+            be uploaded by the instructor(s).
           </span>
         </p>
         @if (g.gradingEvent) {
@@ -533,17 +698,20 @@
             fill="#155724"
           ></app-icon>
           @if (userIsStudent()) {
-            Congratulations! You passed <strong>{{ g.level }}</strong>.
+            Congratulations! You passed <strong>{{ g.level }}</strong
+            >.
           } @else {
             <strong>{{ studentName() }}</strong> passed
-            <strong>{{ g.level }}</strong>.
+            <strong>{{ g.level }}</strong
+            >.
           }
         } @else if (g.status === GradingStatus.RequiresReview) {
           <app-icon name="info" width="18" height="18"></app-icon>
           @if (userIsStudent()) {
             Your grading is being reviewed by HQ admin.
           } @else {
-            The grading for <strong>{{ studentName() }}</strong> is being reviewed by HQ admin.
+            The grading for <strong>{{ studentName() }}</strong> is being
+            reviewed by HQ admin.
           }
         } @else {
           <app-icon name="info" width="18" height="18"></app-icon>
@@ -551,7 +719,8 @@
             You did not pass <strong>{{ g.level }}</strong> this time.
           } @else {
             <strong>{{ studentName() }}</strong> did not pass
-            <strong>{{ g.level }}</strong>.
+            <strong>{{ g.level }}</strong
+            >.
           }
         }
       </p>
@@ -567,13 +736,21 @@
         <p class="detail-note">Event: {{ g.gradingEvent }}</p>
       }
       @if (g.gradingInstructorId) {
-        <p class="detail-note" style="display: flex; align-items: center; gap: 4px;">
+        <p
+          class="detail-note"
+          style="display: flex; align-items: center; gap: 4px"
+        >
           Graded by:
           @if (gradingInstructor(); as inst) {
             <a
               class="subtle-button"
               [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-              style="display: inline-flex; align-items: center; padding: 2px 6px; font-size: 0.95em;"
+              style="
+                display: inline-flex;
+                align-items: center;
+                padding: 2px 6px;
+                font-size: 0.95em;
+              "
             >
               <app-icon name="person" width="16" height="16"></app-icon>
               {{ inst.name }} [{{ inst.instructorId }}]

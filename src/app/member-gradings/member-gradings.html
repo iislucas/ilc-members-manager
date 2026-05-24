@@ -11,9 +11,10 @@
         <span class="value">
           {{ nextGrading() }}
           @if (nextGradingPurchased()) {
-            <span class="purchased-badge">
+            <a [href]="nextGradingLink()" class="purchased-badge clickable-badge">
               <app-icon name="check" /> Purchased
-            </span>
+              <app-icon name="arrow_forward" class="link-icon" />
+            </a>
           } @else {
             <a
               href="https://www.iliqchuan.com/products/gradings"

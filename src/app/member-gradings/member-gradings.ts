@@ -103,13 +103,27 @@ export class MemberGradingsComponent {
 
   // Whether a grading for the next level has already been purchased
   // (ignoring gradings the student didn't pass).
-  nextGradingPurchased = computed(() => {
+  nextGradingPurchased = computed(() => !!this.nextGradingPurchasedId());
+
+  // The docId of the purchased grading for the next level (if one exists)
+  nextGradingPurchasedId = computed(() => {
     const next = this.nextGrading();
-    if (!next) return false;
-    return this.dataService.myGradings
+    if (!next) return '';
+    const grading = this.dataService.myGradings
       .entries()
-      .some((g) => g.level === next && g.status !== GradingStatus.NotPassed);
+      .find((g) => g.level === next && g.status !== GradingStatus.NotPassed);
+    return grading ? grading.docId : '';
   });
+
+  // Href link to the progress view of the purchased grading
+  nextGradingLink = computed(() => {
+    const gradingId = this.nextGradingPurchasedId();
+    if (!gradingId) return '';
+    return this.routingService.hrefForView(Views.GradingView, {
+      gradingId,
+    });
+  });
+
 
   setActiveTab(tab: GradingTab) {
     this.viewSignals().urlParams.tab.set(tab);

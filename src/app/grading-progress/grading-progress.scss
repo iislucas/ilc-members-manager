@@ -313,3 +313,15 @@
     color: #28a745;
   }
 }
+
+.instructor-link {
+  color: #0056b3;
+  text-decoration: underline;
+  font-weight: 600;
+  margin: 0 4px;
+
+  &:hover {
+    color: #003d82;
+  }
+}
+
