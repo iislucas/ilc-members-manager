@@ -271,7 +271,7 @@ export function getPrettyGradingStatus(status: GradingStatus): string {
     case GradingStatus.AwaitingGrading:
       return '(3) Awaiting grading & instructor notes';
     case GradingStatus.Declined:
-      return '(1b) (Declined) Awaiting re-selection of grading instructor';
+      return '(1b) (Declined) Awaiting instructor re-selection';
     case GradingStatus.Passed:
       return '(4a) Passed';
     case GradingStatus.NotPassed:
