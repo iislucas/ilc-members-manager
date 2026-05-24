@@ -109,6 +109,11 @@
               </option>
             }
           </select>
+          @if (e.status === GradingStatus.RequiresReview && e.reviewIssue) {
+            <div class="note review-issue-note" style="margin-top: 8px; color: #d93025; background-color: #fce8e6; border-left: 4px solid #d93025; padding: 8px 12px; border-radius: 4px; font-size: 0.9em; line-height: 1.4;">
+              <strong>Admin Review Reason:</strong> {{ e.reviewIssue }}
+            </div>
+          }
           @if (showStatusGuide()) {
             <div class="note status-guide">
               <strong>Status Guide:</strong>

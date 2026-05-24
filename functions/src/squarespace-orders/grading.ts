@@ -36,7 +36,9 @@ export function parseGradingOrderInfo(
     } else if (labelLower.includes('email')) {
       providedEmail = field.value.trim();
     } else if (labelLower.includes('instructorid') || labelLower.includes('instructor id')) {
-      gradingInstructorId = field.value.trim();
+      const val = field.value.trim();
+      const match = val.match(/\[([^\]]+)\]$/);
+      gradingInstructorId = match ? match[1].trim() : val;
     } else if (labelLower.includes('where / when') || labelLower.includes('planning to grade') || labelLower.includes('grading event')) {
       gradingEvent = field.value.trim();
     } else if (labelLower.includes('evaluating instructor')) {
@@ -72,6 +74,7 @@ export function parseGradingOrderInfo(
     gradingInfo: {
       ...initGrading(),
       status: providedMemberId ? GradingStatus.AwaitingRequest : GradingStatus.RequiresReview,
+      reviewIssue: providedMemberId ? '' : 'Missing member ID in order customizations.',
       gradingPurchaseDate: purchaseDate,
       orderId: orderId || orderData.docId || '',
       level,
@@ -107,6 +110,7 @@ export async function processGradingOrder(
   let memberDocRef: admin.firestore.DocumentReference | null = null;
   let memberData: Partial<Member> | null = null;
   let effectiveMemberId = gradingInfo.studentMemberId;
+  let linkIssue = '';
 
   // If the admin manually set ilcAppMemberIdInferred on the line item, it
   // overrides whatever member ID the user may have entered in the form.
@@ -143,25 +147,58 @@ export async function processGradingOrder(
       memberDocRef = memberIdQuery.docs[0].ref;
       memberData = memberIdQuery.docs[0].data() as Partial<Member>;
     } else {
-      const issue = `[Grading] Member ID ${effectiveMemberId} not found in database.`;
-      logger.warn(issue);
-      return { kind: 'error', message: issue };
+      linkIssue = `[Grading] Member ID ${effectiveMemberId} not found in database.`;
+      logger.warn(linkIssue);
     }
   }
 
   if (!memberDocRef) {
-    const issue = `[Grading] Could not find a member document for order ${orderId} `
+    const issue = linkIssue || `[Grading] Could not find a member document for order ${orderId} `
       + `(Member ID: ${effectiveMemberId}, Email: ${email}) to create grading doc.` +
-      ` Please create and associate a grading with a member manually.`
-    logger.warn(issue);
-    return { kind: 'error', message: issue };
+      ` Please create and associate a grading with a member manually.`;
+    if (!linkIssue) {
+      logger.warn(issue);
+    }
+
+    const newGrading: Grading = {
+      ...gradingInfo,
+      orderId: orderId,
+      status: GradingStatus.RequiresReview,
+      studentMemberDocId: '',
+      reviewIssue: issue,
+    };
+
+    const gradingRef = db.collection('gradings').doc();
+    newGrading.docId = gradingRef.id;
+
+    logger.info(`[Grading] Creating new grading doc ${gradingRef.id} requiring admin review based on order ${orderId}.`);
+
+    await gradingRef.set({
+      ...newGrading,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { kind: 'success', gradingDocId: gradingRef.id };
   }
+
+  let hasValidInstructor = false;
+  const cleanInstructorId = gradingInfo.gradingInstructorId || '';
+  if (cleanInstructorId) {
+    const instructorSnap = await db.collection('members')
+      .where('instructorId', '==', cleanInstructorId)
+      .limit(1)
+      .get();
+    hasValidInstructor = !instructorSnap.empty;
+  }
+
+  const initialStatus = hasValidInstructor ? GradingStatus.AwaitingAcceptance : GradingStatus.AwaitingRequest;
 
   const newGrading: Grading = {
     ...gradingInfo,
     orderId: orderId,
-    status: GradingStatus.AwaitingRequest,
+    status: initialStatus,
     studentMemberDocId: memberDocRef.id,
+    reviewIssue: '', // Clear reviewIssue since student is successfully linked
   };
 
   if (memberData) {
@@ -180,8 +217,7 @@ export async function processGradingOrder(
     const applicationLevelMatches = !currentApplicationLevel || (memberApplicationLevel === currentApplicationLevel);
 
     if (!emailMatches || !studentLevelMatches || !applicationLevelMatches) {
-      newGrading.status = GradingStatus.RequiresReview;
-      logger.warn(`[Grading] Order ${orderId} required review due to mismatch: emailMatches=${emailMatches}, studentLevelMatches=${studentLevelMatches}, applicationLevelMatches=${applicationLevelMatches}`);
+      logger.warn(`[Grading] Order ${orderId} mismatch detected (but student successfully linked): emailMatches=${emailMatches}, studentLevelMatches=${studentLevelMatches}, applicationLevelMatches=${applicationLevelMatches}`);
     }
   }
 

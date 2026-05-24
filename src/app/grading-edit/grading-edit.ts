@@ -78,6 +78,7 @@ export class GradingEditComponent {
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.studentMemberId, () => !this.userIsAdmin());
     disabled(schema.studentMemberDocId, () => !this.userIsAdmin());
+    disabled(schema.reviewIssue, () => !this.userIsAdmin());
 
     // Instructor can edit status, gradingEventDate, notes
     disabled(
@@ -149,7 +150,8 @@ export class GradingEditComponent {
       this.form.notes().value() !== original.notes ||
       this.form.studentNotes().value() !== original.studentNotes ||
       this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
-      this.form.resultNotes().value() !== original.resultNotes
+      this.form.resultNotes().value() !== original.resultNotes ||
+      this.form.reviewIssue().value() !== original.reviewIssue
     );
   });
   isSaving = signal(false);
@@ -318,6 +320,7 @@ export class GradingEditComponent {
         studentNotes: this.form.studentNotes().value(),
         instructorAcceptedDate: this.form.instructorAcceptedDate().value(),
         resultNotes: this.form.resultNotes().value(),
+        reviewIssue: this.form.reviewIssue().value(),
       };
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed

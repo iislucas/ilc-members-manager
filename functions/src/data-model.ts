@@ -880,6 +880,7 @@ export type Grading = {
   instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
   resultNotes: string; // Notes from the grading/assigned instructor to the student after grading.
   declineNotes: string; // Notes from the instructor explaining why they declined.
+  reviewIssue: string; // Store the issue/reason when grading processing requires admin review.
 };
 
 export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
@@ -922,6 +923,7 @@ export function initGrading(): Grading {
     instructorAcceptedDate: '',
     resultNotes: '',
     declineNotes: '',
+    reviewIssue: '',
   };
 }
 
