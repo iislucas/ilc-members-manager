@@ -4,11 +4,63 @@ import {
   onDocumentDeleted,
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
-import { Grading, GradingStatus, StudentLevel } from './data-model';
+import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
+
+async function createNotification(
+  memberDocId: string,
+  notification: Omit<MemberNotification, 'docId'>,
+): Promise<void> {
+  const notifRef = db
+    .collection('members')
+    .doc(memberDocId)
+    .collection('notifications')
+    .doc(); // Auto ID
+
+  const fullNotification: MemberNotification = {
+    ...notification,
+    docId: notifRef.id,
+  } as MemberNotification;
+
+  await notifRef.set(fullNotification);
+}
+
+async function cancelAndDismissGradingNotifications(
+  memberDocId: string,
+  gradingDocId: string,
+  kind?: NotificationKind,
+): Promise<void> {
+  let query: admin.firestore.Query = db
+    .collection('members')
+    .doc(memberDocId)
+    .collection('notifications')
+    .where('dismissed', '==', false)
+    .where('data.gradingDocId', '==', gradingDocId);
+
+  if (kind) {
+    query = query.where('kind', '==', kind);
+  }
+
+  const snap = await query.get();
+  if (snap.empty) return;
+
+  const batch = db.batch();
+  for (const doc of snap.docs) {
+    const data = doc.data() as MemberNotification;
+    const currentMarkdown = data.markdown;
+    // Wrap in markdown strikethrough if not already wrapped
+    const updatedMarkdown = currentMarkdown.startsWith('~~') ? currentMarkdown : `~~${currentMarkdown}~~ (Cancelled/Reassigned)`;
+    batch.update(doc.ref, {
+      markdown: updatedMarkdown,
+      dismissed: true,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
 
 /**
  * Given an instructorId (human-readable), find the member document that has
@@ -185,6 +237,30 @@ export const onGradingCreated = onDocumentCreated(
         });
     }
 
+    // Notify the instructor of new request
+    if (grading.status === GradingStatus.AwaitingAcceptance && grading.gradingInstructorId) {
+      const instructorMemberDocId = await findInstructorMemberDocId(grading.gradingInstructorId);
+      if (instructorMemberDocId) {
+        const studentSnap = await db.collection('members').doc(grading.studentMemberDocId).get();
+        const studentName = studentSnap.exists ? (studentSnap.data()?.name || 'A student') : 'A student';
+        const msg = `**${studentName}** has requested you to grade them for **${grading.level}**.`;
+        await createNotification(
+          instructorMemberDocId,
+          {
+            markdown: msg,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingRequestsYouAsInstructor,
+            data: {
+              gradingDocId,
+              studentName,
+              level: grading.level,
+            },
+          }
+        );
+      }
+    }
+
     logger.info(`Grading ${gradingDocId} created and mirrored.`);
   },
 );
@@ -299,6 +375,108 @@ export const onGradingUpdated = onDocumentUpdated(
       }
     }
 
+    // Notify student if instructor accepted grading request
+    if (
+      grading.status === GradingStatus.AwaitingGrading &&
+      previous.status === GradingStatus.AwaitingAcceptance &&
+      grading.studentMemberDocId
+    ) {
+      const instructorMemberDocId = await findInstructorMemberDocId(grading.gradingInstructorId);
+      let instructorName = 'Your instructor';
+      if (instructorMemberDocId) {
+        const instSnap = await db.collection('members').doc(instructorMemberDocId).get();
+        instructorName = instSnap.exists ? (instSnap.data()?.name || 'Your instructor') : 'Your instructor';
+      }
+      const msg = `Sifu **${instructorName}** has accepted your grading request for **${grading.level}**!`;
+      await createNotification(
+        grading.studentMemberDocId,
+        {
+          markdown: msg,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingRequestAccepted,
+          data: {
+            gradingDocId,
+            level: grading.level,
+          },
+        }
+      );
+    }
+
+    // Notify student if instructor declined grading request
+    if (
+      grading.status === GradingStatus.Declined &&
+      previous.status === GradingStatus.AwaitingAcceptance &&
+      grading.studentMemberDocId
+    ) {
+      const instructorMemberDocId = await findInstructorMemberDocId(grading.gradingInstructorId);
+      let instructorName = 'Your instructor';
+      if (instructorMemberDocId) {
+        const instSnap = await db.collection('members').doc(instructorMemberDocId).get();
+        instructorName = instSnap.exists ? (instSnap.data()?.name || 'Your instructor') : 'Your instructor';
+        // Cancel the declined instructor's notifications if any
+        await cancelAndDismissGradingNotifications(
+          instructorMemberDocId,
+          gradingDocId,
+          NotificationKind.GradingRequestsYouAsInstructor
+        );
+      }
+      const msg = `Sifu **${instructorName}** has declined your grading request for **${grading.level}**. Please select a different instructor.`;
+      await createNotification(
+        grading.studentMemberDocId,
+        {
+          markdown: msg,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingRequestDeclined,
+          data: {
+            gradingDocId,
+            level: grading.level,
+          },
+        }
+      );
+    }
+
+    // Notify instructor if assigned/reassigned and is AwaitingAcceptance
+    if (
+      grading.status === GradingStatus.AwaitingAcceptance &&
+      (previous.status !== GradingStatus.AwaitingAcceptance || previous.gradingInstructorId !== grading.gradingInstructorId) &&
+      grading.gradingInstructorId
+    ) {
+      // Cancel previous instructor's notifications if any
+      if (previous.gradingInstructorId && previous.gradingInstructorId !== grading.gradingInstructorId) {
+        const oldInstructorMemberDocId = await findInstructorMemberDocId(previous.gradingInstructorId);
+        if (oldInstructorMemberDocId) {
+          await cancelAndDismissGradingNotifications(
+            oldInstructorMemberDocId,
+            gradingDocId,
+            NotificationKind.GradingRequestsYouAsInstructor
+          );
+        }
+      }
+
+      const instructorMemberDocId = await findInstructorMemberDocId(grading.gradingInstructorId);
+      if (instructorMemberDocId) {
+        const studentSnap = await db.collection('members').doc(grading.studentMemberDocId).get();
+        const studentName = studentSnap.exists ? (studentSnap.data()?.name || 'A student') : 'A student';
+        const msg = `**${studentName}** has requested you to grade them for **${grading.level}**.`;
+        await createNotification(
+          instructorMemberDocId,
+          {
+            markdown: msg,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingRequestsYouAsInstructor,
+            data: {
+              gradingDocId,
+              studentName,
+              level: grading.level,
+            },
+          }
+        );
+      }
+    }
+
     logger.info(`Grading ${gradingDocId} updated and re-mirrored.`);
   },
 );
@@ -329,6 +507,21 @@ export const onGradingDeleted = onDocumentDeleted(
         .update({
           gradingDocIds: admin.firestore.FieldValue.arrayRemove(gradingDocId),
         });
+      // Cancel and dismiss the student's grading notifications
+      await cancelAndDismissGradingNotifications(grading.studentMemberDocId, gradingDocId);
+    }
+
+    // Cancel and dismiss the instructors' grading notifications
+    const instructorIds = new Set([
+      grading.gradingInstructorId,
+      ...grading.assistantInstructorIds,
+    ].filter((id) => id && id !== '') as string[]);
+
+    for (const id of instructorIds) {
+      const instructorMemberDocId = await findInstructorMemberDocId(id);
+      if (instructorMemberDocId) {
+        await cancelAndDismissGradingNotifications(instructorMemberDocId, gradingDocId);
+      }
     }
 
     logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);

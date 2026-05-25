@@ -54,6 +54,7 @@
 
         <!-- instructor (always on its own line) -->
         @if (instructorLabel()) {
+          <div>
           <a class="instructor-link"
             [href]="instructorLink()"
             title="View instructor profile"
@@ -63,6 +64,20 @@
             </span>
             <span class="detail-text">Instructor: {{ instructorLabel() }}</span>
           </a>
+          </div>
+        }
+        @if (contactLabel()) {
+          <div>
+          <a class="instructor-link"
+            [href]="contactLink()"
+            title="View contact profile"
+            (click)="$event.stopPropagation()">
+            <span class="icon-only-button">
+              <app-icon name="person"></app-icon>
+            </span>
+            <span class="detail-text">Contact: {{ contactLabel() }}</span>
+          </a>
+          </div>
         }
       </div>
     </div>

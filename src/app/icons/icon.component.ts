@@ -20,7 +20,7 @@ export type IconName = keyof typeof ICONS;
   host: {
     '[style.width]': 'computedWidth()',
     '[style.height]': 'computedHeight()',
-    style: 'display: inline-block',
+    style: 'display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;',
   },
 })
 export class IconComponent {

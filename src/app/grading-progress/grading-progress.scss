@@ -1,0 +1,327 @@
+/* grading-progress.scss
+ * Styles for the 3-step grading workflow progress indicator
+ * with inline editable forms.
+ */
+
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+}
+
+.progress-container {
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 1.2em 1.5em;
+  margin-bottom: 1em;
+  background: #fafbff;
+}
+
+// ── Step indicator track ──
+.steps-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 1.2em;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  min-width: 5em;
+}
+
+.step-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px dashed v.$border-color-light; /* Incomplete: dashed */
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+}
+
+.step-number {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: v.$text-muted;
+}
+
+.step-label {
+  font-size: 0.8em;
+  color: v.$text-muted;
+  font-weight: 500;
+}
+
+// Active step
+.step.active .step-marker {
+  border: 2px dashed v.$focus-ring-color; /* Active: dashed blue */
+  background: #e8f0fe;
+}
+
+.step.active .step-number {
+  color: v.$focus-ring-color;
+}
+
+.step.active .step-label {
+  color: v.$text-primary;
+  font-weight: 600;
+}
+
+// Done step
+.step.done .step-marker {
+  border: 2px solid #28a745; /* Done: solid green */
+  background: #d4edda;
+}
+
+.step.review .step-marker {
+  border: 2px solid v.$border-color-light; /* Review: solid grey */
+  background: #fff;
+}
+
+.step.done .step-label {
+  color: #155724;
+  font-weight: 600;
+}
+
+// Connector line between steps
+.step-connector {
+  flex: 1;
+  height: 2px;
+  background: v.$border-color-light;
+  margin: 0 0.3em;
+  margin-bottom: 1.5em; // aligns with the marker center
+}
+
+// ── Action panel ──
+.action-panel {
+  padding-top: 0.5em;
+  border-top: 1px solid v.$separator-color;
+}
+
+.action-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0 0 0.8em 0;
+  font-size: 0.95em;
+  line-height: 1.5;
+  color: v.$text-primary;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+  }
+}
+
+.result-message.passed {
+  color: #155724;
+}
+
+.result-message.not-passed {
+  color: #383d41;
+}
+
+.result-message.in-review {
+  color: #e65100;
+}
+
+.detail-note {
+  font-size: 0.9em;
+  color: v.$text-secondary;
+  margin: 0 0 0.5em 1.6em;
+  line-height: 1.4;
+}
+
+.result-detail {
+  padding: 0.6em 0.8em;
+  background: v.$separator-color;
+  border-radius: 6px;
+  margin-left: 0;
+}
+
+// ── Inline editable form (label/field grid) ──
+.inline-form {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  align-items: center;
+  margin: 0.8em 0;
+
+  label {
+    text-align: right;
+    font-size: 0.9em;
+    color: v.$text-secondary;
+    padding-right: 0.3em;
+  }
+
+  .align-top {
+    align-self: start;
+    padding-top: 8px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+
+    input[type="text"],
+    input[type="date"],
+    textarea {
+      width: 100%;
+      max-width: 30em;
+      border: 1px solid v.$border-color-light;
+      border-radius: 6px;
+      padding: 0.4em 0.5em;
+      font-family: inherit;
+      font-size: 0.9em;
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    ::ng-deep app-autocomplete input {
+      background: #fff !important;
+    }
+  }
+
+  .field-note {
+    font-size: 0.85em;
+    color: v.$text-muted;
+  }
+
+  .field-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.8em;
+    padding-top: 0.3em;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 0.3em;
+
+    label {
+      text-align: left;
+      padding-right: 0;
+      font-weight: 500;
+    }
+  }
+}
+
+// ── Action buttons ──
+.action-buttons {
+  display: flex;
+  gap: 0.8em;
+  flex-wrap: wrap;
+  margin-top: 0.8em;
+  align-items: center;
+  width: 100%;
+}
+
+.pass-button {
+  background-color: #d4edda !important;
+  border-color: #28a745 !important;
+  color: #155724 !important;
+
+  &:hover:not(:disabled) {
+    background-color: #c3e6cb !important;
+  }
+}
+
+.not-pass-button {
+  background-color: #e2e3e5 !important;
+  border-color: #aaa !important;
+  color: #383d41 !important;
+
+  &:hover:not(:disabled) {
+    background-color: #d6d8db !important;
+  }
+}
+
+// ── Assign picker ──
+.assign-picker {
+  margin-top: 0.8em;
+  padding: 0.8em;
+  border: 1px dashed v.$border-color-light;
+  border-radius: 6px;
+  background: #fff;
+
+  label {
+    display: block;
+    font-size: 0.9em;
+    color: v.$text-secondary;
+    margin-bottom: 0.4em;
+  }
+
+  button {
+    margin-top: 0.6em;
+  }
+}
+
+// ── Responsive ──
+@media (max-width: 600px) {
+  .progress-container {
+    padding: 0.8em;
+  }
+
+  .step {
+    min-width: 3.5em;
+  }
+
+  .step-label {
+    font-size: 0.7em;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+}
+
+.assistant-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.selected-instructor-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  margin-top: 0;
+}
+
+.save-status-note {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #e65100;
+  font-weight: 500;
+  transition: all 0.3s ease-in-out;
+
+  &.saved {
+    color: #28a745;
+  }
+}
+
+.instructor-link {
+  color: #0056b3;
+  text-decoration: underline;
+  font-weight: 600;
+  margin: 0 4px;
+
+  &:hover {
+    color: #003d82;
+  }
+}
+

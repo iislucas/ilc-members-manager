@@ -246,10 +246,41 @@ export enum MemberIdUpdateStatus {
 }
 
 export enum GradingStatus {
-  Pending = 'pending',
-  Passed = 'passed',
-  NotPassed = 'not-passed',
+  /** Flagged for admin review (e.g. mismatch in automated processing). */
   RequiresReview = 'in-review',
+  /** Initial state when purchased, waiting for student to select an instructor. */
+  AwaitingRequest = 'pending',
+  /** Student has requested grading, waiting for instructor to accept or decline. */
+  AwaitingAcceptance = 'awaiting-instructor-acceptance',
+  /** Instructor declined the request. Student should select a different instructor. */
+  Declined = 'declined',
+  /** Instructor has accepted, waiting for grading to happen and result to be recorded. */
+  AwaitingGrading = 'awaiting-instructor-grading',
+  /** Student passed the grading. */
+  Passed = 'passed',
+  /** Student did not pass the grading. */
+  NotPassed = 'not-passed',
+}
+
+export function getPrettyGradingStatus(status: GradingStatus): string {
+  switch (status) {
+    case GradingStatus.AwaitingRequest:
+      return '(1) Awaiting instructor selection';
+    case GradingStatus.AwaitingAcceptance:
+      return '(2) Awaiting instructor acceptance';
+    case GradingStatus.AwaitingGrading:
+      return '(3) Awaiting grading & instructor notes';
+    case GradingStatus.Declined:
+      return '(1b) (Declined) Awaiting instructor re-selection';
+    case GradingStatus.Passed:
+      return '(4a) Passed';
+    case GradingStatus.NotPassed:
+      return '(4b) Not passed this time';
+    case GradingStatus.RequiresReview:
+      return '(0) Required admin review';
+    default:
+      return status;
+  }
 }
 
 // ==================================================================
@@ -312,6 +343,77 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
   const ownerEmails = docData.ownerEmails && docData.ownerEmails.length > 0 ? docData.ownerEmails : (docData.ownerEmail ? [docData.ownerEmail] : []);
 
   return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
+}
+
+export enum NotificationKind {
+  GradingRequestAccepted = 'GradingRequestAccepted',
+  GradingRequestDeclined = 'GradingRequestDeclined',
+  GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
+  // BlogPost covers all types of blog posts (including Members Area Blog, Instructors Blog,
+  // and Zoom Classes which are cached as blog posts). Instead of individual kinds,
+  // a BlogPost notification specifies the collection query path (blogPath), optional
+  // category/tag filter (blogCategory), and a date cut-off (lastSeenDateStr) so the client
+  // can determine what new posts/classes are available to catch up on.
+  BlogPost = 'BlogPost',
+  NewEventPosted = 'NewEventPosted',
+}
+
+export interface MemberNotificationCommon {
+  docId: string;
+  markdown: string;
+  createdAt: string; // ISO string
+  dismissed: boolean;
+}
+
+export interface NotificationGradingData {
+  gradingDocId: string;
+  level: string;
+}
+
+export interface NotificationInstructorGradingData {
+  gradingDocId: string;
+  studentName: string;
+  level: string;
+}
+
+export interface NotificationBlogPostData {
+  blogPath: string;
+  blogCategory: string;
+  lastSeenDateStr: string;
+}
+
+export interface NotificationEventData {
+  eventId: string;
+  title: string;
+}
+
+export type MemberNotification = MemberNotificationCommon & (
+  | {
+    kind: NotificationKind.GradingRequestAccepted;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingRequestDeclined;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingRequestsYouAsInstructor;
+    data: NotificationInstructorGradingData;
+  }
+  | {
+    kind: NotificationKind.BlogPost;
+    data: NotificationBlogPostData;
+  }
+  | {
+    kind: NotificationKind.NewEventPosted;
+    data: NotificationEventData;
+  }
+);
+
+export interface MemberNotificationSettings {
+  pushEnabled: { [kind in NotificationKind]?: boolean };
+  homeEnabled: { [kind in NotificationKind]?: boolean };
+  globalPushEnabled?: boolean;
 }
 
 // Members are in firestore path /member/{email} (they use email as the doc id).
@@ -392,11 +494,22 @@ export type Member = {
 
   // Scheduled Deletion Date (YYYY-MM-DD), empty if not scheduled.
   scheduledDeletionDate: string;
+
+  notificationSettings?: MemberNotificationSettings;
 };
 
 export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
 };
+
+export function firestoreDocToMemberNotification(doc: GenericFirestoreDoc): MemberNotification {
+  const docData = doc.data() as any;
+  return {
+    ...initMemberNotification(),
+    ...docData,
+    docId: doc.id,
+  } as MemberNotification;
+}
 
 export function firestoreDocToMember(doc: GenericFirestoreDoc): Member {
   const docData = doc.data() as MemberFirestoreDoc & {
@@ -601,6 +714,21 @@ export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
   return { ...docData, lastUpdated, docId: doc.id } as Order;
 }
 
+export function initMemberNotification(): MemberNotification {
+  return {
+    docId: '',
+    markdown: '',
+    createdAt: new Date().toISOString(),
+    dismissed: false,
+    kind: NotificationKind.BlogPost,
+    data: {
+      blogPath: '',
+      blogCategory: '',
+      lastSeenDateStr: new Date().toISOString(),
+    },
+  };
+}
+
 // ==================================================================
 // # Initial values for Schools and Members
 // ==================================================================
@@ -670,6 +798,11 @@ export function initMember(): Member {
     notes: '',
 
     scheduledDeletionDate: '',
+
+    notificationSettings: {
+      pushEnabled: {},
+      homeEnabled: {},
+    },
   };
 }
 
@@ -739,10 +872,15 @@ export type Grading = {
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
   studentMemberDocId: string; // The Firestore doc ID of the student member document.
-  status: GradingStatus; // pending, passed, rejected.
+  status: GradingStatus; // See GradingStatus enum for details.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
   gradingEvent: string; // Text string for event/location/date of the grading.
   notes: string; // Any notes about the grading.
+  studentNotes: string; // Optional note from the student when requesting the grading.
+  instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
+  resultNotes: string; // Notes from the grading/assigned instructor to the student after grading.
+  declineNotes: string; // Notes from the instructor explaining why they declined.
+  reviewIssue: string; // Store the issue/reason when grading processing requires admin review.
 };
 
 export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
@@ -754,7 +892,14 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
   const lastUpdated = docData.lastUpdated
     ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
-  return { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
+  const grading = { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
+  if (grading.level) {
+    const lower = grading.level.toLowerCase().trim();
+    if (lower === 'entry level' || lower === 'entry') {
+      grading.level = 'Student Entry';
+    }
+  }
+  return grading;
 }
 
 export function initGrading(): Grading {
@@ -770,10 +915,15 @@ export function initGrading(): Grading {
     schoolDocId: '',
     studentMemberId: '',
     studentMemberDocId: '',
-    status: GradingStatus.Pending,
+    status: GradingStatus.AwaitingRequest,
     gradingEventDate: '',
     gradingEvent: '',
     notes: '',
+    studentNotes: '',
+    instructorAcceptedDate: '',
+    resultNotes: '',
+    declineNotes: '',
+    reviewIssue: '',
   };
 }
 
@@ -950,12 +1100,34 @@ export enum EventStatus {
   Cancelled = 'cancelled',
 }
 
+// Maps an EventStatus value to a user-friendly display label.
+export function eventStatusLabel(status: EventStatus | undefined): string {
+  switch (status) {
+    case EventStatus.Proposed:
+      return 'Waiting for Approval';
+    case EventStatus.Listed:
+      return 'Listed Publicly';
+    case EventStatus.Rejected:
+      return 'Rejected';
+    case EventStatus.Cancelled:
+      return 'Cancelled';
+    default:
+      return '';
+  }
+}
+
 // Event source kind — used by sync pruning so that calendar-sourced
 // events can be pruned without deleting Firebase-sourced events.
 export enum EventSourceKind {
   CalendarSourced = 'calendar-sourced',
   FirebaseSourced = 'firebase-sourced',
 }
+
+// A document attached to an event (e.g. flyer, schedule, waiver).
+export type EventDocument = {
+  name: string;   // Display name for the document
+  url: string;    // Download URL in Firebase Storage
+};
 
 // A single unified event type. All events live in /events/{docId}.
 // Calendar-synced events have kind='calendar-sourced' and status='listed'.
@@ -984,6 +1156,9 @@ export type IlcEvent = {
   leadingInstructorId: string; // Primary instructor leading the event
   managerDocIds: string[];
   managerEmails: string[];
+  // Attached documents (max 10). Each entry has a display name and a
+  // Firebase Storage download URL.
+  documents: EventDocument[];
   lastUpdated?: string;    // ISO date-time; managed by sync logic
   updatedByEmail: string; // Email of user who last updated the event. Defaults to ''.
 };
@@ -1007,6 +1182,7 @@ export function initEvent(): IlcEvent {
     leadingInstructorId: '',
     managerDocIds: [],
     managerEmails: [],
+    documents: [],
     updatedByEmail: '',
   };
 }

@@ -130,3 +130,23 @@
   margin-top: 0.5em;
   margin-bottom: 1em;
 }
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em;
+  margin: 0.2em 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-decoration: none;
+  font-size: 0.9em;
+  color: $text-primary;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}

@@ -13,6 +13,7 @@ import {
 import {
   Grading,
   GradingStatus,
+  getPrettyGradingStatus,
   StudentLevel,
   ApplicationLevel,
   Member,
@@ -31,6 +32,8 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
+import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { deepObjEq } from '../utils';
 
@@ -38,7 +41,7 @@ import { deepObjEq } from '../utils';
 @Component({
   selector: 'app-grading-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, InstructorSelectorComponent, MemberSelectorComponent, AutocompleteComponent],
   templateUrl: './grading-edit.html',
   styleUrl: './grading-edit.scss',
 })
@@ -51,6 +54,7 @@ export class GradingEditComponent {
   // Constants
   GradingStatus = GradingStatus;
   gradingStatuses = Object.values(GradingStatus);
+  getPrettyGradingStatus = getPrettyGradingStatus;
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
 
@@ -74,6 +78,7 @@ export class GradingEditComponent {
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.studentMemberId, () => !this.userIsAdmin());
     disabled(schema.studentMemberDocId, () => !this.userIsAdmin());
+    disabled(schema.reviewIssue, () => !this.userIsAdmin());
 
     // Instructor can edit status, gradingEventDate, notes
     disabled(
@@ -93,6 +98,23 @@ export class GradingEditComponent {
       schema.gradingEvent,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsStudent(),
     );
+
+    // Student can edit their own notes
+    disabled(
+      schema.studentNotes,
+      () => !this.userIsAdmin() && !this.userIsStudent(),
+    );
+
+    // Instructor acceptance fields
+    disabled(
+      schema.instructorAcceptedDate,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
+
+    disabled(
+      schema.resultNotes,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
   });
 
   // Sync input grading to the form model.
@@ -105,13 +127,7 @@ export class GradingEditComponent {
   editableGrading = computed<Grading>(() => this.gradingFormModel());
 
   // Visual state
-  collapsable = input<boolean>(true);
-  collapse = input<boolean | null>(null);
   close = output();
-  collapsed = linkedSignal<boolean>(() => {
-    return this.collapsable() && (this.collapse() ?? true);
-  });
-
   canDelete = input<boolean>(true);
 
   isDirty = computed(() => {
@@ -131,11 +147,16 @@ export class GradingEditComponent {
       this.form.status().value() !== original.status ||
       this.form.gradingEventDate().value() !== original.gradingEventDate ||
       this.form.gradingEvent().value() !== original.gradingEvent ||
-      this.form.notes().value() !== original.notes
+      this.form.notes().value() !== original.notes ||
+      this.form.studentNotes().value() !== original.studentNotes ||
+      this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
+      this.form.resultNotes().value() !== original.resultNotes ||
+      this.form.reviewIssue().value() !== original.reviewIssue
     );
   });
   isSaving = signal(false);
   asyncError = signal<Error | null>(null);
+  protected showStatusGuide = signal(false);
 
   // User permissions
   userIsAdmin = computed(() => {
@@ -158,33 +179,19 @@ export class GradingEditComponent {
     return grading.studentMemberDocId === user.member.docId;
   });
 
+
+
   canEdit = computed(
-    () => this.userIsAdmin() || this.userIsGradingInstructor() || this.userIsStudent(),
+    () =>
+      this.userIsAdmin() ||
+      this.userIsGradingInstructor() ||
+      this.userIsStudent(),
   );
 
   // Resolve names for display
-  studentName = computed(() => {
-    const studentMemberId = this.editableGrading().studentMemberId;
-    if (!studentMemberId) return '';
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === studentMemberId);
-    return member ? `${member.name} (${member.memberId})` : studentMemberId;
-  });
-
-  memberDisplayFns = {
-    toChipId: (m: Member) => m.memberId,
-    toName: (m: Member) => m.name,
-  };
-
   schoolDisplayFns = {
     toChipId: (s: School) => s.schoolId,
     toName: (s: School) => s.schoolName,
-  };
-
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
   };
 
   formatLevel(lvl: string): string {
@@ -199,67 +206,50 @@ export class GradingEditComponent {
     return lvl;
   }
 
-  instructorName = computed(() => {
-    const instructorId = this.editableGrading().gradingInstructorId;
-    if (!instructorId) return '';
-    const instructor = this.dataService.instructors
+  selectedInstructor = computed(() => {
+    const id = this.form.gradingInstructorId().value();
+    if (!id) return null;
+    return this.dataService.instructors
       .entries()
-      .find((i) => i.instructorId === instructorId);
-    return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
-      : instructorId;
+      .find((i) => i.instructorId === id) ?? null;
   });
 
-  // CSS host
-  @HostBinding('class.is-open')
-  get isOpen() {
-    return !this.collapsed();
-  }
+  instructorAutocompleteSearchTerm = computed(() => {
+    const id = this.form.gradingInstructorId().value();
+    if (!id) return '';
+    const inst = this.dataService.instructors
+      .entries()
+      .find((i) => i.instructorId === id);
+    return inst ? `${inst.name} [${inst.instructorId}]` : id;
+  });
 
-  @HostBinding('class.is-dirty')
-  get isDirtyClass() {
-    return this.isDirty();
-  }
-
-  toggleCollapseState($event: Event) {
-    $event.preventDefault();
-    $event.stopPropagation();
-    if (this.isDirty() && !this.collapsed()) {
-      this.elementRef.nativeElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
-      return;
-    }
-    this.collapsed.set(!this.collapsed());
-  }
+  // CSS host removed, moved to decorator host object
 
   cancel($event: Event) {
     $event.preventDefault();
     $event.stopPropagation();
     this.form().reset();
     this.gradingFormModel.set(structuredClone(this.grading()));
-    this.collapsed.set(this.collapsable());
-    if (this.collapsable()) {
-      this.close.emit();
-    }
+    this.close.emit();
   }
 
   updateStudentMemberId(value: string) {
-    this.form.studentMemberId().value.set(value);
+    const match = value.match(/^\(([^)]+)\)/);
+    const rawId = match ? match[1] : value;
+    this.form.studentMemberId().value.set(rawId);
     this.form.studentMemberId().markAsDirty();
-    // Auto-populate the doc ID behind the scenes
-    const member = this.dataService.members
-      .entries()
-      .find((m) => m.memberId === value);
-    if (member) {
-      this.form.studentMemberDocId().value.set(member.docId);
-      this.form.studentMemberDocId().markAsDirty();
-    }
+  }
+
+  updateStudentMember(member: Member | null) {
+    this.form.studentMemberDocId().value.set(member ? member.docId : '');
+    this.form.studentMemberDocId().markAsDirty();
   }
 
   updateGradingInstructorId(value: string) {
-    this.form.gradingInstructorId().value.set(value);
+    // Extract the raw ID from "Name [ID]" if it matches that format
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
+    this.form.gradingInstructorId().value.set(rawId);
     this.form.gradingInstructorId().markAsDirty();
   }
 
@@ -274,13 +264,20 @@ export class GradingEditComponent {
       .entries()
       .find((i) => i.instructorId === instructorId);
     return instructor
-      ? `${instructor.name} (${instructor.instructorId})`
+      ? `${instructor.name} [${instructor.instructorId}]`
       : instructorId;
   }
 
+  resolveAssistant(instructorId: string): InstructorPublicData | null {
+    if (!instructorId) return null;
+    return this.dataService.instructors.get(instructorId) ?? null;
+  }
+
   updateAssistantInstructorId(index: number, value: string) {
+    const match = value.match(/\[([^\]]+)\]$/);
+    const rawId = match ? match[1] : value;
     const assistants = [...this.form.assistantInstructorIds().value()];
-    assistants[index] = value;
+    assistants[index] = rawId;
     this.form.assistantInstructorIds().value.set(assistants);
     this.form.assistantInstructorIds().markAsDirty();
   }
@@ -320,6 +317,10 @@ export class GradingEditComponent {
         gradingEventDate: this.form.gradingEventDate().value(),
         gradingEvent: this.form.gradingEvent().value(),
         notes: this.form.notes().value(),
+        studentNotes: this.form.studentNotes().value(),
+        instructorAcceptedDate: this.form.instructorAcceptedDate().value(),
+        resultNotes: this.form.resultNotes().value(),
+        reviewIssue: this.form.reviewIssue().value(),
       };
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed
@@ -331,7 +332,6 @@ export class GradingEditComponent {
       }
       this.form().reset();
       this.isSaving.set(false);
-      this.collapsed.set(this.collapsable());
       this.close.emit();
     } catch (e: unknown) {
       console.error(e);

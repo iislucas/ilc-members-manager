@@ -14,8 +14,8 @@ export function canonicalizeGradingLevel(level: string): string {
   if (lower.startsWith('application ')) {
     return 'Application ' + level.substring('application '.length).trim();
   }
-  if (lower === 'entry' || !isNaN(Number(lower))) {
-    return 'Student ' + level.trim();
+  if (lower === 'entry' || lower === 'entry level' || !isNaN(Number(lower))) {
+    return 'Student ' + (lower.includes('entry') ? 'Entry' : level.trim());
   }
   return level.trim();
 }

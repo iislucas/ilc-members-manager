@@ -22,7 +22,7 @@ import {
 import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { RoutingService } from '../../routing.service';
 import { CalendarEvent } from '../event.model';
-import { IlcEvent, EventStatus, initEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
@@ -151,6 +151,19 @@ export class EventListComponent implements OnDestroy {
     if (explicit) return explicit;
     return this.collectionPath() === 'events' ? '#/events/' : '#/my-events/';
   });
+  // Determines if the current list is for the user's own events (non-public).
+  protected isMyEvents = computed(() => this.collectionPath() !== 'events');
+
+  // Map event status to a user-friendly display label.
+  statusLabel(event: IlcEvent): string {
+    return eventStatusLabel(event.status) || event.status;
+  }
+
+  // Build the CSS class string for the status chip.
+  statusClass(event: IlcEvent): string {
+    return 'event-status-chip status-' + (event.status || 'proposed');
+  }
+
   private events = signal<IlcEvent[]>([]);
 
   // --- Firestore direct subscription ---

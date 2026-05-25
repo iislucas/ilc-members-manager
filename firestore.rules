@@ -59,7 +59,19 @@ service cloud.firestore {
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
            'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
-           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId']);
+           'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
+           'notificationSettings']);
+
+      match /notifications/{notificationId} {
+        function isNotificationOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) || 
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read: if isNotificationOwner() || isAdmin();
+        allow create: if isNotificationOwner() || isAdmin();
+        allow delete: if isAdmin();
+        allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed']);
+      }
     }
 
     match /instructors/{instructorMemberDocId} {
@@ -141,8 +153,10 @@ service cloud.firestore {
         resource.data.status == 'proposed'
       );
       allow update: if isAdmin() || (
-        isEventOwnerOrManager() &&
-        request.resource.data.status == resource.data.status
+        isEventOwnerOrManager() && (
+          request.resource.data.status == resource.data.status ||
+          request.resource.data.status == 'cancelled'
+        )
       );
     }
 
@@ -179,7 +193,8 @@ service cloud.firestore {
         let aclPath = /databases/$(database)/documents/acl/$(email);
         let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
         let asst = 'assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : [];
-        return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst);
+        let assigned = resource.data.get('assignedInstructorId', '');
+        return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst) || (assigned != '' && assigned in instructorIds);
       }
       // Uses the ACL's cached schoolDocIds instead of looking up
       // ownerEmails/managerEmails on the school document.
@@ -195,10 +210,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isGradingInstructor() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'notes']);
+            ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'notes',
+             'instructorAcceptedDate',
+             'resultNotes', 'assistantInstructorIds', 'declineNotes']);
       allow update: if hasValidEditUpdate() && isGradingStudent() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'gradingEvent', 'gradingInstructorId']);
+            ['lastUpdated', 'status', 'gradingEvent', 'gradingInstructorId', 'studentNotes',
+             'declineNotes']);
     }
   }
 }

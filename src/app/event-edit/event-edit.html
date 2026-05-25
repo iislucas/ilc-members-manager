@@ -12,6 +12,36 @@
 
   <div class="edit-form">
     <form (submit)="saveEvent($event)">
+      @if (canChangeStatus()) {
+        <div class="status-chip-container">
+          <button type="button" [class]="statusClass()" class="status-chip-btn" (click)="statusMenuOpen.update(v => !v)">
+            {{ statusLabel() }}
+            <app-icon name="expand_more" />
+          </button>
+          @if (statusMenuOpen()) {
+            <div class="menu-overlay transparent" (click)="statusMenuOpen.set(false)"></div>
+            <div class="status-dropdown">
+              @if (isAdmin()) {
+                @for (status of eventStatuses; track status) {
+                  <div class="menu-item" [class.active]="event()?.status === status" (click)="changeStatus(status)">
+                    <span class="event-status-chip" [class]="'event-status-chip status-' + status">{{ eventStatusLabelFn(status) }}</span>
+                  </div>
+                }
+              } @else {
+                <div class="menu-item" (click)="changeStatus(EventStatus.Cancelled)">
+                  <app-icon name="close" />
+                  <span>Cancel Event</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else if (statusLabel()) {
+        <div class="status-chip-container">
+          <span [class]="statusClass()">{{ statusLabel() }}</span>
+        </div>
+      }
+
       <div class="form-section">
         <h3>Event Details</h3>
 
@@ -112,6 +142,14 @@
           @if (isUploadingImage()) {
             <app-spinner>Uploading...</app-spinner>
           }
+          @if (imageUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button type="button" class="icon-only-button" (click)="imageUploadError.set(null)" title="Dismiss">
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
         </div>
 
         <label for="event-description" class="description-label"
@@ -126,20 +164,82 @@
       </div>
 
       <div class="form-section">
-        <h3>Status & Metadata</h3>
+        <h3>Attached Documents</h3>
 
-        <label for="event-status">Status</label>
-        <div class="rhs">
-          @if (isAdmin()) {
-            <select id="event-status" [formField]="form.status">
-              @for (status of eventStatuses; track status) {
-                <option [value]="status">{{ status }}</option>
+        <div class="rhs document-list" style="grid-column: 1 / -1;">
+          @let docs = eventFormModel().documents;
+          @for (doc of docs; track $index; let last = $last) {
+            <div class="document-row">
+              <input
+                type="text"
+                [value]="doc.name"
+                (input)="updateDocumentName($index, $event)"
+                placeholder="Document name"
+              />
+              <a
+                class="icon-only-button"
+                [href]="doc.url"
+                target="_blank"
+                title="Open document"
+              >
+                <app-icon name="link" />
+              </a>
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="removeDocument($index)"
+                title="Remove document"
+              >
+                <app-icon name="trash" />
+              </button>
+              @if (last && docs.length < 10) {
+                <button
+                  type="button"
+                  class="icon-only-button add-document-btn"
+                  (click)="documentFileInput.click()"
+                  title="Add another document"
+                >
+                  <app-icon name="add" />
+                </button>
               }
-            </select>
-          } @else {
-            <span class="readonly-value">{{ ev?.status }}</span>
+            </div>
+          }
+          @if (docs.length === 0) {
+            <div>
+              <button
+                type="button"
+                class="outlined-button"
+                (click)="documentFileInput.click()"
+              >
+                <app-icon name="upload_file" /> select a document to upload
+              </button>
+            </div>
+          }
+          <input
+            #documentFileInput
+            type="file"
+            style="display: none"
+            (change)="onDocumentFileSelected($event)"
+          />
+          @if (isUploadingDocument()) {
+            <app-spinner>Uploading document...</app-spinner>
+          }
+          @if (documentUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button type="button" class="icon-only-button" (click)="documentUploadError.set(null)" title="Dismiss">
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
+          @if (docs.length >= 10) {
+            <span class="note">Maximum of 10 documents reached.</span>
           }
         </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Status & Metadata</h3>
 
         @if (ev) {
         <label for="event-owner">Owner</label>
@@ -205,7 +305,7 @@
             </div>
           }
           @if (managerIds.length === 0) {
-            <div class="add-new-row">
+            <div>
               <button type="button" class="subtle-button" (click)="addEmptyManagerRow()">
                 + add manager
               </button>
@@ -286,12 +386,18 @@
           </button>
         }
       </div>
-      <div style="margin-top: 1em; padding-bottom: 1em">
+      <div style="margin-top: 1em; padding-bottom: 1em; display: flex; gap: 1em; align-items: center;">
         <a
           class="subtle-button"
           [href]="routingService.hrefWithParams(backUrl())"
         >
           <app-icon name="arrow_back" /> Back
+        </a>
+        <a
+          class="subtle-button"
+          [href]="routingService.hrefWithParams(viewEventUrl())"
+        >
+          <app-icon name="visibility" /> View event page
         </a>
       </div>
     </form>

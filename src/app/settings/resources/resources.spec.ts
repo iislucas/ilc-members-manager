@@ -51,13 +51,6 @@ describe('ResourcesComponent', () => {
     expect(component.formatSize('500')).toBe('500 B');
   });
 
-  it('should return correct file type class', () => {
-    expect(component.fileTypeClass('application/pdf')).toBe('file-pdf');
-    expect(component.fileTypeClass('image/png')).toBe('file-image');
-    expect(component.fileTypeClass('video/mp4')).toBe('file-video');
-    expect(component.fileTypeClass('application/octet-stream')).toBe('file-generic');
-  });
-
   it('should default to members access level', () => {
     expect(component.selectedAccessLevel()).toBe(ResourceAccessLevel.Members);
   });

@@ -1,5 +1,7 @@
 @if (user(); as u) {
   <div class="home-container">
+    <app-notifications-list></app-notifications-list>
+
     <div class="cards-grid">
       <!-- Members Area -->
       @let mStatus = membershipStatus();

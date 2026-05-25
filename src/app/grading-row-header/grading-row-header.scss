@@ -1,0 +1,78 @@
+@use "../../scss_variables" as v;
+
+.grading-row-content {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 1em;
+  padding: 0.2em 0.5em;
+  width: 100%;
+  overflow: hidden;
+}
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-transform: capitalize;
+  flex-shrink: 0;
+
+  &.pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  &.passed {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  &.not-passed {
+    background-color: #e2e3e5;
+    color: #383d41;
+  }
+
+  &.in-review {
+    background-color: #fff4e5;
+    color: #e65100;
+  }
+}
+
+.name {
+  font-weight: bold;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 15em;
+}
+
+.level-chip {
+  flex-shrink: 0;
+}
+
+.instructor-info {
+  font-size: 0.9em;
+  color: v.$text-secondary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+@media (max-width: 600px) {
+  .grading-row-content {
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+
+  .instructor-info {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+

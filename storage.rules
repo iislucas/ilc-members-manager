@@ -36,6 +36,20 @@ service firebase.storage {
       );
     }
 
+    // Event document uploads follow the same owner/manager pattern as images.
+    match /events/{eventId}/documents/{fileId} {
+      allow read: if true;
+      allow write: if isAdmin() || (
+        request.auth != null &&
+        (
+          firestore.get(/databases/(default)/documents/events/$(eventId)).data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(
+            firestore.get(/databases/(default)/documents/events/$(eventId)).data.get('managerDocIds', [])
+          )
+        )
+      );
+    }
+
     // Construct today's date as a YYYY-MM-DD string from request.time.
     // Used for lexicographic comparison against stored expiry dates.
     function todayStr() {

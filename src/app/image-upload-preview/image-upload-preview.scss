@@ -1,34 +1,17 @@
 @use "../../scss_variables" as *;
 
 .image-uploader-container {
-  border: 2px dashed $border-color-light;
   border-radius: 8px;
-  padding: 20px 20px 10px 20px;
-  text-align: center;
-  background: #fafafa;
+  text-align: left;
   transition: all 0.3s ease;
   box-sizing: border-box;
   max-width: 100%;
-
-  &:hover {
-    border-color: $menu-item-hover-color;
-    background: #f0f0f0;
-  }
 }
 
 .upload-prompt {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
   cursor: pointer;
-  width: 100%;
-
-  p {
-    color: $text-muted;
-    font-size: 0.9rem;
-    margin-bottom: 0;
-  }
 }
 
 .upload-button {

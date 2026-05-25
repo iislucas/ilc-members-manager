@@ -141,6 +141,20 @@ export class FirebaseStateService {
         return;
       }
 
+      // If the user is already signed in with the same UID, do not trigger the login/fetch flow again!
+      // This prevents redundant calls and transient errors during automatic token refreshes or
+      // concurrent tab loads from logging the user out.
+      const currentUserDetails = this.user();
+      if (currentUserDetails && currentUserDetails.firebaseUser.uid === user.uid) {
+        console.log('FirebaseStateService: onAuthStateChanged fired for already signed-in user, updating firebaseUser reference.');
+        this.user.set({
+          ...currentUserDetails,
+          firebaseUser: user,
+        });
+        this.setupMemberSnapshotListener();
+        return;
+      }
+
       this.loginStatus.set(LoginStatus.LoggingIn);
       let userDetailsResult: FetchUserDetailsResult;
       try {
@@ -153,8 +167,18 @@ export class FirebaseStateService {
         console.error('Error in getUserDetails:', error);
         this.loginStatus.set(LoginStatus.SignedOut);
         this.loginError.set((error as Error).message);
-        console.warn('Logging out because getUserDetails failed with error:', error);
-        this.logout();
+        
+        // Only trigger a full Firebase signOut if the error is explicitly authentication
+        // or permission-related. For transient network or internal server errors, we
+        // avoid calling logout() so that the local Firebase Auth session is preserved,
+        // allowing the user to simply refresh or retry once connectivity is restored.
+        const errorCode = (error as any)?.code;
+        if (errorCode === 'unauthenticated' || errorCode === 'permission-denied') {
+          console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
+          this.logout();
+        } else {
+          console.warn('Preserving session: getUserDetails failed with a transient/network error:', error);
+        }
         return;
       }
 

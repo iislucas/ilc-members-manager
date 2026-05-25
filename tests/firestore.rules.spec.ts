@@ -635,6 +635,41 @@ describe('Firestore Rules', () => {
         db.collection('events').doc('test-event').delete(),
       );
     });
+
+    it('should allow event owner to change status to cancelled', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('events').doc('test-event').update({
+          title: 'Test Event',
+          status: 'cancelled',
+        }),
+      );
+    });
+
+    it('should deny event owner from changing status to listed', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          title: 'Test Event',
+          status: 'listed',
+        }),
+      );
+    });
+
+    it('should deny non-owner from changing status to cancelled', async () => {
+      const db = testEnv
+        .authenticatedContext('other_user', { email: 'other@test.com' })
+        .firestore();
+      await assertFails(
+        db.collection('events').doc('test-event').update({
+          status: 'cancelled',
+        }),
+      );
+    });
   });
 
   describe('Blog Posts Collections', () => {
@@ -693,6 +728,181 @@ describe('Firestore Rules', () => {
         .firestore();
       await assertFails(
         db.collection('gradings').doc('grading-1').get(),
+      );
+    });
+  });
+
+  describe('Member Notifications Subcollection', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        // Setup a notification for student1
+        await db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .set({
+            markdown: 'Welcome student 1!',
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: 'GradingRequestAccepted',
+            data: {
+              gradingDocId: 'grading-1',
+              level: 'Student 1',
+            },
+          });
+      });
+    });
+
+    it('should allow member to read their own notifications', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .get(),
+      );
+    });
+
+    it('should deny member from reading someone elses notifications', async () => {
+      const db = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+      await assertFails(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .get(),
+      );
+    });
+
+    it('should allow member to update dismissed field on their own notification', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .update({
+            dismissed: true,
+          }),
+      );
+    });
+
+    it('should deny member from updating restricted fields on their own notification', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .update({
+            markdown: 'Hacked content',
+          }),
+      );
+    });
+
+    it('should allow member to create a notification under their own document', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('new-notif')
+          .set({
+            markdown: 'Attempt',
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: 'BlogPost',
+          }),
+      );
+    });
+
+    it('should deny member from deleting a notification', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .delete(),
+      );
+    });
+
+    it('should allow admin to perform all actions on notifications', async () => {
+      const db = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .get(),
+      );
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('admin-created')
+          .set({
+            markdown: 'Admin alert',
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: 'BlogPost',
+            data: {
+              blogPath: '/members-post',
+              blogCategory: 'members',
+              lastSeenDateStr: '2026-05-14T12:00:00Z',
+            },
+          }),
+      );
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .delete(),
+      );
+    });
+
+    it('should allow member to update their own notificationSettings on their member document', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .update({
+            lastUpdated: serverTimestamp(),
+            notificationSettings: {
+              pushEnabled: { GradingRequestAccepted: false },
+              homeEnabled: { BlogPost: true },
+            },
+          }),
       );
     });
   });

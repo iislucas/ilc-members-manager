@@ -1,0 +1,27 @@
+<div class="selector-container">
+  <app-autocomplete
+    [name]="name()"
+    [searchableSet]="dataService.members"
+    [placeholder]="placeholder()"
+    [disabled]="disabled()"
+    [displayFns]="memberDisplayFns"
+    [initSearchTerm]="value()"
+    [inputBoxIsChip]="true"
+    (textUpdated)="updateValue($event)"
+  ></app-autocomplete>
+  @if (selectedMember(); as m) {
+    <div class="note selected-note">
+      <span>{{ m.name }}</span>
+      <a
+        class="icon-only-button"
+        [href]="'#/members/' + (m.memberId || m.docId)"
+      >
+        <app-icon name="visibility"></app-icon>
+      </a>
+    </div>
+  } @else if (value() && !disabled()) {
+    <div class="selected-note error-message">Not Found</div>
+  } @else if (!value() && !disabled()) {
+    <div class="selected-note error-message">None selected</div>
+  }
+</div>

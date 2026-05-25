@@ -25,6 +25,8 @@ export class EventItemComponent {
   event = input.required<IlcEvent>();
   readonly dateDisplay = computed(() => formatDateRange(this.event().start, this.event().end));
 
+
+
   // Optional prefix for instructor profile links. When empty (default),
   // the component uses the in-app hash route. When set (e.g. by the
   // standalone WC), links point to the specified base URL.
@@ -36,7 +38,7 @@ export class EventItemComponent {
     if (!id) return '';
     const instructor = this.findInstructorsService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   });
@@ -50,6 +52,32 @@ export class EventItemComponent {
       return `${prefix}${encodeURIComponent(id)}`;
     }
     return `#/find-an-instructor?instructorId=${encodeURIComponent(id)}`;
+  });
+
+  // Resolve the event owner (contact) to a display label.
+  // Only shows when the owner is different from the leading instructor.
+  readonly contactLabel = computed(() => {
+    const ownerDocId = this.event().ownerDocId;
+    if (!ownerDocId) return '';
+    const owner = this.findInstructorsService.instructors.entries().find(i => i.docId === ownerDocId);
+    if (!owner) return '';
+    // Don't duplicate if the owner is already shown as the instructor.
+    if (owner.instructorId === this.event().leadingInstructorId) return '';
+    return owner.name;
+  });
+
+  // Build a link to the owner's instructor profile.
+  readonly contactLink = computed(() => {
+    const ownerDocId = this.event().ownerDocId;
+    if (!ownerDocId) return '';
+    const owner = this.findInstructorsService.instructors.entries().find(i => i.docId === ownerDocId);
+    if (!owner || !owner.instructorId) return '';
+    if (owner.instructorId === this.event().leadingInstructorId) return '';
+    const prefix = this.instructorLinkPrefix();
+    if (prefix) {
+      return `${prefix}${encodeURIComponent(owner.instructorId)}`;
+    }
+    return `#/find-an-instructor?instructorId=${encodeURIComponent(owner.instructorId)}`;
   });
 
   readonly expandMoreName = 'expand_more' as const;

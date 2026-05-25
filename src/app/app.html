@@ -259,11 +259,20 @@
             [gradingSet]="dataService.gradings"
           ></app-grading-list>
         }
+        @case (Views.GradingView) {
+          <app-grading-view
+            [gradingId]="routingService.signals[Views.GradingView].pathVars.gradingId()"
+            (titleLoaded)="onGradingTitleLoaded($event)"
+          ></app-grading-view>
+        }
         @case (Views.MemberGradings) {
           <app-member-gradings></app-member-gradings>
         }
         @case (Views.Settings) {
           <app-settings></app-settings>
+        }
+        @case (Views.NotificationSettings) {
+          <app-notification-settings></app-notification-settings>
         }
         @case (Views.Statistics) {
           <app-statistics></app-statistics>

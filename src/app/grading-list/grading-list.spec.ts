@@ -5,6 +5,8 @@ import { SearchableSet } from '../searchable-set';
 import { Grading, initGrading } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
+import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 
 @Component({
   selector: 'app-grading-edit',
@@ -15,6 +17,15 @@ class MockGradingEditComponent {
   @Input() grading: any;
   @Input() collapse: any;
   @Input() canDelete: any;
+}
+
+@Component({
+  selector: 'app-grading-row-header',
+  standalone: true,
+  template: '',
+})
+class MockGradingRowHeaderComponent {
+  @Input() grading: any;
 }
 
 describe('GradingListComponent', () => {
@@ -28,14 +39,15 @@ describe('GradingListComponent', () => {
     } as never as FirebaseStateService;
 
     await TestBed.configureTestingModule({
-      imports: [GradingListComponent, MockGradingEditComponent],
+      imports: [GradingListComponent, MockGradingEditComponent, MockGradingRowHeaderComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
+        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
       ],
     })
       .overrideComponent(GradingListComponent, {
-        remove: { imports: [GradingEditComponent] },
-        add: { imports: [MockGradingEditComponent] },
+        remove: { imports: [GradingEditComponent, GradingRowHeaderComponent] },
+        add: { imports: [MockGradingEditComponent, MockGradingRowHeaderComponent] },
       })
       .compileComponents();
 

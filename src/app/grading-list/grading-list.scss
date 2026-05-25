@@ -1,33 +1,5 @@
 @use "../../scss_variables" as v;
 
-.tabs {
-  display: flex;
-  margin-bottom: 20px;
-  border-bottom: 2px solid v.$separator-color;
-
-  .tab-button {
-    padding: 10px 20px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-size: 16px;
-    color: v.$text-muted;
-    margin-bottom: -2px; /* Pull down to overlap the container's border */
-    transition: all 0.2s ease;
-
-    &:hover {
-      color: v.$text-primary;
-    }
-
-    &.active {
-      color: v.$focus-ring-color;
-      border-bottom-color: v.$focus-ring-color;
-      font-weight: 500;
-    }
-  }
-}
-
 .search-header {
   display: flex;
   flex-direction: row;
@@ -73,20 +45,34 @@
   flex-direction: column;
   justify-content: start;
   align-items: stretch;
-  gap: v.$card-sep;
   flex-grow: 1;
 }
 
-app-grading-edit {
+.grading-card {
   display: block;
-  border-top: 1px solid #ddd;
-  transition:
-    box-shadow 0.3s ease,
-    border-color 0.3s ease;
+  border-bottom: 1px solid v.$row-border-color;
+  @include v.row-highlight-base;
+  cursor: pointer;
+  padding: 0.5em;
+  text-decoration: none;
+  color: inherit;
 
   &:hover {
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    @include v.row-highlight-active;
+  }
+}
+
+.create-form-container {
+  border: 1px solid v.$theme-border-color;
+  background: white;
+  border-radius: 8px;
+  padding: 0.5em;
+  margin-bottom: 1em;
+
+  h3 {
+    text-align: center;
+    margin-bottom: 0.2em;
+    margin-top: 0.5em;
   }
 }
 

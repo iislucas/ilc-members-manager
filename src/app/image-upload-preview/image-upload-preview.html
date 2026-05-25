@@ -1,11 +1,10 @@
 <div class="image-uploader-container">
   @if (!imageUrl()) {
     <label for="file-upload" class="upload-prompt">
-      <span class="button upload-button">
-        <app-icon name="add" /> Choose Image
+      <span class="outlined-button upload-button">
+        <app-icon name="upload_file" /> select a 600x400 or larger image
       </span>
       <input type="file" id="file-upload" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
-      <p>Select a high-resolution image for the event (at least 600x400).</p>
     </label>
   } @else {
     <div class="preview-area">

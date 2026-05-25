@@ -20,19 +20,23 @@
     }
   </div>
 
-  <div class="grading-cards">
-    @if (isAddingGrading()) {
+  @if (isAddingGrading()) {
+    <div class="create-form-container">
+      <h3>New Grading</h3>
       <app-grading-edit
         [grading]="newGrading()"
-        [collapse]="false"
         (close)="onNewGradingClose()"
         [canDelete]="false"
       ></app-grading-edit>
-    }
+    </div>
+  }
 
+  <div class="grading-cards">
     @let gradingsList = gradings();
     @for (grading of gradingsList; track grading.docId) {
-      <app-grading-edit [grading]="grading"></app-grading-edit>
+      <a class="grading-card" [href]="gradingLink(grading)">
+        <app-grading-row-header [grading]="grading"></app-grading-row-header>
+      </a>
     }
     @if (gradingsList.length < totalGradings()) {
       <div class="show-more-container">

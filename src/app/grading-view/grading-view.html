@@ -1,0 +1,46 @@
+<!-- Back navigation -->
+<a class="subtle-button" [href]="backHref()">
+  <app-icon name="arrow_back"></app-icon> Back to Gradings
+</a>
+
+@if (asyncError(); as errMsg) {
+  <div class="error-container">
+    <span class="error-message">{{ errMsg }}</span>
+    <button class="icon-only-button" (click)="asyncError.set(null)">
+      <app-icon name="close"></app-icon>
+    </button>
+  </div>
+}
+
+@if (loading()) {
+  <app-spinner>Loading grading...</app-spinner>
+} @else if (grading(); as g) {
+  <!-- Grading header row (title/summary) -->
+  <app-grading-row-header [grading]="g"></app-grading-row-header>
+
+  <!-- Workflow progress and contextual actions -->
+  <app-grading-progress
+    style="margin-top: 1em"
+    [grading]="g"
+    (gradingUpdated)="onProgressAction($event)"
+  ></app-grading-progress>
+
+
+  @if (userIsAdmin()) {
+    <div class="admin-actions" style="margin-top: 1em;">
+      <button type="button" class="subtle-button" (click)="showFullEdit.set(!showFullEdit())">
+        <app-icon [name]="showFullEdit() ? 'expand_less' : 'expand_more'"></app-icon>
+        {{ showFullEdit() ? 'Hide' : 'Show' }} Full Edit Form (Admin Only)
+      </button>
+    </div>
+
+    @if (showFullEdit()) {
+      <!-- Full grading edit form -->
+      <app-grading-edit
+        [grading]="g"
+      ></app-grading-edit>
+    }
+  }
+} @else {
+  <p class="no-results">Grading not found.</p>
+}

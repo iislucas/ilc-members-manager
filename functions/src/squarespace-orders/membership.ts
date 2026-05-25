@@ -11,7 +11,7 @@ import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineIt
 import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';
-import { inferMemberIdFromOrder } from './infer-member';
+import { inferMemberIdFromOrder, lookupMembersByEmail } from './infer-member';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 
 export interface MembershipRenewalInfo {
@@ -205,6 +205,18 @@ async function processNewMemberRegistration(
     return { kind: 'error', message: issue };
   }
 
+  let existingMemberDocId: string | undefined;
+  if (pInfo.email) {
+    const existingMembers = await lookupMembersByEmail(pInfo.email, db);
+    if (existingMembers.length === 1) {
+      const match = existingMembers[0];
+      if (!match.memberId) {
+        existingMemberDocId = match.docId;
+        logger.info(`[Membership] Found existing guest profile "${match.docId}" for email "${pInfo.email}". Adopting it.`);
+      }
+    }
+  }
+
   const newMember: Member = {
     ...initMember(),
     memberId: newMemberId,
@@ -218,10 +230,12 @@ async function processNewMemberRegistration(
     currentMembershipExpires: info.expirationDate,
   };
 
-  const docRef = db.collection('members').doc();
+  const docRef = existingMemberDocId
+    ? db.collection('members').doc(existingMemberDocId)
+    : db.collection('members').doc();
   newMember.docId = docRef.id;
 
-  logger.info(`[Membership] Creating new member ${newMemberId} (doc ${docRef.id}) for order ${orderId}: name=${pInfo.name}`);
+  logger.info(`[Membership] ${existingMemberDocId ? 'Updating' : 'Creating'} new member ${newMemberId} (doc ${docRef.id}) for order ${orderId}: name=${pInfo.name}`);
 
   await docRef.set({
     ...newMember,

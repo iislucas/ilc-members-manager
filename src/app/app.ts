@@ -23,6 +23,7 @@ import { ClassCalendarComponent } from './class-calendar/class-calendar';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
 import { SquarespaceArticleComponent } from './squarespace/squarespace-article.component';
 import { GradingListComponent } from './grading-list/grading-list';
+import { GradingViewComponent } from './grading-view/grading-view';
 import { SettingsComponent } from './settings/settings.component';
 import { LoginComponent } from './login/login';
 import { NavigationMenuComponent } from './navigation-menu/navigation-menu.component';
@@ -41,6 +42,7 @@ import { EventEditComponent } from './event-edit/event-edit';
 import { ProposeEventComponent } from './organise-events/organise-event/organise-event';
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { DownloadResourceComponent } from './download-resource/download-resource';
+import { NotificationSettingsComponent } from './settings/notification-settings/notification-settings.component';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 
@@ -67,6 +69,7 @@ import { APP_VERSION } from './version';
     SquarespaceContentComponent,
     SquarespaceArticleComponent,
     GradingListComponent,
+    GradingViewComponent,
     SettingsComponent,
     LoginComponent,
     ClassVideoLibraryComponent,
@@ -84,6 +87,7 @@ import { APP_VERSION } from './version';
     ProposeEventComponent,
     CompleteProfileComponent,
     DownloadResourceComponent,
+    NotificationSettingsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -100,6 +104,7 @@ export class App {
   public loadedEventTitle = signal<string | null>(null);
   public loadedOrderTitle = signal<string | null>(null);
   public loadedSchoolTitle = signal<string | null>(null);
+  public loadedGradingTitle = signal<string | null>(null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
@@ -127,6 +132,9 @@ export class App {
 
   onSchoolTitleLoaded(title: string) {
     this.loadedSchoolTitle.set(title);
+  }
+  onGradingTitleLoaded(title: string) {
+    this.loadedGradingTitle.set(title);
   }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
@@ -156,8 +164,8 @@ export class App {
           return baseBreadcrumbs;
         }
         baseBreadcrumbs.push({ label: `Manage Members`, url: `#/members` });
-        baseBreadcrumbs.push({ label: `${instructor.name} (${instructorId})`, url: `#/members/${instructor.memberId}` });
-        baseBreadcrumbs.push({ label: `Students of ${instructor.name} (${instructorId})`, url: `#/instructor/${instructorId}/students` });
+        baseBreadcrumbs.push({ label: `${instructor.name} [${instructorId}]`, url: `#/members/${instructor.memberId}` });
+        baseBreadcrumbs.push({ label: `Students of ${instructor.name} [${instructorId}]`, url: `#/instructor/${instructorId}/students` });
         if (view === Views.InstructorStudentView) {
           const studentId = this.routingService.signals[Views.InstructorStudentView].pathVars.memberId();
           const student = this.dataService.getMember(studentId);
@@ -205,12 +213,15 @@ export class App {
         baseBreadcrumbs.push({ label: 'Manage Schools', url: '#/schools' });
       } else if (view === Views.MySchoolEdit) {
         baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
+      } else if (view === Views.GradingView) {
+        baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
       }
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
       const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
       const isOrderView = view === Views.OrderView;
       const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
-      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle());
+      const isGradingView = view === Views.GradingView;
+      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle()) || (isGradingView && !this.loadedGradingTitle());
       baseBreadcrumbs.push({ label: this.currentViewTitle(), isLoading });
     }
     return baseBreadcrumbs;
@@ -295,6 +306,9 @@ export class App {
       if (!isSchoolEdit) {
         this.loadedSchoolTitle.set(null);
       }
+      if (view !== Views.GradingView) {
+        this.loadedGradingTitle.set(null);
+      }
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
       if (isLoggedOut && (!view || view === Views.Home)) {
@@ -323,6 +337,11 @@ export class App {
           this.routingService.navigateToParts(['instructors-area', 'category', 'All']);
         }
       }
+    });
+
+    effect(() => {
+      const title = this.currentViewTitle();
+      document.title = title ? `${title} | I Liq Chuan Members Portal App` : 'I Liq Chuan Members Portal App';
     });
   }
 
@@ -392,17 +411,30 @@ export class App {
         return 'Instructors Area';
       case Views.ManageGradings:
         return 'Manage Gradings';
-      case Views.MemberGradings:
-        return 'Gradings';
+      case Views.MemberGradings: {
+        const member = this.firebaseService.user()?.member;
+        if (member) {
+          return `My Gradings: (${member.memberId || 'No ID'}) ${member.name}`;
+        }
+        return 'My Gradings';
+      }
+      case Views.GradingView:
+        return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:
         return 'Settings';
+      case Views.NotificationSettings:
+        return 'Notification Settings';
       case Views.Statistics:
         return 'Statistics';
       case Views.EventsCalendar:
         return 'Events & Workshops';
       case Views.EventView:
+      case Views.MyEventView:
+      case Views.ManageEventView:
         return this.loadedEventTitle() || 'Event Details';
       case Views.EventEdit:
+      case Views.MyEventEdit:
+      case Views.ManageEventEdit:
         return this.loadedEventTitle() ? `Edit: ${this.loadedEventTitle()}` : 'Edit Event';
       case Views.ProposeEvent:
         return 'Organise Event';

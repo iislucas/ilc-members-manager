@@ -1,15 +1,16 @@
-/* Member gradings component — uses global pill-tab styles from styles.scss.
- * Local SCSS only contains layout specific to this page.
- */
+@use "../../scss_variables" as v;
 
 .gradings-summary {
   display: flex;
-  gap: 24px;
-  background: var(--surface-card);
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  background: #fafbff;
+  border: 1px solid v.$border-color-light;
   padding: 16px 24px;
   border-radius: 8px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 
   .summary-item {
     display: flex;
@@ -18,7 +19,7 @@
 
     .label {
       font-size: 0.85em;
-      color: var(--text-color-secondary);
+      color: v.$text-secondary;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -26,7 +27,7 @@
     .value {
       font-size: 1.25em;
       font-weight: 600;
-      color: var(--text-color);
+      color: v.$text-primary;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -44,13 +45,40 @@
 .purchased-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.75em;
   font-weight: 500;
   color: var(--success-color, #2e7d32);
-  padding: 2px 10px;
+  padding: 4px 12px;
   border: 1px solid var(--success-color, #2e7d32);
   border-radius: 16px;
+  text-decoration: none;
+  background-color: transparent;
+
+  &.clickable-badge {
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+      background-color: rgba(46, 125, 50, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(46, 125, 50, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .link-icon {
+      font-size: 0.85em;
+      transition: transform 0.2s ease-in-out;
+    }
+
+    &:hover .link-icon {
+      transform: translateX(2px);
+    }
+  }
 }
 
 .grading-list-wrapper {

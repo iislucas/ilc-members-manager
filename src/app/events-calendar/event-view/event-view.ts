@@ -13,7 +13,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
-import { IlcEvent, initEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
@@ -47,12 +47,11 @@ export class EventViewComponent implements OnInit {
   });
 
   instructorLabel = computed(() => {
-    const ev = this.event();
-    const id = ev?.leadingInstructorId;
+    const id = this.event()?.leadingInstructorId;
     if (!id) return '';
     const instructor = this.dataService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   });
@@ -72,6 +71,10 @@ export class EventViewComponent implements OnInit {
   });
 
   isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+
+  // Status chip — only visible for non-listed (or missing) statuses.
+  statusLabel = computed(() => eventStatusLabel(this.event()?.status));
+  statusClass = computed(() => 'event-status-chip status-' + (this.event()?.status || 'proposed'));
 
   canEdit = computed(() => this.isOwner() || this.isAdmin());
 

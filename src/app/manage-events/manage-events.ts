@@ -28,7 +28,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { FIREBASE_APP, Views } from '../app.config';
-import { IlcEvent, EventStatus, EventSourceKind, initEvent } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, EventSourceKind, initEvent } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
@@ -327,13 +327,21 @@ export class ManageEventsComponent implements OnDestroy {
     if (!event.ownerDocId) return '';
     const member = this.dataService.getMemberByDocId(event.ownerDocId);
     if (member) {
-      return `${member.name} (${member.memberId || event.ownerDocId})`;
+      if (member.instructorId) {
+        return `${member.name} [${member.instructorId}]`;
+      }
+      return member.memberId ? `(${member.memberId}) ${member.name}` : member.name;
     }
     // Fallback: show email if available, otherwise just the docId.
     if (event.ownerEmails?.length) {
       return `${event.ownerEmails[0]} (${event.ownerDocId})`;
     }
     return event.ownerDocId;
+  }
+
+  // Map event status to a user-friendly display label.
+  statusLabel(event: IlcEvent): string {
+    return eventStatusLabel(event.status) || event.status;
   }
 
   // Build a link to the member view for the event owner.
@@ -350,7 +358,7 @@ export class ManageEventsComponent implements OnDestroy {
     if (!id) return '';
     const instructor = this.dataService.instructors.get(id);
     if (instructor) {
-      return `${instructor.name} (${id})`;
+      return `${instructor.name} [${id}]`;
     }
     return id;
   }

@@ -8,7 +8,7 @@ description: Read this when making HTML templates/files or CSS/SCSS styling chan
 > [!CAUTION]
 > **REUSE EXISTING STYLES — DO NOT RECREATE THEM**
 >
-> Before writing any new CSS, check `src/styles.scss` and `src/scss_variables.scss` for existing classes and variables. The global stylesheet already provides standardised styles for **buttons** (6 variants), **chips** (7 types), **cards**, **menus**, **inputs**, **search boxes**, and **error containers**. If a global class exists for what you need, use it directly in the HTML — do not redefine it locally in a component's SCSS.
+> Before writing any new CSS, check `src/styles.scss` and `src/scss_variables.scss` for existing classes and variables. The global stylesheet already provides standardised styles for **buttons** (7 variants), **chips** (7 types), **cards**, **menus**, **inputs**, **search boxes**, and **error containers**. If a global class exists for what you need, use it directly in the HTML — do not redefine it locally in a component's SCSS.
 >
 > If you need a new shared style, add it to `styles.scss` or `scss_variables.scss` — not in a component file. Component SCSS should only contain **layout and positioning** specific to that component.
 
@@ -216,6 +216,7 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 | `.delete-button` | Neutral by default, red on hover | Destructive actions |
 | `.inline-link-button` | Looks like a dark text link (underlined) | Inline internal text references in sentences |
 | `.subtle-button` | Transparent with soft hover | Back/navigation, secondary actions |
+| `.outlined-button` | Subtle-button with dashed border | File upload triggers, optional selection inputs — use with an icon (e.g. `upload_file`) |
 
 > [!IMPORTANT]
 > If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
@@ -428,7 +429,7 @@ The wrapper `.active-tag-filter` is a simple flex container with wrap and gap �
 
 Three global classes in `styles.scss` provide the full menu system:
 - **`.menu-style`** — White container with border, shadow, and column flex layout
-- **`.menu-item`** — Row inside a menu with icon + label gap and hover state
+- **`.menu-item`** — Row inside a menu with icon + label gap. Uses the row-highlight pattern on hover and active states (left border + light blue background).
 - **`.menu-overlay`** — Full-screen click-away backdrop (add `.transparent` for invisible variant)
 
 To create a positioned dropdown in a component, `@extend .menu-style` and add positioning:
@@ -444,6 +445,9 @@ To create a positioned dropdown in a component, `@extend .menu-style` and add po
 ```
 
 Do not redefine the menu's background, border, shadow, or padding — it's all in the base class.
+
+> [!IMPORTANT]
+> **Exclusive Selection**: Do NOT use checkboxes for exclusive (single) selection in menus. Checkboxes imply multi-select. Instead, use the `.active` class on the `.menu-item` to indicate the selected item (it applies the row-highlight and bold text).
 
 ### Inputs
 
@@ -467,6 +471,22 @@ Use the `.list-search-header` pattern from `styles.scss` — it provides a pill-
   </button>
 </div>
 ```
+
+For **contextual, inline errors** next to the element that triggered them (e.g. below a file upload button), use `.inline-error` instead. It is compact, dismissible, and hard-wraps long text (e.g. filenames) to stay within the parent's width:
+
+```html
+<div class="inline-error">
+  <span>{{ imageUploadError() }}</span>
+  <button type="button" class="icon-only-button" (click)="imageUploadError.set(null)" title="Dismiss">
+    <app-icon name="close" />
+  </button>
+</div>
+```
+
+| Class | Purpose | When to Use |
+| --- | --- | --- |
+| `.error-container` | Full-width error block at form level | Save/submit failures, validation summaries |
+| `.inline-error` | Compact dismissible error next to trigger | Upload failures, field-specific async errors |
 
 ### Spinner / Loading
 

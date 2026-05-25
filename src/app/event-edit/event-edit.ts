@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, initEvent, Member, InstructorPublicData } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -55,6 +55,7 @@ type EventFormModel = {
   ownerDocId: string;
   managerDocIds: string[];
   leadingInstructorId: string;
+  documents: EventDocument[];
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -72,6 +73,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     ownerDocId: event.ownerDocId || '',
     managerDocIds: event.managerDocIds || [],
     leadingInstructorId: event.leadingInstructorId || '',
+    documents: event.documents || [],
   };
   if (event.heroImageLargeUrl !== undefined) {
     model.heroImageLargeUrl = event.heroImageLargeUrl;
@@ -104,6 +106,7 @@ export class EventEditComponent implements OnInit {
   // Constants for template
   EventStatus = EventStatus;
   eventStatuses = Object.values(EventStatus);
+  eventStatusLabelFn = eventStatusLabel;
 
   // Input: event ID from route
   eventId = input.required<string>();
@@ -125,6 +128,7 @@ export class EventEditComponent implements OnInit {
     ownerDocId: '',
     managerDocIds: [],
     leadingInstructorId: '',
+    documents: [],
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -147,9 +151,28 @@ export class EventEditComponent implements OnInit {
   isEditingCrop = signal(false);
   isUploadingImage = signal(false);
   errorMessage = signal<string | null>(null);
+  imageUploadError = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  isUploadingDocument = signal(false);
+  documentUploadError = signal<string | null>(null);
+  statusMenuOpen = signal(false);
+
+  // Maximum number of documents allowed per event.
+  private readonly MAX_DOCUMENTS = 10;
 
   isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
+
+  // Status chip display — uses the loaded event's status (not the form
+  // model) so it always reflects the persisted state.
+  statusLabel = computed(() => {
+    const ev = this.event();
+    return ev ? eventStatusLabel(ev.status) : '';
+  });
+  statusClass = computed(() =>
+    'event-status-chip status-' + (this.event()?.status || 'proposed'));
+
+  // Whether the current user can change the event status via the chip menu.
+  canChangeStatus = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();
@@ -176,6 +199,53 @@ export class EventEditComponent implements OnInit {
     if (view === Views.ManageEventEdit) return 'manage-events';
     return 'manage-events'; // Default fallback
   });
+
+  viewEventUrl = computed(() => {
+    const prefix = this.backUrl();
+    const eventId = this.eventId();
+    return `${prefix}/${eventId}`;
+  });
+  // Change the event status via the chip dropdown. For non-admins only
+  // 'cancelled' is allowed, with a confirmation warning.
+  async changeStatus(newStatus: EventStatus) {
+    this.statusMenuOpen.set(false);
+    const ev = this.event();
+    if (!ev || !ev.docId) return;
+    if (ev.status === newStatus) return;
+
+    // Non-admin users can only cancel, and need to confirm.
+    if (!this.isAdmin()) {
+      if (newStatus !== EventStatus.Cancelled) return;
+      const confirmed = confirm(
+        'Are you sure you want to cancel this event? ' +
+        'This will mark the event as cancelled and it will no longer appear in public listings. ' +
+        'Only an admin can reverse this action.'
+      );
+      if (!confirmed) return;
+    }
+
+    this.isSaving.set(true);
+    this.errorMessage.set(null);
+    try {
+      const docRef = doc(this.db, 'events', ev.docId);
+      await updateDoc(docRef, {
+        status: newStatus,
+        lastUpdated: new Date().toISOString(),
+        updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
+      });
+      // Update local state so chip and form model reflect the change.
+      const updatedEvent = { ...ev, status: newStatus, lastUpdated: new Date().toISOString() };
+      this.event.set(updatedEvent);
+      this.eventFormModel.update(m => ({ ...m, status: newStatus }));
+      this.successMessage.set(`Status changed to "${eventStatusLabel(newStatus)}".`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error changing status:', error);
+      this.errorMessage.set('Failed to change status: ' + message);
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
 
   async deleteEvent() {
     const ev = this.event();
@@ -236,12 +306,12 @@ export class EventEditComponent implements OnInit {
     const { thumbBlob, largeBlob, originalFile } = event;
     const ev = this.event();
     if (!ev || !ev.docId) {
-      this.errorMessage.set('Cannot upload image: event has no document ID.');
+      this.imageUploadError.set('Cannot upload image: event has no document ID.');
       return;
     }
 
     this.isUploadingImage.set(true);
-    this.errorMessage.set(null);
+    this.imageUploadError.set(null);
 
     try {
       const storage = getStorage(this.firebaseApp);
@@ -276,7 +346,7 @@ export class EventEditComponent implements OnInit {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error uploading image:', error);
-      this.errorMessage.set('Failed to upload image: ' + message);
+      this.imageUploadError.set('Failed to upload image: ' + message);
     } finally {
       this.isUploadingImage.set(false);
     }
@@ -304,26 +374,34 @@ export class EventEditComponent implements OnInit {
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.name,
+    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,
-    toName: (m: Member) => m.name,
+    toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
   };
 
-  updateLeadingInstructorId(instructorId: string) {
+  private extractInstructorId(value: string): string {
+    const match = value.match(/\[([^\]]+)\]$/);
+    return match ? match[1] : value;
+  }
+
+  updateLeadingInstructorId(value: string) {
+    const instructorId = this.extractInstructorId(value);
     this.eventFormModel.update((m) => ({ ...m, leadingInstructorId: instructorId }));
   }
 
-  updateOwnerDocId(instructorId: string) {
+  updateOwnerDocId(value: string) {
+    const instructorId = this.extractInstructorId(value);
     const instructor = this.dataService.instructors.get(instructorId);
     if (instructor) {
       this.eventFormModel.update((m) => ({ ...m, ownerDocId: instructor.docId }));
     }
   }
 
-  updateManagerDocId(index: number, instructorId: string) {
+  updateManagerDocId(index: number, value: string) {
+    const instructorId = this.extractInstructorId(value);
     this.eventFormModel.update((m) => {
       const managerDocIds = [...m.managerDocIds];
       const instructor = this.dataService.instructors.get(instructorId);
@@ -345,6 +423,81 @@ export class EventEditComponent implements OnInit {
     this.eventFormModel.update((m) => ({
       ...m,
       managerDocIds: m.managerDocIds.filter((_, i) => i !== index)
+    }));
+  }
+
+  // Document management methods
+
+  onDocumentFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    const ev = this.event();
+    if (!ev || !ev.docId) {
+      this.documentUploadError.set('Cannot upload document: event has no document ID. Please save the event first.');
+      return;
+    }
+
+    const currentDocs = this.eventFormModel().documents;
+    const remaining = this.MAX_DOCUMENTS - currentDocs.length;
+    if (remaining <= 0) {
+      this.documentUploadError.set(`Maximum of ${this.MAX_DOCUMENTS} documents reached.`);
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remaining);
+    this.uploadDocumentFiles(filesToUpload, ev.docId);
+
+    // Reset input so the same file can be re-selected
+    input.value = '';
+  }
+
+  private async uploadDocumentFiles(files: File[], eventDocId: string) {
+    this.isUploadingDocument.set(true);
+    this.documentUploadError.set(null);
+
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const newDocs: EventDocument[] = [];
+
+      for (const file of files) {
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `events/${eventDocId}/documents/${timestamp}_${safeName}`;
+        const fileRef = ref(storage, storagePath);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        newDocs.push({ name: file.name, url });
+      }
+
+      this.eventFormModel.update((m) => ({
+        ...m,
+        documents: [...m.documents, ...newDocs],
+      }));
+      this.successMessage.set(`${newDocs.length} document(s) uploaded. Remember to save changes.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error uploading document:', error);
+      this.documentUploadError.set('Failed to upload document: ' + message);
+    } finally {
+      this.isUploadingDocument.set(false);
+    }
+  }
+
+  updateDocumentName(index: number, event: Event) {
+    const name = (event.target as HTMLInputElement).value;
+    this.eventFormModel.update((m) => {
+      const documents = [...m.documents];
+      documents[index] = { ...documents[index], name };
+      return { ...m, documents };
+    });
+  }
+
+  removeDocument(index: number) {
+    this.eventFormModel.update((m) => ({
+      ...m,
+      documents: m.documents.filter((_, i) => i !== index),
     }));
   }
 
@@ -382,6 +535,7 @@ export class EventEditComponent implements OnInit {
         ownerDocId: formData.ownerDocId,
         managerDocIds: formData.managerDocIds.filter(Boolean),
         leadingInstructorId: formData.leadingInstructorId,
+        documents: formData.documents,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
@@ -398,6 +552,7 @@ export class EventEditComponent implements OnInit {
         heroImageLargeUrl: formData.heroImageLargeUrl,
         heroImageThumbUrl: formData.heroImageThumbUrl,
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
+        documents: formData.documents,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',

@@ -79,6 +79,15 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - Prefer taking arguments that are existing object types rather than making special inline types for parts of an object. Types should capture the key conceptual components, and we should take these as arguments.
 - Don't use explicit boolean === value checks. Just use the boolean value directly. e.g. don't use `if (isNew === true)` use `if (isNew)`.
 
+### Data Modeling
+
+- **Avoid Partially Defined Objects**: For the main datatypes in this project, we strictly avoid partially defined or optional-field objects. We solve this by implementing an `initObject()` constructor (providing default values for all properties) and a `firestoreDocToObject(doc)` converter that merges database data over the initialized defaults. This guarantees that all application logic can assume defined values for all keys.
+- **Always Type Database Writes (Anti-Pattern: Untyped Writes)**: Never pass untyped or loosely typed object structures (like `Record<string, unknown>`) to database write operations (like Firestore's `set()` or `update()`). Instead, always explicitly bind the payload to its corresponding domain model type (e.g. `MemberNotification`) first. This ensures type safety at write time and prevents corrupted or schema-violating records from leaking into the database.
+- **Display and Selection Naming Conventions**:
+  - **Members/Students**: Always format member display text, autocomplete search terms, and options in dropdowns using the format `({MemberID}) {Member Name}` (e.g., `(US402) Lucas Dixon`).
+  - **Instructors**: Always format instructor display text, autocomplete search terms, and options in dropdowns using the format `{Instructor Name} [{Instructor ID}]` (e.g., `Sam Chin [1]`).
+  - **ID Extraction**: When autocomplete updates are triggered in input handlers or form setters, always extract the raw ID using the proper regex pattern match (`/^\(([^)]+)\)/` for member IDs inside parentheses at the start, or `/\[([^\]]+)\]$/` for instructor IDs inside brackets at the end) before performing database lookups or persisting to Firestore.
+
 ### Angular
 
 - Use signals for state management, and use signal forms.
@@ -136,6 +145,9 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 ## 8. Testing
 
 After adding or changing anything non-trivial, run `pnpm test` (or the specific test for the affected files) to ensure that things are not broken. Also when making changes consider if new tests should be added.
+
+> [!IMPORTANT]
+> **Build Verification**: Test coverage does not cover everything (e.g., Angular template errors or complex type mismatches). After making changes and running tests, you **MUST** also run `pnpm build` to ensure the application builds successfully and catches any errors missed by unit tests.
 
 - Frameworks: `vitest`.
 - To run tests for specific angular UI components for a specific file: `pnpm ng test ilc-members-manager --include <filename>`

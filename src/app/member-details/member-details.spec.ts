@@ -43,9 +43,9 @@ describe('MemberDetailsComponent', () => {
       createNextMemberId: vi.fn(),
       createNextInstructorId: vi.fn(),
       loadingState: signal(DataServiceState.Loaded),
-      members: new SearchableSet<'memberId', Member>(
+      members: new SearchableSet<'docId', Member>(
         ['name'],
-        'memberId',
+        'docId',
         [],
       ),
       instructors: new SearchableSet<'instructorId', InstructorPublicData>(
@@ -128,5 +128,69 @@ describe('MemberDetailsComponent', () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(dataManagerServiceMock.addMember).toHaveBeenCalled();
+  });
+
+  it('should show membership status fields for admin editing a member without ID', async () => {
+    const emptyIdMember: Member = {
+      ...initMember(),
+      docId: 'empty-id-member',
+      name: 'No ID Member',
+      emails: ['noid@example.com'],
+      memberId: '',
+      country: 'United States',
+      membershipType: MembershipType.Annual,
+    };
+
+    firebaseStateServiceMock.user.set({
+      isAdmin: true,
+      member: emptyIdMember,
+      schoolsManaged: [],
+      firebaseUser: { email: 'admin@example.com' } as User,
+      memberProfiles: [],
+    } as UserDetails);
+
+    fixture.componentRef.setInput('member', emptyIdMember);
+    fixture.componentRef.setInput('allMembers', [emptyIdMember]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const idAssignment = compiled.querySelector('app-id-assignment');
+    expect(idAssignment).toBeTruthy();
+
+    const purchaseLink = compiled.querySelector('a[href*="membership"]');
+    expect(purchaseLink).toBeNull();
+  });
+
+  it('should show purchase membership section for non-admin editing themselves without ID', async () => {
+    const emptyIdMember: Member = {
+      ...initMember(),
+      docId: 'empty-id-member',
+      name: 'No ID Member',
+      emails: ['noid@example.com'],
+      memberId: '',
+      country: 'United States',
+      membershipType: MembershipType.Annual,
+    };
+
+    firebaseStateServiceMock.user.set({
+      isAdmin: false,
+      member: emptyIdMember,
+      schoolsManaged: [],
+      firebaseUser: { email: 'noid@example.com' } as User,
+      memberProfiles: [],
+    } as UserDetails);
+
+    fixture.componentRef.setInput('member', emptyIdMember);
+    fixture.componentRef.setInput('allMembers', [emptyIdMember]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const idAssignment = compiled.querySelector('app-id-assignment');
+    expect(idAssignment).toBeNull();
+
+    const purchaseLink = compiled.querySelector('a[href*="membership"]');
+    expect(purchaseLink).toBeTruthy();
   });
 });
