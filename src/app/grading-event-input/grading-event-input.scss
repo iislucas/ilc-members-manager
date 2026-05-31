@@ -1,0 +1,100 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+}
+
+.event-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+// ── Mode toggle ──
+// Uses the global `.pill-tabs` / `.pill-tab` system from styles.scss.
+.pill-tabs {
+  align-self: flex-start;
+  margin-bottom: 0;
+}
+
+// ── ILC event search ──
+.event-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.event-range-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  flex-wrap: wrap;
+
+  input[type='date'] {
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    padding: 0.15em 0.4em;
+    font-family: inherit;
+    font-size: 0.8em;
+    background: #fff;
+    color: v.$text-secondary;
+  }
+}
+
+.small-label {
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  white-space: nowrap;
+}
+
+.linked-event-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  flex-wrap: wrap;
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  margin-top: 0.1em;
+}
+
+.linked-event-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  text-decoration: none;
+  color: v.$text-secondary;
+
+  &:hover {
+    text-decoration: underline;
+    color: v.$focus-ring-color;
+  }
+}
+
+.range-warning {
+  font-size: 0.8em;
+  color: #e65100;
+}
+
+// ── Manual entry ──
+.event-manual-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+
+  input[type='text'],
+  input[type='date'] {
+    flex: 1;
+    min-width: 10em;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    padding: 0.3em 0.5em;
+    font-family: inherit;
+    font-size: 0.9em;
+    background: #fff;
+  }
+}
+
+.event-text-input {
+  min-width: 14em;
+}

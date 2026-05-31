@@ -138,6 +138,91 @@
   line-height: 1.4;
 }
 
+// ── Step 3: table-like details grid ──
+
+.details-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35em 1em;
+  margin-top: 0.6em;
+  align-items: baseline;
+  font-size: 0.9em;
+  color: v.$text-secondary;
+}
+
+.detail-label {
+  white-space: nowrap;
+  font-weight: 500;
+  color: v.$text-secondary;
+}
+
+.detail-value {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.detail-edit-span {
+  grid-column: 1 / -1;
+}
+
+.detail-edit-btn {
+  opacity: 0.4;
+  font-size: 0.8em;
+  padding: 2px;
+  vertical-align: middle;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.detail-inline-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  padding: 0.6em 0.8em;
+  background: v.$theme-tag-bg-color;
+  border: 1px solid v.$theme-tag-border-color;
+  border-radius: 6px;
+  font-size: 0.9em;
+
+  label {
+    font-size: 0.85em;
+    color: v.$text-secondary;
+    min-width: 5em;
+  }
+
+  .detail-inline-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    flex-wrap: wrap;
+
+    input[type='text'],
+    input[type='date'] {
+      flex: 1;
+      min-width: 10em;
+      border: 1px solid v.$border-color-light;
+      border-radius: 6px;
+      padding: 0.3em 0.5em;
+      font-family: inherit;
+      font-size: inherit;
+      background: #fff;
+    }
+  }
+
+  .detail-edit-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 0.3em;
+    align-self: flex-start;
+    margin-top: 0.2em;
+  }
+}
+
 .result-detail {
   padding: 0.6em 0.8em;
   background: v.$separator-color;

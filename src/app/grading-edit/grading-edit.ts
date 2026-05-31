@@ -20,10 +20,7 @@ import {
   initGrading,
   InstructorPublicData,
   School,
-  IlcEvent,
 } from '../../../functions/src/data-model';
-import { SearchableSet } from '../searchable-set';
-import { EventSearchCriteriaDateRange } from '../data-manager.service';
 import {
   form,
   FormField,
@@ -39,20 +36,12 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { deepObjEq } from '../utils';
-import { RoutingService } from '../routing.service';
-import { AppPathPatterns, Views } from '../app.config';
-
-function oneMonthAgo(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().substring(0, 10);
-}
-
+import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
 
 @Component({
   selector: 'app-grading-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, InstructorSelectorComponent, MemberSelectorComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, InstructorSelectorComponent, MemberSelectorComponent, AutocompleteComponent, GradingEventInputComponent],
   templateUrl: './grading-edit.html',
   styleUrl: './grading-edit.scss',
 })
@@ -60,9 +49,6 @@ export class GradingEditComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
-
-
   // Constants
   GradingStatus = GradingStatus;
   gradingStatuses = Object.values(GradingStatus);
@@ -244,64 +230,14 @@ export class GradingEditComponent {
     return inst ? `${inst.name} [${inst.instructorId}]` : id;
   });
 
-  // --- Event linking ---
-
-  // SearchableSet populated from Firestore on load / date range change.
-  eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
-
-  // Date range for the event search. Defaults to one month ago → no upper bound.
-  eventRangeFrom = signal<string>(oneMonthAgo());
-  eventRangeTo = signal<string>('');
-
-  // Reload events whenever the date range changes.
-  _loadEvents = effect(() => {
-    const criteria: EventSearchCriteriaDateRange = {
-      kind: 'date',
-      startDate: this.eventRangeFrom() || undefined,
-      endDate: this.eventRangeTo() || undefined,
-      statusFilter: 'listed',
-    };
-    this.dataService.searchEvents(criteria).then((events) => {
-      this.eventsSet.setEntries(events);
-    });
-  });
-
-  eventDisplayFns = {
-    toChipId: (e: IlcEvent) => e.docId,
-    toName: (e: IlcEvent) => `${e.start.substring(0, 10)} — ${e.title}`,
-  };
-
-  eventLink = computed(() => {
-    const docId = this.form.gradingEventDocId().value();
-    if (!docId) return '';
-    return this.routingService.hrefForView(Views.EventView, { eventId: docId });
-  });
-
-  // Returns confirmation text for the currently linked event, or '' if none linked.
-  linkedEventStatus = computed(() => {
-    const docId = this.form.gradingEventDocId().value();
-    if (!docId) return '';
-    const event = this.eventsSet.get(docId);
-    return event
-      ? `Linked: ${event.start.substring(0, 10)} — ${event.title}`
-      : 'Event linked (not in current date range — expand range to see it)';
-  });
-
-  onGradingEventSelected(event: IlcEvent) {
-    this.form.gradingEventDocId().value.set(event.docId);
-    this.form.gradingEventDocId().markAsDirty();
-    const location = event.location ? ` — ${event.location}` : '';
-    this.form.gradingEvent().value.set(`${event.title}${location}`);
+  onEventInputChange(details: GradingEventDetails) {
+    this.form.gradingEvent().value.set(details.gradingEvent);
     this.form.gradingEvent().markAsDirty();
-    this.form.gradingEventDate().value.set(event.start.substring(0, 10));
+    this.form.gradingEventDate().value.set(details.gradingEventDate);
     this.form.gradingEventDate().markAsDirty();
+    this.form.gradingEventDocId().value.set(details.gradingEventDocId);
+    this.form.gradingEventDocId().markAsDirty();
   }
-
-  asDateStr(e: Event): string {
-    return (e.target as HTMLInputElement).value;
-  }
-
-  // CSS host removed, moved to decorator host object
 
   cancel($event: Event) {
     $event.preventDefault();

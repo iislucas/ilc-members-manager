@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComponentRef } from '@angular/core';
+import { vi } from 'vitest';
 import { GradingRowHeaderComponent } from './grading-row-header';
 import { initGrading } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
+import { RoutingService } from '../routing.service';
 
 describe('GradingRowHeaderComponent', () => {
   let component: GradingRowHeaderComponent;
@@ -12,14 +14,15 @@ describe('GradingRowHeaderComponent', () => {
 
   beforeEach(async () => {
     mockDataManagerService = {
-      members: { entries: () => [] },
-      instructors: { entries: () => [] },
+      members: { entries: () => [], get: () => undefined },
+      instructors: { entries: () => [], get: () => undefined },
     };
 
     await TestBed.configureTestingModule({
       imports: [GradingRowHeaderComponent],
       providers: [
-        { provide: DataManagerService, useValue: mockDataManagerService }
+        { provide: DataManagerService, useValue: mockDataManagerService },
+        { provide: RoutingService, useValue: { hrefForView: vi.fn().mockReturnValue('') } },
       ]
     })
       .compileComponents();

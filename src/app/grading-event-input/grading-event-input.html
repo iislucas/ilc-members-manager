@@ -1,0 +1,85 @@
+<div class="event-input-wrapper">
+
+  <!-- Mode toggle: link a listed ILC event, or enter a custom event/location -->
+  <div class="pill-tabs">
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Linked ILC event"
+      [class.active]="mode() === 'ilc'"
+      (click)="setMode('ilc')"
+    >
+      Linked ILC event
+    </button>
+    <button
+      type="button"
+      class="pill-tab"
+      data-label="Other event / location"
+      [class.active]="mode() === 'manual'"
+      (click)="setMode('manual')"
+    >
+      Other event / location
+    </button>
+  </div>
+
+  @if (mode() === 'ilc') {
+    <!-- ILC event search -->
+    <div class="event-search-section">
+      <app-autocomplete
+        name="Event"
+        [searchableSet]="eventsSet"
+        [displayFns]="eventDisplayFns"
+        [inputBoxIsChip]="false"
+        placeholder="Search ILC events…"
+        (itemSelected)="onEventSelected($event)"
+      ></app-autocomplete>
+      <div class="event-range-hint">
+        <span class="small-label">(events from</span>
+        <input
+          type="date"
+          [value]="eventRangeFrom()"
+          (change)="eventRangeFrom.set(asDateStr($event))"
+        />
+        <span class="small-label">to</span>
+        <input
+          type="date"
+          [value]="eventRangeTo()"
+          (change)="eventRangeTo.set(asDateStr($event))"
+        />
+        <span class="small-label">)</span>
+      </div>
+      @if (editDocId()) {
+        <div class="linked-event-status">
+          <span>Linked Event:</span>
+          <a class="linked-event-link" [href]="linkedEventHref()">
+            <app-icon name="event"></app-icon>{{ linkedEventName() || editEvent() }}
+          </a>
+          @if (linkedEventOutOfRange()) {
+            <span class="range-warning">(not in current date range)</span>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- Manual text / date inputs -->
+    <div class="event-manual-row">
+      <label class="small-label">Event / location</label>
+      <input
+        type="text"
+        class="event-text-input"
+        [value]="editEvent()"
+        (input)="onTextInput($event)"
+        placeholder="e.g. Summer Workshop 2026"
+      />
+    </div>
+    <div class="event-manual-row">
+      <label class="small-label">Date</label>
+      <input
+        type="date"
+        [value]="editDate()"
+        (input)="onDateInput($event)"
+      />
+    </div>
+  }
+
+</div>

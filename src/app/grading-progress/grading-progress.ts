@@ -37,6 +37,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
 
 
 
@@ -44,7 +45,7 @@ import { AppPathPatterns, Views } from '../app.config';
   selector: 'app-grading-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, InstructorSelectorComponent],
+  imports: [IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
@@ -89,6 +90,9 @@ export class GradingProgressComponent implements OnDestroy {
     () => this.userIsGradingInstructor() && (this.grading().status === GradingStatus.AwaitingAcceptance || this.grading().status === GradingStatus.Declined),
   );
 
+  // Admin, grading instructor, or any grading manager can edit event/instructor/managers.
+  canEditGradingDetails = computed(() => this.userIsAdmin() || this.userIsGradingInstructor());
+
   // Can the current user edit the student fields?
   canEditStudentFields = computed(
     () => this.userIsStudent(),
@@ -129,6 +133,7 @@ export class GradingProgressComponent implements OnDestroy {
   protected editStudentNotes = signal('');
   protected editGradingEvent = signal('');
   protected editGradingEventDate = signal('');
+  protected editGradingEventDocId = signal('');
   // Local edit signal for grading managers (backed by `assistantInstructorIds`).
   protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
@@ -137,6 +142,11 @@ export class GradingProgressComponent implements OnDestroy {
   protected isEditingRequest = signal(false);
   protected isSaving = signal(false);
 
+  // Inline edit toggles for detail fields (admin / grading instructor / managers).
+  protected isEditingEvent = signal(false);
+  protected isEditingInstructor = signal(false);
+  protected isEditingManagers = signal(false);
+
   // Sync local editing signals from grading input whenever it changes.
   private syncEffect = effect(() => {
     const g = this.grading();
@@ -144,6 +154,7 @@ export class GradingProgressComponent implements OnDestroy {
     this.editStudentNotes.set(g.studentNotes);
     this.editGradingEvent.set(g.gradingEvent);
     this.editGradingEventDate.set(g.gradingEventDate);
+    this.editGradingEventDocId.set(g.gradingEventDocId);
     this.editGradingManagerIds.set(g.assistantInstructorIds || []);
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
@@ -261,6 +272,46 @@ export class GradingProgressComponent implements OnDestroy {
     this.gradingUpdated.emit(update);
     this.isEditingRequest.set(false);
     this.isSaving.set(false);
+  }
+
+  onEventInputChange(details: GradingEventDetails) {
+    this.editGradingEvent.set(details.gradingEvent);
+    this.editGradingEventDate.set(details.gradingEventDate);
+    this.editGradingEventDocId.set(details.gradingEventDocId);
+  }
+
+  saveEventDetails() {
+    this.gradingUpdated.emit({
+      gradingEvent: this.editGradingEvent(),
+      gradingEventDate: this.editGradingEventDate(),
+      gradingEventDocId: this.editGradingEventDocId(),
+    });
+    this.isEditingEvent.set(false);
+  }
+
+  cancelEventEdit() {
+    const g = this.grading();
+    this.editGradingEvent.set(g.gradingEvent);
+    this.editGradingEventDate.set(g.gradingEventDate);
+    this.editGradingEventDocId.set(g.gradingEventDocId);
+    this.isEditingEvent.set(false);
+  }
+
+  saveGradingInstructor() {
+    this.gradingUpdated.emit({ gradingInstructorId: this.editInstructorId() });
+    this.isEditingInstructor.set(false);
+  }
+
+  saveManagers() {
+    this.gradingUpdated.emit({
+      assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+    });
+    this.isEditingManagers.set(false);
+  }
+
+  cancelManagerEdit() {
+    this.editGradingManagerIds.set(this.grading().assistantInstructorIds || []);
+    this.isEditingManagers.set(false);
   }
 
   cancelRequest() {

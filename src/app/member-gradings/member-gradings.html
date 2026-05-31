@@ -34,11 +34,11 @@
     <div class="pill-tabs">
       <button
         class="pill-tab"
-        data-label="Gradings as examiner"
-        [class.active]="activeTab() === 'examined'"
-        (click)="setActiveTab('examined')"
+        data-label="My Gradings"
+        [class.active]="activeTab() === 'mine'"
+        (click)="setActiveTab('mine')"
       >
-        Gradings as examiner
+        My Gradings
       </button>
       <button
         class="pill-tab"
@@ -50,11 +50,11 @@
       </button>
       <button
         class="pill-tab"
-        data-label="My Gradings"
-        [class.active]="activeTab() === 'mine'"
-        (click)="setActiveTab('mine')"
+        data-label="Examined/Managed"
+        [class.active]="activeTab() === 'examined'"
+        (click)="setActiveTab('examined')"
       >
-        My Gradings
+        Examined/Managed
       </button>
     </div>
   }

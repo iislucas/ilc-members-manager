@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GradingListComponent } from './grading-list';
 import { FirebaseStateService } from '../firebase-state.service';
+import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { Grading, initGrading } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
@@ -38,10 +39,15 @@ describe('GradingListComponent', () => {
       user: signal({ isAdmin: true, schoolsManaged: [], member: { instructorId: '' } }),
     } as never as FirebaseStateService;
 
+    const mockDataManagerService = {
+      instructors: new SearchableSet(['name'], 'instructorId'),
+    } as never as DataManagerService;
+
     await TestBed.configureTestingModule({
       imports: [GradingListComponent, MockGradingEditComponent, MockGradingRowHeaderComponent],
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
+        { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
       ],
     })

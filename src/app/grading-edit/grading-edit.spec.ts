@@ -1,12 +1,22 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { GradingEditComponent } from './grading-edit';
+import { GradingEventInputComponent } from '../grading-event-input/grading-event-input';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { signal } from '@angular/core';
 import { initGrading } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { RoutingService } from '../routing.service';
+
+@Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
+class MockGradingEventInputComponent {
+  @Input() gradingEvent = '';
+  @Input() gradingEventDate = '';
+  @Input() gradingEventDocId = '';
+  @Output() gradingEventChange = new EventEmitter<any>();
+}
 
 describe('GradingEditComponent', () => {
   let component: GradingEditComponent;
@@ -34,13 +44,18 @@ describe('GradingEditComponent', () => {
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
-      imports: [GradingEditComponent],
+      imports: [GradingEditComponent, MockGradingEventInputComponent],
       providers: [
         { provide: RoutingService, useValue: { navigateTo: vi.fn(), matchedPatternId: signal(''), signals: {} } },
         { provide: FirebaseStateService, useValue: mockFirebaseStateService },
         { provide: DataManagerService, useValue: mockDataManagerService },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(GradingEditComponent, {
+        remove: { imports: [GradingEventInputComponent] },
+        add: { imports: [MockGradingEventInputComponent] },
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(GradingEditComponent);
     component = fixture.componentInstance;

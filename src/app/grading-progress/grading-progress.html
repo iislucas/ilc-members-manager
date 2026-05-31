@@ -186,18 +186,46 @@
           @if (g.studentNotes) {
             <p class="detail-note">Your note: {{ g.studentNotes }}</p>
           }
-          @if (g.gradingEvent) {
-            <p class="detail-note">
-              Planned event:
-              @if (eventLink()) {
-                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
-              } @else {
-                {{ g.gradingEvent }}
-              }
-            </p>
-          }
-          @if (g.gradingEventDate) {
-            <p class="detail-note">Preferred date: {{ g.gradingEventDate }}</p>
+          @if (isEditingEvent()) {
+            <div class="detail-inline-edit">
+              <app-grading-event-input
+                [gradingEvent]="editGradingEvent()"
+                [gradingEventDate]="editGradingEventDate()"
+                [gradingEventDocId]="editGradingEventDocId()"
+                (gradingEventChange)="onEventInputChange($event)"
+              ></app-grading-event-input>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
+              </div>
+            </div>
+          } @else {
+            @if (g.gradingEvent) {
+              <p class="detail-note">
+                Planned event:
+                @if (eventLink()) {
+                  <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                } @else {
+                  {{ g.gradingEvent }}
+                }
+                @if (canEditGradingDetails()) {
+                  <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+                }
+              </p>
+            }
+            @if (g.gradingEventDate) {
+              <p class="detail-note">
+                Preferred date: {{ g.gradingEventDate }}
+                @if (canEditGradingDetails()) {
+                  <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+                }
+              </p>
+            }
+            @if (canEditGradingDetails() && !g.gradingEvent && !g.gradingEventDate) {
+              <p class="detail-note">
+                <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)"><app-icon name="edit"></app-icon> Set event details</button>
+              </p>
+            }
           }
 
           <div class="action-buttons">
@@ -244,24 +272,14 @@
               ></textarea>
             </div>
 
-            <label>Grading Event / Location (optional)</label>
+            <label class="align-top">Event (optional)</label>
             <div class="field">
-              <input
-                type="text"
-                [value]="editGradingEvent()"
-                (input)="editGradingEvent.set($any($event.target).value)"
-                placeholder="e.g. Summer Workshop 2026"
-              />
-            </div>
-
-            <label>Preferred Date (optional)</label>
-            <div class="field">
-              <input
-                type="date"
-                class="date"
-                [value]="editGradingEventDate()"
-                (input)="editGradingEventDate.set($any($event.target).value)"
-              />
+              <app-grading-event-input
+                [gradingEvent]="editGradingEvent()"
+                [gradingEventDate]="editGradingEventDate()"
+                [gradingEventDocId]="editGradingEventDocId()"
+                (gradingEventChange)="onEventInputChange($event)"
+              ></app-grading-event-input>
             </div>
 
             <div class="field-actions">
@@ -316,24 +334,14 @@
 
           <!-- Instructor can optionally set event/date before accepting -->
           <div class="inline-form">
-            <label>Grading Event / Location (optional)</label>
+            <label class="align-top">Event (optional)</label>
             <div class="field">
-              <input
-                type="text"
-                [value]="editGradingEvent()"
-                (input)="editGradingEvent.set($any($event.target).value)"
-                placeholder="e.g. Summer Workshop 2026"
-              />
-            </div>
-
-            <label>Grading Date (optional)</label>
-            <div class="field">
-              <input
-                type="date"
-                class="date"
-                [value]="editGradingEventDate()"
-                (input)="editGradingEventDate.set($any($event.target).value)"
-              />
+              <app-grading-event-input
+                [gradingEvent]="editGradingEvent()"
+                [gradingEventDate]="editGradingEventDate()"
+                [gradingEventDocId]="editGradingEventDocId()"
+                (gradingEventChange)="onEventInputChange($event)"
+              ></app-grading-event-input>
             </div>
           </div>
 
@@ -410,15 +418,38 @@
         @if (g.studentNotes) {
           <p class="detail-note">Student's note: {{ g.studentNotes }}</p>
         }
-        @if (g.gradingEvent) {
-          <p class="detail-note">
-            Planned event:
-            @if (eventLink()) {
-              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
-            } @else {
-              {{ g.gradingEvent }}
-            }
-          </p>
+        @if (isEditingEvent()) {
+          <div class="detail-inline-edit">
+            <app-grading-event-input
+              [gradingEvent]="editGradingEvent()"
+              [gradingEventDate]="editGradingEventDate()"
+              [gradingEventDocId]="editGradingEventDocId()"
+              (gradingEventChange)="onEventInputChange($event)"
+            ></app-grading-event-input>
+            <div class="detail-edit-actions">
+              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
+            </div>
+          </div>
+        } @else {
+          @if (g.gradingEvent) {
+            <p class="detail-note">
+              Planned event:
+              @if (eventLink()) {
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+              } @else {
+                {{ g.gradingEvent }}
+              }
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </p>
+          }
+          @if (canEditGradingDetails() && !g.gradingEvent) {
+            <p class="detail-note">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)"><app-icon name="edit"></app-icon> Set event details</button>
+            </p>
+          }
         }
       }
     </div>
@@ -479,18 +510,46 @@
             >
           </span>
         </p>
-        @if (g.gradingEvent) {
-          <p class="detail-note">
-            Event:
-            @if (eventLink()) {
-              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
-            } @else {
-              {{ g.gradingEvent }}
-            }
-          </p>
-        }
-        @if (g.gradingEventDate) {
-          <p class="detail-note">Scheduled date: {{ g.gradingEventDate }}</p>
+        @if (isEditingEvent()) {
+          <div class="detail-inline-edit">
+            <app-grading-event-input
+              [gradingEvent]="editGradingEvent()"
+              [gradingEventDate]="editGradingEventDate()"
+              [gradingEventDocId]="editGradingEventDocId()"
+              (gradingEventChange)="onEventInputChange($event)"
+            ></app-grading-event-input>
+            <div class="detail-edit-actions">
+              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
+            </div>
+          </div>
+        } @else {
+          @if (g.gradingEvent) {
+            <p class="detail-note">
+              Event:
+              @if (eventLink()) {
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+              } @else {
+                {{ g.gradingEvent }}
+              }
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </p>
+          }
+          @if (g.gradingEventDate) {
+            <p class="detail-note">
+              Scheduled date: {{ g.gradingEventDate }}
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </p>
+          }
+          @if (canEditGradingDetails() && !g.gradingEvent && !g.gradingEventDate) {
+            <p class="detail-note">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)"><app-icon name="edit"></app-icon> Set event details</button>
+            </p>
+          }
         }
         @if (g.studentNotes) {
           <p class="detail-note">Your note: {{ g.studentNotes }}</p>
@@ -508,27 +567,17 @@
         }
 
         <div class="inline-form">
-          <label>Grading Date</label>
+          <label class="align-top">Event</label>
           <div class="field">
-            <input
-              type="date"
-              class="date"
-              [value]="editGradingEventDate()"
-              (input)="editGradingEventDate.set($any($event.target).value)"
-            />
+            <app-grading-event-input
+              [gradingEvent]="editGradingEvent()"
+              [gradingEventDate]="editGradingEventDate()"
+              [gradingEventDocId]="editGradingEventDocId()"
+              (gradingEventChange)="onEventInputChange($event)"
+            ></app-grading-event-input>
           </div>
 
-          <label>Grading Event / Location</label>
-          <div class="field">
-            <input
-              type="text"
-              [value]="editGradingEvent()"
-              (input)="editGradingEvent.set($any($event.target).value)"
-              placeholder="e.g. Summer Workshop 2026"
-            />
-          </div>
-
-          <label>Notes for the student (optional)</label>
+          <label>Notes (optional)</label>
           <div class="field">
             <textarea
               [value]="editResultNotes()"
@@ -538,7 +587,7 @@
             ></textarea>
           </div>
 
-          <label class="align-top">Grading Managers</label>
+          <label class="align-top">Managers</label>
           <div class="field">
             @for (
               assistant of editGradingManagerIds();
@@ -677,18 +726,46 @@
             be uploaded by the instructor(s).
           </span>
         </p>
-        @if (g.gradingEvent) {
-          <p class="detail-note">
-            Event:
-            @if (eventLink()) {
-              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
-            } @else {
-              {{ g.gradingEvent }}
-            }
-          </p>
-        }
-        @if (g.gradingEventDate) {
-          <p class="detail-note">Date: {{ g.gradingEventDate }}</p>
+        @if (isEditingEvent()) {
+          <div class="detail-inline-edit">
+            <app-grading-event-input
+              [gradingEvent]="editGradingEvent()"
+              [gradingEventDate]="editGradingEventDate()"
+              [gradingEventDocId]="editGradingEventDocId()"
+              (gradingEventChange)="onEventInputChange($event)"
+            ></app-grading-event-input>
+            <div class="detail-edit-actions">
+              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
+            </div>
+          </div>
+        } @else {
+          @if (g.gradingEvent) {
+            <p class="detail-note">
+              Event:
+              @if (eventLink()) {
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+              } @else {
+                {{ g.gradingEvent }}
+              }
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </p>
+          }
+          @if (g.gradingEventDate) {
+            <p class="detail-note">
+              Date: {{ g.gradingEventDate }}
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </p>
+          }
+          @if (canEditGradingDetails() && !g.gradingEvent && !g.gradingEventDate) {
+            <p class="detail-note">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)"><app-icon name="edit"></app-icon> Set event details</button>
+            </p>
+          }
         }
       }
     </div>
@@ -715,9 +792,9 @@
             Congratulations! You passed <strong>{{ g.level }}</strong
             >.
           } @else {
-            <strong>{{ studentName() }}</strong> passed
-            <strong>{{ g.level }}</strong
-            >.
+            <strong>{{ studentName() }} passed
+            <span style="white-space: nowrap;">{{ g.level }}.</span></strong
+            >
           }
         } @else if (g.status === GradingStatus.RequiresReview) {
           <app-icon name="info" width="18" height="18"></app-icon>
@@ -743,45 +820,141 @@
           <strong>Instructor's notes:</strong> {{ g.resultNotes }}
         </p>
       }
-      @if (g.gradingEventDate) {
-        <p class="detail-note">Grading date: {{ g.gradingEventDate }}</p>
-      }
-      @if (g.gradingEvent) {
-        <p class="detail-note">
-          Event:
-          @if (eventLink()) {
-            <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
-          } @else {
-            {{ g.gradingEvent }}
+
+      <div class="details-grid">
+
+        <!-- Event / date -->
+        @if (isEditingEvent()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit">
+              <app-grading-event-input
+                [gradingEvent]="editGradingEvent()"
+                [gradingEventDate]="editGradingEventDate()"
+                [gradingEventDocId]="editGradingEventDocId()"
+                (gradingEventChange)="onEventInputChange($event)"
+              ></app-grading-event-input>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          @if (g.gradingEventDate) {
+            <span class="detail-label">Date</span>
+            <span class="detail-value">
+              {{ g.gradingEventDate }}
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </span>
           }
-        </p>
-      }
-      @if (g.gradingInstructorId) {
-        <p class="detail-note">
-          Graded by:
-          @if (gradingInstructor(); as inst) {
-            <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-              ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a>
-          } @else {
-            <strong>{{ g.gradingInstructorId }}</strong>
+          @if (g.gradingEvent) {
+            <span class="detail-label">Event</span>
+            <span class="detail-value">
+              @if (eventLink()) {
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+              } @else {
+                {{ g.gradingEvent }}
+              }
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+              }
+            </span>
           }
-        </p>
-      }
-      @let completedManagers = gradingManagers();
-      @if (completedManagers.length > 0) {
-        <p class="detail-note">
-          Grading managers:
-          @for (assistant of completedManagers; track assistant.id; let last = $last) {
-            @if (assistant.data) {
-              <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + assistant.data.instructorId"
-                ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a>
+          @if (canEditGradingDetails() && !g.gradingEventDate && !g.gradingEvent) {
+            <span class="detail-label"></span>
+            <span class="detail-value">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)">
+                <app-icon name="edit"></app-icon> Set event details
+              </button>
+            </span>
+          }
+        }
+
+        <!-- Grading instructor -->
+        @if (isEditingInstructor()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit">
+              <div class="detail-inline-edit-row">
+                <label>Instructor</label>
+                <app-instructor-selector
+                  [value]="editInstructorId()"
+                  (valueChange)="editInstructorId.set($event)"
+                ></app-instructor-selector>
+              </div>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="saveGradingInstructor()" [disabled]="!editInstructorId()">Save</button>
+                <button class="subtle-button" (click)="isEditingInstructor.set(false)">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else if (g.gradingInstructorId) {
+          <span class="detail-label">Instructor</span>
+          <span class="detail-value">
+            @if (gradingInstructor(); as inst) {
+              <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
+                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a>
             } @else {
-              <strong>{{ assistant.id }}</strong>
+              <strong>{{ g.gradingInstructorId }}</strong>
             }
-            @if (!last) { , }
+            @if (canEditGradingDetails()) {
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingInstructor.set(true)" title="Edit grading instructor"><app-icon name="edit"></app-icon></button>
+            }
+          </span>
+        }
+
+        <!-- Grading managers -->
+        @if (isEditingManagers()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit">
+              <label>Managers</label>
+              @for (mgr of editGradingManagerIds(); track $index; let last = $last) {
+                <div class="assistant-row">
+                  <app-instructor-selector [value]="mgr" (valueChange)="updateGradingManagerId($index, $event)"></app-instructor-selector>
+                  <button type="button" class="icon-only-button" (click)="removeGradingManager($index)"><app-icon name="close" width="16" height="16"></app-icon></button>
+                  @if (last) {
+                    <button type="button" class="icon-only-button" (click)="addGradingManager()"><app-icon name="add" width="16" height="16"></app-icon></button>
+                  }
+                </div>
+              } @empty {
+                <button type="button" class="icon-only-button" (click)="addGradingManager()"><app-icon name="add" width="16" height="16"></app-icon></button>
+              }
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="saveManagers()">Save</button>
+                <button class="subtle-button" (click)="cancelManagerEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          @let completedManagers = gradingManagers();
+          @if (completedManagers.length > 0) {
+            <span class="detail-label">Managers</span>
+            <span class="detail-value">
+              @for (assistant of completedManagers; track assistant.id; let last = $last) {
+                @if (assistant.data) {
+                  <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + assistant.data.instructorId"
+                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a>
+                } @else {
+                  <strong>{{ assistant.id }}</strong>
+                }
+                @if (!last) { , }
+              }
+              @if (canEditGradingDetails()) {
+                <button class="icon-only-button detail-edit-btn" (click)="isEditingManagers.set(true)" title="Edit grading managers"><app-icon name="edit"></app-icon></button>
+              }
+            </span>
+          } @else if (canEditGradingDetails()) {
+            <span class="detail-label"></span>
+            <span class="detail-value">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingManagers.set(true)">
+                <app-icon name="edit"></app-icon> Add grading managers
+              </button>
+            </span>
           }
-        </p>
-      }
+        }
+
+      </div>
     </div>
   }
 </div>

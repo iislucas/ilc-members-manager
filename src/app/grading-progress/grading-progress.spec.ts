@@ -5,11 +5,22 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ComponentRef } from '@angular/core';
+import { ComponentRef, Component, Input, Output, EventEmitter } from '@angular/core';
+import { vi } from 'vitest';
 import { GradingProgressComponent } from './grading-progress';
+import { GradingEventInputComponent } from '../grading-event-input/grading-event-input';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
 import { initGrading, GradingStatus, initMember } from '../../../functions/src/data-model';
+
+@Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
+class MockGradingEventInputComponent {
+  @Input() gradingEvent = '';
+  @Input() gradingEventDate = '';
+  @Input() gradingEventDocId = '';
+  @Output() gradingEventChange = new EventEmitter<any>();
+}
 
 
 
@@ -29,12 +40,18 @@ describe('GradingProgressComponent', () => {
     mockFirebaseState = createFirebaseStateServiceMock();
 
     await TestBed.configureTestingModule({
-      imports: [GradingProgressComponent],
+      imports: [GradingProgressComponent, MockGradingEventInputComponent],
       providers: [
         { provide: DataManagerService, useValue: mockDataService },
         { provide: FirebaseStateService, useValue: mockFirebaseState },
+        { provide: RoutingService, useValue: { hrefForView: vi.fn().mockReturnValue('') } },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(GradingProgressComponent, {
+        remove: { imports: [GradingEventInputComponent] },
+        add: { imports: [MockGradingEventInputComponent] },
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(GradingProgressComponent);
     component = fixture.componentInstance;
@@ -171,7 +188,7 @@ describe('GradingProgressComponent', () => {
     });
     fixture.detectChanges();
 
-    const resolved = component.assistantInstructors();
+    const resolved = component.gradingManagers();
     expect(resolved.length).toBe(2);
     expect(resolved[0]).toEqual({ id: 'assistant-1', data: { name: 'Assistant One', instructorId: 'assistant-1' } });
     expect(resolved[1]).toEqual({ id: 'assistant-2', data: null });

@@ -18,6 +18,7 @@
   font-weight: 500;
   text-transform: capitalize;
   flex-shrink: 0;
+  white-space: nowrap;
 
   &.pending {
     background-color: #fff3cd;
@@ -43,10 +44,12 @@
 .name {
   font-weight: bold;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .level-chip {
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .instructor-info {

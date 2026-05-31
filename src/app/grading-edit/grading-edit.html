@@ -159,7 +159,7 @@
         ></app-instructor-selector>
       </div>
 
-      <label>Grading Managers</label>
+      <label>Managers</label>
       <div class="rhs">
         @let assistantsField = form.assistantInstructorIds();
         @let assistantsErrors = assistantsField.errors();
@@ -227,57 +227,14 @@
         ></app-autocomplete>
       </div>
 
-      <label class="align-top">Link to ILC Event</label>
+      <label class="align-top">Event</label>
       <div class="rhs">
-        <div class="event-search-wrapper">
-          <div class="event-range-controls">
-            <label class="small-label">From</label>
-            <input
-              type="date"
-              [value]="eventRangeFrom()"
-              (change)="eventRangeFrom.set(asDateStr($event))"
-            />
-            <label class="small-label">To</label>
-            <input
-              type="date"
-              [value]="eventRangeTo()"
-              (change)="eventRangeTo.set(asDateStr($event))"
-            />
-          </div>
-          <app-autocomplete
-            name="Event"
-            [searchableSet]="eventsSet"
-            [displayFns]="eventDisplayFns"
-            [inputBoxIsChip]="false"
-            placeholder="Search events…"
-            (itemSelected)="onGradingEventSelected($event)"
-          ></app-autocomplete>
-        </div>
-        @if (linkedEventStatus()) {
-          @if (eventLink()) {
-            <a class="linked-event-status" [href]="eventLink()">
-              <app-icon name="event"></app-icon>{{ linkedEventStatus() }}
-            </a>
-          } @else {
-            <span class="linked-event-status">{{ linkedEventStatus() }}</span>
-          }
-        }
-      </div>
-
-      <label for="gradingEvent">Event / Location of the Grading</label>
-      <div class="rhs">
-        <input type="text" id="gradingEvent" [formField]="form.gradingEvent" />
-      </div>
-
-      <label for="gradingEventDate">Date of the Grading</label>
-      <div class="rhs">
-        <input
-          class="date"
-          type="date"
-          id="gradingEventDate"
-          placeholder="YYYY-MM-DD"
-          [formField]="form.gradingEventDate"
-        />
+        <app-grading-event-input
+          [gradingEvent]="form.gradingEvent().value()"
+          [gradingEventDate]="form.gradingEventDate().value()"
+          [gradingEventDocId]="form.gradingEventDocId().value()"
+          (gradingEventChange)="onEventInputChange($event)"
+        ></app-grading-event-input>
       </div>
 
       <label for="notes" class="align-top">Internal Notes (admin)</label>
