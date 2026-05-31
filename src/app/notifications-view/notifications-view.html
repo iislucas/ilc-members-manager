@@ -92,21 +92,19 @@
             } @else {
               @if (n.dismissed) {
                 <button
-                  class="subtle-button"
+                  class="icon-only-button"
                   (click)="onMarkUnread(n.docId)"
                   title="Mark as unread"
                 >
                   <app-icon name="visibility" width="18px" height="18px"></app-icon>
-                  Unread
                 </button>
               } @else {
                 <button
-                  class="subtle-button"
+                  class="icon-only-button"
                   (click)="onMarkRead(n.docId)"
                   title="Mark as read"
                 >
                   <app-icon name="check" width="18px" height="18px"></app-icon>
-                  Read
                 </button>
               }
               <button
