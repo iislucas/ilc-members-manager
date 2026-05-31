@@ -25,6 +25,7 @@ const firebaseConfig = {
 
 export const environment = {
   production: false,
+  useEmulator: false,
   firebase: firebaseConfig,
   googleCalendar: {
     calendarId: '12c944d5b7101ad4d3234e063fc6b16b7ae5a05d650dd3d102b5a3a2838b7443@group.calendar.google.com',

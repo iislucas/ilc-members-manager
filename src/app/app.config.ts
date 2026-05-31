@@ -7,6 +7,10 @@ import {
 } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
 import { FirebaseApp, initializeApp } from 'firebase/app';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
+import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { environment } from '../environments/environment';
 import { provideHttpClient } from '@angular/common/http';
 import { addUrlParams, pathPattern, pv } from './routing.utils';
@@ -182,7 +186,19 @@ export const appConfig: ApplicationConfig = {
     },
     {
       provide: FIREBASE_APP,
-      useValue: initializeApp(environment.firebase),
+      // Eager IIFE: initializeApp registers the default Firebase app at module-load
+      // time, which is required by services that call getFirestore() with no arguments.
+      // Emulator connections are also set up here, before any service accesses Firestore.
+      useValue: (() => {
+        const app = initializeApp(environment.firebase);
+        if (environment.useEmulator) {
+          connectFirestoreEmulator(getFirestore(app), 'localhost', 8080);
+          connectAuthEmulator(getAuth(app), 'http://127.0.0.1:9099', { disableWarnings: true });
+          connectFunctionsEmulator(getFunctions(app), 'localhost', 5001);
+          connectStorageEmulator(getStorage(app), 'localhost', 9199);
+        }
+        return app;
+      })(),
     },
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

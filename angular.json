@@ -65,6 +65,17 @@
                   "with": "src/environments/environment.local.ts"
                 }
               ]
+            },
+            "emulator": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.emulator.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -77,6 +88,9 @@
             },
             "development": {
               "buildTarget": "ilc-members-manager:build:development"
+            },
+            "emulator": {
+              "buildTarget": "ilc-members-manager:build:emulator"
             }
           },
           "defaultConfiguration": "development"

@@ -27,6 +27,21 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 - [STATUS.md](./STATUS.md): the status of milestones, and goals within the project.
 - [./functions/src/data-model.ts](./functions/src/data-model.ts): includes typescript definitions for core data structures.
 
+### Agent Skills Directory
+
+`.agent/skills/` contains skill files with targeted LLM guidance for this project. Each skill is a directory with a `SKILL.md` using YAML frontmatter (`name:`, `description:`).
+
+| Skill | When to read |
+|---|---|
+| [`codebase-architecture`](.agent/skills/codebase-architecture/SKILL.md) | Always read first — architectural patterns, component map, emulator setup |
+| [`generalist-project-developer`](.agent/skills/generalist-project-developer/SKILL.md) | Always read — coding standards, tech stack, best practices (this file) |
+| [`angular-developer`](.agent/skills/angular-developer/SKILL.md) | When editing Angular components, templates, or routing |
+| [`html-css-developer`](.agent/skills/html-css-developer/SKILL.md) | When editing HTML templates or SCSS styles |
+| [`logo-iteration`](.agent/skills/logo-iteration/SKILL.md) | When working on the SVG logo generator in `mini-tools/` |
+
+**Adding a new skill**: create `.agent/skills/{skill-name}/SKILL.md` with frontmatter `name:` and `description:`, then populate it.
+**Updating a skill**: edit the relevant `SKILL.md` directly whenever you discover something non-obvious worth preserving across sessions.
+
 ---
 
 ## 3. Core Technologies
@@ -142,7 +157,56 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 ---
 
-## 8. Testing
+## 8. Local Firebase Emulator Development
+
+The app can run entirely locally against the Firebase Emulator Suite — no production data is touched.
+
+### Full startup sequence (order matters)
+
+```bash
+# 1. ALWAYS build functions first — emulator loads dist/ at startup, not TS source
+#    Ensure functions/src/environment/environment.ts exists (copy from environment.template.ts)
+pnpm build:functions
+
+# 2. Start emulators (Firestore 8080, Auth 9099, Functions 5001, Storage 9199, UI 4000)
+pnpm emulator:start
+
+# 3. Export anonymized prod data — requires ADC: gcloud auth application-default login
+pnpm export:anonymized       # → tmp/seed-data/*.json
+
+# 4. Seed emulator (Firestore data + Auth accounts)
+pnpm seed:emulator
+
+# 5. Angular dev server wired to emulators (separate terminal)
+pnpm start:emulator
+```
+
+**Test login credentials** (password `testpassword123` for all):
+- Admin: `member-us536@example.com`
+- Regular: `member-pl100@example.com`
+- Any member: `member-{memberId.toLowerCase()}@example.com`
+
+> **`tmp/seed-data/` is git-ignored.** Re-run `pnpm export:anonymized` after significant prod data changes.
+
+### How the emulator connection works
+- `environment.emulator.ts` sets `useEmulator: true`
+- `app.config.ts` calls `connectFirestoreEmulator` / `connectAuthEmulator` / `connectFunctionsEmulator` / `connectStorageEmulator` in an **eager IIFE** (not useFactory) so the default Firebase app is registered at module-load time
+- The Angular build config `emulator` (in `angular.json`) swaps in `environment.emulator.ts`
+
+### Key gotchas learned from testing
+- **Functions not loaded**: always `pnpm build:functions` BEFORE starting the emulator. Rebuilding while the emulator runs DOES hot-reload JS, but the initial start needs a built dist.
+- **Email case**: `checkEmailStatus` lowercases emails. ACL doc IDs are always lowercase. Anonymized emails use `member-{memberId.toLowerCase()}@example.com`.
+- **Timestamp deserialization**: `firebase-admin` JSON-exports Timestamps as `{_seconds, _nanoseconds}`. The seed script restores these to proper `Timestamp` objects so `firestoreDocToXxx()` converters work.
+- **`onMemberCreated` crash**: expected — FieldValue is unavailable in the Functions emulator for trigger functions. Doesn't block development; ACL is seeded separately.
+
+### Rules tests against the emulator
+```bash
+pnpm test:rules              # runs Firestore security rules tests using the emulator
+```
+
+---
+
+## 9. Testing
 
 After adding or changing anything non-trivial, run `pnpm test` (or the specific test for the affected files) to ensure that things are not broken. Also when making changes consider if new tests should be added.
 
