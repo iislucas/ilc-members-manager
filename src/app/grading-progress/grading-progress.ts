@@ -166,6 +166,7 @@ export class GradingProgressComponent implements OnDestroy {
       this.editGradingEvent() !== g.gradingEvent ||
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
+      this.editInstructorId() !== g.gradingInstructorId ||
       JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(g.assistantInstructorIds || [])
     );
   });
@@ -180,6 +181,7 @@ export class GradingProgressComponent implements OnDestroy {
     const date = this.editGradingEventDate();
     const notes = this.editResultNotes();
     const assistants = this.editGradingManagerIds();
+    const instructor = this.editInstructorId();
 
     if (!dirty) {
       return;
@@ -210,6 +212,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEvent: this.editGradingEvent(),
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
+        gradingInstructorId: this.editInstructorId(),
         assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
       };
       this.gradingUpdated.emit(update);
@@ -236,6 +239,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEvent: this.editGradingEvent(),
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
+        gradingInstructorId: this.editInstructorId(),
         assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
       };
       this.gradingUpdated.emit(update);
@@ -375,6 +379,7 @@ export class GradingProgressComponent implements OnDestroy {
       status,
       gradingEventDate: this.editGradingEventDate() || new Date().toISOString().split('T')[0],
       resultNotes: this.editResultNotes(),
+      gradingInstructorId: this.editInstructorId(),
       assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
     };
     this.gradingUpdated.emit(update);

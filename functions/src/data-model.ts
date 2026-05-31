@@ -349,6 +349,8 @@ export enum NotificationKind {
   GradingRequestAccepted = 'GradingRequestAccepted',
   GradingRequestDeclined = 'GradingRequestDeclined',
   GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
+  GradingInstructorAdded = 'GradingInstructorAdded',
+  GradingInstructorRemoved = 'GradingInstructorRemoved',
   // BlogPost covers all types of blog posts (including Members Area Blog, Instructors Blog,
   // and Zoom Classes which are cached as blog posts). Instead of individual kinds,
   // a BlogPost notification specifies the collection query path (blogPath), optional
@@ -398,6 +400,14 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.GradingRequestsYouAsInstructor;
+    data: NotificationInstructorGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingInstructorAdded;
+    data: NotificationInstructorGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingInstructorRemoved;
     data: NotificationInstructorGradingData;
   }
   | {

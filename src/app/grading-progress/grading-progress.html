@@ -587,6 +587,15 @@
             ></textarea>
           </div>
 
+          <label>Grading Instructor</label>
+          <div class="field">
+            <app-instructor-selector
+              [placeholder]="'Search for an instructor'"
+              [value]="editInstructorId()"
+              (valueChange)="editInstructorId.set($event)"
+            ></app-instructor-selector>
+          </div>
+
           <label class="align-top">Managers</label>
           <div class="field">
             @for (

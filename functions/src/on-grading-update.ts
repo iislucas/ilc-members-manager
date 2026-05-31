@@ -14,6 +14,37 @@ async function createNotification(
   memberDocId: string,
   notification: Omit<MemberNotification, 'docId'>,
 ): Promise<void> {
+  // Generalised de-duplication:
+  // If the new notification is associated with a specific entity (e.g. gradingDocId or eventId),
+  // delete any existing active/dismissed notifications for that same entity for this member.
+  const data = notification.data as any;
+  if (data) {
+    let query: admin.firestore.Query = db
+      .collection('members')
+      .doc(memberDocId)
+      .collection('notifications');
+
+    let hasKey = false;
+    if (data.gradingDocId) {
+      query = query.where('data.gradingDocId', '==', data.gradingDocId);
+      hasKey = true;
+    } else if (data.eventId) {
+      query = query.where('data.eventId', '==', data.eventId);
+      hasKey = true;
+    }
+
+    if (hasKey) {
+      const snap = await query.get();
+      if (!snap.empty) {
+        const batch = db.batch();
+        for (const doc of snap.docs) {
+          batch.delete(doc.ref);
+        }
+        await batch.commit();
+      }
+    }
+  }
+
   const notifRef = db
     .collection('members')
     .doc(memberDocId)
@@ -301,6 +332,70 @@ export const onGradingUpdated = onDocumentUpdated(
     // Mirror to all current instructors (update the cached copy)
     for (const id of currentInstructorIds) {
       await mirrorGradingToInstructor(gradingDocId, grading, id);
+    }
+
+    // Selected instructors notifications and de-duplication (excluding student's primary instructor)
+    const previousSelected = new Set(
+      [previous.gradingInstructorId, ...(previous.assistantInstructorIds || [])].filter(
+        (id) => id && id !== '',
+      ) as string[],
+    );
+    const currentSelected = new Set(
+      [grading.gradingInstructorId, ...(grading.assistantInstructorIds || [])].filter(
+        (id) => id && id !== '',
+      ) as string[],
+    );
+
+    const addedSelected = [...currentSelected].filter((id) => !previousSelected.has(id));
+    const removedSelected = [...previousSelected].filter((id) => !currentSelected.has(id));
+
+    if (addedSelected.length > 0 || removedSelected.length > 0) {
+      const studentSnap = await db.collection('members').doc(grading.studentMemberDocId).get();
+      const studentName = studentSnap.exists ? (studentSnap.data()?.name || 'A student') : 'A student';
+
+      for (const id of addedSelected) {
+        const instructorMemberDocId = await findInstructorMemberDocId(id);
+        if (instructorMemberDocId) {
+          const isMain = grading.gradingInstructorId === id;
+          const role = isMain ? 'main instructor' : 'assistant instructor';
+          const msg = `You have been assigned as the **${role}** to grade **${studentName}** for **${grading.level}**.`;
+          await createNotification(
+            instructorMemberDocId,
+            {
+              markdown: msg,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              kind: NotificationKind.GradingInstructorAdded,
+              data: {
+                gradingDocId,
+                studentName,
+                level: grading.level,
+              },
+            }
+          );
+        }
+      }
+
+      for (const id of removedSelected) {
+        const instructorMemberDocId = await findInstructorMemberDocId(id);
+        if (instructorMemberDocId) {
+          const msg = `You have been removed as an instructor for **${studentName}**'s grading for **${grading.level}**.`;
+          await createNotification(
+            instructorMemberDocId,
+            {
+              markdown: msg,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              kind: NotificationKind.GradingInstructorRemoved,
+              data: {
+                gradingDocId,
+                studentName,
+                level: grading.level,
+              },
+            }
+          );
+        }
+      }
     }
 
     // Handle school change
