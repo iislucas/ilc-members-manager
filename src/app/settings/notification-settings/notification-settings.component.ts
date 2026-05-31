@@ -10,11 +10,12 @@ import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { NotificationKind } from '../../../../functions/src/data-model';
+import { IconComponent } from '../../icons/icon.component';
 
 @Component({
   selector: 'app-notification-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './notification-settings.component.html',
   styleUrl: './notification-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

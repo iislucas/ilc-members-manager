@@ -1,0 +1,139 @@
+@use "../../scss_variables.scss" as v;
+
+// pill-tabs, subtle-button and delete-button visuals come from global styles.scss.
+// This file only handles layout/positioning specific to the notifications view.
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.notification-card {
+  background: white;
+  border: 1px solid v.$separator-color;
+  border-left: 4px solid #ccd0d5;
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  box-shadow: 0 1px 3px v.$shadow-color;
+  transition: opacity 0.2s;
+
+  &.GradingRequestAccepted { border-left-color: #4d7cfe; }
+  &.GradingRequestDeclined { border-left-color: #ef4444; }
+  &.GradingRequestsYouAsInstructor { border-left-color: #ef9a00; }
+  &.BlogPost { border-left-color: #00c853; }
+  &.NewEventPosted { border-left-color: #00b0ff; }
+
+  // Read notifications are visually de-emphasised.
+  &.read {
+    background: #fafbfc;
+    border-left-color: #d7dbe0;
+
+    .notification-content {
+      opacity: 0.7;
+    }
+  }
+
+  .notification-icon {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 2px;
+  }
+
+  .notification-content {
+    flex: 1;
+    min-width: 0;
+
+    .meta {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.4rem;
+
+      .unread-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: v.$focus-ring-color;
+        flex-shrink: 0;
+      }
+
+      .date {
+        font-size: 0.75rem;
+        color: v.$text-muted;
+      }
+    }
+
+    // Force the markdown-viewer (whose host defaults to height:100% +
+    // overflow-y:auto for scrollable editor panes) to size to its own content
+    // inside a notification card, so the grading link sits below the text.
+    app-markdown-viewer {
+      display: block;
+      height: auto;
+      overflow: visible;
+    }
+
+    ::ng-deep .markdown-viewer {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: v.$text-primary;
+
+      p {
+        margin: 0;
+      }
+    }
+
+    // Layout only — visual style comes from the global .subtle-button class.
+    .grading-link {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
+  }
+
+  .notification-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+
+    .confirm-prompt {
+      align-self: center;
+      font-size: 0.8rem;
+      color: v.$text-muted;
+    }
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  color: v.$text-muted;
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}

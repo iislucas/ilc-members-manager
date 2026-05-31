@@ -882,9 +882,23 @@ describe('Firestore Rules', () => {
       );
     });
 
-    it('should deny member from deleting a notification', async () => {
+    it('should allow member to delete their own notification', async () => {
       const db = testEnv
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .delete(),
+      );
+    });
+
+    it('should deny member from deleting someone elses notification', async () => {
+      const db = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
         .firestore();
       await assertFails(
         db

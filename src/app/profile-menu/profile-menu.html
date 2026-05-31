@@ -40,6 +40,11 @@
             </div>
           </div>
         }
+        <a href="#/notifications" class="menu-link" (click)="menuOpen.set(false)">
+          <app-icon name="bullet_list" width="20px" height="20px"></app-icon>
+          Notifications
+        </a>
+
         <a href="#/settings/notifications" class="menu-link" (click)="menuOpen.set(false)">
           <app-icon name="info" width="20px" height="20px"></app-icon>
           Notification Settings

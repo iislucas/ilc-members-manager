@@ -95,7 +95,7 @@ export class MemberDetailsComponent {
       case NotificationKind.GradingRequestAccepted:
         return 'Grading Request Accepted';
       case NotificationKind.GradingRequestsYouAsInstructor:
-        return 'Grading Requests (You as Instructor)';
+        return 'Grading Requests (You as Grading Manager)';
       case NotificationKind.BlogPost:
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:

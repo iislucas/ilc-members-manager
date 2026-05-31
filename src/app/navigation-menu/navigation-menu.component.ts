@@ -87,6 +87,7 @@ export class NavigationMenuComponent {
       case Views.ImportExport: return 'Import/Export';
       case Views.Home: return 'Home';
       case Views.MyProfile: return 'My Profile';
+      case Views.Notifications: return 'Notifications';
       case Views.MyStudents: return 'My Students';
       case Views.MyEvents: return 'My Events';
       case Views.MySchools: return 'My Schools';

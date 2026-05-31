@@ -30,6 +30,21 @@
     color: v.$text-secondary;
     margin: 0;
   }
+
+  .view-notifications-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4d7cfe;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 
 .settings-section {

@@ -43,6 +43,7 @@ import { ProposeEventComponent } from './organise-events/organise-event/organise
 import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { DownloadResourceComponent } from './download-resource/download-resource';
 import { NotificationSettingsComponent } from './settings/notification-settings/notification-settings.component';
+import { NotificationsViewComponent } from './notifications-view/notifications-view';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 
@@ -88,6 +89,7 @@ import { APP_VERSION } from './version';
     CompleteProfileComponent,
     DownloadResourceComponent,
     NotificationSettingsComponent,
+    NotificationsViewComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -424,6 +426,8 @@ export class App {
         return 'Settings';
       case Views.NotificationSettings:
         return 'Notification Settings';
+      case Views.Notifications:
+        return 'Notifications';
       case Views.Statistics:
         return 'Statistics';
       case Views.EventsCalendar:

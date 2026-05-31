@@ -1,0 +1,135 @@
+<div class="notifications-view">
+  <div class="view-header">
+    <div class="header-left">
+      <div class="pill-tabs">
+        <button
+          class="pill-tab"
+          [class.active]="activeFilter() === 'all'"
+          (click)="setFilter('all')"
+        >
+          All ({{ allNotifications().length }})
+        </button>
+        <button
+          class="pill-tab"
+          [class.active]="activeFilter() === 'unread'"
+          (click)="setFilter('unread')"
+        >
+          Unread ({{ unreadCount() }})
+        </button>
+      </div>
+    </div>
+    <div class="header-actions">
+      @if (unreadCount() > 0) {
+        <button class="subtle-button" (click)="onMarkAllRead()">
+          <app-icon name="check" width="18px" height="18px"></app-icon>
+          Mark all read
+        </button>
+      }
+      <a class="subtle-button" href="#/settings/notifications">
+        <app-icon name="settings" width="18px" height="18px"></app-icon>
+        Notification Settings
+      </a>
+    </div>
+  </div>
+
+  @if (visibleNotifications().length > 0) {
+    <div class="notifications-list">
+      @for (n of visibleNotifications(); track n.docId) {
+        <div
+          class="notification-card"
+          [class]="n.kind"
+          [class.read]="n.dismissed"
+        >
+          <div class="notification-icon">
+            @switch (n.kind) {
+              @case ('GradingRequestAccepted') {
+                <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+              }
+              @case ('GradingRequestDeclined') {
+                <app-icon name="salut" width="32px" height="32px" fill="#ef4444"></app-icon>
+              }
+              @case ('GradingRequestsYouAsInstructor') {
+                <app-icon name="salut" width="32px" height="32px" fill="#ef9a00"></app-icon>
+              }
+              @case ('BlogPost') {
+                <app-icon name="hands_lotus" width="32px" height="32px" fill="#00c853"></app-icon>
+              }
+              @case ('NewEventPosted') {
+                <app-icon name="event" width="32px" height="32px" fill="#00b0ff"></app-icon>
+              }
+              @default {
+                @if (isGradingNotification(n)) {
+                  <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+                } @else {
+                  <app-icon name="info" width="32px" height="32px" fill="#999"></app-icon>
+                }
+              }
+            }
+          </div>
+          <div class="notification-content">
+            <div class="meta">
+              @if (!n.dismissed) {
+                <span class="unread-dot" aria-label="Unread"></span>
+              }
+              <span class="date">{{ n.createdAt | date: 'short' }}</span>
+            </div>
+            <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
+            @if (gradingHref(n); as href) {
+              <a class="subtle-button grading-link" [href]="href">
+                <app-icon name="mountain" width="16px" height="16px"></app-icon>
+                View grading
+              </a>
+            }
+          </div>
+          <div class="notification-actions">
+            @if (confirmingDeleteId() === n.docId) {
+              <span class="confirm-prompt">Delete permanently?</span>
+              <button class="delete-button" (click)="confirmDelete(n.docId)">
+                Delete
+              </button>
+              <button class="subtle-button" (click)="cancelDelete()">Cancel</button>
+            } @else {
+              @if (n.dismissed) {
+                <button
+                  class="subtle-button"
+                  (click)="onMarkUnread(n.docId)"
+                  title="Mark as unread"
+                >
+                  <app-icon name="visibility" width="18px" height="18px"></app-icon>
+                  Unread
+                </button>
+              } @else {
+                <button
+                  class="subtle-button"
+                  (click)="onMarkRead(n.docId)"
+                  title="Mark as read"
+                >
+                  <app-icon name="check" width="18px" height="18px"></app-icon>
+                  Read
+                </button>
+              }
+              <button
+                class="delete-button icon-only-button"
+                (click)="requestDelete(n.docId)"
+                title="Delete permanently"
+              >
+                <app-icon name="trash" width="18px" height="18px"></app-icon>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="empty-state">
+      <app-icon name="info" width="40px" height="40px" fill="#bbb"></app-icon>
+      <p>
+        @if (activeFilter() === 'unread') {
+          You have no unread notifications.
+        } @else {
+          You have no notifications yet.
+        }
+      </p>
+    </div>
+  }
+</div>

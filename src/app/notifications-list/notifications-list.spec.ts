@@ -49,6 +49,7 @@ describe('NotificationsListComponent', () => {
 
     mockRoutingService = {
       navigateToParts: vi.fn(),
+      hrefForView: vi.fn().mockReturnValue('#/gradings/grading-1'),
     };
 
     await TestBed.configureTestingModule({
@@ -76,9 +77,14 @@ describe('NotificationsListComponent', () => {
     expect(compiled.querySelector('.notification-card')?.textContent).toContain('Welcome Student!');
   });
 
+  // The dismiss handlers wait for the fold-up animation (~280ms) before
+  // committing the change, so give them a little longer than that to settle.
+  const waitForCollapse = () => new Promise((r) => setTimeout(r, 350));
+
   it('should call dismissNotification when close button is clicked', async () => {
     const dismissBtn = fixture.nativeElement.querySelector('.dismiss-btn') as HTMLButtonElement;
     dismissBtn.click();
+    await waitForCollapse();
     await fixture.whenStable();
 
     expect(mockNotificationService.dismissNotification).toHaveBeenCalledWith('id1');
@@ -87,22 +93,24 @@ describe('NotificationsListComponent', () => {
   it('should call dismissAll when Dismiss All is clicked', async () => {
     const dismissAllBtn = fixture.nativeElement.querySelector('.dismiss-all-btn') as HTMLButtonElement;
     dismissAllBtn.click();
+    await waitForCollapse();
     await fixture.whenStable();
 
     expect(mockNotificationService.dismissAll).toHaveBeenCalled();
   });
 
-  it('should call routingService.navigateToParts when card is clicked', async () => {
-    const card = fixture.nativeElement.querySelector('.notification-card') as HTMLDivElement;
-    card.click();
-    await fixture.whenStable();
-
-    expect(mockRoutingService.navigateToParts).toHaveBeenCalledWith(['gradings', 'grading-1']);
+  it('should render a grading link pointing at the grading view', () => {
+    const link = fixture.nativeElement.querySelector('.grading-link') as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(mockRoutingService.hrefForView).toHaveBeenCalledWith('gradingView', {
+      gradingId: 'grading-1',
+    });
+    expect(link.getAttribute('href')).toBe('#/gradings/grading-1');
   });
 
-  it('should NOT call routingService.navigateToParts when close button is clicked (stops propagation)', async () => {
-    const dismissBtn = fixture.nativeElement.querySelector('.dismiss-btn') as HTMLButtonElement;
-    dismissBtn.click();
+  it('should NOT navigate when the card itself is clicked (only the link navigates)', async () => {
+    const card = fixture.nativeElement.querySelector('.notification-card') as HTMLDivElement;
+    card.click();
     await fixture.whenStable();
 
     expect(mockRoutingService.navigateToParts).not.toHaveBeenCalled();

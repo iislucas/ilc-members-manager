@@ -69,7 +69,7 @@ service cloud.firestore {
         }
         allow read: if isNotificationOwner() || isAdmin();
         allow create: if isNotificationOwner() || isAdmin();
-        allow delete: if isAdmin();
+        allow delete: if isNotificationOwner() || isAdmin();
         allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed']);
       }
     }

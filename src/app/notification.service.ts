@@ -1,6 +1,7 @@
 import { inject, Injectable, signal, effect, OnDestroy } from '@angular/core';
 import {
   collection,
+  deleteDoc,
   doc,
   getFirestore,
   onSnapshot,
@@ -26,6 +27,9 @@ export class NotificationService implements OnDestroy {
   private db = getFirestore(this.firebaseService.app);
 
   public notifications = signal<MemberNotification[]>([]);
+  // Full notification history (read + unread), populated lazily only while the
+  // notifications view is mounted via subscribeToAllNotifications().
+  public allNotifications = signal<MemberNotification[]>([]);
   public permissionStatus = signal<NotificationPermission>('default');
   public localSettings = signal<LocalNotificationSettings>({
     pushEnabled: {},
@@ -33,6 +37,7 @@ export class NotificationService implements OnDestroy {
   });
 
   private unsubscripton: Unsubscribe | null = null;
+  private allUnsub: Unsubscribe | null = null;
   private pushedIdsKey = 'pushedNotificationDocIds';
   private isFirstSnapshot = true;
 
@@ -56,6 +61,7 @@ export class NotificationService implements OnDestroy {
 
   ngOnDestroy() {
     this.unsubscribe();
+    this.unsubscribeFromAllNotifications();
   }
 
   private unsubscribe() {
@@ -104,6 +110,40 @@ export class NotificationService implements OnDestroy {
         console.error('Error listening to notifications subcollection:', error);
       }
     );
+  }
+
+  // Subscribes to the member's full notification history (read + unread). Used
+  // by the dedicated notifications view; call unsubscribeFromAllNotifications()
+  // when the view is torn down to stop paying for the listener.
+  public subscribeToAllNotifications() {
+    this.unsubscribeFromAllNotifications();
+    const memberDocId = this.firebaseService.user()?.member?.docId;
+    if (!memberDocId) {
+      this.allNotifications.set([]);
+      return;
+    }
+
+    const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
+    this.allUnsub = onSnapshot(
+      notifCollection,
+      (snapshot) => {
+        const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
+        // Sort by createdAt desc (client-side, matching the unread feed, to
+        // avoid requiring a composite Firestore index).
+        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        this.allNotifications.set(list);
+      },
+      (error) => {
+        console.error('Error listening to full notifications subcollection:', error);
+      }
+    );
+  }
+
+  public unsubscribeFromAllNotifications() {
+    if (this.allUnsub) {
+      this.allUnsub();
+      this.allUnsub = null;
+    }
   }
 
   private seedPushedCache(activeNotifications: MemberNotification[]) {
@@ -246,6 +286,25 @@ export class NotificationService implements OnDestroy {
 
     const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
     await updateDoc(notifRef, { dismissed: true });
+  }
+
+  // Re-surfaces a previously dismissed notification on the home feed. In the
+  // unified model, "read" === dismissed, so this marks the notification unread.
+  public async markUnread(notificationId: string): Promise<void> {
+    const member = this.firebaseService.user()?.member;
+    if (!member) return;
+
+    const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
+    await updateDoc(notifRef, { dismissed: false });
+  }
+
+  // Permanently removes a notification document.
+  public async deleteNotification(notificationId: string): Promise<void> {
+    const member = this.firebaseService.user()?.member;
+    if (!member) return;
+
+    const notifRef = doc(this.db, 'members', member.docId, 'notifications', notificationId);
+    await deleteDoc(notifRef);
   }
 
   public async dismissAll(): Promise<void> {

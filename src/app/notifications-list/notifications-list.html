@@ -11,7 +11,8 @@
     </div>
     <div class="notifications-list">
       @for (n of notifications(); track n.docId) {
-        <div class="notification-card" [class]="n.kind" [class.clickable]="isGradingNotification(n)" (click)="onCardClick(n, $event)">
+        <div class="notification-row" [class.collapsing]="collapsingIds().has(n.docId)">
+        <div class="notification-card" [class]="n.kind">
           <div class="notification-icon">
             @switch (n.kind) {
               @case ('GradingRequestAccepted') {
@@ -29,6 +30,13 @@
               @case ('NewEventPosted') {
                 <app-icon name="event" width="32px" height="32px" fill="#00b0ff"></app-icon>
               }
+              @default {
+                @if (isGradingNotification(n)) {
+                  <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+                } @else {
+                  <app-icon name="info" width="32px" height="32px" fill="#999"></app-icon>
+                }
+              }
             }
           </div>
           <div class="notification-content">
@@ -36,10 +44,17 @@
               <span class="date">{{ n.createdAt | date:'short' }}</span>
             </div>
             <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
+            @if (gradingHref(n); as href) {
+              <a class="subtle-button grading-link" [href]="href">
+                <app-icon name="mountain" width="16px" height="16px"></app-icon>
+                View grading
+              </a>
+            }
           </div>
-          <button class="dismiss-btn" (click)="$event.stopPropagation(); onDismiss(n.docId)" aria-label="Dismiss">
-            <app-icon name="close" width="20px" height="20px" fill="#999"></app-icon>
+          <button class="icon-only-button dismiss-btn" (click)="onDismiss(n.docId)" aria-label="Dismiss">
+            <app-icon name="close" width="20px" height="20px"></app-icon>
           </button>
+        </div>
         </div>
       }
     </div>

@@ -51,7 +51,49 @@
   .notifications-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+  }
+
+  // Wrapper that drives the fold-up / unfold animation. The grid-rows 1fr->0fr
+  // technique animates height smoothly without needing to measure the card.
+  .notification-row {
+    display: grid;
+    grid-template-rows: 1fr;
+    margin-bottom: 0.75rem;
+    transition:
+      grid-template-rows 0.28s ease,
+      opacity 0.28s ease,
+      margin-bottom 0.28s ease;
+    animation: notification-unfold 0.28s ease;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &.collapsing {
+      grid-template-rows: 0fr;
+      opacity: 0;
+      margin-bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    // The card must be able to shrink below its content height inside the grid.
+    > .notification-card {
+      min-height: 0;
+    }
+  }
+
+  @keyframes notification-unfold {
+    from {
+      grid-template-rows: 0fr;
+      opacity: 0;
+      overflow: hidden;
+    }
+    to {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      overflow: hidden;
+    }
   }
 
   .notification-card {
@@ -64,16 +106,6 @@
     gap: 1rem;
     position: relative;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
-
-    &.clickable {
-      cursor: pointer;
-
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.08);
-      }
-    }
 
     &.GradingRequestAccepted { border-left-color: #4d7cfe; }
     &.GradingRequestDeclined { border-left-color: #ef4444; }
@@ -110,6 +142,17 @@
         }
       }
 
+      // The markdown-viewer host defaults to height:100% + overflow-y:auto for
+      // use inside scrollable editor panes. Inside a notification card the card
+      // has a definite height (from the grid-rows collapse wrapper), so 100%
+      // would make the viewer fill the content area and push the grading link
+      // out of the card. Force it to size to its own content here.
+      app-markdown-viewer {
+        display: block;
+        height: auto;
+        overflow: visible;
+      }
+
       ::ng-deep .markdown-viewer {
         font-size: 0.95rem;
         line-height: 1.45;
@@ -119,29 +162,18 @@
           margin: 0;
         }
       }
+
+      // Layout only — visual style comes from the global .subtle-button class.
+      .grading-link {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+      }
     }
 
+    // Layout only — visual style comes from the global .icon-only-button class.
     .dismiss-btn {
-      background: none;
-      border: none;
-      width: 28px;
-      height: 28px;
-      cursor: pointer;
       align-self: flex-start;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s, color 0.2s;
       flex-shrink: 0;
-
-      &:hover {
-        background-color: #f0f2f5;
-
-        app-icon {
-          fill: #333;
-        }
-      }
     }
   }
 }
