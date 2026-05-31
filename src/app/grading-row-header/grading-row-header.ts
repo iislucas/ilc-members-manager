@@ -9,16 +9,19 @@ import { Component, computed, inject, input } from '@angular/core';
 import { Grading, GradingStatus, getPrettyGradingStatus } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-grading-row-header',
   standalone: true,
-  imports: [],
+  imports: [IconComponent],
   templateUrl: './grading-row-header.html',
   styleUrl: './grading-row-header.scss',
 })
 export class GradingRowHeaderComponent {
   private dataService = inject(DataManagerService);
+  private routingService = inject(RoutingService<AppPathPatterns>);
 
   grading = input.required<Grading>();
 
@@ -30,6 +33,12 @@ export class GradingRowHeaderComponent {
     if (!docId) return '';
     const member = this.dataService.members.get(docId);
     return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
+  });
+
+  eventLink = computed(() => {
+    const docId = this.grading().gradingEventDocId;
+    if (!docId) return '';
+    return this.routingService.hrefForView(Views.EventView, { eventId: docId });
   });
 
   instructorName = computed(() => {

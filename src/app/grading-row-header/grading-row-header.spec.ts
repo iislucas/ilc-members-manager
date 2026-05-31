@@ -34,4 +34,29 @@ describe('GradingRowHeaderComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('should not render event-date or event-name spans when fields are empty', async () => {
+    componentRef.setInput('grading', { ...initGrading(), gradingEventDate: '', gradingEvent: '' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.event-date')).toBeNull();
+    expect(el.querySelector('.event-name')).toBeNull();
+  });
+
+  it('should render event-date when gradingEventDate is set', async () => {
+    componentRef.setInput('grading', { ...initGrading(), gradingEventDate: '2026-06-01' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.event-date')?.textContent?.trim()).toBe('2026-06-01');
+  });
+
+  it('should render event-name when gradingEvent is set', async () => {
+    componentRef.setInput('grading', { ...initGrading(), gradingEvent: 'ILC Summer Camp' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.event-name')?.textContent?.trim()).toBe('ILC Summer Camp');
+  });
 });

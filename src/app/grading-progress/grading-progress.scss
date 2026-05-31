@@ -314,14 +314,35 @@
   }
 }
 
-.instructor-link {
-  color: #0056b3;
-  text-decoration: underline;
-  font-weight: 600;
-  margin: 0 4px;
+.event-link {
+  display: inline;
+  text-decoration: none;
+  color: v.$text-secondary;
 
   &:hover {
-    color: #003d82;
+    text-decoration: underline;
+    color: v.$focus-ring-color;
+  }
+
+  .event-icon {
+    font-size: 0.95em;
+    margin-right: 0.2em;
+  }
+}
+
+.instructor-link {
+  display: inline;
+  text-decoration: none;
+  color: v.$text-secondary;
+
+  &:hover {
+    text-decoration: underline;
+    color: v.$focus-ring-color;
+  }
+
+  .person-icon {
+    font-size: 0.95em;
+    margin-right: 0.2em;
   }
 }
 

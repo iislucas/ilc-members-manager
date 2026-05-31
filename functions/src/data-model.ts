@@ -867,7 +867,11 @@ export type Grading = {
   orderId: string; // The order ID that created this grading, or '' if manual.
   level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
-  assistantInstructorIds: string[]; // InstructorIds of assistant instructors.
+  // TODO: Rename this field to `gradingManagerIds` in Firestore and migrate existing data.
+  // In the UI this field is displayed as "Grading Managers". Grading managers have the same
+  // edit permissions as the primary instructor (they can accept, record results, and re-assign
+  // the primary instructor). The Firestore field name `assistantInstructorIds` is legacy.
+  assistantInstructorIds: string[];
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
@@ -875,6 +879,7 @@ export type Grading = {
   status: GradingStatus; // See GradingStatus enum for details.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
   gradingEvent: string; // Text string for event/location/date of the grading.
+  gradingEventDocId: string; // Firestore doc ID of the linked IlcEvent, or '' if not linked.
   notes: string; // Any notes about the grading.
   studentNotes: string; // Optional note from the student when requesting the grading.
   instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
@@ -918,6 +923,7 @@ export function initGrading(): Grading {
     status: GradingStatus.AwaitingRequest,
     gradingEventDate: '',
     gradingEvent: '',
+    gradingEventDocId: '',
     notes: '',
     studentNotes: '',
     instructorAcceptedDate: '',

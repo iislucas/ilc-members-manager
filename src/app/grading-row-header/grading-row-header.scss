@@ -3,12 +3,11 @@
 .grading-row-content {
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1em;
+  gap: 0.4em 1em;
   padding: 0.2em 0.5em;
   width: 100%;
-  overflow: hidden;
 }
 
 .status-chip {
@@ -44,10 +43,6 @@
 .name {
   font-weight: bold;
   flex-shrink: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 15em;
 }
 
 .level-chip {
@@ -57,22 +52,38 @@
 .instructor-info {
   font-size: 0.9em;
   color: v.$text-secondary;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   flex-shrink: 1;
+  min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .grading-row-content {
-    flex-wrap: wrap;
-    gap: 0.5em;
-  }
-
-  .instructor-info {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-  }
+.event-date {
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
+.event-name {
+  font-size: 0.85em;
+  color: v.$text-secondary;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.event-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  text-decoration: none;
+  color: v.$text-secondary;
+
+  &:hover {
+    text-decoration: underline;
+    color: v.$focus-ring-color;
+  }
+
+  .event-icon {
+    font-size: 0.95em;
+    flex-shrink: 0;
+  }
+}

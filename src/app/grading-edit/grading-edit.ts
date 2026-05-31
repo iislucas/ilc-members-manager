@@ -20,7 +20,10 @@ import {
   initGrading,
   InstructorPublicData,
   School,
+  IlcEvent,
 } from '../../../functions/src/data-model';
+import { SearchableSet } from '../searchable-set';
+import { EventSearchCriteriaDateRange } from '../data-manager.service';
 import {
   form,
   FormField,
@@ -36,6 +39,14 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
 import { MemberSelectorComponent } from '../member-selector/member-selector';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { deepObjEq } from '../utils';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
+
+function oneMonthAgo(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toISOString().substring(0, 10);
+}
 
 
 @Component({
@@ -49,6 +60,7 @@ export class GradingEditComponent {
   private elementRef = inject(ElementRef);
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
+  private routingService = inject(RoutingService<AppPathPatterns>);
 
 
   // Constants
@@ -73,8 +85,9 @@ export class GradingEditComponent {
     disabled(schema.gradingPurchaseDate, () => !this.userIsAdmin());
     disabled(schema.orderId, () => !this.userIsAdmin());
     disabled(schema.level, () => !this.userIsAdmin());
-    disabled(schema.gradingInstructorId, () => !this.userIsAdmin() && !this.userIsStudent());
-    disabled(schema.assistantInstructorIds, () => !this.userIsAdmin());
+    disabled(schema.gradingInstructorId, () => !this.userIsAdmin() && !this.userIsStudent() && !this.userIsGradingInstructor());
+    // `assistantInstructorIds` maps to "Grading Managers" in the UI.
+    disabled(schema.assistantInstructorIds, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.studentMemberId, () => !this.userIsAdmin());
     disabled(schema.studentMemberDocId, () => !this.userIsAdmin());
@@ -93,9 +106,13 @@ export class GradingEditComponent {
       schema.notes,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
-    // Instructor or student can edit gradingEvent (where/when the grading will take place)
+    // Instructor or student can edit gradingEvent and gradingEventDocId
     disabled(
       schema.gradingEvent,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsStudent(),
+    );
+    disabled(
+      schema.gradingEventDocId,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor() && !this.userIsStudent(),
     );
 
@@ -147,6 +164,7 @@ export class GradingEditComponent {
       this.form.status().value() !== original.status ||
       this.form.gradingEventDate().value() !== original.gradingEventDate ||
       this.form.gradingEvent().value() !== original.gradingEvent ||
+      this.form.gradingEventDocId().value() !== original.gradingEventDocId ||
       this.form.notes().value() !== original.notes ||
       this.form.studentNotes().value() !== original.studentNotes ||
       this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
@@ -164,6 +182,9 @@ export class GradingEditComponent {
     return user?.isAdmin ?? false;
   });
 
+  // Returns true for the primary instructor AND for grading managers (stored in
+  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration).
+  // Both roles are displayed as having the same edit permissions in the UI.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
@@ -222,6 +243,63 @@ export class GradingEditComponent {
       .find((i) => i.instructorId === id);
     return inst ? `${inst.name} [${inst.instructorId}]` : id;
   });
+
+  // --- Event linking ---
+
+  // SearchableSet populated from Firestore on load / date range change.
+  eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
+
+  // Date range for the event search. Defaults to one month ago → no upper bound.
+  eventRangeFrom = signal<string>(oneMonthAgo());
+  eventRangeTo = signal<string>('');
+
+  // Reload events whenever the date range changes.
+  _loadEvents = effect(() => {
+    const criteria: EventSearchCriteriaDateRange = {
+      kind: 'date',
+      startDate: this.eventRangeFrom() || undefined,
+      endDate: this.eventRangeTo() || undefined,
+      statusFilter: 'listed',
+    };
+    this.dataService.searchEvents(criteria).then((events) => {
+      this.eventsSet.setEntries(events);
+    });
+  });
+
+  eventDisplayFns = {
+    toChipId: (e: IlcEvent) => e.docId,
+    toName: (e: IlcEvent) => `${e.start.substring(0, 10)} — ${e.title}`,
+  };
+
+  eventLink = computed(() => {
+    const docId = this.form.gradingEventDocId().value();
+    if (!docId) return '';
+    return this.routingService.hrefForView(Views.EventView, { eventId: docId });
+  });
+
+  // Returns confirmation text for the currently linked event, or '' if none linked.
+  linkedEventStatus = computed(() => {
+    const docId = this.form.gradingEventDocId().value();
+    if (!docId) return '';
+    const event = this.eventsSet.get(docId);
+    return event
+      ? `Linked: ${event.start.substring(0, 10)} — ${event.title}`
+      : 'Event linked (not in current date range — expand range to see it)';
+  });
+
+  onGradingEventSelected(event: IlcEvent) {
+    this.form.gradingEventDocId().value.set(event.docId);
+    this.form.gradingEventDocId().markAsDirty();
+    const location = event.location ? ` — ${event.location}` : '';
+    this.form.gradingEvent().value.set(`${event.title}${location}`);
+    this.form.gradingEvent().markAsDirty();
+    this.form.gradingEventDate().value.set(event.start.substring(0, 10));
+    this.form.gradingEventDate().markAsDirty();
+  }
+
+  asDateStr(e: Event): string {
+    return (e.target as HTMLInputElement).value;
+  }
 
   // CSS host removed, moved to decorator host object
 
@@ -316,6 +394,7 @@ export class GradingEditComponent {
         status: this.form.status().value(),
         gradingEventDate: this.form.gradingEventDate().value(),
         gradingEvent: this.form.gradingEvent().value(),
+        gradingEventDocId: this.form.gradingEventDocId().value(),
         notes: this.form.notes().value(),
         studentNotes: this.form.studentNotes().value(),
         instructorAcceptedDate: this.form.instructorAcceptedDate().value(),

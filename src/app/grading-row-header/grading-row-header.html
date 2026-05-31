@@ -10,7 +10,7 @@
       >{{ getPrettyGradingStatus(g.status) }}</span
     >
   }
-  
+
   <span class="name">
     @if (studentName()) {
       {{ studentName() }}
@@ -25,5 +25,19 @@
 
   @if (instructorName()) {
     <span class="instructor-info">Instructor: {{ instructorName() }}</span>
+  }
+
+  @if (g.gradingEventDate) {
+    <span class="event-date">{{ g.gradingEventDate }}</span>
+  }
+
+  @if (g.gradingEvent) {
+    @if (eventLink()) {
+      <a class="event-name event-link" [href]="eventLink()" (click)="$event.stopPropagation()">
+        <app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}
+      </a>
+    } @else {
+      <span class="event-name">{{ g.gradingEvent }}</span>
+    }
   }
 </div>

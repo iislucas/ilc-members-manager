@@ -35,6 +35,8 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 
 
@@ -49,6 +51,7 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
 export class GradingProgressComponent implements OnDestroy {
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
+  private routingService = inject(RoutingService<AppPathPatterns>);
 
   grading = input.required<Grading>();
   gradingUpdated = output<Partial<Grading>>();
@@ -66,6 +69,9 @@ export class GradingProgressComponent implements OnDestroy {
     return this.grading().studentMemberDocId === user.member.docId;
   });
 
+  // Returns true for the primary instructor AND for grading managers (stored in
+  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration).
+  // Both roles share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user || !user.member.instructorId) return false;
@@ -102,7 +108,9 @@ export class GradingProgressComponent implements OnDestroy {
     return this.dataService.instructors.get(id) ?? null;
   });
 
-  assistantInstructors = computed<Array<{ id: string; data: InstructorPublicData | null }>>(() => {
+  // Grading managers — displayed as "Grading Managers" in the UI.
+  // Backed by the legacy Firestore field `assistantInstructorIds`.
+  gradingManagers = computed<Array<{ id: string; data: InstructorPublicData | null }>>(() => {
     const ids = this.grading().assistantInstructorIds || [];
     return ids.map((id) => ({
       id,
@@ -110,12 +118,19 @@ export class GradingProgressComponent implements OnDestroy {
     }));
   });
 
+  eventLink = computed(() => {
+    const docId = this.grading().gradingEventDocId;
+    if (!docId) return '';
+    return this.routingService.hrefForView(Views.EventView, { eventId: docId });
+  });
+
   // --- Editable fields (local signals synced from grading input) ---
   protected editInstructorId = signal('');
   protected editStudentNotes = signal('');
   protected editGradingEvent = signal('');
   protected editGradingEventDate = signal('');
-  protected editAssistantIds = signal<string[]>([]);
+  // Local edit signal for grading managers (backed by `assistantInstructorIds`).
+  protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
   protected editDeclineNotes = signal('');
   protected showDeclineForm = signal(false);
@@ -129,7 +144,7 @@ export class GradingProgressComponent implements OnDestroy {
     this.editStudentNotes.set(g.studentNotes);
     this.editGradingEvent.set(g.gradingEvent);
     this.editGradingEventDate.set(g.gradingEventDate);
-    this.editAssistantIds.set(g.assistantInstructorIds || []);
+    this.editGradingManagerIds.set(g.assistantInstructorIds || []);
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
   });
@@ -140,7 +155,7 @@ export class GradingProgressComponent implements OnDestroy {
       this.editGradingEvent() !== g.gradingEvent ||
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
-      JSON.stringify(this.editAssistantIds()) !== JSON.stringify(g.assistantInstructorIds || [])
+      JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(g.assistantInstructorIds || [])
     );
   });
 
@@ -153,7 +168,7 @@ export class GradingProgressComponent implements OnDestroy {
     const event = this.editGradingEvent();
     const date = this.editGradingEventDate();
     const notes = this.editResultNotes();
-    const assistants = this.editAssistantIds();
+    const assistants = this.editGradingManagerIds();
 
     if (!dirty) {
       return;
@@ -184,7 +199,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEvent: this.editGradingEvent(),
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
-        assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
+        assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
       };
       this.gradingUpdated.emit(update);
       this.saveStatus.set('saved');
@@ -210,7 +225,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEvent: this.editGradingEvent(),
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
-        assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
+        assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
       };
       this.gradingUpdated.emit(update);
     }
@@ -263,18 +278,18 @@ export class GradingProgressComponent implements OnDestroy {
 
   // Step 2: Instructor accepts and will grade themselves
 
-  addAssistantInstructor() {
-    this.editAssistantIds.update((ids) => [...ids, '']);
+  addGradingManager() {
+    this.editGradingManagerIds.update((ids) => [...ids, '']);
   }
 
-  removeAssistantInstructor(index: number) {
-    this.editAssistantIds.update((ids) => ids.filter((_, i) => i !== index));
+  removeGradingManager(index: number) {
+    this.editGradingManagerIds.update((ids) => ids.filter((_, i) => i !== index));
   }
 
-  updateAssistantInstructorId(index: number, value: string) {
-    const assistants = [...this.editAssistantIds()];
-    assistants[index] = value;
-    this.editAssistantIds.set(assistants);
+  updateGradingManagerId(index: number, value: string) {
+    const managers = [...this.editGradingManagerIds()];
+    managers[index] = value;
+    this.editGradingManagerIds.set(managers);
   }
 
   declineRequest() {
@@ -309,7 +324,7 @@ export class GradingProgressComponent implements OnDestroy {
       status,
       gradingEventDate: this.editGradingEventDate() || new Date().toISOString().split('T')[0],
       resultNotes: this.editResultNotes(),
-      assistantInstructorIds: this.editAssistantIds().filter(id => id !== ''),
+      assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
     };
     this.gradingUpdated.emit(update);
     this.isSaving.set(false);

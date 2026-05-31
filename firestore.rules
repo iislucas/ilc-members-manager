@@ -188,7 +188,10 @@ service cloud.firestore {
       function isGradingStudent() {
         return resource.data.studentMemberDocId in getUserMemberDocIds();
       }
-      function isGradingInstructor() {
+      // Returns true for the primary grading instructor AND for grading managers
+      // (stored in `assistantInstructorIds` — TODO: rename field to `gradingManagerIds`
+      // after data migration). Both roles share the same edit permissions.
+      function isGradingManager() {
         let email = request.auth.token.email;
         let aclPath = /databases/$(database)/documents/acl/$(email);
         let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
@@ -205,18 +208,18 @@ service cloud.firestore {
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
-      allow read: if isAdmin() || isGradingStudent() || isGradingInstructor() || isGradingSchoolManager();
+      allow read: if isAdmin() || isGradingStudent() || isGradingManager() || isGradingSchoolManager();
       allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if hasValidEditUpdate() && isGradingInstructor() &&
+      allow update: if hasValidEditUpdate() && isGradingManager() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'notes',
-             'instructorAcceptedDate',
+            ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'gradingEventDocId',
+             'notes', 'instructorAcceptedDate', 'gradingInstructorId',
              'resultNotes', 'assistantInstructorIds', 'declineNotes']);
       allow update: if hasValidEditUpdate() && isGradingStudent() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingEvent', 'gradingInstructorId', 'studentNotes',
-             'declineNotes']);
+            ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDocId',
+             'gradingInstructorId', 'studentNotes', 'declineNotes']);
     }
   }
 }

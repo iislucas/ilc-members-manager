@@ -94,3 +94,47 @@
   margin-top: 0;
 }
 
+.event-search-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  width: 100%;
+
+  app-autocomplete {
+    width: 100%;
+  }
+}
+
+.event-range-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-wrap: wrap;
+
+  input[type='date'] {
+    flex: 1;
+    min-width: 9em;
+  }
+}
+
+.small-label {
+  font-size: 0.85em;
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+.linked-event-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.85em;
+  color: $text-secondary;
+  margin-top: 0.25em;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: $focus-ring-color;
+  }
+}
+

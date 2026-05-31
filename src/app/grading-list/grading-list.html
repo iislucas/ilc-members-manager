@@ -15,10 +15,53 @@
         (input)="onSearch($event)"
       />
     </div>
+    <div class="options-menu-container">
+      <button
+        class="icon-only-button"
+        [class.filter-active]="hasActiveFilters()"
+        (click)="toggleAdvancedSearch()"
+        aria-label="Advanced search"
+        title="Advanced search"
+      >
+        <app-icon name="filter_list"></app-icon>
+      </button>
+    </div>
     @if (canMakeNewGradings()) {
       <button (click)="onNewGrading()">New Grading</button>
     }
   </div>
+
+  @if (showAdvancedSearch()) {
+    <div class="advanced-search-panel">
+      <div class="filter-row">
+        <label>Date from</label>
+        <input type="date" [ngModel]="filterFromDate()" (ngModelChange)="filterFromDate.set($event); limit.set(50)" />
+        <label>Date to</label>
+        <input type="date" [ngModel]="filterToDate()" (ngModelChange)="filterToDate.set($event); limit.set(50)" />
+      </div>
+      <div class="filter-row">
+        <label>Instructor</label>
+        <select [ngModel]="filterInstructorId()" (ngModelChange)="filterInstructorId.set($event); limit.set(50)">
+          <option value="">All instructors</option>
+          @for (inst of instructorOptions(); track inst.instructorId) {
+            <option [value]="inst.instructorId">{{ inst.name }} [{{ inst.instructorId }}]</option>
+          }
+        </select>
+        <label>Status</label>
+        <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); limit.set(50)">
+          <option value="">All statuses</option>
+          @for (status of gradingStatuses; track status) {
+            <option [value]="status">{{ getPrettyGradingStatus(status) }}</option>
+          }
+        </select>
+      </div>
+      @if (hasActiveFilters()) {
+        <button class="subtle-button clear-filters-btn" (click)="clearFilters()">
+          <app-icon name="close"></app-icon> Clear filters
+        </button>
+      }
+    </div>
+  }
 
   @if (isAddingGrading()) {
     <div class="create-form-container">
@@ -47,7 +90,7 @@
     }
     @if (gradingsList.length === 0 && !isAddingGrading()) {
       <div class="empty-state">
-        <p>No gradings yet!</p>
+        <p>No gradings found.</p>
       </div>
     }
   </div>

@@ -26,9 +26,11 @@ describe('GradingEditComponent', () => {
     mockDataManagerService = {
       members: new SearchableSet(['name'], 'memberId'),
       instructors: new SearchableSet(['name'], 'instructorId'),
+      schools: new SearchableSet(['schoolName'], 'schoolId'),
       addGrading: vi.fn(),
       updateGrading: vi.fn(),
       deleteGrading: vi.fn(),
+      searchEvents: vi.fn().mockResolvedValue([]),
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({

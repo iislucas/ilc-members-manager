@@ -187,7 +187,14 @@
             <p class="detail-note">Your note: {{ g.studentNotes }}</p>
           }
           @if (g.gradingEvent) {
-            <p class="detail-note">Planned event: {{ g.gradingEvent }}</p>
+            <p class="detail-note">
+              Planned event:
+              @if (eventLink()) {
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+              } @else {
+                {{ g.gradingEvent }}
+              }
+            </p>
           }
           @if (g.gradingEventDate) {
             <p class="detail-note">Preferred date: {{ g.gradingEventDate }}</p>
@@ -404,7 +411,14 @@
           <p class="detail-note">Student's note: {{ g.studentNotes }}</p>
         }
         @if (g.gradingEvent) {
-          <p class="detail-note">Planned event: {{ g.gradingEvent }}</p>
+          <p class="detail-note">
+            Planned event:
+            @if (eventLink()) {
+              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+            } @else {
+              {{ g.gradingEvent }}
+            }
+          </p>
         }
       }
     </div>
@@ -428,16 +442,14 @@
             @if (gradingInstructor(); as inst) {
               <a
                 class="instructor-link"
-                [href]="
-                  '#/find-an-instructor?instructorId=' + inst.instructorId
-                "
-                >{{ inst.name }} [{{ inst.instructorId }}]</a
+                [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
+                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
               >
             } @else {
               <strong>{{ g.gradingInstructorId }}</strong>
             }
             .
-            @let assistants = assistantInstructors();
+            @let assistants = gradingManagers();
             @if (assistants.length > 0) {
               Supporting instructors include:
               @for (
@@ -448,13 +460,8 @@
                 @if (assistant.data) {
                   <a
                     class="instructor-link"
-                    [href]="
-                      '#/find-an-instructor?instructorId=' +
-                      assistant.data.instructorId
-                    "
-                    >{{ assistant.data.name }} [{{
-                      assistant.data.instructorId
-                    }}]</a
+                    [href]="'#/find-an-instructor?instructorId=' + assistant.data.instructorId"
+                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
                   >
                 } @else {
                   <strong>{{ assistant.id }}</strong>
@@ -473,7 +480,14 @@
           </span>
         </p>
         @if (g.gradingEvent) {
-          <p class="detail-note">Event: {{ g.gradingEvent }}</p>
+          <p class="detail-note">
+            Event:
+            @if (eventLink()) {
+              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+            } @else {
+              {{ g.gradingEvent }}
+            }
+          </p>
         }
         @if (g.gradingEventDate) {
           <p class="detail-note">Scheduled date: {{ g.gradingEventDate }}</p>
@@ -524,23 +538,23 @@
             ></textarea>
           </div>
 
-          <label class="align-top">Assistant Instructors</label>
+          <label class="align-top">Grading Managers</label>
           <div class="field">
             @for (
-              assistant of editAssistantIds();
+              assistant of editGradingManagerIds();
               track $index;
               let last = $last
             ) {
               <div class="assistant-row">
                 <app-instructor-selector
                   [value]="assistant"
-                  (valueChange)="updateAssistantInstructorId($index, $event)"
+                  (valueChange)="updateGradingManagerId($index, $event)"
                 ></app-instructor-selector>
                 <button
                   type="button"
                   class="icon-only-button"
-                  aria-label="Remove assistant instructor"
-                  (click)="removeAssistantInstructor($index)"
+                  aria-label="Remove grading manager"
+                  (click)="removeGradingManager($index)"
                   [disabled]="isSaving()"
                 >
                   <app-icon name="close" width="16" height="16" />
@@ -549,8 +563,8 @@
                   <button
                     type="button"
                     class="icon-only-button"
-                    aria-label="Add assistant instructor"
-                    (click)="addAssistantInstructor()"
+                    aria-label="Add grading manager"
+                    (click)="addGradingManager()"
                     [disabled]="isSaving()"
                   >
                     <app-icon name="add" width="16" height="16" />
@@ -561,8 +575,8 @@
               <button
                 type="button"
                 class="icon-only-button"
-                aria-label="Add assistant instructor"
-                (click)="addAssistantInstructor()"
+                aria-label="Add grading manager"
+                (click)="addGradingManager()"
                 [disabled]="isSaving()"
               >
                 <app-icon name="add" width="16" height="16" />
@@ -628,16 +642,14 @@
             @if (gradingInstructor(); as inst) {
               <a
                 class="instructor-link"
-                [href]="
-                  '#/find-an-instructor?instructorId=' + inst.instructorId
-                "
-                >{{ inst.name }} [{{ inst.instructorId }}]</a
+                [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
+                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
               >
             } @else {
               <strong>{{ g.gradingInstructorId }}</strong>
             }
             .
-            @let assistants = assistantInstructors();
+            @let assistants = gradingManagers();
             @if (assistants.length > 0) {
               Supporting instructors include:
               @for (
@@ -648,13 +660,8 @@
                 @if (assistant.data) {
                   <a
                     class="instructor-link"
-                    [href]="
-                      '#/find-an-instructor?instructorId=' +
-                      assistant.data.instructorId
-                    "
-                    >{{ assistant.data.name }} [{{
-                      assistant.data.instructorId
-                    }}]</a
+                    [href]="'#/find-an-instructor?instructorId=' + assistant.data.instructorId"
+                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
                   >
                 } @else {
                   <strong>{{ assistant.id }}</strong>
@@ -671,7 +678,14 @@
           </span>
         </p>
         @if (g.gradingEvent) {
-          <p class="detail-note">Event: {{ g.gradingEvent }}</p>
+          <p class="detail-note">
+            Event:
+            @if (eventLink()) {
+              <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+            } @else {
+              {{ g.gradingEvent }}
+            }
+          </p>
         }
         @if (g.gradingEventDate) {
           <p class="detail-note">Date: {{ g.gradingEventDate }}</p>
@@ -733,30 +747,38 @@
         <p class="detail-note">Grading date: {{ g.gradingEventDate }}</p>
       }
       @if (g.gradingEvent) {
-        <p class="detail-note">Event: {{ g.gradingEvent }}</p>
+        <p class="detail-note">
+          Event:
+          @if (eventLink()) {
+            <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+          } @else {
+            {{ g.gradingEvent }}
+          }
+        </p>
       }
       @if (g.gradingInstructorId) {
-        <p
-          class="detail-note"
-          style="display: flex; align-items: center; gap: 4px"
-        >
+        <p class="detail-note">
           Graded by:
           @if (gradingInstructor(); as inst) {
-            <a
-              class="subtle-button"
-              [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
-              style="
-                display: inline-flex;
-                align-items: center;
-                padding: 2px 6px;
-                font-size: 0.95em;
-              "
-            >
-              <app-icon name="person" width="16" height="16"></app-icon>
-              {{ inst.name }} [{{ inst.instructorId }}]
-            </a>
+            <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + inst.instructorId"
+              ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a>
           } @else {
             <strong>{{ g.gradingInstructorId }}</strong>
+          }
+        </p>
+      }
+      @let completedManagers = gradingManagers();
+      @if (completedManagers.length > 0) {
+        <p class="detail-note">
+          Grading managers:
+          @for (assistant of completedManagers; track assistant.id; let last = $last) {
+            @if (assistant.data) {
+              <a class="instructor-link" [href]="'#/find-an-instructor?instructorId=' + assistant.data.instructorId"
+                ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a>
+            } @else {
+              <strong>{{ assistant.id }}</strong>
+            }
+            @if (!last) { , }
           }
         </p>
       }

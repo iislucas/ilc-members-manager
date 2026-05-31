@@ -159,7 +159,7 @@
         ></app-instructor-selector>
       </div>
 
-      <label>Assistant Instructors</label>
+      <label>Grading Managers</label>
       <div class="rhs">
         @let assistantsField = form.assistantInstructorIds();
         @let assistantsErrors = assistantsField.errors();
@@ -178,7 +178,7 @@
               <button
                 type="button"
                 class="icon-only-button"
-                aria-label="Remove assistant instructor"
+                aria-label="Remove grading manager"
                 (click)="removeAssistantInstructor($index)"
                 [disabled]="isSaving()"
               >
@@ -188,7 +188,7 @@
                 <button
                   type="button"
                   class="icon-only-button"
-                  aria-label="Add assistant instructor"
+                  aria-label="Add grading manager"
                   (click)="addAssistantInstructor()"
                   [disabled]="isSaving()"
                 >
@@ -202,7 +202,7 @@
             <button
               type="button"
               class="icon-only-button"
-              aria-label="Add assistant instructor"
+              aria-label="Add grading manager"
               (click)="addAssistantInstructor()"
               [disabled]="isSaving()"
             >
@@ -225,6 +225,43 @@
           [initSearchTerm]="form.schoolId().value()"
           (textUpdated)="updateSchoolId($event)"
         ></app-autocomplete>
+      </div>
+
+      <label class="align-top">Link to ILC Event</label>
+      <div class="rhs">
+        <div class="event-search-wrapper">
+          <div class="event-range-controls">
+            <label class="small-label">From</label>
+            <input
+              type="date"
+              [value]="eventRangeFrom()"
+              (change)="eventRangeFrom.set(asDateStr($event))"
+            />
+            <label class="small-label">To</label>
+            <input
+              type="date"
+              [value]="eventRangeTo()"
+              (change)="eventRangeTo.set(asDateStr($event))"
+            />
+          </div>
+          <app-autocomplete
+            name="Event"
+            [searchableSet]="eventsSet"
+            [displayFns]="eventDisplayFns"
+            [inputBoxIsChip]="false"
+            placeholder="Search events…"
+            (itemSelected)="onGradingEventSelected($event)"
+          ></app-autocomplete>
+        </div>
+        @if (linkedEventStatus()) {
+          @if (eventLink()) {
+            <a class="linked-event-status" [href]="eventLink()">
+              <app-icon name="event"></app-icon>{{ linkedEventStatus() }}
+            </a>
+          } @else {
+            <span class="linked-event-status">{{ linkedEventStatus() }}</span>
+          }
+        }
       </div>
 
       <label for="gradingEvent">Event / Location of the Grading</label>

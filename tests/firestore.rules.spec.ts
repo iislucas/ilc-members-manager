@@ -730,6 +730,54 @@ describe('Firestore Rules', () => {
         db.collection('gradings').doc('grading-1').get(),
       );
     });
+
+    it('should allow grading instructor to update gradingEventDocId', async () => {
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          gradingEventDocId: 'event-doc-123',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should allow student to update gradingEventDocId on their own grading', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          gradingEventDocId: 'event-doc-456',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny instructor from updating admin-only field orderId', async () => {
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          orderId: 'order-999',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny student from updating admin-only field orderId', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          orderId: 'order-999',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
   });
 
   describe('Member Notifications Subcollection', () => {
