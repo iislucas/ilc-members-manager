@@ -45,6 +45,9 @@ export class NotificationsViewComponent implements OnDestroy {
   // Id of the notification awaiting delete confirmation (inline two-step).
   protected confirmingDeleteId = signal<string | null>(null);
 
+  // Set of notification IDs currently undergoing the delete collapse animation.
+  protected deletingIds = signal<Set<string>>(new Set());
+
   constructor() {
     this.notificationService.subscribeToAllNotifications();
   }
@@ -137,10 +140,25 @@ export class NotificationsViewComponent implements OnDestroy {
 
   async confirmDelete(id: string) {
     try {
+      // Add to the deleting set to trigger CSS collapse/shrink animation
+      this.deletingIds.update((set) => {
+        const newSet = new Set(set);
+        newSet.add(id);
+        return newSet;
+      });
+
+      // Wait 300ms for the animation to complete before removal
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       await this.notificationService.deleteNotification(id);
     } catch (e) {
       console.error('Failed to delete notification', e);
     } finally {
+      this.deletingIds.update((set) => {
+        const newSet = new Set(set);
+        newSet.delete(id);
+        return newSet;
+      });
       this.confirmingDeleteId.set(null);
     }
   }

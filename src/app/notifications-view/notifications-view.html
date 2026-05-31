@@ -39,29 +39,30 @@
           class="notification-card"
           [class]="n.kind"
           [class.read]="n.dismissed"
+          [class.deleting]="deletingIds().has(n.docId)"
         >
-          <div class="notification-icon">
+          <div class="notification-icon" [class]="n.kind || 'default'">
             @switch (n.kind) {
               @case ('GradingRequestAccepted') {
-                <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+                <app-icon name="mountain" width="20px" height="20px" fill="#137333"></app-icon>
               }
               @case ('GradingRequestDeclined') {
-                <app-icon name="salut" width="32px" height="32px" fill="#ef4444"></app-icon>
+                <app-icon name="salut" width="20px" height="20px" fill="#c5221f"></app-icon>
               }
               @case ('GradingRequestsYouAsInstructor') {
-                <app-icon name="salut" width="32px" height="32px" fill="#ef9a00"></app-icon>
+                <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
               }
               @case ('BlogPost') {
-                <app-icon name="hands_lotus" width="32px" height="32px" fill="#00c853"></app-icon>
+                <app-icon name="hands_lotus" width="20px" height="20px" fill="#137333"></app-icon>
               }
               @case ('NewEventPosted') {
-                <app-icon name="event" width="32px" height="32px" fill="#00b0ff"></app-icon>
+                <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
               }
               @default {
                 @if (isGradingNotification(n)) {
-                  <app-icon name="mountain" width="32px" height="32px" fill="#4d7cfe"></app-icon>
+                  <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
                 } @else {
-                  <app-icon name="info" width="32px" height="32px" fill="#999"></app-icon>
+                  <app-icon name="info" width="20px" height="20px" fill="#5f6368"></app-icon>
                 }
               }
             }
