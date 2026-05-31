@@ -95,6 +95,24 @@ button {
   color: $button-text-color;
 }
 
+.icon-only-button.delete-button {
+  border: none;
+  background-color: transparent;
+  color: $text-muted;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: $theme-error-bg-color;
+    color: $theme-error-text-color;
+    border: none;
+  }
+
+  &:active {
+    background-color: color.adjust($theme-error-bg-color, $lightness: -5%);
+    transform: translateY(1px);
+  }
+}
+
 button:hover {
   // On hover, slightly darken the background and increase the shadow for a "lift" effect.
   background-color: $button-hover-bg-color;
