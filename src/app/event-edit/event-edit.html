@@ -238,6 +238,135 @@
         </div>
       </div>
 
+      @if (canManageMaterials()) {
+      <div class="form-section">
+        <h3>Event Materials (private)</h3>
+
+        <div class="rhs materials-section" style="grid-column: 1 / -1;">
+          <p class="note">
+            Private files (videos, photos) from this event. Visible only to admins
+            and the event's owner &amp; managers — never shown publicly. Uploads,
+            renames, and deletions here are saved immediately and do not depend on
+            the event's Save button.
+          </p>
+
+          <div class="materials-actions">
+            <button
+              type="button"
+              class="outlined-button"
+              (click)="materialFilesInput.click()"
+              [disabled]="isUploadingMaterial()"
+            >
+              <app-icon name="upload_file" /> Select files
+            </button>
+            <button
+              type="button"
+              class="outlined-button"
+              (click)="materialFolderInput.click()"
+              [disabled]="isUploadingMaterial()"
+            >
+              <app-icon name="upload_file" /> Select a folder
+            </button>
+          </div>
+
+          <input
+            #materialFilesInput
+            type="file"
+            multiple
+            style="display: none"
+            (change)="onMaterialFilesSelected($event)"
+          />
+          <input
+            #materialFolderInput
+            type="file"
+            webkitdirectory
+            style="display: none"
+            (change)="onMaterialFilesSelected($event)"
+          />
+
+          @if (isLoadingMaterials()) {
+            <app-spinner>Loading materials...</app-spinner>
+          }
+          @if (isUploadingMaterial()) {
+            <app-spinner
+              >Uploading {{ materialUploadedCount() }} / {{ materialTotalToUpload() }}...</app-spinner
+            >
+          }
+          @if (materialUploadError(); as err) {
+            <div class="inline-error">
+              <span>{{ err }}</span>
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="materialUploadError.set(null)"
+                title="Dismiss"
+              >
+                <app-icon name="close" />
+              </button>
+            </div>
+          }
+
+          @let mats = materials();
+          @if (mats.length > 0) {
+            <div class="materials-grid">
+              @for (mat of mats; track mat.itemId) {
+                <div class="material-card">
+                  <a
+                    class="material-preview"
+                    [href]="mat.url"
+                    target="_blank"
+                    rel="noopener"
+                    [title]="'Open ' + mat.name"
+                  >
+                    @if (mat.previewUrl) {
+                      <img [src]="mat.previewUrl" [alt]="mat.name" />
+                      @if (mat.contentType.startsWith('video/')) {
+                        <span class="material-play-badge"><app-icon name="video_library" /></span>
+                      }
+                    } @else if (mat.contentType.startsWith('video/')) {
+                      <app-icon name="video_library" />
+                    } @else {
+                      <app-icon name="upload_file" />
+                    }
+                  </a>
+                  <div class="material-meta">
+                    <input
+                      type="text"
+                      class="material-name"
+                      [value]="mat.name"
+                      (change)="updateMaterialName(mat.itemId, $event)"
+                      placeholder="File name"
+                    />
+                    <div class="material-actions">
+                      <a
+                        class="icon-only-button"
+                        [href]="mat.url"
+                        target="_blank"
+                        rel="noopener"
+                        title="Open file"
+                      >
+                        <app-icon name="link" />
+                      </a>
+                      <button
+                        type="button"
+                        class="icon-only-button"
+                        (click)="removeMaterial(mat.itemId)"
+                        title="Remove material"
+                      >
+                        <app-icon name="trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else if (!isLoadingMaterials() && !isUploadingMaterial()) {
+            <span class="note">No materials uploaded yet.</span>
+          }
+        </div>
+      </div>
+      }
+
       <div class="form-section">
         <h3>Status & Metadata</h3>
 

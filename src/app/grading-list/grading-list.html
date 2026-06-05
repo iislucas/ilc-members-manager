@@ -15,6 +15,38 @@
         (input)="onSearch($event)"
       />
     </div>
+    <div class="sort-controls">
+      <label class="sort-label" for="grading-sort-field-select">Sort:</label>
+      <select
+        id="grading-sort-field-select"
+        [ngModel]="sortField()"
+        (ngModelChange)="sortField.set($event)"
+      >
+        @for (opt of sortFieldOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+      <button
+        class="sort-direction-btn"
+        (click)="toggleSortDirection()"
+        [attr.aria-label]="
+          sortDirection() === SortDirection.Asc
+            ? 'Sort ascending'
+            : 'Sort descending'
+        "
+        [attr.title]="
+          sortDirection() === SortDirection.Asc ? 'Ascending' : 'Descending'
+        "
+      >
+        <app-icon
+          [name]="
+            sortDirection() === SortDirection.Asc
+              ? 'arrow_downward'
+              : 'arrow_upward'
+          "
+        ></app-icon>
+      </button>
+    </div>
     <div class="options-menu-container">
       <button
         class="icon-only-button"
@@ -41,12 +73,13 @@
       </div>
       <div class="filter-row">
         <label>Instructor</label>
-        <select [ngModel]="filterInstructorId()" (ngModelChange)="filterInstructorId.set($event); limit.set(50)">
-          <option value="">All instructors</option>
-          @for (inst of instructorOptions(); track inst.instructorId) {
-            <option [value]="inst.instructorId">{{ inst.name }} [{{ inst.instructorId }}]</option>
-          }
-        </select>
+        <app-instructor-selector
+          class="filter-autocomplete"
+          [name]="'Instructor'"
+          [placeholder]="'Search by grading instructor or manager'"
+          [value]="filterInstructorId()"
+          (valueChange)="onInstructorFilterChange($event)"
+        ></app-instructor-selector>
         <label>Status</label>
         <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); limit.set(50)">
           <option value="">All statuses</option>
@@ -54,6 +87,30 @@
             <option [value]="status">{{ getPrettyGradingStatus(status) }}</option>
           }
         </select>
+      </div>
+      <div class="filter-row">
+        <label>Student</label>
+        <app-member-selector
+          class="filter-autocomplete"
+          [name]="'Student'"
+          [placeholder]="'Search for a student who is grading'"
+          [value]="filterStudentMemberId()"
+          (valueChange)="onStudentFilterChange($event)"
+        ></app-member-selector>
+      </div>
+      <div class="filter-row">
+        <label>Event</label>
+        <app-autocomplete
+          class="filter-autocomplete"
+          [name]="'Event'"
+          [searchableSet]="eventsSet"
+          [placeholder]="'Search for an event'"
+          [displayFns]="eventDisplayFns"
+          [inputBoxIsChip]="false"
+          [initSearchTerm]="selectedEventName()"
+          (itemSelected)="onEventFilterSelected($event)"
+          (textUpdated)="onEventFilterText($event)"
+        ></app-autocomplete>
       </div>
       @if (hasActiveFilters()) {
         <button class="subtle-button clear-filters-btn" (click)="clearFilters()">

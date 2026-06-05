@@ -125,6 +125,102 @@ export function looksLikeHtml(text: string): boolean {
 
 export { deepObjEq };
 
+/**
+ * Computes target canvas dimensions that fit within `maxDim` on the longest
+ * side while preserving the source aspect ratio. Never upscales.
+ */
+function fitWithin(width: number, height: number, maxDim: number): { w: number; h: number } {
+  if (width <= 0 || height <= 0) return { w: maxDim, h: maxDim };
+  const scale = Math.min(1, maxDim / Math.max(width, height));
+  return { w: Math.max(1, Math.round(width * scale)), h: Math.max(1, Math.round(height * scale)) };
+}
+
+/** Draws a source (image bitmap or video) onto a fresh canvas and returns a JPEG blob. */
+async function drawToJpeg(
+  source: CanvasImageSource,
+  srcWidth: number,
+  srcHeight: number,
+  maxDim: number,
+): Promise<Blob> {
+  const { w, h } = fitWithin(srcWidth, srcHeight, maxDim);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2D canvas context for thumbnail.');
+  ctx.drawImage(source, 0, 0, w, h);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8),
+  );
+  if (!blob) throw new Error('Failed to encode thumbnail to JPEG.');
+  return blob;
+}
+
+/**
+ * Generates a downscaled JPEG thumbnail (aspect-preserving, fit within `maxDim`)
+ * from an image file. Throws if the file cannot be decoded.
+ */
+export async function makeImageThumbnail(file: File, maxDim = 320): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    return await drawToJpeg(bitmap, bitmap.width, bitmap.height, maxDim);
+  } finally {
+    bitmap.close();
+  }
+}
+
+/**
+ * Generates a downscaled JPEG thumbnail from an early frame of a video file.
+ * Loads the video off-screen, seeks a little past the start, and captures the
+ * frame. Throws if the browser cannot decode the video.
+ */
+export async function makeVideoThumbnail(file: File, maxDim = 320): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const onError = () => reject(new Error('Failed to load video for thumbnail.'));
+      video.addEventListener('error', onError, { once: true });
+      video.addEventListener(
+        'loadeddata',
+        () => {
+          const target = Number.isFinite(video.duration)
+            ? Math.min(1, video.duration / 2)
+            : 0;
+          video.addEventListener('seeked', () => resolve(), { once: true });
+          // Seeking can be a no-op if we're already there; nudge then fall back.
+          try {
+            video.currentTime = target;
+          } catch {
+            resolve();
+          }
+        },
+        { once: true },
+      );
+    });
+    return await drawToJpeg(video, video.videoWidth, video.videoHeight, maxDim);
+  } finally {
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Generates a JPEG preview thumbnail for an image or video file, dispatching by
+ * MIME type. Rejects for unsupported types or on decode failure so callers can
+ * fall back to an icon.
+ */
+export async function makeThumbnail(file: File, maxDim = 320): Promise<Blob> {
+  if (file.type.startsWith('image/')) return makeImageThumbnail(file, maxDim);
+  if (file.type.startsWith('video/')) return makeVideoThumbnail(file, maxDim);
+  throw new Error(`No preview generator for file type "${file.type}".`);
+}
+
 // export function deepObjEq(obj1: Object, obj2: Object) {
 //   const sortedKeys1 = Object.keys(obj1).sort();
 //   const jsonString1 = JSON.stringify(obj1, sortedKeys1);

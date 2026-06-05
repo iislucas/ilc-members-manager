@@ -29,12 +29,21 @@ import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Me
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { deepObjEq, htmlToMarkdown, looksLikeHtml } from '../utils';
+import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  listAll,
+  getMetadata,
+  updateMetadata,
+  deleteObject,
+} from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -56,6 +65,18 @@ type EventFormModel = {
   managerDocIds: string[];
   leadingInstructorId: string;
   documents: EventDocument[];
+};
+
+// A single private event material file, as presented in the UI. Materials live
+// only in Cloud Storage (not on the public event doc); see the materials
+// section below.
+type Material = {
+  itemId: string;       // folder id under events/{eventId}/materials/originals/
+  name: string;         // display name (stored in the original's customMetadata)
+  contentType: string;  // MIME type from object metadata
+  size: number;         // bytes
+  url: string;          // download URL of the original file
+  previewUrl?: string;  // download URL of the generated JPEG preview, if any
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -157,6 +178,18 @@ export class EventEditComponent implements OnInit {
   documentUploadError = signal<string | null>(null);
   statusMenuOpen = signal(false);
 
+  // Private event materials (videos / photo dumps). Stored directly in Cloud
+  // Storage and managed independently of the event Save button.
+  materials = signal<Material[]>([]);
+  isLoadingMaterials = signal(false);
+  isUploadingMaterial = signal(false);
+  materialUploadError = signal<string | null>(null);
+  materialUploadedCount = signal(0);
+  materialTotalToUpload = signal(0);
+
+  // Maximum dimension (px) for generated material preview thumbnails.
+  private readonly MATERIAL_PREVIEW_MAX_DIM = 320;
+
   // Maximum number of documents allowed per event.
   private readonly MAX_DOCUMENTS = 10;
 
@@ -173,6 +206,9 @@ export class EventEditComponent implements OnInit {
 
   // Whether the current user can change the event status via the chip menu.
   canChangeStatus = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
+
+  // Whether the current user can view/manage this event's private materials.
+  canManageMaterials = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();
@@ -289,6 +325,9 @@ export class EventEditComponent implements OnInit {
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
         this.titleLoaded.emit(data.title);
+        if (data.docId && this.canManageMaterials()) {
+          this.loadMaterials(data.docId);
+        }
       } else {
         this.loadError.set('Event not found.');
         this.titleLoaded.emit('Event Not Found');
@@ -499,6 +538,175 @@ export class EventEditComponent implements OnInit {
       ...m,
       documents: m.documents.filter((_, i) => i !== index),
     }));
+  }
+
+  // --- Private event materials -------------------------------------------
+  // Materials live entirely in Cloud Storage (the event doc is public), under
+  //   events/{eventId}/materials/originals/{itemId}/original
+  //   events/{eventId}/materials/previews/{itemId}.jpg
+  // and are managed immediately (no dependency on the event Save button).
+
+  private originalRef(eventDocId: string, itemId: string) {
+    const storage = getStorage(this.firebaseApp);
+    return ref(storage, `events/${eventDocId}/materials/originals/${itemId}/original`);
+  }
+
+  private previewRef(eventDocId: string, itemId: string) {
+    const storage = getStorage(this.firebaseApp);
+    return ref(storage, `events/${eventDocId}/materials/previews/${itemId}.jpg`);
+  }
+
+  private async loadMaterials(eventDocId: string) {
+    this.isLoadingMaterials.set(true);
+    this.materialUploadError.set(null);
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const originalsRoot = ref(storage, `events/${eventDocId}/materials/originals`);
+      const listed = await listAll(originalsRoot);
+
+      const loaded = await Promise.all(
+        listed.prefixes.map(async (itemFolder) => {
+          const itemId = itemFolder.name;
+          const original = this.originalRef(eventDocId, itemId);
+          const [md, url] = await Promise.all([
+            getMetadata(original),
+            getDownloadURL(original),
+          ]);
+          const previewUrl = await getDownloadURL(this.previewRef(eventDocId, itemId)).catch(
+            () => undefined,
+          );
+          const material: Material = {
+            itemId,
+            name: md.customMetadata?.['name'] || itemId,
+            contentType: md.contentType || '',
+            size: md.size || 0,
+            url,
+            previewUrl,
+          };
+          return material;
+        }),
+      );
+
+      // Stable order: newest first (itemId is prefixed with Date.now()).
+      loaded.sort((a, b) => (a.itemId < b.itemId ? 1 : a.itemId > b.itemId ? -1 : 0));
+      this.materials.set(loaded);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error loading materials:', error);
+      this.materialUploadError.set('Failed to load materials: ' + message);
+    } finally {
+      this.isLoadingMaterials.set(false);
+    }
+  }
+
+  onMaterialFilesSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (files && files.length > 0) {
+      const ev = this.event();
+      if (!ev?.docId) {
+        this.materialUploadError.set('Cannot upload: event has no document ID.');
+      } else {
+        this.uploadMaterialFiles(Array.from(files), ev.docId);
+      }
+    }
+    // Reset so re-selecting the same files/folder fires the change event again.
+    input.value = '';
+  }
+
+  private async uploadMaterialFiles(files: File[], eventDocId: string) {
+    this.isUploadingMaterial.set(true);
+    this.materialUploadError.set(null);
+    this.materialUploadedCount.set(0);
+    this.materialTotalToUpload.set(files.length);
+
+    const failures: string[] = [];
+
+    for (const file of files) {
+      const itemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        const original = this.originalRef(eventDocId, itemId);
+        await uploadBytes(original, file, {
+          contentType: file.type || 'application/octet-stream',
+          customMetadata: { name: file.name },
+        });
+        const url = await getDownloadURL(original);
+
+        // Best-effort preview; failure just means the UI shows an icon.
+        let previewUrl: string | undefined;
+        try {
+          const thumb = await makeThumbnail(file, this.MATERIAL_PREVIEW_MAX_DIM);
+          const preview = this.previewRef(eventDocId, itemId);
+          await uploadBytes(preview, thumb, { contentType: 'image/jpeg' });
+          previewUrl = await getDownloadURL(preview);
+        } catch (previewError) {
+          console.warn(`No preview generated for "${file.name}":`, previewError);
+        }
+
+        const material: Material = {
+          itemId,
+          name: file.name,
+          contentType: file.type || '',
+          size: file.size,
+          url,
+          previewUrl,
+        };
+        this.materials.update((list) => [material, ...list]);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Error uploading material "${file.name}":`, error);
+        failures.push(`${file.name}: ${message}`);
+      } finally {
+        this.materialUploadedCount.update((n) => n + 1);
+      }
+    }
+
+    if (failures.length > 0) {
+      this.materialUploadError.set(`Failed to upload ${failures.length} file(s): ` + failures.join('; '));
+    }
+    this.isUploadingMaterial.set(false);
+  }
+
+  async removeMaterial(itemId: string) {
+    const ev = this.event();
+    if (!ev?.docId) return;
+    const material = this.materials().find((m) => m.itemId === itemId);
+    if (!material) return;
+    if (!confirm(`Remove "${material.name}"? This permanently deletes the file.`)) return;
+
+    try {
+      await deleteObject(this.originalRef(ev.docId, itemId));
+      if (material.previewUrl) {
+        await deleteObject(this.previewRef(ev.docId, itemId)).catch((err) =>
+          // Original is gone; a missing preview shouldn't block removal.
+          console.warn('Failed to delete material preview:', err),
+        );
+      }
+      this.materials.update((list) => list.filter((m) => m.itemId !== itemId));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error removing material:', error);
+      this.materialUploadError.set('Failed to remove material: ' + message);
+    }
+  }
+
+  async updateMaterialName(itemId: string, event: Event) {
+    const ev = this.event();
+    if (!ev?.docId) return;
+    const name = (event.target as HTMLInputElement).value;
+    // Optimistically reflect the new name; persist to object metadata.
+    this.materials.update((list) =>
+      list.map((m) => (m.itemId === itemId ? { ...m, name } : m)),
+    );
+    try {
+      await updateMetadata(this.originalRef(ev.docId, itemId), {
+        customMetadata: { name },
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error renaming material:', error);
+      this.materialUploadError.set('Failed to rename material: ' + message);
+    }
   }
 
   async saveEvent(e: Event) {

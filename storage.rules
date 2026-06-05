@@ -50,6 +50,23 @@ service firebase.storage {
       );
     }
 
+    // Private event materials (videos, photo dumps, and their previews).
+    // Unlike images/documents above, read is ALSO restricted to admins and
+    // the event's owner/managers — these files are not publicly visible.
+    // The recursive wildcard covers the per-item `originals/{itemId}/...`
+    // subfolders, the `previews/...` files, and listing on the prefix.
+    match /events/{eventId}/materials/{material=**} {
+      allow read, write: if isAdmin() || (
+        request.auth != null &&
+        (
+          firestore.get(/databases/(default)/documents/events/$(eventId)).data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(
+            firestore.get(/databases/(default)/documents/events/$(eventId)).data.get('managerDocIds', [])
+          )
+        )
+      );
+    }
+
     // Construct today's date as a YYYY-MM-DD string from request.time.
     // Used for lexicographic comparison against stored expiry dates.
     function todayStr() {
