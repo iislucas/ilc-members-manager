@@ -99,11 +99,22 @@ export class GradingProgressComponent implements OnDestroy {
   );
 
   // --- Display helpers ---
+  // Always render students in the standard "(MemberId) Student Name" form.
+  // Some gradings have an empty or stale studentMemberDocId, so fall back to
+  // resolving the member by their human-readable memberId before giving up.
   studentName = computed(() => {
-    const docId = this.grading().studentMemberDocId;
-    if (!docId) return '';
-    const member = this.dataService.members.get(docId);
-    return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
+    const g = this.grading();
+    const member =
+      (g.studentMemberDocId
+        ? this.dataService.getMemberByDocId(g.studentMemberDocId)
+        : undefined) ??
+      (g.studentMemberId
+        ? this.dataService.getMemberByMemberId(g.studentMemberId)
+        : undefined);
+    if (member) {
+      return `(${member.memberId}) ${member.name}`;
+    }
+    return g.studentMemberId || g.studentMemberDocId || '';
   });
 
   gradingInstructor = computed(() => {
@@ -126,6 +137,16 @@ export class GradingProgressComponent implements OnDestroy {
     const docId = this.grading().gradingEventDocId;
     if (!docId) return '';
     return this.routingService.hrefForView(Views.EventView, { eventId: docId });
+  });
+
+  // Label for the connected-event link. When a date is known we show
+  // "YYYY-MM-DD — Event" so the grading date travels with the event, matching
+  // how linked events are displayed in the grading event input.
+  eventLinkLabel = computed(() => {
+    const g = this.grading();
+    return g.gradingEventDate
+      ? `${g.gradingEventDate} — ${g.gradingEvent}`
+      : g.gradingEvent;
   });
 
   // --- Editable fields (local signals synced from grading input) ---

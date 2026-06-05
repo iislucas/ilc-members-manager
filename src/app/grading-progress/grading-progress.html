@@ -204,7 +204,7 @@
               <p class="detail-note">
                 Planned event:
                 @if (eventLink()) {
-                  <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                  <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
                 } @else {
                   {{ g.gradingEvent }}
                 }
@@ -213,7 +213,7 @@
                 }
               </p>
             }
-            @if (g.gradingEventDate) {
+            @if (g.gradingEventDate && !eventLink()) {
               <p class="detail-note">
                 Preferred date: {{ g.gradingEventDate }}
                 @if (canEditGradingDetails()) {
@@ -436,7 +436,7 @@
             <p class="detail-note">
               Planned event:
               @if (eventLink()) {
-                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
               } @else {
                 {{ g.gradingEvent }}
               }
@@ -528,7 +528,7 @@
             <p class="detail-note">
               Event:
               @if (eventLink()) {
-                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
               } @else {
                 {{ g.gradingEvent }}
               }
@@ -537,7 +537,7 @@
               }
             </p>
           }
-          @if (g.gradingEventDate) {
+          @if (g.gradingEventDate && !eventLink()) {
             <p class="detail-note">
               Scheduled date: {{ g.gradingEventDate }}
               @if (canEditGradingDetails()) {
@@ -753,7 +753,7 @@
             <p class="detail-note">
               Event:
               @if (eventLink()) {
-                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
               } @else {
                 {{ g.gradingEvent }}
               }
@@ -762,7 +762,7 @@
               }
             </p>
           }
-          @if (g.gradingEventDate) {
+          @if (g.gradingEventDate && !eventLink()) {
             <p class="detail-note">
               Date: {{ g.gradingEventDate }}
               @if (canEditGradingDetails()) {
@@ -849,7 +849,7 @@
             </div>
           </div>
         } @else {
-          @if (g.gradingEventDate) {
+          @if (g.gradingEventDate && !eventLink()) {
             <span class="detail-label">Date</span>
             <span class="detail-value">
               {{ g.gradingEventDate }}
@@ -862,7 +862,7 @@
             <span class="detail-label">Event</span>
             <span class="detail-value">
               @if (eventLink()) {
-                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}</a>
+                <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
               } @else {
                 {{ g.gradingEvent }}
               }
