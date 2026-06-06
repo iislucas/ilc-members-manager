@@ -1,0 +1,11 @@
+# pnpm v10 moved the `onlyBuiltDependencies` setting out of package.json's
+# "pnpm" field and into this file. Packages listed here are allowed to run
+# their install/build scripts; any package with a build script that is NOT
+# listed is "ignored", which pnpm v10 treats as a fatal ERR_PNPM_IGNORED_BUILDS
+# during CI installs (e.g. the Firebase Functions Cloud Build deploy).
+#
+# Keep this list in sync with the packages pnpm reports as ignored on deploy.
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - protobufjs
+  - esbuild

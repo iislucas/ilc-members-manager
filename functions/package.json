@@ -1,11 +1,5 @@
 {
   "name": "google-cal-events-viewer-functions",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@firebase/util",
-      "protobufjs"
-    ]
-  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
