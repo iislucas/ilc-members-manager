@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm test *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm exec vitest run *)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm run build *)",
+      "Bash(pnpm exec ng build *)",
+      "Bash(pnpm --filter functions build*)"
+    ]
+  }
+}

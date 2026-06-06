@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { NotificationSettingsComponent } from './notification-settings.component';
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
+import { DataManagerService } from '../../data-manager.service';
 import { NotificationKind } from '../../../../functions/src/data-model';
 
 describe('NotificationSettingsComponent', () => {
@@ -22,8 +23,12 @@ describe('NotificationSettingsComponent', () => {
         homeEnabled: {},
       }),
       permissionStatus: signal('granted'),
+      pushDeviceEnabled: signal(false),
+      isPushSupported: false,
       requestPermission: vi.fn().mockResolvedValue('granted'),
       updateLocalSettings: vi.fn(),
+      enablePushOnThisDevice: vi.fn().mockResolvedValue(true),
+      disablePushOnThisDevice: vi.fn().mockResolvedValue(undefined),
     };
 
     mockFirebaseService = {
@@ -43,6 +48,10 @@ describe('NotificationSettingsComponent', () => {
         provideZonelessChangeDetection(),
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: FirebaseStateService, useValue: mockFirebaseService },
+        {
+          provide: DataManagerService,
+          useValue: { updateMember: vi.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compileComponents();
 

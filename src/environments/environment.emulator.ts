@@ -33,6 +33,8 @@ export const environment = {
   },
   adminEmail: 'admin@example.com',
   passwordResetEmailSender: 'noreply@example.com',
+  // Web push is generally not used against the emulator; leave empty to disable.
+  vapidPublicKey: '',
   links: {
     membership: 'http://localhost:5000/membership',
     license: 'http://localhost:5000/license',

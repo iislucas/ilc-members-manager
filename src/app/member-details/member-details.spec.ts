@@ -7,7 +7,7 @@ import {
   UserDetails,
   createFirebaseStateServiceMock,
 } from '../firebase-state.service';
-import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import {
   initMember,
@@ -82,6 +82,7 @@ describe('MemberDetailsComponent', () => {
         { provide: DataManagerService, useValue: dataManagerServiceMock },
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
         { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
+        { provide: FIREBASE_APP, useValue: {} },
       ],
     }).compileComponents();
 

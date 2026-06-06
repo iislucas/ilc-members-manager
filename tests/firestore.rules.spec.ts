@@ -967,5 +967,23 @@ describe('Firestore Rules', () => {
           }),
       );
     });
+
+    it('should allow member to update their own public profile media and bio', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .update({
+            lastUpdated: serverTimestamp(),
+            publicProfileImageUrl: 'https://example.com/profile_large.jpg',
+            publicProfileImageThumbUrl: 'https://example.com/profile_thumb.jpg',
+            publicCoverImageUrl: 'https://example.com/cover.jpg',
+            publicBioMarkdown: 'I train for **health** and mindfulness.',
+          }),
+      );
+    });
   });
 });

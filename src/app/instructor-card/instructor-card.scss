@@ -7,6 +7,28 @@
   font-weight: bold;
 }
 
+.name-link {
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.profile-thumb-link {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.profile-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid $border-color-light;
+}
+
 .identifier-subtle {
   font-size: 0.9em;
   color: $text-muted;

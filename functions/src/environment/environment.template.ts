@@ -25,4 +25,8 @@ export const environment = {
   googleCalendar: {
     calendarId: '06se06gf82c428olklnjagbt6c@group.calendar.google.com',
   },
+  // Web Push (VAPID). Public key must match the client's environment.vapidPublicKey;
+  // the private key is provided via the VAPID_PRIVATE_KEY secret. Empty disables push.
+  vapidPublicKey: '',
+  pushContactEmail: 'mailto:admin@example.com',
 };

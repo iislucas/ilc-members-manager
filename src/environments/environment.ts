@@ -32,6 +32,11 @@ export const environment = {
   },
   adminEmail: 'web-helper-team@iliqchuan.com',
   passwordResetEmailSender: 'noreply@app.iliqchuan.com',
+  // Web Push VAPID public key (base64url). Generate a key pair with
+  // `pnpm dlx web-push generate-vapid-keys`; put the PUBLIC key here and store
+  // the PRIVATE key as the VAPID_PRIVATE_KEY Cloud Function secret. Leave empty
+  // to disable web push.
+  vapidPublicKey: 'YOUR_VAPID_PUBLIC_KEY',
   links: {
     membership: 'YOUR_MEMBERSHIP_PRODUCT_URL',
     license: 'YOUR_LICENSE_PRODUCT_URL',

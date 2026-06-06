@@ -58,9 +58,9 @@ service cloud.firestore {
       allow update: if hasValidEditUpdate() && isOwner() && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['lastUpdated', 'name', 'instructorWebsite', 'publicClassGoogleCalendarId', 'publicRegionOrCity', 'publicCountyOrState',
-           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone', 
+           'publicEmail', 'publicPhone', 'address', 'city', 'countyOrState', 'zipCode', 'country', 'phone',
            'emails', 'gender', 'dateOfBirth', 'primaryInstructorId', 'primarySchoolId', 'primarySchoolDocId',
-           'notificationSettings']);
+           'notificationSettings', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown']);
 
       match /notifications/{notificationId} {
         function isNotificationOwner() {
@@ -71,6 +71,17 @@ service cloud.firestore {
         allow create: if isNotificationOwner() || isAdmin();
         allow delete: if isNotificationOwner() || isAdmin();
         allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed']);
+      }
+
+      // Web Push subscriptions for this member's devices. The member manages
+      // their own subscriptions from the client; the push-sending Cloud
+      // Function reads/prunes them via the Admin SDK (which bypasses rules).
+      match /pushSubscriptions/{subId} {
+        function isSubscriptionOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read, write: if isSubscriptionOwner() || isAdmin();
       }
     }
 

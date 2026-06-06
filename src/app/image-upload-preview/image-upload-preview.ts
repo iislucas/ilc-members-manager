@@ -22,6 +22,14 @@ export class ImageUploadPreviewComponent {
   // Inputs
   aspectRatio = input(3 / 2); // Default 3:2
   initialImageUrl = input<string | null>(null);
+  // Output dimensions of the two generated crops. Defaults match the event
+  // hero image (large 600x400, thumb 120x80); callers cropping other shapes
+  // (e.g. a square profile picture) override these. The crop frame uses
+  // aspectRatio(), so the dimensions here should share that aspect ratio.
+  largeDimensions = input<{ width: number; height: number }>({ width: 600, height: 400 });
+  thumbDimensions = input<{ width: number; height: number }>({ width: 120, height: 80 });
+  // Prompt text shown on the file-select button.
+  uploadPromptText = input('select a 600x400 or larger image');
 
   // Outputs
   imageCropped = output<{
@@ -186,18 +194,20 @@ export class ImageUploadPreviewComponent {
     const sw = (containerWidth / this.totalScale()) * ratioX;
     const sh = (containerHeight / this.totalScale()) * ratioY;
 
-    // Generate Thumb (120x80)
-    canvas.width = 120;
-    canvas.height = 80;
-    ctx.clearRect(0, 0, 120, 80);
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 120, 80);
+    // Generate Thumb (configurable, defaults to 120x80).
+    const thumb = this.thumbDimensions();
+    canvas.width = thumb.width;
+    canvas.height = thumb.height;
+    ctx.clearRect(0, 0, thumb.width, thumb.height);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, thumb.width, thumb.height);
     const thumbBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.9));
 
-    // Generate Large (600x400)
-    canvas.width = 600;
-    canvas.height = 400;
-    ctx.clearRect(0, 0, 600, 400);
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 600, 400);
+    // Generate Large (configurable, defaults to 600x400).
+    const large = this.largeDimensions();
+    canvas.width = large.width;
+    canvas.height = large.height;
+    ctx.clearRect(0, 0, large.width, large.height);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, large.width, large.height);
     const largeBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.9));
 
     this.imageCropped.emit({

@@ -30,6 +30,8 @@ export {
   onGradingDeleted,
 } from './on-grading-update';
 
+export { sendPushOnNotification } from './send-push';
+
 export { scheduledBackup, manualBackup, listBackups } from './backup';
 
 export { syncSquarespaceOrders, processSquarespaceOrder, manualSquarespaceSync, reprocessOrder } from './squarespace-orders';

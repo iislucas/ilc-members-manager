@@ -28,6 +28,12 @@
         @case (Views.FindAnInstructor) {
           <app-find-an-instructor></app-find-an-instructor>
         }
+        @case (Views.InstructorView) {
+          <app-instructor-view
+            [instructorId]="routingService.signals[Views.InstructorView].pathVars.instructorId()"
+            (titleLoaded)="onInstructorTitleLoaded($event)"
+          ></app-instructor-view>
+        }
         @case (Views.FindSchool) {
           <app-find-school></app-find-school>
         }

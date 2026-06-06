@@ -2,7 +2,7 @@
   @if (!imageUrl()) {
     <label for="file-upload" class="upload-prompt">
       <span class="outlined-button upload-button">
-        <app-icon name="upload_file" /> select a 600x400 or larger image
+        <app-icon name="upload_file" /> {{ uploadPromptText() }}
       </span>
       <input type="file" id="file-upload" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
     </label>

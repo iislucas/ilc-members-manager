@@ -47,9 +47,12 @@ import {
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { CountryCode } from '../country-codes';
 import { Timestamp, collection, addDoc, getFirestore } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns, Views } from '../app.config';
+import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';
+import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { environment } from '../../environments/environment';
 import { NotificationService } from '../notification.service';
 
@@ -63,6 +66,8 @@ import { NotificationService } from '../notification.service';
     IdAssignmentComponent,
     AutocompleteComponent,
     MemberRowHeaderComponent,
+    ImageUploadPreviewComponent,
+    MarkdownEditor,
   ],
   templateUrl: './member-details.html',
   styleUrl: './member-details.scss',
@@ -71,6 +76,7 @@ export class MemberDetailsComponent {
   private firebaseState = inject(FirebaseStateService);
   public membersService = inject(DataManagerService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  private firebaseApp = inject(FIREBASE_APP);
   // all values from the member service, used for dup-checking...
   // Maybe we can use membersService.members? and not need this...?
   allMembers = input.required<Member[]>();
@@ -100,10 +106,18 @@ export class MemberDetailsComponent {
         return 'Assigned as Grading Instructor';
       case NotificationKind.GradingInstructorRemoved:
         return 'Removed as Grading Instructor';
+      case NotificationKind.GradingPurchased:
+        return 'Grading Purchased';
+      case NotificationKind.GradingPassed:
+        return 'Grading Passed';
+      case NotificationKind.GradingNotPassed:
+        return 'Grading Result (Not Passed)';
       case NotificationKind.BlogPost:
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:
         return 'New Event Posted';
+      case NotificationKind.PurchaseFulfilled:
+        return 'Purchase Processed';
       default:
         return kind;
     }
@@ -193,6 +207,22 @@ export class MemberDetailsComponent {
     );
     disabled(
       schema.publicCountyOrState,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicProfileImageUrl,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicProfileImageThumbUrl,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicCoverImageUrl,
+      () => !this.userIsMemberSchoolManagerOrAdmin(),
+    );
+    disabled(
+      schema.publicBioMarkdown,
       () => !this.userIsMemberSchoolManagerOrAdmin(),
     );
     disabled(schema.classVideoLibrarySubscription, () => !this.userIsAdmin());
@@ -479,6 +509,118 @@ export class MemberDetailsComponent {
     const docId = school ? school.docId : '';
     this.form.primarySchoolDocId().value.set(docId);
     this.form.primarySchoolDocId().markAsDirty();
+  }
+
+  // --- Instructor public profile media (profile picture, cover, bio) -------
+  // Images are uploaded immediately to Cloud Storage under
+  //   instructors/{memberDocId}/images/
+  // and their download URLs are written into the form model; they persist to
+  // Firestore (and on to the public instructor profile) when the member saves.
+
+  // Output dimensions for the square profile picture and 4:3 cover image.
+  readonly profileLargeDimensions = { width: 400, height: 400 };
+  readonly profileThumbDimensions = { width: 96, height: 96 };
+  readonly coverLargeDimensions = { width: 800, height: 600 };
+  readonly coverThumbDimensions = { width: 400, height: 300 };
+
+  // Prompt shown to instructors above the markdown bio editor.
+  readonly bioPrompt =
+    'Please say a bit about what most motivates your training ' +
+    '(e.g. health, mindfulness, martial arts / fighting, etc?).';
+
+  isEditingProfileCrop = signal(false);
+  isEditingCoverCrop = signal(false);
+  isUploadingProfileImage = signal(false);
+  isUploadingCoverImage = signal(false);
+  profileImageError = signal<string | null>(null);
+  coverImageError = signal<string | null>(null);
+
+  editProfileCrop() {
+    this.isEditingProfileCrop.set(true);
+  }
+  cancelProfileCrop() {
+    this.isEditingProfileCrop.set(false);
+  }
+  editCoverCrop() {
+    this.isEditingCoverCrop.set(true);
+  }
+  cancelCoverCrop() {
+    this.isEditingCoverCrop.set(false);
+  }
+
+  async onProfileImageCropped(event: { thumbBlob: Blob; largeBlob: Blob }) {
+    const docId = this.member().docId;
+    if (!docId) {
+      this.profileImageError.set('Cannot upload image: member has no document ID.');
+      return;
+    }
+    this.isUploadingProfileImage.set(true);
+    this.profileImageError.set(null);
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const largeRef = ref(storage, `instructors/${docId}/images/profile_large`);
+      await uploadBytes(largeRef, event.largeBlob, { contentType: 'image/jpeg' });
+      const largeUrl = await getDownloadURL(largeRef);
+
+      const thumbRef = ref(storage, `instructors/${docId}/images/profile_thumb`);
+      await uploadBytes(thumbRef, event.thumbBlob, { contentType: 'image/jpeg' });
+      const thumbUrl = await getDownloadURL(thumbRef);
+
+      this.form.publicProfileImageUrl().value.set(largeUrl);
+      this.form.publicProfileImageUrl().markAsDirty();
+      this.form.publicProfileImageThumbUrl().value.set(thumbUrl);
+      this.form.publicProfileImageThumbUrl().markAsDirty();
+      this.isEditingProfileCrop.set(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Error uploading profile image:', e);
+      this.profileImageError.set('Failed to upload profile image: ' + message);
+    } finally {
+      this.isUploadingProfileImage.set(false);
+    }
+  }
+
+  async onCoverImageCropped(event: { largeBlob: Blob }) {
+    const docId = this.member().docId;
+    if (!docId) {
+      this.coverImageError.set('Cannot upload image: member has no document ID.');
+      return;
+    }
+    this.isUploadingCoverImage.set(true);
+    this.coverImageError.set(null);
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const coverRef = ref(storage, `instructors/${docId}/images/cover_large`);
+      await uploadBytes(coverRef, event.largeBlob, { contentType: 'image/jpeg' });
+      const coverUrl = await getDownloadURL(coverRef);
+
+      this.form.publicCoverImageUrl().value.set(coverUrl);
+      this.form.publicCoverImageUrl().markAsDirty();
+      this.isEditingCoverCrop.set(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Error uploading cover image:', e);
+      this.coverImageError.set('Failed to upload cover image: ' + message);
+    } finally {
+      this.isUploadingCoverImage.set(false);
+    }
+  }
+
+  removeProfileImage() {
+    this.form.publicProfileImageUrl().value.set('');
+    this.form.publicProfileImageUrl().markAsDirty();
+    this.form.publicProfileImageThumbUrl().value.set('');
+    this.form.publicProfileImageThumbUrl().markAsDirty();
+  }
+
+  removeCoverImage() {
+    this.form.publicCoverImageUrl().value.set('');
+    this.form.publicCoverImageUrl().markAsDirty();
+  }
+
+  onBioChanged(markdown: string) {
+    this.form.publicBioMarkdown().value.set(markdown);
+    this.form.publicBioMarkdown().markAsDirty();
   }
 
   constructor() {

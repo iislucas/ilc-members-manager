@@ -27,8 +27,9 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType } from '../data-model';
-import { assertAdmin, allowedOrigins } from '../common';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, NotificationKind } from '../data-model';
+import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
+import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
 
 import { processVideoLibraryAccess } from './video-library';
@@ -391,6 +392,57 @@ export function clearOrderProcessingState(orderData: SquareSpaceOrder): void {
   }
 }
 
+// Build a short human-readable summary of the products in an order, used in
+// the "purchase fulfilled" notification, e.g. "Annual Membership, Grading".
+export function buildPurchaseSummary(lineItems: SquareSpaceLineItem[]): string {
+  const names = lineItems
+    .map((li) => (li.productName || li.sku || '').trim())
+    .filter((n) => n.length > 0);
+  // De-duplicate while preserving order (an order may repeat a product).
+  const unique = [...new Set(names)];
+  return unique.join(', ');
+}
+
+// Notify the purchasing member that their order has been processed/fulfilled.
+// Resolves the member from the order's customer email; silently no-ops if no
+// member is found (e.g. a guest purchase for someone else) so order processing
+// is never blocked by notification failures.
+async function notifyPurchaseFulfilled(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  db: admin.firestore.Firestore,
+): Promise<void> {
+  const email = orderData.customerEmail || orderData.billingAddress?.email || '';
+  if (!email) return;
+
+  let memberDocId: string;
+  try {
+    const member = await getMemberByEmail(email, db);
+    memberDocId = member.docId;
+  } catch {
+    logger.info(`Order ${orderId}: no member found for ${email}; skipping purchase-fulfilled notification.`);
+    return;
+  }
+  if (!memberDocId) return;
+
+  const summary = buildPurchaseSummary(orderData.lineItems || []);
+  const orderRef = orderData.orderNumber ? `#${orderData.orderNumber}` : '';
+  const markdown = summary
+    ? `✅ Your order ${orderRef} has been processed: **${summary}**. Thank you!`.replace('  ', ' ')
+    : `✅ Your order ${orderRef} has been processed. Thank you!`.replace('  ', ' ');
+
+  await createMemberNotification(db, memberDocId, {
+    markdown: markdown.trim(),
+    createdAt: new Date().toISOString(),
+    dismissed: false,
+    kind: NotificationKind.PurchaseFulfilled,
+    data: {
+      orderId: orderData.orderNumber || orderId,
+      summary,
+    },
+  });
+}
+
 // Called automatically by the `processSquarespaceOrder` Firestore trigger
 // whenever an order is created or updated, and manually by `reprocessOrder`.
 export async function executeOrderDownstreamLogic(
@@ -538,6 +590,17 @@ export async function executeOrderDownstreamLogic(
           logger.error('Squarespace API responded with:', error.response.data);
         }
       }
+    }
+  }
+
+  // Once every line item has been processed successfully, let the purchasing
+  // member know their order is fulfilled. De-duplication on orderId (in the
+  // shared helper) keeps reprocessing from producing duplicate notifications.
+  if (allItemsFulfilled && orderStatus === 'processed') {
+    try {
+      await notifyPurchaseFulfilled(orderData, orderId, db);
+    } catch (error) {
+      logger.error(`Order ${orderId}: failed to create purchase-fulfilled notification:`, error);
     }
   }
 

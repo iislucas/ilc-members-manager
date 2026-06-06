@@ -1,4 +1,6 @@
 import { inject, Injectable, signal, effect, OnDestroy } from '@angular/core';
+import { SwPush } from '@angular/service-worker';
+import { firstValueFrom } from 'rxjs';
 import {
   collection,
   deleteDoc,
@@ -9,6 +11,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  setDoc,
   updateDoc,
   where,
   Unsubscribe,
@@ -22,14 +25,24 @@ import {
   MembershipType,
   MemberNotification,
   NotificationKind,
+  PushSubscriptionDoc,
   firestoreDocToMemberNotification,
   initCachedBlogPost,
 } from '../../functions/src/data-model';
 import { getInstructorExpiryStatus } from './member-tags';
+import { environment } from '../environments/environment';
 
 export interface LocalNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
   homeEnabled: { [kind in NotificationKind]?: boolean };
+}
+
+// The subset of PushSubscription.toJSON() we rely on: the endpoint plus the two
+// keys the Web Push protocol requires. Typed explicitly so we read concrete
+// properties rather than an index signature.
+interface WebPushSubscriptionJson {
+  endpoint?: string;
+  keys?: { p256dh: string; auth: string };
 }
 
 @Injectable({
@@ -37,6 +50,9 @@ export interface LocalNotificationSettings {
 })
 export class NotificationService implements OnDestroy {
   private firebaseService = inject(FirebaseStateService);
+  // Optional: SwPush is provided by provideServiceWorker in the running app,
+  // but absent in unit tests and SSR — guard on it before use.
+  private swPush = inject(SwPush, { optional: true });
   private db = getFirestore(this.firebaseService.app);
 
   public notifications = signal<MemberNotification[]>([]);
@@ -44,6 +60,10 @@ export class NotificationService implements OnDestroy {
   // notifications view is mounted via subscribeToAllNotifications().
   public allNotifications = signal<MemberNotification[]>([]);
   public permissionStatus = signal<NotificationPermission>('default');
+  // Whether THIS browser/device currently holds an active web-push subscription.
+  // Reflects the live SwPush subscription so the settings UI can show a per-device
+  // on/off state.
+  public pushDeviceEnabled = signal<boolean>(false);
   public localSettings = signal<LocalNotificationSettings>({
     pushEnabled: {},
     homeEnabled: {},
@@ -56,6 +76,9 @@ export class NotificationService implements OnDestroy {
   // The member doc ID we have already run blog-post catch-up for this session,
   // so the auth effect re-firing (e.g. on member doc updates) doesn't re-run it.
   private blogSyncedForMemberDocId: string | null = null;
+  // The member doc ID we have already registered a web-push subscription for
+  // this session, to avoid redundant re-subscriptions on effect re-fires.
+  private pushSubscribedForMemberDocId: string | null = null;
 
   // Maximum number of catch-up blog notifications to create per blog feed.
   private static readonly MAX_BLOG_NOTIFICATIONS = 3;
@@ -73,6 +96,14 @@ export class NotificationService implements OnDestroy {
     }
     this.loadLocalSettings();
 
+    // Track this device's live push subscription so the UI reflects whether
+    // push is currently enabled here.
+    if (this.swPush?.isEnabled) {
+      this.swPush.subscription.subscribe((sub) =>
+        this.pushDeviceEnabled.set(!!sub),
+      );
+    }
+
     // Effect to react to changes in the authenticated user
     effect(() => {
       const user = this.firebaseService.user();
@@ -84,10 +115,16 @@ export class NotificationService implements OnDestroy {
         this.syncBlogPostNotifications(user.member).catch((e) =>
           console.error('Failed to sync blog post notifications:', e),
         );
+        // If the member has already granted notification permission, (re)register
+        // this device's web-push subscription so background pushes can reach them.
+        this.registerPushSubscription(user.member.docId).catch((e) =>
+          console.error('Failed to register push subscription:', e),
+        );
       } else {
         this.unsubscribe();
         this.notifications.set([]);
         this.blogSyncedForMemberDocId = null;
+        this.pushSubscribedForMemberDocId = null;
       }
     });
   }
@@ -110,7 +147,120 @@ export class NotificationService implements OnDestroy {
     }
     const permission = await Notification.requestPermission();
     this.permissionStatus.set(permission);
+    // On a fresh grant, register this device for background web push.
+    if (permission === 'granted') {
+      const memberDocId = this.firebaseService.user()?.member?.docId;
+      if (memberDocId) {
+        this.registerPushSubscription(memberDocId).catch((e) =>
+          console.error('Failed to register push subscription:', e),
+        );
+      }
+    }
     return permission;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Web Push subscription
+  // ---------------------------------------------------------------------------
+
+  // True when web push can be used on this device at all (service worker active
+  // and a VAPID key configured). The UI uses this to show/hide push controls.
+  public get isPushSupported(): boolean {
+    return !!this.swPush?.isEnabled && !!environment.vapidPublicKey;
+  }
+
+  // Turns on push for THIS device: requests notification permission if needed,
+  // then registers the subscription. Returns true if the device ends up enabled.
+  public async enablePushOnThisDevice(): Promise<boolean> {
+    const memberDocId = this.firebaseService.user()?.member?.docId;
+    if (!memberDocId || !this.isPushSupported) return false;
+
+    let permission = this.permissionStatus();
+    if (permission !== 'granted') {
+      permission = await this.requestPermission(); // also registers on grant
+    } else {
+      await this.registerPushSubscription(memberDocId);
+    }
+    return permission === 'granted' && this.pushDeviceEnabled();
+  }
+
+  // Turns off push for THIS device: removes the stored subscription document and
+  // unsubscribes the browser. Other devices are unaffected.
+  public async disablePushOnThisDevice(): Promise<void> {
+    if (!this.swPush?.isEnabled) return;
+    const memberDocId = this.firebaseService.user()?.member?.docId;
+    try {
+      const sub = await firstValueFrom(this.swPush.subscription);
+      const endpoint = (sub?.toJSON() as WebPushSubscriptionJson | undefined)?.endpoint;
+      if (memberDocId && endpoint) {
+        const subId = await this.hashString(endpoint);
+        await deleteDoc(doc(this.db, 'members', memberDocId, 'pushSubscriptions', subId));
+      }
+      await this.swPush.unsubscribe();
+    } catch (e) {
+      console.error('Failed to disable push on this device:', e);
+    } finally {
+      // Allow a later re-enable to re-subscribe.
+      this.pushSubscribedForMemberDocId = null;
+    }
+  }
+
+  // Registers this device's Web Push subscription under the member so the
+  // push-sending Cloud Function can deliver background notifications. No-ops
+  // unless the service worker is active, a VAPID public key is configured, and
+  // the user has granted notification permission. Safe to call repeatedly.
+  private async registerPushSubscription(memberDocId: string): Promise<void> {
+    if (this.pushSubscribedForMemberDocId === memberDocId) return;
+    if (!this.swPush?.isEnabled) return; // SW not active (e.g. dev server / unsupported)
+    if (!environment.vapidPublicKey) return; // web push not configured
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      return;
+    }
+    this.pushSubscribedForMemberDocId = memberDocId;
+
+    try {
+      const sub = await this.swPush.requestSubscription({
+        serverPublicKey: environment.vapidPublicKey,
+      });
+      const json = sub.toJSON() as WebPushSubscriptionJson;
+      const endpoint = json.endpoint;
+      const keys = json.keys;
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        console.warn('Push subscription missing endpoint/keys; skipping store.');
+        return;
+      }
+
+      // Key the doc by a hash of the endpoint so the same device overwrites its
+      // own entry rather than accumulating duplicates.
+      const subId = await this.hashString(endpoint);
+      const docData: PushSubscriptionDoc = {
+        docId: subId,
+        endpoint,
+        keys: { p256dh: keys.p256dh, auth: keys.auth },
+        createdAt: new Date().toISOString(),
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      };
+      await setDoc(
+        doc(this.db, 'members', memberDocId, 'pushSubscriptions', subId),
+        docData,
+      );
+      this.pushDeviceEnabled.set(true);
+    } catch (e) {
+      // Reset the guard so a later attempt (e.g. after the SW becomes ready)
+      // can retry.
+      this.pushSubscribedForMemberDocId = null;
+      console.error('Failed to subscribe to web push:', e);
+    }
+  }
+
+  // SHA-256 hex digest of a string, used to derive a stable Firestore doc ID
+  // from a push endpoint (endpoints can exceed Firestore's doc-ID length limit).
+  private async hashString(input: string): Promise<string> {
+    const data = new TextEncoder().encode(input);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
   }
 
   private subscribeToNotifications(memberDocId: string) {

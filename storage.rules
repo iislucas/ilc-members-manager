@@ -67,6 +67,17 @@ service firebase.storage {
       );
     }
 
+    // Instructor public profile images (profile picture and cover image).
+    // Publicly readable. Writable by an admin or by the instructor whose
+    // member document matches {memberDocId} (checked via the ACL's
+    // memberDocIds). Stored at instructors/{memberDocId}/images/{fileId}.
+    match /instructors/{memberDocId}/images/{fileId} {
+      allow read: if true;
+      allow write: if isAdmin() || (
+        request.auth != null && memberDocId in getUserMemberDocIds()
+      );
+    }
+
     // Construct today's date as a YYYY-MM-DD string from request.time.
     // Used for lexicographic comparison against stored expiry dates.
     function todayStr() {

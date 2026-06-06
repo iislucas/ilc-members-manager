@@ -1,8 +1,17 @@
 @let i = instructor();
 <div class="instructor-card">
   <div class="row">
+    @if (i.publicProfileImageThumbUrl || i.publicProfileImageUrl) {
+      <a class="profile-thumb-link" [href]="'#/instructors/' + i.instructorId">
+        <img
+          class="profile-thumb"
+          [src]="i.publicProfileImageThumbUrl || i.publicProfileImageUrl"
+          [alt]="i.name"
+        />
+      </a>
+    }
     <div>
-      <span class="name">{{ i.name }}</span>
+      <a class="name name-link" [href]="'#/instructors/' + i.instructorId">{{ i.name }}</a>
     </div>
     <div class="identifier-chip instructor-id">
       #{{ i.instructorId }}

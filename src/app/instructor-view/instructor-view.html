@@ -1,0 +1,104 @@
+<div class="instructor-view">
+  <a class="back-link" [href]="backHref()">
+    <app-icon name="arrow_back" /> Find an Instructor
+  </a>
+
+  @if (isLoading()) {
+    <div class="center">
+      <app-spinner>Loading profile...</app-spinner>
+    </div>
+  } @else if (errorMessage(); as err) {
+    <div class="error-message">{{ err }}</div>
+  } @else if (instructor(); as i) {
+    <div class="profile-header">
+      <div class="cover" [class.no-cover]="!i.publicCoverImageUrl">
+        @if (i.publicCoverImageUrl) {
+          <img [src]="i.publicCoverImageUrl" alt="Cover image" class="cover-image" />
+        }
+      </div>
+      <div class="header-body">
+        @if (i.publicProfileImageUrl) {
+          <img [src]="i.publicProfileImageUrl" alt="Profile picture" class="profile-image" />
+        } @else {
+          <div class="profile-image placeholder">
+            <app-icon name="salut" />
+          </div>
+        }
+        <div class="header-text">
+          <div class="name-row">
+            <h2>{{ i.name }}</h2>
+            <span class="identifier-chip instructor-id">#{{ i.instructorId }}</span>
+          </div>
+
+          <div class="level-info">
+            @if (i.studentLevel) {
+              <span class="level-chip">Student {{ i.studentLevel }}</span>
+            }
+            @if (i.applicationLevel) {
+              <span class="level-chip">Application {{ i.applicationLevel }}</span>
+            }
+            @for (master of i.mastersLevels; track master) {
+              <span class="level-chip master">{{ master }}</span>
+            }
+            @for (tag of i.tags; track tag) {
+              <span class="tag-chip">{{ tag }}</span>
+            }
+          </div>
+
+          @if (locationLine(); as location) {
+            <div class="location">
+              <app-icon name="location_on" width="16px" height="16px" />
+              <span>{{ location }}</span>
+              <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="icon-link">
+                <app-icon name="map" width="16px" height="16px" />
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="contact-row">
+      @if (i.instructorWebsite) {
+        <a class="contact-link" [href]="ensureUrl(i.instructorWebsite)" target="_blank" rel="noopener noreferrer">
+          <app-icon name="link" width="16px" height="16px" /> {{ stripUrlPrefix(i.instructorWebsite) }}
+        </a>
+      }
+      @if (i.publicEmail) {
+        <a class="contact-link" [href]="'mailto:' + i.publicEmail">{{ i.publicEmail }}</a>
+      }
+      @if (i.publicPhone) {
+        <a class="contact-link" [href]="'tel:' + i.publicPhone">{{ i.publicPhone }}</a>
+      }
+      @if (i.publicClassGoogleCalendarId) {
+        <a class="contact-link" [href]="'#/calendar/instructor/' + i.instructorId">
+          <app-icon name="calendar_today" width="16px" height="16px" /> Class Calendar
+        </a>
+      }
+    </div>
+
+    @if (i.publicBioMarkdown) {
+      <section class="bio-section">
+        <h3>About</h3>
+        <app-markdown-viewer [markdown]="i.publicBioMarkdown" />
+      </section>
+    }
+
+    <section class="events-section">
+      <h3>Upcoming Events</h3>
+      @if (eventsLoading()) {
+        <app-spinner>Loading events...</app-spinner>
+      } @else if (upcomingEvents().length > 0) {
+        <div class="events-list">
+          @for (ev of upcomingEvents(); track ev.docId) {
+            <a class="event-card-link" [href]="eventHref(ev)">
+              <app-event-item [event]="ev" />
+            </a>
+          }
+        </div>
+      } @else {
+        <p class="note">No upcoming events listed.</p>
+      }
+    </section>
+  }
+</div>

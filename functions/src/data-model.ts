@@ -351,6 +351,15 @@ export enum NotificationKind {
   GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
   GradingInstructorAdded = 'GradingInstructorAdded',
   GradingInstructorRemoved = 'GradingInstructorRemoved',
+  // Sent to the student when a grading is purchased, guiding them to the next
+  // step (e.g. choosing an instructor) for that grading.
+  GradingPurchased = 'GradingPurchased',
+  // Sent to the student when a grading result is recorded.
+  GradingPassed = 'GradingPassed',
+  GradingNotPassed = 'GradingNotPassed',
+  // Sent to a member when one of their purchases (membership, license, video
+  // library, grading, etc.) has been processed/fulfilled.
+  PurchaseFulfilled = 'PurchaseFulfilled',
   // BlogPost covers all types of blog posts (including Members Area Blog, Instructors Blog,
   // and Zoom Classes which are cached as blog posts). Instead of individual kinds,
   // a BlogPost notification specifies the collection query path (blogPath), optional
@@ -399,6 +408,15 @@ export interface NotificationEventData {
   title: string;
 }
 
+export interface NotificationPurchaseData {
+  // The human-readable order number (or order doc ID) this notification is
+  // about; used for de-duplication so an order is only announced once.
+  orderId: string;
+  // A short human-readable summary of what was purchased, e.g.
+  // "Annual Membership, Video Library Access".
+  summary: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -421,12 +439,28 @@ export type MemberNotification = MemberNotificationCommon & (
     data: NotificationInstructorGradingData;
   }
   | {
+    kind: NotificationKind.GradingPurchased;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingPassed;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingNotPassed;
+    data: NotificationGradingData;
+  }
+  | {
     kind: NotificationKind.BlogPost;
     data: NotificationBlogPostData;
   }
   | {
     kind: NotificationKind.NewEventPosted;
     data: NotificationEventData;
+  }
+  | {
+    kind: NotificationKind.PurchaseFulfilled;
+    data: NotificationPurchaseData;
   }
 );
 
@@ -435,6 +469,19 @@ export interface MemberNotificationSettings {
   homeEnabled: { [kind in NotificationKind]?: boolean };
   globalPushEnabled?: boolean;
 }
+
+// A single Web Push subscription for one of a member's devices/browsers.
+// Firestore path: /members/{memberDocId}/pushSubscriptions/{subId}
+// The {subId} is a SHA-256 hash of the endpoint so the same device re-subscribing
+// overwrites its entry rather than creating duplicates. Written by the client
+// (via SwPush) and read/pruned by the push-sending Cloud Function.
+export type PushSubscriptionDoc = {
+  docId: string;
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  createdAt: string; // ISO string
+  userAgent?: string;
+};
 
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
@@ -480,6 +527,14 @@ export type Member = {
   publicCountyOrState: string; // publicly listed county or state
   instructorWebsite: string; // Optional website URL
   publicClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
+
+  // Public instructor profile media (shown on the instructor's public page).
+  // URLs point to Firebase Storage under instructors/{docId}/images/.
+  publicProfileImageUrl: string; // Square profile picture (large, e.g. 400x400).
+  publicProfileImageThumbUrl: string; // Square profile thumbnail (e.g. 96x96), used in cards.
+  publicCoverImageUrl: string; // Cover/banner image (800x600).
+  // Markdown self-description shown on the instructor's public profile page.
+  publicBioMarkdown: string;
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -559,6 +614,12 @@ export type InstructorPublicData = {
   memberId: string; // ILC Member Id: UNIQUE
   instructorWebsite: string; // Optional website URL
   publicClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
+
+  // Public profile media and self-description, mirrored from the Member.
+  publicProfileImageUrl: string; // Square profile picture (large).
+  publicProfileImageThumbUrl: string; // Square profile thumbnail, used in cards.
+  publicCoverImageUrl: string; // Cover/banner image (800x600).
+  publicBioMarkdown: string; // Markdown self-description.
 
   // Level information
   studentLevel: StudentLevel; // e.g., 'Certified Instructor', 'Student Teacher'
@@ -781,6 +842,12 @@ export function initMember(): Member {
     instructorWebsite: '', // Optional publicly listed website URL
     publicClassGoogleCalendarId: '', // Optional Google Calendar ID for public class schedule
 
+    // Public instructor profile media.
+    publicProfileImageUrl: '',
+    publicProfileImageThumbUrl: '',
+    publicCoverImageUrl: '',
+    publicBioMarkdown: '',
+
     // Student membership status
     memberId: '',
     primaryInstructorId: '', // ILC Member Number of the member's Sifu
@@ -960,6 +1027,10 @@ export function initInstructor(): InstructorPublicData {
     memberId: '',
     instructorWebsite: '',
     publicClassGoogleCalendarId: '',
+    publicProfileImageUrl: '',
+    publicProfileImageThumbUrl: '',
+    publicCoverImageUrl: '',
+    publicBioMarkdown: '',
     studentLevel: StudentLevel.None,
     applicationLevel: ApplicationLevel.None,
     mastersLevels: [],

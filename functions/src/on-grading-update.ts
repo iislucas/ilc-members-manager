@@ -6,57 +6,17 @@ import {
 import * as admin from 'firebase-admin';
 import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
+import { createMemberNotification } from './notifications';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
 
+// Thin wrapper around the shared helper, binding the module-level db handle.
 async function createNotification(
   memberDocId: string,
   notification: Omit<MemberNotification, 'docId'>,
 ): Promise<void> {
-  // Generalised de-duplication:
-  // If the new notification is associated with a specific entity (e.g. gradingDocId or eventId),
-  // delete any existing active/dismissed notifications for that same entity for this member.
-  const data = notification.data as any;
-  if (data) {
-    let query: admin.firestore.Query = db
-      .collection('members')
-      .doc(memberDocId)
-      .collection('notifications');
-
-    let hasKey = false;
-    if (data.gradingDocId) {
-      query = query.where('data.gradingDocId', '==', data.gradingDocId);
-      hasKey = true;
-    } else if (data.eventId) {
-      query = query.where('data.eventId', '==', data.eventId);
-      hasKey = true;
-    }
-
-    if (hasKey) {
-      const snap = await query.get();
-      if (!snap.empty) {
-        const batch = db.batch();
-        for (const doc of snap.docs) {
-          batch.delete(doc.ref);
-        }
-        await batch.commit();
-      }
-    }
-  }
-
-  const notifRef = db
-    .collection('members')
-    .doc(memberDocId)
-    .collection('notifications')
-    .doc(); // Auto ID
-
-  const fullNotification: MemberNotification = {
-    ...notification,
-    docId: notifRef.id,
-  } as MemberNotification;
-
-  await notifRef.set(fullNotification);
+  await createMemberNotification(db, memberDocId, notification);
 }
 
 async function cancelAndDismissGradingNotifications(
@@ -268,6 +228,32 @@ export const onGradingCreated = onDocumentCreated(
         });
     }
 
+    // Notify the student that their grading was purchased, guiding them to the
+    // next step. Skipped when the grading still needs admin review (it isn't
+    // yet actionable by the student) or has no linked student.
+    if (grading.studentMemberDocId && grading.status !== GradingStatus.RequiresReview) {
+      const awaitingInstructor = grading.status === GradingStatus.AwaitingRequest;
+      const gradingHref = `#/gradings/${gradingDocId}`;
+      const msg = awaitingInstructor
+        ? `🥋 Your grading for **${grading.level}** is ready! Next step: choose the instructor who will grade you. ` +
+          `[Open your grading](${gradingHref}) to select your instructor and send your request.`
+        : `🥋 Your grading for **${grading.level}** has been set up and your request has been sent to your selected instructor. ` +
+          `[View your grading](${gradingHref}) to track its progress.`;
+      await createNotification(
+        grading.studentMemberDocId,
+        {
+          markdown: msg,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingPurchased,
+          data: {
+            gradingDocId,
+            level: grading.level,
+          },
+        }
+      );
+    }
+
     // Notify the instructor of new request
     if (grading.status === GradingStatus.AwaitingAcceptance && grading.gradingInstructorId) {
       const instructorMemberDocId = await findInstructorMemberDocId(grading.gradingInstructorId);
@@ -442,6 +428,52 @@ export const onGradingUpdated = onDocumentUpdated(
       } else {
         logger.warn(
           `Could not find student with memberId ${grading.studentMemberId} to update level.`,
+        );
+      }
+    }
+
+    // Notify the student when their grading result is recorded.
+    if (grading.studentMemberDocId) {
+      const gradingHref = `#/gradings/${gradingDocId}`;
+      if (
+        grading.status === GradingStatus.Passed &&
+        previous.status !== GradingStatus.Passed
+      ) {
+        await createNotification(
+          grading.studentMemberDocId,
+          {
+            markdown:
+              `🎉 Congratulations! You passed your grading for **${grading.level}**. ` +
+              `Wonderful work — savour the moment, and enjoy the journey ahead. ` +
+              `[See your instructor's notes](${gradingHref}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingPassed,
+            data: {
+              gradingDocId,
+              level: grading.level,
+            },
+          }
+        );
+      } else if (
+        grading.status === GradingStatus.NotPassed &&
+        previous.status !== GradingStatus.NotPassed
+      ) {
+        await createNotification(
+          grading.studentMemberDocId,
+          {
+            markdown:
+              `🙏 Your grading result for **${grading.level}** is in. Not quite this time — ` +
+              `but every grading is a step forward, and your instructor's notes will help guide your practice. ` +
+              `[Read your feedback](${gradingHref}) and keep going!`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingNotPassed,
+            data: {
+              gradingDocId,
+              level: grading.level,
+            },
+          }
         );
       }
     }

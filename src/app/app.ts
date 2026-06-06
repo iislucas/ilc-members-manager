@@ -9,6 +9,7 @@ import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
 import { AppPathPatterns, Views } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
+import { InstructorViewComponent } from './instructor-view/instructor-view';
 import { FindInstructorsService } from './find-instructors.service';
 import { SchoolListComponent } from './school-list/school-list';
 import { SchoolEditComponent } from './school-edit/school-edit';
@@ -58,6 +59,7 @@ import { APP_VERSION } from './version';
     ImportExportComponent,
     SpinnerComponent,
     FindAnInstructorComponent,
+    InstructorViewComponent,
     SchoolListComponent,
     SchoolEditComponent,
     SchoolMembersComponent,
@@ -107,10 +109,12 @@ export class App {
   public loadedOrderTitle = signal<string | null>(null);
   public loadedSchoolTitle = signal<string | null>(null);
   public loadedGradingTitle = signal<string | null>(null);
+  public loadedInstructorTitle = signal<string | null>(null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
     Views.FindAnInstructor,
+    Views.InstructorView,
     Views.FindSchool,
     Views.EventsCalendar,
     Views.EventView,
@@ -137,6 +141,9 @@ export class App {
   }
   onGradingTitleLoaded(title: string) {
     this.loadedGradingTitle.set(title);
+  }
+  onInstructorTitleLoaded(title: string) {
+    this.loadedInstructorTitle.set(title);
   }
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
@@ -195,6 +202,8 @@ export class App {
         baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
       } else if (view === Views.SchoolCalendarView) {
         baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
+      } else if (view === Views.InstructorView) {
+        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
       } else if (view === Views.EventsCalendar) {
         // No parent breadcrumb needed for events
       } else if (view === Views.EventView) {
@@ -311,6 +320,9 @@ export class App {
       if (view !== Views.GradingView) {
         this.loadedGradingTitle.set(null);
       }
+      if (view !== Views.InstructorView) {
+        this.loadedInstructorTitle.set(null);
+      }
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
       if (isLoggedOut && (!view || view === Views.Home)) {
@@ -363,6 +375,8 @@ export class App {
         return 'Manage Members';
       case Views.FindAnInstructor:
         return 'Find an Instructor';
+      case Views.InstructorView:
+        return this.loadedInstructorTitle() || 'Instructor';
       case Views.ManageSchools:
         return 'Manage Schools';
       case Views.ManageSchoolEdit:

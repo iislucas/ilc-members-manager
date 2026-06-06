@@ -630,6 +630,43 @@ export class DataManagerService {
     }
   }
 
+  // Returns the forthcoming listed events the given instructor is involved in,
+  // either as the leading instructor (matched by human-readable instructorId)
+  // or as the event owner/manager (matched by their member document ID).
+  // Only events that have not yet ended are returned, sorted soonest-first.
+  // Uses three equality queries (no composite index required) and merges them.
+  async getUpcomingEventsForInstructor(
+    instructorId: string,
+    instructorDocId: string,
+  ): Promise<IlcEvent[]> {
+    if (!instructorId && !instructorDocId) return [];
+    const queries = [];
+    if (instructorId) {
+      queries.push(query(this.eventsCollection, where('leadingInstructorId', '==', instructorId)));
+    }
+    if (instructorDocId) {
+      queries.push(query(this.eventsCollection, where('ownerDocId', '==', instructorDocId)));
+      queries.push(query(this.eventsCollection, where('managerDocIds', 'array-contains', instructorDocId)));
+    }
+
+    try {
+      const snaps = await Promise.all(queries.map((q) => getDocs(q)));
+      const merged = new Map<string, IlcEvent>();
+      for (const snap of snaps) {
+        for (const d of snap.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+      }
+      const now = new Date().toISOString();
+      return Array.from(merged.values())
+        .filter((ev) => ev.status === EventStatus.Listed && (ev.end || ev.start) >= now)
+        .sort((a, b) => a.start.localeCompare(b.start));
+    } catch (error) {
+      console.error('Error getting upcoming events for instructor:', error);
+      return [];
+    }
+  }
+
   async getGradingById(id: string): Promise<Grading | undefined> {
     if (!id) return undefined;
     const cached = this.gradings.get(id) ?? this.myGradings.get(id) ?? this.myGradingsAssessed.get(id);

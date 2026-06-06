@@ -4,12 +4,13 @@
   It also exposes standard push permission prompts and triggers manual test alerts.
 */
 
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
-import { NotificationKind } from '../../../../functions/src/data-model';
+import { DataManagerService } from '../../data-manager.service';
+import { Member, NotificationKind } from '../../../../functions/src/data-model';
 import { IconComponent } from '../../icons/icon.component';
 
 @Component({
@@ -23,11 +24,74 @@ import { IconComponent } from '../../icons/icon.component';
 export class NotificationSettingsComponent {
   protected notificationService = inject(NotificationService);
   private firebaseService = inject(FirebaseStateService);
+  private dataManager = inject(DataManagerService);
 
   protected localSettings = this.notificationService.localSettings;
   protected permissionStatus = this.notificationService.permissionStatus;
   protected currentUser = this.firebaseService.user;
   protected notificationKinds = Object.values(NotificationKind);
+
+  // Whether web push is usable on this device (SW active + VAPID key configured).
+  protected get pushSupported(): boolean {
+    return this.notificationService.isPushSupported;
+  }
+
+  // This device's live push subscription state.
+  protected pushDeviceEnabled = this.notificationService.pushDeviceEnabled;
+
+  // Account-wide (server-side) push master switch. The per-device control can
+  // only be turned on while this is enabled.
+  protected globalPushEnabled = computed(
+    () => this.currentUser()?.member?.notificationSettings?.globalPushEnabled === true,
+  );
+
+  // In-flight flag to disable controls while a server/device toggle is saving.
+  protected pushBusy = signal(false);
+
+  // Persist the account-wide push master switch to the member document.
+  async setGlobalPush(enabled: boolean) {
+    const member = this.currentUser()?.member;
+    if (!member) return;
+    this.pushBusy.set(true);
+    try {
+      const updated: Member = {
+        ...member,
+        notificationSettings: {
+          pushEnabled: {},
+          homeEnabled: {},
+          ...member.notificationSettings,
+          globalPushEnabled: enabled,
+        },
+      };
+      await this.dataManager.updateMember(member.docId, updated, member);
+      // Turning the account switch off leaves device subscriptions in place but
+      // the server won't send; for a clean state, also unsubscribe this device.
+      if (!enabled) {
+        await this.notificationService.disablePushOnThisDevice();
+      }
+    } catch (e) {
+      console.error('Failed to update account push setting', e);
+    } finally {
+      this.pushBusy.set(false);
+    }
+  }
+
+  // Enable/disable web push on this specific device.
+  async toggleDevicePush(enabled: boolean) {
+    if (enabled && !this.globalPushEnabled()) return; // gated on the account switch
+    this.pushBusy.set(true);
+    try {
+      if (enabled) {
+        await this.notificationService.enablePushOnThisDevice();
+      } else {
+        await this.notificationService.disablePushOnThisDevice();
+      }
+    } catch (e) {
+      console.error('Failed to toggle device push', e);
+    } finally {
+      this.pushBusy.set(false);
+    }
+  }
 
   setAllPush(enabled: boolean) {
     const updated: { [kind in NotificationKind]?: boolean } = {};
@@ -75,10 +139,18 @@ export class NotificationSettingsComponent {
         return 'Assigned as Grading Instructor';
       case NotificationKind.GradingInstructorRemoved:
         return 'Removed as Grading Instructor';
+      case NotificationKind.GradingPurchased:
+        return 'Grading Purchased';
+      case NotificationKind.GradingPassed:
+        return 'Grading Passed';
+      case NotificationKind.GradingNotPassed:
+        return 'Grading Result (Not Passed)';
       case NotificationKind.BlogPost:
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:
         return 'New Event Posted';
+      case NotificationKind.PurchaseFulfilled:
+        return 'Purchase Processed';
       default:
         return kind;
     }
