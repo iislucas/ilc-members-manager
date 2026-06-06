@@ -23,6 +23,7 @@ import {
 import {
   IlcEvent,
   InstructorPublicData,
+  School,
   firestoreDocToInstructorPublicData,
 } from '../../../functions/src/data-model';
 import { collection, getDocs, getFirestore, query, where, limit } from 'firebase/firestore';
@@ -60,6 +61,9 @@ export class InstructorViewComponent implements OnInit {
 
   upcomingEvents = signal<IlcEvent[]>([]);
   eventsLoading = signal(false);
+
+  schools = signal<School[]>([]);
+  schoolsLoading = signal(false);
 
   backHref = computed(() => this.routingService.hrefForView(Views.FindAnInstructor, {}));
 
@@ -119,6 +123,7 @@ export class InstructorViewComponent implements OnInit {
         this.instructor.set(instructor);
         this.titleLoaded.emit(instructor.name);
         this.loadUpcomingEvents(instructor);
+        this.loadSchools(instructor);
       } else {
         this.errorMessage.set('Instructor not found.');
         this.titleLoaded.emit('Instructor Not Found');
@@ -142,5 +147,27 @@ export class InstructorViewComponent implements OnInit {
     } finally {
       this.eventsLoading.set(false);
     }
+  }
+
+  private async loadSchools(instructor: InstructorPublicData) {
+    if (!instructor.instructorId) return;
+    this.schoolsLoading.set(true);
+    try {
+      const schools = await this.dataService.getSchoolsForInstructor(instructor.instructorId);
+      this.schools.set(schools);
+    } finally {
+      this.schoolsLoading.set(false);
+    }
+  }
+
+  // A short location summary line for a school.
+  schoolLocation(school: School): string {
+    return [school.schoolCity, school.schoolCountyOrState, school.schoolCountry]
+      .filter((p) => !!p)
+      .join(', ');
+  }
+
+  schoolHref(school: School): string {
+    return `#/find-school?schoolId=${encodeURIComponent(school.schoolId)}`;
   }
 }

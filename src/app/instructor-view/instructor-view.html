@@ -84,6 +84,26 @@
       </section>
     }
 
+    @if (schoolsLoading() || schools().length > 0) {
+      <section class="schools-section">
+        <h3>Schools</h3>
+        @if (schoolsLoading()) {
+          <app-spinner>Loading schools...</app-spinner>
+        } @else {
+          <div class="schools-list">
+            @for (school of schools(); track school.docId) {
+              <a class="school-card-link" [href]="schoolHref(school)">
+                <span class="school-name">{{ school.schoolName }}</span>
+                @if (schoolLocation(school); as loc) {
+                  <span class="school-location">{{ loc }}</span>
+                }
+              </a>
+            }
+          </div>
+        }
+      </section>
+    }
+
     <section class="events-section">
       <h3>Upcoming Events</h3>
       @if (eventsLoading()) {

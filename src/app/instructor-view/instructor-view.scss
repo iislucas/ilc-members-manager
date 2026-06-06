@@ -141,11 +141,43 @@
 }
 
 .bio-section,
-.events-section {
+.events-section,
+.schools-section {
   h3 {
     margin-bottom: 0.6em;
     border-bottom: 1px solid $border-color-light;
     padding-bottom: 0.3em;
+  }
+}
+
+.schools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.school-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid $border-color-light;
+  border-radius: 8px;
+  padding: 0.6em 0.8em;
+  background: white;
+
+  &:hover {
+    background: $theme-bg-color;
+  }
+
+  .school-name {
+    font-weight: bold;
+  }
+
+  .school-location {
+    font-size: 0.9rem;
+    color: $text-secondary;
   }
 }
 

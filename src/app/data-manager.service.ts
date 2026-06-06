@@ -681,6 +681,29 @@ export class DataManagerService {
     }
   }
 
+  // Returns the schools the given instructor owns or manages, matched by their
+  // human-readable instructorId. Schools are publicly readable, so this works
+  // on the public instructor profile page without an authenticated session.
+  // Uses two equality queries (no composite index required) and merges them.
+  async getSchoolsForInstructor(instructorId: string): Promise<School[]> {
+    if (!instructorId) return [];
+    try {
+      const ownerQ = query(this.schoolsCollection, where('ownerInstructorId', '==', instructorId));
+      const managerQ = query(this.schoolsCollection, where('managerInstructorIds', 'array-contains', instructorId));
+      const [ownerSnap, managerSnap] = await Promise.all([getDocs(ownerQ), getDocs(managerQ)]);
+      const merged = new Map<string, School>();
+      for (const snap of [ownerSnap, managerSnap]) {
+        for (const d of snap.docs) {
+          merged.set(d.id, firestoreDocToSchool(d));
+        }
+      }
+      return Array.from(merged.values()).sort((a, b) => a.schoolName.localeCompare(b.schoolName));
+    } catch (error) {
+      console.error('Error getting schools for instructor:', error);
+      return [];
+    }
+  }
+
   async getGradingById(id: string): Promise<Grading | undefined> {
     if (!id) return undefined;
     const cached = this.gradings.get(id) ?? this.myGradings.get(id) ?? this.myGradingsAssessed.get(id);

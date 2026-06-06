@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   InstructorPublicData,
   Member,
@@ -16,6 +16,9 @@ import { IconComponent } from '../icons/icon.component';
 })
 export class InstructorCardComponent {
   instructor = input.required<InstructorPublicData>();
+
+  // Link to the instructor's dedicated public profile page (hash route).
+  profileHref = computed(() => `#/instructors/${this.instructor().instructorId}`);
 
   ensureUrl(url: string | undefined): string {
     if (!url) {

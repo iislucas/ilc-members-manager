@@ -2,7 +2,7 @@
 <div class="instructor-card">
   <div class="row">
     @if (i.publicProfileImageThumbUrl || i.publicProfileImageUrl) {
-      <a class="profile-thumb-link" [href]="'#/instructors/' + i.instructorId">
+      <a class="profile-thumb-link" [href]="profileHref()">
         <img
           class="profile-thumb"
           [src]="i.publicProfileImageThumbUrl || i.publicProfileImageUrl"
@@ -11,7 +11,7 @@
       </a>
     }
     <div>
-      <a class="name name-link" [href]="'#/instructors/' + i.instructorId">{{ i.name }}</a>
+      <a class="name name-link" [href]="profileHref()">{{ i.name }}</a>
     </div>
     <div class="identifier-chip instructor-id">
       #{{ i.instructorId }}

@@ -288,7 +288,20 @@ app-member-row-header {
   }
 }
 
+// The bio editor row: stack the prompt note and the editor, each filling the
+// full width of the grid cell (the editor would otherwise collapse to 0 width
+// inside the flex-wrap .rhs row).
+.bio-rhs {
+  flex-direction: column;
+  align-items: stretch;
+
+  .note {
+    width: 100%;
+  }
+}
+
 .bio-editor-container {
+  width: 100%;
   border: 1px solid v.$border-color-light;
   border-radius: 4px;
   background: white;
@@ -297,5 +310,6 @@ app-member-row-header {
   app-markdown-editor {
     display: block;
     width: 100%;
+    min-height: 200px;
   }
 }
