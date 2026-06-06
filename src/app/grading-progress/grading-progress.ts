@@ -100,21 +100,12 @@ export class GradingProgressComponent implements OnDestroy {
 
   // --- Display helpers ---
   // Always render students in the standard "(MemberId) Student Name" form.
-  // Some gradings have an empty or stale studentMemberDocId, so fall back to
-  // resolving the member by their human-readable memberId before giving up.
   studentName = computed(() => {
     const g = this.grading();
-    const member =
-      (g.studentMemberDocId
-        ? this.dataService.getMemberByDocId(g.studentMemberDocId)
-        : undefined) ??
-      (g.studentMemberId
-        ? this.dataService.getMemberByMemberId(g.studentMemberId)
-        : undefined);
-    if (member) {
-      return `(${member.memberId}) ${member.name}`;
-    }
-    return g.studentMemberId || g.studentMemberDocId || '';
+    return this.dataService.memberDisplayName(
+      g.studentMemberDocId,
+      g.studentMemberId,
+    );
   });
 
   gradingInstructor = computed(() => {

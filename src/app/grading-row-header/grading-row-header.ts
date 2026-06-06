@@ -29,10 +29,18 @@ export class GradingRowHeaderComponent {
   getPrettyGradingStatus = getPrettyGradingStatus;
 
   studentName = computed(() => {
-    const docId = this.grading().studentMemberDocId;
-    if (!docId) return '';
-    const member = this.dataService.members.get(docId);
-    return member ? `(${member.memberId}) ${member.name}` : (this.grading().studentMemberId || docId);
+    const g = this.grading();
+    return this.dataService.memberDisplayName(
+      g.studentMemberDocId,
+      g.studentMemberId,
+    );
+  });
+
+  // The date of the grading: the grading event date once it's known, otherwise
+  // the date the grading was purchased/requested so the row always shows a date.
+  gradingDate = computed(() => {
+    const g = this.grading();
+    return g.gradingEventDate || g.gradingPurchaseDate || '';
   });
 
   eventLink = computed(() => {

@@ -16,6 +16,7 @@ describe('GradingRowHeaderComponent', () => {
     mockDataManagerService = {
       members: { entries: () => [], get: () => undefined },
       instructors: { entries: () => [], get: () => undefined },
+      memberDisplayName: () => '',
     };
 
     await TestBed.configureTestingModule({

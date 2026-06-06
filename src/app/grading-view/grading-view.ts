@@ -80,13 +80,11 @@ export class GradingViewComponent {
   private _emitTitle = effect(() => {
     const g = this.grading();
     if (g) {
-      const studentMemberId = g.studentMemberId;
-      const member = this.dataService.members
-        .entries()
-        .find((m) => m.memberId === studentMemberId);
-      const studentLabel = member
-        ? `(${member.memberId}) ${member.name}`
-        : studentMemberId || 'Unknown Student';
+      const studentLabel =
+        this.dataService.memberDisplayName(
+          g.studentMemberDocId,
+          g.studentMemberId,
+        ) || 'Unknown Student';
       this.titleLoaded.emit(`Grading: ${studentLabel}`);
     } else if (!this.loading()) {
       this.titleLoaded.emit('Grading Not Found');

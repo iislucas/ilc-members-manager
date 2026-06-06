@@ -67,6 +67,7 @@ describe('GradingViewComponent', () => {
         loading: () => false,
       } as never,
       members: { entries: () => [] } as never,
+      memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',
       updateGrading: () => Promise.resolve(),
       getGradingById: () => Promise.resolve({ ...initGrading(), docId: '123', studentMemberId: 'student-1' }),
       loadingState: (() => 'Loaded') as never,

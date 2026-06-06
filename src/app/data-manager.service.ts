@@ -251,6 +251,20 @@ export class DataManagerService {
     return this.members.get(idOrDocId) ?? this.getMemberByMemberId(idOrDocId);
   }
 
+  // Standard "(memberId) Name" display form for a member referenced by a
+  // grading. Resolves the member by docId first, then by human-readable
+  // memberId (some gradings have a stale/empty studentMemberDocId). Falls back
+  // to whatever identifier we have when the member document isn't loaded.
+  memberDisplayName(memberDocId: string, memberId: string): string {
+    const member =
+      (memberDocId ? this.getMemberByDocId(memberDocId) : undefined) ??
+      (memberId ? this.getMemberByMemberId(memberId) : undefined);
+    if (member) {
+      return member.memberId ? `(${member.memberId}) ${member.name}` : member.name;
+    }
+    return memberId || memberDocId || '';
+  }
+
   // Reactive map from memberId to docId for the logged-in instructor's students.
   public myStudentIdToDocIdMap = computed(() => {
     const map = new Map<string, string>();

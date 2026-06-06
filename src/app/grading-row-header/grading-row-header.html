@@ -27,8 +27,8 @@
     <span class="instructor-info">Instructor: {{ instructorName() }}</span>
   }
 
-  @if (g.gradingEventDate) {
-    <span class="event-date">{{ g.gradingEventDate }}</span>
+  @if (gradingDate()) {
+    <span class="event-date">{{ gradingDate() }}</span>
   }
 
   @if (g.gradingEvent) {
