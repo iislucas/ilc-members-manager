@@ -379,9 +379,19 @@ export interface NotificationInstructorGradingData {
 }
 
 export interface NotificationBlogPostData {
+  // The Firestore collection the post lives in, e.g. 'members-post' or
+  // 'instructors-post'. Doubles as the per-blog "feed" key when finding the
+  // last post the member has already been notified about.
   blogPath: string;
   blogCategory: string;
+  // ISO date string of the post this notification is about (its publishOn).
+  // The most recent value across a member's BlogPost notifications acts as the
+  // cut-off for deciding which newer posts still need a notification.
   lastSeenDateStr: string;
+  // Identifies the specific post, used for linking and de-duplication so the
+  // same post is never surfaced twice. Optional for backwards compatibility.
+  blogPostId?: string;
+  blogPostUrlId?: string;
 }
 
 export interface NotificationEventData {

@@ -3,8 +3,11 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   getFirestore,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   updateDoc,
   where,
@@ -12,7 +15,17 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { FirebaseStateService } from './firebase-state.service';
-import { MemberNotification, NotificationKind, firestoreDocToMemberNotification } from '../../functions/src/data-model';
+import {
+  CachedBlogPost,
+  ExpiryStatus,
+  Member,
+  MembershipType,
+  MemberNotification,
+  NotificationKind,
+  firestoreDocToMemberNotification,
+  initCachedBlogPost,
+} from '../../functions/src/data-model';
+import { getInstructorExpiryStatus } from './member-tags';
 
 export interface LocalNotificationSettings {
   pushEnabled: { [kind in NotificationKind]?: boolean };
@@ -40,6 +53,19 @@ export class NotificationService implements OnDestroy {
   private allUnsub: Unsubscribe | null = null;
   private pushedIdsKey = 'pushedNotificationDocIds';
   private isFirstSnapshot = true;
+  // The member doc ID we have already run blog-post catch-up for this session,
+  // so the auth effect re-firing (e.g. on member doc updates) doesn't re-run it.
+  private blogSyncedForMemberDocId: string | null = null;
+
+  // Maximum number of catch-up blog notifications to create per blog feed.
+  private static readonly MAX_BLOG_NOTIFICATIONS = 3;
+
+  // The blog feeds we surface notifications for. `route` is the hash-router
+  // path prefix used to deep-link to an individual post by its urlId.
+  private static readonly BLOG_FEEDS: { collection: string; label: string; route: string }[] = [
+    { collection: 'members-post', label: 'the Members Area', route: 'members-area/post' },
+    { collection: 'instructors-post', label: "the Instructors' Area", route: 'instructors-area/post' },
+  ];
 
   constructor() {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -52,9 +78,16 @@ export class NotificationService implements OnDestroy {
       const user = this.firebaseService.user();
       if (user && user.member && user.member.docId) {
         this.subscribeToNotifications(user.member.docId);
+        // Catch the member up on any blog posts published since they were last
+        // notified. Runs once per member per session; failures are logged and
+        // never block notification subscriptions.
+        this.syncBlogPostNotifications(user.member).catch((e) =>
+          console.error('Failed to sync blog post notifications:', e),
+        );
       } else {
         this.unsubscribe();
         this.notifications.set([]);
+        this.blogSyncedForMemberDocId = null;
       }
     });
   }
@@ -144,6 +177,132 @@ export class NotificationService implements OnDestroy {
       this.allUnsub();
       this.allUnsub = null;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blog post catch-up notifications
+  // ---------------------------------------------------------------------------
+
+  // Whether this member currently has an active membership (and so should see
+  // members-area blog posts). Mirrors the access gate used by the members-area
+  // blog component so notifications never link to content they can't read.
+  private isActiveMember(member: Member): boolean {
+    if (member.membershipType === MembershipType.Life) return true;
+    if (
+      member.membershipType === MembershipType.Inactive ||
+      member.membershipType === MembershipType.Deceased
+    ) {
+      return false;
+    }
+    if (!member.currentMembershipExpires) return false;
+    return new Date(member.currentMembershipExpires) > new Date();
+  }
+
+  // Whether this member is an active, licensed instructor (and so should see
+  // instructors-area blog posts).
+  private isActiveInstructor(member: Member): boolean {
+    if (!member.instructorId) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return getInstructorExpiryStatus(member, today) === ExpiryStatus.Valid;
+  }
+
+  // Surfaces up to the latest few blog posts (per accessible feed) the member
+  // hasn't been notified about yet, newest first. Idempotent: it uses the
+  // member's own BlogPost notifications to find the last post they've already
+  // seen and only adds notifications for posts published since.
+  private async syncBlogPostNotifications(member: Member): Promise<void> {
+    if (this.blogSyncedForMemberDocId === member.docId) return;
+    this.blogSyncedForMemberDocId = member.docId;
+
+    for (const feed of NotificationService.BLOG_FEEDS) {
+      const hasAccess =
+        feed.collection === 'instructors-post'
+          ? this.isActiveInstructor(member)
+          : this.isActiveMember(member);
+      if (!hasAccess) continue;
+
+      try {
+        await this.syncBlogFeedNotifications(member.docId, feed);
+      } catch (e) {
+        console.error(`Failed to sync blog notifications for ${feed.collection}:`, e);
+      }
+    }
+  }
+
+  private async syncBlogFeedNotifications(
+    memberDocId: string,
+    feed: { collection: string; label: string; route: string },
+  ): Promise<void> {
+    const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
+
+    // Find the most recent post (and the set of post IDs) we've already
+    // notified this member about for this feed. We read all BlogPost
+    // notifications (a single-field filter, so no composite index needed) and
+    // narrow to this feed client-side.
+    const existingSnap = await getDocs(
+      query(notifCollection, where('kind', '==', NotificationKind.BlogPost)),
+    );
+    let cutoffMs = 0;
+    const notifiedPostIds = new Set<string>();
+    existingSnap.forEach((d) => {
+      const data = (d.data() as MemberNotification).data as {
+        blogPath?: string;
+        lastSeenDateStr?: string;
+        blogPostId?: string;
+      };
+      if (!data || data.blogPath !== feed.collection) return;
+      if (data.blogPostId) notifiedPostIds.add(data.blogPostId);
+      const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
+      if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
+    });
+
+    // Query the latest posts: only those newer than the cut-off, or simply the
+    // latest few the first time (no prior cut-off). `publishOn` is ms-epoch.
+    const postsCollection = collection(this.db, feed.collection);
+    const max = NotificationService.MAX_BLOG_NOTIFICATIONS;
+    const postsQuery =
+      cutoffMs > 0
+        ? query(
+            postsCollection,
+            where('publishOn', '>', cutoffMs),
+            orderBy('publishOn', 'desc'),
+            limit(max),
+          )
+        : query(postsCollection, orderBy('publishOn', 'desc'), limit(max));
+
+    const postsSnap = await getDocs(postsQuery);
+    if (postsSnap.empty) return;
+
+    // Newest first; skip any post we've already notified about.
+    const posts = postsSnap.docs
+      .map((d) => ({ ...initCachedBlogPost(), ...(d.data() as CachedBlogPost) }))
+      .filter((p) => p.id && !notifiedPostIds.has(p.id));
+    if (posts.length === 0) return;
+
+    const batch = writeBatch(this.db);
+    for (const post of posts) {
+      const ref = doc(notifCollection); // auto-generated ID
+      const link = `#/${feed.route}/${post.urlId}`;
+      // Stamp the notification with the post's publish date (not "now") so the
+      // date shown on the card reflects when the post was published.
+      const publishedIso = new Date(post.publishOn || 0).toISOString();
+      const notification: MemberNotification = {
+        docId: ref.id,
+        markdown: `New post in ${feed.label}: [${post.title || 'Untitled'}](${link})`,
+        createdAt: publishedIso,
+        dismissed: false,
+        kind: NotificationKind.BlogPost,
+        data: {
+          blogPath: feed.collection,
+          blogCategory: '',
+          lastSeenDateStr: publishedIso,
+          blogPostId: post.id,
+          blogPostUrlId: post.urlId,
+        },
+      };
+      batch.set(ref, notification);
+    }
+    await batch.commit();
   }
 
   private seedPushedCache(activeNotifications: MemberNotification[]) {
