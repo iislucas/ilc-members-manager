@@ -20,7 +20,7 @@
           @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
             <div class="header-detail">
               <app-icon name="person"></app-icon>
-              <a class="subtle-button" [href]="'#/find-an-instructor?instructorId=' + school.ownerInstructorId">{{ owner.name }}</a>
+              <a class="subtle-button" [href]="'#/instructors/' + school.ownerInstructorId">{{ owner.name }}</a>
             </div>
           }
           <div class="header-detail">

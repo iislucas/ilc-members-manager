@@ -51,7 +51,7 @@ export class EventItemComponent {
     if (prefix) {
       return `${prefix}${encodeURIComponent(id)}`;
     }
-    return `#/find-an-instructor?instructorId=${encodeURIComponent(id)}`;
+    return `#/instructors/${encodeURIComponent(id)}`;
   });
 
   // Resolve the event owner (contact) to a display label.
@@ -77,7 +77,7 @@ export class EventItemComponent {
     if (prefix) {
       return `${prefix}${encodeURIComponent(owner.instructorId)}`;
     }
-    return `#/find-an-instructor?instructorId=${encodeURIComponent(owner.instructorId)}`;
+    return `#/instructors/${encodeURIComponent(owner.instructorId)}`;
   });
 
   readonly expandMoreName = 'expand_more' as const;

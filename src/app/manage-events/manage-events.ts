@@ -369,7 +369,7 @@ export class ManageEventsComponent implements OnDestroy {
     const id = event.leadingInstructorId;
     if (!id) return '';
     return this.routingService.hrefWithParams(
-      `/find-an-instructor?instructorId=${encodeURIComponent(id)}`,
+      `/instructors/${encodeURIComponent(id)}`,
     );
   }
 
