@@ -195,6 +195,28 @@ async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<
 }
 
 /**
+ * Resolve the student's primary instructor (sifu) to notify about a grading
+ * action, plus the student's display name. Returns undefined (i.e. don't
+ * notify) when the student has no resolvable primary instructor, or when the
+ * sifu is the member who performed the action (`actorMemberDocId`) or is the
+ * student themselves. `actorMemberDocId` is who accepted or recorded the
+ * result, so the sifu is never notified about their own action.
+ */
+async function resolvePrimaryInstructorToNotify(
+  grading: Grading,
+  actorMemberDocId: string,
+): Promise<{ sifuMemberDocId: string; studentName: string } | undefined> {
+  const primaryInstructorId = await getPrimaryInstructorId(grading.studentMemberDocId);
+  if (!primaryInstructorId) return undefined;
+  const sifuMemberDocId = await findInstructorMemberDocId(primaryInstructorId);
+  if (!sifuMemberDocId) return undefined;
+  if (sifuMemberDocId === actorMemberDocId) return undefined;
+  if (sifuMemberDocId === grading.studentMemberDocId) return undefined;
+  const studentName = await getMemberName(grading.studentMemberDocId, 'Your student');
+  return { sifuMemberDocId, studentName };
+}
+
+/**
  * Mirror the grading to all relevant instructors (primary + assistants + sifu).
  */
 async function mirrorGradingToAllInstructors(
@@ -550,6 +572,26 @@ export const onGradingUpdated = onDocumentUpdated(
             },
           }
         );
+        // Also notify the student's primary instructor (sifu), unless they are
+        // the one who recorded the result.
+        const sifu = await resolvePrimaryInstructorToNotify(
+          grading,
+          grading.statusChangedByMemberDocId,
+        );
+        if (sifu) {
+          await createNotification(sifu.sifuMemberDocId, {
+            markdown:
+              `🎉 Your student **${sifu.studentName}** passed their grading for **${grading.level}**. ` +
+              `[See the result](${gradingHref}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingPassed,
+            data: {
+              gradingDocId,
+              level: grading.level,
+            },
+          });
+        }
       } else if (
         grading.status === GradingStatus.NotPassed &&
         previous.status !== GradingStatus.NotPassed
@@ -570,6 +612,26 @@ export const onGradingUpdated = onDocumentUpdated(
             },
           }
         );
+        // Also notify the student's primary instructor (sifu), unless they are
+        // the one who recorded the result.
+        const sifu = await resolvePrimaryInstructorToNotify(
+          grading,
+          grading.statusChangedByMemberDocId,
+        );
+        if (sifu) {
+          await createNotification(sifu.sifuMemberDocId, {
+            markdown:
+              `Your student **${sifu.studentName}**'s grading result for **${grading.level}** is in: ` +
+              `not passed this time. [See the result](${gradingHref}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingNotPassed,
+            data: {
+              gradingDocId,
+              level: grading.level,
+            },
+          });
+        }
       }
     }
 
@@ -623,6 +685,30 @@ export const onGradingUpdated = onDocumentUpdated(
           },
         }
       );
+
+      // Also notify the student's primary instructor (sifu) that their
+      // student's grading request was accepted, unless the sifu is the one who
+      // accepted it.
+      const sifu = await resolvePrimaryInstructorToNotify(
+        grading,
+        grading.acceptedByMemberDocId,
+      );
+      if (sifu) {
+        const gradingHref = `#/gradings/${gradingDocId}`;
+        const acceptorName = grading.acceptedByName || 'a grading manager';
+        await createNotification(sifu.sifuMemberDocId, {
+          markdown:
+            `Your student **${sifu.studentName}**'s grading request for **${grading.level}** ` +
+            `has been accepted by **${acceptorName}**. [Open the grading](${gradingHref}).`,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingRequestAccepted,
+          data: {
+            gradingDocId,
+            level: grading.level,
+          },
+        });
+      }
     }
 
     // Notify student if instructor declined grading request
