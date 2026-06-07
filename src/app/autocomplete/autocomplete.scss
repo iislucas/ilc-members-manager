@@ -25,7 +25,8 @@
     cursor: pointer;
   }
 
-  li:hover {
+  li:hover,
+  li.highlighted {
     background-color: #f0f0f0;
   }
 }

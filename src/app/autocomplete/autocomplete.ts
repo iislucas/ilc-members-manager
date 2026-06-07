@@ -41,10 +41,11 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   textUpdated = output<string>();
   searchTerm = linkedSignal(() => this.initSearchTerm());
   showResults = signal(false);
+  highlightedIndex = signal(-1);
 
   filteredItems = computed(() => {
     const items = this.searchableSet().search(this.searchTerm(), this.searchOptions());
-    return items.length === 1 && items[0][this.idField()].toLowerCase() === this.searchTerm().toLowerCase() ? 
+    return items.length === 1 && items[0][this.idField()].toLowerCase() === this.searchTerm().toLowerCase() ?
       this.searchableSet().entries() : items;
   });
 
@@ -52,6 +53,42 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
     const updatedText = (event.target as HTMLInputElement).value;
     this.textUpdated.emit(updatedText);
     this.searchTerm.set(updatedText);
+    this.highlightedIndex.set(-1);
+  }
+
+  onKeydown(event: KeyboardEvent) {
+    const items = this.filteredItems();
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        if (!this.showResults()) {
+          this.showResults.set(true);
+        }
+        if (items.length > 0) {
+          this.highlightedIndex.set((this.highlightedIndex() + 1) % items.length);
+        }
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        if (items.length > 0) {
+          this.highlightedIndex.set(
+            (this.highlightedIndex() - 1 + items.length) % items.length,
+          );
+        }
+        break;
+      case 'Enter': {
+        const item = items[this.highlightedIndex()];
+        if (this.showResults() && item) {
+          event.preventDefault();
+          this.selectItem(item);
+        }
+        break;
+      }
+      case 'Escape':
+        this.showResults.set(false);
+        this.highlightedIndex.set(-1);
+        break;
+    }
   }
 
   selectItem(item: T) {
@@ -62,6 +99,7 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
     this.searchTerm.set(newText);
     this.textUpdated.emit(newText);
     this.showResults.set(false);
+    this.highlightedIndex.set(-1);
   }
 
   onFocus() {
