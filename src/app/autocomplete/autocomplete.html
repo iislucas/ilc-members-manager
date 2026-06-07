@@ -6,15 +6,20 @@
     [disabled]="disabled()"
     [value]="searchTerm()"
     (input)="onSearchTermChange($event)"
+    (keydown)="onKeydown($event)"
     (focus)="onFocus()"
     (blur)="onBlur()"
     autocomplete="off"
   />
 
   @if (showResults() && filteredItems().length > 0) {
-    <ul class="results-list">
-      @for (item of filteredItems(); track item[idField()]) {
-        <li (mousedown)="selectItem(item)">
+    <ul class="results-list" #menu>
+      @for (item of filteredItems(); track item[idField()]; let i = $index) {
+        <li
+          (mousedown)="selectItem(item)"
+          (mouseenter)="highlightedIndex.set(i)"
+          [class.highlighted]="i === highlightedIndex()"
+        >
           @if (inputBoxIsChip()) {
             @if (item[idField()]) {
               <span class="identifier-chip">{{ chip(item) }}</span>

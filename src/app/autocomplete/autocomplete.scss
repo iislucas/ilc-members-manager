@@ -11,10 +11,15 @@
   list-style-type: none;
   margin: 0;
   padding: 0;
-  max-width: max-content;
+  // Grow to fit the content rather than being capped at the input width,
+  // but never overflow the viewport. The exact max-width / left offset are
+  // refined in TS (fitMenuToViewport) once the menu is measured.
+  width: max-content;
+  min-width: 100%;
+  max-width: calc(100vw - 2em);
   z-index: 1;
   max-height: 10em;
-  overflow-y: scroll;
+  overflow-y: auto;
 
   li {
     display: flex;
@@ -25,7 +30,8 @@
     cursor: pointer;
   }
 
-  li:hover {
+  li:hover,
+  li.highlighted {
     background-color: #f0f0f0;
   }
 }
