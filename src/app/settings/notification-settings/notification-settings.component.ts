@@ -135,10 +135,10 @@ export class NotificationSettingsComponent {
         return 'Grading Request Declined';
       case NotificationKind.GradingRequestsYouAsInstructor:
         return 'Grading Request Sent to You';
-      case NotificationKind.GradingInstructorAdded:
-        return 'Assigned as Grading Instructor';
-      case NotificationKind.GradingInstructorRemoved:
-        return 'Removed as Grading Instructor';
+      case NotificationKind.GradingManagerAdded:
+        return 'Added as Grading Manager';
+      case NotificationKind.GradingManagerRemoved:
+        return 'Removed as Grading Manager';
       case NotificationKind.GradingPurchased:
         return 'Grading Purchased';
       case NotificationKind.GradingPassed:

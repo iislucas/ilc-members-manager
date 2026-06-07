@@ -28,6 +28,7 @@ import {
 import {
   Grading,
   GradingStatus,
+  IlcEvent,
   InstructorPublicData,
   Member,
 } from '../../../functions/src/data-model';
@@ -70,12 +71,37 @@ export class GradingProgressComponent implements OnDestroy {
     return this.grading().studentMemberDocId === user.member.docId;
   });
 
-  // Returns true for the primary instructor AND for grading managers (stored in
-  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration).
-  // Both roles share the same edit permissions.
+  // The event this grading is linked to (if any), loaded live by gradingEventDocId.
+  // Used to derive event-organizer/manager grading-manager status.
+  private linkedEvent = signal<IlcEvent | undefined>(undefined);
+  private _loadLinkedEvent = effect(async () => {
+    const docId = this.grading().gradingEventDocId;
+    if (!docId) {
+      this.linkedEvent.set(undefined);
+      return;
+    }
+    this.linkedEvent.set(await this.dataService.getEventById(docId));
+  });
+
+  // True when the current user is the organizer or a manager of the linked
+  // event. Such users become managers of the grading (derived live from the
+  // link, never cached on the grading).
+  userIsEventManager = computed(() => {
+    const user = this.firebaseState.user();
+    const event = this.linkedEvent();
+    if (!user || !event) return false;
+    const docId = user.member.docId;
+    return event.ownerDocId === docId || (event.managerDocIds || []).includes(docId);
+  });
+
+  // Returns true for the primary instructor, for grading managers (stored in
+  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration),
+  // and for the organizer/managers of a linked event. All share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
-    if (!user || !user.member.instructorId) return false;
+    if (!user) return false;
+    if (this.userIsEventManager()) return true;
+    if (!user.member.instructorId) return false;
     return user.member.instructorId === this.grading().gradingInstructorId ||
       (this.grading().assistantInstructorIds || []).includes(user.member.instructorId);
   });
@@ -97,6 +123,25 @@ export class GradingProgressComponent implements OnDestroy {
   canEditStudentFields = computed(
     () => this.userIsStudent(),
   );
+
+  // Name of whoever accepted the grading, for the "Accepted by X" display.
+  acceptedByName = computed(() => this.grading().acceptedByName);
+
+  // Name of whoever last changed the status, for the "Moved back by X" display.
+  statusActorName = computed(() => this.grading().statusChangedByName);
+
+  // The student may change the linked event at any time until the grading is
+  // finalised (passed/not-passed/in-review). Managers/admins can edit it too.
+  canEditEvent = computed(() => {
+    if (this.canEditGradingDetails()) return true;
+    const status = this.grading().status;
+    return (
+      this.userIsStudent() &&
+      status !== GradingStatus.Passed &&
+      status !== GradingStatus.NotPassed &&
+      status !== GradingStatus.RequiresReview
+    );
+  });
 
   // --- Display helpers ---
   // Always render students in the standard "(MemberId) Student Name" form.
@@ -279,6 +324,7 @@ export class GradingProgressComponent implements OnDestroy {
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
       status: instructorId ? GradingStatus.AwaitingAcceptance : GradingStatus.AwaitingRequest,
+      ...this.statusActorFields(),
     };
 
     if (this.grading().status === GradingStatus.Declined) {
@@ -338,6 +384,7 @@ export class GradingProgressComponent implements OnDestroy {
       gradingEvent: '',
       gradingEventDate: '',
       status: GradingStatus.AwaitingRequest,
+      ...this.statusActorFields(),
     });
     this.isEditingRequest.set(false);
     this.isSaving.set(false);
@@ -364,17 +411,43 @@ export class GradingProgressComponent implements OnDestroy {
     this.gradingUpdated.emit({
       status: GradingStatus.Declined,
       declineNotes: this.editDeclineNotes(),
+      // Declining undoes the acceptance, so clear the acceptance milestone.
       instructorAcceptedDate: '',
+      acceptedByMemberDocId: '',
+      acceptedByName: '',
+      ...this.statusActorFields(),
     });
     this.isSaving.set(false);
+  }
+
+  // The current logged-in user's member docId + display name.
+  private currentActor(): { docId: string; name: string } {
+    const member = this.firebaseState.user()?.member;
+    return { docId: member?.docId ?? '', name: member?.name ?? '' };
+  }
+
+  // The "who last changed the status" fields, stamped with the current user on
+  // every workflow status transition so the UI can show "Moved back by X" and
+  // co-managers can be told who acted.
+  private statusActorFields(): Partial<Grading> {
+    const actor = this.currentActor();
+    return {
+      statusChangedByMemberDocId: actor.docId,
+      statusChangedByName: actor.name,
+    };
   }
 
   acceptAndGradeMyself() {
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
+    const actor = this.currentActor();
     this.gradingUpdated.emit({
       status: GradingStatus.AwaitingGrading,
       instructorAcceptedDate: today,
+      // Record both the acceptance milestone and the latest status actor.
+      acceptedByMemberDocId: actor.docId,
+      acceptedByName: actor.name,
+      ...this.statusActorFields(),
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
     });
@@ -393,6 +466,7 @@ export class GradingProgressComponent implements OnDestroy {
       resultNotes: this.editResultNotes(),
       gradingInstructorId: this.editInstructorId(),
       assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+      ...this.statusActorFields(),
     };
     this.gradingUpdated.emit(update);
     this.isSaving.set(false);

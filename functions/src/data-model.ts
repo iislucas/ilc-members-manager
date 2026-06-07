@@ -349,8 +349,13 @@ export enum NotificationKind {
   GradingRequestAccepted = 'GradingRequestAccepted',
   GradingRequestDeclined = 'GradingRequestDeclined',
   GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
-  GradingInstructorAdded = 'GradingInstructorAdded',
-  GradingInstructorRemoved = 'GradingInstructorRemoved',
+  // Sent to someone who has become a manager of a grading (the primary/assistant
+  // grading instructors, or the organizer/managers of an event the grading is
+  // linked to). The string values are kept as 'GradingInstructorAdded'/'...Removed'
+  // for backward compatibility with already-stored notifications and per-kind
+  // notification settings.
+  GradingManagerAdded = 'GradingInstructorAdded',
+  GradingManagerRemoved = 'GradingInstructorRemoved',
   // Sent to the student when a grading is purchased, guiding them to the next
   // step (e.g. choosing an instructor) for that grading.
   GradingPurchased = 'GradingPurchased',
@@ -385,6 +390,11 @@ export interface NotificationInstructorGradingData {
   gradingDocId: string;
   studentName: string;
   level: string;
+  // When the manager role came from an event the grading is linked to, these
+  // carry the event context for the message/link. Absent for instructor-role
+  // additions not tied to an event.
+  eventDocId?: string;
+  eventTitle?: string;
 }
 
 export interface NotificationBlogPostData {
@@ -431,11 +441,11 @@ export type MemberNotification = MemberNotificationCommon & (
     data: NotificationInstructorGradingData;
   }
   | {
-    kind: NotificationKind.GradingInstructorAdded;
+    kind: NotificationKind.GradingManagerAdded;
     data: NotificationInstructorGradingData;
   }
   | {
-    kind: NotificationKind.GradingInstructorRemoved;
+    kind: NotificationKind.GradingManagerRemoved;
     data: NotificationInstructorGradingData;
   }
   | {
@@ -970,6 +980,18 @@ export type Grading = {
   notes: string; // Any notes about the grading.
   studentNotes: string; // Optional note from the student when requesting the grading.
   instructorAcceptedDate: string; // YYYY-MM-DD, date the instructor accepted.
+  // Who accepted the grading request (a distinct milestone — the manager who
+  // took it on). Set when the status moves to AwaitingGrading; cleared if it is
+  // later declined. '' if never accepted. The name is a denormalized snapshot so
+  // it displays without a member lookup.
+  acceptedByMemberDocId: string; // Firestore doc ID of the accepting member.
+  acceptedByName: string; // Display name of the accepting member at the time.
+  // Who most recently changed the grading's status via the workflow (accept,
+  // decline, revert, record result). Used to show "Moved back by X" and to tell
+  // co-managers who acted. Distinct from acceptedBy*: this tracks the latest
+  // status transition regardless of kind. '' until the first status change.
+  statusChangedByMemberDocId: string; // Firestore doc ID of the member who acted.
+  statusChangedByName: string; // Display name of that member at the time.
   resultNotes: string; // Notes from the grading/assigned instructor to the student after grading.
   declineNotes: string; // Notes from the instructor explaining why they declined.
   reviewIssue: string; // Store the issue/reason when grading processing requires admin review.
@@ -1014,6 +1036,10 @@ export function initGrading(): Grading {
     notes: '',
     studentNotes: '',
     instructorAcceptedDate: '',
+    acceptedByMemberDocId: '',
+    acceptedByName: '',
+    statusChangedByMemberDocId: '',
+    statusChangedByName: '',
     resultNotes: '',
     declineNotes: '',
     reviewIssue: '',

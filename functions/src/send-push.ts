@@ -43,10 +43,10 @@ function notificationTitle(kind: NotificationKind): string {
       return 'Grading request update';
     case NotificationKind.GradingRequestsYouAsInstructor:
       return 'New grading request';
-    case NotificationKind.GradingInstructorAdded:
-      return 'Assigned to a grading';
-    case NotificationKind.GradingInstructorRemoved:
-      return 'Grading assignment update';
+    case NotificationKind.GradingManagerAdded:
+      return 'Grading request';
+    case NotificationKind.GradingManagerRemoved:
+      return 'Grading request update';
     case NotificationKind.GradingPurchased:
       return 'Your grading is ready 🥋';
     case NotificationKind.GradingPassed:

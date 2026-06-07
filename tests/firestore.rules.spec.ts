@@ -778,6 +778,84 @@ describe('Firestore Rules', () => {
         }),
       );
     });
+
+    describe('Event-linked grading managers', () => {
+      // member1 (a non-instructor) owns/manages the event; grading-2 is the
+      // grading linked to that event.
+      beforeEach(async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          const db = context.firestore();
+          await db.collection('events').doc('event-linked').set({
+            title: 'Spring Gathering',
+            ownerDocId: 'FirestoreDocID-member1',
+            managerDocIds: ['FirestoreDocID-instructor2'],
+            status: 'listed',
+          });
+          await db.collection('gradings').doc('grading-2').set({
+            gradingInstructorId: 'INST-001',
+            assistantInstructorIds: [],
+            studentMemberDocId: 'FirestoreDocID-student2',
+            schoolId: '',
+            schoolDocId: '',
+            status: 'awaiting-instructor-acceptance',
+            gradingEventDocId: 'event-linked',
+            lastUpdated: new Date(),
+          });
+        });
+      });
+
+      it('should allow the event owner (non-instructor) to read a linked grading', async () => {
+        const db = testEnv
+          .authenticatedContext('member1', { email: 'member1@ilc.com' })
+          .firestore();
+        await assertSucceeds(db.collection('gradings').doc('grading-2').get());
+      });
+
+      it('should allow an event manager to read a linked grading', async () => {
+        const db = testEnv
+          .authenticatedContext('instructor2', { email: 'instructor2@ilc.com' })
+          .firestore();
+        await assertSucceeds(db.collection('gradings').doc('grading-2').get());
+      });
+
+      it('should allow the event owner to accept and record who changed the status', async () => {
+        const db = testEnv
+          .authenticatedContext('member1', { email: 'member1@ilc.com' })
+          .firestore();
+        await assertSucceeds(
+          db.collection('gradings').doc('grading-2').update({
+            status: 'awaiting-instructor-grading',
+            instructorAcceptedDate: '2026-06-07',
+            acceptedByMemberDocId: 'FirestoreDocID-member1',
+            acceptedByName: 'Test Member 1',
+            statusChangedByMemberDocId: 'FirestoreDocID-member1',
+            statusChangedByName: 'Test Member 1',
+            lastUpdated: serverTimestamp(),
+          }),
+        );
+      });
+
+      it('should deny event owner access once the grading is unlinked from the event', async () => {
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await context
+            .firestore()
+            .collection('gradings')
+            .doc('grading-2')
+            .update({ gradingEventDocId: '' });
+        });
+        const db = testEnv
+          .authenticatedContext('member1', { email: 'member1@ilc.com' })
+          .firestore();
+        await assertFails(db.collection('gradings').doc('grading-2').get());
+      });
+
+      it('should deny an unrelated member from reading a linked grading', async () => {
+        const db = testEnv
+          .authenticatedContext('other_user', { email: 'other@test.com' })
+          .firestore();
+        await assertFails(db.collection('gradings').doc('grading-2').get());
+      });
+    });
   });
 
   describe('Member Notifications Subcollection', () => {
