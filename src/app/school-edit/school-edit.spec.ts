@@ -15,7 +15,7 @@ import {
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { initSchool, School, initMember, Member } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
-import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { User } from 'firebase/auth';
 import { CountryCode } from '../country-codes';
 
@@ -70,6 +70,7 @@ describe('SchoolEditComponent', () => {
         provideZonelessChangeDetection(),
         { provide: DataManagerService, useValue: dataManagerServiceMock },
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
+        { provide: FIREBASE_APP, useValue: {} },
         {
           provide: ROUTING_CONFIG,
           useValue: {

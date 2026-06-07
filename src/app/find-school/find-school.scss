@@ -69,6 +69,15 @@
         margin: 0.5em 0 0.5em 0;
         color: v.$text-primary;
         font-size: 0.95rem;
+
+        .school-name-link {
+          color: inherit;
+          text-decoration: none;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
       }
 
       .school-id-chip {

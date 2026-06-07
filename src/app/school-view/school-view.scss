@@ -1,0 +1,212 @@
+@use "../../scss_variables" as *;
+@use "../../styles.scss" as *;
+
+.school-view {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5em;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  color: $text-secondary;
+  text-decoration: none;
+  width: fit-content;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 2em;
+}
+
+.profile-header {
+  border: 1px solid $border-color-light;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+
+.cover {
+  aspect-ratio: 800 / 600;
+  max-height: 280px;
+  background: $theme-bg-color;
+  overflow: hidden;
+
+  &.no-cover {
+    aspect-ratio: auto;
+    height: 96px;
+  }
+
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.header-body {
+  display: flex;
+  gap: 1em;
+  padding: 0 1.2em 1.2em;
+  align-items: flex-end;
+}
+
+.profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid white;
+  background: $theme-bg-color;
+  margin-top: -60px;
+  flex-shrink: 0;
+
+  &.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-muted;
+  }
+}
+
+.header-text {
+  flex: 1;
+  padding-bottom: 0.2em;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  margin-top: 0.6em;
+  color: $text-secondary;
+  font-size: 0.9rem;
+}
+
+.icon-link {
+  display: inline-flex;
+  color: inherit;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6em 1.2em;
+  align-items: center;
+}
+
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.bio-section,
+.people-section {
+  h3 {
+    margin-bottom: 0.6em;
+    border-bottom: 1px solid $border-color-light;
+    padding-bottom: 0.3em;
+  }
+}
+
+.people-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8em;
+}
+
+.person-card-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid $border-color-light;
+  border-radius: 8px;
+  padding: 0.5em 0.8em;
+  background: white;
+
+  &:hover {
+    background: $theme-bg-color;
+  }
+
+  .person-image {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: $theme-bg-color;
+    flex-shrink: 0;
+
+    &.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $text-muted;
+    }
+  }
+
+  .person-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .person-name {
+    font-weight: bold;
+  }
+
+  .person-role {
+    font-size: 0.85rem;
+    color: $text-secondary;
+  }
+}
+
+.note {
+  color: $text-secondary;
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .header-body {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .name-row {
+    justify-content: center;
+  }
+}

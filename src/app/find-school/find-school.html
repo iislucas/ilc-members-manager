@@ -15,7 +15,7 @@
         @if (school.schoolId) {
           <span class="school-id-chip">{{ school.schoolId }}</span>
         }
-        <h3>{{ school.schoolName }}</h3>
+        <h3><a class="school-name-link" [href]="'#/school-profile/' + school.schoolId">{{ school.schoolName }}</a></h3>
         <div class="school-header-details">
           @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
             <div class="header-detail">

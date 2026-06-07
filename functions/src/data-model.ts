@@ -302,6 +302,13 @@ export type School = {
   schoolWebsite: string; // Optional website URL
   schoolClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
 
+  // Public profile page fields. Shown on the school's dedicated public profile
+  // page (mirrors the instructor profile page).
+  publicProfileImageUrl: string; // Logo / profile picture (large).
+  publicProfileImageThumbUrl: string; // Logo / profile picture (thumbnail).
+  publicCoverImageUrl: string; // Cover / header image.
+  publicBioMarkdown: string; // Markdown description of the school.
+
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
   ownerInstructorId: string;
@@ -917,6 +924,10 @@ export function initSchool(): School {
     schoolCountry: '',
     schoolWebsite: '',
     schoolClassGoogleCalendarId: '',
+    publicProfileImageUrl: '',
+    publicProfileImageThumbUrl: '',
+    publicCoverImageUrl: '',
+    publicBioMarkdown: '',
     ownerInstructorId: '',
     managerInstructorIds: [],
     ownerEmails: [],

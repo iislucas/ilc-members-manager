@@ -37,6 +37,12 @@
         @case (Views.FindSchool) {
           <app-find-school></app-find-school>
         }
+        @case (Views.SchoolView) {
+          <app-school-view
+            [schoolId]="routingService.signals[Views.SchoolView].pathVars.schoolId()"
+            (titleLoaded)="onSchoolTitleLoaded($event)"
+          ></app-school-view>
+        }
         @case (Views.ClassCalendarView) {
           <app-class-calendar
             [calendarId]="instructorCalendarId()"

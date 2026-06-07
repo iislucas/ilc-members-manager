@@ -168,6 +168,6 @@ export class InstructorViewComponent implements OnInit {
   }
 
   schoolHref(school: School): string {
-    return `#/find-school?schoolId=${encodeURIComponent(school.schoolId)}`;
+    return this.routingService.hrefForView(Views.SchoolView, { schoolId: school.schoolId });
   }
 }

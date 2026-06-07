@@ -74,6 +74,36 @@
   align-items: center;
 }
 
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+
+  .profile-image-preview {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid v.$border-color-light;
+  }
+
+  .cover-image-preview {
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 800 / 600;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid v.$border-color-light;
+  }
+
+  .image-actions {
+    display: flex;
+    gap: 10px;
+  }
+}
+
 .deleting-status {
   display: flex;
   align-items: center;
