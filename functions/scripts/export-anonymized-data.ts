@@ -38,7 +38,13 @@ if (!projectId) {
 // Output directory
 // ============================================================
 const outputDir = path.resolve(__dirname, '../../tmp/seed-data');
+// Subcollection JSON files live in their own folder to keep the top-level
+// directory (one file per top-level collection) easy to scan. Files keep the
+// `{parent}__{parentId}__{subcollection}.json` naming; seed-emulator.ts reads
+// them back from here.
+const subcollectionsDir = path.join(outputDir, 'subcollections');
 fs.mkdirSync(outputDir, { recursive: true });
+fs.mkdirSync(subcollectionsDir, { recursive: true });
 
 // ============================================================
 // Firebase Admin init
@@ -151,6 +157,13 @@ function save(filename: string, data: unknown): void {
   console.log(`  Saved ${filePath} (${(Array.isArray(data) ? data.length : 1)} docs)`);
 }
 
+// Save a subcollection file into the subcollections/ sub-folder.
+function saveSub(filename: string, data: unknown): void {
+  const filePath = path.join(subcollectionsDir, filename);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  console.log(`  Saved ${filePath} (${(Array.isArray(data) ? data.length : 1)} docs)`);
+}
+
 // ============================================================
 // Main
 // ============================================================
@@ -187,7 +200,7 @@ async function main(): Promise<void> {
           sub === 'members'
             ? subDocs.map((m) => anonymiseMember(m, (m['memberId'] as string) || m.id))
             : subDocs;
-        save(`schools__${s.id}__${sub}.json`, anonymised);
+        saveSub(`schools__${s.id}__${sub}.json`, anonymised);
         console.log(`    schools/${schoolId}/${sub}: ${subDocs.length} docs`);
       }
     }
@@ -211,7 +224,7 @@ async function main(): Promise<void> {
           sub === 'members'
             ? subDocs.map((m) => anonymiseMember(m, (m['memberId'] as string) || m.id))
             : subDocs;
-        save(`instructors__${inst.id}__${sub}.json`, anonymised);
+        saveSub(`instructors__${inst.id}__${sub}.json`, anonymised);
         console.log(`    instructors/${instructorId}/${sub}: ${subDocs.length} docs`);
       }
     }
