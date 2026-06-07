@@ -13,6 +13,8 @@ import {
   IlcEvent,
   initEvent,
   EventStatus,
+  School,
+  initSchool,
 } from '../../../functions/src/data-model';
 
 // Mock firebase/firestore so the direct-fetch fallback and getFirestore are inert.
@@ -47,6 +49,7 @@ describe('InstructorViewComponent', () => {
 
     mockDataManagerService = {
       getUpcomingEventsForInstructor: vi.fn().mockResolvedValue([]),
+      getSchoolsForInstructor: vi.fn().mockResolvedValue([]),
     };
 
     await TestBed.configureTestingModule({
@@ -94,5 +97,14 @@ describe('InstructorViewComponent', () => {
     await (component as unknown as { loadInstructor: () => Promise<void> }).loadInstructor();
     expect(component.upcomingEvents().length).toBe(1);
     expect(component.upcomingEvents()[0].title).toBe('Workshop');
+  });
+
+  it('should surface schools the instructor owns or manages', async () => {
+    const school: School = { ...initSchool(), docId: 's-1', schoolId: 'SCH-1', schoolName: 'Test School' };
+    (mockDataManagerService.getSchoolsForInstructor as ReturnType<typeof vi.fn>).mockResolvedValue([school]);
+    await (component as unknown as { loadInstructor: () => Promise<void> }).loadInstructor();
+    expect(mockDataManagerService.getSchoolsForInstructor).toHaveBeenCalledWith('I-101');
+    expect(component.schools().length).toBe(1);
+    expect(component.schools()[0].schoolName).toBe('Test School');
   });
 });
