@@ -4,6 +4,11 @@ import {
   onDocumentDeleted,
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+// Use the modular FieldValue export rather than `admin.firestore.FieldValue`:
+// the namespaced accessor is `undefined` inside the Functions emulator runtime,
+// which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
+// named import works in both the emulator and production.
+import { FieldValue } from 'firebase-admin/firestore';
 import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
@@ -47,7 +52,7 @@ async function cancelAndDismissGradingNotifications(
     batch.update(doc.ref, {
       markdown: updatedMarkdown,
       dismissed: true,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: FieldValue.serverTimestamp(),
     });
   }
   await batch.commit();
@@ -201,6 +206,8 @@ async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<
  * sifu is the member who performed the action (`actorMemberDocId`) or is the
  * student themselves. `actorMemberDocId` is who accepted or recorded the
  * result, so the sifu is never notified about their own action.
+ *
+ * story: docs/user-stories/grading-sifu-notifications.md
  */
 async function resolvePrimaryInstructorToNotify(
   grading: Grading,
@@ -323,7 +330,7 @@ export const onGradingCreated = onDocumentCreated(
         .collection('members')
         .doc(grading.studentMemberDocId)
         .update({
-          gradingDocIds: admin.firestore.FieldValue.arrayUnion(gradingDocId),
+          gradingDocIds: FieldValue.arrayUnion(gradingDocId),
         });
     }
 
@@ -526,7 +533,7 @@ export const onGradingUpdated = onDocumentUpdated(
         const studentDoc = studentQuery.docs[0];
         const { type, value } = extractLevelValue(grading.level);
         const update: any = {
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          lastUpdated: FieldValue.serverTimestamp(),
         };
 
         if (type === 'Student') {
@@ -574,6 +581,7 @@ export const onGradingUpdated = onDocumentUpdated(
         );
         // Also notify the student's primary instructor (sifu), unless they are
         // the one who recorded the result.
+        // story: docs/user-stories/grading-sifu-notifications.md
         const sifu = await resolvePrimaryInstructorToNotify(
           grading,
           grading.statusChangedByMemberDocId,
@@ -614,6 +622,7 @@ export const onGradingUpdated = onDocumentUpdated(
         );
         // Also notify the student's primary instructor (sifu), unless they are
         // the one who recorded the result.
+        // story: docs/user-stories/grading-sifu-notifications.md
         const sifu = await resolvePrimaryInstructorToNotify(
           grading,
           grading.statusChangedByMemberDocId,
@@ -644,7 +653,7 @@ export const onGradingUpdated = onDocumentUpdated(
           .doc(previous.studentMemberDocId)
           .update({
             gradingDocIds:
-              admin.firestore.FieldValue.arrayRemove(gradingDocId),
+              FieldValue.arrayRemove(gradingDocId),
           });
       }
       // Add to new student
@@ -654,7 +663,7 @@ export const onGradingUpdated = onDocumentUpdated(
           .doc(grading.studentMemberDocId)
           .update({
             gradingDocIds:
-              admin.firestore.FieldValue.arrayUnion(gradingDocId),
+              FieldValue.arrayUnion(gradingDocId),
           });
       }
     }
@@ -688,7 +697,7 @@ export const onGradingUpdated = onDocumentUpdated(
 
       // Also notify the student's primary instructor (sifu) that their
       // student's grading request was accepted, unless the sifu is the one who
-      // accepted it.
+      // accepted it. story: docs/user-stories/grading-sifu-notifications.md
       const sifu = await resolvePrimaryInstructorToNotify(
         grading,
         grading.acceptedByMemberDocId,
@@ -859,7 +868,7 @@ async function annotateManagerNotificationsWithAcceptor(
       if (data.markdown.includes('accepted by')) continue;
       batch.update(doc.ref, {
         markdown: `${data.markdown}\n\n_Accepted by **${acceptorName}**._`,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: FieldValue.serverTimestamp(),
       });
     }
     await batch.commit();
@@ -890,7 +899,7 @@ export const onGradingDeleted = onDocumentDeleted(
         .collection('members')
         .doc(grading.studentMemberDocId)
         .update({
-          gradingDocIds: admin.firestore.FieldValue.arrayRemove(gradingDocId),
+          gradingDocIds: FieldValue.arrayRemove(gradingDocId),
         });
       // Cancel and dismiss the student's grading notifications
       await cancelAndDismissGradingNotifications(grading.studentMemberDocId, gradingDocId);
