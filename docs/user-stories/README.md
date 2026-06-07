@@ -68,8 +68,12 @@ emulator (no production data is touched). See the developer guide section
 
 ```bash
 pnpm test:rules        # Firestore security-rules tests (emulator)
-# (story-driven trigger/e2e tests are added under tests/ and wired here)
+pnpm test:e2e          # story-driven e2e tests: real Cloud Function triggers
+                       # against the Firestore + Functions emulators
 ```
+
+Story e2e tests live in `tests/e2e/<story-id>.spec.ts` with the story ID in the
+top-level `describe()` (e.g. `describe('story: grading-event-managers', …)`).
 
 ## Index
 

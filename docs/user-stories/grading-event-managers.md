@@ -41,15 +41,35 @@ tracks the event link automatically without anyone maintaining a list.
 - **Then** grading-manager access reflects the new managers without re-saving
   the grading.
 
+### Scenario: an event manager accepts the linked grading
+- **Given** a grading linked to an event with organizer O and manager M,
+  awaiting acceptance,
+- **When** manager M accepts the request (status →
+  `awaiting-instructor-grading`, recording `acceptedByMemberDocId` /
+  `acceptedByName` as M),
+- **Then** the student receives a `GradingRequestAccepted` notification,
+- **and** the other event managers' (O's) `GradingManagerAdded` notification is
+  annotated with who accepted ("Accepted by M"),
+- **and** M's own notification is **not** annotated.
+
+### Scenario: a non-instructor event manager can grade the linked grading
+- **Given** a grading linked to an event, accepted by event manager M (who is
+  not a licensed instructor),
+- **When** M records the result (e.g. `passed`),
+- **Then** the result is saved and the student is notified of it — i.e. event
+  staff can carry a grading all the way through, not just accept it.
+
 ## Implementation
 
 - Code: `functions/src/on-grading-update.ts`
   - `resolveEventManagers()`, `notifyEventManagers()`, and the event-link
     change handling in `onGradingCreated` / `onGradingUpdated`.
+  - `annotateManagerNotificationsWithAcceptor()` (the acceptance flow).
 - Access control: `firestore.rules` → `isGradingEventManager()`.
 - UI: `userIsEventManager` in the grading components.
-- Tests: _planned_ — emulator-driven trigger + rules tests under `tests/`,
-  `describe('story: grading-event-managers', …)`.
+- Tests: `tests/e2e/grading-event-managers.spec.ts`
+  (`describe('story: grading-event-managers', …)`), run against the Firebase
+  emulator via `pnpm test:e2e`.
 
 ## Notes
 

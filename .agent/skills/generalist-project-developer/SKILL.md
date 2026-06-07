@@ -197,7 +197,7 @@ pnpm start:emulator
 - **Functions not loaded**: always `pnpm build:functions` BEFORE starting the emulator. Rebuilding while the emulator runs DOES hot-reload JS, but the initial start needs a built dist.
 - **Email case**: `checkEmailStatus` lowercases emails. ACL doc IDs are always lowercase. Anonymized emails use `member-{memberId.toLowerCase()}@example.com`.
 - **Timestamp deserialization**: `firebase-admin` JSON-exports Timestamps as `{_seconds, _nanoseconds}`. The seed script restores these to proper `Timestamp` objects so `firestoreDocToXxx()` converters work.
-- **`onMemberCreated` crash**: expected — FieldValue is unavailable in the Functions emulator for trigger functions. Doesn't block development; ACL is seeded separately.
+- **`FieldValue` in triggers**: the namespaced accessor `admin.firestore.FieldValue` is `undefined` inside the Functions emulator runtime, so trigger writes using `serverTimestamp()` / `arrayUnion()` crash. Import the modular `FieldValue` from `firebase-admin/firestore` instead (works in both emulator and production). `onMemberCreated` may still crash for unrelated reasons during seeding; ACL is seeded separately.
 
 ### Rules tests against the emulator
 ```bash
