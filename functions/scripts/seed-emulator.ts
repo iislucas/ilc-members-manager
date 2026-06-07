@@ -3,8 +3,9 @@
  *
  * Reads anonymized JSON files from <repo-root>/tmp/seed-data/ and imports
  * them into the local Firestore emulator. Top-level collection files are
- * named `{collection}.json`; subcollection files use the naming convention
- * `{collection}__{parentId}__{subcollection}.json`.
+ * named `{collection}.json` and live directly in tmp/seed-data/. Subcollection
+ * files live in the tmp/seed-data/subcollections/ sub-folder and use the naming
+ * convention `{collection}__{parentId}__{subcollection}.json`.
  *
  * Requires the Firebase emulator suite to be running:
  *   pnpm emulator:start   (from repo root)
@@ -106,26 +107,30 @@ async function seedCollection(collectionPath: string, docs: RawDoc[]): Promise<v
 async function main(): Promise<void> {
   console.log(`Seeding Firestore emulator (project: ${projectId}) from ${seedDir}`);
 
-  const files = fs.readdirSync(seedDir).filter((f) => f.endsWith('.json'));
+  // Top-level collection files live in seedDir; subcollection files live in
+  // seedDir/subcollections/. Gather both as absolute paths, top-level first so
+  // parent documents exist before their subcollections are seeded.
+  const topLevelFiles = fs
+    .readdirSync(seedDir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => path.join(seedDir, f));
+  const subDir = path.join(seedDir, 'subcollections');
+  const subFiles = fs.existsSync(subDir)
+    ? fs
+        .readdirSync(subDir)
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => path.join(subDir, f))
+    : [];
+  const files = [...topLevelFiles.sort(), ...subFiles.sort()];
 
-  // Sort so top-level collections are seeded before subcollections
-  files.sort((a, b) => {
-    const aSub = a.includes('__');
-    const bSub = b.includes('__');
-    if (aSub && !bSub) return 1;
-    if (!aSub && bSub) return -1;
-    return a.localeCompare(b);
-  });
-
-  for (const file of files) {
-    const filePath = path.join(seedDir, file);
+  for (const filePath of files) {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const docs = JSON.parse(raw) as RawDoc[];
 
     // Derive the Firestore collection path from the filename.
     // Top-level:     members.json                → members
     // Subcollection: schools__abc123__gradings.json → schools/abc123/gradings
-    const basename = path.basename(file, '.json');
+    const basename = path.basename(filePath, '.json');
     let collectionPath: string;
     if (basename.includes('__')) {
       const parts = basename.split('__');
