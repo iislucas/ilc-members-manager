@@ -174,6 +174,14 @@ added/removed (including when an event link makes/removes someone as a manager).
 Notifications are de-duplicated per grading, so a manager only ever has one
 "current" notification per grading.
 
+The student's **primary instructor** (sifu — `member.primaryInstructorId`) is
+also kept in the loop on their students' progress: they are notified when a
+student's grading request is **accepted** and when the **result is recorded**
+(passed/not-passed). To avoid redundant self-notifications, the sifu is **not**
+notified when they are the member who performed that action — i.e. when they
+accepted the request (`acceptedByMemberDocId`) or recorded the result
+(`statusChangedByMemberDocId`) themselves.
+
 ## Admin view
 
 Admins have a view to list all gradings, create, edit, or delete them, and to
