@@ -8,7 +8,8 @@ drive an end-to-end (e2e) test against the Firebase emulator.
 The goal is a two-way link between intent and implementation:
 
 - **Code → story:** code that implements a story carries a comment
-  `// story: <story-id>` so you can find the requirement behind it.
+  `// story: docs/user-stories/<story-id>.md` (the full relative path, so the
+  link is unambiguous) so you can find the requirement behind it.
 - **Story → code/tests:** each story file lists the code and tests that
   satisfy it, so you can find the implementation behind a requirement.
 
@@ -22,9 +23,9 @@ The goal is a two-way link between intent and implementation:
 - **Acceptance criteria** are written as `Given / When / Then` scenarios. Each
   scenario should be checkable by a single e2e test. Keep them behavioural
   (observable outcomes), not implementation detail.
-- **Linking code:** add a comment `// story: <story-id>` at the top of the
-  function/block that implements a scenario. Tests reference the story by
-  putting the ID in the top-level `describe()` (e.g.
+- **Linking code:** add a comment `// story: docs/user-stories/<story-id>.md`
+  at the top of the function/block that implements a scenario. Tests reference
+  the story by putting the ID in the top-level `describe()` (e.g.
   `describe('story: grading-sifu-notifications', ...)`).
 
 ## File template
@@ -51,7 +52,7 @@ As a **<role>**, I want **<capability>**, so that **<benefit>**.
 
 ## Implementation
 
-- Code: <file:symbol references, each marked `// story: <story-id>`>
+- Code: <file:symbol references, each marked `// story: docs/user-stories/<story-id>.md`>
 - Tests: <e2e/test references, `describe('story: <story-id>', …)`>
 
 ## Notes

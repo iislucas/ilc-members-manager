@@ -57,7 +57,7 @@ event organizer.
 
 ## Implementation
 
-- Code: `functions/src/on-grading-update.ts` (marked `story: grading-sifu-notifications`)
+- Code: `functions/src/on-grading-update.ts` (marked `// story: docs/user-stories/grading-sifu-notifications.md`)
   - `resolvePrimaryInstructorToNotify()` — resolves the sifu to notify, skipping
     when there is no sifu, the sifu is the actor, or the sifu is the student.
   - `onGradingUpdated` — calls it in the acceptance branch and in the

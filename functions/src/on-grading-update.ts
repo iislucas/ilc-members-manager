@@ -202,7 +202,7 @@ async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<
  * student themselves. `actorMemberDocId` is who accepted or recorded the
  * result, so the sifu is never notified about their own action.
  *
- * story: grading-sifu-notifications
+ * story: docs/user-stories/grading-sifu-notifications.md
  */
 async function resolvePrimaryInstructorToNotify(
   grading: Grading,
@@ -575,7 +575,8 @@ export const onGradingUpdated = onDocumentUpdated(
           }
         );
         // Also notify the student's primary instructor (sifu), unless they are
-        // the one who recorded the result. story: grading-sifu-notifications
+        // the one who recorded the result.
+        // story: docs/user-stories/grading-sifu-notifications.md
         const sifu = await resolvePrimaryInstructorToNotify(
           grading,
           grading.statusChangedByMemberDocId,
@@ -615,7 +616,8 @@ export const onGradingUpdated = onDocumentUpdated(
           }
         );
         // Also notify the student's primary instructor (sifu), unless they are
-        // the one who recorded the result. story: grading-sifu-notifications
+        // the one who recorded the result.
+        // story: docs/user-stories/grading-sifu-notifications.md
         const sifu = await resolvePrimaryInstructorToNotify(
           grading,
           grading.statusChangedByMemberDocId,
@@ -690,7 +692,7 @@ export const onGradingUpdated = onDocumentUpdated(
 
       // Also notify the student's primary instructor (sifu) that their
       // student's grading request was accepted, unless the sifu is the one who
-      // accepted it. story: grading-sifu-notifications
+      // accepted it. story: docs/user-stories/grading-sifu-notifications.md
       const sifu = await resolvePrimaryInstructorToNotify(
         grading,
         grading.acceptedByMemberDocId,
