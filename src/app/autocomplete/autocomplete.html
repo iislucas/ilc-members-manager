@@ -13,7 +13,7 @@
   />
 
   @if (showResults() && filteredItems().length > 0) {
-    <ul class="results-list">
+    <ul class="results-list" #menu>
       @for (item of filteredItems(); track item[idField()]; let i = $index) {
         <li
           (mousedown)="selectItem(item)"
