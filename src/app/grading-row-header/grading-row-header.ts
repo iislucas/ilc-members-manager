@@ -49,14 +49,9 @@ export class GradingRowHeaderComponent {
     return this.routingService.hrefForView(Views.EventView, { eventId: docId });
   });
 
-  instructorName = computed(() => {
-    const instructorId = this.grading().gradingInstructorId;
-    if (!instructorId) return '';
-    const instructor = this.dataService.instructors.get(instructorId);
-    return instructor
-      ? `${instructor.name} [${instructor.instructorId}]`
-      : instructorId;
-  });
+  instructorName = computed(() =>
+    this.dataService.instructorDisplayName(this.grading().gradingInstructorId),
+  );
 
   formatLevel(lvl: string): string {
     if (!lvl) return '';

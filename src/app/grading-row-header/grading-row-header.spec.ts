@@ -17,6 +17,7 @@ describe('GradingRowHeaderComponent', () => {
       members: { entries: () => [], get: () => undefined },
       instructors: { entries: () => [], get: () => undefined },
       memberDisplayName: () => '',
+      instructorDisplayName: () => '',
     };
 
     await TestBed.configureTestingModule({
