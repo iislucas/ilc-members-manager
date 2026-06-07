@@ -60,7 +60,7 @@ export class EventViewComponent implements OnInit {
     const ev = this.event();
     const id = ev?.leadingInstructorId;
     if (!id) return '';
-    return `#/find-an-instructor?instructorId=${encodeURIComponent(id)}`;
+    return `#/instructors/${encodeURIComponent(id)}`;
   });
 
 

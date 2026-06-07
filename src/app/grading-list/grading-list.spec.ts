@@ -41,6 +41,8 @@ describe('GradingListComponent', () => {
 
     const mockDataManagerService = {
       instructors: new SearchableSet(['name'], 'instructorId'),
+      memberDisplayName: (_docId: string, memberId: string) => memberId,
+      instructorDisplayName: (instructorId: string) => instructorId,
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
@@ -93,5 +95,34 @@ describe('GradingListComponent', () => {
     fixture.detectChanges();
     expect(component.limit()).toBe(Infinity);
     expect(component.gradings().length).toBe(60);
+  });
+
+  it('finds gradings by resolved student and instructor name', () => {
+    // Names are resolved from docIds, not stored on the grading. Wire the mock
+    // lookups to return a name for one specific student/instructor.
+    const ds = TestBed.inject(DataManagerService) as any;
+    ds.memberDisplayName = (_docId: string, memberId: string) =>
+      memberId === 'student-7' ? '(student-7) Alice Wonderland' : memberId;
+    ds.instructorDisplayName = (id: string) =>
+      id === 'inst-7' ? 'Bob Builder [inst-7]' : id;
+
+    const target = component.gradingSet().get('grading-7')!;
+    target.gradingInstructorId = 'inst-7';
+    // Re-set entries (fresh array ref) so the sync effect re-enriches with the
+    // updated instructor id and name-lookup mocks.
+    component.gradingSet().setEntries([...component.gradingSet().entries()]);
+    fixture.detectChanges();
+
+    const search = (term: string) => {
+      component.onSearch({ target: { value: term } } as never as Event);
+      fixture.detectChanges();
+      return component.gradings();
+    };
+
+    const byStudent = search('Wonderland');
+    expect(byStudent.map((g) => g.docId)).toEqual(['grading-7']);
+
+    const byInstructor = search('Builder');
+    expect(byInstructor.map((g) => g.docId)).toEqual(['grading-7']);
   });
 });

@@ -90,6 +90,39 @@ export class GradingListComponent {
 
   gradingSet = input.required<SearchableSet<'docId', Grading>>();
 
+  // A search-only mirror of `gradingSet` whose entries are enriched with the
+  // resolved student and instructor *names*, looked up from the already-loaded
+  // members/instructors caches via the grading's docIds. The names are never
+  // persisted to the Grading data model — they exist only on these in-memory
+  // copies so MiniSearch can match on them.
+  private searchSet = new SearchableSet<'docId', Grading & { studentName: string; instructorName: string }>(
+    [],
+    'docId',
+  );
+
+  // Keep `searchSet` in sync with the source gradings and the member/instructor
+  // name caches. Runs whenever the gradings load or a referenced name resolves;
+  // not per keystroke (the search term is read in `filteredByTab` instead).
+  private _syncSearchSet = effect(() => {
+    const source = this.gradingSet();
+    this.searchSet.fieldsToSearch = [...source.fieldsToSearch, 'studentName', 'instructorName'];
+    this.searchSet.setEntries(
+      source.uniqueEntries().map((g) => ({
+        ...g,
+        studentName: this.dataService.memberDisplayName(
+          g.studentMemberDocId,
+          g.studentMemberId,
+        ),
+        // Include the senior grading instructor plus any assistant instructors
+        // so searching for any examiner's name surfaces the grading.
+        instructorName: [g.gradingInstructorId, ...g.assistantInstructorIds]
+          .map((id) => this.dataService.instructorDisplayName(id))
+          .filter((name) => !!name)
+          .join(' '),
+      })),
+    );
+  });
+
   GradingStatus = GradingStatus;
   getPrettyGradingStatus = getPrettyGradingStatus;
   readonly gradingStatuses = Object.values(GradingStatus);
@@ -143,8 +176,8 @@ export class GradingListComponent {
     !!this.filterStudentMemberId() || !!this.filterEventDocId()
   );
 
-  filteredByTab = computed(() => {
-    const all = this.gradingSet().search(this.searchTerm());
+  filteredByTab = computed<Grading[]>(() => {
+    const all = this.searchSet.search(this.searchTerm());
     if (this.viewMode() !== 'instructor') return all;
 
     const user = this.user();

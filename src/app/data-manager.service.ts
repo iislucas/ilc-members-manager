@@ -265,6 +265,15 @@ export class DataManagerService {
     return memberId || memberDocId || '';
   }
 
+  // Standard "Name [instructorId]" display form for an instructor referenced by
+  // a grading. Resolves the instructor by their human-readable instructorId.
+  // Falls back to the raw id when the instructor document isn't loaded.
+  instructorDisplayName(instructorId: string): string {
+    if (!instructorId) return '';
+    const instructor = this.instructors.get(instructorId);
+    return instructor ? `${instructor.name} [${instructor.instructorId}]` : instructorId;
+  }
+
   // Reactive map from memberId to docId for the logged-in instructor's students.
   public myStudentIdToDocIdMap = computed(() => {
     const map = new Map<string, string>();

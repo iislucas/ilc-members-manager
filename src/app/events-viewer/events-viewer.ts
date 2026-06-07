@@ -38,7 +38,7 @@ export class EventsViewerComponent {
   // Base URL prefix for instructor profile links. Defaults to the main
   // app's Find an Instructor page so clicks navigate correctly from any host.
   instructorLinkPrefix = input<string>(
-    'https://app.iliqchuan.com/#/find-an-instructor?instructorId=',
+    'https://app.iliqchuan.com/#/instructors/',
   );
 
   // Optional initial search query to pre-populate the search field.
