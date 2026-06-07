@@ -80,7 +80,7 @@ export class AutocompleteComponent<ID extends string, T extends { [key in ID]: s
   filteredItems = computed(() => {
     const items = this.searchableSet().search(this.searchTerm(), this.searchOptions());
     return items.length === 1 && items[0][this.idField()].toLowerCase() === this.searchTerm().toLowerCase() ?
-      this.searchableSet().entries() : items;
+      this.searchableSet().uniqueEntries() : items;
   });
 
   onSearchTermChange(event: Event) {
