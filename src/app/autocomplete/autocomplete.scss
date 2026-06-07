@@ -11,10 +11,14 @@
   list-style-type: none;
   margin: 0;
   padding: 0;
-  max-width: max-content;
+  // Grow to fit the content rather than being capped at the input width,
+  // but never overflow the viewport.
+  width: max-content;
+  min-width: 100%;
+  max-width: 100vw;
   z-index: 1;
   max-height: 10em;
-  overflow-y: scroll;
+  overflow-y: auto;
 
   li {
     display: flex;
@@ -23,6 +27,7 @@
     gap: 8px;
     padding: 8px;
     cursor: pointer;
+    white-space: nowrap;
   }
 
   li:hover,
