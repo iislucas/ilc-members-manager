@@ -75,3 +75,6 @@ pnpm test:rules        # Firestore security-rules tests (emulator)
 | Story | ID | Status | Area |
 |---|---|---|---|
 | [Primary instructor notified of student grading progress](grading-sifu-notifications.md) | `grading-sifu-notifications` | Implemented | Gradings |
+| [Student sees their grading result and level update](grading-result-recorded.md) | `grading-result-recorded` | Implemented | Gradings |
+| [Student's grading request is accepted or declined](grading-request-acceptance.md) | `grading-request-acceptance` | Implemented | Gradings |
+| [Linking a grading to an event grants event staff manager access](grading-event-managers.md) | `grading-event-managers` | Implemented | Gradings |
