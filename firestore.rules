@@ -210,6 +210,18 @@ service cloud.firestore {
         let assigned = resource.data.get('assignedInstructorId', '');
         return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst) || (assigned != '' && assigned in instructorIds);
       }
+      // True when the user is the organizer or a manager of the event this
+      // grading is linked to (via gradingEventDocId). Derived live from the
+      // event document so unlinking/relinking automatically revokes/grants
+      // access. Guarded so the extra get() only happens when actually linked.
+      function isGradingEventManager() {
+        let eventDocId = resource.data.get('gradingEventDocId', '');
+        let eventPath = /databases/$(database)/documents/events/$(eventDocId);
+        return eventDocId != '' && exists(eventPath) && (
+          get(eventPath).data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(get(eventPath).data.get('managerDocIds', []))
+        );
+      }
       // Uses the ACL's cached schoolDocIds instead of looking up
       // ownerEmails/managerEmails on the school document.
       function isGradingSchoolManager() {
@@ -219,18 +231,20 @@ service cloud.firestore {
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
-      allow read: if isAdmin() || isGradingStudent() || isGradingManager() || isGradingSchoolManager();
+      allow read: if isAdmin() || isGradingStudent() || isGradingManager() || isGradingSchoolManager() || isGradingEventManager();
       allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
-      allow update: if hasValidEditUpdate() && isGradingManager() &&
+      allow update: if hasValidEditUpdate() && (isGradingManager() || isGradingEventManager()) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'gradingEventDocId',
-             'notes', 'instructorAcceptedDate', 'gradingInstructorId',
-             'resultNotes', 'assistantInstructorIds', 'declineNotes']);
+             'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
+             'statusChangedByMemberDocId', 'statusChangedByName',
+             'gradingInstructorId', 'resultNotes', 'assistantInstructorIds', 'declineNotes']);
       allow update: if hasValidEditUpdate() && isGradingStudent() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDocId',
-             'gradingInstructorId', 'studentNotes', 'declineNotes']);
+            ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDate', 'gradingEventDocId',
+             'gradingInstructorId', 'studentNotes', 'declineNotes',
+             'statusChangedByMemberDocId', 'statusChangedByName']);
     }
   }
 }

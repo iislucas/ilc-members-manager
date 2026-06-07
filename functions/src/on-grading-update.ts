@@ -149,6 +149,42 @@ async function removeGradingFromSchool(
   await ref.delete();
 }
 
+// The member docIds of an event's organizer + managers, plus the event title.
+interface EventManagers {
+  docIds: string[];
+  title: string;
+}
+
+/**
+ * Resolve the member docIds of the owner and managers of a linked event, plus
+ * the event title (for notification messages). Returns an empty result when the
+ * eventDocId is empty or the event document no longer exists. Grading-manager
+ * status for event staff is derived live from these (never cached on the
+ * grading), so unlinking/relinking automatically revokes/grants access.
+ */
+async function resolveEventManagers(
+  eventDocId: string | undefined,
+): Promise<EventManagers> {
+  if (!eventDocId) return { docIds: [], title: '' };
+  const snap = await db.collection('events').doc(eventDocId).get();
+  if (!snap.exists) return { docIds: [], title: '' };
+  const data = snap.data() || {};
+  const docIds = [data.ownerDocId, ...(data.managerDocIds || [])].filter(
+    (id) => id && id !== '',
+  ) as string[];
+  return { docIds: [...new Set(docIds)], title: data.title || '' };
+}
+
+/** Look up a member's display name by their Firestore doc ID. */
+async function getMemberName(
+  memberDocId: string | undefined,
+  fallback: string,
+): Promise<string> {
+  if (!memberDocId) return fallback;
+  const snap = await db.collection('members').doc(memberDocId).get();
+  return snap.exists ? snap.data()?.name || fallback : fallback;
+}
+
 async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
   if (!memberDocId) return undefined;
   const snap = await db.collection('members').doc(memberDocId).get();
@@ -193,6 +229,47 @@ async function removeGradingFromAllInstructors(
 
   for (const instructorId of instructorIds) {
     await removeGradingFromInstructor(gradingDocId, instructorId);
+  }
+}
+
+/**
+ * Notify a set of event organizers/managers that they have been added as (or
+ * removed as) managers of a grading because it was linked to (or unlinked from)
+ * their event. Skips the student themselves.
+ */
+async function notifyEventManagers(
+  memberDocIds: string[],
+  added: boolean,
+  grading: Grading,
+  gradingDocId: string,
+  studentName: string,
+  event: EventManagers,
+  eventDocId: string,
+): Promise<void> {
+  const gradingHref = `#/gradings/${gradingDocId}`;
+  for (const memberDocId of memberDocIds) {
+    if (memberDocId === grading.studentMemberDocId) continue;
+    const msg = added
+      ? `You are now a manager of **${studentName}**'s grading for **${grading.level}**, ` +
+        `linked to your event **${event.title}**. ` +
+        `[Open the grading](${gradingHref}) to accept or record the result.`
+      : `**${studentName}** has unlinked their grading for **${grading.level}** from your event ` +
+        `**${event.title}**, so they are no longer requesting you as one of its grading managers.`;
+    await createNotification(memberDocId, {
+      markdown: msg,
+      createdAt: new Date().toISOString(),
+      dismissed: false,
+      kind: added
+        ? NotificationKind.GradingManagerAdded
+        : NotificationKind.GradingManagerRemoved,
+      data: {
+        gradingDocId,
+        studentName,
+        level: grading.level,
+        eventDocId,
+        eventTitle: event.title,
+      },
+    });
   }
 }
 
@@ -278,6 +355,24 @@ export const onGradingCreated = onDocumentCreated(
       }
     }
 
+    // If the grading is created already linked to an event, notify the event's
+    // organizer and managers that they are now managers of this grading.
+    if (grading.gradingEventDocId) {
+      const event = await resolveEventManagers(grading.gradingEventDocId);
+      if (event.docIds.length > 0) {
+        const studentName = await getMemberName(grading.studentMemberDocId, 'A student');
+        await notifyEventManagers(
+          event.docIds,
+          true,
+          grading,
+          gradingDocId,
+          studentName,
+          event,
+          grading.gradingEventDocId,
+        );
+      }
+    }
+
     logger.info(`Grading ${gradingDocId} created and mirrored.`);
   },
 );
@@ -351,7 +446,7 @@ export const onGradingUpdated = onDocumentUpdated(
               markdown: msg,
               createdAt: new Date().toISOString(),
               dismissed: false,
-              kind: NotificationKind.GradingInstructorAdded,
+              kind: NotificationKind.GradingManagerAdded,
               data: {
                 gradingDocId,
                 studentName,
@@ -372,7 +467,7 @@ export const onGradingUpdated = onDocumentUpdated(
               markdown: msg,
               createdAt: new Date().toISOString(),
               dismissed: false,
-              kind: NotificationKind.GradingInstructorRemoved,
+              kind: NotificationKind.GradingManagerRemoved,
               data: {
                 gradingDocId,
                 studentName,
@@ -604,9 +699,86 @@ export const onGradingUpdated = onDocumentUpdated(
       }
     }
 
+    // Handle event-link change: notify event organizers/managers that they have
+    // gained or lost grading-manager status. Status is derived live from the
+    // link (no cached field), so we only need to notify on the transition.
+    if (previous.gradingEventDocId !== grading.gradingEventDocId) {
+      const beforeEvent = await resolveEventManagers(previous.gradingEventDocId);
+      const afterEvent = await resolveEventManagers(grading.gradingEventDocId);
+      const added = afterEvent.docIds.filter((id) => !beforeEvent.docIds.includes(id));
+      const removed = beforeEvent.docIds.filter((id) => !afterEvent.docIds.includes(id));
+      if (added.length > 0 || removed.length > 0) {
+        const studentName = await getMemberName(grading.studentMemberDocId, 'A student');
+        await notifyEventManagers(
+          added, true, grading, gradingDocId, studentName, afterEvent, grading.gradingEventDocId,
+        );
+        await notifyEventManagers(
+          removed, false, grading, gradingDocId, studentName, beforeEvent, previous.gradingEventDocId,
+        );
+      }
+    }
+
+    // When a grading manager accepts the request, update the other managers'
+    // "you are now a manager" notifications to say who accepted it.
+    if (
+      grading.status === GradingStatus.AwaitingGrading &&
+      previous.status === GradingStatus.AwaitingAcceptance
+    ) {
+      await annotateManagerNotificationsWithAcceptor(grading, gradingDocId);
+    }
+
     logger.info(`Grading ${gradingDocId} updated and re-mirrored.`);
   },
 );
+
+/**
+ * After a grading is accepted, find the other managers' GradingManagerAdded
+ * notifications for this grading and append a note naming who accepted it.
+ * Managers are: the event organizer/managers (derived live from the linked
+ * event) plus the primary and assistant grading instructors. The acceptor
+ * (grading.acceptedByMemberDocId) is skipped.
+ */
+async function annotateManagerNotificationsWithAcceptor(
+  grading: Grading,
+  gradingDocId: string,
+): Promise<void> {
+  const acceptorName =
+    grading.acceptedByName ||
+    (await getMemberName(grading.acceptedByMemberDocId, 'A grading manager'));
+
+  const managerDocIds = new Set<string>();
+  const event = await resolveEventManagers(grading.gradingEventDocId);
+  for (const id of event.docIds) managerDocIds.add(id);
+  const instructorIds = [grading.gradingInstructorId, ...(grading.assistantInstructorIds || [])].filter(
+    (id) => id && id !== '',
+  ) as string[];
+  for (const instructorId of instructorIds) {
+    const docId = await findInstructorMemberDocId(instructorId);
+    if (docId) managerDocIds.add(docId);
+  }
+  managerDocIds.delete(grading.acceptedByMemberDocId);
+
+  for (const memberDocId of managerDocIds) {
+    const snap = await db
+      .collection('members')
+      .doc(memberDocId)
+      .collection('notifications')
+      .where('kind', '==', NotificationKind.GradingManagerAdded)
+      .where('data.gradingDocId', '==', gradingDocId)
+      .get();
+    if (snap.empty) continue;
+    const batch = db.batch();
+    for (const doc of snap.docs) {
+      const data = doc.data() as MemberNotification;
+      if (data.markdown.includes('accepted by')) continue;
+      batch.update(doc.ref, {
+        markdown: `${data.markdown}\n\n_Accepted by **${acceptorName}**._`,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+}
 
 export const onGradingDeleted = onDocumentDeleted(
   'gradings/{gradingId}',
@@ -649,6 +821,12 @@ export const onGradingDeleted = onDocumentDeleted(
       if (instructorMemberDocId) {
         await cancelAndDismissGradingNotifications(instructorMemberDocId, gradingDocId);
       }
+    }
+
+    // Cancel and dismiss event organizers'/managers' grading notifications.
+    const linkedEvent = await resolveEventManagers(grading.gradingEventDocId);
+    for (const memberDocId of linkedEvent.docIds) {
+      await cancelAndDismissGradingNotifications(memberDocId, gradingDocId);
     }
 
     logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);

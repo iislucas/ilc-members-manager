@@ -102,10 +102,10 @@ export class MemberDetailsComponent {
         return 'Grading Request Accepted';
       case NotificationKind.GradingRequestsYouAsInstructor:
         return 'Grading Requests (You as Grading Manager)';
-      case NotificationKind.GradingInstructorAdded:
-        return 'Assigned as Grading Instructor';
-      case NotificationKind.GradingInstructorRemoved:
-        return 'Removed as Grading Instructor';
+      case NotificationKind.GradingManagerAdded:
+        return 'Added as Grading Manager';
+      case NotificationKind.GradingManagerRemoved:
+        return 'Removed as Grading Manager';
       case NotificationKind.GradingPurchased:
         return 'Grading Purchased';
       case NotificationKind.GradingPassed:

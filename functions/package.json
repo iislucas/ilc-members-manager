@@ -15,6 +15,7 @@
     "update-life-members": "ts-node scripts/update-life-members.ts",
     "grant-video-library-access": "ts-node scripts/grant-video-library-access.ts",
     "normalize-members-schools": "ts-node scripts/data-migrations/normalize-members-schools.ts",
+    "backfill-grading-status-actor": "ts-node scripts/data-migrations/backfill-grading-status-actor.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

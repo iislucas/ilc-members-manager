@@ -9,6 +9,40 @@ Read this before exploring code. It records the non-obvious patterns discovered 
 
 ---
 
+## Concept → Files Map
+
+A quick index from the high-level domain concepts to where they live in code. Use this to jump straight
+to the relevant files instead of re-exploring.
+
+### Gradings
+| Aspect | Where |
+|---|---|
+| Type, converter, `initGrading()`, `GradingStatus` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| Security rules (read/update per role) | `gradings` match block in [firestore.rules](../../firestore.rules) |
+| Server triggers (mirroring, notifications, level-on-pass) | [functions/src/on-grading-update.ts](../../functions/src/on-grading-update.ts) |
+| List / row / edit / detail / progress UI | see "Grading Component Map" below |
+| Event-link picker (link a grading to an IlcEvent) | [src/app/grading-event-input/](../../src/app/grading-event-input/) |
+| Client data access (`addGrading`, `updateGrading`, `getGradingById`) | [src/app/data-manager.service.ts](../../src/app/data-manager.service.ts) |
+
+### Events
+| Aspect | Where |
+|---|---|
+| `IlcEvent` type, `initEvent()`, `EventStatus`, `EventSourceKind` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| Security rules (public read; owner/manager edit via ACL memberDocIds) | `events` match block in [firestore.rules](../../firestore.rules) |
+| Event detail / edit / calendar UI | `src/app/event-view/`, `src/app/event-edit/`, `src/app/events-calendar/` |
+| Event search + `getEventById` | [src/app/data-manager.service.ts](../../src/app/data-manager.service.ts) |
+
+### Associations between concepts
+| Association | How it is represented |
+|---|---|
+| Grading ↔ Event | `Grading.gradingEventDocId` points at an `IlcEvent`. The event's organizer (`ownerDocId`) and `managerDocIds` become **grading managers** — derived **live** from the link (no cached field on the grading). See `isGradingEventManager()` in [firestore.rules](../../firestore.rules) and `userIsEventManager` in [grading-edit](../../src/app/grading-edit/grading-edit.ts) / [grading-progress](../../src/app/grading-progress/grading-progress.ts). Linking/unlinking notifies those members via the `GradingManagerAdded`/`GradingManagerRemoved` notifications (handled in [on-grading-update.ts](../../functions/src/on-grading-update.ts)). |
+| Grading ↔ Instructor(s) / School | Whole grading doc is mirrored to `/instructors/{id}/gradings/{id}` and `/schools/{id}/gradings/{id}` by `on-grading-update.ts` (`ref.set(grading)`). Primary instructor = `gradingInstructorId`; grading managers = `assistantInstructorIds` (legacy field name; UI calls them "Grading Managers"). |
+| Grading ↔ Student | `Member.gradingDocIds` (maintained by the trigger) and `Grading.studentMemberDocId`. |
+| Who accepted / who last changed status | Two pairs (member docId + name snapshot): `acceptedByMemberDocId`/`acceptedByName` (the acceptance milestone; cleared on decline; shown as "Accepted by X" and used to tell co-managers who accepted) and `statusChangedByMemberDocId`/`statusChangedByName` (the latest status transition of any kind; shown as "Moved back by X"). Set client-side in [grading-progress.ts](../../src/app/grading-progress/grading-progress.ts). Backfill: `pnpm --prefix functions run backfill-grading-status-actor`. |
+| Login email ↔ members/schools/instructor licences | `/acl/{email}` caches `memberDocIds`, `schoolDocIds`, `instructorIds`, expiry dates (built by member/school triggers; read by rules). |
+
+---
+
 ## Collections & Data Model
 
 Firestore collections and their TypeScript types (all defined in [functions/src/data-model.ts](../../functions/src/data-model.ts)):
@@ -42,8 +76,16 @@ Firestore collections and their TypeScript types (all defined in [functions/src/
 gradingEventDate: string;    // YYYY-MM-DD, when grading takes place
 gradingEvent: string;        // free-text location/event description
 gradingEventDocId: string;   // Firestore docId of a linked IlcEvent ('' if none)
+acceptedByMemberDocId: string;      // member docId of who accepted (cleared on decline)
+acceptedByName: string;             // their display name (snapshot)
+statusChangedByMemberDocId: string; // member docId of last status actor
+statusChangedByName: string;        // their display name (snapshot)
 status: GradingStatus;
 ```
+
+When `gradingEventDocId` is set, the linked event's `ownerDocId` + `managerDocIds` become grading
+managers (full edit/accept rights) — derived live, never cached on the grading. Students may change the
+linked event at any time until the grading is finalised (passed/not-passed/in-review).
 
 ---
 
@@ -55,8 +97,9 @@ File: [firestore.rules](../../firestore.rules)
 
 ### Grading update permissions (key rule)
 - **Admin**: full write via `allow write`
-- **Instructor** (`isGradingInstructor()`): can update `status`, `gradingEventDate`, `gradingEvent`, `gradingEventDocId`, `notes`, `instructorAcceptedDate`, `resultNotes`, `assistantInstructorIds`, `declineNotes`
-- **Student** (`isGradingStudent()`): can update `status`, `gradingEvent`, `gradingEventDocId`, `gradingInstructorId`, `studentNotes`, `declineNotes`
+- **Manager** (`isGradingManager()` = primary/assistant instructors, OR `isGradingEventManager()` = organizer/managers of the linked event): can update `status`, `gradingEventDate`, `gradingEvent`, `gradingEventDocId`, `notes`, `instructorAcceptedDate`, `acceptedByMemberDocId`, `acceptedByName`, `statusChangedByMemberDocId`, `statusChangedByName`, `gradingInstructorId`, `resultNotes`, `assistantInstructorIds`, `declineNotes`
+- **Student** (`isGradingStudent()`): can update `status`, `gradingEvent`, `gradingEventDate`, `gradingEventDocId`, `gradingInstructorId`, `studentNotes`, `declineNotes`, `statusChangedByMemberDocId`, `statusChangedByName`
+- `isGradingEventManager()` does a guarded `get()` on `/events/{gradingEventDocId}` (only when linked) and checks the user's ACL `memberDocIds` against the event owner/managers. This is what lets non-instructor event staff manage the grading.
 - All non-admin updates require `lastUpdated == request.time` (use `serverTimestamp()` on write)
 
 > **When adding new Grading fields**: add them to the appropriate `affectedKeys().hasOnly(...)` list in [firestore.rules](../../firestore.rules), and add tests in [tests/firestore.rules.spec.ts](../../tests/firestore.rules.spec.ts).
@@ -112,10 +155,12 @@ placeholder="Search..."
 | `GradingProgressComponent` | [src/app/grading-progress/](../../src/app/grading-progress/) | Visual 3-step workflow indicator |
 
 ### GradingEditComponent form permission summary
-Uses Angular Signal Forms (`form()` from `@angular/forms/signals`). Disabled rules:
+Uses Angular Signal Forms (`form()` from `@angular/forms/signals`). "Grading manager" (`userIsGradingInstructor`)
+means the primary/assistant instructor OR the organizer/manager of the linked event (`userIsEventManager`,
+which loads the event by `gradingEventDocId` and checks the user's `member.docId`). Disabled rules:
 - **Admin-only**: `gradingPurchaseDate`, `orderId`, `level`, `studentMemberId`, `studentMemberDocId`, `assistantInstructorIds`, `schoolId`, `reviewIssue`
-- **Instructor or admin**: `status`, `gradingEventDate`, `notes`, `instructorAcceptedDate`, `resultNotes`
-- **Instructor, student, or admin**: `gradingEvent`, `gradingEventDocId`, `gradingInstructorId`
+- **Grading manager or admin**: `status`, `gradingEventDate`, `notes`, `instructorAcceptedDate`, `resultNotes`
+- **Grading manager, student, or admin**: `gradingEvent`, `gradingEventDocId`, `gradingInstructorId`
 - **Student or admin**: `studentNotes`
 
 ---

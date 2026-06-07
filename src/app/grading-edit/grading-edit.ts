@@ -20,6 +20,7 @@ import {
   initGrading,
   InstructorPublicData,
   School,
+  IlcEvent,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -168,12 +169,34 @@ export class GradingEditComponent {
     return user?.isAdmin ?? false;
   });
 
-  // Returns true for the primary instructor AND for grading managers (stored in
-  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration).
-  // Both roles are displayed as having the same edit permissions in the UI.
+  // The event the grading is linked to (if any), loaded live by gradingEventDocId.
+  private linkedEvent = signal<IlcEvent | undefined>(undefined);
+  private _loadLinkedEvent = effect(async () => {
+    const docId = this.editableGrading().gradingEventDocId;
+    if (!docId) {
+      this.linkedEvent.set(undefined);
+      return;
+    }
+    this.linkedEvent.set(await this.dataService.getEventById(docId));
+  });
+
+  // True when the current user is the organizer or a manager of the linked event.
+  // Such users become managers of the grading (derived live from the link).
+  userIsEventManager = computed(() => {
+    const user = this.firebaseState.user();
+    const event = this.linkedEvent();
+    if (!user || !event) return false;
+    const docId = user.member.docId;
+    return event.ownerDocId === docId || (event.managerDocIds || []).includes(docId);
+  });
+
+  // Returns true for the primary instructor, grading managers (stored in
+  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration),
+  // and the organizer/managers of a linked event. All share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
+    if (this.userIsEventManager()) return true;
     const grading = this.editableGrading();
     return user.member.instructorId === grading.gradingInstructorId ||
       (grading.assistantInstructorIds || []).includes(user.member.instructorId);
