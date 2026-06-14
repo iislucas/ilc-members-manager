@@ -379,6 +379,9 @@ export enum NotificationKind {
   // can determine what new posts/classes are available to catch up on.
   BlogPost = 'BlogPost',
   NewEventPosted = 'NewEventPosted',
+  // Admin-only: a member-proposed event is waiting for approval (status='proposed').
+  // Surfaced to admins so they can review and approve/reject it from Manage Events.
+  PendingEventApproval = 'PendingEventApproval',
 }
 
 export interface MemberNotificationCommon {
@@ -473,6 +476,10 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.NewEventPosted;
+    data: NotificationEventData;
+  }
+  | {
+    kind: NotificationKind.PendingEventApproval;
     data: NotificationEventData;
   }
   | {

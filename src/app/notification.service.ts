@@ -20,7 +20,9 @@ import {
 import { FirebaseStateService } from './firebase-state.service';
 import {
   CachedBlogPost,
+  EventStatus,
   ExpiryStatus,
+  IlcEvent,
   Member,
   MembershipType,
   MemberNotification,
@@ -28,6 +30,7 @@ import {
   PushSubscriptionDoc,
   firestoreDocToMemberNotification,
   initCachedBlogPost,
+  initEvent,
 } from '../../functions/src/data-model';
 import { getInstructorExpiryStatus } from './member-tags';
 import { environment } from '../environments/environment';
@@ -76,12 +79,19 @@ export class NotificationService implements OnDestroy {
   // The member doc ID we have already run blog-post catch-up for this session,
   // so the auth effect re-firing (e.g. on member doc updates) doesn't re-run it.
   private blogSyncedForMemberDocId: string | null = null;
+  // The admin member doc ID we have already run pending-event catch-up for this
+  // session, so the auth effect re-firing doesn't re-run it.
+  private pendingEventsSyncedForMemberDocId: string | null = null;
   // The member doc ID we have already registered a web-push subscription for
   // this session, to avoid redundant re-subscriptions on effect re-fires.
   private pushSubscribedForMemberDocId: string | null = null;
 
   // Maximum number of catch-up blog notifications to create per blog feed.
   private static readonly MAX_BLOG_NOTIFICATIONS = 3;
+
+  // Maximum number of pending-event approval notifications to create at once,
+  // newest proposals first, so a large backlog can't flood an admin's feed.
+  private static readonly MAX_PENDING_EVENT_NOTIFICATIONS = 20;
 
   // The blog feeds we surface notifications for. `route` is the hash-router
   // path prefix used to deep-link to an individual post by its urlId.
@@ -115,6 +125,14 @@ export class NotificationService implements OnDestroy {
         this.syncBlogPostNotifications(user.member).catch((e) =>
           console.error('Failed to sync blog post notifications:', e),
         );
+        // For admins, catch them up on any events still waiting for approval so
+        // proposed events surface as actionable notifications. Runs once per
+        // admin per session; failures are logged and never block the rest.
+        if (user.isAdmin) {
+          this.syncPendingEventNotifications(user.member).catch((e) =>
+            console.error('Failed to sync pending event notifications:', e),
+          );
+        }
         // If the member has already granted notification permission, (re)register
         // this device's web-push subscription so background pushes can reach them.
         this.registerPushSubscription(user.member.docId).catch((e) =>
@@ -124,6 +142,7 @@ export class NotificationService implements OnDestroy {
         this.unsubscribe();
         this.notifications.set([]);
         this.blogSyncedForMemberDocId = null;
+        this.pendingEventsSyncedForMemberDocId = null;
         this.pushSubscribedForMemberDocId = null;
       }
     });
@@ -470,6 +489,71 @@ export class NotificationService implements OnDestroy {
           lastSeenDateStr: publishedIso,
           blogPostId: post.id,
           blogPostUrlId: post.urlId,
+        },
+      };
+      batch.set(ref, notification);
+    }
+    await batch.commit();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin pending-event approval notifications
+  // ---------------------------------------------------------------------------
+
+  // Surfaces the events still waiting for admin approval (status='proposed') as
+  // notifications in this admin's feed, newest first. Idempotent and modelled on
+  // the blog-post catch-up: it reads the admin's own PendingEventApproval
+  // notifications to find which events have already been surfaced and only adds
+  // notifications for proposals it hasn't announced yet. Runs once per session.
+  private async syncPendingEventNotifications(member: Member): Promise<void> {
+    if (this.pendingEventsSyncedForMemberDocId === member.docId) return;
+    this.pendingEventsSyncedForMemberDocId = member.docId;
+
+    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+
+    // Which proposed events have we already notified this admin about? Single
+    // field filter (no composite index needed).
+    const existingSnap = await getDocs(
+      query(notifCollection, where('kind', '==', NotificationKind.PendingEventApproval)),
+    );
+    const notifiedEventIds = new Set<string>();
+    existingSnap.forEach((d) => {
+      const data = (d.data() as MemberNotification).data as { eventId?: string };
+      if (data?.eventId) notifiedEventIds.add(data.eventId);
+    });
+
+    // The events currently waiting for approval, newest proposals first.
+    const eventsSnap = await getDocs(
+      query(
+        collection(this.db, 'events'),
+        where('status', '==', EventStatus.Proposed),
+        orderBy('createdAt', 'desc'),
+        limit(NotificationService.MAX_PENDING_EVENT_NOTIFICATIONS),
+      ),
+    );
+    if (eventsSnap.empty) return;
+
+    const events = eventsSnap.docs
+      .map((d) => ({ ...initEvent(), ...(d.data() as IlcEvent), docId: d.id }))
+      .filter((e) => !notifiedEventIds.has(e.docId));
+    if (events.length === 0) return;
+
+    const batch = writeBatch(this.db);
+    for (const event of events) {
+      const ref = doc(notifCollection); // auto-generated ID
+      const link = `#/manage-events/${event.docId}`;
+      // Stamp with the proposal's creation time (not "now") so the card date
+      // reflects when the event was proposed.
+      const createdIso = event.createdAt || new Date().toISOString();
+      const notification: MemberNotification = {
+        docId: ref.id,
+        markdown: `Event awaiting approval: [${event.title || 'Untitled event'}](${link})`,
+        createdAt: createdIso,
+        dismissed: false,
+        kind: NotificationKind.PendingEventApproval,
+        data: {
+          eventId: event.docId,
+          title: event.title || 'Untitled event',
         },
       };
       batch.set(ref, notification);
