@@ -17,6 +17,7 @@
  */
 
 import * as admin from 'firebase-admin';
+import { IlcEvent, Member } from '../functions/src/data-model';
 
 const COMMIT = process.argv.includes('--commit');
 
@@ -29,12 +30,12 @@ async function main() {
   const membersSnap = await db.collection('members').where('instructorId', '!=', '').get();
   const instructorSchools = new Map<string, { schoolId: string; schoolDocId: string }>();
   for (const doc of membersSnap.docs) {
-    const m = doc.data();
-    const instructorId = (m.instructorId as string) || '';
+    const m = doc.data() as Member;
+    const instructorId = m.instructorId || '';
     if (!instructorId) continue;
     instructorSchools.set(instructorId, {
-      schoolId: (m.primarySchoolId as string) || '',
-      schoolDocId: (m.primarySchoolDocId as string) || '',
+      schoolId: m.primarySchoolId || '',
+      schoolDocId: m.primarySchoolDocId || '',
     });
   }
   console.log(`Loaded ${instructorSchools.size} instructors with member records.`);
@@ -50,12 +51,12 @@ async function main() {
   let batchCount = 0;
 
   for (const doc of eventsSnap.docs) {
-    const ev = doc.data();
+    const ev = doc.data() as IlcEvent;
     if (ev.schoolId) {
       skippedHasSchool++;
       continue;
     }
-    const leadingInstructorId = (ev.leadingInstructorId as string) || '';
+    const leadingInstructorId = ev.leadingInstructorId || '';
     if (!leadingInstructorId) {
       skippedNoInstructor++;
       continue;
