@@ -523,6 +523,9 @@ export class NotificationService implements OnDestroy {
     });
 
     // The events currently waiting for approval, newest proposals first.
+    // Requires a (status, createdAt) composite index on the events collection.
+    // Note: orderBy('createdAt') excludes any proposed event missing a
+    // createdAt field — submitProposedEvent always sets it.
     const eventsSnap = await getDocs(
       query(
         collection(this.db, 'events'),
