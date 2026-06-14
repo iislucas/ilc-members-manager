@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+
+sandbox.env
+.env
+.env.*
+!.env.example
+
+dist/
+coverage/
+
+*.log
+.DS_Store
+

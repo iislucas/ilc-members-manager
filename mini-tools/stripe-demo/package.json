@@ -1,0 +1,26 @@
+{
+  "name": "stripe-test",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "bootstrap:stripe": "tsx src/cli/bootstrapStripeTestAccount.ts",
+    "stripe:listen": "stripe listen --events checkout.session.completed,checkout.session.expired,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed,invoice.payment_action_required --forward-to 127.0.0.1:3000/stripe/webhook",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "test": "pnpm typecheck"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "stripe": "^18.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4",
+    "typescript": "^6.0.3"
+  }
+}
