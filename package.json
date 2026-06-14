@@ -7,6 +7,7 @@
     "start:find-instructor-wc": "ng serve --project find-an-instructor-wc",
     "start:events-wc": "ng serve --project events-viewer-wc",
     "stamp-version": "ts-node -O '{\"module\": \"commonjs\"}' scripts/stamp-version.ts",
+    "backfill:event-schools": "pnpm --prefix functions exec ts-node ../scripts/backfill-event-schools.ts",
     "prebuild": "pnpm run stamp-version",
     "build": "ng build --project ilc-members-manager",
     "build:find-instructor-wc": "ng build --project find-an-instructor-wc",
