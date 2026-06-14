@@ -27,8 +27,11 @@ import {
   MembershipType,
   MemberNotification,
   NotificationKind,
+  Order,
+  OrderStatus,
   PushSubscriptionDoc,
   firestoreDocToMemberNotification,
+  firestoreDocToOrder,
   initCachedBlogPost,
   initEvent,
 } from '../../functions/src/data-model';
@@ -82,6 +85,9 @@ export class NotificationService implements OnDestroy {
   // The admin member doc ID we have already run pending-event catch-up for this
   // session, so the auth effect re-firing doesn't re-run it.
   private pendingEventsSyncedForMemberDocId: string | null = null;
+  // The admin member doc ID we have already run order-issue catch-up for this
+  // session, so the auth effect re-firing doesn't re-run it.
+  private orderIssuesSyncedForMemberDocId: string | null = null;
   // The member doc ID we have already registered a web-push subscription for
   // this session, to avoid redundant re-subscriptions on effect re-fires.
   private pushSubscribedForMemberDocId: string | null = null;
@@ -92,6 +98,16 @@ export class NotificationService implements OnDestroy {
   // Maximum number of pending-event approval notifications to create at once,
   // newest proposals first, so a large backlog can't flood an admin's feed.
   private static readonly MAX_PENDING_EVENT_NOTIFICATIONS = 20;
+
+  // Maximum number of order-issue notifications to create at once, most recent
+  // orders first, so a large backlog can't flood an admin's feed.
+  private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS = 20;
+
+  // The order processing statuses that require admin attention.
+  private static readonly ORDER_ATTENTION_STATUSES: OrderStatus[] = [
+    'error',
+    'needs-manual-processing',
+  ];
 
   // The blog feeds we surface notifications for. `route` is the hash-router
   // path prefix used to deep-link to an individual post by its urlId.
@@ -132,6 +148,11 @@ export class NotificationService implements OnDestroy {
           this.syncPendingEventNotifications(user.member).catch((e) =>
             console.error('Failed to sync pending event notifications:', e),
           );
+          // Also surface any orders that failed automatic processing and need a
+          // human to resolve them.
+          this.syncOrderIssueNotifications(user.member).catch((e) =>
+            console.error('Failed to sync order issue notifications:', e),
+          );
         }
         // If the member has already granted notification permission, (re)register
         // this device's web-push subscription so background pushes can reach them.
@@ -143,6 +164,7 @@ export class NotificationService implements OnDestroy {
         this.notifications.set([]);
         this.blogSyncedForMemberDocId = null;
         this.pendingEventsSyncedForMemberDocId = null;
+        this.orderIssuesSyncedForMemberDocId = null;
         this.pushSubscribedForMemberDocId = null;
       }
     });
@@ -557,6 +579,89 @@ export class NotificationService implements OnDestroy {
         data: {
           eventId: event.docId,
           title: event.title || 'Untitled event',
+        },
+      };
+      batch.set(ref, notification);
+    }
+    await batch.commit();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin order-issue notifications
+  // ---------------------------------------------------------------------------
+
+  // Human-readable reference for an order: the Squarespace order number, or the
+  // Sheets-import reference number, falling back to the doc ID.
+  private orderRef(order: Order): string {
+    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+      return order.orderNumber || order.docId;
+    }
+    return order.referenceNumber || order.docId;
+  }
+
+  // Surfaces orders that failed automatic processing (ilcAppOrderStatus 'error'
+  // or 'needs-manual-processing') as notifications in this admin's feed, most
+  // recent first. Idempotent and modelled on the pending-event catch-up: it
+  // reads the admin's own OrderNeedsAttention notifications to find which orders
+  // have already been surfaced and only adds notifications for ones it hasn't
+  // announced yet. Runs once per session.
+  private async syncOrderIssueNotifications(member: Member): Promise<void> {
+    if (this.orderIssuesSyncedForMemberDocId === member.docId) return;
+    this.orderIssuesSyncedForMemberDocId = member.docId;
+
+    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+
+    // Which order-issue notifications have we already created for this admin?
+    // Single-field filter (no composite index needed).
+    const existingSnap = await getDocs(
+      query(notifCollection, where('kind', '==', NotificationKind.OrderNeedsAttention)),
+    );
+    const notifiedOrderIds = new Set<string>();
+    existingSnap.forEach((d) => {
+      const data = (d.data() as MemberNotification).data as { orderId?: string };
+      if (data?.orderId) notifiedOrderIds.add(data.orderId);
+    });
+
+    // Orders flagged for attention. We filter by status only (an `in` filter on
+    // a single field, so no composite index needed) and sort/cap client-side.
+    const ordersSnap = await getDocs(
+      query(
+        collection(this.db, 'orders'),
+        where('ilcAppOrderStatus', 'in', NotificationService.ORDER_ATTENTION_STATUSES),
+      ),
+    );
+    if (ordersSnap.empty) return;
+
+    const orders = ordersSnap.docs
+      .map((d) => firestoreDocToOrder(d))
+      .filter((o) => !notifiedOrderIds.has(o.docId))
+      // Most recently updated first, then cap to avoid flooding the feed.
+      .sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''))
+      .slice(0, NotificationService.MAX_ORDER_ISSUE_NOTIFICATIONS);
+    if (orders.length === 0) return;
+
+    const batch = writeBatch(this.db);
+    for (const order of orders) {
+      const ref = doc(notifCollection); // auto-generated ID
+      const link = `#/order-view/${order.docId}`;
+      const orderRef = this.orderRef(order);
+      const status = order.ilcAppOrderStatus as OrderStatus;
+      const verb = status === 'error' ? 'failed with an error' : 'needs manual processing';
+      const issues = order.ilcAppOrderIssues || [];
+      const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
+      const notification: MemberNotification = {
+        docId: ref.id,
+        markdown: `Order [#${orderRef}](${link}) ${verb}${issuesSuffix}`,
+        // Stamp with the order's last-updated time so the card date reflects the
+        // order rather than "now".
+        createdAt: order.lastUpdated || new Date().toISOString(),
+        dismissed: false,
+        kind: NotificationKind.OrderNeedsAttention,
+        data: {
+          orderId: order.docId,
+          orderRef,
+          status,
+          issues,
         },
       };
       batch.set(ref, notification);
