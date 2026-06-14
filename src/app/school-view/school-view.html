@@ -105,5 +105,40 @@
         }
       </div>
     </section>
+
+    <section class="events-section">
+      <h3>Upcoming Events</h3>
+      @if (eventsLoading()) {
+        <app-spinner>Loading events...</app-spinner>
+      } @else if (upcomingEvents().length > 0) {
+        <div class="events-list">
+          @for (ev of upcomingEvents(); track ev.docId) {
+            <a class="event-card-link" [href]="eventHref(ev)">
+              <app-event-item [event]="ev" />
+            </a>
+          }
+        </div>
+      } @else {
+        <p class="note">No upcoming events listed.</p>
+      }
+    </section>
+
+    @if (!eventsLoading() && pastEvents().length > 0) {
+      <section class="events-section">
+        <h3>Past Events</h3>
+        <div class="events-list">
+          @for (ev of pastEvents(); track ev.docId) {
+            <a class="event-card-link" [href]="eventHref(ev)">
+              <app-event-item [event]="ev" />
+            </a>
+          }
+        </div>
+        @if (pastEventsTotal() > pastEvents().length) {
+          <a class="show-more-link" [href]="allEventsHref()">
+            Show all {{ pastEventsTotal() }} past events <app-icon name="arrow_forward" width="16px" height="16px" />
+          </a>
+        }
+      </section>
+    }
   }
 </div>

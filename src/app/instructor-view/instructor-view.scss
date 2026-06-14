@@ -206,6 +206,19 @@
   font-style: italic;
 }
 
+.show-more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  margin-top: 0.8em;
+  color: $text-secondary;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 @media (max-width: 600px) {
   .header-body {
     flex-direction: column;

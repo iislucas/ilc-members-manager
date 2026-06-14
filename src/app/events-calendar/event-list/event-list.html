@@ -5,6 +5,15 @@
   </div>
 }
 
+@if (isFiltered()) {
+  <div class="filter-banner">
+    <span><app-icon name="filter_list" width="16px" height="16px"></app-icon> Showing events for <strong>{{ filterLabel() }}</strong></span>
+    <a class="subtle-button" [href]="clearFilterHref">
+      <app-icon name="close" width="16px" height="16px"></app-icon> Clear filter
+    </a>
+  </div>
+}
+
 @if (isLoading()) {
   <app-spinner>Loading events...</app-spinner>
 } @else if (hasLoaded()) {

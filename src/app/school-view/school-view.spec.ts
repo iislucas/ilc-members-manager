@@ -11,6 +11,9 @@ import {
   initSchool,
   InstructorPublicData,
   initInstructor,
+  IlcEvent,
+  initEvent,
+  EventStatus,
 } from '../../../functions/src/data-model';
 
 // Mock firebase/firestore so the direct-fetch fallback and getFirestore are inert.
@@ -26,6 +29,7 @@ vi.mock('firebase/firestore', () => ({
 describe('SchoolViewComponent', () => {
   let component: SchoolViewComponent;
   let fixture: ComponentFixture<SchoolViewComponent>;
+  let mockGetEventsForSchool: ReturnType<typeof vi.fn>;
 
   const owner: InstructorPublicData = {
     ...initInstructor(),
@@ -52,9 +56,11 @@ describe('SchoolViewComponent', () => {
   };
 
   beforeEach(async () => {
+    mockGetEventsForSchool = vi.fn().mockResolvedValue({ upcoming: [], past: [], pastTotal: 0 });
     const mockDataManagerService: Partial<DataManagerService> = {
       schools: new SearchableSet(['schoolId'], 'schoolId', [school]),
       instructors: new SearchableSet(['instructorId'], 'instructorId', [owner, manager]),
+      getEventsForSchool: mockGetEventsForSchool as never,
     };
 
     await TestBed.configureTestingModule({
@@ -104,5 +110,17 @@ describe('SchoolViewComponent', () => {
     const managers = component.managers();
     expect(managers.length).toBe(1);
     expect(managers[0].instructor?.name).toBe('Manager Person');
+  });
+
+  it('should surface upcoming and past events for the school', async () => {
+    const upcoming: IlcEvent = { ...initEvent(), docId: 'ev-up', title: 'Future Workshop', status: EventStatus.Listed };
+    const past: IlcEvent = { ...initEvent(), docId: 'ev-past', title: 'Old Workshop', status: EventStatus.Listed };
+    (mockGetEventsForSchool).mockResolvedValue({ upcoming: [upcoming], past: [past], pastTotal: 7 });
+    await (component as unknown as { loadSchool: () => Promise<void> }).loadSchool();
+    expect(mockGetEventsForSchool).toHaveBeenCalledWith('SCH-1');
+    expect(component.upcomingEvents().length).toBe(1);
+    expect(component.pastEvents().length).toBe(1);
+    expect(component.pastEventsTotal()).toBe(7);
+    expect(component.allEventsHref()).toBe('#/events?schoolId=SCH-1');
   });
 });

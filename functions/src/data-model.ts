@@ -1288,6 +1288,11 @@ export type IlcEvent = {
   ownerDocId: string;
   ownerEmails: string[];
   leadingInstructorId: string; // Primary instructor leading the event
+  // The human-readable schoolId (e.g. SCH-123) this event is hosted by /
+  // associated with, or '' if none. Used to list a school's events on its
+  // public profile page and to filter the events search page by school.
+  schoolId: string;
+  schoolDocId: string; // Firestore doc ID of the associated school, or ''.
   managerDocIds: string[];
   managerEmails: string[];
   // Attached documents (max 10). Each entry has a display name and a
@@ -1314,6 +1319,8 @@ export function initEvent(): IlcEvent {
     ownerDocId: '',
     ownerEmails: [],
     leadingInstructorId: '',
+    schoolId: '',
+    schoolDocId: '',
     managerDocIds: [],
     managerEmails: [],
     documents: [],

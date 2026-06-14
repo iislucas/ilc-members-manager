@@ -20,6 +20,7 @@ import {
   signal,
 } from '@angular/core';
 import {
+  IlcEvent,
   InstructorPublicData,
   School,
   firestoreDocToSchool,
@@ -31,11 +32,12 @@ import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
+import { EventItemComponent } from '../events-calendar/event-item/event-item';
 
 @Component({
   selector: 'app-school-view',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, MarkdownViewer],
+  imports: [IconComponent, SpinnerComponent, MarkdownViewer, EventItemComponent],
   templateUrl: './school-view.html',
   styleUrl: './school-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,7 +56,23 @@ export class SchoolViewComponent implements OnInit {
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
 
+  upcomingEvents = signal<IlcEvent[]>([]);
+  pastEvents = signal<IlcEvent[]>([]);
+  pastEventsTotal = signal(0);
+  eventsLoading = signal(false);
+
   backHref = computed(() => this.routingService.hrefForView(Views.FindSchool, {}));
+
+  // Link to the events search page, pre-filtered to this school.
+  allEventsHref = computed(() => {
+    const s = this.school();
+    if (!s) return '';
+    return `#/events?schoolId=${encodeURIComponent(s.schoolId)}`;
+  });
+
+  eventHref(ev: IlcEvent): string {
+    return this.routingService.hrefForView(Views.EventView, { eventId: ev.docId });
+  }
 
   // The school's owner, resolved to their public instructor data (if available).
   owner = computed<InstructorPublicData | null>(() => {
@@ -131,6 +149,7 @@ export class SchoolViewComponent implements OnInit {
       if (school) {
         this.school.set(school);
         this.titleLoaded.emit(school.schoolName || school.schoolId || 'School');
+        this.loadEvents(school);
       } else {
         this.errorMessage.set('School not found.');
         this.titleLoaded.emit('School Not Found');
@@ -140,6 +159,21 @@ export class SchoolViewComponent implements OnInit {
       this.errorMessage.set('Failed to load school profile.');
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  private async loadEvents(school: School) {
+    if (!school.schoolId) return;
+    this.eventsLoading.set(true);
+    try {
+      const { upcoming, past, pastTotal } = await this.dataService.getEventsForSchool(
+        school.schoolId,
+      );
+      this.upcomingEvents.set(upcoming);
+      this.pastEvents.set(past);
+      this.pastEventsTotal.set(pastTotal);
+    } finally {
+      this.eventsLoading.set(false);
     }
   }
 }
