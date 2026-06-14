@@ -93,6 +93,27 @@
             </div>
           }
         </div>
+
+        <label for="event-school">School</label>
+        <div class="rhs">
+          <app-autocomplete
+            [searchableSet]="dataService.schools"
+            [placeholder]="'Search for a school (optional)'"
+            [displayFns]="schoolDisplayFns"
+            [initSearchTerm]="eventFormModel().schoolId"
+            (textUpdated)="updateSchoolId($event)"
+          ></app-autocomplete>
+          @if (eventFormModel().schoolId && dataService.schools.get(eventFormModel().schoolId); as schoolData) {
+            <div class="note" style="display: flex; gap: 10px; align-items: center;">
+              <span>{{ schoolData.schoolName }}</span>
+              <span class="identifier-chip">{{ schoolData.schoolId }}</span>
+              <button type="button" class="subtle-button" (click)="clearSchool()">
+                <app-icon name="close" /> Clear
+              </button>
+            </div>
+          }
+        </div>
+
         <label for="event-hero-image">Image</label>
         <div class="rhs">
           @if (eventFormModel().heroImageUrl && !isEditingCrop()) {

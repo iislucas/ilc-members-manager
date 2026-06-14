@@ -19,6 +19,7 @@ import { InstructorStudentsComponent } from './instructor-students/instructor-st
 import { FilteredMembersComponent } from './filtered-members/filtered-members';
 import { MemberDetailsComponent } from './member-details/member-details';
 import { FindSchoolComponent } from './find-school/find-school';
+import { SchoolViewComponent } from './school-view/school-view';
 import { HomeComponent } from './home/home';
 import { ClassCalendarComponent } from './class-calendar/class-calendar';
 import { SquarespaceContentComponent } from './squarespace/squarespace-content.component';
@@ -67,6 +68,7 @@ import { APP_VERSION } from './version';
     FilteredMembersComponent,
     MemberDetailsComponent,
     FindSchoolComponent,
+    SchoolViewComponent,
     HomeComponent,
     ClassCalendarComponent,
     SquarespaceContentComponent,
@@ -116,6 +118,7 @@ export class App {
     Views.FindAnInstructor,
     Views.InstructorView,
     Views.FindSchool,
+    Views.SchoolView,
     Views.EventsCalendar,
     Views.EventView,
     Views.ClassCalendarView,
@@ -204,6 +207,8 @@ export class App {
         baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
       } else if (view === Views.InstructorView) {
         baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
+      } else if (view === Views.SchoolView) {
+        baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
       } else if (view === Views.EventsCalendar) {
         // No parent breadcrumb needed for events
       } else if (view === Views.EventView) {
@@ -314,7 +319,7 @@ export class App {
       if (view !== Views.OrderView) {
         this.loadedOrderTitle.set(null);
       }
-      if (!isSchoolEdit) {
+      if (!isSchoolEdit && view !== Views.SchoolView) {
         this.loadedSchoolTitle.set(null);
       }
       if (view !== Views.GradingView) {
@@ -385,6 +390,8 @@ export class App {
         return this.loadedSchoolTitle() || 'My School';
       case Views.FindSchool:
         return 'Find a School';
+      case Views.SchoolView:
+        return this.loadedSchoolTitle() || 'School';
       case Views.ClassCalendarView:
         const calInstructorId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
         const calInstructor = calInstructorId

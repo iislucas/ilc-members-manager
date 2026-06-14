@@ -27,6 +27,7 @@ import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
+import { DataManagerService } from '../../data-manager.service';
 import { environment } from '../../../environments/environment';
 
 
@@ -108,6 +109,43 @@ export class EventListComponent implements OnDestroy {
     return '';
   });
 
+  // Optional Firestore-level filters (events search page only): show only events
+  // associated with a given school or instructor. When active, the default
+  // "upcoming only" date floor is dropped so past events are included too.
+  protected urlSchoolId = computed(() => {
+    if (this.routingService.matchedPatternId() === Views.EventsCalendar) {
+      return this.routingService.signals[Views.EventsCalendar].urlParams.schoolId();
+    }
+    return '';
+  });
+  protected urlInstructorId = computed(() => {
+    if (this.routingService.matchedPatternId() === Views.EventsCalendar) {
+      return this.routingService.signals[Views.EventsCalendar].urlParams.instructorId();
+    }
+    return '';
+  });
+
+  // True when a school/instructor filter is active.
+  protected isFiltered = computed(() => !!this.urlSchoolId() || !!this.urlInstructorId());
+
+  // Human-readable label for the active filter banner.
+  protected filterLabel = computed(() => {
+    const schoolId = this.urlSchoolId();
+    if (schoolId) {
+      const school = this.dataService?.schools.get(schoolId);
+      return school ? `${school.schoolName} [${schoolId}]` : `school ${schoolId}`;
+    }
+    const instructorId = this.urlInstructorId();
+    if (instructorId) {
+      const instructor = this.dataService?.instructors.get(instructorId);
+      return instructor ? `${instructor.name} [${instructorId}]` : `instructor ${instructorId}`;
+    }
+    return '';
+  });
+
+  // Link that clears the active filter (returns to the full events list).
+  protected clearFilterHref = '#/events';
+
   // This signal is bound to the search input field and updates on every keystroke.
   // It is seeded from the URL `q` param (if present) or `initialQuery` (for the
   // web component), and can still be freely edited by the user.
@@ -168,9 +206,17 @@ export class EventListComponent implements OnDestroy {
 
   // --- Firestore direct subscription ---
   private firebaseApp = inject(FIREBASE_APP);
+  // Optional: not provided in the standalone web-component context, where the
+  // school/instructor filter is never active.
+  private dataService = inject(DataManagerService, { optional: true });
   private db = getFirestore(this.firebaseApp);
-  private unsubscribe: Unsubscribe | null = null;
+  private unsubscribes: Unsubscribe[] = [];
   readonly isLoading = signal(true);
+
+  private unsubscribeAll(): void {
+    for (const u of this.unsubscribes) u();
+    this.unsubscribes = [];
+  }
 
   // --- Full-text Search Implementation ---
   private miniSearch: MiniSearch<SearchableCalendarEvent>;
@@ -250,10 +296,16 @@ export class EventListComponent implements OnDestroy {
       idField: 'id',
     });
 
-    // Re-subscribe whenever the collection path or the *committed* fromDate changes.
+    // Re-subscribe whenever the collection path, committed fromDate, or the
+    // active school/instructor filter changes.
     effect(() => {
-      this.unsubscribe?.();
-      this.subscribeToEvents(this.collectionPath(), this.activeFromDate());
+      this.unsubscribeAll();
+      this.subscribeToEvents(
+        this.collectionPath(),
+        this.activeFromDate(),
+        this.urlSchoolId(),
+        this.urlInstructorId(),
+      );
     });
 
     // Rebuild the MiniSearch index whenever the cache data changes.
@@ -283,12 +335,70 @@ export class EventListComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.unsubscribe?.();
+    this.unsubscribeAll();
   }
 
-  private subscribeToEvents(path: string, fromDateValue: string): void {
-    console.info(`Subscribing to events at path: ${path}, fromDate: ${fromDateValue || '(default)'}`);
+  private subscribeToEvents(
+    path: string,
+    fromDateValue: string,
+    schoolId: string,
+    instructorId: string,
+  ): void {
     const eventsCollection = collection(this.db, path);
+
+    const onError = (error: unknown) => {
+      console.error(`Error subscribing to events at ${path}:`, error);
+      this.errorMessage.set('Failed to load events. Please try again later.');
+      this.isLoading.set(false);
+    };
+    const toEvent = (d: { id: string; data: () => unknown }) =>
+      ({ ...initEvent(), ...(d.data() as object), docId: d.id } as IlcEvent);
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    // School/instructor filter (events search page only). Uses single-field
+    // equality / array-contains queries so no composite index is needed; the
+    // date floor is dropped so past events are included too.
+    if (path === 'events' && schoolId) {
+      console.info(`Subscribing to events for school: ${schoolId}`);
+      this.unsubscribes.push(onSnapshot(
+        query(eventsCollection, where('schoolId', '==', schoolId)),
+        (snap) => {
+          this.events.set(snap.docs.map(toEvent));
+          this.isLoading.set(false);
+        },
+        onError,
+      ));
+      return;
+    }
+    if (path === 'events' && instructorId) {
+      console.info(`Subscribing to events for instructor: ${instructorId}`);
+      // An instructor's events are those they lead, own, or co-manage. Owner /
+      // manager queries are keyed by member docId, resolved via the public
+      // instructors set (skipped if unavailable, e.g. before it loads).
+      const docId = this.dataService?.instructors.get(instructorId)?.docId;
+      const queries = [query(eventsCollection, where('leadingInstructorId', '==', instructorId))];
+      if (docId) {
+        queries.push(query(eventsCollection, where('ownerDocId', '==', docId)));
+        queries.push(query(eventsCollection, where('managerDocIds', 'array-contains', docId)));
+      }
+      const groups: Map<string, IlcEvent>[] = queries.map(() => new Map());
+      queries.forEach((qq, i) => {
+        this.unsubscribes.push(onSnapshot(
+          qq,
+          (snap) => {
+            groups[i] = new Map(snap.docs.map((d) => [d.id, toEvent(d)]));
+            const merged = new Map<string, IlcEvent>();
+            for (const g of groups) for (const [id, ev] of g) merged.set(id, ev);
+            this.events.set([...merged.values()]);
+            this.isLoading.set(false);
+          },
+          onError,
+        ));
+      });
+      return;
+    }
 
     let q = query(eventsCollection);
     if (path === 'events') {
@@ -296,25 +406,16 @@ export class EventListComponent implements OnDestroy {
       const startDateStr = fromDateValue || this.defaultFromDate;
       q = query(eventsCollection, where('end', '>=', startDateStr));
     }
+    console.info(`Subscribing to events at path: ${path}, fromDate: ${fromDateValue || '(default)'}`);
 
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
-    this.unsubscribe = onSnapshot(
+    this.unsubscribes.push(onSnapshot(
       q,
       (snapshot) => {
-        const events = snapshot.docs.map(
-          (doc) => ({ ...initEvent(), ...doc.data(), docId: doc.id } as IlcEvent),
-        );
-        this.events.set(events);
+        this.events.set(snapshot.docs.map(toEvent));
         this.isLoading.set(false);
       },
-      (error) => {
-        console.error(`Error subscribing to events at ${path}:`, error);
-        this.errorMessage.set('Failed to load events. Please try again later.');
-        this.isLoading.set(false);
-      },
-    );
+      onError,
+    ));
   }
 
   private parseSearchTerm(term: string): {

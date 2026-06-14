@@ -265,6 +265,94 @@
         </div>
       </div>
 
+      @if (userIsAdmin() || userIsSchoolManager()) {
+        <div class="form-section">
+          <h3>School Profile Page</h3>
+          <p class="note">
+            A logo, cover image, and description shown on the school's dedicated
+            public profile page, reachable by clicking the school's name in the
+            "Find a School" listing.
+          </p>
+
+          <label>Logo</label>
+          <div class="rhs">
+            @if (s.publicProfileImageUrl && !isEditingProfileCrop()) {
+              <div class="image-preview">
+                <img [src]="s.publicProfileImageUrl" alt="School logo" class="profile-image-preview" />
+                <div class="image-actions">
+                  <button type="button" class="subtle-button" (click)="editProfileCrop()">
+                    <app-icon name="edit" /> Edit Crop
+                  </button>
+                  <button type="button" class="subtle-button" (click)="removeProfileImage()">
+                    <app-icon name="close" /> Remove
+                  </button>
+                </div>
+              </div>
+            }
+            @if (!s.publicProfileImageUrl || isEditingProfileCrop()) {
+              <app-image-upload-preview
+                [aspectRatio]="1"
+                [largeDimensions]="profileLargeDimensions"
+                [thumbDimensions]="profileThumbDimensions"
+                uploadPromptText="select a square (400x400 or larger) image"
+                [initialImageUrl]="s.publicProfileImageUrl"
+                (imageCropped)="onProfileImageCropped($event)"
+                (cancel)="cancelProfileCrop()"
+              />
+            }
+            @if (isUploadingProfileImage()) {
+              <app-spinner>Uploading...</app-spinner>
+            }
+            @if (profileImageError(); as err) {
+              <div class="error-message">{{ err }}</div>
+            }
+          </div>
+
+          <label>Cover Image</label>
+          <div class="rhs">
+            @if (s.publicCoverImageUrl && !isEditingCoverCrop()) {
+              <div class="image-preview">
+                <img [src]="s.publicCoverImageUrl" alt="Cover image" class="cover-image-preview" />
+                <div class="image-actions">
+                  <button type="button" class="subtle-button" (click)="editCoverCrop()">
+                    <app-icon name="edit" /> Edit Crop
+                  </button>
+                  <button type="button" class="subtle-button" (click)="removeCoverImage()">
+                    <app-icon name="close" /> Remove
+                  </button>
+                </div>
+              </div>
+            }
+            @if (!s.publicCoverImageUrl || isEditingCoverCrop()) {
+              <app-image-upload-preview
+                [aspectRatio]="800 / 600"
+                [largeDimensions]="coverLargeDimensions"
+                [thumbDimensions]="coverThumbDimensions"
+                uploadPromptText="select an 800x600 or larger image"
+                [initialImageUrl]="s.publicCoverImageUrl"
+                (imageCropped)="onCoverImageCropped($event)"
+                (cancel)="cancelCoverCrop()"
+              />
+            }
+            @if (isUploadingCoverImage()) {
+              <app-spinner>Uploading...</app-spinner>
+            }
+            @if (coverImageError(); as err) {
+              <div class="error-message">{{ err }}</div>
+            }
+          </div>
+
+          <label class="align-top">About</label>
+          <div class="rhs">
+            <p class="note">A description of the school, shown on its public profile page.</p>
+            <app-markdown-editor
+              [initialValue]="s.publicBioMarkdown"
+              (changed)="onBioChanged($event)"
+            ></app-markdown-editor>
+          </div>
+        </div>
+      }
+
       @if (errorMessage().length > 0) {
         <div class="error-container">
           <div class="error-message">

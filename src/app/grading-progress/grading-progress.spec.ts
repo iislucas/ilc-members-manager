@@ -13,6 +13,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { initGrading, GradingStatus, initMember } from '../../../functions/src/data-model';
+import { SearchableSet } from '../searchable-set';
 
 @Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
 class MockGradingEventInputComponent {
@@ -33,8 +34,8 @@ describe('GradingProgressComponent', () => {
 
   beforeEach(async () => {
     mockDataService = {
-      members: { entries: () => [], get: () => undefined } as never,
-      instructors: { entries: () => [], get: () => undefined } as never,
+      members: new SearchableSet(['memberId'], 'memberId', []) as never,
+      instructors: new SearchableSet(['instructorId'], 'instructorId', []) as never,
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
       memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',

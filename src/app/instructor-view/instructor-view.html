@@ -119,6 +119,9 @@
       } @else {
         <p class="note">No upcoming events listed.</p>
       }
+      <a class="show-more-link" [href]="allEventsHref()">
+        See all events <app-icon name="arrow_forward" width="16px" height="16px" />
+      </a>
     </section>
   }
 </div>

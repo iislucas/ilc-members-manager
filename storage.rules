@@ -15,6 +15,14 @@ service firebase.storage {
       return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.memberDocIds : [];
     }
 
+    // Returns the list of school document IDs this user owns or manages,
+    // cached on the user's ACL document.
+    function getUserSchoolDocIds() {
+      let email = request.auth.token.email;
+      let aclPath = /databases/(default)/documents/acl/$(email);
+      return (email != null && firestore.exists(aclPath)) ? firestore.get(aclPath).data.schoolDocIds : [];
+    }
+
     match /backups/{backupFile} {
       // Only admins can read/write the backups
       allow read, write: if isAdmin();
@@ -75,6 +83,17 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAdmin() || (
         request.auth != null && memberDocId in getUserMemberDocIds()
+      );
+    }
+
+    // School public profile images (logo/profile picture and cover image).
+    // Publicly readable. Writable by an admin or by an owner/manager of the
+    // school whose document matches {schoolDocId} (checked via the ACL's
+    // schoolDocIds). Stored at schools/{schoolDocId}/images/{fileId}.
+    match /schools/{schoolDocId}/images/{fileId} {
+      allow read: if true;
+      allow write: if isAdmin() || (
+        request.auth != null && schoolDocId in getUserSchoolDocIds()
       );
     }
 

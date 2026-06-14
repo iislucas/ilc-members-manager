@@ -4,6 +4,7 @@ import { FirebaseStateService, createFirebaseStateServiceMock } from '../../fire
 import { RoutingService } from '../../routing.service';
 import { DataManagerService } from '../../data-manager.service';
 import { FIREBASE_APP } from '../../app.config';
+import { SearchableSet } from '../../searchable-set';
 
 describe('ProposeEventComponent', () => {
   let component: ProposeEventComponent;
@@ -16,14 +17,11 @@ describe('ProposeEventComponent', () => {
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: RoutingService, useValue: { navigateToParts: () => {} } },
         { provide: FIREBASE_APP, useValue: {} },
-        { 
-          provide: DataManagerService, 
-          useValue: { 
-            instructors: { 
-              get: () => null,
-              entries: () => []
-            } 
-          } 
+        {
+          provide: DataManagerService,
+          useValue: {
+            instructors: new SearchableSet(['instructorId'], 'instructorId', []),
+          }
         }
       ]
     })

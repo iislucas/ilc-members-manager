@@ -67,6 +67,13 @@ export class InstructorViewComponent implements OnInit {
 
   backHref = computed(() => this.routingService.hrefForView(Views.FindAnInstructor, {}));
 
+  // Link to the events search page, pre-filtered to this instructor.
+  allEventsHref = computed(() => {
+    const i = this.instructor();
+    if (!i) return '';
+    return `#/events?instructorId=${encodeURIComponent(i.instructorId)}`;
+  });
+
   // A short location summary line (region/city, county/state, country).
   locationLine = computed(() => {
     const i = this.instructor();
@@ -168,6 +175,6 @@ export class InstructorViewComponent implements OnInit {
   }
 
   schoolHref(school: School): string {
-    return `#/find-school?schoolId=${encodeURIComponent(school.schoolId)}`;
+    return this.routingService.hrefForView(Views.SchoolView, { schoolId: school.schoolId });
   }
 }

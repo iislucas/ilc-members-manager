@@ -35,7 +35,10 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns, Views } from '../app.config';
+import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
+import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { deepObjEq } from '../utils';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import {
@@ -54,6 +57,8 @@ import { FirebaseStateService } from '../firebase-state.service';
     SpinnerComponent,
     AutocompleteComponent,
     IdAssignmentComponent,
+    ImageUploadPreviewComponent,
+    MarkdownEditor,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -62,6 +67,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 export class SchoolEditComponent {
   membersService = inject(DataManagerService);
   stateService = inject(FirebaseStateService);
+  private firebaseApp = inject(FIREBASE_APP);
   private routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
 
@@ -285,6 +291,107 @@ export class SchoolEditComponent {
     toChipId: (i: InstructorPublicData) => i.instructorId,
     toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
+
+  // --- Public profile page: images and description ---
+  readonly profileLargeDimensions = { width: 400, height: 400 };
+  readonly profileThumbDimensions = { width: 96, height: 96 };
+  readonly coverLargeDimensions = { width: 800, height: 600 };
+  readonly coverThumbDimensions = { width: 400, height: 300 };
+
+  isEditingProfileCrop = signal(false);
+  isEditingCoverCrop = signal(false);
+  isUploadingProfileImage = signal(false);
+  isUploadingCoverImage = signal(false);
+  profileImageError = signal<string | null>(null);
+  coverImageError = signal<string | null>(null);
+
+  editProfileCrop() {
+    this.isEditingProfileCrop.set(true);
+  }
+  cancelProfileCrop() {
+    this.isEditingProfileCrop.set(false);
+  }
+  editCoverCrop() {
+    this.isEditingCoverCrop.set(true);
+  }
+  cancelCoverCrop() {
+    this.isEditingCoverCrop.set(false);
+  }
+
+  async onProfileImageCropped(event: { thumbBlob: Blob; largeBlob: Blob }) {
+    const docId = this.editableSchool().docId;
+    if (!docId) {
+      this.profileImageError.set('Please save the school before uploading images.');
+      return;
+    }
+    this.isUploadingProfileImage.set(true);
+    this.profileImageError.set(null);
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const largeRef = ref(storage, `schools/${docId}/images/profile_large`);
+      await uploadBytes(largeRef, event.largeBlob, { contentType: 'image/jpeg' });
+      const largeUrl = await getDownloadURL(largeRef);
+
+      const thumbRef = ref(storage, `schools/${docId}/images/profile_thumb`);
+      await uploadBytes(thumbRef, event.thumbBlob, { contentType: 'image/jpeg' });
+      const thumbUrl = await getDownloadURL(thumbRef);
+
+      this.form.publicProfileImageUrl().value.set(largeUrl);
+      this.form.publicProfileImageUrl().markAsDirty();
+      this.form.publicProfileImageThumbUrl().value.set(thumbUrl);
+      this.form.publicProfileImageThumbUrl().markAsDirty();
+      this.isEditingProfileCrop.set(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Error uploading school profile image:', e);
+      this.profileImageError.set('Failed to upload image: ' + message);
+    } finally {
+      this.isUploadingProfileImage.set(false);
+    }
+  }
+
+  async onCoverImageCropped(event: { largeBlob: Blob }) {
+    const docId = this.editableSchool().docId;
+    if (!docId) {
+      this.coverImageError.set('Please save the school before uploading images.');
+      return;
+    }
+    this.isUploadingCoverImage.set(true);
+    this.coverImageError.set(null);
+    try {
+      const storage = getStorage(this.firebaseApp);
+      const coverRef = ref(storage, `schools/${docId}/images/cover_large`);
+      await uploadBytes(coverRef, event.largeBlob, { contentType: 'image/jpeg' });
+      const coverUrl = await getDownloadURL(coverRef);
+
+      this.form.publicCoverImageUrl().value.set(coverUrl);
+      this.form.publicCoverImageUrl().markAsDirty();
+      this.isEditingCoverCrop.set(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Error uploading school cover image:', e);
+      this.coverImageError.set('Failed to upload image: ' + message);
+    } finally {
+      this.isUploadingCoverImage.set(false);
+    }
+  }
+
+  removeProfileImage() {
+    this.form.publicProfileImageUrl().value.set('');
+    this.form.publicProfileImageUrl().markAsDirty();
+    this.form.publicProfileImageThumbUrl().value.set('');
+    this.form.publicProfileImageThumbUrl().markAsDirty();
+  }
+
+  removeCoverImage() {
+    this.form.publicCoverImageUrl().value.set('');
+    this.form.publicCoverImageUrl().markAsDirty();
+  }
+
+  onBioChanged(markdown: string) {
+    this.form.publicBioMarkdown().value.set(markdown);
+    this.form.publicBioMarkdown().markAsDirty();
+  }
 
   // Build the back navigation URL based on context.
   backUrl = computed(() => {

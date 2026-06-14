@@ -690,6 +690,35 @@ export class DataManagerService {
     }
   }
 
+  // Fetches all events associated with the given human-readable schoolId and
+  // splits them into upcoming and past (relative to now). Events are publicly
+  // readable, so this works on the public school profile page. `pastLimit`
+  // caps the number of past events returned (most-recent first).
+  async getEventsForSchool(
+    schoolId: string,
+    pastLimit = 5,
+  ): Promise<{ upcoming: IlcEvent[]; past: IlcEvent[]; pastTotal: number }> {
+    if (!schoolId) return { upcoming: [], past: [], pastTotal: 0 };
+    try {
+      const q = query(this.eventsCollection, where('schoolId', '==', schoolId));
+      const snap = await getDocs(q);
+      const events = snap.docs
+        .map((d) => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent))
+        .filter((ev) => ev.status === EventStatus.Listed);
+      const now = new Date().toISOString();
+      const upcoming = events
+        .filter((ev) => (ev.end || ev.start) >= now)
+        .sort((a, b) => a.start.localeCompare(b.start));
+      const pastAll = events
+        .filter((ev) => (ev.end || ev.start) < now)
+        .sort((a, b) => b.start.localeCompare(a.start));
+      return { upcoming, past: pastAll.slice(0, pastLimit), pastTotal: pastAll.length };
+    } catch (error) {
+      console.error('Error getting events for school:', error);
+      return { upcoming: [], past: [], pastTotal: 0 };
+    }
+  }
+
   // Returns the schools the given instructor owns or manages, matched by their
   // human-readable instructorId. Schools are publicly readable, so this works
   // on the public instructor profile page without an authenticated session.

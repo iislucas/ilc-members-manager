@@ -114,7 +114,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if hasValidEditUpdate() && isSchoolManager() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolCity', 'schoolZipCode', 'schoolCountyOrState', 'schoolCountry', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds']);
+            ['lastUpdated', 'schoolName', 'schoolAddress', 'schoolCity', 'schoolZipCode', 'schoolCountyOrState', 'schoolCountry', 'schoolWebsite', 'schoolClassGoogleCalendarId', 'managerInstructorIds', 'publicProfileImageUrl', 'publicProfileImageThumbUrl', 'publicCoverImageUrl', 'publicBioMarkdown']);
     
       match /members/{memberDocId} {
         allow read: if isAdmin() || isSchoolManager();

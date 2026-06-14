@@ -1,0 +1,144 @@
+<div class="school-view">
+  <a class="back-link" [href]="backHref()">
+    <app-icon name="arrow_back" /> Find a School
+  </a>
+
+  @if (isLoading()) {
+    <div class="center">
+      <app-spinner>Loading profile...</app-spinner>
+    </div>
+  } @else if (errorMessage(); as err) {
+    <div class="error-message">{{ err }}</div>
+  } @else if (school(); as s) {
+    <div class="profile-header">
+      <div class="cover" [class.no-cover]="!s.publicCoverImageUrl">
+        @if (s.publicCoverImageUrl) {
+          <img [src]="s.publicCoverImageUrl" alt="Cover image" class="cover-image" />
+        }
+      </div>
+      <div class="header-body">
+        @if (s.publicProfileImageUrl) {
+          <img [src]="s.publicProfileImageUrl" alt="School logo" class="profile-image" />
+        } @else {
+          <div class="profile-image placeholder">
+            <app-icon name="mountain" />
+          </div>
+        }
+        <div class="header-text">
+          <div class="name-row">
+            <h2>{{ s.schoolName }}</h2>
+            @if (s.schoolId) {
+              <span class="identifier-chip school-id">{{ s.schoolId }}</span>
+            }
+          </div>
+
+          @if (locationLine(); as location) {
+            <div class="location">
+              <app-icon name="location_on" width="16px" height="16px" />
+              <span>{{ location }}</span>
+              <a [href]="mapsUrl()" target="_blank" rel="noopener noreferrer" class="icon-link">
+                <app-icon name="map" width="16px" height="16px" />
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="contact-row">
+      @if (s.schoolWebsite) {
+        <a class="contact-link" [href]="ensureUrl(s.schoolWebsite)" target="_blank" rel="noopener noreferrer">
+          <app-icon name="link" width="16px" height="16px" /> {{ stripUrlPrefix(s.schoolWebsite) }}
+        </a>
+      }
+      @if (s.schoolClassGoogleCalendarId) {
+        <a class="contact-link" [href]="'#/calendar/school/' + s.schoolId">
+          <app-icon name="calendar_today" width="16px" height="16px" /> Class Calendar
+        </a>
+      }
+    </div>
+
+    @if (s.publicBioMarkdown) {
+      <section class="bio-section">
+        <h3>About</h3>
+        <app-markdown-viewer [markdown]="s.publicBioMarkdown" />
+      </section>
+    }
+
+    <section class="people-section">
+      <h3>Owner &amp; Managers</h3>
+      <div class="people-list">
+        @if (owner(); as o) {
+          <a class="person-card-link" [href]="instructorHref(o.instructorId)">
+            @if (o.publicProfileImageThumbUrl || o.publicProfileImageUrl) {
+              <img class="person-image" [src]="o.publicProfileImageThumbUrl || o.publicProfileImageUrl" alt="" />
+            } @else {
+              <div class="person-image placeholder"><app-icon name="salut" /></div>
+            }
+            <span class="person-text">
+              <span class="person-name">{{ o.name }}</span>
+              <span class="person-role">Owner</span>
+            </span>
+          </a>
+        } @else if (school()?.ownerInstructorId; as ownerId) {
+          <a class="person-card-link" [href]="instructorHref(ownerId)">
+            <div class="person-image placeholder"><app-icon name="salut" /></div>
+            <span class="person-text">
+              <span class="person-name">{{ ownerId }}</span>
+              <span class="person-role">Owner</span>
+            </span>
+          </a>
+        }
+
+        @for (m of managers(); track m.instructorId) {
+          <a class="person-card-link" [href]="instructorHref(m.instructorId)">
+            @if (m.instructor?.publicProfileImageThumbUrl || m.instructor?.publicProfileImageUrl) {
+              <img class="person-image" [src]="m.instructor!.publicProfileImageThumbUrl || m.instructor!.publicProfileImageUrl" alt="" />
+            } @else {
+              <div class="person-image placeholder"><app-icon name="salut" /></div>
+            }
+            <span class="person-text">
+              <span class="person-name">{{ m.instructor?.name || m.instructorId }}</span>
+              <span class="person-role">Manager</span>
+            </span>
+          </a>
+        }
+      </div>
+    </section>
+
+    <section class="events-section">
+      <h3>Upcoming Events</h3>
+      @if (eventsLoading()) {
+        <app-spinner>Loading events...</app-spinner>
+      } @else if (upcomingEvents().length > 0) {
+        <div class="events-list">
+          @for (ev of upcomingEvents(); track ev.docId) {
+            <a class="event-card-link" [href]="eventHref(ev)">
+              <app-event-item [event]="ev" />
+            </a>
+          }
+        </div>
+      } @else {
+        <p class="note">No upcoming events listed.</p>
+      }
+    </section>
+
+    @if (!eventsLoading() && pastEvents().length > 0) {
+      <section class="events-section">
+        <h3>Past Events</h3>
+        <div class="events-list">
+          @for (ev of pastEvents(); track ev.docId) {
+            <a class="event-card-link" [href]="eventHref(ev)">
+              <app-event-item [event]="ev" />
+            </a>
+          }
+        </div>
+        @if (pastEventsTotal() > pastEvents().length) {
+          <a class="show-more-link" [href]="allEventsHref()">
+            Show all {{ pastEventsTotal() }} past events <app-icon name="arrow_forward" width="16px" height="16px" />
+          </a>
+        }
+      </section>
+    }
+  }
+</div>

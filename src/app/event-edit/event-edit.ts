@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument, School } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -64,6 +64,8 @@ type EventFormModel = {
   ownerDocId: string;
   managerDocIds: string[];
   leadingInstructorId: string;
+  schoolId: string;
+  schoolDocId: string;
   documents: EventDocument[];
 };
 
@@ -94,6 +96,8 @@ function toFormModel(event: IlcEvent): EventFormModel {
     ownerDocId: event.ownerDocId || '',
     managerDocIds: event.managerDocIds || [],
     leadingInstructorId: event.leadingInstructorId || '',
+    schoolId: event.schoolId || '',
+    schoolDocId: event.schoolDocId || '',
     documents: event.documents || [],
   };
   if (event.heroImageLargeUrl !== undefined) {
@@ -149,6 +153,8 @@ export class EventEditComponent implements OnInit {
     ownerDocId: '',
     managerDocIds: [],
     leadingInstructorId: '',
+    schoolId: '',
+    schoolDocId: '',
     documents: [],
   });
 
@@ -421,9 +427,28 @@ export class EventEditComponent implements OnInit {
     toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
   };
 
+  schoolDisplayFns = {
+    toChipId: (s: School) => s.schoolId,
+    toName: (s: School) => s.schoolId ? `${s.schoolName} [${s.schoolId}]` : s.schoolName,
+  };
+
   private extractInstructorId(value: string): string {
     const match = value.match(/\[([^\]]+)\]$/);
     return match ? match[1] : value;
+  }
+
+  updateSchoolId(value: string) {
+    const schoolId = this.extractInstructorId(value);
+    const school = this.dataService.schools.get(schoolId);
+    this.eventFormModel.update((m) => ({
+      ...m,
+      schoolId,
+      schoolDocId: school?.docId || '',
+    }));
+  }
+
+  clearSchool() {
+    this.eventFormModel.update((m) => ({ ...m, schoolId: '', schoolDocId: '' }));
   }
 
   updateLeadingInstructorId(value: string) {
@@ -743,6 +768,8 @@ export class EventEditComponent implements OnInit {
         ownerDocId: formData.ownerDocId,
         managerDocIds: formData.managerDocIds.filter(Boolean),
         leadingInstructorId: formData.leadingInstructorId,
+        schoolId: formData.schoolId,
+        schoolDocId: formData.schoolDocId,
         documents: formData.documents,
         kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),

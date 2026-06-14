@@ -302,6 +302,13 @@ export type School = {
   schoolWebsite: string; // Optional website URL
   schoolClassGoogleCalendarId: string; // Optional Google Calendar ID for public class schedule
 
+  // Public profile page fields. Shown on the school's dedicated public profile
+  // page (mirrors the instructor profile page).
+  publicProfileImageUrl: string; // Logo / profile picture (large).
+  publicProfileImageThumbUrl: string; // Logo / profile picture (thumbnail).
+  publicCoverImageUrl: string; // Cover / header image.
+  publicBioMarkdown: string; // Markdown description of the school.
+
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
   ownerInstructorId: string;
@@ -917,6 +924,10 @@ export function initSchool(): School {
     schoolCountry: '',
     schoolWebsite: '',
     schoolClassGoogleCalendarId: '',
+    publicProfileImageUrl: '',
+    publicProfileImageThumbUrl: '',
+    publicCoverImageUrl: '',
+    publicBioMarkdown: '',
     ownerInstructorId: '',
     managerInstructorIds: [],
     ownerEmails: [],
@@ -1277,6 +1288,11 @@ export type IlcEvent = {
   ownerDocId: string;
   ownerEmails: string[];
   leadingInstructorId: string; // Primary instructor leading the event
+  // The human-readable schoolId (e.g. SCH-123) this event is hosted by /
+  // associated with, or '' if none. Used to list a school's events on its
+  // public profile page and to filter the events search page by school.
+  schoolId: string;
+  schoolDocId: string; // Firestore doc ID of the associated school, or ''.
   managerDocIds: string[];
   managerEmails: string[];
   // Attached documents (max 10). Each entry has a display name and a
@@ -1303,6 +1319,8 @@ export function initEvent(): IlcEvent {
     ownerDocId: '',
     ownerEmails: [],
     leadingInstructorId: '',
+    schoolId: '',
+    schoolDocId: '',
     managerDocIds: [],
     managerEmails: [],
     documents: [],

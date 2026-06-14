@@ -90,6 +90,8 @@ describe('EventEditComponent', () => {
       ownerDocId: 'owner-id',
       managerDocIds: [],
       leadingInstructorId: '',
+      schoolId: '',
+      schoolDocId: '',
       documents: [],
     });
 
