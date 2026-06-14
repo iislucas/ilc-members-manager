@@ -196,6 +196,11 @@
     &.redo-icon {
       transform: scaleX(-1);
     }
+
+    &.clear-format-icon {
+      font-size: 0.85em;
+      letter-spacing: 1px;
+    }
   }
 
   span {

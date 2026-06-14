@@ -280,6 +280,46 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     });
   }
 
+  // Remove all inline marks (bold, italic, link, etc.) and reset block
+  // types to paragraph. Operates on the current selection, or on the
+  // whole block at the cursor when the selection is collapsed.
+  clearFormatting() {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { schema } = state;
+      const { paragraph } = schema.nodes;
+      const { $from, $to, empty } = state.selection;
+
+      // Determine the range to clear: the selection itself, or the
+      // entire block containing the cursor when nothing is selected.
+      let from: number;
+      let to: number;
+      if (empty) {
+        const depth = $from.depth;
+        if (depth === 0) return;
+        from = $from.before(depth);
+        to = $from.after(depth);
+      } else {
+        from = $from.pos;
+        to = $to.pos;
+      }
+
+      const tr = state.tr;
+
+      // Strip every mark type from the range.
+      for (const markType of Object.values(schema.marks)) {
+        tr.removeMark(from, to, markType);
+      }
+
+      // Reset any block (headings, etc.) within the range to paragraph.
+      tr.setBlockType(from, to, paragraph);
+
+      view.dispatch(tr);
+      view.focus();
+    });
+  }
+
   indent() {
     this.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
