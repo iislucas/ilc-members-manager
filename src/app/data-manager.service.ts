@@ -253,25 +253,32 @@ export class DataManagerService {
 
   // Standard "(memberId) Name" display form for a member referenced by a
   // grading. Resolves the member by docId first, then by human-readable
-  // memberId (some gradings have a stale/empty studentMemberDocId). Falls back
-  // to whatever identifier we have when the member document isn't loaded.
-  memberDisplayName(memberDocId: string, memberId: string): string {
+  // memberId (some gradings have a stale/empty studentMemberDocId). When the
+  // member document isn't loaded — e.g. non-admin viewers can't read the members
+  // collection — falls back to the denormalized `cachedName` snapshot stored on
+  // the grading (Grading.studentName), then to whatever identifier we have.
+  memberDisplayName(memberDocId: string, memberId: string, cachedName?: string): string {
     const member =
       (memberDocId ? this.getMemberByDocId(memberDocId) : undefined) ??
       (memberId ? this.getMemberByMemberId(memberId) : undefined);
     if (member) {
       return member.memberId ? `(${member.memberId}) ${member.name}` : member.name;
     }
+    if (cachedName) {
+      return memberId ? `(${memberId}) ${cachedName}` : cachedName;
+    }
     return memberId || memberDocId || '';
   }
 
   // Standard "Name [instructorId]" display form for an instructor referenced by
   // a grading. Resolves the instructor by their human-readable instructorId.
-  // Falls back to the raw id when the instructor document isn't loaded.
-  instructorDisplayName(instructorId: string): string {
+  // Falls back to the denormalized `cachedName` snapshot (Grading.gradingInstructorName)
+  // and then the raw id when the instructor document isn't loaded.
+  instructorDisplayName(instructorId: string, cachedName?: string): string {
     if (!instructorId) return '';
     const instructor = this.instructors.get(instructorId);
-    return instructor ? `${instructor.name} [${instructor.instructorId}]` : instructorId;
+    if (instructor) return `${instructor.name} [${instructor.instructorId}]`;
+    return cachedName ? `${cachedName} [${instructorId}]` : instructorId;
   }
 
   // Reactive map from memberId to docId for the logged-in instructor's students.

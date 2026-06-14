@@ -112,11 +112,18 @@ export class GradingListComponent {
         studentName: this.dataService.memberDisplayName(
           g.studentMemberDocId,
           g.studentMemberId,
+          g.studentName,
         ),
         // Include the senior grading instructor plus any assistant instructors
-        // so searching for any examiner's name surfaces the grading.
+        // so searching for any examiner's name surfaces the grading. The primary
+        // instructor's cached name is supplied as a fallback for non-admin views.
         instructorName: [g.gradingInstructorId, ...g.assistantInstructorIds]
-          .map((id) => this.dataService.instructorDisplayName(id))
+          .map((id) =>
+            this.dataService.instructorDisplayName(
+              id,
+              id === g.gradingInstructorId ? g.gradingInstructorName : undefined,
+            ),
+          )
           .filter((name) => !!name)
           .join(' '),
       })),

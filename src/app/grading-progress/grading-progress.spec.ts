@@ -39,6 +39,7 @@ describe('GradingProgressComponent', () => {
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
       memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',
+      instructorDisplayName: (instructorId: string) => instructorId,
     };
 
     mockFirebaseState = createFirebaseStateServiceMock();

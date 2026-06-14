@@ -84,6 +84,7 @@ export class GradingViewComponent {
         this.dataService.memberDisplayName(
           g.studentMemberDocId,
           g.studentMemberId,
+          g.studentName,
         ) || 'Unknown Student';
       this.titleLoaded.emit(`Grading: ${studentLabel}`);
     } else if (!this.loading()) {

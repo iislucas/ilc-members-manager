@@ -190,6 +190,53 @@ async function getMemberName(
   return snap.exists ? snap.data()?.name || fallback : fallback;
 }
 
+/**
+ * Resolve a member's display name from a Firestore doc ID, falling back to the
+ * human-readable memberId when the doc ID is missing or doesn't resolve. Some
+ * gradings carry only a studentMemberId, so we look up by that too.
+ */
+async function getMemberNameByDocIdOrMemberId(
+  memberDocId: string | undefined,
+  memberId: string | undefined,
+): Promise<string> {
+  if (memberDocId) {
+    const snap = await db.collection('members').doc(memberDocId).get();
+    if (snap.exists && snap.data()?.name) return snap.data()!.name;
+  }
+  if (memberId) {
+    const q = await db
+      .collection('members')
+      .where('memberId', '==', memberId)
+      .limit(1)
+      .get();
+    if (!q.empty && q.docs[0].data()?.name) return q.docs[0].data().name;
+  }
+  return '';
+}
+
+/**
+ * Resolve the denormalized display-name snapshots cached on a grading: the
+ * student's name and the primary grading instructor's name. Returns '' for
+ * either when the referenced member can't be found. See the Grading.studentName
+ * / gradingInstructorName fields for why these are cached.
+ */
+async function resolveGradingNames(
+  grading: Grading,
+): Promise<{ studentName: string; gradingInstructorName: string }> {
+  const studentName = await getMemberNameByDocIdOrMemberId(
+    grading.studentMemberDocId,
+    grading.studentMemberId,
+  );
+  let gradingInstructorName = '';
+  if (grading.gradingInstructorId) {
+    const instructorMemberDocId = await findInstructorMemberDocId(
+      grading.gradingInstructorId,
+    );
+    gradingInstructorName = await getMemberName(instructorMemberDocId, '');
+  }
+  return { studentName, gradingInstructorName };
+}
+
 async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
   if (!memberDocId) return undefined;
   const snap = await db.collection('members').doc(memberDocId).get();
@@ -316,6 +363,15 @@ export const onGradingCreated = onDocumentCreated(
     grading.docId = snap.id;
     const gradingDocId = snap.id;
 
+    // Cache the student/instructor display names so non-admin viewers (who can't
+    // read members/instructors) see names instead of IDs. Set on the in-memory
+    // grading first so the mirrored copies below carry the names too, then write
+    // them back to the source doc if they were missing/stale. The write-back
+    // re-fires onGradingUpdated, which re-resolves and finds them unchanged.
+    const resolvedNames = await resolveGradingNames(grading);
+    grading.studentName = resolvedNames.studentName;
+    grading.gradingInstructorName = resolvedNames.gradingInstructorName;
+
     // Mirror to all instructors (primary + assistants)
     await mirrorGradingToAllInstructors(gradingDocId, grading);
 
@@ -402,6 +458,20 @@ export const onGradingCreated = onDocumentCreated(
       }
     }
 
+    // Persist the cached names to the source grading if they weren't already
+    // stored (e.g. the client created the doc without them).
+    const storedStudentName = (snap.data() as Grading).studentName || '';
+    const storedInstructorName = (snap.data() as Grading).gradingInstructorName || '';
+    if (
+      storedStudentName !== grading.studentName ||
+      storedInstructorName !== grading.gradingInstructorName
+    ) {
+      await snap.ref.update({
+        studentName: grading.studentName,
+        gradingInstructorName: grading.gradingInstructorName,
+      });
+    }
+
     logger.info(`Grading ${gradingDocId} created and mirrored.`);
   },
 );
@@ -417,6 +487,17 @@ export const onGradingUpdated = onDocumentUpdated(
     const previous = snap.before.data() as Grading;
     previous.docId = snap.before.id;
     const gradingDocId = snap.after.id;
+
+    // Re-resolve the cached display names from the current student/instructor so
+    // they stay in sync on every update. Set on the in-memory grading first so
+    // the sub-collection mirrors below carry the fresh names. Captured stored
+    // values are compared at the end to decide whether a write-back is needed
+    // (the write-back re-fires this trigger, which then finds them unchanged).
+    const storedStudentName = grading.studentName || '';
+    const storedInstructorName = grading.gradingInstructorName || '';
+    const resolvedNames = await resolveGradingNames(grading);
+    grading.studentName = resolvedNames.studentName;
+    grading.gradingInstructorName = resolvedNames.gradingInstructorName;
 
     // Determine which instructor IDs changed
     const previousPrimaryInstructor = await getPrimaryInstructorId(previous.studentMemberDocId);
@@ -820,6 +901,19 @@ export const onGradingUpdated = onDocumentUpdated(
       previous.status === GradingStatus.AwaitingAcceptance
     ) {
       await annotateManagerNotificationsWithAcceptor(grading, gradingDocId);
+    }
+
+    // Write the refreshed cached names back to the source grading if they
+    // changed. Skipping the write when unchanged stops the trigger re-firing in
+    // a loop.
+    if (
+      storedStudentName !== grading.studentName ||
+      storedInstructorName !== grading.gradingInstructorName
+    ) {
+      await snap.after.ref.update({
+        studentName: grading.studentName,
+        gradingInstructorName: grading.gradingInstructorName,
+      });
     }
 
     logger.info(`Grading ${gradingDocId} updated and re-mirrored.`);
