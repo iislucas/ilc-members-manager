@@ -169,6 +169,24 @@ export class NotificationService implements OnDestroy {
     return !!this.swPush?.isEnabled && !!environment.vapidPublicKey;
   }
 
+  // Re-reads the browser's live push subscription and updates pushDeviceEnabled
+  // to match. The constructor's swPush.subscription stream only emits once at
+  // startup, so the settings UI calls this when shown to make sure the per-device
+  // toggle reflects the actual on-device subscription state rather than a stale
+  // signal value.
+  public async refreshPushDeviceState(): Promise<void> {
+    if (!this.swPush?.isEnabled) {
+      this.pushDeviceEnabled.set(false);
+      return;
+    }
+    try {
+      const sub = await firstValueFrom(this.swPush.subscription);
+      this.pushDeviceEnabled.set(!!sub);
+    } catch (e) {
+      console.error('Failed to read push subscription state:', e);
+    }
+  }
+
   // Turns on push for THIS device: requests notification permission if needed,
   // then registers the subscription. Returns true if the device ends up enabled.
   public async enablePushOnThisDevice(): Promise<boolean> {
@@ -181,6 +199,9 @@ export class NotificationService implements OnDestroy {
     } else {
       await this.registerPushSubscription(memberDocId);
     }
+    // registerPushSubscription may short-circuit on its per-session guard without
+    // touching the signal, so reconcile against the real subscription here.
+    await this.refreshPushDeviceState();
     return permission === 'granted' && this.pushDeviceEnabled();
   }
 
@@ -197,6 +218,7 @@ export class NotificationService implements OnDestroy {
         await deleteDoc(doc(this.db, 'members', memberDocId, 'pushSubscriptions', subId));
       }
       await this.swPush.unsubscribe();
+      this.pushDeviceEnabled.set(false);
     } catch (e) {
       console.error('Failed to disable push on this device:', e);
     } finally {
