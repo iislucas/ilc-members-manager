@@ -14,6 +14,8 @@
  *   pnpm backfill:event-schools
  *   # apply the changes:
  *   pnpm backfill:event-schools --commit
+ *   # target a different project (defaults to ilc-paris-class-tracker):
+ *   pnpm backfill:event-schools --project=<project-id>
  */
 
 import * as admin from 'firebase-admin';
@@ -21,8 +23,15 @@ import { IlcEvent, Member } from '../functions/src/data-model';
 
 const COMMIT = process.argv.includes('--commit');
 
+// Target Firestore project. Override with --project=<id>; defaults to the
+// live project.
+const DEFAULT_PROJECT = 'ilc-paris-class-tracker';
+const projectArg = process.argv.find((a) => a.startsWith('--project='));
+const PROJECT_ID = projectArg ? projectArg.split('=')[1] : DEFAULT_PROJECT;
+
 async function main() {
-  admin.initializeApp();
+  console.log(`Using project: ${PROJECT_ID}`);
+  admin.initializeApp({ projectId: PROJECT_ID });
   const db = admin.firestore();
 
   // Build a map: instructorId (human-readable) -> { primarySchoolId, primarySchoolDocId }.
