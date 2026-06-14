@@ -4,7 +4,14 @@
   It also exposes standard push permission prompts and triggers manual test alerts.
 */
 
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { NotificationService } from '../../notification.service';
@@ -21,10 +28,17 @@ import { IconComponent } from '../../icons/icon.component';
   styleUrl: './notification-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NotificationSettingsComponent {
+export class NotificationSettingsComponent implements OnInit {
   protected notificationService = inject(NotificationService);
   private firebaseService = inject(FirebaseStateService);
   private dataManager = inject(DataManagerService);
+
+  ngOnInit() {
+    // The service's push subscription stream only emits once at app startup, so
+    // re-read the device's live subscription each time the panel is shown to keep
+    // the per-device toggle in sync (e.g. after navigating away and back).
+    this.notificationService.refreshPushDeviceState?.();
+  }
 
   protected localSettings = this.notificationService.localSettings;
   protected permissionStatus = this.notificationService.permissionStatus;
