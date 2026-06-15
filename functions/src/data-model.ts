@@ -443,7 +443,7 @@ export interface NotificationPurchaseData {
 export interface NotificationOrderIssueData {
   // Firestore doc ID of the order; used both to deep-link to the order view and
   // to de-duplicate so the same order is only announced once per admin.
-  orderId: string;
+  orderDocId: string;
   // Human-readable order reference (Squarespace orderNumber or Sheets
   // referenceNumber) for display.
   orderRef: string;

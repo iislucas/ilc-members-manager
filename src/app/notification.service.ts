@@ -618,8 +618,8 @@ export class NotificationService implements OnDestroy {
     );
     const notifiedOrderIds = new Set<string>();
     existingSnap.forEach((d) => {
-      const data = (d.data() as MemberNotification).data as { orderId?: string };
-      if (data?.orderId) notifiedOrderIds.add(data.orderId);
+      const data = (d.data() as MemberNotification).data as { orderDocId?: string };
+      if (data?.orderDocId) notifiedOrderIds.add(data.orderDocId);
     });
 
     // Orders flagged for attention. We filter by status only (an `in` filter on
@@ -658,7 +658,7 @@ export class NotificationService implements OnDestroy {
         dismissed: false,
         kind: NotificationKind.OrderNeedsAttention,
         data: {
-          orderId: order.docId,
+          orderDocId: order.docId,
           orderRef,
           status,
           issues,
