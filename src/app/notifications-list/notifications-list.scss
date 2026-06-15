@@ -113,6 +113,15 @@
     @include v.row-highlight-base;
     @include v.row-highlight-active; // Active highlights unread by default
 
+    // Admin-only notification kinds get a distinct light-orange background so
+    // they stand out from a member's own notifications. Higher specificity than
+    // the row-highlight mixin above, so it wins for these kinds.
+    &.PendingEventApproval,
+    &.OrderNeedsAttention {
+      background-color: #fff4e5; // Light orange
+      border-left-color: #f5a623; // Orange accent
+    }
+
     .notification-icon {
       display: flex;
       align-items: center;
@@ -140,6 +149,11 @@
       }
       &.NewEventPosted {
         background-color: #e8f0fe; // Soft blue
+      }
+      // Admin-only kinds — soft orange tint matching the card background.
+      &.PendingEventApproval,
+      &.OrderNeedsAttention {
+        background-color: #fee9cc; // Soft orange
       }
     }
 
