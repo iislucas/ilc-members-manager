@@ -382,6 +382,9 @@ export enum NotificationKind {
   // Admin-only: a member-proposed event is waiting for approval (status='proposed').
   // Surfaced to admins so they can review and approve/reject it from Manage Events.
   PendingEventApproval = 'PendingEventApproval',
+  // Admin-only: an order failed automatic processing (ilcAppOrderStatus 'error' or
+  // 'needs-manual-processing') and needs an admin to resolve it from the order view.
+  OrderNeedsAttention = 'OrderNeedsAttention',
 }
 
 export interface MemberNotificationCommon {
@@ -437,6 +440,20 @@ export interface NotificationPurchaseData {
   summary: string;
 }
 
+export interface NotificationOrderIssueData {
+  // Firestore doc ID of the order; used both to deep-link to the order view and
+  // to de-duplicate so the same order is only announced once per admin.
+  orderDocId: string;
+  // Human-readable order reference (Squarespace orderNumber or Sheets
+  // referenceNumber) for display.
+  orderRef: string;
+  // The processing status that flagged this order ('error' or
+  // 'needs-manual-processing').
+  status: OrderStatus;
+  // The recorded processing issues (ilcAppOrderIssues), if any.
+  issues: string[];
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -481,6 +498,10 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.PendingEventApproval;
     data: NotificationEventData;
+  }
+  | {
+    kind: NotificationKind.OrderNeedsAttention;
+    data: NotificationOrderIssueData;
   }
   | {
     kind: NotificationKind.PurchaseFulfilled;
