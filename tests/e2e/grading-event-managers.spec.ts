@@ -78,6 +78,8 @@ function makeGrading(studentMemberDocId: string, studentMemberId: string): Gradi
     schoolDocId: '',
     studentMemberId,
     studentMemberDocId,
+    studentName: '',
+    gradingInstructorName: '',
     status: GradingStatus.AwaitingAcceptance,
     gradingEventDate: '',
     gradingEvent: '',
@@ -130,6 +132,21 @@ describe('story: grading-event-managers', () => {
 
   afterAll(async () => {
     await db.terminate();
+  });
+
+  it('caches the student name on the grading so non-admins see it', async () => {
+    // The onGradingCreated trigger should denormalize the student's display name
+    // onto the grading (studentName) so viewers who cannot read the members
+    // collection still see a name instead of a bare ID.
+    const deadline = Date.now() + 15000;
+    let studentName = '';
+    while (Date.now() < deadline) {
+      const snap = await db.collection('gradings').doc(gradingDocId).get();
+      studentName = (snap.data() as Grading | undefined)?.studentName || '';
+      if (studentName) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    expect(studentName).toBe('Test Student');
   });
 
   it('links the grading to the event, notifying organizer and manager', async () => {

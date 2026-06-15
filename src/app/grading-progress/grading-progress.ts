@@ -150,6 +150,7 @@ export class GradingProgressComponent implements OnDestroy {
     return this.dataService.memberDisplayName(
       g.studentMemberDocId,
       g.studentMemberId,
+      g.studentName,
     );
   });
 
@@ -158,6 +159,16 @@ export class GradingProgressComponent implements OnDestroy {
     if (!id) return null;
     return this.dataService.instructors.get(id) ?? null;
   });
+
+  // Display label for the primary grading instructor when their public profile
+  // isn't loaded (e.g. non-admin viewers). Falls back to the cached name
+  // snapshot on the grading, then the raw instructorId.
+  gradingInstructorLabel = computed(() =>
+    this.dataService.instructorDisplayName(
+      this.grading().gradingInstructorId,
+      this.grading().gradingInstructorName,
+    ),
+  );
 
   // Grading managers — displayed as "Grading Managers" in the UI.
   // Backed by the legacy Firestore field `assistantInstructorIds`.

@@ -33,6 +33,7 @@ export class GradingRowHeaderComponent {
     return this.dataService.memberDisplayName(
       g.studentMemberDocId,
       g.studentMemberId,
+      g.studentName,
     );
   });
 
@@ -50,7 +51,10 @@ export class GradingRowHeaderComponent {
   });
 
   instructorName = computed(() =>
-    this.dataService.instructorDisplayName(this.grading().gradingInstructorId),
+    this.dataService.instructorDisplayName(
+      this.grading().gradingInstructorId,
+      this.grading().gradingInstructorName,
+    ),
   );
 
   formatLevel(lvl: string): string {

@@ -16,6 +16,7 @@
     "grant-video-library-access": "ts-node scripts/grant-video-library-access.ts",
     "normalize-members-schools": "ts-node scripts/data-migrations/normalize-members-schools.ts",
     "backfill-grading-status-actor": "ts-node scripts/data-migrations/backfill-grading-status-actor.ts",
+    "backfill-grading-names": "ts-node scripts/data-migrations/backfill-grading-names.ts",
     "test": "vitest run --no-color"
   },
   "main": "dist/index.js",

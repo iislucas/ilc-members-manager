@@ -991,6 +991,14 @@ export type Grading = {
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
   studentMemberDocId: string; // The Firestore doc ID of the student member document.
+  // Denormalized display-name snapshots, kept in sync by the grading triggers
+  // (see on-grading-update.ts) on every create/update. They let non-admin
+  // viewers — who cannot read the members/instructors collections — see the
+  // student and primary instructor names instead of bare IDs. Plain `name`
+  // values; the UI still formats them with the IDs it already has on the
+  // grading. '' until first resolved (e.g. the member doc isn't found).
+  studentName: string; // Display name of the student at the last create/update.
+  gradingInstructorName: string; // Display name of the primary grading instructor.
   status: GradingStatus; // See GradingStatus enum for details.
   gradingEventDate: string; // YYYY-MM-DD, set when grading is conducted.
   gradingEvent: string; // Text string for event/location/date of the grading.
@@ -1047,6 +1055,8 @@ export function initGrading(): Grading {
     schoolDocId: '',
     studentMemberId: '',
     studentMemberDocId: '',
+    studentName: '',
+    gradingInstructorName: '',
     status: GradingStatus.AwaitingRequest,
     gradingEventDate: '',
     gradingEvent: '',
