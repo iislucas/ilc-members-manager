@@ -53,7 +53,7 @@
           </div>
           <div class="notification-content">
             <div class="meta">
-              <span class="date">{{ n.createdAt | date:'short' }}</span>
+              <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date:'short' }}</span>
             </div>
             <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
             @if (gradingHref(n); as href) {

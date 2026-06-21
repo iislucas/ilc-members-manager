@@ -90,12 +90,15 @@ export class GradingListComponent {
 
   gradingSet = input.required<SearchableSet<'docId', Grading>>();
 
-  // A search-only mirror of `gradingSet` whose entries are enriched with the
-  // resolved student and instructor *names*, looked up from the already-loaded
-  // members/instructors caches via the grading's docIds. The names are never
-  // persisted to the Grading data model — they exist only on these in-memory
-  // copies so MiniSearch can match on them.
-  private searchSet = new SearchableSet<'docId', Grading & { studentName: string; instructorName: string }>(
+  // A search-only mirror of `gradingSet` whose entries carry extra fields with
+  // the resolved student and instructor display *names* (looked up live from the
+  // members/instructors caches, plus all examiner names) so MiniSearch can match
+  // on them. These fields use distinct names (`studentSearchText` /
+  // `instructorSearchText`) so they don't clobber the grading's own
+  // `studentName` / `gradingInstructorName` snapshot fields — the enriched
+  // entries are also what gets rendered by the row header, which re-derives the
+  // display name from those snapshots.
+  private searchSet = new SearchableSet<'docId', Grading & { studentSearchText: string; instructorSearchText: string }>(
     [],
     'docId',
   );
@@ -105,11 +108,11 @@ export class GradingListComponent {
   // not per keystroke (the search term is read in `filteredByTab` instead).
   private _syncSearchSet = effect(() => {
     const source = this.gradingSet();
-    this.searchSet.fieldsToSearch = [...source.fieldsToSearch, 'studentName', 'instructorName'];
+    this.searchSet.fieldsToSearch = [...source.fieldsToSearch, 'studentSearchText', 'instructorSearchText'];
     this.searchSet.setEntries(
       source.uniqueEntries().map((g) => ({
         ...g,
-        studentName: this.dataService.memberDisplayName(
+        studentSearchText: this.dataService.memberDisplayName(
           g.studentMemberDocId,
           g.studentMemberId,
           g.studentName,
@@ -117,7 +120,7 @@ export class GradingListComponent {
         // Include the senior grading instructor plus any assistant instructors
         // so searching for any examiner's name surfaces the grading. The primary
         // instructor's cached name is supplied as a fallback for non-admin views.
-        instructorName: [g.gradingInstructorId, ...g.assistantInstructorIds]
+        instructorSearchText: [g.gradingInstructorId, ...g.assistantInstructorIds]
           .map((id) =>
             this.dataService.instructorDisplayName(
               id,
