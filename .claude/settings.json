@@ -7,7 +7,9 @@
       "Bash(pnpm build*)",
       "Bash(pnpm run build *)",
       "Bash(pnpm exec ng build *)",
-      "Bash(pnpm --filter functions build*)"
+      "Bash(pnpm --filter functions build*)",
+      "Bash(pnpm --prefix functions exec ts-node scripts/build-fixture-subset.ts --src /Users/lucasd/code/ilc-members-manager/tmp/seed-data)",
+      "Bash(git -C /Users/lucasd/code/ilc-members-manager status --short)"
     ]
   }
 }

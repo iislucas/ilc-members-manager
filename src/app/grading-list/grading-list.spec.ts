@@ -125,4 +125,60 @@ describe('GradingListComponent', () => {
     const byInstructor = search('Builder');
     expect(byInstructor.map((g) => g.docId)).toEqual(['grading-7']);
   });
+
+  it('interleaves standalone gradings with event blocks on the date timeline', () => {
+    const mk = (docId: string, eventDocId: string, eventDate: string, eventName: string): Grading => {
+      const g = initGrading();
+      g.docId = docId;
+      g.gradingEventDocId = eventDocId;
+      g.gradingEventDate = eventDate;
+      g.gradingEvent = eventName;
+      return g;
+    };
+    // Event B spans two days (ends 2026-05-02); standalone gradings sit before,
+    // concurrent with, and after it. Event A is earlier.
+    component.gradingSet().setEntries([
+      mk('s1', '', '2026-06-01', ''), // after event B → above it
+      mk('b1', 'event-B', '2026-05-01', 'Event B'),
+      mk('b2', 'event-B', '2026-05-02', 'Event B'),
+      mk('s2', '', '2026-05-02', ''), // concurrent with event B's last day → below it
+      mk('s3', '', '2026-04-01', ''), // before event B → below it
+      mk('a1', 'event-A', '2026-03-01', 'Event A'),
+    ]);
+    fixture.detectChanges();
+
+    expect(component.groupByEvent()).toBe(true);
+    const items = component.listItems();
+    // Default order is newest-first; an event is anchored at its last day and
+    // sits above same-day standalone gradings.
+    expect(items.map((i) => i.key)).toEqual([
+      'grading:s1',
+      'event:event-B',
+      'grading:s2',
+      'grading:s3',
+      'event:event-A',
+    ]);
+
+    const eventB = items[1];
+    expect(eventB.kind).toBe('event');
+    if (eventB.kind === 'event') {
+      expect(eventB.group.total).toBe(2);
+      expect(eventB.group.title).toBe('Event B');
+      expect(eventB.group.date).toBe('2026-05-01'); // earliest day shown in heading
+      expect(eventB.group.endDate).toBe('2026-05-02'); // last day anchors the timeline
+
+      // Clicking the event heading filters the list down to that event.
+      component.onEventGroupClick(eventB.group);
+      fixture.detectChanges();
+      expect(component.filterEventDocId()).toBe('event-B');
+      expect(component.listItems().map((i) => i.key)).toEqual(['event:event-B']);
+    }
+  });
+
+  it('does not group in the member view', () => {
+    fixture.componentRef.setInput('viewMode', 'member');
+    fixture.detectChanges();
+    expect(component.groupByEvent()).toBe(false);
+    expect(component.listItems()).toEqual([]);
+  });
 });

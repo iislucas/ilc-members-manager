@@ -44,6 +44,26 @@ export const GRADING_SORT_FIELD_LABELS: { value: GradingSortField; label: string
   { value: GradingSortField.Status, label: 'Status' },
 ];
 
+// A set of gradings that all share the same linked event (same
+// `gradingEventDocId`), gathered under one heading even when the individual
+// gradings happened on different days.
+export interface GradingEventGroup {
+  eventDocId: string;
+  title: string; // Display title from the denormalized `gradingEvent` snapshot.
+  date: string; // Earliest event date among the gradings (shown in the heading).
+  endDate: string; // Latest event date; anchors the event in the date timeline.
+  gradings: Grading[]; // Possibly truncated for display; see `total`.
+  total: number; // Full count of gradings in the group, before any limit.
+}
+
+// One row in the grouped grading list: either a single grading not linked to an
+// event, or an event block (heading + its gradings). Both are positioned on the
+// same date timeline so unlinked gradings interleave with event blocks rather
+// than being collected at the end.
+export type GradingListItem =
+  | { kind: 'grading'; key: string; grading: Grading }
+  | { kind: 'event'; key: string; group: GradingEventGroup };
+
 function compareGradingsByField(a: Grading, b: Grading, field: GradingSortField, dir: SortDirection): number {
   const mul = dir === SortDirection.Asc ? 1 : -1;
   switch (field) {
@@ -253,6 +273,92 @@ export class GradingListComponent {
     () => this.filteredByAdvanced().length,
   );
 
+  // Group the gradings by linked event in the admin ("all") and instructor
+  // views so all gradings conducted at one event are listed together under an
+  // event heading. The member's own gradings keep the flat list.
+  groupByEvent = computed(() => {
+    const mode = this.viewMode();
+    return mode === 'all' || mode === 'instructor';
+  });
+
+  // Build the grouped timeline from the filtered set: gather every grading
+  // sharing a `gradingEventDocId` into an event block (ordered within by the
+  // chosen sort field), then interleave those blocks with the unlinked gradings
+  // on a single date timeline. An event block is anchored at its last event day
+  // (its latest `gradingEventDate`), so — in the default newest-first order —
+  // gradings dated after the event sit above it, and gradings concurrent with
+  // or before its last day sit below it.
+  listItems = computed<GradingListItem[]>(() => {
+    if (!this.groupByEvent()) return [];
+    const all = this.filteredByAdvanced();
+    const field = this.sortField();
+    const dir = this.sortDirection();
+    const mul = dir === SortDirection.Asc ? 1 : -1;
+
+    const byEvent = new Map<string, Grading[]>();
+    const standalone: Grading[] = [];
+    for (const g of all) {
+      if (g.gradingEventDocId) {
+        const list = byEvent.get(g.gradingEventDocId) ?? [];
+        list.push(g);
+        byEvent.set(g.gradingEventDocId, list);
+      } else {
+        standalone.push(g);
+      }
+    }
+
+    // Each entry carries the date that positions it on the timeline.
+    type Positioned = { item: GradingListItem; date: string; isEvent: boolean };
+    const positioned: Positioned[] = [];
+
+    for (const [eventDocId, gs] of byEvent) {
+      const sorted = [...gs].sort((a, b) => compareGradingsByField(a, b, field, dir));
+      const dates = gs.map((g) => g.gradingEventDate).filter((d) => !!d).sort();
+      const date = dates[0] ?? '';
+      const endDate = dates[dates.length - 1] ?? '';
+      const title = gs.find((g) => g.gradingEvent)?.gradingEvent ?? '';
+      const group: GradingEventGroup = {
+        eventDocId, title, date, endDate, gradings: sorted, total: sorted.length,
+      };
+      positioned.push({ item: { kind: 'event', key: `event:${eventDocId}`, group }, date: endDate, isEvent: true });
+    }
+    for (const g of standalone) {
+      const date = g.gradingEventDate || g.gradingPurchaseDate || '';
+      positioned.push({ item: { kind: 'grading', key: `grading:${g.docId}`, grading: g }, date, isEvent: false });
+    }
+
+    positioned.sort((a, b) => {
+      const cmp = (a.date || '').localeCompare(b.date || '');
+      if (cmp !== 0) return mul * cmp;
+      // Same anchor date: treat an event as occurring at the end of its last
+      // day, so a standalone grading on that day reads as concurrent/earlier
+      // and sits below the event block in the default newest-first order.
+      if (a.isEvent !== b.isEvent) return mul * (a.isEvent ? 1 : -1);
+      return 0;
+    });
+
+    return positioned.map((p) => p.item);
+  });
+
+  // Apply the display limit across the timeline, counting each standalone
+  // grading and each grading inside an event block, keeping headings intact.
+  limitedItems = computed<GradingListItem[]>(() => {
+    let remaining = this.limit();
+    const out: GradingListItem[] = [];
+    for (const item of this.listItems()) {
+      if (remaining <= 0) break;
+      if (item.kind === 'grading') {
+        out.push(item);
+        remaining -= 1;
+      } else {
+        const slice = item.group.gradings.slice(0, remaining);
+        remaining -= slice.length;
+        out.push({ ...item, group: { ...item.group, gradings: slice } });
+      }
+    }
+    return out;
+  });
+
   loading = computed(() => {
     return this.gradingSet().loading();
   });
@@ -299,6 +405,19 @@ export class GradingListComponent {
 
   onEventFilterSelected(event: IlcEvent) {
     this.filterEventDocId.set(event.docId);
+    this.limit.set(50);
+  }
+
+  // Clicking an event heading in grouped mode filters the list down to that
+  // single event's gradings.
+  onEventGroupClick(group: GradingEventGroup) {
+    if (!group.eventDocId) return;
+    this.filterEventDocId.set(group.eventDocId);
+    this.limit.set(50);
+  }
+
+  clearEventFilter() {
+    this.filterEventDocId.set('');
     this.limit.set(50);
   }
 

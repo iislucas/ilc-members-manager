@@ -26,10 +26,12 @@
     <!-- ILC event search -->
     <div class="event-search-section">
       <app-autocomplete
+        class="event-autocomplete"
         name="Event"
         [searchableSet]="eventsSet"
         [displayFns]="eventDisplayFns"
         [inputBoxIsChip]="false"
+        [initSearchTerm]="linkedEventName() || editEvent()"
         placeholder="Search ILC events…"
         (itemSelected)="onEventSelected($event)"
       ></app-autocomplete>

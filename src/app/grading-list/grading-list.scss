@@ -210,6 +210,86 @@
   }
 }
 
+// Replaces the search box in the header when the list is filtered to a single
+// event; grows to fill the same space so the header layout stays stable.
+.show-all-events-btn {
+  flex-grow: 1;
+  justify-content: flex-start;
+  align-self: stretch;
+}
+
+// An event block: the heading plus its gradings, wrapped in a connecting border
+// (left/right/bottom in the same colour as the heading divider) so all gradings
+// at one event read as a single unit.
+$event-group-border: v.$theme-tag-border-color;
+
+.event-group {
+  margin-bottom: 0.75em;
+  border: 2px solid $event-group-border;
+  border-radius: 6px;
+  overflow: hidden;
+
+  // The heading provides the top of the box; its bottom divider matches the
+  // surrounding border colour so the outline reads as continuous.
+  .event-group-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    width: 100%;
+    text-align: left;
+    padding: 0.5em 0.6em;
+    border: none;
+    border-bottom: 2px solid $event-group-border;
+    background-color: v.$theme-tag-bg-color;
+    box-shadow: none;
+    cursor: pointer;
+    color: v.$text-primary;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #cfe9fb;
+      box-shadow: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .event-group-icon {
+      color: v.$text-secondary;
+      flex-shrink: 0;
+    }
+
+    .event-group-title {
+      font-weight: 600;
+      flex-grow: 1;
+    }
+
+    .event-group-date {
+      font-size: 0.85em;
+      color: v.$text-secondary;
+      white-space: nowrap;
+    }
+
+    .event-group-count {
+      font-size: 0.8em;
+      color: v.$text-secondary;
+      background: #fff;
+      border: 1px solid v.$border-color-light;
+      border-radius: 10px;
+      padding: 0 0.5em;
+      min-width: 1.5em;
+      text-align: center;
+    }
+  }
+
+  // The box border closes the bottom, so the last grading needn't draw its own.
+  .grading-card:last-child {
+    border-bottom: none;
+  }
+}
+
 .create-form-container {
   border: 1px solid v.$theme-border-color;
   background: white;
