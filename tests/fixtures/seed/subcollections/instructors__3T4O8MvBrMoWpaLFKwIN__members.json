@@ -1,0 +1,52 @@
+[
+  {
+    "id": "j88uvMLLEiGHWTvPHd81",
+    "isAdmin": false,
+    "name": "Test Member AT50",
+    "address": "123 Test St",
+    "city": "Test City",
+    "zipCode": "00000",
+    "countyOrState": "",
+    "country": "Austria",
+    "phone": "555-0000",
+    "emails": [
+      "member-at50@example.com"
+    ],
+    "gender": "Male",
+    "publicEmail": "",
+    "publicPhone": "",
+    "publicRegionOrCity": "",
+    "publicCountyOrState": "",
+    "instructorWebsite": "",
+    "memberId": "AT50",
+    "membershipType": "Life",
+    "instructorId": "",
+    "instructorLicenseExpires": "",
+    "applicationLevel": "",
+    "mastersLevels": [],
+    "dateOfBirth": "1987-10-07",
+    "lastRenewalDate": "2023-09-27",
+    "instructorLicenseType": "None",
+    "instructorLicenseRenewalDate": "",
+    "firstMembershipStarted": "2023-09-27",
+    "currentMembershipExpires": "0025-07-10",
+    "tags": [],
+    "primarySchoolDocId": "",
+    "primaryInstructorId": "183",
+    "primarySchoolId": "",
+    "publicClassGoogleCalendarId": "",
+    "classVideoLibraryExpirationDate": "2026-04-04",
+    "classVideoLibrarySubscription": true,
+    "notes": "",
+    "classVideoLibraryLastRenewalDate": "",
+    "gradingDocIds": [
+      "jeEZYXKlrlgf403b4XVR"
+    ],
+    "lastUpdated": {
+      "_seconds": 1773348598,
+      "_nanoseconds": 117000000
+    },
+    "studentLevel": "1",
+    "docId": "j88uvMLLEiGHWTvPHd81"
+  }
+]

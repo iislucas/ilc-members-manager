@@ -28,20 +28,25 @@ import * as path from 'path';
 // CLI args
 // ============================================================
 const args = process.argv.slice(2);
-const projectIndex = args.indexOf('--project');
-const projectId =
-  projectIndex !== -1 && args.length > projectIndex + 1
-    ? args[projectIndex + 1]
-    : 'ilc-paris-class-tracker';
+function argValue(name: string): string | undefined {
+  const i = args.indexOf(name);
+  return i !== -1 && args.length > i + 1 ? args[i + 1] : undefined;
+}
+const projectId = argValue('--project') ?? 'ilc-paris-class-tracker';
 
 admin.initializeApp({ projectId });
 const db = admin.firestore();
 
-const seedDir = path.resolve(__dirname, '../../tmp/seed-data');
+// Default to the full anonymized export; pass --src to load a different dataset
+// (resolved from the repo root), e.g. the committed slice:
+//   pnpm seed:emulator --src tests/fixtures/seed
+const repoRoot = path.resolve(__dirname, '../..');
+const src = argValue('--src') ?? 'tmp/seed-data';
+const seedDir = path.resolve(repoRoot, src);
 
 if (!fs.existsSync(seedDir)) {
   console.error(`Seed directory not found: ${seedDir}`);
-  console.error('Run export-anonymized-data.ts first.');
+  console.error('Run export-anonymized-data.ts first, or pass --src <dir>.');
   process.exit(1);
 }
 

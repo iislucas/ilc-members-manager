@@ -1,0 +1,96 @@
+[
+  {
+    "id": "8JbQZ3KbNDQPfI5QpbC2",
+    "schoolLicenseExpires": "",
+    "schoolCity": "PANTIN",
+    "ownerInstructorId": "197",
+    "schoolLicenseRenewalDate": "",
+    "schoolCountry": "France",
+    "schoolAddress": "8 Rue Eugène et Marie-Louise Cornet\nApt 4",
+    "schoolWebsite": "www.zxd.fr",
+    "schoolCountyOrState": "Ile de France",
+    "schoolZipCode": "93500",
+    "docId": "8JbQZ3KbNDQPfI5QpbC2",
+    "schoolId": "SCH-101",
+    "schoolName": "Test School SCH-101",
+    "schoolClassGoogleCalendarId": "",
+    "lastUpdated": {
+      "_seconds": 1777642536,
+      "_nanoseconds": 555000000
+    },
+    "managerInstructorIds": [],
+    "managerEmails": [],
+    "ownerEmails": [
+      "instructor-197@example.com"
+    ],
+    "contactEmail": "",
+    "contactPhone": "",
+    "address": "",
+    "city": "",
+    "zipCode": ""
+  },
+  {
+    "id": "AuVQYqJW9UfyTit7il1E",
+    "schoolName": "Test School SCH-015",
+    "schoolAddress": "",
+    "schoolCity": "Freiberg",
+    "schoolZipCode": "",
+    "schoolCountyOrState": "",
+    "schoolCountry": "Germany",
+    "schoolWebsite": "",
+    "ownerInstructorId": "285",
+    "managerInstructorIds": [],
+    "managerEmails": [],
+    "schoolLicenseRenewalDate": "",
+    "schoolLicenseExpires": "",
+    "lastUpdated": {
+      "_seconds": 1771979055,
+      "_nanoseconds": 69000000
+    },
+    "docId": "AuVQYqJW9UfyTit7il1E",
+    "schoolId": "SCH-015",
+    "ownerEmails": [
+      "instructor-285@example.com"
+    ],
+    "schoolClassGoogleCalendarId": "",
+    "contactEmail": "",
+    "contactPhone": "",
+    "address": "",
+    "city": "",
+    "zipCode": ""
+  },
+  {
+    "id": "cBk1CnUrmKY3lEK1g1tC",
+    "schoolName": "Test School SCH-139",
+    "schoolAddress": "Stadlauerstr. 4",
+    "schoolCity": "Vienna",
+    "schoolZipCode": "1220",
+    "schoolCountyOrState": "",
+    "schoolCountry": "Austria",
+    "schoolWebsite": "www.iliqchuan.at",
+    "ownerInstructorId": "98",
+    "schoolLicenseRenewalDate": "",
+    "schoolLicenseExpires": "",
+    "docId": "cBk1CnUrmKY3lEK1g1tC",
+    "schoolId": "SCH-139",
+    "ownerEmails": [
+      "instructor-98@example.com"
+    ],
+    "lastUpdated": {
+      "_seconds": 1772548801,
+      "_nanoseconds": 364000000
+    },
+    "managerInstructorIds": [
+      "183"
+    ],
+    "managerEmails": [
+      "instructor-183@example.com"
+    ],
+    "schoolClassGoogleCalendarId": "",
+    "contactEmail": "",
+    "contactPhone": "",
+    "address": "",
+    "city": "",
+    "zipCode": ""
+  }
+]

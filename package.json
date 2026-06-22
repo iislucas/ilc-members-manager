@@ -19,6 +19,7 @@
     "test:once": "vitest run --no-color",
     "test": "pnpm test:once",
     "test:functions": "pnpm --prefix functions test",
+    "test:fixtures": "vitest run --config vitest.fixtures.config.ts --no-color",
     "test:rules:in_emulator": "vitest run --config vitest.rules.config.ts --no-color",
     "test:rules": "pnpm exec firebase emulators:exec --only firestore \"pnpm test:rules:in_emulator\"",
     "test:e2e:in_emulator": "vitest run --config vitest.e2e.config.ts --no-color",
@@ -33,6 +34,8 @@
     "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
     "start:emulator": "ng serve --configuration emulator --project ilc-members-manager",
     "seed:emulator": "pnpm --prefix functions exec ts-node scripts/seed-emulator.ts",
+    "build:fixtures": "pnpm --prefix functions exec ts-node scripts/build-fixture-subset.ts",
+    "typecheck:tests": "tsc -p tests/tsconfig.json --noEmit",
     "export:anonymized": "pnpm --prefix functions exec ts-node scripts/export-anonymized-data.ts --project ilc-paris-class-tracker"
   },
   "pnpm": {
@@ -92,6 +95,7 @@
     "@angular/compiler-cli": "^21.2.10",
     "@firebase/rules-unit-testing": "^5.0.0",
     "@google-cloud/storage": "^7.19.0",
+    "@types/node": "^26.0.0",
     "esbuild": "^0.28.0",
     "firebase-admin": "^13.10.0",
     "jsdom": "^28.1.0",

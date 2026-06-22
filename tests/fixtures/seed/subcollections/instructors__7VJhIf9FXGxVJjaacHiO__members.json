@@ -1,0 +1,49 @@
+[
+  {
+    "id": "vG1EXt4fMxxLM8xO35IQ",
+    "isAdmin": false,
+    "name": "Test Member AUS76",
+    "address": "123 Test St",
+    "city": "Test City",
+    "zipCode": "00000",
+    "countyOrState": "Test State",
+    "country": "Australia",
+    "phone": "",
+    "emails": [
+      "member-aus76@example.com"
+    ],
+    "gender": "male",
+    "publicEmail": "",
+    "publicPhone": "",
+    "publicRegionOrCity": "",
+    "publicCountyOrState": "",
+    "instructorWebsite": "",
+    "memberId": "AUS76",
+    "currentMembershipExpires": "",
+    "instructorId": "",
+    "instructorLicenseExpires": "",
+    "studentLevel": "",
+    "applicationLevel": "",
+    "mastersLevels": [],
+    "dateOfBirth": "1957-08-31",
+    "lastRenewalDate": "2018-10-09",
+    "instructorLicenseType": "None",
+    "instructorLicenseRenewalDate": "",
+    "firstMembershipStarted": "2018-10-09",
+    "primarySchoolDocId": "",
+    "gradingDocIds": [],
+    "primaryInstructorId": "14",
+    "primarySchoolId": "",
+    "tags": [],
+    "membershipType": "Annual",
+    "notes": "",
+    "publicClassGoogleCalendarId": "",
+    "lastUpdated": {
+      "_seconds": 1772613173,
+      "_nanoseconds": 760000000
+    },
+    "classVideoLibraryExpirationDate": "2026-04-04",
+    "classVideoLibrarySubscription": true,
+    "docId": "vG1EXt4fMxxLM8xO35IQ"
+  }
+]

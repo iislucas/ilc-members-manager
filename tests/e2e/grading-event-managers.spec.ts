@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   GradingStatus,
   NotificationKind,
+  initGrading,
   type Grading,
   type MemberNotification,
 } from '../../functions/src/data-model';
@@ -64,37 +65,18 @@ async function waitForNotification(
   );
 }
 
-// Minimal grading document for the scenario. Only the fields the trigger reads
-// need to be present; the rest are left at sensible empties.
+// Minimal grading document for the scenario. Based on initGrading() so it stays
+// a complete, valid Grading as the type evolves; only the fields this scenario's
+// trigger reads are overridden.
 function makeGrading(studentMemberDocId: string, studentMemberId: string): Grading {
   return {
-    docId: '',
+    ...initGrading(),
     gradingPurchaseDate: '2026-01-01',
-    orderId: '',
     level: 'Student 1',
-    gradingInstructorId: '',
-    assistantInstructorIds: [],
-    schoolId: '',
-    schoolDocId: '',
     studentMemberId,
     studentMemberDocId,
-    studentName: '',
-    gradingInstructorName: '',
     status: GradingStatus.AwaitingAcceptance,
-    gradingEventDate: '',
-    gradingEvent: '',
-    gradingEventDocId: '',
-    instructorAcceptedDate: '',
-    acceptedByMemberDocId: '',
-    acceptedByName: '',
-    statusChangedByMemberDocId: '',
-    statusChangedByName: '',
-    notes: '',
-    studentNotes: '',
-    resultNotes: '',
-    declineNotes: '',
-    reviewIssue: '',
-  } as Grading;
+  };
 }
 
 describe('story: grading-event-managers', () => {

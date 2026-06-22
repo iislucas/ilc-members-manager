@@ -4,6 +4,12 @@ import {
   onDocumentDeleted,
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+// Use the modular FieldValue export rather than `admin.firestore.FieldValue`:
+// the namespaced accessor is `undefined` inside the Functions emulator runtime,
+// which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
+// named import works in both the emulator and production. (Same fix as
+// on-grading-update.ts.)
+import { FieldValue } from 'firebase-admin/firestore';
 import { Member, ACL, Grading } from './data-model';
 import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
@@ -46,7 +52,7 @@ async function updateACL(aclUpdate: {
     if (!email) continue;
     const aclRef = db.collection('acl').doc(email);
     const update: FirestoreUpdate<ACL> = {
-      memberDocIds: admin.firestore.FieldValue.arrayUnion(memberDocId),
+      memberDocIds: FieldValue.arrayUnion(memberDocId),
     };
     batch.set(aclRef, update, { merge: true });
   }
@@ -55,7 +61,7 @@ async function updateACL(aclUpdate: {
     if (!email) continue;
     const aclRef = db.collection('acl').doc(email);
     const update: FirestoreUpdate<ACL> = {
-      memberDocIds: admin.firestore.FieldValue.arrayRemove(memberDocId),
+      memberDocIds: FieldValue.arrayRemove(memberDocId),
     };
     batch.update(aclRef, update);
   }
