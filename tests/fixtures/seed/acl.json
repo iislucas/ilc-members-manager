@@ -1,0 +1,988 @@
+[
+  {
+    "id": "member-fr25@example.com",
+    "memberDocIds": [
+      "lAo7BxLveTaVbet44WGC"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-08-21",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr12@example.com",
+    "memberDocIds": [
+      "sztHzQBopVp0ASizQOPm"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at31@example.com",
+    "memberDocIds": [
+      "U5p4zEYPLwi9lZGaM1ds"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-11-13",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at25@example.com",
+    "memberDocIds": [
+      "7pqLPwOOeAxlZv70Elgs"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at54@example.com",
+    "memberDocIds": [
+      "dt1CaWb3DNwepXBDcmh4"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr11@example.com",
+    "memberDocIds": [
+      "L9J0DauSCQiEbTaZN3kZ"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at60@example.com",
+    "memberDocIds": [
+      "igtZzLua1jHUZNNQPeDr"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-11-15",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus73@example.com",
+    "memberDocIds": [
+      "XC5d5hGua3i2tSPPqUpT"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-02-06",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at46@example.com",
+    "memberDocIds": [
+      "fGlAiTyvMYL7zKuhOAMq"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2022-07-05",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at56@example.com",
+    "instructorIds": [
+      "184"
+    ],
+    "isAdmin": false,
+    "memberDocIds": [
+      "WReCiiI2tnb0EAD00qk3"
+    ],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2027-03-21",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus75@example.com",
+    "memberDocIds": [
+      "ItcirLced7qnbMdRrbOR"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-07-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at58@example.com",
+    "memberDocIds": [
+      "KK3qSyimMsJvSucoBcYc"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-11-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr27@example.com",
+    "memberDocIds": [
+      "P5tvPClNh2jIbVOK5Lov"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-03-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus30@example.com",
+    "memberDocIds": [
+      "XbOy0DoXt0aqD7DOFZ2j"
+    ],
+    "instructorIds": [
+      "56"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at33@example.com",
+    "memberDocIds": [
+      "3A9njZYSHnOfGXTKP6vJ"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2020-04-04",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at20@example.com",
+    "memberDocIds": [
+      "r6CPTuppaHnbOUUz9s96"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2017-11-07",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-ch10@example.com",
+    "memberDocIds": [
+      "60YsZEzCtMycGLJ902HW"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2020-09-15",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at26@example.com",
+    "memberDocIds": [
+      "x55tlwjCVo5GFluvY0tK"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-04-19",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at57@example.com",
+    "memberDocIds": [
+      "sD0shBUKHU6shRbzhdsO"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-10-31",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-bel2@example.com",
+    "memberDocIds": [
+      "BHQMhJd9khliL8NHuqar"
+    ],
+    "isAdmin": false,
+    "instructorIds": [
+      "85"
+    ],
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-us526@example.com",
+    "isAdmin": false,
+    "memberDocIds": [
+      "7HWmrdkqM9LpoEpAeElh"
+    ],
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr19@example.com",
+    "memberDocIds": [
+      "TlptuzvHtslFJsNpJezz"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-12-04",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at27@example.com",
+    "memberDocIds": [
+      "PSWy2ddizATeANwCQBH1"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr26@example.com",
+    "memberDocIds": [
+      "NXHMXoIhQnpPG6jge3MD"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-10-10",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at23@example.com",
+    "isAdmin": false,
+    "memberDocIds": [
+      "k8EPpbIFpmJKkkumzMAR"
+    ],
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at16b@example.com",
+    "memberDocIds": [
+      "G4kK0fzSruIjb2gqUeYv"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at37@example.com",
+    "memberDocIds": [
+      "nn7mevEKbdXlmXFrewZ4"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-10-09",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at35@example.com",
+    "memberDocIds": [
+      "RcG7tYEsqYkvwbYs0IIA"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus68@example.com",
+    "memberDocIds": [
+      "LUIEiu3PEfXnzBXg0BTr"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2017-08-03",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr16@example.com",
+    "memberDocIds": [
+      "OA0jZEYCNSP3LEvwnDOH"
+    ],
+    "isAdmin": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus57@example.com",
+    "memberDocIds": [
+      "Cy7rWWl8HpyBUbMG7f4n"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr28@example.com",
+    "memberDocIds": [
+      "d9Tjeahj3B6gGjIAESwA"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-03-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-ca01@example.com",
+    "memberDocIds": [
+      "Vc8PYcgeS5Axok9e6WMK"
+    ],
+    "isAdmin": true,
+    "instructorIds": [
+      "103"
+    ],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "life",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus76@example.com",
+    "memberDocIds": [
+      "vG1EXt4fMxxLM8xO35IQ"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-de59@example.com",
+    "memberDocIds": [
+      "EZClXT9rVAFRaK00HMw8"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2022-09-14",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at4@example.com",
+    "memberDocIds": [
+      "mwAqQqsULAHcP6LWT4VW"
+    ],
+    "instructorIds": [
+      "215"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at22@example.com",
+    "memberDocIds": [
+      "zdnqfVCo03kdExsZOhrj"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2018-06-17",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at3@example.com",
+    "memberDocIds": [
+      "ZHBU4A9cxbAfpglwGv3z"
+    ],
+    "isAdmin": false,
+    "instructorIds": [
+      "98"
+    ],
+    "instructorLicenseExpires": "2026-10-23",
+    "membershipExpires": "life",
+    "schoolLicenseExpires": "life",
+    "schoolDocIds": [
+      "cBk1CnUrmKY3lEK1g1tC"
+    ]
+  },
+  {
+    "id": "member-at3@example.com",
+    "memberDocIds": [
+      "ZHBU4A9cxbAfpglwGv3z"
+    ],
+    "isAdmin": false,
+    "instructorIds": [
+      "98"
+    ],
+    "instructorLicenseExpires": "2026-10-23",
+    "membershipExpires": "life",
+    "schoolLicenseExpires": "life",
+    "schoolDocIds": [
+      "cBk1CnUrmKY3lEK1g1tC"
+    ]
+  },
+  {
+    "id": "member-us402@example.com",
+    "memberDocIds": [
+      "uGZjWTsJudxswMoUGBPa"
+    ],
+    "isAdmin": true,
+    "instructorIds": [
+      "197"
+    ],
+    "instructorLicenseExpires": "2027-11-13",
+    "membershipExpires": "life",
+    "schoolLicenseExpires": "life",
+    "schoolDocIds": [
+      "8JbQZ3KbNDQPfI5QpbC2"
+    ],
+    "notYetLinkedToMember": false
+  },
+  {
+    "id": "member-us402@example.com",
+    "memberDocIds": [
+      "uGZjWTsJudxswMoUGBPa"
+    ],
+    "instructorIds": [
+      "197"
+    ],
+    "isAdmin": true,
+    "instructorLicenseExpires": "2027-11-13",
+    "membershipExpires": "life",
+    "schoolLicenseExpires": "life",
+    "schoolDocIds": [
+      "8JbQZ3KbNDQPfI5QpbC2"
+    ],
+    "notYetLinkedToMember": false
+  },
+  {
+    "id": "member-at30@example.com",
+    "memberDocIds": [
+      "UNwlrfhvHEaoNw3rn7J4"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus61@example.com",
+    "memberDocIds": [
+      "16XBNXjqwjPWfyibVwSw"
+    ],
+    "instructorIds": [
+      "209"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr23@example.com",
+    "memberDocIds": [
+      "8fJAVDRi5uVoahic4XSi"
+    ],
+    "isAdmin": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-05-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at28@example.com",
+    "memberDocIds": [
+      "uES3Fa4YgCpcinFM4lcO"
+    ],
+    "isAdmin": false,
+    "instructorIds": [
+      "262"
+    ],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "2026-10-07",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus72@example.com",
+    "memberDocIds": [
+      "PZ7aIx2GK7kAlG8JoSJ6"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2018-10-13",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at21@example.com",
+    "memberDocIds": [
+      "kDr2VEOVdnAtKkIV8shn"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2017-11-07",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at64@example.com",
+    "memberDocIds": [
+      "ilW1o4JCWeQzqZKLcgUb"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-10-16",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at50@example.com",
+    "memberDocIds": [
+      "j88uvMLLEiGHWTvPHd81"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at59@example.com",
+    "memberDocIds": [
+      "A3lLfERhwil77myhVcqs"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-11-14",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at1@example.com",
+    "memberDocIds": [
+      "o0aq8RyAbUBprKDjC9PM"
+    ],
+    "instructorIds": [
+      "64"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus59@example.com",
+    "memberDocIds": [
+      "1GdIuWbZu18T01ui9bYN"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr102@example.com",
+    "memberDocIds": [
+      "hUr2Qv3Q9hpx8KjlvkHy"
+    ],
+    "isAdmin": false,
+    "notYetLinkedToMember": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-03-01",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr102@example.com",
+    "isAdmin": false,
+    "memberDocIds": [
+      "hUr2Qv3Q9hpx8KjlvkHy"
+    ],
+    "notYetLinkedToMember": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-03-01",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr29@example.com",
+    "memberDocIds": [
+      "QZqVuyAXrNCIrSYDTVLl"
+    ],
+    "isAdmin": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-07-06",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at51@example.com",
+    "memberDocIds": [
+      "kl5qvK1gKo4EYnjnckkZ"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr22@example.com",
+    "memberDocIds": [
+      "Ilmc2BgXiKVDBVhpb5nb"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2024-12-07",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-de10@example.com",
+    "memberDocIds": [
+      "K8KdXmbrcIjHfH3J74Ys"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr16@example.com",
+    "memberDocIds": [
+      "OA0jZEYCNSP3LEvwnDOH"
+    ],
+    "isAdmin": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr16@example.com",
+    "memberDocIds": [
+      "OA0jZEYCNSP3LEvwnDOH"
+    ],
+    "isAdmin": false,
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at32@example.com",
+    "memberDocIds": [
+      "TQzROZBaBeL9k8Y4U1Xi"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2020-04-06",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at19@example.com",
+    "memberDocIds": [
+      "0n3u4H6uiWVYpWLxu4TA"
+    ],
+    "instructorIds": [
+      "216"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at55@example.com",
+    "isAdmin": false,
+    "memberDocIds": [
+      "td1fj8azeu13siYzaSi5"
+    ],
+    "instructorIds": [],
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr17@example.com",
+    "memberDocIds": [
+      "cXZ95lyihBwsxJvMxpYY"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr21@example.com",
+    "memberDocIds": [
+      "05AUEVqOL0A2zkKA5c4h"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at2@example.com",
+    "memberDocIds": [
+      "4ZnGPntE0Kb6fI5GYsCo"
+    ],
+    "instructorIds": [
+      "75"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus71@example.com",
+    "memberDocIds": [
+      "2XymWA8TFGNFu1oMy0zS"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-05-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-bel28@example.com",
+    "memberDocIds": [
+      "GDqFacUlXDXKmGJh1sFw"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at24@example.com",
+    "memberDocIds": [
+      "mZxM2zxLCGrlmlSQMtjm"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus64@example.com",
+    "memberDocIds": [
+      "eZJSghpMoZSHWQJSvsOr"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2015-12-04",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at16@example.com",
+    "memberDocIds": [
+      "n5uho2mbLTUbDBQJOLsx"
+    ],
+    "instructorIds": [
+      "218"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus77@example.com",
+    "memberDocIds": [
+      "1lVo113C96l84Fb2JeKM"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2020-08-27",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-de100@example.com",
+    "memberDocIds": [
+      "kKZQx1783R289hW5I5rb"
+    ],
+    "isAdmin": false,
+    "instructorIds": [
+      "285"
+    ],
+    "instructorLicenseExpires": "2026-04-14",
+    "membershipExpires": "2026-01-02",
+    "schoolLicenseExpires": "life",
+    "schoolDocIds": [
+      "AuVQYqJW9UfyTit7il1E"
+    ]
+  },
+  {
+    "id": "member-at52@example.com",
+    "memberDocIds": [
+      "BrDg1IDaMZjZnv8URi4A"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr14@example.com",
+    "memberDocIds": [
+      "mWL3pMFCmGMeooGuy8DM"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-05-12",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-bel14@example.com",
+    "memberDocIds": [
+      "nQPBmF2ENOS9aoa8K57Y"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at29@example.com",
+    "memberDocIds": [
+      "gcTBT2pJvJc2w9Sndyr1"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-09-24",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at62@example.com",
+    "memberDocIds": [
+      "qWoV5LYIlTkXihFDanQF"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2027-03-24",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at36@example.com",
+    "memberDocIds": [
+      "UbX7G7huT5ooppgFv2dC"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2022-03-22",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus74@example.com",
+    "memberDocIds": [
+      "keBO81abmz63v7GW7kua"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2019-01-29",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-aus69@example.com",
+    "memberDocIds": [
+      "30OftrWuFjd6GHKBx6oO"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-de70@example.com",
+    "memberDocIds": [
+      "MsYvqAMDkitxDgcOElwH"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2026-04-02",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-no14@example.com",
+    "memberDocIds": [
+      "V8TR6RVTWN0FKQFGqbv8"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-at53@example.com",
+    "memberDocIds": [
+      "KmjEhLUgejwHPjFcX2My"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "life",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr18@example.com",
+    "memberDocIds": [
+      "r5u3Y524gAqhhFS8wpk2"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2023-09-16",
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-de30@example.com",
+    "memberDocIds": [
+      "fsVNOZEpXAQNQ5D4kf84"
+    ],
+    "isAdmin": false,
+    "schoolDocIds": []
+  },
+  {
+    "id": "member-fr24@example.com",
+    "memberDocIds": [
+      "1EABqCttdYBeYnACD4MY"
+    ],
+    "isAdmin": false,
+    "schoolLicenseExpires": "",
+    "instructorLicenseExpires": "",
+    "membershipExpires": "2025-04-19",
+    "schoolDocIds": []
+  }
+]

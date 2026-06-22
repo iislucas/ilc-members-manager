@@ -1,0 +1,52 @@
+[
+  {
+    "id": "hUr2Qv3Q9hpx8KjlvkHy",
+    "isAdmin": false,
+    "membershipType": "Annual",
+    "firstMembershipStarted": "",
+    "instructorLicenseExpires": "",
+    "instructorLicenseRenewalDate": "",
+    "applicationLevel": "",
+    "mastersLevels": [],
+    "tags": [],
+    "notes": "",
+    "classVideoLibraryExpirationDate": "",
+    "docId": "hUr2Qv3Q9hpx8KjlvkHy",
+    "phone": "555-0000",
+    "emails": [
+      "member-fr102@example.com"
+    ],
+    "zipCode": "00000",
+    "gender": "male",
+    "city": "Test City",
+    "countyOrState": "Test State",
+    "primaryInstructorId": "2",
+    "publicEmail": "member-fr102@example.com",
+    "publicPhone": "555-0000",
+    "publicRegionOrCity": "Pantin",
+    "publicCountyOrState": "",
+    "instructorWebsite": "https://www.zxd.fr",
+    "address": "123 Test St",
+    "primarySchoolDocId": "8JbQZ3KbNDQPfI5QpbC2",
+    "primarySchoolId": "SCH-101",
+    "name": "Test Member FR102",
+    "gradingDocIds": [
+      "iNQ4Xl2BBFHK7L2LMrFV"
+    ],
+    "publicClassGoogleCalendarId": "06se06gf82c428olklnjagbt6c@group.calendar.google.com",
+    "studentLevel": "3",
+    "classVideoLibraryLastRenewalDate": "",
+    "currentMembershipExpires": "2026-03-01",
+    "lastRenewalDate": "2025-03-01",
+    "classVideoLibrarySubscription": false,
+    "instructorLicenseType": "Annual",
+    "country": "France",
+    "instructorId": "",
+    "memberId": "FR102",
+    "dateOfBirth": "1979-11-23",
+    "lastUpdated": {
+      "_seconds": 1778452044,
+      "_nanoseconds": 82000000
+    }
+  }
+]

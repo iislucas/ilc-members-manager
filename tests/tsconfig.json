@@ -1,0 +1,11 @@
+/* Type-checking for the emulator-driven specs in tests/ (rules + e2e). These
+ * run under Vitest (esbuild, transpile-only), so this config exists purely so
+ * `pnpm typecheck:tests` can catch type errors the test runner would not. */
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["**/*.ts", "../functions/src/data-model.ts"]
+}
