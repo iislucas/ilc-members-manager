@@ -9,6 +9,31 @@
   display: block;
 }
 
+.grading-target {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-top: 0.75em;
+  flex-wrap: wrap;
+
+  .grading-target-label {
+    font-size: 0.9em;
+    color: v.$text-secondary;
+  }
+
+  .grading-target-from {
+    color: v.$text-secondary;
+  }
+
+  .grading-target-level {
+    font-weight: 600;
+  }
+}
+
+.grading-level-warning {
+  margin-top: 0.75em;
+}
+
 .progress-container {
   border: 1px solid v.$border-color-light;
   border-radius: 8px;
@@ -280,6 +305,15 @@
   .field-note {
     font-size: 0.85em;
     color: v.$text-muted;
+  }
+
+  .field-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    margin: 0.4em 0 0;
+    font-size: 0.85em;
+    color: #e65100;
   }
 
   .field-actions {

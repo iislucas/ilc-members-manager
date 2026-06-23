@@ -6,7 +6,7 @@
  */
 
 import { Component, computed, inject, input } from '@angular/core';
-import { Grading, GradingStatus, getPrettyGradingStatus } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, getPrettyGradingStatus, previousGradingLevel } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
@@ -24,6 +24,10 @@ export class GradingRowHeaderComponent {
   private routingService = inject(RoutingService<AppPathPatterns>);
 
   grading = input.required<Grading>();
+
+  // Suppress the linked-event name (set when the row is rendered under an event
+  // heading that already shows it, so it isn't repeated for every grading).
+  hideEvent = input<boolean>(false);
 
   GradingStatus = GradingStatus;
   getPrettyGradingStatus = getPrettyGradingStatus;
@@ -56,6 +60,14 @@ export class GradingRowHeaderComponent {
       this.grading().gradingInstructorName,
     ),
   );
+
+  // The student's level just before this grading: the entry immediately
+  // preceding the grading's target level in the canonical progression (which
+  // interleaves the Student and Application tracks). Derived from the grading's
+  // target level so it shows in every view — including the instructor My
+  // Gradings tabs where the student's member record isn't loaded. '' when the
+  // grading is for the first progression entry.
+  previousLevel = computed(() => previousGradingLevel(this.grading().level));
 
   formatLevel(lvl: string): string {
     if (!lvl) return '';

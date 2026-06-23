@@ -755,6 +755,63 @@ describe('Firestore Rules', () => {
       );
     });
 
+    it('should deny student from updating the event once the grading is accepted', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('gradings')
+          .doc('grading-1')
+          .update({ status: 'awaiting-instructor-grading' });
+      });
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          gradingEventDocId: 'event-doc-789',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should still allow a grading manager to update the event after acceptance', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('gradings')
+          .doc('grading-1')
+          .update({ status: 'passed' });
+      });
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          gradingEventDocId: 'event-doc-789',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should still allow the student to update their own notes after acceptance', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('gradings')
+          .doc('grading-1')
+          .update({ status: 'awaiting-instructor-grading' });
+      });
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          studentNotes: 'Looking forward to it',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
     it('should deny instructor from updating admin-only field orderId', async () => {
       const db = testEnv
         .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })

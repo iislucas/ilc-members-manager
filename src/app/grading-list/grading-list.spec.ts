@@ -6,7 +6,8 @@ import { SearchableSet } from '../searchable-set';
 import { Grading, initGrading } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
-import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
+import { RoutingService } from '../routing.service';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 
 @Component({
@@ -173,6 +174,31 @@ describe('GradingListComponent', () => {
       expect(component.filterEventDocId()).toBe('event-B');
       expect(component.listItems().map((i) => i.key)).toEqual(['event:event-B']);
     }
+  });
+
+  it('mirrors the event filter through the URL `event` param so it is shareable', () => {
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const eventParam = routing.signals[Views.ManageGradings].urlParams.event;
+
+    // Clicking an event heading writes the filter to the URL param.
+    component.onEventGroupClick({
+      eventDocId: 'event-Z',
+      title: 'Event Z',
+      date: '2026-01-01',
+      endDate: '2026-01-01',
+      gradings: [],
+      total: 0,
+    });
+    expect(eventParam()).toBe('event-Z');
+    expect(component.filterEventDocId()).toBe('event-Z');
+
+    // Conversely, the URL param drives the component's filter (deep-link case).
+    eventParam.set('event-Y');
+    expect(component.filterEventDocId()).toBe('event-Y');
+
+    // Clearing the filter removes it from the URL.
+    component.clearEventFilter();
+    expect(eventParam()).toBe('');
   });
 
   it('does not group in the member view', () => {

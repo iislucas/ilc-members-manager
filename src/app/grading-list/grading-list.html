@@ -157,7 +157,7 @@
             </button>
             @for (grading of item.group.gradings; track grading.docId) {
               <a class="grading-card" [href]="gradingLink(grading)">
-                <app-grading-row-header [grading]="grading"></app-grading-row-header>
+                <app-grading-row-header [grading]="grading" [hideEvent]="true"></app-grading-row-header>
               </a>
             }
           </div>

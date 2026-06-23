@@ -104,6 +104,33 @@
     </div>
   </div>
 
+  <!-- Grading target: the level being graded for, and the level the student
+       holds just before it (the preceding entry in the progression). -->
+  @if (g.level) {
+    <div class="grading-target">
+      <span class="grading-target-label">Grading for:</span>
+      @if (previousLevel()) {
+        <span class="grading-target-from">{{ previousLevel() }}</span>
+        <app-icon name="arrow_forward" width="16" height="16"></app-icon>
+      }
+      <span class="grading-target-level">{{ g.level }}</span>
+    </div>
+  }
+
+  <!-- Warn when this grading isn't the student's next grading in the
+       progression (only shown when their level is known). -->
+  @if (!isNextGrading()) {
+    <p class="action-message result-message not-passed grading-level-warning">
+      <app-icon name="info" width="18" height="18"></app-icon>
+      <span>
+        This grading is for <strong>{{ g.level }}</strong>, but
+        <strong>{{ studentName() }}</strong>'s next grading is
+        <strong>{{ studentNextGradingLevel() }}</strong>. Earlier gradings should
+        be completed first.
+      </span>
+    </p>
+  }
+
   <!-- ====================================================================
        STEP 1: Request
        ==================================================================== -->
@@ -263,6 +290,14 @@
                 [value]="editInstructorId()"
                 (valueChange)="editInstructorId.set($event)"
               ></app-instructor-selector>
+              @if (selectedInstructorUnqualified()) {
+                <p class="field-warning">
+                  <app-icon name="info" width="16" height="16"></app-icon>
+                  This instructor may not be qualified to assess
+                  <strong>{{ g.level }}</strong>. You can still send the request,
+                  but they may need to assign a more senior grading manager.
+                </p>
+              }
             </div>
 
             <label>Note for the instructor (optional)</label>
@@ -318,7 +353,10 @@
             <span> You have declined this grading request. </span>
           </p>
           <div class="action-buttons">
-            <button (click)="acceptAndGradeMyself()" [disabled]="isSaving()">
+            <button
+              (click)="acceptAndGradeMyself()"
+              [disabled]="isSaving() || !isNextGrading()"
+            >
               Change to Accept
             </button>
           </div>
@@ -349,7 +387,10 @@
           </div>
 
           <div class="action-buttons">
-            <button (click)="acceptAndGradeMyself()" [disabled]="isSaving()">
+            <button
+              (click)="acceptAndGradeMyself()"
+              [disabled]="isSaving() || !isNextGrading()"
+            >
               Accept
             </button>
 

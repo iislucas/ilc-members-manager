@@ -167,7 +167,23 @@ export class GradingListComponent {
   filterInstructorId = signal('');
   filterStatus = signal('');
   filterStudentMemberId = signal('');
-  filterEventDocId = signal('');
+
+  // The selected event filter lives in the URL `event` param so a filtered view
+  // (e.g. all gradings at one event) is shareable. Both grading routes
+  // (ManageGradings / MemberGradings) carry the param; we proxy to whichever
+  // route matched. Reads go through `filterEventDocId`; writes through
+  // `setFilterEventDocId`.
+  private eventFilterParam = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MemberGradings) {
+      return this.routingService.signals[Views.MemberGradings].urlParams.event;
+    }
+    return this.routingService.signals[Views.ManageGradings].urlParams.event;
+  });
+  filterEventDocId = computed(() => this.eventFilterParam()());
+  private setFilterEventDocId(docId: string) {
+    this.eventFilterParam().set(docId);
+  }
 
   sortField = signal<GradingSortField>(GradingSortField.LastUpdated);
   sortDirection = signal<SortDirection>(SortDirection.Desc);
@@ -404,7 +420,7 @@ export class GradingListComponent {
   }
 
   onEventFilterSelected(event: IlcEvent) {
-    this.filterEventDocId.set(event.docId);
+    this.setFilterEventDocId(event.docId);
     this.limit.set(50);
   }
 
@@ -412,18 +428,18 @@ export class GradingListComponent {
   // single event's gradings.
   onEventGroupClick(group: GradingEventGroup) {
     if (!group.eventDocId) return;
-    this.filterEventDocId.set(group.eventDocId);
+    this.setFilterEventDocId(group.eventDocId);
     this.limit.set(50);
   }
 
   clearEventFilter() {
-    this.filterEventDocId.set('');
+    this.setFilterEventDocId('');
     this.limit.set(50);
   }
 
   onEventFilterText(text: string) {
     if (!text) {
-      this.filterEventDocId.set('');
+      this.setFilterEventDocId('');
       this.limit.set(50);
     }
   }
@@ -434,7 +450,7 @@ export class GradingListComponent {
     this.filterInstructorId.set('');
     this.filterStatus.set('');
     this.filterStudentMemberId.set('');
-    this.filterEventDocId.set('');
+    this.setFilterEventDocId('');
     this.limit.set(50);
   }
 
