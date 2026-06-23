@@ -112,8 +112,8 @@ export class NotificationService implements OnDestroy {
   // The blog feeds we surface notifications for. `route` is the hash-router
   // path prefix used to deep-link to an individual post by its urlId.
   private static readonly BLOG_FEEDS: { collection: string; label: string; route: string }[] = [
-    { collection: 'members-post', label: 'the Members Area', route: 'members-area/post' },
-    { collection: 'instructors-post', label: "the Instructors' Area", route: 'instructors-area/post' },
+    { collection: 'members-post', label: 'Members', route: 'members-area/post' },
+    { collection: 'instructors-post', label: "Instructors'", route: 'instructors-area/post' },
   ];
 
   constructor() {
@@ -340,7 +340,7 @@ export class NotificationService implements OnDestroy {
 
         // Sort by createdAt desc
         list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        
+
         this.notifications.set(list);
 
         if (this.isFirstSnapshot) {
@@ -476,11 +476,11 @@ export class NotificationService implements OnDestroy {
     const postsQuery =
       cutoffMs > 0
         ? query(
-            postsCollection,
-            where('publishOn', '>', cutoffMs),
-            orderBy('publishOn', 'desc'),
-            limit(max),
-          )
+          postsCollection,
+          where('publishOn', '>', cutoffMs),
+          orderBy('publishOn', 'desc'),
+          limit(max),
+        )
         : query(postsCollection, orderBy('publishOn', 'desc'), limit(max));
 
     const postsSnap = await getDocs(postsQuery);
@@ -501,7 +501,7 @@ export class NotificationService implements OnDestroy {
       const publishedIso = new Date(post.publishOn || 0).toISOString();
       const notification: MemberNotification = {
         docId: ref.id,
-        markdown: `New post in ${feed.label}: [${post.title || 'Untitled'}](${link})`,
+        markdown: `New ${feed.label} post: [${post.title || 'Untitled'}](${link})`,
         createdAt: publishedIso,
         dismissed: false,
         kind: NotificationKind.BlogPost,
