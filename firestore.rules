@@ -251,7 +251,8 @@ service cloud.firestore {
              'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
              'statusChangedByMemberDocId', 'statusChangedByName',
              'gradingInstructorId', 'resultNotes', 'gradingManagerIds', 'assistantInstructorIds',
-             'paid', 'studentLevelAtAcceptance', 'applicationLevelAtAcceptance', 'declineNotes']);
+             'paymentStatus', 'paymentNote', 'studentLevelAtAcceptance', 'applicationLevelAtAcceptance',
+             'declineNotes']);
       // Before acceptance the student owns the linked event and request fields.
       allow update: if hasValidEditUpdate() && isGradingStudent() && !gradingIsAccepted() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(

@@ -831,25 +831,26 @@ describe('Firestore Rules', () => {
       );
     });
 
-    it('should allow a grading manager to mark the grading paid', async () => {
+    it('should allow a grading manager to update the payment status', async () => {
       const db = testEnv
         .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
         .firestore();
       await assertSucceeds(
         db.collection('gradings').doc('grading-1').update({
-          paid: false,
+          paymentStatus: 'not-yet-paid',
+          paymentNote: 'awaiting bank transfer',
           lastUpdated: serverTimestamp(),
         }),
       );
     });
 
-    it('should deny a student from updating the paid field', async () => {
+    it('should deny a student from updating the payment status', async () => {
       const db = testEnv
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
         .firestore();
       await assertFails(
         db.collection('gradings').doc('grading-1').update({
-          paid: false,
+          paymentStatus: 'not-yet-paid',
           lastUpdated: serverTimestamp(),
         }),
       );

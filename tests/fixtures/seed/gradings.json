@@ -21,7 +21,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": ""
   },
   {
     "id": "9AWaK6eFs93FyofOs3RC",
@@ -45,7 +48,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": ""
   },
   {
     "id": "HRBIl9HBLgdcYVYIAgRr",
@@ -70,7 +76,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-other",
+    "paymentNote": ""
   },
   {
     "id": "KQDAAl9qmkSeSEondU7g",
@@ -95,7 +104,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": ""
   },
   {
     "id": "OlejiNccU91MaJe4Ifqm",
@@ -127,7 +139,14 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [
+      "213"
+    ],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": "",
+    "studentLevelAtAcceptance": "3",
+    "applicationLevelAtAcceptance": ""
   },
   {
     "id": "XPvEeY7NCwtVy4147L7D",
@@ -151,7 +170,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": ""
   },
   {
     "id": "iNQ4Xl2BBFHK7L2LMrFV",
@@ -178,7 +200,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-other",
+    "paymentNote": ""
   },
   {
     "id": "jeEZYXKlrlgf403b4XVR",
@@ -202,7 +227,10 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-by-squarespace",
+    "paymentNote": ""
   },
   {
     "id": "vWNsQo11j4O0aoX8ZJ0C",
@@ -224,6 +252,11 @@
     "acceptedByName": "",
     "acceptedByMemberDocId": "",
     "statusChangedByMemberDocId": "",
-    "statusChangedByName": ""
+    "statusChangedByName": "",
+    "gradingManagerIds": [],
+    "paymentStatus": "paid-other",
+    "paymentNote": "",
+    "studentLevelAtAcceptance": "5",
+    "applicationLevelAtAcceptance": "2"
   }
 ]

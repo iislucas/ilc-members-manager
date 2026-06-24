@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { gradingProgression, previousGradingLevel } from '../../src/data-model';
+import { gradingProgression, previousGradingLevel, PaymentStatus } from '../../src/data-model';
 
 /*
  Data migration: backfill grading manager rename, paid flag, and level snapshot.
@@ -13,10 +13,12 @@ import { gradingProgression, previousGradingLevel } from '../../src/data-model';
       is missing. The legacy field is intentionally LEFT in place for now (removed
       in a later cleanup migration).
 
-   2. paid — whether the grading has been paid for. Existing gradings predate the
-      flag; they are treated as paid, so any doc missing `paid` is set to true.
-      (Order-created gradings are written paid=true by the order processor going
-      forward.)
+   2. paymentStatus / paymentNote — how the grading was paid for. Existing
+      gradings predate the field; they are treated as paid. A doc missing
+      `paymentStatus` is set to 'paid-by-squarespace' when it has an `orderId`
+      (it came from an order), otherwise 'paid-other'; `paymentNote` is set to ''.
+      Order-created gradings are written 'paid-by-squarespace' by the order
+      processor going forward.
 
    3. studentLevelAtAcceptance / applicationLevelAtAcceptance — a snapshot of the
       student's levels when the grading was accepted. Going forward the grading
@@ -104,7 +106,7 @@ async function run() {
     total: 0,
     updated: 0,
     managerIdsFilled: 0,
-    paidFilled: 0,
+    paymentStatusFilled: 0,
     levelSnapshotFilled: 0,
   };
 
@@ -127,10 +129,15 @@ async function run() {
       stats.managerIdsFilled++;
     }
 
-    // Pass 2: paid defaults to true for pre-existing gradings.
-    if (data.paid === undefined) {
-      update.paid = true;
-      stats.paidFilled++;
+    // Pass 2: paymentStatus for pre-existing gradings — order-sourced gradings
+    // (orderId set) are treated as paid by Squarespace; the rest as paid-other.
+    if (data.paymentStatus === undefined) {
+      const orderId = (data.orderId as string) || '';
+      update.paymentStatus = orderId
+        ? PaymentStatus.PaidBySquarespace
+        : PaymentStatus.PaidOther;
+      if (data.paymentNote === undefined) update.paymentNote = '';
+      stats.paymentStatusFilled++;
     }
 
     // Pass 3: level snapshot for accepted-or-beyond gradings, when empty.
@@ -170,7 +177,7 @@ async function run() {
   console.log(`Total gradings:               ${stats.total}`);
   console.log(`Updated:                      ${stats.updated}`);
   console.log(`gradingManagerIds filled:     ${stats.managerIdsFilled}`);
-  console.log(`paid filled:                  ${stats.paidFilled}`);
+  console.log(`paymentStatus filled:         ${stats.paymentStatusFilled}`);
   console.log(`level snapshot filled:        ${stats.levelSnapshotFilled}`);
   if (isDryRun) console.log('(dry run — nothing was saved)');
 }

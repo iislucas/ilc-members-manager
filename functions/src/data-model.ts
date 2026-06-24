@@ -367,6 +367,34 @@ export enum GradingStatus {
   NotPassed = 'not-passed',
 }
 
+/** How a grading was paid for. A grading only updates the student's level once
+ * it is paid (i.e. not `NotYetPaid`). */
+export enum PaymentStatus {
+  NotYetPaid = 'not-yet-paid',
+  PaidBySquarespace = 'paid-by-squarespace',
+  PaidByCash = 'paid-by-cash',
+  PaidOther = 'paid-other',
+}
+
+/** All payment statuses, for building selectors. */
+export const PAYMENT_STATUSES = Object.values(PaymentStatus);
+
+/** Human-readable labels for each payment status. */
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  [PaymentStatus.NotYetPaid]: 'Not yet paid',
+  [PaymentStatus.PaidBySquarespace]: 'Paid (Squarespace)',
+  [PaymentStatus.PaidByCash]: 'Paid (cash)',
+  [PaymentStatus.PaidOther]: 'Paid (other)',
+};
+
+// Whether a grading counts as paid. Anything other than NotYetPaid is paid;
+// undefined (un-backfilled docs) is treated as paid. Reads tolerate the raw
+// string so it works on docs not run through firestoreDocToGrading (e.g. inside
+// Cloud Function triggers).
+export function isGradingPaid(g: { paymentStatus?: PaymentStatus | string }): boolean {
+  return (g.paymentStatus ?? '') !== PaymentStatus.NotYetPaid;
+}
+
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
@@ -1117,10 +1145,14 @@ export type Grading = {
   // during the migration window so older clients/rules keep working; will be
   // removed once everything reads/writes `gradingManagerIds`.
   assistantInstructorIds: string[];
-  // Whether the grading has been paid for. Order-created gradings are paid; a
-  // grading only updates the student's level once paid. Editable by grading
-  // managers/instructors/admins (not the student). Undefined is treated as paid.
-  paid: boolean;
+  // How the grading was paid for. Order-created gradings are PaidBySquarespace; a
+  // grading only updates the student's level once paid (anything but NotYetPaid).
+  // Editable by grading managers/instructors/admins (not the student). Undefined
+  // (un-backfilled docs) is treated as paid. See `isGradingPaid`.
+  paymentStatus: PaymentStatus;
+  // Free-form note about payment (e.g. who collected cash, reference). Visible to
+  // managers/instructors/admins only.
+  paymentNote: string;
   // Snapshot of the student's student/application levels at the moment the
   // grading was accepted (status → AwaitingGrading). Lets us show/validate the
   // level the student held going in without re-inferring it from `level`. '' when
@@ -1186,8 +1218,8 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
   const managerIds = rawData.gradingManagerIds ?? rawData.assistantInstructorIds ?? [];
   grading.gradingManagerIds = managerIds;
   grading.assistantInstructorIds = managerIds;
-  // Undefined `paid` (un-backfilled docs) is treated as paid.
-  grading.paid = rawData.paid ?? true;
+  // Undefined `paymentStatus` (un-backfilled docs) is treated as paid (PaidOther).
+  grading.paymentStatus = rawData.paymentStatus ?? PaymentStatus.PaidOther;
   return grading;
 }
 
@@ -1211,7 +1243,8 @@ export function initGrading(): Grading {
     gradingInstructorId: '',
     gradingManagerIds: [],
     assistantInstructorIds: [],
-    paid: true,
+    paymentStatus: PaymentStatus.PaidOther,
+    paymentNote: '',
     studentLevelAtAcceptance: '',
     applicationLevelAtAcceptance: '',
     schoolId: '',
