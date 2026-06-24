@@ -174,7 +174,7 @@ for (const id of selectedMemberIds) {
 for (const g of selectedGradings) {
   const gi = str(g, 'gradingInstructorId');
   if (gi && instructorsByInstructorId.has(gi)) selectedInstructorIds.add(gi);
-  for (const ai of strArr(g, 'assistantInstructorIds')) {
+  for (const ai of [...strArr(g, 'gradingManagerIds'), ...strArr(g, 'assistantInstructorIds')]) {
     if (instructorsByInstructorId.has(ai)) selectedInstructorIds.add(ai);
   }
   const sid = str(g, 'schoolId');
@@ -226,9 +226,15 @@ function emitGrading(g: RawDoc): RawDoc {
   for (const k of ['acceptedByName', 'statusChangedByName', 'notes']) out[k] = '';
   const gi = str(g, 'gradingInstructorId');
   if (gi && !selectedInstructorIds.has(gi)) out['gradingInstructorId'] = '';
-  out['assistantInstructorIds'] = strArr(g, 'assistantInstructorIds').filter((id) =>
-    selectedInstructorIds.has(id),
-  );
+  // Prefer the canonical `gradingManagerIds`, falling back to the legacy field;
+  // emit both (kept in sync) during the migration window.
+  const managerIds = (
+    (g['gradingManagerIds'] as unknown) !== undefined
+      ? strArr(g, 'gradingManagerIds')
+      : strArr(g, 'assistantInstructorIds')
+  ).filter((id) => selectedInstructorIds.has(id));
+  out['gradingManagerIds'] = managerIds;
+  out['assistantInstructorIds'] = managerIds;
   const sid = str(g, 'schoolId');
   if (sid && !seededSchoolIds.has(sid)) out['schoolId'] = '';
   return out;

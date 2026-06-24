@@ -34,6 +34,7 @@ import {
   nextGradingLevel,
   previousGradingLevel,
   instructorCanAssessLevel,
+  gradingManagerIdsOf,
 } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
@@ -98,15 +99,16 @@ export class GradingProgressComponent implements OnDestroy {
   });
 
   // Returns true for the primary instructor, for grading managers (stored in
-  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration),
-  // and for the organizer/managers of a linked event. All share the same edit permissions.
+  // `gradingManagerIds`, with legacy fallback to `assistantInstructorIds`), and
+  // for the organizer/managers of a linked event. All share the same edit
+  // permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
     if (this.userIsEventManager()) return true;
     if (!user.member.instructorId) return false;
     return user.member.instructorId === this.grading().gradingInstructorId ||
-      (this.grading().assistantInstructorIds || []).includes(user.member.instructorId);
+      gradingManagerIdsOf(this.grading()).includes(user.member.instructorId);
   });
 
   // Can the current user record a result?
@@ -227,10 +229,10 @@ export class GradingProgressComponent implements OnDestroy {
     ),
   );
 
-  // Grading managers — displayed as "Grading Managers" in the UI.
-  // Backed by the legacy Firestore field `assistantInstructorIds`.
+  // Grading managers — displayed as "Grading Managers" in the UI. Backed by
+  // `gradingManagerIds` (legacy fallback to `assistantInstructorIds`).
   gradingManagers = computed<Array<{ id: string; data: InstructorPublicData | null }>>(() => {
-    const ids = this.grading().assistantInstructorIds || [];
+    const ids = gradingManagerIdsOf(this.grading());
     return ids.map((id) => ({
       id,
       data: this.dataService.instructors.get(id) ?? null,
@@ -259,7 +261,7 @@ export class GradingProgressComponent implements OnDestroy {
   protected editGradingEvent = signal('');
   protected editGradingEventDate = signal('');
   protected editGradingEventDocId = signal('');
-  // Local edit signal for grading managers (backed by `assistantInstructorIds`).
+  // Local edit signal for grading managers (backed by `gradingManagerIds`).
   protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
   protected editDeclineNotes = signal('');
@@ -280,10 +282,18 @@ export class GradingProgressComponent implements OnDestroy {
     this.editGradingEvent.set(g.gradingEvent);
     this.editGradingEventDate.set(g.gradingEventDate);
     this.editGradingEventDocId.set(g.gradingEventDocId);
-    this.editGradingManagerIds.set(g.assistantInstructorIds || []);
+    this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
   });
+
+  // The manager-id update written on save: both the canonical `gradingManagerIds`
+  // and the legacy `assistantInstructorIds`, kept in sync during the migration
+  // window so older clients/rules keep working.
+  private managerIdsUpdate(): Partial<Grading> {
+    const ids = this.editGradingManagerIds().filter((id) => id !== '');
+    return { gradingManagerIds: ids, assistantInstructorIds: ids };
+  }
 
   isDirty = computed(() => {
     const g = this.grading();
@@ -292,7 +302,7 @@ export class GradingProgressComponent implements OnDestroy {
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
       this.editInstructorId() !== g.gradingInstructorId ||
-      JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(g.assistantInstructorIds || [])
+      JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(gradingManagerIdsOf(g))
     );
   });
 
@@ -338,7 +348,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
         gradingInstructorId: this.editInstructorId(),
-        assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+        ...this.managerIdsUpdate(),
       };
       this.gradingUpdated.emit(update);
       this.saveStatus.set('saved');
@@ -365,7 +375,7 @@ export class GradingProgressComponent implements OnDestroy {
         gradingEventDate: this.editGradingEventDate(),
         resultNotes: this.editResultNotes(),
         gradingInstructorId: this.editInstructorId(),
-        assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+        ...this.managerIdsUpdate(),
       };
       this.gradingUpdated.emit(update);
     }
@@ -434,13 +444,13 @@ export class GradingProgressComponent implements OnDestroy {
 
   saveManagers() {
     this.gradingUpdated.emit({
-      assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+      ...this.managerIdsUpdate(),
     });
     this.isEditingManagers.set(false);
   }
 
   cancelManagerEdit() {
-    this.editGradingManagerIds.set(this.grading().assistantInstructorIds || []);
+    this.editGradingManagerIds.set(gradingManagerIdsOf(this.grading()));
     this.isEditingManagers.set(false);
   }
 
@@ -536,7 +546,7 @@ export class GradingProgressComponent implements OnDestroy {
       gradingEventDate: this.editGradingEventDate() || new Date().toISOString().split('T')[0],
       resultNotes: this.editResultNotes(),
       gradingInstructorId: this.editInstructorId(),
-      assistantInstructorIds: this.editGradingManagerIds().filter(id => id !== ''),
+      ...this.managerIdsUpdate(),
       ...this.statusActorFields(),
     };
     this.gradingUpdated.emit(update);

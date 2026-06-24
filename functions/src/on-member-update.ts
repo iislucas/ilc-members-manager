@@ -10,7 +10,7 @@ import * as admin from 'firebase-admin';
 // named import works in both the emulator and production. (Same fix as
 // on-grading-update.ts.)
 import { FieldValue } from 'firebase-admin/firestore';
-import { Member, ACL, Grading } from './data-model';
+import { Member, ACL, Grading, gradingManagerIdsOf } from './data-model';
 import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
@@ -226,7 +226,7 @@ async function mirrorGradingsForSifuChange(
 
   for (const grading of gradings) {
     if (previousSifu) {
-      const assessors = [grading.gradingInstructorId, ...grading.assistantInstructorIds];
+      const assessors = [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)];
       if (!assessors.includes(previousSifu)) {
         await removeGradingFromInstructor(grading.docId, previousSifu);
       }

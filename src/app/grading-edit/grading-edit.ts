@@ -21,6 +21,7 @@ import {
   InstructorPublicData,
   School,
   IlcEvent,
+  gradingManagerIdsOf,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -191,15 +192,15 @@ export class GradingEditComponent {
   });
 
   // Returns true for the primary instructor, grading managers (stored in
-  // `assistantInstructorIds` — TODO: rename field to `gradingManagerIds` after data migration),
-  // and the organizer/managers of a linked event. All share the same edit permissions.
+  // `gradingManagerIds`, legacy fallback `assistantInstructorIds`), and the
+  // organizer/managers of a linked event. All share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
     if (this.userIsEventManager()) return true;
     const grading = this.editableGrading();
     return user.member.instructorId === grading.gradingInstructorId ||
-      (grading.assistantInstructorIds || []).includes(user.member.instructorId);
+      gradingManagerIdsOf(grading).includes(user.member.instructorId);
   });
 
   userIsStudent = computed(() => {
@@ -346,6 +347,9 @@ export class GradingEditComponent {
         orderId: this.form.orderId().value(),
         level: this.form.level().value(),
         gradingInstructorId: this.form.gradingInstructorId().value(),
+        // Write both the canonical `gradingManagerIds` and the legacy
+        // `assistantInstructorIds` during the migration window.
+        gradingManagerIds: this.form.assistantInstructorIds().value(),
         assistantInstructorIds: this.form.assistantInstructorIds().value(),
         schoolId: this.form.schoolId().value(),
         studentMemberId: this.form.studentMemberId().value(),

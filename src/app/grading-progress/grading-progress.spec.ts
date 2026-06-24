@@ -354,7 +354,7 @@ describe('GradingProgressComponent', () => {
 
     componentRef.setInput('grading', {
       ...initGrading(),
-      assistantInstructorIds: ['assistant-1', 'assistant-2'],
+      gradingManagerIds: ['assistant-1', 'assistant-2'],
     });
     fixture.detectChanges();
 

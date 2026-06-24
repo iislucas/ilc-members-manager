@@ -17,6 +17,7 @@
     "normalize-members-schools": "ts-node scripts/data-migrations/normalize-members-schools.ts",
     "backfill-grading-status-actor": "ts-node scripts/data-migrations/backfill-grading-status-actor.ts",
     "backfill-grading-names": "ts-node scripts/data-migrations/backfill-grading-names.ts",
+    "backfill-grading-managers-paid-level": "ts-node scripts/data-migrations/backfill-grading-managers-paid-level.ts",
     "mark-legacy-orders-processed": "ts-node scripts/data-migrations/mark-legacy-orders-processed.ts",
     "test": "vitest run --no-color"
   },

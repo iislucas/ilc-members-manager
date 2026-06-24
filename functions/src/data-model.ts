@@ -1108,11 +1108,25 @@ export type Grading = {
   orderId: string; // The order ID that created this grading, or '' if manual.
   level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
-  // TODO: Rename this field to `gradingManagerIds` in Firestore and migrate existing data.
-  // In the UI this field is displayed as "Grading Managers". Grading managers have the same
-  // edit permissions as the primary instructor (they can accept, record results, and re-assign
-  // the primary instructor). The Firestore field name `assistantInstructorIds` is legacy.
+  // The instructorIds (human readable) of the grading managers. Grading managers
+  // have the same edit permissions as the primary instructor (they can accept,
+  // record results, and re-assign the primary instructor). In the UI this is
+  // displayed as "Grading Managers".
+  gradingManagerIds: string[];
+  // @deprecated — legacy name for `gradingManagerIds`. Still written in parallel
+  // during the migration window so older clients/rules keep working; will be
+  // removed once everything reads/writes `gradingManagerIds`.
   assistantInstructorIds: string[];
+  // Whether the grading has been paid for. Order-created gradings are paid; a
+  // grading only updates the student's level once paid. Editable by grading
+  // managers/instructors/admins (not the student). Undefined is treated as paid.
+  paid: boolean;
+  // Snapshot of the student's student/application levels at the moment the
+  // grading was accepted (status → AwaitingGrading). Lets us show/validate the
+  // level the student held going in without re-inferring it from `level`. '' when
+  // not yet captured.
+  studentLevelAtAcceptance: string;
+  applicationLevelAtAcceptance: string;
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
@@ -1165,7 +1179,26 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
       grading.level = 'Student Entry';
     }
   }
+  // Canonical grading-manager list reads from the new field, falling back to the
+  // legacy `assistantInstructorIds` for docs not yet migrated. Keep both in sync
+  // in-memory so existing consumers of either field keep working.
+  const rawData = docData as unknown as Partial<Grading>;
+  const managerIds = rawData.gradingManagerIds ?? rawData.assistantInstructorIds ?? [];
+  grading.gradingManagerIds = managerIds;
+  grading.assistantInstructorIds = managerIds;
+  // Undefined `paid` (un-backfilled docs) is treated as paid.
+  grading.paid = rawData.paid ?? true;
   return grading;
+}
+
+// Read a grading's grading-manager instructorIds, preferring the canonical
+// `gradingManagerIds` and falling back to the legacy `assistantInstructorIds`
+// for docs not yet migrated. Use everywhere the manager list is read so the
+// migration window (both fields written in parallel) stays transparent.
+export function gradingManagerIdsOf(
+  g: { gradingManagerIds?: string[]; assistantInstructorIds?: string[] },
+): string[] {
+  return g.gradingManagerIds ?? g.assistantInstructorIds ?? [];
 }
 
 export function initGrading(): Grading {
@@ -1176,7 +1209,11 @@ export function initGrading(): Grading {
     orderId: '',
     level: '',
     gradingInstructorId: '',
+    gradingManagerIds: [],
     assistantInstructorIds: [],
+    paid: true,
+    studentLevelAtAcceptance: '',
+    applicationLevelAtAcceptance: '',
     schoolId: '',
     schoolDocId: '',
     studentMemberId: '',

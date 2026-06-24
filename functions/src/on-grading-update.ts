@@ -9,7 +9,7 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification } from './data-model';
+import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import * as logger from 'firebase-functions/logger';
@@ -280,7 +280,7 @@ async function mirrorGradingToAllInstructors(
   const primaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
   const instructorIds = new Set([
     grading.gradingInstructorId,
-    ...grading.assistantInstructorIds,
+    ...gradingManagerIdsOf(grading),
     primaryInstructor
   ].filter((id) => id && id !== '') as string[]);
 
@@ -299,7 +299,7 @@ async function removeGradingFromAllInstructors(
   const primaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
   const instructorIds = new Set([
     grading.gradingInstructorId,
-    ...grading.assistantInstructorIds,
+    ...gradingManagerIdsOf(grading),
     primaryInstructor
   ].filter((id) => id && id !== '') as string[]);
 
@@ -504,12 +504,12 @@ export const onGradingUpdated = onDocumentUpdated(
     const currentPrimaryInstructor = await getPrimaryInstructorId(grading.studentMemberDocId);
 
     const previousInstructorIds = new Set(
-      [previous.gradingInstructorId, ...previous.assistantInstructorIds, previousPrimaryInstructor].filter(
+      [previous.gradingInstructorId, ...gradingManagerIdsOf(previous), previousPrimaryInstructor].filter(
         (id) => id && id !== '',
       ) as string[],
     );
     const currentInstructorIds = new Set(
-      [grading.gradingInstructorId, ...grading.assistantInstructorIds, currentPrimaryInstructor].filter(
+      [grading.gradingInstructorId, ...gradingManagerIdsOf(grading), currentPrimaryInstructor].filter(
         (id) => id && id !== '',
       ) as string[],
     );
@@ -527,12 +527,12 @@ export const onGradingUpdated = onDocumentUpdated(
 
     // Selected instructors notifications and de-duplication (excluding student's primary instructor)
     const previousSelected = new Set(
-      [previous.gradingInstructorId, ...(previous.assistantInstructorIds || [])].filter(
+      [previous.gradingInstructorId, ...gradingManagerIdsOf(previous)].filter(
         (id) => id && id !== '',
       ) as string[],
     );
     const currentSelected = new Set(
-      [grading.gradingInstructorId, ...(grading.assistantInstructorIds || [])].filter(
+      [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)].filter(
         (id) => id && id !== '',
       ) as string[],
     );
@@ -938,7 +938,7 @@ async function annotateManagerNotificationsWithAcceptor(
   const managerDocIds = new Set<string>();
   const event = await resolveEventManagers(grading.gradingEventDocId);
   for (const id of event.docIds) managerDocIds.add(id);
-  const instructorIds = [grading.gradingInstructorId, ...(grading.assistantInstructorIds || [])].filter(
+  const instructorIds = [grading.gradingInstructorId, ...gradingManagerIdsOf(grading)].filter(
     (id) => id && id !== '',
   ) as string[];
   for (const instructorId of instructorIds) {
@@ -1002,7 +1002,7 @@ export const onGradingDeleted = onDocumentDeleted(
     // Cancel and dismiss the instructors' grading notifications
     const instructorIds = new Set([
       grading.gradingInstructorId,
-      ...grading.assistantInstructorIds,
+      ...gradingManagerIdsOf(grading),
     ].filter((id) => id && id !== '') as string[]);
 
     for (const id of instructorIds) {

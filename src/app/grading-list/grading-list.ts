@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Grading, GradingStatus, IlcEvent, getPrettyGradingStatus, initGrading } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, IlcEvent, getPrettyGradingStatus, initGrading, gradingManagerIdsOf } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
@@ -140,7 +140,7 @@ export class GradingListComponent {
         // Include the senior grading instructor plus any assistant instructors
         // so searching for any examiner's name surfaces the grading. The primary
         // instructor's cached name is supplied as a fallback for non-admin views.
-        instructorSearchText: [g.gradingInstructorId, ...g.assistantInstructorIds]
+        instructorSearchText: [g.gradingInstructorId, ...gradingManagerIdsOf(g)]
           .map((id) =>
             this.dataService.instructorDisplayName(
               id,
@@ -231,7 +231,7 @@ export class GradingListComponent {
 
     const myInstructorId = user.member.instructorId;
     return all.filter(g => {
-      const isAssessor = g.gradingInstructorId === myInstructorId || g.assistantInstructorIds.includes(myInstructorId);
+      const isAssessor = g.gradingInstructorId === myInstructorId || gradingManagerIdsOf(g).includes(myInstructorId);
       if (this.instructorTab() === 'examined') {
         return isAssessor;
       } else {
@@ -260,7 +260,7 @@ export class GradingListComponent {
       // one of the grading managers (assistant instructors).
       results = results.filter(g =>
         g.gradingInstructorId === instructorId ||
-        g.assistantInstructorIds.includes(instructorId),
+        gradingManagerIdsOf(g).includes(instructorId),
       );
     }
     if (status) {
@@ -387,7 +387,7 @@ export class GradingListComponent {
     if (!user || !user.member.instructorId) return false;
     const myInstructorId = user.member.instructorId;
     return grading.gradingInstructorId !== myInstructorId &&
-      !grading.assistantInstructorIds.includes(myInstructorId);
+      !gradingManagerIdsOf(grading).includes(myInstructorId);
   }
 
   showAll() {
