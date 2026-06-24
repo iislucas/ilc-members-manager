@@ -6,7 +6,8 @@ import { SearchableSet } from '../searchable-set';
 import { Grading, initGrading } from '../../../functions/src/data-model';
 import { signal, Component, Input } from '@angular/core';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
-import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
+import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
+import { RoutingService } from '../routing.service';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 
 @Component({
@@ -124,5 +125,86 @@ describe('GradingListComponent', () => {
 
     const byInstructor = search('Builder');
     expect(byInstructor.map((g) => g.docId)).toEqual(['grading-7']);
+  });
+
+  it('interleaves standalone gradings with event blocks on the date timeline', () => {
+    const mk = (docId: string, eventDocId: string, eventDate: string, eventName: string): Grading => {
+      const g = initGrading();
+      g.docId = docId;
+      g.gradingEventDocId = eventDocId;
+      g.gradingEventDate = eventDate;
+      g.gradingEvent = eventName;
+      return g;
+    };
+    // Event B spans two days (ends 2026-05-02); standalone gradings sit before,
+    // concurrent with, and after it. Event A is earlier.
+    component.gradingSet().setEntries([
+      mk('s1', '', '2026-06-01', ''), // after event B → above it
+      mk('b1', 'event-B', '2026-05-01', 'Event B'),
+      mk('b2', 'event-B', '2026-05-02', 'Event B'),
+      mk('s2', '', '2026-05-02', ''), // concurrent with event B's last day → below it
+      mk('s3', '', '2026-04-01', ''), // before event B → below it
+      mk('a1', 'event-A', '2026-03-01', 'Event A'),
+    ]);
+    fixture.detectChanges();
+
+    expect(component.groupByEvent()).toBe(true);
+    const items = component.listItems();
+    // Default order is newest-first; an event is anchored at its last day and
+    // sits above same-day standalone gradings.
+    expect(items.map((i) => i.key)).toEqual([
+      'grading:s1',
+      'event:event-B',
+      'grading:s2',
+      'grading:s3',
+      'event:event-A',
+    ]);
+
+    const eventB = items[1];
+    expect(eventB.kind).toBe('event');
+    if (eventB.kind === 'event') {
+      expect(eventB.group.total).toBe(2);
+      expect(eventB.group.title).toBe('Event B');
+      expect(eventB.group.date).toBe('2026-05-01'); // earliest day shown in heading
+      expect(eventB.group.endDate).toBe('2026-05-02'); // last day anchors the timeline
+
+      // Clicking the event heading filters the list down to that event.
+      component.onEventGroupClick(eventB.group);
+      fixture.detectChanges();
+      expect(component.filterEventDocId()).toBe('event-B');
+      expect(component.listItems().map((i) => i.key)).toEqual(['event:event-B']);
+    }
+  });
+
+  it('mirrors the event filter through the URL `event` param so it is shareable', () => {
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const eventParam = routing.signals[Views.ManageGradings].urlParams.event;
+
+    // Clicking an event heading writes the filter to the URL param.
+    component.onEventGroupClick({
+      eventDocId: 'event-Z',
+      title: 'Event Z',
+      date: '2026-01-01',
+      endDate: '2026-01-01',
+      gradings: [],
+      total: 0,
+    });
+    expect(eventParam()).toBe('event-Z');
+    expect(component.filterEventDocId()).toBe('event-Z');
+
+    // Conversely, the URL param drives the component's filter (deep-link case).
+    eventParam.set('event-Y');
+    expect(component.filterEventDocId()).toBe('event-Y');
+
+    // Clearing the filter removes it from the URL.
+    component.clearEventFilter();
+    expect(eventParam()).toBe('');
+  });
+
+  it('does not group in the member view', () => {
+    fixture.componentRef.setInput('viewMode', 'member');
+    fixture.detectChanges();
+    expect(component.groupByEvent()).toBe(false);
+    expect(component.listItems()).toEqual([]);
   });
 });

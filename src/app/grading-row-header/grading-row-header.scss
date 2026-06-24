@@ -47,6 +47,24 @@
   white-space: nowrap;
 }
 
+.level-progression {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.previous-level {
+  font-size: 0.9em;
+  color: v.$text-secondary;
+}
+
+.level-arrow {
+  font-size: 0.9em;
+  color: v.$text-placeholder;
+}
+
 .level-chip {
   flex-shrink: 0;
   white-space: nowrap;

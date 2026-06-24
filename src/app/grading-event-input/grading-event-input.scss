@@ -24,6 +24,36 @@
   gap: 0.3em;
 }
 
+// The autocomplete markup lives in a child component, so pierce view
+// encapsulation to stretch its input to the full parent width and give it the
+// same white-input look as the manual entry fields.
+.event-autocomplete {
+  display: block;
+  width: 100%;
+
+  ::ng-deep {
+    .autocomplete-container {
+      width: 100%;
+    }
+
+    input[type='text'] {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid v.$border-color-light;
+      border-radius: 6px;
+      padding: 0.3em 0.5em;
+      font-family: inherit;
+      font-size: 0.9em;
+      background: #fff;
+
+      &:focus {
+        border-color: v.$focus-ring-color;
+        outline: none;
+      }
+    }
+  }
+}
+
 .event-range-hint {
   display: flex;
   align-items: center;

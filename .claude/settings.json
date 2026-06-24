@@ -7,7 +7,13 @@
       "Bash(pnpm build*)",
       "Bash(pnpm run build *)",
       "Bash(pnpm exec ng build *)",
-      "Bash(pnpm --filter functions build*)"
+      "Bash(pnpm --filter functions build*)",
+      "Bash(pnpm --prefix functions exec ts-node scripts/build-fixture-subset.ts *)",
+      "Bash(git status --short *)",
+      "Bash(pnpm --prefix functions exec vitest run src/grading-progression.spec.ts *)",
+      "Bash(pnpm --prefix functions test *)",
+      "Bash(git rev-list *)",
+      "Bash(git switch *)"
     ]
   }
 }

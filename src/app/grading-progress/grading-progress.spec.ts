@@ -38,6 +38,7 @@ describe('GradingProgressComponent', () => {
       instructors: new SearchableSet(['instructorId'], 'instructorId', []) as never,
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
+      getMyStudent: () => undefined,
       memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',
       instructorDisplayName: (instructorId: string) => instructorId,
     };
@@ -178,6 +179,170 @@ describe('GradingProgressComponent', () => {
     fixture.detectChanges();
     expect(component.userIsGradingInstructor()).toBe(true);
     expect(component.canAccept()).toBe(false);
+  });
+
+  it('lets the student edit the linked event before acceptance but not after', () => {
+    const mockMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+    mockFirebaseState.user.set({
+      member: mockMember,
+      memberProfiles: [mockMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+
+    const setStatus = (status: GradingStatus) => {
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        status,
+      });
+      fixture.detectChanges();
+    };
+
+    // Before acceptance: the student owns the event field.
+    setStatus(GradingStatus.AwaitingRequest);
+    expect(component.gradingAccepted()).toBe(false);
+    expect(component.canEditEvent()).toBe(true);
+
+    setStatus(GradingStatus.AwaitingAcceptance);
+    expect(component.canEditEvent()).toBe(true);
+
+    setStatus(GradingStatus.Declined);
+    expect(component.canEditEvent()).toBe(true);
+
+    // Once accepted (or beyond), the grading manager owns it: read-only for the student.
+    setStatus(GradingStatus.AwaitingGrading);
+    expect(component.gradingAccepted()).toBe(true);
+    expect(component.canEditEvent()).toBe(false);
+
+    setStatus(GradingStatus.Passed);
+    expect(component.canEditEvent()).toBe(false);
+
+    setStatus(GradingStatus.NotPassed);
+    expect(component.canEditEvent()).toBe(false);
+  });
+
+  it('lets a grading manager edit the linked event even after acceptance', () => {
+    const mockMember = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+    mockFirebaseState.user.set({
+      member: mockMember,
+      memberProfiles: [mockMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      gradingInstructorId: 'instr-1',
+      status: GradingStatus.Passed,
+    });
+    fixture.detectChanges();
+    expect(component.gradingAccepted()).toBe(true);
+    expect(component.canEditEvent()).toBe(true);
+  });
+
+  it('only allows accepting when it is the student\'s next grading', () => {
+    const mockMember = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+    mockFirebaseState.user.set({
+      member: mockMember,
+      memberProfiles: [mockMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    // Student is currently Student 5 → their next grading is Student 6.
+    mockDataService.getMemberByDocId = (() => ({
+      ...initMember(),
+      studentLevel: '5',
+      applicationLevel: '2',
+    })) as never;
+
+    // Grading for the correct next level: acceptable.
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 6',
+      status: GradingStatus.AwaitingAcceptance,
+    });
+    fixture.detectChanges();
+    expect(component.studentNextGradingLevel()).toBe('Student 6');
+    expect(component.isNextGrading()).toBe(true);
+    expect(component.canAccept()).toBe(true);
+
+    // Grading for a later level (skipping ahead): not their next grading.
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingAcceptance,
+    });
+    fixture.detectChanges();
+    expect(component.isNextGrading()).toBe(false);
+  });
+
+  it('does not block accepting when the student levels are unknown', () => {
+    const mockMember = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+    mockFirebaseState.user.set({
+      member: mockMember,
+      memberProfiles: [mockMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    // getMemberByDocId / getMyStudent both return undefined (default mock).
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingAcceptance,
+    });
+    fixture.detectChanges();
+    expect(component.studentNextGradingLevel()).toBe('');
+    expect(component.isNextGrading()).toBe(true);
+  });
+
+  it('flags an instructor not qualified to assess the grading level', () => {
+    const instructorsMap = new Map<string, any>();
+    // Instructor at Student 4 cannot assess Application 3 (needs Student 5).
+    instructorsMap.set('low-instr', { instructorId: 'low-instr', studentLevel: '4' });
+    instructorsMap.set('high-instr', { instructorId: 'high-instr', studentLevel: '6' });
+    (mockDataService.instructors as any).get = (id: string) => instructorsMap.get(id) || null;
+
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Application 3',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+
+    component['editInstructorId'].set('low-instr');
+    expect(component.selectedInstructorUnqualified()).toBe(true);
+
+    component['editInstructorId'].set('high-instr');
+    expect(component.selectedInstructorUnqualified()).toBe(false);
+
+    // No special requirement for student-level gradings.
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 6',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+    component['editInstructorId'].set('low-instr');
+    expect(component.selectedInstructorUnqualified()).toBe(false);
   });
 
   it('should correctly compute assistantInstructors signal', () => {

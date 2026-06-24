@@ -20,7 +20,13 @@
   </span>
 
   @if (g.level) {
-    <span class="level-chip">{{ formatLevel(g.level) }}</span>
+    <span class="level-progression">
+      @if (previousLevel()) {
+        <span class="previous-level">{{ previousLevel() }}</span>
+        <span class="level-arrow" aria-label="grading for">→</span>
+      }
+      <span class="level-chip">{{ formatLevel(g.level) }}</span>
+    </span>
   }
 
   @if (instructorName()) {
@@ -31,7 +37,7 @@
     <span class="event-date">{{ gradingDate() }}</span>
   }
 
-  @if (g.gradingEvent) {
+  @if (!hideEvent() && g.gradingEvent) {
     @if (eventLink()) {
       <a class="event-name event-link" [href]="eventLink()" (click)="$event.stopPropagation()">
         <app-icon name="event" class="event-icon"></app-icon>{{ g.gradingEvent }}

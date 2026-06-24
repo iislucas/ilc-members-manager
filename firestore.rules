@@ -231,6 +231,15 @@ service cloud.firestore {
       function hasValidEditUpdate() {
         return request.resource.data.lastUpdated == request.time;
       }
+      // A grading is "accepted" once a grading manager has accepted the request
+      // (status moves to AwaitingGrading) or it has progressed beyond that. From
+      // this point the linked event becomes the grading manager's responsibility,
+      // so the student may no longer change the event fields.
+      function gradingIsAccepted() {
+        let status = resource.data.status;
+        return status == 'awaiting-instructor-grading' || status == 'passed' ||
+               status == 'not-passed' || status == 'in-review';
+      }
       allow read: if isAdmin() || isGradingStudent() || isGradingManager() || isGradingSchoolManager() || isGradingEventManager();
       allow write: if hasValidEditUpdate() && isAdmin();
       allow delete: if isAdmin();
@@ -240,10 +249,17 @@ service cloud.firestore {
              'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
              'statusChangedByMemberDocId', 'statusChangedByName',
              'gradingInstructorId', 'resultNotes', 'assistantInstructorIds', 'declineNotes']);
-      allow update: if hasValidEditUpdate() && isGradingStudent() &&
+      // Before acceptance the student owns the linked event and request fields.
+      allow update: if hasValidEditUpdate() && isGradingStudent() && !gradingIsAccepted() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingEvent', 'gradingEventDate', 'gradingEventDocId',
              'gradingInstructorId', 'studentNotes', 'declineNotes',
+             'statusChangedByMemberDocId', 'statusChangedByName']);
+      // After acceptance the event fields belong to the grading manager, so the
+      // student may update everything else but no longer the linked event.
+      allow update: if hasValidEditUpdate() && isGradingStudent() && gradingIsAccepted() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['lastUpdated', 'status', 'gradingInstructorId', 'studentNotes', 'declineNotes',
              'statusChangedByMemberDocId', 'statusChangedByName']);
     }
   }

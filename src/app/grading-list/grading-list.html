@@ -7,14 +7,20 @@
   </div>
 } @else {
   <div class="search-header">
-    <div class="search-box">
-      <app-icon class="search-icon" name="search"></app-icon>
-      <input
-        type="text"
-        placeholder="Search gradings by student, instructor, status, or level..."
-        (input)="onSearch($event)"
-      />
-    </div>
+    @if (groupByEvent() && filterEventDocId()) {
+      <button class="subtle-button show-all-events-btn" (click)="clearEventFilter()">
+        <app-icon name="arrow_back"></app-icon> Show all events
+      </button>
+    } @else {
+      <div class="search-box">
+        <app-icon class="search-icon" name="search"></app-icon>
+        <input
+          type="text"
+          placeholder="Search gradings by student, instructor, status, or level..."
+          (input)="onSearch($event)"
+        />
+      </div>
+    }
     <div class="sort-controls">
       <label class="sort-label" for="grading-sort-field-select">Sort:</label>
       <select
@@ -132,23 +138,66 @@
   }
 
   <div class="grading-cards">
-    @let gradingsList = gradings();
-    @for (grading of gradingsList; track grading.docId) {
-      <a class="grading-card" [href]="gradingLink(grading)">
-        <app-grading-row-header [grading]="grading"></app-grading-row-header>
-      </a>
-    }
-    @if (gradingsList.length < totalGradings()) {
-      <div class="show-more-container">
-        <button class="show-more-button" (click)="showAll()">
-          Show all {{ totalGradings() }} gradings
-        </button>
-      </div>
-    }
-    @if (gradingsList.length === 0 && !isAddingGrading()) {
-      <div class="empty-state">
-        <p>No gradings found.</p>
-      </div>
+    @if (groupByEvent()) {
+      @let items = limitedItems();
+      @for (item of items; track item.key) {
+        @if (item.kind === 'event') {
+          <div class="event-group">
+            <button
+              class="event-group-heading"
+              (click)="onEventGroupClick(item.group)"
+              [attr.title]="'Show only this event\'s gradings'"
+            >
+              <app-icon name="event" class="event-group-icon"></app-icon>
+              <span class="event-group-title">{{ item.group.title || 'Event' }}</span>
+              @if (item.group.date) {
+                <span class="event-group-date">{{ item.group.date }}</span>
+              }
+              <span class="event-group-count">{{ item.group.total }}</span>
+            </button>
+            @for (grading of item.group.gradings; track grading.docId) {
+              <a class="grading-card" [href]="gradingLink(grading)">
+                <app-grading-row-header [grading]="grading" [hideEvent]="true"></app-grading-row-header>
+              </a>
+            }
+          </div>
+        } @else {
+          <a class="grading-card" [href]="gradingLink(item.grading)">
+            <app-grading-row-header [grading]="item.grading"></app-grading-row-header>
+          </a>
+        }
+      }
+      @if (gradings().length < totalGradings()) {
+        <div class="show-more-container">
+          <button class="show-more-button" (click)="showAll()">
+            Show all {{ totalGradings() }} gradings
+          </button>
+        </div>
+      }
+      @if (items.length === 0 && !isAddingGrading()) {
+        <div class="empty-state">
+          <p>No gradings found.</p>
+        </div>
+      }
+    } @else {
+      @let gradingsList = gradings();
+      @for (grading of gradingsList; track grading.docId) {
+        <a class="grading-card" [href]="gradingLink(grading)">
+          <app-grading-row-header [grading]="grading"></app-grading-row-header>
+        </a>
+      }
+      @if (gradingsList.length < totalGradings()) {
+        <div class="show-more-container">
+          <button class="show-more-button" (click)="showAll()">
+            Show all {{ totalGradings() }} gradings
+          </button>
+        </div>
+      }
+      @if (gradingsList.length === 0 && !isAddingGrading()) {
+        <div class="empty-state">
+          <p>No gradings found.</p>
+        </div>
+      }
     }
   </div>
 }

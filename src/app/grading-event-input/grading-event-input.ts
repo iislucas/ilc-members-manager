@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, linkedSignal, computed, output, signal } from '@angular/core';
+import { Component, effect, inject, input, linkedSignal, computed, output } from '@angular/core';
 import { IlcEvent } from '../../../functions/src/data-model';
 import { DataManagerService, EventSearchCriteriaDateRange } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
@@ -10,6 +10,13 @@ import { IconComponent } from '../icons/icon.component';
 function oneMonthAgo(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
+  return d.toISOString().substring(0, 10);
+}
+
+// Shift a YYYY-MM-DD date string by a number of days, returning YYYY-MM-DD.
+function shiftDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
   return d.toISOString().substring(0, 10);
 }
 
@@ -60,10 +67,19 @@ export class GradingEventInputComponent {
     },
   });
 
-  // Event search
+  // Event search. When the grading already has a date, default the search to the
+  // week either side of it so the matching event is easy to find; otherwise fall
+  // back to the last month onwards. These stay user-editable via the date inputs
+  // (re-seeded only if the grading date itself changes).
   eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
-  eventRangeFrom = signal<string>(oneMonthAgo());
-  eventRangeTo = signal<string>('');
+  eventRangeFrom = linkedSignal(() => {
+    const date = this.gradingEventDate();
+    return date ? shiftDays(date, -7) : oneMonthAgo();
+  });
+  eventRangeTo = linkedSignal(() => {
+    const date = this.gradingEventDate();
+    return date ? shiftDays(date, 7) : '';
+  });
 
   _loadEvents = effect(() => {
     const criteria: EventSearchCriteriaDateRange = {

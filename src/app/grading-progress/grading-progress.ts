@@ -31,6 +31,9 @@ import {
   IlcEvent,
   InstructorPublicData,
   Member,
+  nextGradingLevel,
+  previousGradingLevel,
+  instructorCanAssessLevel,
 } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
@@ -116,6 +119,39 @@ export class GradingProgressComponent implements OnDestroy {
     () => this.userIsGradingInstructor() && (this.grading().status === GradingStatus.AwaitingAcceptance || this.grading().status === GradingStatus.Declined),
   );
 
+  // The student's member record, looked up by docId. Available to admins/school
+  // managers (via `members`) and to the grading instructor for their own
+  // students (via `myStudents`). undefined when not loaded.
+  private studentMember = computed<Member | undefined>(() => {
+    const docId = this.grading().studentMemberDocId;
+    if (!docId) return undefined;
+    return (
+      this.dataService.getMemberByDocId(docId) ??
+      this.dataService.getMyStudent(docId)
+    );
+  });
+
+  // The level the student should grade for next, from the progression. '' when
+  // the student's levels aren't known (member record not loaded).
+  studentNextGradingLevel = computed(() => {
+    const m = this.studentMember();
+    if (!m) return '';
+    return nextGradingLevel(m.studentLevel, m.applicationLevel);
+  });
+
+  // Whether this grading is the student's next grading in the progression. A
+  // grading may only be accepted when it is. When the student's levels aren't
+  // known we can't verify, so we don't block (returns true).
+  isNextGrading = computed(() => {
+    const next = this.studentNextGradingLevel();
+    if (!next) return true;
+    return this.grading().level === next;
+  });
+
+  // The level the student holds just before this grading (the preceding entry in
+  // the canonical progression). '' when grading for the first progression entry.
+  previousLevel = computed(() => previousGradingLevel(this.grading().level));
+
   // Admin, grading instructor, or any grading manager can edit event/instructor/managers.
   canEditGradingDetails = computed(() => this.userIsAdmin() || this.userIsGradingInstructor());
 
@@ -130,17 +166,26 @@ export class GradingProgressComponent implements OnDestroy {
   // Name of whoever last changed the status, for the "Moved back by X" display.
   statusActorName = computed(() => this.grading().statusChangedByName);
 
-  // The student may change the linked event at any time until the grading is
-  // finalised (passed/not-passed/in-review). Managers/admins can edit it too.
-  canEditEvent = computed(() => {
-    if (this.canEditGradingDetails()) return true;
+  // A grading is "accepted" once a grading manager has accepted the request
+  // (status moves to AwaitingGrading) or it has progressed beyond that. From
+  // this point the linked event becomes the grading managers' responsibility.
+  gradingAccepted = computed(() => {
     const status = this.grading().status;
     return (
-      this.userIsStudent() &&
-      status !== GradingStatus.Passed &&
-      status !== GradingStatus.NotPassed &&
-      status !== GradingStatus.RequiresReview
+      status === GradingStatus.AwaitingGrading ||
+      status === GradingStatus.Passed ||
+      status === GradingStatus.NotPassed ||
+      status === GradingStatus.RequiresReview
     );
+  });
+
+  // Grading managers/admins can edit the linked event at any time. The student
+  // may edit it only until a grading manager has accepted the request; after
+  // acceptance they can still see it but the grading manager owns it. This is
+  // mirrored in firestore.rules so the restriction is enforced server-side.
+  canEditEvent = computed(() => {
+    if (this.canEditGradingDetails()) return true;
+    return this.userIsStudent() && !this.gradingAccepted();
   });
 
   // --- Display helpers ---
@@ -158,6 +203,18 @@ export class GradingProgressComponent implements OnDestroy {
     const id = this.grading().gradingInstructorId;
     if (!id) return null;
     return this.dataService.instructors.get(id) ?? null;
+  });
+
+  // The instructor the student is currently selecting in the request form, and
+  // whether they are unqualified to assess this grading's level. Used to warn
+  // the student before they submit. Only flags when the instructor's public
+  // data is loaded (otherwise we can't tell, so we don't warn).
+  selectedInstructorUnqualified = computed(() => {
+    const id = this.editInstructorId();
+    if (!id) return false;
+    const instr = this.dataService.instructors.get(id);
+    if (!instr) return false;
+    return !instructorCanAssessLevel(instr.studentLevel, this.grading().level);
   });
 
   // Display label for the primary grading instructor when their public profile
@@ -449,6 +506,9 @@ export class GradingProgressComponent implements OnDestroy {
   }
 
   acceptAndGradeMyself() {
+    // A grading can only be accepted when it's the student's next grading in the
+    // progression (guarded here as well as in the template).
+    if (!this.isNextGrading()) return;
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
     const actor = this.currentActor();
