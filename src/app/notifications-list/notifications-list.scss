@@ -116,10 +116,11 @@
     // Admin-only notification kinds get a distinct light-orange background so
     // they stand out from a member's own notifications. Higher specificity than
     // the row-highlight mixin above, so it wins for these kinds.
-    &.PendingEventApproval,
-    &.OrderNeedsAttention {
+    // Action items (a TODO for the member) get a light-orange background and a
+    // stronger left accent so every TODO looks the same regardless of kind.
+    &.style-action {
       background-color: #fff4e5; // Light orange
-      border-left-color: #f5a623; // Orange accent
+      border-left: 3px solid #f5a623; // Orange accent
     }
 
     .notification-icon {

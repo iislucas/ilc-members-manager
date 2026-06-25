@@ -5,6 +5,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   limit,
@@ -22,6 +23,8 @@ import {
   CachedBlogPost,
   EventStatus,
   ExpiryStatus,
+  Grading,
+  GradingStatus,
   IlcEvent,
   Member,
   MembershipType,
@@ -30,10 +33,12 @@ import {
   Order,
   OrderStatus,
   PushSubscriptionDoc,
+  firestoreDocToGrading,
   firestoreDocToMemberNotification,
   firestoreDocToOrder,
   initCachedBlogPost,
   initEvent,
+  isGradingPaid,
 } from '../../functions/src/data-model';
 import { getInstructorExpiryStatus } from './member-tags';
 import { environment } from '../environments/environment';
@@ -88,6 +93,9 @@ export class NotificationService implements OnDestroy {
   // The admin member doc ID we have already run order-issue catch-up for this
   // session, so the auth effect re-firing doesn't re-run it.
   private orderIssuesSyncedForMemberDocId: string | null = null;
+  // The member doc ID we have already run unpaid-grading catch-up for this
+  // session, so the auth effect re-firing doesn't re-run it.
+  private unpaidGradingsSyncedForMemberDocId: string | null = null;
   // The member doc ID we have already registered a web-push subscription for
   // this session, to avoid redundant re-subscriptions on effect re-fires.
   private pushSubscribedForMemberDocId: string | null = null;
@@ -102,6 +110,15 @@ export class NotificationService implements OnDestroy {
   // Maximum number of order-issue notifications to create at once, most recent
   // orders first, so a large backlog can't flood an admin's feed.
   private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS = 20;
+
+  // Maximum number of unpaid-grading TODO notifications to create at once.
+  private static readonly MAX_UNPAID_GRADING_NOTIFICATIONS = 20;
+
+  // Grading statuses that count as "completed" for the unpaid-grading check.
+  private static readonly COMPLETED_GRADING_STATUSES: GradingStatus[] = [
+    GradingStatus.Passed,
+    GradingStatus.NotPassed,
+  ];
 
   // The order processing statuses that require admin attention.
   private static readonly ORDER_ATTENTION_STATUSES: OrderStatus[] = [
@@ -141,6 +158,12 @@ export class NotificationService implements OnDestroy {
         this.syncBlogPostNotifications(user.member).catch((e) =>
           console.error('Failed to sync blog post notifications:', e),
         );
+        // Surface any of the member's (or their students') gradings that are
+        // completed but not yet paid as TODO notifications. Runs once per
+        // member per session.
+        this.syncUnpaidGradingNotifications(user.member).catch((e) =>
+          console.error('Failed to sync unpaid grading notifications:', e),
+        );
         // For admins, catch them up on any events still waiting for approval so
         // proposed events surface as actionable notifications. Runs once per
         // admin per session; failures are logged and never block the rest.
@@ -165,6 +188,7 @@ export class NotificationService implements OnDestroy {
         this.blogSyncedForMemberDocId = null;
         this.pendingEventsSyncedForMemberDocId = null;
         this.orderIssuesSyncedForMemberDocId = null;
+        this.unpaidGradingsSyncedForMemberDocId = null;
         this.pushSubscribedForMemberDocId = null;
       }
     });
@@ -361,6 +385,11 @@ export class NotificationService implements OnDestroy {
   // Subscribes to the member's full notification history (read + unread). Used
   // by the dedicated notifications view; call unsubscribeFromAllNotifications()
   // when the view is torn down to stop paying for the listener.
+  // Cap the full notifications view to the most recent N. The feed can grow long,
+  // so we only load this many newest notifications (single-field orderBy on
+  // createdAt — no composite index needed).
+  private static readonly MAX_NOTIFICATIONS_SHOWN = 50;
+
   public subscribeToAllNotifications() {
     this.unsubscribeFromAllNotifications();
     const memberDocId = this.firebaseService.user()?.member?.docId;
@@ -371,12 +400,14 @@ export class NotificationService implements OnDestroy {
 
     const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
     this.allUnsub = onSnapshot(
-      notifCollection,
+      query(
+        notifCollection,
+        orderBy('createdAt', 'desc'),
+        limit(NotificationService.MAX_NOTIFICATIONS_SHOWN),
+      ),
       (snapshot) => {
+        // Already ordered newest-first by the query; map straight through.
         const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
-        // Sort by createdAt desc (client-side, matching the unread feed, to
-        // avoid requiring a composite Firestore index).
-        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         this.allNotifications.set(list);
       },
       (error) => {
@@ -663,6 +694,83 @@ export class NotificationService implements OnDestroy {
           status,
           issues,
         },
+      };
+      batch.set(ref, notification);
+    }
+    await batch.commit();
+  }
+
+  // Surfaces gradings that are completed (passed/not-passed) but not yet paid as
+  // TODO notifications, for the student themselves and for the instructors
+  // responsible for that student's grading. Idempotent and modelled on the
+  // order-issue catch-up: it reads the member's own GradingUnpaid notifications
+  // to find which gradings have already been surfaced. Runs once per session.
+  private async syncUnpaidGradingNotifications(member: Member): Promise<void> {
+    if (this.unpaidGradingsSyncedForMemberDocId === member.docId) return;
+    this.unpaidGradingsSyncedForMemberDocId = member.docId;
+
+    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+
+    // Which gradings have we already surfaced as unpaid for this member?
+    const existingSnap = await getDocs(
+      query(notifCollection, where('kind', '==', NotificationKind.GradingUnpaid)),
+    );
+    const notifiedGradingIds = new Set<string>();
+    existingSnap.forEach((d) => {
+      const data = (d.data() as MemberNotification).data as { gradingDocId?: string };
+      if (data?.gradingDocId) notifiedGradingIds.add(data.gradingDocId);
+    });
+
+    // Candidate gradings, de-duplicated by docId: the member's own gradings (as a
+    // student, via gradingDocIds) plus this member's students' gradings (from the
+    // instructor mirror at /instructors/{memberDocId}/gradings).
+    const gradings = new Map<string, Grading>();
+    for (const gradingId of member.gradingDocIds || []) {
+      try {
+        const snap = await getDoc(doc(this.db, 'gradings', gradingId));
+        if (snap.exists()) gradings.set(snap.id, firestoreDocToGrading(snap));
+      } catch {
+        // Ignore individual read failures (e.g. permissions) and continue.
+      }
+    }
+    if (member.instructorId) {
+      try {
+        const mirrorSnap = await getDocs(
+          collection(this.db, 'instructors', member.docId, 'gradings'),
+        );
+        mirrorSnap.forEach((d) => gradings.set(d.id, firestoreDocToGrading(d)));
+      } catch {
+        // No instructor mirror / no access — ignore.
+      }
+    }
+
+    const unpaid = [...gradings.values()]
+      .filter(
+        (g) =>
+          NotificationService.COMPLETED_GRADING_STATUSES.includes(g.status) &&
+          !isGradingPaid(g) &&
+          !notifiedGradingIds.has(g.docId),
+      )
+      .slice(0, NotificationService.MAX_UNPAID_GRADING_NOTIFICATIONS);
+    if (unpaid.length === 0) return;
+
+    const batch = writeBatch(this.db);
+    for (const g of unpaid) {
+      const ref = doc(notifCollection);
+      const link = `#/gradings/${g.docId}`;
+      const forSelf = g.studentMemberDocId === member.docId;
+      const markdown = forSelf
+        ? `⚠️ Your grading for **${g.level}** is complete but **not yet paid**. ` +
+          `Please arrange payment so it can be finalised. [Open the grading](${link}).`
+        : `⚠️ **${g.studentName || 'A student'}**'s grading for **${g.level}** is complete but ` +
+          `**not yet paid**. [Open the grading](${link}).`;
+      const notification: MemberNotification = {
+        docId: ref.id,
+        markdown,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        kind: NotificationKind.GradingUnpaid,
+        data: { gradingDocId: g.docId, level: g.level },
       };
       batch.set(ref, notification);
     }

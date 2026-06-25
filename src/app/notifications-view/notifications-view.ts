@@ -18,8 +18,12 @@ import {
   signal,
   OnDestroy,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { MemberNotification } from '../../../functions/src/data-model';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import {
+  MemberNotification,
+  NotificationStyle,
+  notificationStyle,
+} from '../../../functions/src/data-model';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -33,7 +37,7 @@ const DEFAULT_FILTER: NotificationFilter = 'all';
 @Component({
   selector: 'app-notifications-view',
   standalone: true,
-  imports: [DatePipe, IconComponent, MarkdownViewer],
+  imports: [DatePipe, NgTemplateOutlet, IconComponent, MarkdownViewer],
   templateUrl: './notifications-view.html',
   styleUrl: './notifications-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,6 +75,7 @@ export class NotificationsViewComponent implements OnDestroy {
     () => this.allNotifications().filter((n) => !n.dismissed).length,
   );
 
+  // Read-state filter (All / Unread).
   visibleNotifications = computed(() => {
     const list = this.allNotifications();
     if (this.activeFilter() === 'unread') {
@@ -78,6 +83,33 @@ export class NotificationsViewComponent implements OnDestroy {
     }
     return list;
   });
+
+  // Style filter (All / To do / FYI), a local toggle at the top of the list.
+  // Notifications are shown newest-first (already date-ordered by the service);
+  // this only narrows by presentation style rather than grouping into sections.
+  protected styleFilter = signal<'all' | 'action' | 'info'>('all');
+
+  actionCount = computed(
+    () => this.visibleNotifications().filter((n) => this.styleOf(n) === 'action').length,
+  );
+  infoCount = computed(
+    () => this.visibleNotifications().filter((n) => this.styleOf(n) === 'info').length,
+  );
+
+  filteredNotifications = computed(() => {
+    const style = this.styleFilter();
+    const list = this.visibleNotifications();
+    if (style === 'all') return list;
+    return list.filter((n) => this.styleOf(n) === style);
+  });
+
+  setStyleFilter(style: 'all' | 'action' | 'info') {
+    this.styleFilter.set(style);
+  }
+
+  styleOf(n: MemberNotification): NotificationStyle {
+    return notificationStyle(n.kind);
+  }
 
   setFilter(filter: NotificationFilter) {
     this.routingService.signals[Views.Notifications].urlParams.filter.set(filter);
