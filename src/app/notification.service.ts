@@ -385,6 +385,11 @@ export class NotificationService implements OnDestroy {
   // Subscribes to the member's full notification history (read + unread). Used
   // by the dedicated notifications view; call unsubscribeFromAllNotifications()
   // when the view is torn down to stop paying for the listener.
+  // Cap the full notifications view to the most recent N. The feed can grow long,
+  // so we only load this many newest notifications (single-field orderBy on
+  // createdAt — no composite index needed).
+  private static readonly MAX_NOTIFICATIONS_SHOWN = 50;
+
   public subscribeToAllNotifications() {
     this.unsubscribeFromAllNotifications();
     const memberDocId = this.firebaseService.user()?.member?.docId;
@@ -395,12 +400,14 @@ export class NotificationService implements OnDestroy {
 
     const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
     this.allUnsub = onSnapshot(
-      notifCollection,
+      query(
+        notifCollection,
+        orderBy('createdAt', 'desc'),
+        limit(NotificationService.MAX_NOTIFICATIONS_SHOWN),
+      ),
       (snapshot) => {
+        // Already ordered newest-first by the query; map straight through.
         const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
-        // Sort by createdAt desc (client-side, matching the unread feed, to
-        // avoid requiring a composite Firestore index).
-        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         this.allNotifications.set(list);
       },
       (error) => {

@@ -75,6 +75,7 @@ export class NotificationsViewComponent implements OnDestroy {
     () => this.allNotifications().filter((n) => !n.dismissed).length,
   );
 
+  // Read-state filter (All / Unread).
   visibleNotifications = computed(() => {
     const list = this.allNotifications();
     if (this.activeFilter() === 'unread') {
@@ -83,14 +84,28 @@ export class NotificationsViewComponent implements OnDestroy {
     return list;
   });
 
-  // Visible notifications split by presentation style: action items (a TODO for
-  // the member) vs informational. Used to render the two sections in the view.
-  actionNotifications = computed(() =>
-    this.visibleNotifications().filter((n) => this.styleOf(n) === 'action'),
+  // Style filter (All / To do / FYI), a local toggle at the top of the list.
+  // Notifications are shown newest-first (already date-ordered by the service);
+  // this only narrows by presentation style rather than grouping into sections.
+  protected styleFilter = signal<'all' | 'action' | 'info'>('all');
+
+  actionCount = computed(
+    () => this.visibleNotifications().filter((n) => this.styleOf(n) === 'action').length,
   );
-  infoNotifications = computed(() =>
-    this.visibleNotifications().filter((n) => this.styleOf(n) === 'info'),
+  infoCount = computed(
+    () => this.visibleNotifications().filter((n) => this.styleOf(n) === 'info').length,
   );
+
+  filteredNotifications = computed(() => {
+    const style = this.styleFilter();
+    const list = this.visibleNotifications();
+    if (style === 'all') return list;
+    return list.filter((n) => this.styleOf(n) === style);
+  });
+
+  setStyleFilter(style: 'all' | 'action' | 'info') {
+    this.styleFilter.set(style);
+  }
 
   styleOf(n: MemberNotification): NotificationStyle {
     return notificationStyle(n.kind);

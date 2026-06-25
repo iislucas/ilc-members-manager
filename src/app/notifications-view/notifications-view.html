@@ -32,38 +32,49 @@
     </div>
   </div>
 
-  @if (visibleNotifications().length > 0) {
-    @if (actionNotifications().length > 0) {
-      <h3 class="notifications-section-heading">
-        <app-icon name="check_box" width="18px" height="18px"></app-icon>
-        To do ({{ actionNotifications().length }})
-      </h3>
-      <div class="notifications-list">
-        @for (n of actionNotifications(); track n.docId) {
-          <ng-container
-            *ngTemplateOutlet="card; context: { $implicit: n }"
-          ></ng-container>
-        }
-      </div>
-    }
-    @if (infoNotifications().length > 0) {
-      <h3 class="notifications-section-heading">
-        <app-icon name="info" width="18px" height="18px"></app-icon>
-        For your information ({{ infoNotifications().length }})
-      </h3>
-      <div class="notifications-list">
-        @for (n of infoNotifications(); track n.docId) {
-          <ng-container
-            *ngTemplateOutlet="card; context: { $implicit: n }"
-          ></ng-container>
-        }
-      </div>
-    }
+  <div class="style-filter">
+    <button
+      class="pill-tab"
+      [class.active]="styleFilter() === 'all'"
+      (click)="setStyleFilter('all')"
+    >
+      All ({{ visibleNotifications().length }})
+    </button>
+    <button
+      class="pill-tab"
+      [class.active]="styleFilter() === 'action'"
+      (click)="setStyleFilter('action')"
+    >
+      <app-icon name="check_box" width="16px" height="16px"></app-icon>
+      To do ({{ actionCount() }})
+    </button>
+    <button
+      class="pill-tab"
+      [class.active]="styleFilter() === 'info'"
+      (click)="setStyleFilter('info')"
+    >
+      <app-icon name="info" width="16px" height="16px"></app-icon>
+      FYI ({{ infoCount() }})
+    </button>
+  </div>
+
+  @if (filteredNotifications().length > 0) {
+    <div class="notifications-list">
+      @for (n of filteredNotifications(); track n.docId) {
+        <ng-container
+          *ngTemplateOutlet="card; context: { $implicit: n }"
+        ></ng-container>
+      }
+    </div>
   } @else {
     <div class="empty-state">
       <app-icon name="info" width="40px" height="40px" fill="#bbb"></app-icon>
       <p>
-        @if (activeFilter() === 'unread') {
+        @if (styleFilter() === 'action') {
+          You have no to-do notifications.
+        } @else if (styleFilter() === 'info') {
+          You have no informational notifications.
+        } @else if (activeFilter() === 'unread') {
           You have no unread notifications.
         } @else {
           You have no notifications yet.
@@ -92,6 +103,13 @@
         }
         @case ('GradingRequestsYouAsInstructor') {
           <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+        }
+        <!-- Enum values are the legacy 'GradingInstructorAdded/Removed' strings. -->
+        @case ('GradingInstructorAdded') {
+          <app-icon name="person" width="20px" height="20px" fill="#b06000"></app-icon>
+        }
+        @case ('GradingInstructorRemoved') {
+          <app-icon name="person" width="20px" height="20px" fill="#5f6368"></app-icon>
         }
         @case ('GradingPurchased') {
           <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>

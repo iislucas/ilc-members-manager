@@ -25,18 +25,17 @@
   gap: 0.75rem;
 }
 
-// Heading separating the "To do" (action) and "For your information" (info)
-// notification sections.
-.notifications-section-heading {
+// Style filter row (All / To do / FYI) above the date-sorted notifications list.
+.style-filter {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 1.25rem 0 0.5rem;
-  font-size: 0.95rem;
-  color: v.$text-secondary;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
 
-  &:first-of-type {
-    margin-top: 0.5rem;
+  .pill-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
   }
 }
 
@@ -52,20 +51,18 @@
   @include v.row-highlight-active; // Highlight unread by default
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-  // Admin-only notification kinds get a distinct light-orange background so they
-  // stand out from a member's own notifications. The later `.read` rule still
-  // de-emphasises them to white once read, matching the other kinds.
-  &.PendingEventApproval,
-  &.OrderNeedsAttention,
-  &.GradingUnpaid {
+  // Action items (a TODO for the member) get a distinct light-orange background
+  // and a stronger left accent so every TODO looks the same regardless of kind.
+  // The later `.read` rule still de-emphasises them to white once read.
+  &.style-action {
     background-color: #fff4e5; // Light orange
-    border-left-color: #f5a623; // Orange accent
+    border-left: 3px solid #f5a623; // Orange accent
   }
 
-  // Read notifications are visually de-emphasised.
+  // Read notifications are visually de-emphasised (incl. the action accent).
   &.read {
     background: white;
-    border-left-color: v.$separator-color;
+    border-left: 1px solid v.$separator-color;
 
     .notification-content {
       opacity: 0.75;
