@@ -502,6 +502,10 @@ export enum NotificationKind {
   // Sent to the student when a grading result is recorded.
   GradingPassed = 'GradingPassed',
   GradingNotPassed = 'GradingNotPassed',
+  // A TODO surfaced (client-driven, on login) when a grading is completed
+  // (passed/not-passed) but not yet paid. Shown to the student and to the
+  // instructors responsible for that student's grading.
+  GradingUnpaid = 'GradingUnpaid',
   // Sent to a member when one of their purchases (membership, license, video
   // library, grading, etc.) has been processed/fulfilled.
   PurchaseFulfilled = 'PurchaseFulfilled',
@@ -518,6 +522,27 @@ export enum NotificationKind {
   // Admin-only: an order failed automatic processing (ilcAppOrderStatus 'error' or
   // 'needs-manual-processing') and needs an admin to resolve it from the order view.
   OrderNeedsAttention = 'OrderNeedsAttention',
+}
+
+// Two presentation styles for notifications: an 'action' has an expectation/TODO
+// for the recipient; an 'info' is something for them to know.
+export type NotificationStyle = 'action' | 'info';
+
+// The kinds that carry a TODO/expectation for the recipient. Everything not
+// listed here is informational. Derived from the kind so it applies retroactively
+// to already-stored notifications without a schema change.
+const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
+  NotificationKind.GradingRequestDeclined,
+  NotificationKind.GradingRequestsYouAsInstructor,
+  NotificationKind.GradingManagerAdded,
+  NotificationKind.GradingPurchased,
+  NotificationKind.GradingUnpaid,
+  NotificationKind.PendingEventApproval,
+  NotificationKind.OrderNeedsAttention,
+]);
+
+export function notificationStyle(kind: NotificationKind): NotificationStyle {
+  return ACTION_NOTIFICATION_KINDS.has(kind) ? 'action' : 'info';
 }
 
 export interface MemberNotificationCommon {
@@ -618,6 +643,10 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.GradingNotPassed;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingUnpaid;
     data: NotificationGradingData;
   }
   | {

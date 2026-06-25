@@ -25,6 +25,21 @@
   gap: 0.75rem;
 }
 
+// Heading separating the "To do" (action) and "For your information" (info)
+// notification sections.
+.notifications-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: v.$text-secondary;
+
+  &:first-of-type {
+    margin-top: 0.5rem;
+  }
+}
+
 .notification-card {
   background: white;
   border: 1px solid v.$separator-color;
@@ -41,7 +56,8 @@
   // stand out from a member's own notifications. The later `.read` rule still
   // de-emphasises them to white once read, matching the other kinds.
   &.PendingEventApproval,
-  &.OrderNeedsAttention {
+  &.OrderNeedsAttention,
+  &.GradingUnpaid {
     background-color: #fff4e5; // Light orange
     border-left-color: #f5a623; // Orange accent
   }

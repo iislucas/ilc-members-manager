@@ -12,7 +12,12 @@
     <div class="notifications-list">
       @for (n of notifications(); track n.docId) {
         <div class="notification-row" [class.collapsing]="collapsingIds().has(n.docId)">
-        <div class="notification-card" [class]="n.kind">
+        <div
+          class="notification-card"
+          [class]="n.kind"
+          [class.style-action]="styleOf(n) === 'action'"
+          [class.style-info]="styleOf(n) === 'info'"
+        >
           <div class="notification-icon" [class]="n.kind || 'default'">
             @switch (n.kind) {
               @case ('GradingRequestAccepted') {
@@ -32,6 +37,9 @@
               }
               @case ('GradingNotPassed') {
                 <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+              }
+              @case ('GradingUnpaid') {
+                <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
               }
               @case ('PurchaseFulfilled') {
                 <app-icon name="check_box" width="20px" height="20px" fill="#137333"></app-icon>

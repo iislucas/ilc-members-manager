@@ -117,9 +117,16 @@
     // they stand out from a member's own notifications. Higher specificity than
     // the row-highlight mixin above, so it wins for these kinds.
     &.PendingEventApproval,
-    &.OrderNeedsAttention {
+    &.OrderNeedsAttention,
+    &.GradingUnpaid {
       background-color: #fff4e5; // Light orange
       border-left-color: #f5a623; // Orange accent
+    }
+
+    // Action items (a TODO for the member) get a stronger left accent than
+    // informational notifications so they stand out in the compact home feed.
+    &.style-action {
+      border-left: 3px solid #f5a623;
     }
 
     .notification-icon {

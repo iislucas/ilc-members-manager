@@ -5,6 +5,10 @@ import {
   instructorCanAssessLevel,
   previousGradingLevel,
   normalizeGradingLevel,
+  notificationStyle,
+  isGradingPaid,
+  NotificationKind,
+  PaymentStatus,
 } from './data-model';
 
 describe('grading progression helpers', () => {
@@ -101,6 +105,32 @@ describe('grading progression helpers', () => {
     it('treats Entry/unset instructor level as unqualified for application gradings', () => {
       expect(instructorCanAssessLevel('Entry', 'Application 1')).toBe(false);
       expect(instructorCanAssessLevel('', 'Application 1')).toBe(false);
+    });
+  });
+
+  describe('notificationStyle', () => {
+    it('marks TODO-bearing kinds as action', () => {
+      expect(notificationStyle(NotificationKind.GradingUnpaid)).toBe('action');
+      expect(notificationStyle(NotificationKind.GradingRequestsYouAsInstructor)).toBe('action');
+      expect(notificationStyle(NotificationKind.GradingPurchased)).toBe('action');
+      expect(notificationStyle(NotificationKind.OrderNeedsAttention)).toBe('action');
+    });
+
+    it('marks informational kinds as info', () => {
+      expect(notificationStyle(NotificationKind.GradingPassed)).toBe('info');
+      expect(notificationStyle(NotificationKind.GradingNotPassed)).toBe('info');
+      expect(notificationStyle(NotificationKind.BlogPost)).toBe('info');
+      expect(notificationStyle(NotificationKind.PurchaseFulfilled)).toBe('info');
+    });
+  });
+
+  describe('isGradingPaid', () => {
+    it('treats anything but not-yet-paid (and undefined) as paid', () => {
+      expect(isGradingPaid({ paymentStatus: PaymentStatus.NotYetPaid })).toBe(false);
+      expect(isGradingPaid({ paymentStatus: PaymentStatus.PaidBySquarespace })).toBe(true);
+      expect(isGradingPaid({ paymentStatus: PaymentStatus.PaidByCash })).toBe(true);
+      expect(isGradingPaid({ paymentStatus: PaymentStatus.PaidOther })).toBe(true);
+      expect(isGradingPaid({})).toBe(true);
     });
   });
 });

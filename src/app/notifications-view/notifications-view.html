@@ -33,104 +33,32 @@
   </div>
 
   @if (visibleNotifications().length > 0) {
-    <div class="notifications-list">
-      @for (n of visibleNotifications(); track n.docId) {
-        <div
-          class="notification-card"
-          [class]="n.kind"
-          [class.read]="n.dismissed"
-          [class.deleting]="deletingIds().has(n.docId)"
-        >
-          <div class="notification-icon" [class]="n.kind || 'default'">
-            @switch (n.kind) {
-              @case ('GradingRequestAccepted') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#137333"></app-icon>
-              }
-              @case ('GradingRequestDeclined') {
-                <app-icon name="salut" width="20px" height="20px" fill="#c5221f"></app-icon>
-              }
-              @case ('GradingRequestsYouAsInstructor') {
-                <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('GradingPurchased') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('GradingPassed') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#137333"></app-icon>
-              }
-              @case ('GradingNotPassed') {
-                <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('PurchaseFulfilled') {
-                <app-icon name="check_box" width="20px" height="20px" fill="#137333"></app-icon>
-              }
-              @case ('BlogPost') {
-                <app-icon name="hands_lotus" width="20px" height="20px" fill="#137333"></app-icon>
-              }
-              @case ('NewEventPosted') {
-                <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @default {
-                @if (isGradingNotification(n)) {
-                  <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-                } @else {
-                  <app-icon name="info" width="20px" height="20px" fill="#5f6368"></app-icon>
-                }
-              }
-            }
-          </div>
-          <div class="notification-content">
-            <div class="meta">
-              @if (!n.dismissed) {
-                <span class="unread-dot" aria-label="Unread"></span>
-              }
-              <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date: 'short' }}</span>
-            </div>
-            <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
-            @if (gradingHref(n); as href) {
-              <a class="subtle-button grading-link" [href]="href">
-                <app-icon name="mountain" width="16px" height="16px"></app-icon>
-                View grading
-              </a>
-            }
-          </div>
-          <div class="notification-actions">
-            @if (confirmingDeleteId() === n.docId) {
-              <span class="confirm-prompt">Delete permanently?</span>
-              <button class="delete-button" (click)="confirmDelete(n.docId)">
-                Delete
-              </button>
-              <button class="subtle-button" (click)="cancelDelete()">Cancel</button>
-            } @else {
-              @if (n.dismissed) {
-                <button
-                  class="icon-only-button"
-                  (click)="onMarkUnread(n.docId)"
-                  title="Mark as unread"
-                >
-                  <app-icon name="visibility" width="18px" height="18px"></app-icon>
-                </button>
-              } @else {
-                <button
-                  class="icon-only-button"
-                  (click)="onMarkRead(n.docId)"
-                  title="Mark as read"
-                >
-                  <app-icon name="check" width="18px" height="18px"></app-icon>
-                </button>
-              }
-              <button
-                class="delete-button icon-only-button"
-                (click)="requestDelete(n.docId)"
-                title="Delete permanently"
-              >
-                <app-icon name="trash" width="18px" height="18px"></app-icon>
-              </button>
-            }
-          </div>
-        </div>
-      }
-    </div>
+    @if (actionNotifications().length > 0) {
+      <h3 class="notifications-section-heading">
+        <app-icon name="check_box" width="18px" height="18px"></app-icon>
+        To do ({{ actionNotifications().length }})
+      </h3>
+      <div class="notifications-list">
+        @for (n of actionNotifications(); track n.docId) {
+          <ng-container
+            *ngTemplateOutlet="card; context: { $implicit: n }"
+          ></ng-container>
+        }
+      </div>
+    }
+    @if (infoNotifications().length > 0) {
+      <h3 class="notifications-section-heading">
+        <app-icon name="info" width="18px" height="18px"></app-icon>
+        For your information ({{ infoNotifications().length }})
+      </h3>
+      <div class="notifications-list">
+        @for (n of infoNotifications(); track n.docId) {
+          <ng-container
+            *ngTemplateOutlet="card; context: { $implicit: n }"
+          ></ng-container>
+        }
+      </div>
+    }
   } @else {
     <div class="empty-state">
       <app-icon name="info" width="40px" height="40px" fill="#bbb"></app-icon>
@@ -144,3 +72,105 @@
     </div>
   }
 </div>
+
+<ng-template #card let-n>
+  <div
+    class="notification-card"
+    [class]="n.kind"
+    [class.style-action]="styleOf(n) === 'action'"
+    [class.style-info]="styleOf(n) === 'info'"
+    [class.read]="n.dismissed"
+    [class.deleting]="deletingIds().has(n.docId)"
+  >
+    <div class="notification-icon" [class]="n.kind || 'default'">
+      @switch (n.kind) {
+        @case ('GradingRequestAccepted') {
+          <app-icon name="mountain" width="20px" height="20px" fill="#137333"></app-icon>
+        }
+        @case ('GradingRequestDeclined') {
+          <app-icon name="salut" width="20px" height="20px" fill="#c5221f"></app-icon>
+        }
+        @case ('GradingRequestsYouAsInstructor') {
+          <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+        }
+        @case ('GradingPurchased') {
+          <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+        }
+        @case ('GradingPassed') {
+          <app-icon name="mountain" width="20px" height="20px" fill="#137333"></app-icon>
+        }
+        @case ('GradingNotPassed') {
+          <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+        }
+        @case ('GradingUnpaid') {
+          <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
+        }
+        @case ('PurchaseFulfilled') {
+          <app-icon name="check_box" width="20px" height="20px" fill="#137333"></app-icon>
+        }
+        @case ('BlogPost') {
+          <app-icon name="hands_lotus" width="20px" height="20px" fill="#137333"></app-icon>
+        }
+        @case ('NewEventPosted') {
+          <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
+        }
+        @default {
+          @if (isGradingNotification(n)) {
+            <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+          } @else {
+            <app-icon name="info" width="20px" height="20px" fill="#5f6368"></app-icon>
+          }
+        }
+      }
+    </div>
+    <div class="notification-content">
+      <div class="meta">
+        @if (!n.dismissed) {
+          <span class="unread-dot" aria-label="Unread"></span>
+        }
+        <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date: 'short' }}</span>
+      </div>
+      <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
+      @if (gradingHref(n); as href) {
+        <a class="subtle-button grading-link" [href]="href">
+          <app-icon name="mountain" width="16px" height="16px"></app-icon>
+          View grading
+        </a>
+      }
+    </div>
+    <div class="notification-actions">
+      @if (confirmingDeleteId() === n.docId) {
+        <span class="confirm-prompt">Delete permanently?</span>
+        <button class="delete-button" (click)="confirmDelete(n.docId)">
+          Delete
+        </button>
+        <button class="subtle-button" (click)="cancelDelete()">Cancel</button>
+      } @else {
+        @if (n.dismissed) {
+          <button
+            class="icon-only-button"
+            (click)="onMarkUnread(n.docId)"
+            title="Mark as unread"
+          >
+            <app-icon name="visibility" width="18px" height="18px"></app-icon>
+          </button>
+        } @else {
+          <button
+            class="icon-only-button"
+            (click)="onMarkRead(n.docId)"
+            title="Mark as read"
+          >
+            <app-icon name="check" width="18px" height="18px"></app-icon>
+          </button>
+        }
+        <button
+          class="delete-button icon-only-button"
+          (click)="requestDelete(n.docId)"
+          title="Delete permanently"
+        >
+          <app-icon name="trash" width="18px" height="18px"></app-icon>
+        </button>
+      }
+    </div>
+  </div>
+</ng-template>

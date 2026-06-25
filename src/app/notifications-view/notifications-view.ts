@@ -18,8 +18,12 @@ import {
   signal,
   OnDestroy,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { MemberNotification } from '../../../functions/src/data-model';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import {
+  MemberNotification,
+  NotificationStyle,
+  notificationStyle,
+} from '../../../functions/src/data-model';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -33,7 +37,7 @@ const DEFAULT_FILTER: NotificationFilter = 'all';
 @Component({
   selector: 'app-notifications-view',
   standalone: true,
-  imports: [DatePipe, IconComponent, MarkdownViewer],
+  imports: [DatePipe, NgTemplateOutlet, IconComponent, MarkdownViewer],
   templateUrl: './notifications-view.html',
   styleUrl: './notifications-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,6 +82,19 @@ export class NotificationsViewComponent implements OnDestroy {
     }
     return list;
   });
+
+  // Visible notifications split by presentation style: action items (a TODO for
+  // the member) vs informational. Used to render the two sections in the view.
+  actionNotifications = computed(() =>
+    this.visibleNotifications().filter((n) => this.styleOf(n) === 'action'),
+  );
+  infoNotifications = computed(() =>
+    this.visibleNotifications().filter((n) => this.styleOf(n) === 'info'),
+  );
+
+  styleOf(n: MemberNotification): NotificationStyle {
+    return notificationStyle(n.kind);
+  }
 
   setFilter(filter: NotificationFilter) {
     this.routingService.signals[Views.Notifications].urlParams.filter.set(filter);
