@@ -9,7 +9,7 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf } from './data-model';
+import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf, isGradingPaid } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import * as logger from 'firebase-functions/logger';
@@ -438,6 +438,36 @@ export const onGradingCreated = onDocumentCreated(
           }
         );
       }
+
+      // Also notify the student's primary instructor (sifu), unless they are the
+      // selected grading instructor (already notified above).
+      const primaryInstructorId = await getPrimaryInstructorId(grading.studentMemberDocId);
+      if (primaryInstructorId && primaryInstructorId !== grading.gradingInstructorId) {
+        const sifu = await resolvePrimaryInstructorToNotify(
+          grading,
+          grading.statusChangedByMemberDocId,
+        );
+        if (sifu) {
+          const gradingHref = `#/gradings/${gradingDocId}`;
+          const instructorName = await getMemberName(
+            await findInstructorMemberDocId(grading.gradingInstructorId),
+            'another instructor',
+          );
+          await createNotification(sifu.sifuMemberDocId, {
+            markdown:
+              `Your student **${sifu.studentName}** has requested a grading for **${grading.level}** ` +
+              `from **${instructorName}**. [Open the grading](${gradingHref}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingRequestsYouAsInstructor,
+            data: {
+              gradingDocId,
+              studentName: sifu.studentName,
+              level: grading.level,
+            },
+          });
+        }
+      }
     }
 
     // If the grading is created already linked to an event, notify the event's
@@ -548,7 +578,7 @@ export const onGradingUpdated = onDocumentUpdated(
         const instructorMemberDocId = await findInstructorMemberDocId(id);
         if (instructorMemberDocId) {
           const isMain = grading.gradingInstructorId === id;
-          const role = isMain ? 'main instructor' : 'assistant instructor';
+          const role = isMain ? 'grading instructor' : 'grading manager';
           const msg = `You have been assigned as the **${role}** to grade **${studentName}** for **${grading.level}**.`;
           await createNotification(
             instructorMemberDocId,
@@ -570,7 +600,7 @@ export const onGradingUpdated = onDocumentUpdated(
       for (const id of removedSelected) {
         const instructorMemberDocId = await findInstructorMemberDocId(id);
         if (instructorMemberDocId) {
-          const msg = `You have been removed as an instructor for **${studentName}**'s grading for **${grading.level}**.`;
+          const msg = `You have been removed as a grading manager for **${studentName}**'s grading for **${grading.level}**.`;
           await createNotification(
             instructorMemberDocId,
             {
@@ -597,10 +627,19 @@ export const onGradingUpdated = onDocumentUpdated(
       await mirrorGradingToSchool(gradingDocId, grading, grading.schoolId);
     }
 
-    // If status changed to 'passed', update the student's studentLevel
+    // Update the student's level once a grading is BOTH passed and paid. This
+    // fires when the grading just became passed (and is already paid) or when an
+    // already-passed grading is later marked paid — so an unpaid pass does not
+    // promote the student until payment is recorded.
+    const isPaid = isGradingPaid(grading);
+    const becamePassed =
+      grading.status === GradingStatus.Passed && previous.status !== GradingStatus.Passed;
+    const becamePaidWhilePassed =
+      grading.status === GradingStatus.Passed && isPaid && !isGradingPaid(previous);
     if (
       grading.status === GradingStatus.Passed &&
-      previous.status !== GradingStatus.Passed &&
+      isPaid &&
+      (becamePassed || becamePaidWhilePassed) &&
       grading.studentMemberId &&
       grading.level !== StudentLevel.None
     ) {
@@ -635,6 +674,11 @@ export const onGradingUpdated = onDocumentUpdated(
           `Could not find student with memberId ${grading.studentMemberId} to update level.`,
         );
       }
+    } else if (becamePassed && !isPaid) {
+      logger.info(
+        `Grading ${gradingDocId} passed but not paid (status ${grading.paymentStatus}); ` +
+          `student ${grading.studentMemberId} level NOT updated until payment is recorded.`,
+      );
     }
 
     // Notify the student when their grading result is recorded.
@@ -875,6 +919,44 @@ export const onGradingUpdated = onDocumentUpdated(
       }
     }
 
+    // Notify the student's primary instructor (sifu) when their student makes a
+    // grading request — only on a fresh request (not reassignment), and not when
+    // the sifu is the selected grading instructor (they already get the request
+    // notification above). story: docs/user-stories/grading-sifu-notifications.md
+    if (
+      grading.status === GradingStatus.AwaitingAcceptance &&
+      previous.status !== GradingStatus.AwaitingAcceptance &&
+      grading.gradingInstructorId
+    ) {
+      const primaryInstructorId = await getPrimaryInstructorId(grading.studentMemberDocId);
+      if (primaryInstructorId && primaryInstructorId !== grading.gradingInstructorId) {
+        const sifu = await resolvePrimaryInstructorToNotify(
+          grading,
+          grading.statusChangedByMemberDocId,
+        );
+        if (sifu) {
+          const gradingHref = `#/gradings/${gradingDocId}`;
+          const instructorName = await getMemberName(
+            await findInstructorMemberDocId(grading.gradingInstructorId),
+            'another instructor',
+          );
+          await createNotification(sifu.sifuMemberDocId, {
+            markdown:
+              `Your student **${sifu.studentName}** has requested a grading for **${grading.level}** ` +
+              `from **${instructorName}**. [Open the grading](${gradingHref}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingRequestsYouAsInstructor,
+            data: {
+              gradingDocId,
+              studentName: sifu.studentName,
+              level: grading.level,
+            },
+          });
+        }
+      }
+    }
+
     // Handle event-link change: notify event organizers/managers that they have
     // gained or lost grading-manager status. Status is derived live from the
     // link (no cached field), so we only need to notify on the transition.
@@ -903,17 +985,48 @@ export const onGradingUpdated = onDocumentUpdated(
       await annotateManagerNotificationsWithAcceptor(grading, gradingDocId);
     }
 
-    // Write the refreshed cached names back to the source grading if they
-    // changed. Skipping the write when unchanged stops the trigger re-firing in
-    // a loop.
-    if (
-      storedStudentName !== grading.studentName ||
-      storedInstructorName !== grading.gradingInstructorName
-    ) {
-      await snap.after.ref.update({
-        studentName: grading.studentName,
-        gradingInstructorName: grading.gradingInstructorName,
-      });
+    // Capture the student's level snapshot when the grading is accepted (moves
+    // to AwaitingGrading), if not already captured. This is the authoritative
+    // record of the level the student held going in, so we no longer infer it
+    // from `grading.level`.
+    const acceptedNow =
+      grading.status === GradingStatus.AwaitingGrading &&
+      previous.status !== GradingStatus.AwaitingGrading;
+    const snapshotMissing =
+      !grading.studentLevelAtAcceptance && !grading.applicationLevelAtAcceptance;
+    let snapshotUpdate:
+      | { studentLevelAtAcceptance: string; applicationLevelAtAcceptance: string }
+      | undefined;
+    if (acceptedNow && snapshotMissing && grading.studentMemberDocId) {
+      const studentSnap = await db
+        .collection('members')
+        .doc(grading.studentMemberDocId)
+        .get();
+      if (studentSnap.exists) {
+        const d = studentSnap.data() || {};
+        snapshotUpdate = {
+          studentLevelAtAcceptance: (d.studentLevel as string) || '',
+          applicationLevelAtAcceptance: (d.applicationLevel as string) || '',
+        };
+      }
+    }
+
+    // Write the refreshed cached names (and any acceptance level snapshot) back
+    // to the source grading. Skipping the write when nothing changed stops the
+    // trigger re-firing in a loop.
+    const writeBack: Record<string, unknown> = {};
+    if (storedStudentName !== grading.studentName) {
+      writeBack.studentName = grading.studentName;
+    }
+    if (storedInstructorName !== grading.gradingInstructorName) {
+      writeBack.gradingInstructorName = grading.gradingInstructorName;
+    }
+    if (snapshotUpdate) {
+      writeBack.studentLevelAtAcceptance = snapshotUpdate.studentLevelAtAcceptance;
+      writeBack.applicationLevelAtAcceptance = snapshotUpdate.applicationLevelAtAcceptance;
+    }
+    if (Object.keys(writeBack).length > 0) {
+      await snap.after.ref.update(writeBack);
     }
 
     logger.info(`Grading ${gradingDocId} updated and re-mirrored.`);

@@ -7,7 +7,7 @@ through Squarespace.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, Grading, GradingStatus, initGrading, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Member, Grading, GradingStatus, PaymentStatus, initGrading, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
 import { GradingResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -73,6 +73,10 @@ export function parseGradingOrderInfo(
     currentApplicationLevel: canonicalizeApplicationLevel(currentApplicationLevel),
     gradingInfo: {
       ...initGrading(),
+      // Purchased through Squarespace, so it is paid. The student's level
+      // snapshot is captured authoritatively by the grading trigger at
+      // acceptance (from the member record), not seeded from the order form.
+      paymentStatus: PaymentStatus.PaidBySquarespace,
       status: providedMemberId ? GradingStatus.AwaitingRequest : GradingStatus.RequiresReview,
       reviewIssue: providedMemberId ? '' : 'Missing member ID in order customizations.',
       gradingPurchaseDate: purchaseDate,

@@ -141,13 +141,18 @@ async function run() {
     }
 
     // Pass 3: level snapshot for accepted-or-beyond gradings, when empty.
+    // Gate on the *source* (a previous level exists) rather than only on the
+    // snapshot being empty: gradings for the first progression entry ('Student
+    // Entry') legitimately derive an empty snapshot, so a plain !hasSnapshot
+    // check would re-write them every run. Skipping when `held` is empty keeps
+    // the script idempotent (those gradings keep the default '' snapshot).
     const status = (data.status as string) || '';
     const level = (data.level as string) || '';
     const hasSnapshot =
       !!(data.studentLevelAtAcceptance as string) ||
       !!(data.applicationLevelAtAcceptance as string);
-    if (ACCEPTED_STATUSES.has(status) && level && !hasSnapshot) {
-      const held = previousGradingLevel(level);
+    const held = level ? previousGradingLevel(level) : '';
+    if (ACCEPTED_STATUSES.has(status) && held && !hasSnapshot) {
       const { studentLevel, applicationLevel } = deriveLevels(held);
       update.studentLevelAtAcceptance = studentLevel;
       update.applicationLevelAtAcceptance = applicationLevel;

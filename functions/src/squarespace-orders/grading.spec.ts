@@ -74,6 +74,8 @@ describe('parseGradingOrderInfo', () => {
         level: 'Student 7',
         gradingInstructorId: '1',
         assistantInstructorIds: [],
+        gradingManagerIds: [],
+        paymentStatus: 'paid-by-squarespace',
         schoolId: '',
         schoolDocId: '',
         studentMemberId: 'US402',
