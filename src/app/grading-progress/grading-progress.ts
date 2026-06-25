@@ -23,7 +23,6 @@ import {
   computed,
   signal,
   effect,
-  OnDestroy,
 } from '@angular/core';
 import {
   Grading,
@@ -54,7 +53,7 @@ import { GradingEventInputComponent, GradingEventDetails } from '../grading-even
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
-export class GradingProgressComponent implements OnDestroy {
+export class GradingProgressComponent {
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   private routingService = inject(RoutingService<AppPathPatterns>);
@@ -306,79 +305,39 @@ export class GradingProgressComponent implements OnDestroy {
     );
   });
 
-  saveStatus = signal<'Unsaved changes' | 'saving...' | 'saved' | ''>('');
+  // Feedback shown next to the Save button after an explicit save.
+  saveStatus = signal<'' | 'saving...' | 'saved'>('');
 
-  private autoSaveTimer: any = null;
-
-  private autoSaveEffect = effect(() => {
-    const dirty = this.isDirty();
-    const event = this.editGradingEvent();
-    const date = this.editGradingEventDate();
-    const notes = this.editResultNotes();
-    const assistants = this.editGradingManagerIds();
-    const instructor = this.editInstructorId();
-
-    if (!dirty) {
-      return;
-    }
-
-    this.saveStatus.set('Unsaved changes');
-
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-    }
-
-    this.autoSaveTimer = setTimeout(() => {
-      this.triggerAutoSave();
-    }, 5000);
-  });
-
-  async triggerAutoSave() {
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-    }
-
+  // Persist the inline detail edits (event/date/result notes/instructor/managers)
+  // explicitly. The component no longer auto-saves — the user must click Save (or
+  // Discard) so changes are intentional and clearly visible.
+  saveEdits() {
     if (!this.isDirty()) return;
-
     this.saveStatus.set('saving...');
-    try {
-      const update: Partial<Grading> = {
-        gradingEvent: this.editGradingEvent(),
-        gradingEventDate: this.editGradingEventDate(),
-        resultNotes: this.editResultNotes(),
-        gradingInstructorId: this.editInstructorId(),
-        ...this.managerIdsUpdate(),
-      };
-      this.gradingUpdated.emit(update);
-      this.saveStatus.set('saved');
-      setTimeout(() => {
-        if (this.saveStatus() === 'saved') {
-          this.saveStatus.set('');
-        }
-      }, 3000);
-    } catch (e) {
-      console.error('Auto-save failed:', e);
-      this.saveStatus.set('Unsaved changes');
-    }
+    this.gradingUpdated.emit({
+      gradingEvent: this.editGradingEvent(),
+      gradingEventDate: this.editGradingEventDate(),
+      gradingEventDocId: this.editGradingEventDocId(),
+      resultNotes: this.editResultNotes(),
+      gradingInstructorId: this.editInstructorId(),
+      ...this.managerIdsUpdate(),
+    });
+    this.saveStatus.set('saved');
+    setTimeout(() => {
+      if (this.saveStatus() === 'saved') this.saveStatus.set('');
+    }, 3000);
   }
 
-  ngOnDestroy() {
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-    }
-
-    if (this.isDirty()) {
-      const update: Partial<Grading> = {
-        gradingEvent: this.editGradingEvent(),
-        gradingEventDate: this.editGradingEventDate(),
-        resultNotes: this.editResultNotes(),
-        gradingInstructorId: this.editInstructorId(),
-        ...this.managerIdsUpdate(),
-      };
-      this.gradingUpdated.emit(update);
-    }
+  // Revert the inline detail edits back to the saved grading.
+  discardEdits() {
+    const g = this.grading();
+    this.editInstructorId.set(g.gradingInstructorId);
+    this.editGradingEvent.set(g.gradingEvent);
+    this.editGradingEventDate.set(g.gradingEventDate);
+    this.editGradingEventDocId.set(g.gradingEventDocId);
+    this.editGradingManagerIds.set(gradingManagerIdsOf(g));
+    this.editResultNotes.set(g.resultNotes);
+    this.saveStatus.set('');
   }
 
   // --- Step 1 dirty check: has the student changed anything? ---

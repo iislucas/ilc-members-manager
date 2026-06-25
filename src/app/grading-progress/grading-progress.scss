@@ -433,6 +433,26 @@
   }
 }
 
+// "You have unsaved changes" bar with explicit Save / Discard, shown while the
+// inline detail edits are dirty. Workflow actions are disabled until resolved.
+.unsaved-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  background-color: #fff4e5;
+  border: 1px solid #f5a623;
+  border-radius: 6px;
+
+  .unsaved-note {
+    color: #b06000;
+    font-weight: 500;
+    margin-right: auto;
+  }
+}
+
 .event-link {
   display: inline;
   text-decoration: none;

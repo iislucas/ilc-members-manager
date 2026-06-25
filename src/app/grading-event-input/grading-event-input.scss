@@ -10,11 +10,16 @@
   gap: 0.5em;
 }
 
-// ── Mode toggle ──
-// Uses the global `.pill-tabs` / `.pill-tab` system from styles.scss.
-.pill-tabs {
-  align-self: flex-start;
-  margin-bottom: 0;
+// ── "Not at a listed event" checkbox ──
+.event-not-listed-row {
+  .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.85em;
+    color: v.$text-secondary;
+    cursor: pointer;
+  }
 }
 
 // ── ILC event search ──
@@ -105,14 +110,13 @@
   color: #e65100;
 }
 
-// ── Manual entry ──
+// ── Date row ──
 .event-manual-row {
   display: flex;
   align-items: center;
   gap: 0.6em;
   flex-wrap: wrap;
 
-  input[type='text'],
   input[type='date'] {
     flex: 1;
     min-width: 10em;
@@ -123,8 +127,4 @@
     font-size: 0.9em;
     background: #fff;
   }
-}
-
-.event-text-input {
-  min-width: 14em;
 }

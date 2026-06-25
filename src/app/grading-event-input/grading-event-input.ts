@@ -26,8 +26,6 @@ export interface GradingEventDetails {
   gradingEventDocId: string;
 }
 
-export type EventInputMode = 'ilc' | 'manual';
-
 @Component({
   selector: 'app-grading-event-input',
   standalone: true,
@@ -50,35 +48,30 @@ export class GradingEventInputComponent {
   editDate = linkedSignal(() => this.gradingEventDate());
   editDocId = linkedSignal(() => this.gradingEventDocId());
 
-  // Whether the user is linking a listed ILC event or entering a custom
-  // event/location. The initial mode is derived from the incoming data
-  // (linked ILC event → 'ilc'; free-form text/date only → 'manual'); after
-  // that it is purely user-controlled via the tabs and preserved across
-  // re-renders so switching tabs never loses the entered information.
-  mode = linkedSignal<{ docId: string; hasManual: boolean }, EventInputMode>({
-    source: () => ({
-      docId: this.gradingEventDocId(),
-      hasManual: !!(this.gradingEvent() || this.gradingEventDate()),
-    }),
+  // Whether the grading was NOT at a listed workshop/event. When checked, only
+  // the date is recorded (no event name/link). Seeded from the incoming data —
+  // a linked event means it WAS at a listed event — then user-controlled via the
+  // checkbox and preserved across re-renders.
+  notListed = linkedSignal<{ docId: string }, boolean>({
+    source: () => ({ docId: this.gradingEventDocId() }),
     computation: (src, prev) => {
       if (prev) return prev.value;
-      if (src.docId) return 'ilc';
-      return src.hasManual ? 'manual' : 'ilc';
+      return false;
     },
   });
 
-  // Event search. When the grading already has a date, default the search to the
-  // week either side of it so the matching event is easy to find; otherwise fall
-  // back to the last month onwards. These stay user-editable via the date inputs
-  // (re-seeded only if the grading date itself changes).
+  // Event search. When the grading already has a date, default the search to a
+  // fortnight either side of it so the matching event is easy to find; otherwise
+  // fall back to the last month onwards. These stay user-editable via the date
+  // inputs (re-seeded only if the grading date itself changes).
   eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
   eventRangeFrom = linkedSignal(() => {
     const date = this.gradingEventDate();
-    return date ? shiftDays(date, -7) : oneMonthAgo();
+    return date ? shiftDays(date, -15) : oneMonthAgo();
   });
   eventRangeTo = linkedSignal(() => {
     const date = this.gradingEventDate();
-    return date ? shiftDays(date, 7) : '';
+    return date ? shiftDays(date, 15) : '';
   });
 
   _loadEvents = effect(() => {
@@ -119,12 +112,16 @@ export class GradingEventInputComponent {
     return this.routingService.hrefForView(Views.EventView, { eventId: docId });
   });
 
-  // Switching tabs only changes the view — all entered data (event text, date,
-  // and any linked ILC event) is preserved. A linked ILC event is only
-  // detached when the user actually edits a manual field (see onTextInput /
-  // onDateInput).
-  setMode(mode: EventInputMode) {
-    this.mode.set(mode);
+  // Toggle "not at a listed event". When checked, the grading is date-only:
+  // clear any event name/link and keep just the date. When unchecked, the event
+  // search reappears (the date is preserved either way).
+  setNotListed(checked: boolean) {
+    this.notListed.set(checked);
+    if (checked) {
+      this.editEvent.set('');
+      this.editDocId.set('');
+      this.emit();
+    }
   }
 
   onEventSelected(event: IlcEvent) {
@@ -135,15 +132,10 @@ export class GradingEventInputComponent {
     this.emit();
   }
 
-  onTextInput(e: Event) {
-    this.editEvent.set((e.target as HTMLInputElement).value);
-    this.editDocId.set('');
-    this.emit();
-  }
-
+  // The date is always shown, even when an event is linked. Editing it just
+  // updates the grading date; it does not detach a linked event.
   onDateInput(e: Event) {
     this.editDate.set((e.target as HTMLInputElement).value);
-    this.editDocId.set('');
     this.emit();
   }
 

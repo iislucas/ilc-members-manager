@@ -167,7 +167,7 @@
             }
             declined this grading request.
             @if (userIsStudent()) {
-              Please select a different instructor below.
+              Please select a different grading instructor below.
             }
           </span>
         </p>
@@ -293,14 +293,14 @@
               @if (selectedInstructorUnqualified()) {
                 <p class="field-warning">
                   <app-icon name="info" width="16" height="16"></app-icon>
-                  This instructor may not be qualified to assess
+                  This grading instructor may not be qualified to assess
                   <strong>{{ g.level }}</strong>. You can still send the request,
                   but they may need to assign a more senior grading manager.
                 </p>
               }
             </div>
 
-            <label>Note for the instructor (optional)</label>
+            <label>Note for the grading instructor (optional)</label>
             <div class="field">
               <textarea
                 [value]="editStudentNotes()"
@@ -386,10 +386,32 @@
             </div>
           </div>
 
+          @if (isDirty()) {
+            <div class="unsaved-bar">
+              <app-icon name="error" width="18" height="18"></app-icon>
+              <span class="unsaved-note">You have unsaved changes.</span>
+              <button
+                class="subtle-button"
+                (click)="saveEdits()"
+                [disabled]="isSaving()"
+              >
+                Save changes
+              </button>
+              <button
+                class="subtle-button"
+                (click)="discardEdits()"
+                [disabled]="isSaving()"
+              >
+                Discard
+              </button>
+            </div>
+          }
+
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading()"
+              [disabled]="isSaving() || isDirty() || !isNextGrading()"
+              [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Accept
             </button>
@@ -397,7 +419,8 @@
             <button
               class="not-pass-button"
               (click)="showDeclineForm.set(!showDeclineForm())"
-              [disabled]="isSaving()"
+              [disabled]="isSaving() || isDirty()"
+              [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Decline
             </button>
@@ -693,25 +716,49 @@
           </div>
         </div>
 
+        @if (isDirty()) {
+          <div class="unsaved-bar">
+            <app-icon name="error" width="18" height="18"></app-icon>
+            <span class="unsaved-note">You have unsaved changes.</span>
+            <button
+              class="subtle-button"
+              (click)="saveEdits()"
+              [disabled]="isSaving()"
+            >
+              Save changes
+            </button>
+            <button
+              class="subtle-button"
+              (click)="discardEdits()"
+              [disabled]="isSaving()"
+            >
+              Discard
+            </button>
+          </div>
+        }
+
         <div class="action-buttons">
           <button
             class="pass-button"
             (click)="markResult(GradingStatus.Passed)"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Passed
           </button>
           <button
             class="not-pass-button"
             (click)="markResult(GradingStatus.NotPassed)"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Not Passed
           </button>
           <button
             class="not-pass-button"
             (click)="showDeclineForm.set(!showDeclineForm())"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Decline Request
           </button>
@@ -876,7 +923,7 @@
       </p>
       @if (g.resultNotes) {
         <p class="detail-note result-detail">
-          <strong>Instructor's notes:</strong> {{ g.resultNotes }}
+          <strong>Grading Instructor's notes:</strong> {{ g.resultNotes }}
         </p>
       }
 
@@ -936,7 +983,7 @@
           <div class="detail-edit-span">
             <div class="detail-inline-edit">
               <div class="detail-inline-edit-row">
-                <label>Instructor</label>
+                <label>Grading Instructor</label>
                 <app-instructor-selector
                   [value]="editInstructorId()"
                   (valueChange)="editInstructorId.set($event)"
@@ -949,7 +996,7 @@
             </div>
           </div>
         } @else if (g.gradingInstructorId) {
-          <span class="detail-label">Instructor</span>
+          <span class="detail-label">Grading Instructor</span>
           <span class="detail-value">
             @if (gradingInstructor(); as inst) {
               <a class="instructor-link" [href]="'#/instructors/' + inst.instructorId"
