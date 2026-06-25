@@ -165,6 +165,28 @@
   }
 }
 
+// Payment status emphasis when a grading is unpaid.
+.unpaid-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  color: #e65100;
+  font-weight: 600;
+}
+
+.detail-sub {
+  color: v.$text-secondary;
+  font-size: 0.9em;
+  margin-left: 0.25em;
+}
+
+.result-notes-edit {
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
 .result-message.passed {
   color: #155724;
 }

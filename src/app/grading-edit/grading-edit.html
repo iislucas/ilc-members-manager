@@ -250,6 +250,25 @@
           placeholder="Feedback or comments visible to the student..."
         ></textarea>
       </div>
+
+      <label for="paymentStatus">Payment status</label>
+      <div class="rhs">
+        <select id="paymentStatus" [formField]="form.paymentStatus">
+          @for (s of paymentStatuses; track s) {
+            <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+          }
+        </select>
+      </div>
+
+      <label for="paymentNote">Payment note (optional)</label>
+      <div class="rhs">
+        <input
+          type="text"
+          id="paymentNote"
+          [formField]="form.paymentNote"
+          placeholder="e.g. who collected payment, reference"
+        />
+      </div>
     </div>
 
     @if (errorMessage().length > 0) {

@@ -925,9 +925,30 @@
           }
         }
       </p>
-      @if (g.resultNotes) {
+      @if (isEditingResultNotes()) {
+        <div class="detail-inline-edit result-notes-edit">
+          <label>Notes for the student</label>
+          <textarea
+            [value]="editResultNotes()"
+            (input)="editResultNotes.set($any($event.target).value)"
+            rows="3"
+            placeholder="Feedback or comments for the student..."
+          ></textarea>
+          <div class="detail-edit-actions">
+            <button class="subtle-button" (click)="saveResultNotes()">Save</button>
+            <button class="subtle-button" (click)="cancelResultNotesEdit()">Cancel</button>
+          </div>
+        </div>
+      } @else if (g.resultNotes) {
         <p class="detail-note result-detail">
           <strong>Grading Instructor's notes:</strong> {{ g.resultNotes }}
+          @if (canEditGradingDetails()) {
+            <button class="icon-only-button detail-edit-btn" (click)="isEditingResultNotes.set(true)" title="Edit notes for the student"><app-icon name="edit"></app-icon></button>
+          }
+        </p>
+      } @else if (canEditGradingDetails()) {
+        <p class="detail-note">
+          <button class="subtle-button detail-edit-btn" (click)="isEditingResultNotes.set(true)"><app-icon name="edit"></app-icon> Add notes for the student</button>
         </p>
       }
 
@@ -1062,6 +1083,54 @@
               </button>
             </span>
           }
+        }
+
+        <!-- Payment status -->
+        @if (isEditingPayment()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit">
+              <div class="detail-inline-edit-row">
+                <label>Payment</label>
+                <select
+                  [value]="editPaymentStatus()"
+                  (change)="editPaymentStatus.set($any($event.target).value)"
+                >
+                  @for (s of paymentStatuses; track s) {
+                    <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="detail-inline-edit-row">
+                <label>Payment note</label>
+                <input
+                  type="text"
+                  [value]="editPaymentNote()"
+                  (input)="editPaymentNote.set($any($event.target).value)"
+                  placeholder="e.g. who collected payment, reference"
+                />
+              </div>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="savePaymentDetails()">Save</button>
+                <button class="subtle-button" (click)="cancelPaymentEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <span class="detail-label">Payment</span>
+          <span class="detail-value">
+            <span [class.unpaid-flag]="isUnpaid()">
+              @if (isUnpaid()) {
+                <app-icon name="error" width="14" height="14"></app-icon>
+              }
+              {{ currentPaymentLabel() }}
+            </span>
+            @if (grading().paymentNote) {
+              <span class="detail-sub">— {{ grading().paymentNote }}</span>
+            }
+            @if (canEditGradingDetails()) {
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingPayment.set(true)" title="Edit payment status"><app-icon name="edit"></app-icon></button>
+            }
+          </span>
         }
 
       </div>

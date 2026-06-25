@@ -34,6 +34,10 @@ import {
   previousGradingLevel,
   instructorCanAssessLevel,
   gradingManagerIdsOf,
+  isGradingPaid,
+  PaymentStatus,
+  PAYMENT_STATUSES,
+  PAYMENT_STATUS_LABELS,
 } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
@@ -264,6 +268,8 @@ export class GradingProgressComponent {
   protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
   protected editDeclineNotes = signal('');
+  protected editPaymentStatus = signal<PaymentStatus>(PaymentStatus.PaidOther);
+  protected editPaymentNote = signal('');
   protected showDeclineForm = signal(false);
   protected isEditingRequest = signal(false);
   protected isSaving = signal(false);
@@ -272,6 +278,18 @@ export class GradingProgressComponent {
   protected isEditingEvent = signal(false);
   protected isEditingInstructor = signal(false);
   protected isEditingManagers = signal(false);
+  protected isEditingPayment = signal(false);
+  protected isEditingResultNotes = signal(false);
+
+  // Payment-status selector options for the template.
+  protected PaymentStatus = PaymentStatus;
+  protected paymentStatuses = PAYMENT_STATUSES;
+  paymentStatusLabel = (s: string) =>
+    PAYMENT_STATUS_LABELS[s as PaymentStatus] ?? s;
+
+  // The grading's current payment status label + whether it counts as unpaid.
+  currentPaymentLabel = computed(() => this.paymentStatusLabel(this.grading().paymentStatus));
+  isUnpaid = computed(() => !isGradingPaid(this.grading()));
 
   // Sync local editing signals from grading input whenever it changes.
   private syncEffect = effect(() => {
@@ -284,6 +302,8 @@ export class GradingProgressComponent {
     this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
   });
 
   // The manager-id update written on save: both the canonical `gradingManagerIds`
@@ -411,6 +431,31 @@ export class GradingProgressComponent {
   cancelManagerEdit() {
     this.editGradingManagerIds.set(gradingManagerIdsOf(this.grading()));
     this.isEditingManagers.set(false);
+  }
+
+  savePaymentDetails() {
+    this.gradingUpdated.emit({
+      paymentStatus: this.editPaymentStatus(),
+      paymentNote: this.editPaymentNote(),
+    });
+    this.isEditingPayment.set(false);
+  }
+
+  cancelPaymentEdit() {
+    const g = this.grading();
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
+    this.isEditingPayment.set(false);
+  }
+
+  saveResultNotes() {
+    this.gradingUpdated.emit({ resultNotes: this.editResultNotes() });
+    this.isEditingResultNotes.set(false);
+  }
+
+  cancelResultNotesEdit() {
+    this.editResultNotes.set(this.grading().resultNotes);
+    this.isEditingResultNotes.set(false);
   }
 
   cancelRequest() {

@@ -22,6 +22,9 @@ import {
   School,
   IlcEvent,
   gradingManagerIdsOf,
+  PaymentStatus,
+  PAYMENT_STATUSES,
+  PAYMENT_STATUS_LABELS,
 } from '../../../functions/src/data-model';
 import {
   form,
@@ -57,6 +60,8 @@ export class GradingEditComponent {
   getPrettyGradingStatus = getPrettyGradingStatus;
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
+  paymentStatuses = PAYMENT_STATUSES;
+  paymentStatusLabel = (s: string) => PAYMENT_STATUS_LABELS[s as PaymentStatus] ?? s;
 
   // The core object of interest.
   grading = input.required<Grading>();
@@ -76,6 +81,9 @@ export class GradingEditComponent {
     disabled(schema.gradingInstructorId, () => !this.userIsAdmin() && !this.userIsStudent() && !this.userIsGradingInstructor());
     // `assistantInstructorIds` maps to "Grading Managers" in the UI.
     disabled(schema.assistantInstructorIds, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
+    // Payment is editable by admins and grading managers/instructors (not students).
+    disabled(schema.paymentStatus, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
+    disabled(schema.paymentNote, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
     disabled(schema.schoolId, () => !this.userIsAdmin());
     disabled(schema.studentMemberId, () => !this.userIsAdmin());
     disabled(schema.studentMemberDocId, () => !this.userIsAdmin());
@@ -157,6 +165,8 @@ export class GradingEditComponent {
       this.form.studentNotes().value() !== original.studentNotes ||
       this.form.instructorAcceptedDate().value() !== original.instructorAcceptedDate ||
       this.form.resultNotes().value() !== original.resultNotes ||
+      this.form.paymentStatus().value() !== original.paymentStatus ||
+      this.form.paymentNote().value() !== original.paymentNote ||
       this.form.reviewIssue().value() !== original.reviewIssue
     );
   });
@@ -362,6 +372,8 @@ export class GradingEditComponent {
         studentNotes: this.form.studentNotes().value(),
         instructorAcceptedDate: this.form.instructorAcceptedDate().value(),
         resultNotes: this.form.resultNotes().value(),
+        paymentStatus: this.form.paymentStatus().value(),
+        paymentNote: this.form.paymentNote().value(),
         reviewIssue: this.form.reviewIssue().value(),
       };
       if (grading.docId) {
