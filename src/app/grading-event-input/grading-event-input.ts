@@ -106,6 +106,14 @@ export class GradingEventInputComponent {
     return !this.eventsSet.get(docId);
   });
 
+  // True when there is free-text event info that isn't linked to a listed event
+  // and the user hasn't ticked "not at a listed workshop/event". This is an
+  // invalid, ambiguous state: the grading must either link a real event or be
+  // marked as not-at-a-listed-event (date only). Parents disable saving while so.
+  isUnlinkedText = computed(
+    () => !this.notListed() && !this.editDocId() && this.editEvent().trim() !== '',
+  );
+
   linkedEventHref = computed(() => {
     const docId = this.editDocId();
     if (!docId) return '';

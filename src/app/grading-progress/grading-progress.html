@@ -120,15 +120,16 @@
   <!-- Warn when this grading isn't the student's next grading in the
        progression (only shown when their level is known). -->
   @if (!isNextGrading()) {
-    <p class="action-message result-message not-passed grading-level-warning">
-      <app-icon name="info" width="18" height="18"></app-icon>
+    <div class="warning-box grading-level-warning">
+      <app-icon name="error" width="18" height="18" fill="#b06000"></app-icon>
       <span>
-        This grading is for <strong>{{ g.level }}</strong>, but
-        <strong>{{ studentName() }}</strong>'s next grading is
-        <strong>{{ studentNextGradingLevel() }}</strong>. Earlier gradings should
-        be completed first.
+        <strong>Out of order.</strong> This grading is for
+        <strong>{{ g.level }}</strong>, but
+        <strong>{{ studentName() }}</strong>'s next grading should be
+        <strong>{{ studentNextGradingLevel() }}</strong>. Earlier levels should be
+        completed first.
       </span>
-    </p>
+    </div>
   }
 
   <!-- ====================================================================
@@ -225,7 +226,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>
@@ -355,7 +356,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading()"
+              [disabled]="isSaving() || !isNextGrading() || eventInputInvalid()"
             >
               Change to Accept
             </button>
@@ -393,7 +394,7 @@
               <button
                 class="subtle-button"
                 (click)="saveEdits()"
-                [disabled]="isSaving()"
+                [disabled]="isSaving() || eventInputInvalid()"
               >
                 Save changes
               </button>
@@ -410,7 +411,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || isDirty() || !isNextGrading()"
+              [disabled]="isSaving() || isDirty() || !isNextGrading() || eventInputInvalid()"
               [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Accept
@@ -494,7 +495,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -593,7 +594,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -742,7 +743,7 @@
           <button
             class="pass-button"
             (click)="markResult(GradingStatus.Passed)"
-            [disabled]="isSaving() || isDirty()"
+            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
             [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Passed
@@ -750,7 +751,7 @@
           <button
             class="not-pass-button"
             (click)="markResult(GradingStatus.NotPassed)"
-            [disabled]="isSaving() || isDirty()"
+            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
             [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Not Passed
@@ -845,7 +846,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -965,7 +966,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>

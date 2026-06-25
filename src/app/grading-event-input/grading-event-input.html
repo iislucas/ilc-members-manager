@@ -62,6 +62,16 @@
           }
         </div>
       }
+      @if (isUnlinkedText()) {
+        <p class="event-unlinked-warning">
+          <app-icon name="error" width="16" height="16" fill="#b06000"></app-icon>
+          <span>
+            “<strong>{{ editEvent() }}</strong>” isn't a linked ILC event. Search
+            and select the event above, or tick
+            <strong>“Grading was not at a listed workshop/event”</strong>.
+          </span>
+        </p>
+      }
     </div>
   }
 

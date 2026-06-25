@@ -325,6 +325,14 @@ export class GradingProgressComponent {
     );
   });
 
+  // Free-text event info that isn't linked to a listed event and isn't marked
+  // "not at a listed event" — an ambiguous state the grading can't be saved in
+  // (mirrors the warning shown by the event input). Ticking the checkbox clears
+  // the event text and linking sets the docId, so either resolves it.
+  eventInputInvalid = computed(
+    () => this.editGradingEvent().trim() !== '' && !this.editGradingEventDocId(),
+  );
+
   // Feedback shown next to the Save button after an explicit save.
   saveStatus = signal<'' | 'saving...' | 'saved'>('');
 
@@ -332,7 +340,7 @@ export class GradingProgressComponent {
   // explicitly. The component no longer auto-saves — the user must click Save (or
   // Discard) so changes are intentional and clearly visible.
   saveEdits() {
-    if (!this.isDirty()) return;
+    if (!this.isDirty() || this.eventInputInvalid()) return;
     this.saveStatus.set('saving...');
     this.gradingUpdated.emit({
       gradingEvent: this.editGradingEvent(),
@@ -400,6 +408,7 @@ export class GradingProgressComponent {
   }
 
   saveEventDetails() {
+    if (this.eventInputInvalid()) return;
     this.gradingUpdated.emit({
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
@@ -521,8 +530,9 @@ export class GradingProgressComponent {
 
   acceptAndGradeMyself() {
     // A grading can only be accepted when it's the student's next grading in the
-    // progression (guarded here as well as in the template).
-    if (!this.isNextGrading()) return;
+    // progression (guarded here as well as in the template), and not while the
+    // event input is in an invalid (unlinked free-text) state.
+    if (!this.isNextGrading() || this.eventInputInvalid()) return;
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
     const actor = this.currentActor();
@@ -544,6 +554,7 @@ export class GradingProgressComponent {
 
   // Step 3: Mark result
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
+    if (this.eventInputInvalid()) return;
     this.isSaving.set(true);
     const update: Partial<Grading> = {
       status,

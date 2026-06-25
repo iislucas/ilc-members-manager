@@ -110,6 +110,26 @@
   color: #e65100;
 }
 
+.event-unlinked-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4em;
+  margin: 0.2em 0 0;
+  padding: 0.5em 0.7em;
+  background-color: #fff4e5;
+  border: 1px solid #f5a623;
+  border-left-width: 4px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  color: #8a5200;
+  line-height: 1.4;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.1em;
+  }
+}
+
 // ── Date row ──
 .event-manual-row {
   display: flex;

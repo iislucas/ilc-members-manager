@@ -174,6 +174,15 @@ export class GradingEditComponent {
   asyncError = signal<Error | null>(null);
   protected showStatusGuide = signal(false);
 
+  // Free-text event info that isn't linked to a listed event — the grading must
+  // either link an event or be marked "not at a listed event" (date only). The
+  // event input shows the warning; the form's Save is disabled while invalid.
+  eventInputInvalid = computed(
+    () =>
+      this.form.gradingEvent().value().trim() !== '' &&
+      !this.form.gradingEventDocId().value(),
+  );
+
   // User permissions
   userIsAdmin = computed(() => {
     const user = this.firebaseState.user();
@@ -345,6 +354,15 @@ export class GradingEditComponent {
 
   async saveGrading(event: Event) {
     event.preventDefault();
+    if (this.eventInputInvalid()) {
+      this.asyncError.set(
+        new Error(
+          'The event isn\'t linked to a listed ILC event. Search and select it, ' +
+            'or tick "Grading was not at a listed workshop/event".',
+        ),
+      );
+      return;
+    }
     this.isSaving.set(true);
     this.asyncError.set(null);
     try {
