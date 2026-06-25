@@ -541,46 +541,47 @@
             height="18"
             fill="#155724"
           ></app-icon>
-          <span>
-            Your grading has been accepted by
-            @if (gradingInstructor(); as inst) {
-              <a
-                class="instructor-link"
-                [href]="'#/instructors/' + inst.instructorId"
-                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
-              >
-            } @else {
-              <strong>{{ gradingInstructorLabel() }}</strong>
-            }
-            .
+          <span class="accepted-summary">
+            <span class="accepted-line">
+              <strong>Your grading instructor:</strong>
+              @if (gradingInstructor(); as inst) {
+                <a
+                  class="instructor-link"
+                  [href]="'#/instructors/' + inst.instructorId"
+                  ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
+                >
+              } @else {
+                <strong>{{ gradingInstructorLabel() }}</strong>
+              }
+            </span>
             @let assistants = gradingManagers();
             @if (assistants.length > 0) {
-              Supporting instructors include:
-              @for (
-                assistant of assistants;
-                track assistant.id;
-                let last = $last
-              ) {
-                @if (assistant.data) {
-                  <a
-                    class="instructor-link"
-                    [href]="'#/instructors/' + assistant.data.instructorId"
-                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
-                  >
-                } @else {
-                  <strong>{{ assistant.id }}</strong>
+              <span class="accepted-line">
+                <strong>Grading managers:</strong>
+                @for (
+                  assistant of assistants;
+                  track assistant.id;
+                  let last = $last
+                ) {
+                  @if (assistant.data) {
+                    <a
+                      class="instructor-link"
+                      [href]="'#/instructors/' + assistant.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                    >
+                  } @else {
+                    <strong>{{ assistant.id }}</strong>
+                  }
+                  @if (!last) {
+                    ,
+                  }
                 }
-                @if (!last) {
-                  ,
-                } @else {
-                  .
-                }
-              }
+              </span>
             }
-            <span
-              >Waiting for the grading to be completed and for notes and result
-              to be uploaded by the instructor(s).</span
-            >
+            <span class="accepted-line accepted-waiting">
+              Your grading has been accepted — waiting for it to be completed and
+              for the result and notes to be recorded.
+            </span>
           </span>
         </p>
         @if (isEditingEvent()) {
@@ -792,44 +793,47 @@
         <!-- No edit role: read-only summary -->
         <p class="action-message">
           <app-icon name="schedule" width="18" height="18"></app-icon>
-          <span>
-            Grading has been accepted by
-            @if (gradingInstructor(); as inst) {
-              <a
-                class="instructor-link"
-                [href]="'#/instructors/' + inst.instructorId"
-                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
-              >
-            } @else {
-              <strong>{{ gradingInstructorLabel() }}</strong>
-            }
-            .
+          <span class="accepted-summary">
+            <span class="accepted-line">
+              <strong>Accepted by:</strong>
+              @if (gradingInstructor(); as inst) {
+                <a
+                  class="instructor-link"
+                  [href]="'#/instructors/' + inst.instructorId"
+                  ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
+                >
+              } @else {
+                <strong>{{ gradingInstructorLabel() }}</strong>
+              }
+            </span>
             @let assistants = gradingManagers();
             @if (assistants.length > 0) {
-              Supporting instructors include:
-              @for (
-                assistant of assistants;
-                track assistant.id;
-                let last = $last
-              ) {
-                @if (assistant.data) {
-                  <a
-                    class="instructor-link"
-                    [href]="'#/instructors/' + assistant.data.instructorId"
-                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
-                  >
-                } @else {
-                  <strong>{{ assistant.id }}</strong>
+              <span class="accepted-line">
+                <strong>Grading managers:</strong>
+                @for (
+                  assistant of assistants;
+                  track assistant.id;
+                  let last = $last
+                ) {
+                  @if (assistant.data) {
+                    <a
+                      class="instructor-link"
+                      [href]="'#/instructors/' + assistant.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                    >
+                  } @else {
+                    <strong>{{ assistant.id }}</strong>
+                  }
+                  @if (!last) {
+                    ,
+                  }
                 }
-                @if (!last) {
-                  ,
-                } @else {
-                  .
-                }
-              }
+              </span>
             }
-            Waiting for the grading to be completed and for notes and result to
-            be uploaded by the instructor(s).
+            <span class="accepted-line accepted-waiting">
+              Waiting for the grading to be completed and for the result and notes
+              to be recorded.
+            </span>
           </span>
         </p>
         @if (isEditingEvent()) {
