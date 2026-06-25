@@ -812,6 +812,50 @@ describe('Firestore Rules', () => {
       );
     });
 
+    it('should allow a grading manager listed in gradingManagerIds to update', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection('gradings')
+          .doc('grading-1')
+          .update({ gradingManagerIds: ['INST-002'] });
+      });
+      const db = testEnv
+        .authenticatedContext('instructor2', { email: 'instructor2@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          resultNotes: 'Well done',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should allow a grading manager to update the payment status', async () => {
+      const db = testEnv
+        .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db.collection('gradings').doc('grading-1').update({
+          paymentStatus: 'not-yet-paid',
+          paymentNote: 'awaiting bank transfer',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('should deny a student from updating the payment status', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        db.collection('gradings').doc('grading-1').update({
+          paymentStatus: 'not-yet-paid',
+          lastUpdated: serverTimestamp(),
+        }),
+      );
+    });
+
     it('should deny instructor from updating admin-only field orderId', async () => {
       const db = testEnv
         .authenticatedContext('instructor1', { email: 'instructor1@ilc.com' })

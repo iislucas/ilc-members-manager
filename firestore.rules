@@ -199,16 +199,18 @@ service cloud.firestore {
       function isGradingStudent() {
         return resource.data.studentMemberDocId in getUserMemberDocIds();
       }
-      // Returns true for the primary grading instructor AND for grading managers
-      // (stored in `assistantInstructorIds` — TODO: rename field to `gradingManagerIds`
-      // after data migration). Both roles share the same edit permissions.
+      // Returns true for the primary grading instructor AND for grading managers.
+      // Grading managers are stored in `gradingManagerIds`, with a fallback to the
+      // legacy `assistantInstructorIds` for docs not yet migrated. Both roles share
+      // the same edit permissions.
       function isGradingManager() {
         let email = request.auth.token.email;
         let aclPath = /databases/$(database)/documents/acl/$(email);
         let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
-        let asst = 'assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : [];
+        let managers = 'gradingManagerIds' in resource.data ? resource.data.gradingManagerIds
+            : ('assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : []);
         let assigned = resource.data.get('assignedInstructorId', '');
-        return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(asst) || (assigned != '' && assigned in instructorIds);
+        return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(managers) || (assigned != '' && assigned in instructorIds);
       }
       // True when the user is the organizer or a manager of the event this
       // grading is linked to (via gradingEventDocId). Derived live from the
@@ -248,7 +250,9 @@ service cloud.firestore {
             ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'gradingEventDocId',
              'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
              'statusChangedByMemberDocId', 'statusChangedByName',
-             'gradingInstructorId', 'resultNotes', 'assistantInstructorIds', 'declineNotes']);
+             'gradingInstructorId', 'resultNotes', 'gradingManagerIds', 'assistantInstructorIds',
+             'paymentStatus', 'paymentNote', 'studentLevelAtAcceptance', 'applicationLevelAtAcceptance',
+             'declineNotes']);
       // Before acceptance the student owns the linked event and request fields.
       allow update: if hasValidEditUpdate() && isGradingStudent() && !gradingIsAccepted() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(

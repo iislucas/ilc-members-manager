@@ -367,6 +367,34 @@ export enum GradingStatus {
   NotPassed = 'not-passed',
 }
 
+/** How a grading was paid for. A grading only updates the student's level once
+ * it is paid (i.e. not `NotYetPaid`). */
+export enum PaymentStatus {
+  NotYetPaid = 'not-yet-paid',
+  PaidBySquarespace = 'paid-by-squarespace',
+  PaidByCash = 'paid-by-cash',
+  PaidOther = 'paid-other',
+}
+
+/** All payment statuses, for building selectors. */
+export const PAYMENT_STATUSES = Object.values(PaymentStatus);
+
+/** Human-readable labels for each payment status. */
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  [PaymentStatus.NotYetPaid]: 'Not yet paid',
+  [PaymentStatus.PaidBySquarespace]: 'Paid (Squarespace)',
+  [PaymentStatus.PaidByCash]: 'Paid (cash)',
+  [PaymentStatus.PaidOther]: 'Paid (other)',
+};
+
+// Whether a grading counts as paid. Anything other than NotYetPaid is paid;
+// undefined (un-backfilled docs) is treated as paid. Reads tolerate the raw
+// string so it works on docs not run through firestoreDocToGrading (e.g. inside
+// Cloud Function triggers).
+export function isGradingPaid(g: { paymentStatus?: PaymentStatus | string }): boolean {
+  return (g.paymentStatus ?? '') !== PaymentStatus.NotYetPaid;
+}
+
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
@@ -1108,11 +1136,29 @@ export type Grading = {
   orderId: string; // The order ID that created this grading, or '' if manual.
   level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
-  // TODO: Rename this field to `gradingManagerIds` in Firestore and migrate existing data.
-  // In the UI this field is displayed as "Grading Managers". Grading managers have the same
-  // edit permissions as the primary instructor (they can accept, record results, and re-assign
-  // the primary instructor). The Firestore field name `assistantInstructorIds` is legacy.
+  // The instructorIds (human readable) of the grading managers. Grading managers
+  // have the same edit permissions as the primary instructor (they can accept,
+  // record results, and re-assign the primary instructor). In the UI this is
+  // displayed as "Grading Managers".
+  gradingManagerIds: string[];
+  // @deprecated — legacy name for `gradingManagerIds`. Still written in parallel
+  // during the migration window so older clients/rules keep working; will be
+  // removed once everything reads/writes `gradingManagerIds`.
   assistantInstructorIds: string[];
+  // How the grading was paid for. Order-created gradings are PaidBySquarespace; a
+  // grading only updates the student's level once paid (anything but NotYetPaid).
+  // Editable by grading managers/instructors/admins (not the student). Undefined
+  // (un-backfilled docs) is treated as paid. See `isGradingPaid`.
+  paymentStatus: PaymentStatus;
+  // Free-form note about payment (e.g. who collected cash, reference). Visible to
+  // managers/instructors/admins only.
+  paymentNote: string;
+  // Snapshot of the student's student/application levels at the moment the
+  // grading was accepted (status → AwaitingGrading). Lets us show/validate the
+  // level the student held going in without re-inferring it from `level`. '' when
+  // not yet captured.
+  studentLevelAtAcceptance: string;
+  applicationLevelAtAcceptance: string;
   schoolId: string; // The human-readable schoolId where the grading was conducted. Optional.
   schoolDocId: string; // The Firestore doc ID of the school where the grading was conducted.
   studentMemberId: string; // The human-readable memberId of the student being graded.
@@ -1165,7 +1211,26 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
       grading.level = 'Student Entry';
     }
   }
+  // Canonical grading-manager list reads from the new field, falling back to the
+  // legacy `assistantInstructorIds` for docs not yet migrated. Keep both in sync
+  // in-memory so existing consumers of either field keep working.
+  const rawData = docData as unknown as Partial<Grading>;
+  const managerIds = rawData.gradingManagerIds ?? rawData.assistantInstructorIds ?? [];
+  grading.gradingManagerIds = managerIds;
+  grading.assistantInstructorIds = managerIds;
+  // Undefined `paymentStatus` (un-backfilled docs) is treated as paid (PaidOther).
+  grading.paymentStatus = rawData.paymentStatus ?? PaymentStatus.PaidOther;
   return grading;
+}
+
+// Read a grading's grading-manager instructorIds, preferring the canonical
+// `gradingManagerIds` and falling back to the legacy `assistantInstructorIds`
+// for docs not yet migrated. Use everywhere the manager list is read so the
+// migration window (both fields written in parallel) stays transparent.
+export function gradingManagerIdsOf(
+  g: { gradingManagerIds?: string[]; assistantInstructorIds?: string[] },
+): string[] {
+  return g.gradingManagerIds ?? g.assistantInstructorIds ?? [];
 }
 
 export function initGrading(): Grading {
@@ -1176,7 +1241,12 @@ export function initGrading(): Grading {
     orderId: '',
     level: '',
     gradingInstructorId: '',
+    gradingManagerIds: [],
     assistantInstructorIds: [],
+    paymentStatus: PaymentStatus.PaidOther,
+    paymentNote: '',
+    studentLevelAtAcceptance: '',
+    applicationLevelAtAcceptance: '',
     schoolId: '',
     schoolDocId: '',
     studentMemberId: '',
