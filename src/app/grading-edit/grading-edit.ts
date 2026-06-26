@@ -128,6 +128,16 @@ export class GradingEditComponent {
       schema.resultNotes,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
+
+    // Reason the instructor declined the request.
+    disabled(
+      schema.declineNotes,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
+
+    // Snapshots of the student's levels captured at acceptance — admin only.
+    disabled(schema.studentLevelAtAcceptance, () => !this.userIsAdmin());
+    disabled(schema.applicationLevelAtAcceptance, () => !this.userIsAdmin());
   });
 
   // Sync input grading to the form model.
@@ -167,7 +177,10 @@ export class GradingEditComponent {
       this.form.resultNotes().value() !== original.resultNotes ||
       this.form.paymentStatus().value() !== original.paymentStatus ||
       this.form.paymentNote().value() !== original.paymentNote ||
-      this.form.reviewIssue().value() !== original.reviewIssue
+      this.form.reviewIssue().value() !== original.reviewIssue ||
+      this.form.declineNotes().value() !== original.declineNotes ||
+      this.form.studentLevelAtAcceptance().value() !== original.studentLevelAtAcceptance ||
+      this.form.applicationLevelAtAcceptance().value() !== original.applicationLevelAtAcceptance
     );
   });
   isSaving = signal(false);
@@ -390,6 +403,9 @@ export class GradingEditComponent {
         paymentStatus: this.form.paymentStatus().value(),
         paymentNote: this.form.paymentNote().value(),
         reviewIssue: this.form.reviewIssue().value(),
+        declineNotes: this.form.declineNotes().value(),
+        studentLevelAtAcceptance: this.form.studentLevelAtAcceptance().value(),
+        applicationLevelAtAcceptance: this.form.applicationLevelAtAcceptance().value(),
       };
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed

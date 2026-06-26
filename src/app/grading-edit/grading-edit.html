@@ -84,12 +84,50 @@
         e.status === GradingStatus.Passed ||
         e.status === GradingStatus.NotPassed
       ) {
-        <label>Instructor Accepted</label>
+        <label for="instructorAcceptedDate">Instructor accepted date</label>
         <div class="rhs">
-          <span class="readonly-value"
-            >Yes ({{ e.instructorAcceptedDate || "unknown date" }})</span
-          >
+          <input
+            class="date"
+            type="date"
+            id="instructorAcceptedDate"
+            placeholder="YYYY-MM-DD"
+            [formField]="form.instructorAcceptedDate"
+          />
         </div>
+
+        @if (userIsAdmin()) {
+          <label for="studentLevelAtAcceptance">Student level at acceptance</label>
+          <div class="rhs">
+            <select
+              id="studentLevelAtAcceptance"
+              [formField]="form.studentLevelAtAcceptance"
+            >
+              <option value="">—</option>
+              @for (level of studentLevels; track level) {
+                @if (level !== "") {
+                  <option [value]="level">{{ level }}</option>
+                }
+              }
+            </select>
+          </div>
+
+          <label for="applicationLevelAtAcceptance"
+            >Application level at acceptance</label
+          >
+          <div class="rhs">
+            <select
+              id="applicationLevelAtAcceptance"
+              [formField]="form.applicationLevelAtAcceptance"
+            >
+              <option value="">—</option>
+              @for (level of applicationLevels; track level) {
+                @if (level !== "") {
+                  <option [value]="level">{{ level }}</option>
+                }
+              }
+            </select>
+          </div>
+        }
       }
 
       <label for="status" class="align-top">
@@ -147,6 +185,17 @@
           }
         </div>
       </div>
+
+      @if (userIsAdmin()) {
+        <label for="reviewIssue" class="align-top">Admin review reason</label>
+        <div class="rhs">
+          <textarea
+            id="reviewIssue"
+            [formField]="form.reviewIssue"
+            placeholder="Reason this grading needs admin review (optional)..."
+          ></textarea>
+        </div>
+      }
 
       <label for="gradingInstructorId"
         >Senior Instructor grading the student</label
@@ -245,6 +294,17 @@
           id="resultNotes"
           [formField]="form.resultNotes"
           placeholder="Feedback or comments visible to the student..."
+        ></textarea>
+      </div>
+
+      <label for="declineNotes" class="align-top"
+        >Decline reason (from the instructor)</label
+      >
+      <div class="rhs">
+        <textarea
+          id="declineNotes"
+          [formField]="form.declineNotes"
+          placeholder="Reason the instructor declined the request..."
         ></textarea>
       </div>
 
