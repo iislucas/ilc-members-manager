@@ -329,6 +329,8 @@ export class GradingProgressComponent {
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
       this.editInstructorId() !== g.gradingInstructorId ||
+      this.editPaymentStatus() !== g.paymentStatus ||
+      this.editPaymentNote() !== (g.paymentNote || '') ||
       JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(gradingManagerIdsOf(g))
     );
   });
@@ -356,6 +358,8 @@ export class GradingProgressComponent {
       gradingEventDocId: this.editGradingEventDocId(),
       resultNotes: this.editResultNotes(),
       gradingInstructorId: this.editInstructorId(),
+      paymentStatus: this.editPaymentStatus(),
+      paymentNote: this.editPaymentNote(),
       ...this.managerIdsUpdate(),
     });
     this.saveStatus.set('saved');
@@ -373,6 +377,8 @@ export class GradingProgressComponent {
     this.editGradingEventDocId.set(g.gradingEventDocId);
     this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
     this.saveStatus.set('');
   }
 

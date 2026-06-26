@@ -41,6 +41,21 @@
   }
 }
 
+// Warning chip for gradings accepted/completed but not yet paid.
+.unpaid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background-color: #ffe0b2;
+  color: #8a5200;
+}
+
 .name {
   font-weight: bold;
   flex-shrink: 0;

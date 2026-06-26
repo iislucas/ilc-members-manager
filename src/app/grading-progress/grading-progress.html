@@ -629,17 +629,15 @@
         @if (g.studentNotes) {
           <p class="detail-note">Your note: {{ g.studentNotes }}</p>
         }
-      } @else if (canRecordResult()) {
-        <!-- Instructor / assigned instructor / admin: record result -->
+      } @else if (canEditGradingDetails()) {
+        <!-- Grading instructor / manager / admin: edit details + record result.
+             Admins always get the full edit form here, matching the final state. -->
         <p class="action-message">
           <app-icon name="info" width="18" height="18"></app-icon>
           <span>
             Grading accepted. Fill in the result below after the grading event.
           </span>
         </p>
-        @if (g.studentNotes) {
-          <p class="detail-note">Student's note: {{ g.studentNotes }}</p>
-        }
 
         <div class="inline-form">
           <label class="align-top">Event</label>
@@ -716,7 +714,32 @@
               </button>
             }
           </div>
+
+          <label>Payment</label>
+          <div class="field">
+            <select
+              [value]="editPaymentStatus()"
+              (change)="editPaymentStatus.set($any($event.target).value)"
+            >
+              @for (s of paymentStatuses; track s) {
+                <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+              }
+            </select>
+            <input
+              type="text"
+              class="payment-note-input"
+              [value]="editPaymentNote()"
+              (input)="editPaymentNote.set($any($event.target).value)"
+              placeholder="Payment note (optional)"
+            />
+          </div>
         </div>
+
+        @if (g.studentNotes) {
+          <p class="detail-note student-note-row">
+            <strong>Note from student:</strong> {{ g.studentNotes }}
+          </p>
+        }
 
         @if (isDirty()) {
           <div class="unsaved-bar">

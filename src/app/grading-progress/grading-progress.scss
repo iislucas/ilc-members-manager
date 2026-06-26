@@ -367,6 +367,7 @@
 
     input[type="text"],
     input[type="date"],
+    select,
     textarea {
       width: 100%;
       max-width: 30em;
@@ -380,6 +381,10 @@
 
     textarea {
       resize: vertical;
+    }
+
+    .payment-note-input {
+      margin-top: 0.3em;
     }
 
     ::ng-deep app-autocomplete input {
