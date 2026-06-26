@@ -25,6 +25,7 @@ import {
   GradingStatus,
   NotificationKind,
   initGrading,
+  initMember,
   type Grading,
   type MemberNotification,
 } from '../../functions/src/data-model';
@@ -35,6 +36,11 @@ if (admin.apps.length === 0) {
   admin.initializeApp({ projectId: PROJECT_ID });
 }
 const db = admin.firestore();
+
+// Write a complete member doc (initMember defaults + overrides) so the member
+// triggers don't choke on undefined fields when mirroring derived docs.
+const seedMember = (docId: string, overrides: Record<string, unknown>) =>
+  db.collection('members').doc(docId).set({ ...initMember(), ...overrides });
 
 // Poll a member's notifications until one matching `predicate` for the given
 // grading appears, or the timeout elapses. Triggers run asynchronously, so we
@@ -91,15 +97,15 @@ describe('story: grading-event-managers', () => {
   beforeAll(async () => {
     // Student with no primary instructor (keeps this test focused on the event
     // managers; sifu notifications are a separate story).
-    await db.collection('members').doc(studentDocId).set({
+    await seedMember(studentDocId, {
       name: 'Test Student',
       memberId: 'TS001',
       primaryInstructorId: '',
       gradingDocIds: [],
     });
     // The event organizer and manager (manager is not a licensed instructor).
-    await db.collection('members').doc(organizerDocId).set({ name: 'Organizer O' });
-    await db.collection('members').doc(managerDocId).set({ name: 'Manager M' });
+    await seedMember(organizerDocId, { name: 'Organizer O' });
+    await seedMember(managerDocId, { name: 'Manager M' });
     // The listed event, owned by O and managed by M.
     await db.collection('events').doc(eventDocId).set({
       title: 'Spring Camp',

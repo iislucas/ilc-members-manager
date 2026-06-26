@@ -21,6 +21,7 @@ import {
   NotificationKind,
   PaymentStatus,
   initGrading,
+  initMember,
   type Grading,
   type MemberNotification,
 } from '../../functions/src/data-model';
@@ -32,6 +33,11 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 const ts = () => admin.firestore.FieldValue.serverTimestamp();
+
+// Write a complete member doc (initMember defaults + overrides) so the member
+// triggers don't choke on undefined fields when mirroring derived docs.
+const seedMember = (docId: string, overrides: Record<string, unknown>) =>
+  db.collection('members').doc(docId).set({ ...initMember(), ...overrides });
 
 // Poll until `read()` returns a value satisfying `predicate`, or time out.
 async function waitFor<T>(
@@ -72,7 +78,7 @@ describe('story: grading level updates only once paid', () => {
   let gradingDocId = '';
 
   beforeAll(async () => {
-    await db.collection('members').doc(studentDocId).set({
+    await seedMember(studentDocId, {
       name: 'Paid Gating Student',
       memberId,
       studentLevel: '',
@@ -122,7 +128,7 @@ describe('story: grading captures the level snapshot at acceptance', () => {
   let gradingDocId = '';
 
   beforeAll(async () => {
-    await db.collection('members').doc(studentDocId).set({
+    await seedMember(studentDocId, {
       name: 'Snapshot Student',
       memberId: `SN-${suffix}`,
       studentLevel: '3',
@@ -166,11 +172,11 @@ describe('story: sifu notified when their student requests a grading', () => {
   let gradingDocId = '';
 
   beforeAll(async () => {
-    await db.collection('members').doc(sifuDocId).set({
+    await seedMember(sifuDocId, {
       name: 'Sifu R',
       instructorId: sifuInstructorId,
     });
-    await db.collection('members').doc(studentDocId).set({
+    await seedMember(studentDocId, {
       name: 'Requesting Student',
       memberId: `RQ-${suffix}`,
       primaryInstructorId: sifuInstructorId,
@@ -225,13 +231,13 @@ describe('story: new grading requests blocked while a grading is unpaid', () => 
   let newDocId = '';
 
   beforeAll(async () => {
-    await db.collection('members').doc(studentDocId).set({
+    await seedMember(studentDocId, {
       name: 'Request Guard Student',
       memberId,
       isAdmin: false,
       gradingDocIds: [],
     });
-    await db.collection('members').doc(adminDocId).set({
+    await seedMember(adminDocId, {
       name: 'Admin A',
       isAdmin: true,
     });
