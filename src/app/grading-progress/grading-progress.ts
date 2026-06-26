@@ -105,9 +105,8 @@ export class GradingProgressComponent {
   });
 
   // Returns true for the primary instructor, for grading managers (stored in
-  // `gradingManagerIds`, with legacy fallback to `assistantInstructorIds`), and
-  // for the organizer/managers of a linked event. All share the same edit
-  // permissions.
+  // `gradingManagerIds`), and for the organizer/managers of a linked event. All
+  // share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
@@ -263,7 +262,7 @@ export class GradingProgressComponent {
   );
 
   // Grading managers — displayed as "Grading Managers" in the UI. Backed by
-  // `gradingManagerIds` (legacy fallback to `assistantInstructorIds`).
+  // `gradingManagerIds`.
   gradingManagers = computed<Array<{ id: string; data: InstructorPublicData | null }>>(() => {
     const ids = gradingManagerIdsOf(this.grading());
     return ids.map((id) => ({
@@ -341,12 +340,9 @@ export class GradingProgressComponent {
     this.editPaymentNote.set(g.paymentNote || '');
   });
 
-  // The manager-id update written on save: both the canonical `gradingManagerIds`
-  // and the legacy `assistantInstructorIds`, kept in sync during the migration
-  // window so older clients/rules keep working.
+  // The grading-manager update written on save.
   private managerIdsUpdate(): Partial<Grading> {
-    const ids = this.editGradingManagerIds().filter((id) => id !== '');
-    return { gradingManagerIds: ids, assistantInstructorIds: ids };
+    return { gradingManagerIds: this.editGradingManagerIds().filter((id) => id !== '') };
   }
 
   isDirty = computed(() => {

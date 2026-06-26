@@ -1170,10 +1170,6 @@ export type Grading = {
   // record results, and re-assign the primary instructor). In the UI this is
   // displayed as "Grading Managers".
   gradingManagerIds: string[];
-  // @deprecated — legacy name for `gradingManagerIds`. Still written in parallel
-  // during the migration window so older clients/rules keep working; will be
-  // removed once everything reads/writes `gradingManagerIds`.
-  assistantInstructorIds: string[];
   // How the grading was paid for. Order-created gradings are PaidBySquarespace; a
   // grading only updates the student's level once paid (anything but NotYetPaid).
   // Editable by grading managers/instructors/admins (not the student). Undefined
@@ -1240,26 +1236,19 @@ export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
       grading.level = 'Student Entry';
     }
   }
-  // Canonical grading-manager list reads from the new field, falling back to the
-  // legacy `assistantInstructorIds` for docs not yet migrated. Keep both in sync
-  // in-memory so existing consumers of either field keep working.
   const rawData = docData as unknown as Partial<Grading>;
-  const managerIds = rawData.gradingManagerIds ?? rawData.assistantInstructorIds ?? [];
-  grading.gradingManagerIds = managerIds;
-  grading.assistantInstructorIds = managerIds;
+  grading.gradingManagerIds = rawData.gradingManagerIds ?? [];
   // Undefined `paymentStatus` (un-backfilled docs) is treated as paid (PaidOther).
   grading.paymentStatus = rawData.paymentStatus ?? PaymentStatus.PaidOther;
   return grading;
 }
 
-// Read a grading's grading-manager instructorIds, preferring the canonical
-// `gradingManagerIds` and falling back to the legacy `assistantInstructorIds`
-// for docs not yet migrated. Use everywhere the manager list is read so the
-// migration window (both fields written in parallel) stays transparent.
+// Read a grading's grading-manager instructorIds. A thin accessor kept for call
+// sites that work with raw/partial grading data and need the default-[] guard.
 export function gradingManagerIdsOf(
-  g: { gradingManagerIds?: string[]; assistantInstructorIds?: string[] },
+  g: { gradingManagerIds?: string[] },
 ): string[] {
-  return g.gradingManagerIds ?? g.assistantInstructorIds ?? [];
+  return g.gradingManagerIds ?? [];
 }
 
 export function initGrading(): Grading {
@@ -1271,7 +1260,6 @@ export function initGrading(): Grading {
     level: '',
     gradingInstructorId: '',
     gradingManagerIds: [],
-    assistantInstructorIds: [],
     paymentStatus: PaymentStatus.PaidOther,
     paymentNote: '',
     studentLevelAtAcceptance: '',

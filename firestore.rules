@@ -199,16 +199,13 @@ service cloud.firestore {
       function isGradingStudent() {
         return resource.data.studentMemberDocId in getUserMemberDocIds();
       }
-      // Returns true for the primary grading instructor AND for grading managers.
-      // Grading managers are stored in `gradingManagerIds`, with a fallback to the
-      // legacy `assistantInstructorIds` for docs not yet migrated. Both roles share
-      // the same edit permissions.
+      // Returns true for the primary grading instructor AND for grading managers
+      // (stored in `gradingManagerIds`). Both roles share the same edit permissions.
       function isGradingManager() {
         let email = request.auth.token.email;
         let aclPath = /databases/$(database)/documents/acl/$(email);
         let instructorIds = (email != null && exists(aclPath)) ? get(aclPath).data.instructorIds : [];
-        let managers = 'gradingManagerIds' in resource.data ? resource.data.gradingManagerIds
-            : ('assistantInstructorIds' in resource.data ? resource.data.assistantInstructorIds : []);
+        let managers = resource.data.get('gradingManagerIds', []);
         let assigned = resource.data.get('assignedInstructorId', '');
         return resource.data.gradingInstructorId in instructorIds || instructorIds.hasAny(managers) || (assigned != '' && assigned in instructorIds);
       }
@@ -250,7 +247,7 @@ service cloud.firestore {
             ['lastUpdated', 'status', 'gradingEventDate', 'gradingEvent', 'gradingEventDocId',
              'notes', 'instructorAcceptedDate', 'acceptedByMemberDocId', 'acceptedByName',
              'statusChangedByMemberDocId', 'statusChangedByName',
-             'gradingInstructorId', 'resultNotes', 'gradingManagerIds', 'assistantInstructorIds',
+             'gradingInstructorId', 'resultNotes', 'gradingManagerIds',
              'paymentStatus', 'paymentNote', 'studentLevelAtAcceptance', 'applicationLevelAtAcceptance',
              'declineNotes']);
       // Before acceptance the student owns the linked event and request fields.

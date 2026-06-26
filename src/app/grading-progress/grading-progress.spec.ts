@@ -346,7 +346,7 @@ describe('GradingProgressComponent', () => {
     expect(component.selectedInstructorUnqualified()).toBe(false);
   });
 
-  it('should correctly compute assistantInstructors signal', () => {
+  it('should correctly compute the grading managers signal', () => {
     const instructorsMap = new Map<string, any>();
     instructorsMap.set('assistant-1', { name: 'Assistant One', instructorId: 'assistant-1' });
     

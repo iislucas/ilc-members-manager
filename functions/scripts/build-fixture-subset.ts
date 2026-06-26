@@ -174,10 +174,7 @@ for (const id of selectedMemberIds) {
 for (const g of selectedGradings) {
   const gi = str(g, 'gradingInstructorId');
   if (gi && instructorsByInstructorId.has(gi)) selectedInstructorIds.add(gi);
-  const managerIds = [
-    ...new Set([...strArr(g, 'gradingManagerIds'), ...strArr(g, 'assistantInstructorIds')]),
-  ];
-  for (const ai of managerIds) {
+  for (const ai of strArr(g, 'gradingManagerIds')) {
     if (instructorsByInstructorId.has(ai)) selectedInstructorIds.add(ai);
   }
   const sid = str(g, 'schoolId');
@@ -229,15 +226,9 @@ function emitGrading(g: RawDoc): RawDoc {
   for (const k of ['acceptedByName', 'statusChangedByName', 'notes']) out[k] = '';
   const gi = str(g, 'gradingInstructorId');
   if (gi && !selectedInstructorIds.has(gi)) out['gradingInstructorId'] = '';
-  // Prefer the canonical `gradingManagerIds`, falling back to the legacy field;
-  // emit both (kept in sync) during the migration window.
-  const managerIds = (
-    (g['gradingManagerIds'] as unknown) !== undefined
-      ? strArr(g, 'gradingManagerIds')
-      : strArr(g, 'assistantInstructorIds')
-  ).filter((id) => selectedInstructorIds.has(id));
-  out['gradingManagerIds'] = managerIds;
-  out['assistantInstructorIds'] = managerIds;
+  out['gradingManagerIds'] = strArr(g, 'gradingManagerIds').filter((id) =>
+    selectedInstructorIds.has(id),
+  );
   // Default `paymentStatus` for sources predating the field (matches the
   // backfill): order-sourced gradings (orderId set) are paid-by-squarespace, the
   // rest paid-other. `studentLevelAtAcceptance`/`applicationLevelAtAcceptance`
