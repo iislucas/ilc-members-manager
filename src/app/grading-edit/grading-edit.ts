@@ -315,7 +315,7 @@ export class GradingEditComponent {
     this.form.schoolId().markAsDirty();
   }
 
-  resolveAssistantName(instructorId: string): string {
+  resolveGradingManagerName(instructorId: string): string {
     if (!instructorId) return '';
     const instructor = this.dataService.instructors
       .entries()
@@ -325,30 +325,30 @@ export class GradingEditComponent {
       : instructorId;
   }
 
-  resolveAssistant(instructorId: string): InstructorPublicData | null {
+  resolveGradingManager(instructorId: string): InstructorPublicData | null {
     if (!instructorId) return null;
     return this.dataService.instructors.get(instructorId) ?? null;
   }
 
-  updateAssistantInstructorId(index: number, value: string) {
+  updateGradingManagerId(index: number, value: string) {
     const match = value.match(/\[([^\]]+)\]$/);
     const rawId = match ? match[1] : value;
-    const assistants = [...this.form.gradingManagerIds().value()];
-    assistants[index] = rawId;
-    this.form.gradingManagerIds().value.set(assistants);
+    const managers = [...this.form.gradingManagerIds().value()];
+    managers[index] = rawId;
+    this.form.gradingManagerIds().value.set(managers);
     this.form.gradingManagerIds().markAsDirty();
   }
 
-  removeAssistantInstructor(index: number) {
-    const assistants = [...this.form.gradingManagerIds().value()];
-    assistants.splice(index, 1);
-    this.form.gradingManagerIds().value.set(assistants);
+  removeGradingManager(index: number) {
+    const managers = [...this.form.gradingManagerIds().value()];
+    managers.splice(index, 1);
+    this.form.gradingManagerIds().value.set(managers);
     this.form.gradingManagerIds().markAsDirty();
   }
 
-  addAssistantInstructor() {
-    const assistants = [...this.form.gradingManagerIds().value()];
-    this.form.gradingManagerIds().value.set([...assistants, '']);
+  addGradingManager() {
+    const managers = [...this.form.gradingManagerIds().value()];
+    this.form.gradingManagerIds().value.set([...managers, '']);
     this.form.gradingManagerIds().markAsDirty();
   }
 

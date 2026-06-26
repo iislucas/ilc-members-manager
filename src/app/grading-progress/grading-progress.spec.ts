@@ -348,20 +348,20 @@ describe('GradingProgressComponent', () => {
 
   it('should correctly compute the grading managers signal', () => {
     const instructorsMap = new Map<string, any>();
-    instructorsMap.set('assistant-1', { name: 'Assistant One', instructorId: 'assistant-1' });
-    
+    instructorsMap.set('manager-1', { name: 'Manager One', instructorId: 'manager-1' });
+
     // Mock get on instructors
     (mockDataService.instructors as any).get = (id: string) => instructorsMap.get(id) || null;
 
     componentRef.setInput('grading', {
       ...initGrading(),
-      gradingManagerIds: ['assistant-1', 'assistant-2'],
+      gradingManagerIds: ['manager-1', 'manager-2'],
     });
     fixture.detectChanges();
 
     const resolved = component.gradingManagers();
     expect(resolved.length).toBe(2);
-    expect(resolved[0]).toEqual({ id: 'assistant-1', data: { name: 'Assistant One', instructorId: 'assistant-1' } });
-    expect(resolved[1]).toEqual({ id: 'assistant-2', data: null });
+    expect(resolved[0]).toEqual({ id: 'manager-1', data: { name: 'Manager One', instructorId: 'manager-1' } });
+    expect(resolved[1]).toEqual({ id: 'manager-2', data: null });
   });
 });

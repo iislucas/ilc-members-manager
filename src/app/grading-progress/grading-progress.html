@@ -566,23 +566,23 @@
                 <strong>{{ gradingInstructorLabel() }}</strong>
               }
             </span>
-            @let assistants = gradingManagers();
-            @if (assistants.length > 0) {
+            @let managers = gradingManagers();
+            @if (managers.length > 0) {
               <span class="accepted-line">
                 <strong>Grading managers:</strong>
                 @for (
-                  assistant of assistants;
-                  track assistant.id;
+                  manager of managers;
+                  track manager.id;
                   let last = $last
                 ) {
-                  @if (assistant.data) {
+                  @if (manager.data) {
                     <a
                       class="instructor-link"
-                      [href]="'#/instructors/' + assistant.data.instructorId"
-                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                      [href]="'#/instructors/' + manager.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a
                     >
                   } @else {
-                    <strong>{{ assistant.id }}</strong>
+                    <strong>{{ manager.id }}</strong>
                   }
                   @if (!last) {
                     ,
@@ -683,13 +683,13 @@
           <label class="align-top">Managers</label>
           <div class="field">
             @for (
-              assistant of editGradingManagerIds();
+              manager of editGradingManagerIds();
               track $index;
               let last = $last
             ) {
-              <div class="assistant-row">
+              <div class="manager-row">
                 <app-instructor-selector
-                  [value]="assistant"
+                  [value]="manager"
                   (valueChange)="updateGradingManagerId($index, $event)"
                 ></app-instructor-selector>
                 <button
@@ -851,23 +851,23 @@
                 <strong>{{ gradingInstructorLabel() }}</strong>
               }
             </span>
-            @let assistants = gradingManagers();
-            @if (assistants.length > 0) {
+            @let managers = gradingManagers();
+            @if (managers.length > 0) {
               <span class="accepted-line">
                 <strong>Grading managers:</strong>
                 @for (
-                  assistant of assistants;
-                  track assistant.id;
+                  manager of managers;
+                  track manager.id;
                   let last = $last
                 ) {
-                  @if (assistant.data) {
+                  @if (manager.data) {
                     <a
                       class="instructor-link"
-                      [href]="'#/instructors/' + assistant.data.instructorId"
-                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                      [href]="'#/instructors/' + manager.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a
                     >
                   } @else {
-                    <strong>{{ assistant.id }}</strong>
+                    <strong>{{ manager.id }}</strong>
                   }
                   @if (!last) {
                     ,
@@ -1115,7 +1115,7 @@
             <div class="detail-inline-edit">
               <label>Managers</label>
               @for (mgr of editGradingManagerIds(); track $index; let last = $last) {
-                <div class="assistant-row">
+                <div class="manager-row">
                   <app-instructor-selector [value]="mgr" (valueChange)="updateGradingManagerId($index, $event)"></app-instructor-selector>
                   <button type="button" class="icon-only-button" (click)="removeGradingManager($index)"><app-icon name="close" width="16" height="16"></app-icon></button>
                   @if (last) {
@@ -1136,12 +1136,12 @@
           @if (completedManagers.length > 0) {
             <span class="detail-label">Managers</span>
             <span class="detail-value">
-              @for (assistant of completedManagers; track assistant.id; let last = $last) {
-                @if (assistant.data) {
-                  <a class="instructor-link" [href]="'#/instructors/' + assistant.data.instructorId"
-                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a>
+              @for (manager of completedManagers; track manager.id; let last = $last) {
+                @if (manager.data) {
+                  <a class="instructor-link" [href]="'#/instructors/' + manager.data.instructorId"
+                    ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a>
                 } @else {
-                  <strong>{{ assistant.id }}</strong>
+                  <strong>{{ manager.id }}</strong>
                 }
                 @if (!last) { , }
               }

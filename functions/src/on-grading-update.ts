@@ -308,7 +308,7 @@ async function resolvePrimaryInstructorToNotify(
 }
 
 /**
- * Mirror the grading to all relevant instructors (primary + assistants + sifu).
+ * Mirror the grading to all relevant instructors (primary + managers + sifu).
  */
 async function mirrorGradingToAllInstructors(
   gradingDocId: string,
@@ -327,7 +327,7 @@ async function mirrorGradingToAllInstructors(
 }
 
 /**
- * Remove the grading from all relevant instructors (primary + assistants + sifu).
+ * Remove the grading from all relevant instructors (primary + managers + sifu).
  */
 async function removeGradingFromAllInstructors(
   gradingDocId: string,
@@ -409,7 +409,7 @@ export const onGradingCreated = onDocumentCreated(
     grading.studentName = resolvedNames.studentName;
     grading.gradingInstructorName = resolvedNames.gradingInstructorName;
 
-    // Mirror to all instructors (primary + assistants)
+    // Mirror to all instructors (primary + managers)
     await mirrorGradingToAllInstructors(gradingDocId, grading);
 
     // Mirror to school if set
@@ -1116,7 +1116,7 @@ export const onGradingUpdated = onDocumentUpdated(
  * After a grading is accepted, find the other managers' GradingManagerAdded
  * notifications for this grading and append a note naming who accepted it.
  * Managers are: the event organizer/managers (derived live from the linked
- * event) plus the primary and assistant grading instructors. The acceptor
+ * event) plus the primary grading instructor and grading managers. The acceptor
  * (grading.acceptedByMemberDocId) is skipped.
  */
 async function annotateManagerNotificationsWithAcceptor(

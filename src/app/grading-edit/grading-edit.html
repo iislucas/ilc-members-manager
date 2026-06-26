@@ -161,25 +161,25 @@
 
       <label>Managers</label>
       <div class="rhs">
-        @let assistantsField = form.gradingManagerIds();
-        @let assistantsErrors = assistantsField.errors();
+        @let managersField = form.gradingManagerIds();
+        @let managersErrors = managersField.errors();
 
         @for (
-          assistant of assistantsField.value();
+          manager of managersField.value();
           track $index;
           let last = $last
         ) {
-          <div class="assistant-row">
+          <div class="manager-row">
             <app-instructor-selector
-              [value]="assistant"
-              (valueChange)="updateAssistantInstructorId($index, $event)"
+              [value]="manager"
+              (valueChange)="updateGradingManagerId($index, $event)"
             ></app-instructor-selector>
             @if (canEdit()) {
               <button
                 type="button"
                 class="icon-only-button"
                 aria-label="Remove grading manager"
-                (click)="removeAssistantInstructor($index)"
+                (click)="removeGradingManager($index)"
                 [disabled]="isSaving()"
               >
                 <app-icon name="close" />
@@ -189,7 +189,7 @@
                   type="button"
                   class="icon-only-button"
                   aria-label="Add grading manager"
-                  (click)="addAssistantInstructor()"
+                  (click)="addGradingManager()"
                   [disabled]="isSaving()"
                 >
                   <app-icon name="add" />
@@ -203,14 +203,14 @@
               type="button"
               class="icon-only-button"
               aria-label="Add grading manager"
-              (click)="addAssistantInstructor()"
+              (click)="addGradingManager()"
               [disabled]="isSaving()"
             >
               <app-icon name="add" />
             </button>
           }
         }
-        @if (assistantsErrors.length > 0 && assistantsErrors[0]; as error) {
+        @if (managersErrors.length > 0 && managersErrors[0]; as error) {
           <div class="error-message">{{ error.message }}</div>
         }
       </div>

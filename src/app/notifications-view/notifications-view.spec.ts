@@ -85,8 +85,8 @@ describe('NotificationsViewComponent', () => {
   });
 
   it('should link any notification carrying a gradingDocId, regardless of kind', () => {
-    // e.g. an "assigned as grading manager / assistant instructor" notification
-    // whose kind is not one of the original grading-request kinds.
+    // e.g. an "assigned as grading manager" notification whose kind is not one
+    // of the original grading-request kinds.
     const assignedNotif = {
       docId: 'id3',
       markdown: 'You have been assigned as the grading manager to grade X for Application 1',

@@ -489,9 +489,9 @@ export enum NotificationKind {
   GradingRequestAccepted = 'GradingRequestAccepted',
   GradingRequestDeclined = 'GradingRequestDeclined',
   GradingRequestsYouAsInstructor = 'GradingRequestsYouAsInstructor',
-  // Sent to someone who has become a manager of a grading (the primary/assistant
-  // grading instructors, or the organizer/managers of an event the grading is
-  // linked to). The string values are kept as 'GradingInstructorAdded'/'...Removed'
+  // Sent to someone who has become a manager of a grading (the primary grading
+  // instructor or grading managers, or the organizer/managers of an event the
+  // grading is linked to). The string values are kept as 'GradingInstructorAdded'/'...Removed'
   // for backward compatibility with already-stored notifications and per-kind
   // notification settings.
   GradingManagerAdded = 'GradingInstructorAdded',
