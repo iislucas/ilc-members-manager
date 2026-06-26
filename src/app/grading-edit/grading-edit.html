@@ -67,7 +67,7 @@
       </div>
 
       <label for="studentNotes" class="align-top"
-        >Note from student (optional)</label
+        >Note from the student (sent with their request)</label
       >
       <div class="rhs">
         <textarea
@@ -237,17 +237,25 @@
         ></app-grading-event-input>
       </div>
 
-      <label for="notes" class="align-top">Internal Notes (admin)</label>
-      <div class="rhs">
-        <textarea id="notes" [formField]="form.notes"></textarea>
-      </div>
-
-      <label for="resultNotes" class="align-top">Notes for the student</label>
+      <label for="resultNotes" class="align-top"
+        >Notes for the student (feedback to work on)</label
+      >
       <div class="rhs">
         <textarea
           id="resultNotes"
           [formField]="form.resultNotes"
           placeholder="Feedback or comments visible to the student..."
+        ></textarea>
+      </div>
+
+      <label for="notes" class="align-top"
+        >Internal administrative notes (not visible to the student)</label
+      >
+      <div class="rhs">
+        <textarea
+          id="notes"
+          [formField]="form.notes"
+          placeholder="Notes for admins / grading managers only..."
         ></textarea>
       </div>
 

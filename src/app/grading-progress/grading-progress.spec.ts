@@ -36,6 +36,7 @@ describe('GradingProgressComponent', () => {
     mockDataService = {
       members: new SearchableSet(['memberId'], 'memberId', []) as never,
       instructors: new SearchableSet(['instructorId'], 'instructorId', []) as never,
+      myGradings: new SearchableSet(['docId'], 'docId', []) as never,
       getMemberByDocId: () => undefined,
       getMemberByMemberId: () => undefined,
       getMyStudent: () => undefined,

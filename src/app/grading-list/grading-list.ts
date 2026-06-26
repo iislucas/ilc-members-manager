@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Grading, GradingStatus, IlcEvent, getPrettyGradingStatus, initGrading, gradingManagerIdsOf } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, IlcEvent, getPrettyGradingStatus, initGrading, gradingManagerIdsOf, isGradingPaid } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
@@ -167,6 +167,8 @@ export class GradingListComponent {
   filterInstructorId = signal('');
   filterStatus = signal('');
   filterStudentMemberId = signal('');
+  // Show only gradings that have been accepted/completed but are not yet paid.
+  filterUnpaidOnly = signal(false);
 
   // The selected event filter lives in the URL `event` param so a filtered view
   // (e.g. all gradings at one event) is shareable. Both grading routes
@@ -219,7 +221,8 @@ export class GradingListComponent {
   hasActiveFilters = computed(() =>
     !!this.filterFromDate() || !!this.filterToDate() ||
     !!this.filterInstructorId() || !!this.filterStatus() ||
-    !!this.filterStudentMemberId() || !!this.filterEventDocId()
+    !!this.filterStudentMemberId() || !!this.filterEventDocId() ||
+    this.filterUnpaidOnly()
   );
 
   filteredByTab = computed<Grading[]>(() => {
@@ -271,6 +274,15 @@ export class GradingListComponent {
     }
     if (eventDocId) {
       results = results.filter(g => g.gradingEventDocId === eventDocId);
+    }
+    if (this.filterUnpaidOnly()) {
+      results = results.filter((g) => {
+        const acceptedOrDone =
+          g.status === GradingStatus.AwaitingGrading ||
+          g.status === GradingStatus.Passed ||
+          g.status === GradingStatus.NotPassed;
+        return acceptedOrDone && !isGradingPaid(g);
+      });
     }
     return results;
   });
@@ -451,6 +463,7 @@ export class GradingListComponent {
     this.filterStatus.set('');
     this.filterStudentMemberId.set('');
     this.setFilterEventDocId('');
+    this.filterUnpaidOnly.set(false);
     this.limit.set(50);
   }
 
