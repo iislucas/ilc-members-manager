@@ -237,6 +237,33 @@ async function resolveGradingNames(
   return { studentName, gradingInstructorName };
 }
 
+/** Whether the member with this doc ID is an admin. */
+async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> {
+  if (!memberDocId) return false;
+  const snap = await db.collection('members').doc(memberDocId).get();
+  return snap.exists ? !!snap.data()?.isAdmin : false;
+}
+
+/**
+ * Whether the student has any completed (passed/not-passed) gradings — other
+ * than `excludeDocId` — that are not yet paid. Used to block requesting a new
+ * grading until outstanding payments are settled.
+ */
+async function hasOutstandingUnpaidGradings(
+  studentMemberDocId: string,
+  excludeDocId: string,
+): Promise<boolean> {
+  if (!studentMemberDocId) return false;
+  const snap = await db
+    .collection('gradings')
+    .where('studentMemberDocId', '==', studentMemberDocId)
+    .where('status', 'in', [GradingStatus.Passed, GradingStatus.NotPassed])
+    .get();
+  return snap.docs.some(
+    (d) => d.id !== excludeDocId && !isGradingPaid(d.data() as Grading),
+  );
+}
+
 async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
   if (!memberDocId) return undefined;
   const snap = await db.collection('members').doc(memberDocId).get();
@@ -517,6 +544,48 @@ export const onGradingUpdated = onDocumentUpdated(
     const previous = snap.before.data() as Grading;
     previous.docId = snap.before.id;
     const gradingDocId = snap.after.id;
+
+    // Enforce "settle outstanding payments before requesting again": a non-admin
+    // student may not move a grading into AwaitingAcceptance (i.e. request an
+    // instructor) while they have other completed gradings that aren't paid.
+    // Revert such a request and notify the student. Admins are exempt. The revert
+    // re-fires this trigger with a non-AwaitingAcceptance status, so it does not
+    // loop. story: docs/user-stories/grading-unpaid-request-guard.md
+    if (
+      grading.status === GradingStatus.AwaitingAcceptance &&
+      previous.status !== GradingStatus.AwaitingAcceptance &&
+      grading.studentMemberDocId
+    ) {
+      const actorIsAdmin = await isMemberAdmin(grading.statusChangedByMemberDocId);
+      if (!actorIsAdmin) {
+        const blocked = await hasOutstandingUnpaidGradings(
+          grading.studentMemberDocId,
+          gradingDocId,
+        );
+        if (blocked) {
+          await snap.after.ref.update({
+            status: previous.status,
+            gradingInstructorId: previous.gradingInstructorId,
+            lastUpdated: FieldValue.serverTimestamp(),
+          });
+          await createNotification(grading.studentMemberDocId, {
+            markdown:
+              `Your grading request for **${grading.level}** could not be sent: you have a ` +
+              `completed grading that hasn't been paid for yet. Please settle that first, ` +
+              `then request again.`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingUnpaid,
+            data: { gradingDocId, level: grading.level },
+          });
+          logger.info(
+            `Grading ${gradingDocId} request reverted: student ${grading.studentMemberId} ` +
+              `has outstanding unpaid completed gradings.`,
+          );
+          return;
+        }
+      }
+    }
 
     // Re-resolve the cached display names from the current student/instructor so
     // they stay in sync on every update. Set on the in-memory grading first so

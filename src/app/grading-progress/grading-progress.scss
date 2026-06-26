@@ -218,6 +218,22 @@
   margin-top: 0.6em;
 }
 
+// Internal administrative note — visually distinct (grey) to signal it is not
+// shown to the student.
+.internal-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  background-color: #f1f3f4;
+  border-radius: 4px;
+  padding: 0.35em 0.55em;
+
+  app-icon {
+    flex-shrink: 0;
+    align-self: center;
+  }
+}
+
 // Student name link to their profile (subtle; underlines on hover).
 .student-profile-link {
   color: inherit;

@@ -118,6 +118,17 @@
           (textUpdated)="onEventFilterText($event)"
         ></app-autocomplete>
       </div>
+      <div class="filter-row">
+        <label>Payment</label>
+        <label class="unpaid-filter-label">
+          <input
+            type="checkbox"
+            [checked]="filterUnpaidOnly()"
+            (change)="filterUnpaidOnly.set($any($event.target).checked); limit.set(50)"
+          />
+          Unpaid only (accepted/completed, not yet paid)
+        </label>
+      </div>
       @if (hasActiveFilters()) {
         <button class="subtle-button clear-filters-btn" (click)="clearFilters()">
           <app-icon name="close"></app-icon> Clear filters

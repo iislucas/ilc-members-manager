@@ -215,3 +215,96 @@ describe('story: sifu notified when their student requests a grading', () => {
     expect(note.length).toBeGreaterThan(0);
   });
 });
+
+describe('story: new grading requests blocked while a grading is unpaid', () => {
+  const suffix = Date.now().toString(36);
+  const studentDocId = `rg-student-${suffix}`;
+  const memberId = `RG-${suffix}`;
+  const adminDocId = `rg-admin-${suffix}`;
+  let unpaidDocId = '';
+  let newDocId = '';
+
+  beforeAll(async () => {
+    await db.collection('members').doc(studentDocId).set({
+      name: 'Request Guard Student',
+      memberId,
+      isAdmin: false,
+      gradingDocIds: [],
+    });
+    await db.collection('members').doc(adminDocId).set({
+      name: 'Admin A',
+      isAdmin: true,
+    });
+    // A completed grading that has not been paid.
+    const unpaidRef = db.collection('gradings').doc();
+    unpaidDocId = unpaidRef.id;
+    await unpaidRef.set({
+      ...initGrading(),
+      level: 'Student 1',
+      studentMemberId: memberId,
+      studentMemberDocId: studentDocId,
+      status: GradingStatus.Passed,
+      paymentStatus: PaymentStatus.NotYetPaid,
+    });
+    // A fresh grading the student will try to request.
+    const newRef = db.collection('gradings').doc();
+    newDocId = newRef.id;
+    await newRef.set({
+      ...initGrading(),
+      level: 'Student 2',
+      studentMemberId: memberId,
+      studentMemberDocId: studentDocId,
+      status: GradingStatus.AwaitingRequest,
+    });
+  });
+
+  it('reverts a student request and notifies them when a grading is unpaid', async () => {
+    await db.collection('gradings').doc(newDocId).update({
+      status: GradingStatus.AwaitingAcceptance,
+      gradingInstructorId: 'INST-RG',
+      statusChangedByMemberDocId: studentDocId,
+      statusChangedByName: 'Request Guard Student',
+      lastUpdated: ts(),
+    });
+    // The trigger reverts the status back to AwaitingRequest.
+    const g = await waitFor(
+      gradingDoc(newDocId),
+      (v) => !!v && v.status === GradingStatus.AwaitingRequest,
+    );
+    expect(g!.status).toBe(GradingStatus.AwaitingRequest);
+    // The student is told why.
+    await waitFor(
+      async () => {
+        const snap = await db
+          .collection('members')
+          .doc(studentDocId)
+          .collection('notifications')
+          .where('data.gradingDocId', '==', newDocId)
+          .get();
+        return snap.docs.map((d) => d.data() as MemberNotification);
+      },
+      (notes) => notes.some((n) => n.kind === NotificationKind.GradingUnpaid),
+    );
+  });
+
+  it('lets an admin request despite the unpaid grading', async () => {
+    // Reset the new grading to AwaitingRequest first.
+    await db.collection('gradings').doc(newDocId).update({
+      status: GradingStatus.AwaitingRequest,
+      gradingInstructorId: '',
+      lastUpdated: ts(),
+    });
+    await new Promise((r) => setTimeout(r, 1500));
+    await db.collection('gradings').doc(newDocId).update({
+      status: GradingStatus.AwaitingAcceptance,
+      gradingInstructorId: 'INST-RG',
+      statusChangedByMemberDocId: adminDocId,
+      statusChangedByName: 'Admin A',
+      lastUpdated: ts(),
+    });
+    // Give the trigger time, then confirm it was NOT reverted.
+    await new Promise((r) => setTimeout(r, 3000));
+    const g = await gradingDoc(newDocId)();
+    expect(g!.status).toBe(GradingStatus.AwaitingAcceptance);
+  });
+});

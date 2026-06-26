@@ -152,6 +152,14 @@
       min-width: 10em;
     }
 
+    .unpaid-filter-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      cursor: pointer;
+      white-space: normal;
+    }
+
     .filter-autocomplete {
       flex: 1 1 18em;
       min-width: 14em;

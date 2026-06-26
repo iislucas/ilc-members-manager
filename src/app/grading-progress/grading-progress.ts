@@ -160,6 +160,28 @@ export class GradingProgressComponent {
   // the canonical progression). '' when grading for the first progression entry.
   previousLevel = computed(() => previousGradingLevel(this.grading().level));
 
+  // Other completed (passed/not-passed) gradings of this student that are not yet
+  // paid. While any exist the student may not request a new grading from an
+  // instructor — they must settle payment first. Read from the logged-in user's
+  // own gradings, so it only applies when the student views their own grading.
+  outstandingUnpaidGradings = computed(() => {
+    const g = this.grading();
+    return this.dataService.myGradings.entries().filter(
+      (other) =>
+        other.docId !== g.docId &&
+        other.studentMemberDocId === g.studentMemberDocId &&
+        (other.status === GradingStatus.Passed || other.status === GradingStatus.NotPassed) &&
+        !isGradingPaid(other),
+    );
+  });
+
+  // A non-admin student is blocked from submitting a new request while they have
+  // outstanding unpaid completed gradings. Admins are exempt (and the server
+  // trigger enforces the same rule, exempting admins).
+  requestBlockedByUnpaid = computed(
+    () => this.userIsStudent() && !this.userIsAdmin() && this.outstandingUnpaidGradings().length > 0,
+  );
+
   // Admin, grading instructor, or any grading manager can edit event/instructor/managers.
   canEditGradingDetails = computed(() => this.userIsAdmin() || this.userIsGradingInstructor());
 
@@ -275,6 +297,9 @@ export class GradingProgressComponent {
   // Local edit signal for grading managers (backed by `gradingManagerIds`).
   protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
+  // Internal administrative notes (the grading's `notes` field) — visible to
+  // grading managers/instructors/admins only, never the student.
+  protected editInternalNotes = signal('');
   protected editDeclineNotes = signal('');
   protected editPaymentStatus = signal<PaymentStatus>(PaymentStatus.PaidOther);
   protected editPaymentNote = signal('');
@@ -288,6 +313,7 @@ export class GradingProgressComponent {
   protected isEditingManagers = signal(false);
   protected isEditingPayment = signal(false);
   protected isEditingResultNotes = signal(false);
+  protected isEditingInternalNotes = signal(false);
 
   // Payment-status selector options for the template.
   protected PaymentStatus = PaymentStatus;
@@ -309,6 +335,7 @@ export class GradingProgressComponent {
     this.editGradingEventDocId.set(g.gradingEventDocId);
     this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
+    this.editInternalNotes.set(g.notes || '');
     this.editDeclineNotes.set(g.declineNotes || '');
     this.editPaymentStatus.set(g.paymentStatus);
     this.editPaymentNote.set(g.paymentNote || '');
@@ -328,6 +355,7 @@ export class GradingProgressComponent {
       this.editGradingEvent() !== g.gradingEvent ||
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
+      this.editInternalNotes() !== (g.notes || '') ||
       this.editInstructorId() !== g.gradingInstructorId ||
       this.editPaymentStatus() !== g.paymentStatus ||
       this.editPaymentNote() !== (g.paymentNote || '') ||
@@ -357,6 +385,7 @@ export class GradingProgressComponent {
       gradingEventDate: this.editGradingEventDate(),
       gradingEventDocId: this.editGradingEventDocId(),
       resultNotes: this.editResultNotes(),
+      notes: this.editInternalNotes(),
       gradingInstructorId: this.editInstructorId(),
       paymentStatus: this.editPaymentStatus(),
       paymentNote: this.editPaymentNote(),
@@ -377,6 +406,7 @@ export class GradingProgressComponent {
     this.editGradingEventDocId.set(g.gradingEventDocId);
     this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
+    this.editInternalNotes.set(g.notes || '');
     this.editPaymentStatus.set(g.paymentStatus);
     this.editPaymentNote.set(g.paymentNote || '');
     this.saveStatus.set('');
@@ -395,8 +425,11 @@ export class GradingProgressComponent {
 
   // Step 1: Save student request fields
   saveRequestFields() {
-    this.isSaving.set(true);
     const instructorId = this.editInstructorId();
+    // Block requesting a grading from an instructor while the student has
+    // outstanding unpaid completed gradings (non-admins only; mirrored server-side).
+    if (instructorId && this.requestBlockedByUnpaid()) return;
+    this.isSaving.set(true);
     const update: Partial<Grading> = {
       gradingInstructorId: instructorId,
       studentNotes: this.editStudentNotes(),
@@ -479,6 +512,16 @@ export class GradingProgressComponent {
   cancelResultNotesEdit() {
     this.editResultNotes.set(this.grading().resultNotes);
     this.isEditingResultNotes.set(false);
+  }
+
+  saveInternalNotes() {
+    this.gradingUpdated.emit({ notes: this.editInternalNotes() });
+    this.isEditingInternalNotes.set(false);
+  }
+
+  cancelInternalNotesEdit() {
+    this.editInternalNotes.set(this.grading().notes || '');
+    this.isEditingInternalNotes.set(false);
   }
 
   cancelRequest() {
