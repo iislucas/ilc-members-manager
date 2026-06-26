@@ -248,6 +248,13 @@ async function isMemberAdmin(memberDocId: string | undefined): Promise<boolean> 
  * Whether the student has any completed (passed/not-passed) gradings — other
  * than `excludeDocId` — that are not yet paid. Used to block requesting a new
  * grading until outstanding payments are settled.
+ *
+ * Queries by `studentMemberDocId` only (a single-field equality, served by the
+ * automatic index — no composite index needed) and filters status + payment in
+ * memory. A student has few gradings, so this is cheap. Filtering `paymentStatus`
+ * in code (rather than adding it to the query) also keeps legacy docs that
+ * predate the field treated as paid (see `isGradingPaid`), and avoids a 3-field
+ * composite index.
  */
 async function hasOutstandingUnpaidGradings(
   studentMemberDocId: string,
@@ -257,11 +264,14 @@ async function hasOutstandingUnpaidGradings(
   const snap = await db
     .collection('gradings')
     .where('studentMemberDocId', '==', studentMemberDocId)
-    .where('status', 'in', [GradingStatus.Passed, GradingStatus.NotPassed])
     .get();
-  return snap.docs.some(
-    (d) => d.id !== excludeDocId && !isGradingPaid(d.data() as Grading),
-  );
+  return snap.docs.some((d) => {
+    if (d.id === excludeDocId) return false;
+    const g = d.data() as Grading;
+    const completed =
+      g.status === GradingStatus.Passed || g.status === GradingStatus.NotPassed;
+    return completed && !isGradingPaid(g);
+  });
 }
 
 async function getPrimaryInstructorId(memberDocId: string | undefined): Promise<string | undefined> {
