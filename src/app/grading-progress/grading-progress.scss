@@ -30,6 +30,31 @@
   }
 }
 
+// Standard warning callout: amber background, left accent, warning icon.
+.warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.75em 0;
+  padding: 0.6em 0.85em;
+  background-color: #fff4e5;
+  border: 1px solid #f5a623;
+  border-left-width: 4px;
+  border-radius: 6px;
+  color: #8a5200;
+  font-size: 0.92em;
+  line-height: 1.45;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.1em;
+  }
+
+  strong {
+    color: #6d3f00;
+  }
+}
+
 .grading-level-warning {
   margin-top: 0.75em;
 }
@@ -141,6 +166,66 @@
   app-icon {
     flex-shrink: 0;
     margin-top: 0.15em;
+  }
+}
+
+// Stacks the "accepted by / grading managers / waiting…" summary onto separate
+// lines instead of running them together as one long sentence.
+.accepted-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+
+  .accepted-line {
+    display: block;
+
+    strong {
+      margin-right: 0.25em;
+    }
+  }
+
+  .accepted-waiting {
+    color: v.$text-secondary;
+    font-size: 0.92em;
+  }
+}
+
+// Payment status emphasis when a grading is unpaid.
+.unpaid-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  color: #e65100;
+  font-weight: 600;
+}
+
+.detail-sub {
+  color: v.$text-secondary;
+  font-size: 0.9em;
+  margin-left: 0.25em;
+}
+
+.result-notes-edit {
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+// Student's request note, placed under the other detail rows with a little space.
+.student-note-row {
+  grid-column: 1 / -1;
+  margin-top: 0.6em;
+}
+
+// Student name link to their profile (subtle; underlines on hover).
+.student-profile-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: v.$focus-ring-color;
   }
 }
 
@@ -282,6 +367,7 @@
 
     input[type="text"],
     input[type="date"],
+    select,
     textarea {
       width: 100%;
       max-width: 30em;
@@ -295,6 +381,10 @@
 
     textarea {
       resize: vertical;
+    }
+
+    .payment-note-input {
+      margin-top: 0.3em;
     }
 
     ::ng-deep app-autocomplete input {
@@ -430,6 +520,26 @@
 
   &.saved {
     color: #28a745;
+  }
+}
+
+// "You have unsaved changes" bar with explicit Save / Discard, shown while the
+// inline detail edits are dirty. Workflow actions are disabled until resolved.
+.unsaved-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  background-color: #fff4e5;
+  border: 1px solid #f5a623;
+  border-radius: 6px;
+
+  .unsaved-note {
+    color: #b06000;
+    font-weight: 500;
+    margin-right: auto;
   }
 }
 

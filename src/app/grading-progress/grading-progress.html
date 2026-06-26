@@ -120,15 +120,16 @@
   <!-- Warn when this grading isn't the student's next grading in the
        progression (only shown when their level is known). -->
   @if (!isNextGrading()) {
-    <p class="action-message result-message not-passed grading-level-warning">
-      <app-icon name="info" width="18" height="18"></app-icon>
+    <div class="warning-box grading-level-warning">
+      <app-icon name="error" width="18" height="18" fill="#b06000"></app-icon>
       <span>
-        This grading is for <strong>{{ g.level }}</strong>, but
-        <strong>{{ studentName() }}</strong>'s next grading is
-        <strong>{{ studentNextGradingLevel() }}</strong>. Earlier gradings should
-        be completed first.
+        <strong>Out of order.</strong> This grading is for
+        <strong>{{ g.level }}</strong>, but
+        <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container>'s next grading should be
+        <strong>{{ studentNextGradingLevel() }}</strong>. Earlier levels should be
+        completed first.
       </span>
-    </p>
+    </div>
   }
 
   <!-- ====================================================================
@@ -167,7 +168,7 @@
             }
             declined this grading request.
             @if (userIsStudent()) {
-              Please select a different instructor below.
+              Please select a different grading instructor below.
             }
           </span>
         </p>
@@ -225,7 +226,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>
@@ -293,14 +294,14 @@
               @if (selectedInstructorUnqualified()) {
                 <p class="field-warning">
                   <app-icon name="info" width="16" height="16"></app-icon>
-                  This instructor may not be qualified to assess
+                  This grading instructor may not be qualified to assess
                   <strong>{{ g.level }}</strong>. You can still send the request,
                   but they may need to assign a more senior grading manager.
                 </p>
               }
             </div>
 
-            <label>Note for the instructor (optional)</label>
+            <label>Note for the grading instructor (optional)</label>
             <div class="field">
               <textarea
                 [value]="editStudentNotes()"
@@ -355,7 +356,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading()"
+              [disabled]="isSaving() || !isNextGrading() || eventInputInvalid()"
             >
               Change to Accept
             </button>
@@ -364,7 +365,7 @@
           <p class="action-message">
             <app-icon name="info" width="18" height="18"></app-icon>
             <span>
-              <strong>{{ studentName() }}</strong> has requested you grade them
+              <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container> has requested you grade them
               for <strong>{{ g.level }}</strong
               >.
             </span>
@@ -386,10 +387,32 @@
             </div>
           </div>
 
+          @if (isDirty()) {
+            <div class="unsaved-bar">
+              <app-icon name="error" width="18" height="18"></app-icon>
+              <span class="unsaved-note">You have unsaved changes.</span>
+              <button
+                class="subtle-button"
+                (click)="saveEdits()"
+                [disabled]="isSaving() || eventInputInvalid()"
+              >
+                Save changes
+              </button>
+              <button
+                class="subtle-button"
+                (click)="discardEdits()"
+                [disabled]="isSaving()"
+              >
+                Discard
+              </button>
+            </div>
+          }
+
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading()"
+              [disabled]="isSaving() || isDirty() || !isNextGrading() || eventInputInvalid()"
+              [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Accept
             </button>
@@ -397,7 +420,8 @@
             <button
               class="not-pass-button"
               (click)="showDeclineForm.set(!showDeclineForm())"
-              [disabled]="isSaving()"
+              [disabled]="isSaving() || isDirty()"
+              [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Decline
             </button>
@@ -471,7 +495,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -518,46 +542,47 @@
             height="18"
             fill="#155724"
           ></app-icon>
-          <span>
-            Your grading has been accepted by
-            @if (gradingInstructor(); as inst) {
-              <a
-                class="instructor-link"
-                [href]="'#/instructors/' + inst.instructorId"
-                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
-              >
-            } @else {
-              <strong>{{ gradingInstructorLabel() }}</strong>
-            }
-            .
+          <span class="accepted-summary">
+            <span class="accepted-line">
+              <strong>Your grading instructor:</strong>
+              @if (gradingInstructor(); as inst) {
+                <a
+                  class="instructor-link"
+                  [href]="'#/instructors/' + inst.instructorId"
+                  ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
+                >
+              } @else {
+                <strong>{{ gradingInstructorLabel() }}</strong>
+              }
+            </span>
             @let assistants = gradingManagers();
             @if (assistants.length > 0) {
-              Supporting instructors include:
-              @for (
-                assistant of assistants;
-                track assistant.id;
-                let last = $last
-              ) {
-                @if (assistant.data) {
-                  <a
-                    class="instructor-link"
-                    [href]="'#/instructors/' + assistant.data.instructorId"
-                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
-                  >
-                } @else {
-                  <strong>{{ assistant.id }}</strong>
+              <span class="accepted-line">
+                <strong>Grading managers:</strong>
+                @for (
+                  assistant of assistants;
+                  track assistant.id;
+                  let last = $last
+                ) {
+                  @if (assistant.data) {
+                    <a
+                      class="instructor-link"
+                      [href]="'#/instructors/' + assistant.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                    >
+                  } @else {
+                    <strong>{{ assistant.id }}</strong>
+                  }
+                  @if (!last) {
+                    ,
+                  }
                 }
-                @if (!last) {
-                  ,
-                } @else {
-                  .
-                }
-              }
+              </span>
             }
-            <span
-              >Waiting for the grading to be completed and for notes and result
-              to be uploaded by the instructor(s).</span
-            >
+            <span class="accepted-line accepted-waiting">
+              Your grading has been accepted — waiting for it to be completed and
+              for the result and notes to be recorded.
+            </span>
           </span>
         </p>
         @if (isEditingEvent()) {
@@ -569,7 +594,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -604,17 +629,15 @@
         @if (g.studentNotes) {
           <p class="detail-note">Your note: {{ g.studentNotes }}</p>
         }
-      } @else if (canRecordResult()) {
-        <!-- Instructor / assigned instructor / admin: record result -->
+      } @else if (canEditGradingDetails()) {
+        <!-- Grading instructor / manager / admin: edit details + record result.
+             Admins always get the full edit form here, matching the final state. -->
         <p class="action-message">
           <app-icon name="info" width="18" height="18"></app-icon>
           <span>
             Grading accepted. Fill in the result below after the grading event.
           </span>
         </p>
-        @if (g.studentNotes) {
-          <p class="detail-note">Student's note: {{ g.studentNotes }}</p>
-        }
 
         <div class="inline-form">
           <label class="align-top">Event</label>
@@ -691,27 +714,76 @@
               </button>
             }
           </div>
+
+          <label>Payment</label>
+          <div class="field">
+            <select
+              [value]="editPaymentStatus()"
+              (change)="editPaymentStatus.set($any($event.target).value)"
+            >
+              @for (s of paymentStatuses; track s) {
+                <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+              }
+            </select>
+            <input
+              type="text"
+              class="payment-note-input"
+              [value]="editPaymentNote()"
+              (input)="editPaymentNote.set($any($event.target).value)"
+              placeholder="Payment note (optional)"
+            />
+          </div>
         </div>
+
+        @if (g.studentNotes) {
+          <p class="detail-note student-note-row">
+            <strong>Note from student:</strong> {{ g.studentNotes }}
+          </p>
+        }
+
+        @if (isDirty()) {
+          <div class="unsaved-bar">
+            <app-icon name="error" width="18" height="18"></app-icon>
+            <span class="unsaved-note">You have unsaved changes.</span>
+            <button
+              class="subtle-button"
+              (click)="saveEdits()"
+              [disabled]="isSaving()"
+            >
+              Save changes
+            </button>
+            <button
+              class="subtle-button"
+              (click)="discardEdits()"
+              [disabled]="isSaving()"
+            >
+              Discard
+            </button>
+          </div>
+        }
 
         <div class="action-buttons">
           <button
             class="pass-button"
             (click)="markResult(GradingStatus.Passed)"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Passed
           </button>
           <button
             class="not-pass-button"
             (click)="markResult(GradingStatus.NotPassed)"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Mark as Not Passed
           </button>
           <button
             class="not-pass-button"
             (click)="showDeclineForm.set(!showDeclineForm())"
-            [disabled]="isSaving()"
+            [disabled]="isSaving() || isDirty()"
+            [title]="isDirty() ? 'Save or discard your changes first' : ''"
           >
             Decline Request
           </button>
@@ -745,44 +817,47 @@
         <!-- No edit role: read-only summary -->
         <p class="action-message">
           <app-icon name="schedule" width="18" height="18"></app-icon>
-          <span>
-            Grading has been accepted by
-            @if (gradingInstructor(); as inst) {
-              <a
-                class="instructor-link"
-                [href]="'#/instructors/' + inst.instructorId"
-                ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
-              >
-            } @else {
-              <strong>{{ gradingInstructorLabel() }}</strong>
-            }
-            .
+          <span class="accepted-summary">
+            <span class="accepted-line">
+              <strong>Accepted by:</strong>
+              @if (gradingInstructor(); as inst) {
+                <a
+                  class="instructor-link"
+                  [href]="'#/instructors/' + inst.instructorId"
+                  ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
+                >
+              } @else {
+                <strong>{{ gradingInstructorLabel() }}</strong>
+              }
+            </span>
             @let assistants = gradingManagers();
             @if (assistants.length > 0) {
-              Supporting instructors include:
-              @for (
-                assistant of assistants;
-                track assistant.id;
-                let last = $last
-              ) {
-                @if (assistant.data) {
-                  <a
-                    class="instructor-link"
-                    [href]="'#/instructors/' + assistant.data.instructorId"
-                    ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
-                  >
-                } @else {
-                  <strong>{{ assistant.id }}</strong>
+              <span class="accepted-line">
+                <strong>Grading managers:</strong>
+                @for (
+                  assistant of assistants;
+                  track assistant.id;
+                  let last = $last
+                ) {
+                  @if (assistant.data) {
+                    <a
+                      class="instructor-link"
+                      [href]="'#/instructors/' + assistant.data.instructorId"
+                      ><app-icon name="person" class="person-icon"></app-icon>{{ assistant.data.name }} [{{ assistant.data.instructorId }}]</a
+                    >
+                  } @else {
+                    <strong>{{ assistant.id }}</strong>
+                  }
+                  @if (!last) {
+                    ,
+                  }
                 }
-                @if (!last) {
-                  ,
-                } @else {
-                  .
-                }
-              }
+              </span>
             }
-            Waiting for the grading to be completed and for notes and result to
-            be uploaded by the instructor(s).
+            <span class="accepted-line accepted-waiting">
+              Waiting for the grading to be completed and for the result and notes
+              to be recorded.
+            </span>
           </span>
         </p>
         @if (isEditingEvent()) {
@@ -794,7 +869,7 @@
               (gradingEventChange)="onEventInputChange($event)"
             ></app-grading-event-input>
             <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+              <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
               <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
             </div>
           </div>
@@ -851,16 +926,15 @@
             Congratulations! You passed <strong>{{ g.level }}</strong
             >.
           } @else {
-            <strong>{{ studentName() }} passed
-            <span style="white-space: nowrap;">{{ g.level }}.</span></strong
-            >
+            <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container> passed
+            <strong style="white-space: nowrap;">{{ g.level }}.</strong>
           }
         } @else if (g.status === GradingStatus.RequiresReview) {
           <app-icon name="info" width="18" height="18"></app-icon>
           @if (userIsStudent()) {
             Your grading is being reviewed by HQ admin.
           } @else {
-            The grading for <strong>{{ studentName() }}</strong> is being
+            The grading for <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container> is being
             reviewed by HQ admin.
           }
         } @else {
@@ -868,15 +942,36 @@
           @if (userIsStudent()) {
             You did not pass <strong>{{ g.level }}</strong> this time.
           } @else {
-            <strong>{{ studentName() }}</strong> did not pass
+            <ng-container *ngTemplateOutlet="studentNameTpl"></ng-container> did not pass
             <strong>{{ g.level }}</strong
             >.
           }
         }
       </p>
-      @if (g.resultNotes) {
+      @if (isEditingResultNotes()) {
+        <div class="detail-inline-edit result-notes-edit">
+          <label>Notes for the student</label>
+          <textarea
+            [value]="editResultNotes()"
+            (input)="editResultNotes.set($any($event.target).value)"
+            rows="3"
+            placeholder="Feedback or comments for the student..."
+          ></textarea>
+          <div class="detail-edit-actions">
+            <button class="subtle-button" (click)="saveResultNotes()">Save</button>
+            <button class="subtle-button" (click)="cancelResultNotesEdit()">Cancel</button>
+          </div>
+        </div>
+      } @else if (g.resultNotes) {
         <p class="detail-note result-detail">
-          <strong>Instructor's notes:</strong> {{ g.resultNotes }}
+          <strong>Grading Instructor's notes:</strong> {{ g.resultNotes }}
+          @if (canEditGradingDetails()) {
+            <button class="icon-only-button detail-edit-btn" (click)="isEditingResultNotes.set(true)" title="Edit notes for the student"><app-icon name="edit"></app-icon></button>
+          }
+        </p>
+      } @else if (canEditGradingDetails()) {
+        <p class="detail-note">
+          <button class="subtle-button detail-edit-btn" (click)="isEditingResultNotes.set(true)"><app-icon name="edit"></app-icon> Add notes for the student</button>
         </p>
       }
 
@@ -893,7 +988,7 @@
                 (gradingEventChange)="onEventInputChange($event)"
               ></app-grading-event-input>
               <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()">Save</button>
+                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
                 <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
               </div>
             </div>
@@ -936,7 +1031,7 @@
           <div class="detail-edit-span">
             <div class="detail-inline-edit">
               <div class="detail-inline-edit-row">
-                <label>Instructor</label>
+                <label>Grading Instructor</label>
                 <app-instructor-selector
                   [value]="editInstructorId()"
                   (valueChange)="editInstructorId.set($event)"
@@ -949,7 +1044,7 @@
             </div>
           </div>
         } @else if (g.gradingInstructorId) {
-          <span class="detail-label">Instructor</span>
+          <span class="detail-label">Grading Instructor</span>
           <span class="detail-value">
             @if (gradingInstructor(); as inst) {
               <a class="instructor-link" [href]="'#/instructors/' + inst.instructorId"
@@ -1013,7 +1108,73 @@
           }
         }
 
+        <!-- Payment status -->
+        @if (isEditingPayment()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit">
+              <div class="detail-inline-edit-row">
+                <label>Payment</label>
+                <select
+                  [value]="editPaymentStatus()"
+                  (change)="editPaymentStatus.set($any($event.target).value)"
+                >
+                  @for (s of paymentStatuses; track s) {
+                    <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="detail-inline-edit-row">
+                <label>Payment note</label>
+                <input
+                  type="text"
+                  [value]="editPaymentNote()"
+                  (input)="editPaymentNote.set($any($event.target).value)"
+                  placeholder="e.g. who collected payment, reference"
+                />
+              </div>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="savePaymentDetails()">Save</button>
+                <button class="subtle-button" (click)="cancelPaymentEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <span class="detail-label">Payment</span>
+          <span class="detail-value">
+            <span [class.unpaid-flag]="isUnpaid()">
+              @if (isUnpaid()) {
+                <app-icon name="error" width="14" height="14"></app-icon>
+              }
+              {{ currentPaymentLabel() }}
+            </span>
+            @if (grading().paymentNote) {
+              <span class="detail-sub">— {{ grading().paymentNote }}</span>
+            }
+            @if (canEditGradingDetails()) {
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingPayment.set(true)" title="Edit payment status"><app-icon name="edit"></app-icon></button>
+            }
+          </span>
+        }
+
+        <!-- Note from the student (their request note), under the other info.
+             Skipped entirely when empty. -->
+        @if (g.studentNotes) {
+          <p class="detail-note student-note-row">
+            <strong>Note from student:</strong> {{ g.studentNotes }}
+          </p>
+        }
+
       </div>
     </div>
   }
 </div>
+
+<!-- Student name, rendered as a profile link when the viewer is permitted to
+     open it (admin / primary instructor / school manager), else plain text. -->
+<ng-template #studentNameTpl>
+  @if (studentProfileLink(); as link) {
+    <a class="student-profile-link" [href]="link"><strong>{{ studentName() }}</strong></a>
+  } @else {
+    <strong>{{ studentName() }}</strong>
+  }
+</ng-template>

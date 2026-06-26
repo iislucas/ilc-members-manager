@@ -250,6 +250,25 @@
           placeholder="Feedback or comments visible to the student..."
         ></textarea>
       </div>
+
+      <label for="paymentStatus">Payment status</label>
+      <div class="rhs">
+        <select id="paymentStatus" [formField]="form.paymentStatus">
+          @for (s of paymentStatuses; track s) {
+            <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+          }
+        </select>
+      </div>
+
+      <label for="paymentNote">Payment note (optional)</label>
+      <div class="rhs">
+        <input
+          type="text"
+          id="paymentNote"
+          [formField]="form.paymentNote"
+          placeholder="e.g. who collected payment, reference"
+        />
+      </div>
     </div>
 
     @if (errorMessage().length > 0) {
@@ -272,7 +291,7 @@
           <app-spinner></app-spinner>
         } @else {
           @if (isDirty() && canEdit()) {
-            <button type="submit" [disabled]="form().invalid()">Save</button>
+            <button type="submit" [disabled]="form().invalid() || eventInputInvalid()">Save</button>
           }
           @if (!grading().docId || isDirty()) {
             <button type="button" (click)="cancel($event)">

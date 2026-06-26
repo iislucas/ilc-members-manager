@@ -1,30 +1,31 @@
 <div class="event-input-wrapper">
 
-  <!-- Mode toggle: link a listed ILC event, or enter a custom event/location -->
-  <div class="pill-tabs">
-    <button
-      type="button"
-      class="pill-tab"
-      data-label="Linked ILC event"
-      [class.active]="mode() === 'ilc'"
-      (click)="setMode('ilc')"
-    >
-      Linked ILC event
-    </button>
-    <button
-      type="button"
-      class="pill-tab"
-      data-label="Other event / location"
-      [class.active]="mode() === 'manual'"
-      (click)="setMode('manual')"
-    >
-      Other event / location
-    </button>
+  <!-- Date first, always shown (even when an event is linked). -->
+  <div class="event-manual-row">
+    <label class="small-label">Date of grading</label>
+    <input
+      type="date"
+      [value]="editDate()"
+      (input)="onDateInput($event)"
+    />
   </div>
 
-  @if (mode() === 'ilc') {
+  <!-- Single checkbox: was the grading at a listed workshop/event, or not? -->
+  <div class="event-not-listed-row">
+    <label class="checkbox-label">
+      <input
+        type="checkbox"
+        [checked]="notListed()"
+        (change)="setNotListed($any($event.target).checked)"
+      />
+      Grading was not at a listed workshop/event
+    </label>
+  </div>
+
+  @if (!notListed()) {
     <!-- ILC event search -->
     <div class="event-search-section">
+      <label class="small-label">Grading happened at event:</label>
       <app-autocomplete
         class="event-autocomplete"
         name="Event"
@@ -61,26 +62,16 @@
           }
         </div>
       }
-    </div>
-  } @else {
-    <!-- Manual text / date inputs -->
-    <div class="event-manual-row">
-      <label class="small-label">Event / location</label>
-      <input
-        type="text"
-        class="event-text-input"
-        [value]="editEvent()"
-        (input)="onTextInput($event)"
-        placeholder="e.g. Summer Workshop 2026"
-      />
-    </div>
-    <div class="event-manual-row">
-      <label class="small-label">Date</label>
-      <input
-        type="date"
-        [value]="editDate()"
-        (input)="onDateInput($event)"
-      />
+      @if (isUnlinkedText()) {
+        <p class="event-unlinked-warning">
+          <app-icon name="error" width="16" height="16" fill="#b06000"></app-icon>
+          <span>
+            “<strong>{{ editEvent() }}</strong>” isn't a linked ILC event. Search
+            and select the event above, or tick
+            <strong>“Grading was not at a listed workshop/event”</strong>.
+          </span>
+        </p>
+      }
     </div>
   }
 

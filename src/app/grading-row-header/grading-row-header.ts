@@ -6,7 +6,7 @@
  */
 
 import { Component, computed, inject, input } from '@angular/core';
-import { Grading, GradingStatus, getPrettyGradingStatus, previousGradingLevel } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, getPrettyGradingStatus, previousGradingLevel, isGradingPaid } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
@@ -31,6 +31,17 @@ export class GradingRowHeaderComponent {
 
   GradingStatus = GradingStatus;
   getPrettyGradingStatus = getPrettyGradingStatus;
+
+  // Flag gradings that have been accepted or completed but are not yet paid —
+  // payment is expected by that point, so the row shows an "unpaid" warning.
+  isUnpaid = computed(() => {
+    const g = this.grading();
+    const acceptedOrDone =
+      g.status === GradingStatus.AwaitingGrading ||
+      g.status === GradingStatus.Passed ||
+      g.status === GradingStatus.NotPassed;
+    return acceptedOrDone && !isGradingPaid(g);
+  });
 
   studentName = computed(() => {
     const g = this.grading();

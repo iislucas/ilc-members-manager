@@ -23,7 +23,6 @@ import {
   computed,
   signal,
   effect,
-  OnDestroy,
 } from '@angular/core';
 import {
   Grading,
@@ -35,7 +34,12 @@ import {
   previousGradingLevel,
   instructorCanAssessLevel,
   gradingManagerIdsOf,
+  isGradingPaid,
+  PaymentStatus,
+  PAYMENT_STATUSES,
+  PAYMENT_STATUS_LABELS,
 } from '../../../functions/src/data-model';
+import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -43,6 +47,7 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
+import { MemberProfileLinkService } from '../member-profile-link.service';
 
 
 
@@ -50,14 +55,15 @@ import { GradingEventInputComponent, GradingEventDetails } from '../grading-even
   selector: 'app-grading-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
+  imports: [NgTemplateOutlet, IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
-export class GradingProgressComponent implements OnDestroy {
+export class GradingProgressComponent {
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   private routingService = inject(RoutingService<AppPathPatterns>);
+  private profileLinks = inject(MemberProfileLinkService);
 
   grading = input.required<Grading>();
   gradingUpdated = output<Partial<Grading>>();
@@ -201,6 +207,11 @@ export class GradingProgressComponent implements OnDestroy {
     );
   });
 
+  // Link to the student's profile, present only for viewers permitted to see it
+  // (admins, the student's primary instructor, or a manager of their primary
+  // school). Null otherwise — the name then renders as plain text.
+  studentProfileLink = computed(() => this.profileLinks.profileLink(this.studentMember()));
+
   gradingInstructor = computed(() => {
     const id = this.grading().gradingInstructorId;
     if (!id) return null;
@@ -265,6 +276,8 @@ export class GradingProgressComponent implements OnDestroy {
   protected editGradingManagerIds = signal<string[]>([]);
   protected editResultNotes = signal('');
   protected editDeclineNotes = signal('');
+  protected editPaymentStatus = signal<PaymentStatus>(PaymentStatus.PaidOther);
+  protected editPaymentNote = signal('');
   protected showDeclineForm = signal(false);
   protected isEditingRequest = signal(false);
   protected isSaving = signal(false);
@@ -273,6 +286,18 @@ export class GradingProgressComponent implements OnDestroy {
   protected isEditingEvent = signal(false);
   protected isEditingInstructor = signal(false);
   protected isEditingManagers = signal(false);
+  protected isEditingPayment = signal(false);
+  protected isEditingResultNotes = signal(false);
+
+  // Payment-status selector options for the template.
+  protected PaymentStatus = PaymentStatus;
+  protected paymentStatuses = PAYMENT_STATUSES;
+  paymentStatusLabel = (s: string) =>
+    PAYMENT_STATUS_LABELS[s as PaymentStatus] ?? s;
+
+  // The grading's current payment status label + whether it counts as unpaid.
+  currentPaymentLabel = computed(() => this.paymentStatusLabel(this.grading().paymentStatus));
+  isUnpaid = computed(() => !isGradingPaid(this.grading()));
 
   // Sync local editing signals from grading input whenever it changes.
   private syncEffect = effect(() => {
@@ -285,6 +310,8 @@ export class GradingProgressComponent implements OnDestroy {
     this.editGradingManagerIds.set(gradingManagerIdsOf(g));
     this.editResultNotes.set(g.resultNotes);
     this.editDeclineNotes.set(g.declineNotes || '');
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
   });
 
   // The manager-id update written on save: both the canonical `gradingManagerIds`
@@ -302,83 +329,57 @@ export class GradingProgressComponent implements OnDestroy {
       this.editGradingEventDate() !== g.gradingEventDate ||
       this.editResultNotes() !== g.resultNotes ||
       this.editInstructorId() !== g.gradingInstructorId ||
+      this.editPaymentStatus() !== g.paymentStatus ||
+      this.editPaymentNote() !== (g.paymentNote || '') ||
       JSON.stringify(this.editGradingManagerIds()) !== JSON.stringify(gradingManagerIdsOf(g))
     );
   });
 
-  saveStatus = signal<'Unsaved changes' | 'saving...' | 'saved' | ''>('');
+  // Free-text event info that isn't linked to a listed event and isn't marked
+  // "not at a listed event" — an ambiguous state the grading can't be saved in
+  // (mirrors the warning shown by the event input). Ticking the checkbox clears
+  // the event text and linking sets the docId, so either resolves it.
+  eventInputInvalid = computed(
+    () => this.editGradingEvent().trim() !== '' && !this.editGradingEventDocId(),
+  );
 
-  private autoSaveTimer: any = null;
+  // Feedback shown next to the Save button after an explicit save.
+  saveStatus = signal<'' | 'saving...' | 'saved'>('');
 
-  private autoSaveEffect = effect(() => {
-    const dirty = this.isDirty();
-    const event = this.editGradingEvent();
-    const date = this.editGradingEventDate();
-    const notes = this.editResultNotes();
-    const assistants = this.editGradingManagerIds();
-    const instructor = this.editInstructorId();
-
-    if (!dirty) {
-      return;
-    }
-
-    this.saveStatus.set('Unsaved changes');
-
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-    }
-
-    this.autoSaveTimer = setTimeout(() => {
-      this.triggerAutoSave();
-    }, 5000);
-  });
-
-  async triggerAutoSave() {
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-    }
-
-    if (!this.isDirty()) return;
-
+  // Persist the inline detail edits (event/date/result notes/instructor/managers)
+  // explicitly. The component no longer auto-saves — the user must click Save (or
+  // Discard) so changes are intentional and clearly visible.
+  saveEdits() {
+    if (!this.isDirty() || this.eventInputInvalid()) return;
     this.saveStatus.set('saving...');
-    try {
-      const update: Partial<Grading> = {
-        gradingEvent: this.editGradingEvent(),
-        gradingEventDate: this.editGradingEventDate(),
-        resultNotes: this.editResultNotes(),
-        gradingInstructorId: this.editInstructorId(),
-        ...this.managerIdsUpdate(),
-      };
-      this.gradingUpdated.emit(update);
-      this.saveStatus.set('saved');
-      setTimeout(() => {
-        if (this.saveStatus() === 'saved') {
-          this.saveStatus.set('');
-        }
-      }, 3000);
-    } catch (e) {
-      console.error('Auto-save failed:', e);
-      this.saveStatus.set('Unsaved changes');
-    }
+    this.gradingUpdated.emit({
+      gradingEvent: this.editGradingEvent(),
+      gradingEventDate: this.editGradingEventDate(),
+      gradingEventDocId: this.editGradingEventDocId(),
+      resultNotes: this.editResultNotes(),
+      gradingInstructorId: this.editInstructorId(),
+      paymentStatus: this.editPaymentStatus(),
+      paymentNote: this.editPaymentNote(),
+      ...this.managerIdsUpdate(),
+    });
+    this.saveStatus.set('saved');
+    setTimeout(() => {
+      if (this.saveStatus() === 'saved') this.saveStatus.set('');
+    }, 3000);
   }
 
-  ngOnDestroy() {
-    if (this.autoSaveTimer) {
-      clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-    }
-
-    if (this.isDirty()) {
-      const update: Partial<Grading> = {
-        gradingEvent: this.editGradingEvent(),
-        gradingEventDate: this.editGradingEventDate(),
-        resultNotes: this.editResultNotes(),
-        gradingInstructorId: this.editInstructorId(),
-        ...this.managerIdsUpdate(),
-      };
-      this.gradingUpdated.emit(update);
-    }
+  // Revert the inline detail edits back to the saved grading.
+  discardEdits() {
+    const g = this.grading();
+    this.editInstructorId.set(g.gradingInstructorId);
+    this.editGradingEvent.set(g.gradingEvent);
+    this.editGradingEventDate.set(g.gradingEventDate);
+    this.editGradingEventDocId.set(g.gradingEventDocId);
+    this.editGradingManagerIds.set(gradingManagerIdsOf(g));
+    this.editResultNotes.set(g.resultNotes);
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
+    this.saveStatus.set('');
   }
 
   // --- Step 1 dirty check: has the student changed anything? ---
@@ -421,6 +422,7 @@ export class GradingProgressComponent implements OnDestroy {
   }
 
   saveEventDetails() {
+    if (this.eventInputInvalid()) return;
     this.gradingUpdated.emit({
       gradingEvent: this.editGradingEvent(),
       gradingEventDate: this.editGradingEventDate(),
@@ -452,6 +454,31 @@ export class GradingProgressComponent implements OnDestroy {
   cancelManagerEdit() {
     this.editGradingManagerIds.set(gradingManagerIdsOf(this.grading()));
     this.isEditingManagers.set(false);
+  }
+
+  savePaymentDetails() {
+    this.gradingUpdated.emit({
+      paymentStatus: this.editPaymentStatus(),
+      paymentNote: this.editPaymentNote(),
+    });
+    this.isEditingPayment.set(false);
+  }
+
+  cancelPaymentEdit() {
+    const g = this.grading();
+    this.editPaymentStatus.set(g.paymentStatus);
+    this.editPaymentNote.set(g.paymentNote || '');
+    this.isEditingPayment.set(false);
+  }
+
+  saveResultNotes() {
+    this.gradingUpdated.emit({ resultNotes: this.editResultNotes() });
+    this.isEditingResultNotes.set(false);
+  }
+
+  cancelResultNotesEdit() {
+    this.editResultNotes.set(this.grading().resultNotes);
+    this.isEditingResultNotes.set(false);
   }
 
   cancelRequest() {
@@ -517,8 +544,9 @@ export class GradingProgressComponent implements OnDestroy {
 
   acceptAndGradeMyself() {
     // A grading can only be accepted when it's the student's next grading in the
-    // progression (guarded here as well as in the template).
-    if (!this.isNextGrading()) return;
+    // progression (guarded here as well as in the template), and not while the
+    // event input is in an invalid (unlinked free-text) state.
+    if (!this.isNextGrading() || this.eventInputInvalid()) return;
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
     const actor = this.currentActor();
@@ -540,6 +568,7 @@ export class GradingProgressComponent implements OnDestroy {
 
   // Step 3: Mark result
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
+    if (this.eventInputInvalid()) return;
     this.isSaving.set(true);
     const update: Partial<Grading> = {
       status,
