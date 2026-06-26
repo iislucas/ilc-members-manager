@@ -212,6 +212,23 @@
   }
 }
 
+// Student's request note, placed under the other detail rows with a little space.
+.student-note-row {
+  grid-column: 1 / -1;
+  margin-top: 0.6em;
+}
+
+// Student name link to their profile (subtle; underlines on hover).
+.student-profile-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: v.$focus-ring-color;
+  }
+}
+
 .result-message.passed {
   color: #155724;
 }

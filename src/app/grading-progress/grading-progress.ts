@@ -39,6 +39,7 @@ import {
   PAYMENT_STATUSES,
   PAYMENT_STATUS_LABELS,
 } from '../../../functions/src/data-model';
+import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -46,6 +47,7 @@ import { InstructorSelectorComponent } from '../instructor-selector/instructor-s
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
+import { MemberProfileLinkService } from '../member-profile-link.service';
 
 
 
@@ -53,7 +55,7 @@ import { GradingEventInputComponent, GradingEventDetails } from '../grading-even
   selector: 'app-grading-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
+  imports: [NgTemplateOutlet, IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
@@ -61,6 +63,7 @@ export class GradingProgressComponent {
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   private routingService = inject(RoutingService<AppPathPatterns>);
+  private profileLinks = inject(MemberProfileLinkService);
 
   grading = input.required<Grading>();
   gradingUpdated = output<Partial<Grading>>();
@@ -203,6 +206,11 @@ export class GradingProgressComponent {
       g.studentName,
     );
   });
+
+  // Link to the student's profile, present only for viewers permitted to see it
+  // (admins, the student's primary instructor, or a manager of their primary
+  // school). Null otherwise — the name then renders as plain text.
+  studentProfileLink = computed(() => this.profileLinks.profileLink(this.studentMember()));
 
   gradingInstructor = computed(() => {
     const id = this.grading().gradingInstructorId;
