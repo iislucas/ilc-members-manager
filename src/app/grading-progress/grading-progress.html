@@ -118,8 +118,10 @@
   }
 
   <!-- Warn when this grading isn't the student's next grading in the
-       progression (only shown when their level is known). -->
-  @if (!isNextGrading()) {
+       progression. Before acceptance this is measured against the student's
+       current level and shown only to the instructor/manager who must accept;
+       once accepted it's measured against the level snapshot taken at acceptance. -->
+  @if (showGradingOutOfOrderWarning()) {
     <div class="warning-box grading-level-warning">
       <app-icon name="error" width="18" height="18" fill="#b06000"></app-icon>
       <span>

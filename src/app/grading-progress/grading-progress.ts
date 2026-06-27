@@ -138,21 +138,56 @@ export class GradingProgressComponent {
     );
   });
 
-  // The level the student should grade for next, from the progression. '' when
-  // the student's levels aren't known (member record not loaded).
-  studentNextGradingLevel = computed(() => {
+  // The student/application levels that the grading-out-of-order check is 
+  // measured against.
+  //
+  // Once the grading has been accepted we use the snapshot captured at
+  // acceptance (`studentLevelAtAcceptance` / `applicationLevelAtAcceptance`) so a
+  // completed grading isn't flagged "out of order" just because the student has
+  // since levelled up. Before acceptance, there's no snapshot, so we fall back to
+  // the student's current member levels. undefined when neither is available.
+  private orderBasisLevels = computed<
+    { studentLevel: string; applicationLevel: string } | undefined
+  >(() => {
+    const g = this.grading();
+    if (g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance) {
+      return {
+        studentLevel: g.studentLevelAtAcceptance,
+        applicationLevel: g.applicationLevelAtAcceptance,
+      };
+    }
     const m = this.studentMember();
-    if (!m) return '';
-    return nextGradingLevel(m.studentLevel, m.applicationLevel);
+    if (!m) return undefined;
+    return { studentLevel: m.studentLevel, applicationLevel: m.applicationLevel };
+  });
+
+  // The level the student should grade for next, from the progression. '' when
+  // the basis levels aren't known (no snapshot and member record not loaded).
+  studentNextGradingLevel = computed(() => {
+    const basis = this.orderBasisLevels();
+    if (!basis) return '';
+    return nextGradingLevel(basis.studentLevel, basis.applicationLevel);
   });
 
   // Whether this grading is the student's next grading in the progression. A
-  // grading may only be accepted when it is. When the student's levels aren't
-  // known we can't verify, so we don't block (returns true).
+  // grading may only be accepted when it is. When the basis levels aren't known
+  // we can't verify, so we don't block (returns true).
   isNextGrading = computed(() => {
     const next = this.studentNextGradingLevel();
     if (!next) return true;
     return this.grading().level === next;
+  });
+
+  // Whether to surface the grading "out of order" warning. The current-level-based
+  // check (before acceptance, no snapshot) is only actionable for — and only shown
+  // to — the grading instructor/manager who has to accept the request and the
+  // student who requested it. Once accepted, the check is snapshot-based and shown
+  // to anyone who can see the grading.
+  showGradingOutOfOrderWarning = computed(() => {
+    if (this.isNextGrading()) return false;
+    const g = this.grading();
+    const hasSnapshot = !!(g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance);
+    return hasSnapshot || this.canAccept() || this.userIsStudent();
   });
 
   // The level the student holds just before this grading (the preceding entry in
