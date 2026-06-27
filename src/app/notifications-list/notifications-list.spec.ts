@@ -50,6 +50,7 @@ describe('NotificationsListComponent', () => {
     mockRoutingService = {
       navigateToParts: vi.fn(),
       hrefForView: vi.fn().mockReturnValue('#/gradings/grading-1'),
+      hrefWithParams: vi.fn().mockReturnValue('#/notifications?filter=unread'),
     };
 
     await TestBed.configureTestingModule({
@@ -114,5 +115,32 @@ describe('NotificationsListComponent', () => {
     await fixture.whenStable();
 
     expect(mockRoutingService.navigateToParts).not.toHaveBeenCalled();
+  });
+
+  it('caps the home feed at 3 cards and shows a view-all link when there are more', async () => {
+    const many = [1, 2, 3, 4].map((i) => ({ ...mockNotif, docId: `id${i}` }));
+    mockNotificationService.notifications.set(many);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelectorAll('.notification-card').length).toBe(3);
+    const viewAll = fixture.nativeElement.querySelector('.view-all-link') as HTMLAnchorElement;
+    expect(viewAll).toBeTruthy();
+    expect(viewAll.textContent).toContain('View all 4 notifications');
+    // The link opens the notifications page filtered to unread.
+    expect(mockRoutingService.hrefWithParams).toHaveBeenCalledWith('/notifications?filter=unread');
+    expect(viewAll.getAttribute('href')).toBe('#/notifications?filter=unread');
+  });
+
+  it('shows no view-all link when there are 3 or fewer notifications', async () => {
+    mockNotificationService.notifications.set([
+      { ...mockNotif, docId: 'id1' },
+      { ...mockNotif, docId: 'id2' },
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelectorAll('.notification-card').length).toBe(2);
+    expect(fixture.nativeElement.querySelector('.view-all-link')).toBeFalsy();
   });
 });

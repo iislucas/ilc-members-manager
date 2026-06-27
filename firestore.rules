@@ -70,7 +70,13 @@ service cloud.firestore {
         allow read: if isNotificationOwner() || isAdmin();
         allow create: if isNotificationOwner() || isAdmin();
         allow delete: if isNotificationOwner() || isAdmin();
-        allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed']);
+        // The owner may dismiss a notification and may refresh the content of
+        // their own notifications during client-side reconciliation (keeping a
+        // notification's markdown/data in step with the source it was generated
+        // from). Owners can already create/delete their own notifications, so this
+        // grants no new authority; it just keeps the writable surface scoped to
+        // these fields (kind/createdAt stay immutable).
+        allow update: if isNotificationOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dismissed', 'markdown', 'data']);
       }
 
       // Web Push subscriptions for this member's devices. The member manages

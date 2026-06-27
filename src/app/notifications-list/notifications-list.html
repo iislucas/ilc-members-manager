@@ -10,7 +10,7 @@
       </button>
     </div>
     <div class="notifications-list">
-      @for (n of notifications(); track n.docId) {
+      @for (n of visibleNotifications(); track n.docId) {
         <div class="notification-row" [class.collapsing]="collapsingIds().has(n.docId)">
         <div
           class="notification-card"
@@ -85,5 +85,11 @@
         </div>
       }
     </div>
+    @if (hasMore()) {
+      <a class="subtle-button view-all-link" [href]="notificationsHref">
+        View all {{ notifications().length }} notifications
+        <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+      </a>
+    }
   </div>
 }
