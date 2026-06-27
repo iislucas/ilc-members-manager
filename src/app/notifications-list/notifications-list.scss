@@ -66,37 +66,59 @@
     flex-direction: column;
   }
 
-  // Wrapper that drives the fold-up / unfold animation. The grid-rows 1fr->0fr
-  // technique animates height smoothly without needing to measure the card.
+  // Wrapper that drives both the entry (unfold + slide-up + fade-in) and the
+  // dismiss (fade + collapse) animations. The grid-rows 1fr->0fr technique
+  // animates height smoothly without measuring the card; because a grid track
+  // can't be transformed, the vertical slide lives on the inner card instead so
+  // the two motions don't fight. Timing here is kept in sync with COLLAPSE_MS in
+  // notifications-list.ts (the delay before a dismissed row is removed).
   .notification-row {
     display: grid;
     grid-template-rows: 1fr;
     margin-bottom: 0.75rem;
     transition:
-      grid-template-rows 0.28s ease,
-      opacity 0.28s ease,
-      margin-bottom 0.28s ease;
-    animation: notification-unfold 0.28s ease;
+      grid-template-rows 0.3s ease,
+      opacity 0.3s ease,
+      margin-bottom 0.3s ease;
 
     &:last-child {
       margin-bottom: 0;
     }
 
+    // Dismiss: fade out, collapse the vertical space, and let the card settle
+    // upward slightly as it goes.
     &.collapsing {
       grid-template-rows: 0fr;
       opacity: 0;
       margin-bottom: 0;
       overflow: hidden;
       pointer-events: none;
+
+      > .notification-card {
+        transform: scale(0.98) translateY(-4px);
+      }
     }
 
-    // The card must be able to shrink below its content height inside the grid.
+    // The card must be able to shrink below its content height inside the grid,
+    // and is the element we slide for the entry/exit motion.
     > .notification-card {
       min-height: 0;
+      transition: transform 0.3s ease;
+    }
+
+    // Entry: a freshly added row unfolds its height + fades while the card slides
+    // up from below into place.
+    &:not(.collapsing) {
+      animation: notification-row-unfold 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+
+      > .notification-card {
+        animation: notification-card-rise 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      }
     }
   }
 
-  @keyframes notification-unfold {
+  // Height + fade for the row wrapper (grid tracks can't be transformed).
+  @keyframes notification-row-unfold {
     from {
       grid-template-rows: 0fr;
       opacity: 0;
@@ -106,6 +128,35 @@
       grid-template-rows: 1fr;
       opacity: 1;
       overflow: hidden;
+    }
+  }
+
+  // Vertical slide for the card itself, so a new notification rises into place.
+  @keyframes notification-card-rise {
+    from {
+      transform: translateY(18px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  // Respect users who prefer reduced motion: keep the fade/collapse but drop the
+  // slide and easing flourish.
+  @media (prefers-reduced-motion: reduce) {
+    .notification-row {
+      &:not(.collapsing),
+      &:not(.collapsing) > .notification-card {
+        animation: none;
+      }
+
+      > .notification-card {
+        transition: none;
+      }
+
+      &.collapsing > .notification-card {
+        transform: none;
+      }
     }
   }
 

@@ -38,7 +38,7 @@ export class NotificationsListComponent {
 
   // Duration of the fold-up collapse animation; kept in sync with the
   // transition timing in notifications-list.scss.
-  private static readonly COLLAPSE_MS = 280;
+  private static readonly COLLAPSE_MS = 300;
 
   // Ids of notifications currently playing their collapse animation. Kept
   // separate from the data so the card stays in the DOM long enough to fold
