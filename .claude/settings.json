@@ -13,7 +13,8 @@
       "Bash(pnpm --prefix functions exec vitest run src/grading-progression.spec.ts *)",
       "Bash(pnpm --prefix functions test *)",
       "Bash(git rev-list *)",
-      "Bash(git switch *)"
+      "Bash(git switch *)",
+      "Bash(gcloud auth *)"
     ]
   }
 }

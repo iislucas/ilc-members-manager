@@ -126,7 +126,7 @@
             [checked]="filterUnpaidOnly()"
             (change)="filterUnpaidOnly.set($any($event.target).checked); limit.set(50)"
           />
-          Unpaid only (accepted/completed, not yet paid)
+          Unpaid only (not yet paid)
         </label>
       </div>
       @if (hasActiveFilters()) {

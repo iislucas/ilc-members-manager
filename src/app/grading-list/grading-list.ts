@@ -276,13 +276,7 @@ export class GradingListComponent {
       results = results.filter(g => g.gradingEventDocId === eventDocId);
     }
     if (this.filterUnpaidOnly()) {
-      results = results.filter((g) => {
-        const acceptedOrDone =
-          g.status === GradingStatus.AwaitingGrading ||
-          g.status === GradingStatus.Passed ||
-          g.status === GradingStatus.NotPassed;
-        return acceptedOrDone && !isGradingPaid(g);
-      });
+      results = results.filter((g) => !isGradingPaid(g));
     }
     return results;
   });
