@@ -754,7 +754,7 @@
               (change)="editPaymentStatus.set($any($event.target).value)"
             >
               @for (s of paymentStatuses; track s) {
-                <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+                <option [value]="s" [selected]="s === editPaymentStatus()">{{ paymentStatusLabel(s) }}</option>
               }
             </select>
             <input
@@ -1161,7 +1161,7 @@
                   (change)="editPaymentStatus.set($any($event.target).value)"
                 >
                   @for (s of paymentStatuses; track s) {
-                    <option [value]="s">{{ paymentStatusLabel(s) }}</option>
+                    <option [value]="s" [selected]="s === editPaymentStatus()">{{ paymentStatusLabel(s) }}</option>
                   }
                 </select>
               </div>

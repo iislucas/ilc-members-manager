@@ -32,16 +32,9 @@ export class GradingRowHeaderComponent {
   GradingStatus = GradingStatus;
   getPrettyGradingStatus = getPrettyGradingStatus;
 
-  // Flag gradings that have been accepted or completed but are not yet paid —
-  // payment is expected by that point, so the row shows an "unpaid" warning.
-  isUnpaid = computed(() => {
-    const g = this.grading();
-    const acceptedOrDone =
-      g.status === GradingStatus.AwaitingGrading ||
-      g.status === GradingStatus.Passed ||
-      g.status === GradingStatus.NotPassed;
-    return acceptedOrDone && !isGradingPaid(g);
-  });
+  // Flag any grading that is not yet paid, at any stage — the row shows an
+  // "unpaid" warning whenever the payment status is "Not yet paid".
+  isUnpaid = computed(() => !isGradingPaid(this.grading()));
 
   studentName = computed(() => {
     const g = this.grading();
