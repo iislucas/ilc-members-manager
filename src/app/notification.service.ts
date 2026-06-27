@@ -17,6 +17,7 @@ import {
   where,
   Unsubscribe,
   writeBatch,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { FirebaseStateService } from './firebase-state.service';
 import {
@@ -29,10 +30,15 @@ import {
   Member,
   MembershipType,
   MemberNotification,
+  NotificationBlogPostData,
+  NotificationEventData,
+  NotificationGradingData,
   NotificationKind,
+  NotificationOrderIssueData,
   Order,
   OrderStatus,
   PushSubscriptionDoc,
+  eventStatusLabel,
   firestoreDocToGrading,
   firestoreDocToMemberNotification,
   firestoreDocToOrder,
@@ -424,6 +430,81 @@ export class NotificationService implements OnDestroy {
   }
 
   // ---------------------------------------------------------------------------
+  // Reconciliation: keep existing catch-up notifications in step with their source
+  // ---------------------------------------------------------------------------
+
+  // Reconciles already-created notifications against the current state of the
+  // entity they were generated from. For each existing notification of a kind,
+  // `resolve` looks up the live entity (via the id in the notification's `data`)
+  // and returns the markdown/data the notification *should* now carry, plus
+  // whether the underlying condition is resolved:
+  //   - condition still holds  -> content is refreshed in place, dismissed state
+  //     is preserved (we never re-surface something the user has dismissed);
+  //   - condition resolved      -> content is rewritten to say so and the
+  //     notification is dismissed.
+  // Only documents that actually differ are written, so re-running on the next
+  // login is a no-op. `resolve` returning null leaves the notification untouched
+  // (e.g. we couldn't read the entity); individual failures never abort the rest.
+  private async reconcileNotifications(
+    existingDocs: QueryDocumentSnapshot[],
+    entityIdField: string,
+    resolve: (
+      notif: MemberNotification,
+    ) => Promise<{ markdown: string; data: object; resolved: boolean } | null>,
+  ): Promise<void> {
+    const batch = writeBatch(this.db);
+    let writes = 0;
+
+    for (const d of existingDocs) {
+      const notif = firestoreDocToMemberNotification(d);
+      const data = notif.data as unknown as Record<string, unknown> | undefined;
+      if (!data || !data[entityIdField]) continue;
+
+      let desired: { markdown: string; data: object; resolved: boolean } | null;
+      try {
+        desired = await resolve(notif);
+      } catch (e) {
+        console.error('Failed to reconcile notification', notif.docId, e);
+        continue;
+      }
+      if (!desired) continue;
+
+      const patch: Record<string, unknown> = {};
+      if (desired.markdown !== notif.markdown) patch['markdown'] = desired.markdown;
+      if (this.stableStringify(desired.data) !== this.stableStringify(notif.data)) {
+        patch['data'] = desired.data;
+      }
+      if (desired.resolved && !notif.dismissed) patch['dismissed'] = true;
+
+      if (Object.keys(patch).length > 0) {
+        batch.update(d.ref, patch);
+        writes++;
+      }
+    }
+
+    if (writes > 0) await batch.commit();
+  }
+
+  // Order-stable JSON serialisation, used to compare a notification's stored
+  // `data` against the freshly-built desired value so reconciliation only writes
+  // on a real change regardless of object key ordering.
+  private stableStringify(value: unknown): string {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) {
+      return '[' + value.map((v) => this.stableStringify(v)).join(',') + ']';
+    }
+    const obj = value as Record<string, unknown>;
+    return (
+      '{' +
+      Object.keys(obj)
+        .sort()
+        .map((k) => JSON.stringify(k) + ':' + this.stableStringify(obj[k]))
+        .join(',') +
+      '}'
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Blog post catch-up notifications
   // ---------------------------------------------------------------------------
 
@@ -488,6 +569,8 @@ export class NotificationService implements OnDestroy {
     );
     let cutoffMs = 0;
     const notifiedPostIds = new Set<string>();
+    // Existing notifications for this specific feed, used for reconciliation below.
+    const feedDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
       const data = (d.data() as MemberNotification).data as {
         blogPath?: string;
@@ -495,6 +578,7 @@ export class NotificationService implements OnDestroy {
         blogPostId?: string;
       };
       if (!data || data.blogPath !== feed.collection) return;
+      feedDocs.push(d);
       if (data.blogPostId) notifiedPostIds.add(data.blogPostId);
       const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
       if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
@@ -515,38 +599,89 @@ export class NotificationService implements OnDestroy {
         : query(postsCollection, orderBy('publishOn', 'desc'), limit(max));
 
     const postsSnap = await getDocs(postsQuery);
-    if (postsSnap.empty) return;
 
-    // Newest first; skip any post we've already notified about.
+    // Newest first; skip any post we've already notified about. May be empty when
+    // nothing new has been published since the cut-off — that's the common case,
+    // and we still fall through to reconciliation below.
     const posts = postsSnap.docs
       .map((d) => ({ ...initCachedBlogPost(), ...(d.data() as CachedBlogPost) }))
       .filter((p) => p.id && !notifiedPostIds.has(p.id));
-    if (posts.length === 0) return;
 
-    const batch = writeBatch(this.db);
-    for (const post of posts) {
-      const ref = doc(notifCollection); // auto-generated ID
-      const link = `#/${feed.route}/${post.urlId}`;
-      // Stamp the notification with the post's publish date (not "now") so the
-      // date shown on the card reflects when the post was published.
-      const publishedIso = new Date(post.publishOn || 0).toISOString();
-      const notification: MemberNotification = {
-        docId: ref.id,
-        markdown: `New ${feed.label} post: [${post.title || 'Untitled'}](${link})`,
-        createdAt: publishedIso,
-        dismissed: false,
-        kind: NotificationKind.BlogPost,
-        data: {
-          blogPath: feed.collection,
-          blogCategory: '',
-          lastSeenDateStr: publishedIso,
-          blogPostId: post.id,
-          blogPostUrlId: post.urlId,
-        },
-      };
-      batch.set(ref, notification);
+    if (posts.length > 0) {
+      const batch = writeBatch(this.db);
+      for (const post of posts) {
+        const ref = doc(notifCollection); // auto-generated ID
+        const fields = this.blogPostFields(feed, post);
+        const notification: MemberNotification = {
+          docId: ref.id,
+          markdown: fields.markdown,
+          // Stamp the notification with the post's publish date (not "now") so the
+          // date shown on the card reflects when the post was published.
+          createdAt: fields.data.lastSeenDateStr,
+          dismissed: false,
+          kind: NotificationKind.BlogPost,
+          data: fields.data,
+        };
+        batch.set(ref, notification);
+      }
+      await batch.commit();
     }
-    await batch.commit();
+
+    // Reconcile previously-created notifications for this feed against the posts
+    // as they stand now: re-titled/re-slugged posts have their card refreshed in
+    // place, and posts that have since been removed are marked as such + dismissed.
+    // Runs regardless of whether there were new posts to create above.
+    await this.reconcileNotifications(feedDocs, 'blogPostId', (notif) =>
+      this.resolveBlogNotification(feed, notif),
+    );
+  }
+
+  // Computes the desired state of a blog-post notification from the post as it
+  // stands now. Posts are keyed in Firestore by an auto-generated doc ID, not by
+  // their source `id`; blogPostId holds the source `id`, so the post is looked up
+  // by querying that field rather than by document ID.
+  private async resolveBlogNotification(
+    feed: { collection: string; label: string; route: string },
+    notif: MemberNotification,
+  ): Promise<{ markdown: string; data: object; resolved: boolean } | null> {
+    const data = notif.data as NotificationBlogPostData;
+    if (!data.blogPostId) return null;
+    const snap = await getDocs(
+      query(
+        collection(this.db, feed.collection),
+        where('id', '==', data.blogPostId),
+        limit(1),
+      ),
+    );
+    if (snap.empty) {
+      return {
+        markdown: `~~New ${feed.label} post~~ (post removed)`,
+        data: { ...data },
+        resolved: true,
+      };
+    }
+    const post = { ...initCachedBlogPost(), ...(snap.docs[0].data() as CachedBlogPost) };
+    return { ...this.blogPostFields(feed, post), resolved: false };
+  }
+
+  // The markdown + data for a blog-post notification, shared by the create and
+  // reconcile passes so both stay in lock-step.
+  private blogPostFields(
+    feed: { collection: string; label: string; route: string },
+    post: CachedBlogPost,
+  ): { markdown: string; data: NotificationBlogPostData } {
+    const link = `#/${feed.route}/${post.urlId}`;
+    const publishedIso = new Date(post.publishOn || 0).toISOString();
+    return {
+      markdown: `New ${feed.label} post: [${post.title || 'Untitled'}](${link})`,
+      data: {
+        blogPath: feed.collection,
+        blogCategory: '',
+        lastSeenDateStr: publishedIso,
+        blogPostId: post.id,
+        blogPostUrlId: post.urlId,
+      },
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -587,34 +722,69 @@ export class NotificationService implements OnDestroy {
         limit(NotificationService.MAX_PENDING_EVENT_NOTIFICATIONS),
       ),
     );
-    if (eventsSnap.empty) return;
-
+    // May be empty when no proposals are outstanding — we still fall through to
+    // reconciliation below.
     const events = eventsSnap.docs
       .map((d) => ({ ...initEvent(), ...(d.data() as IlcEvent), docId: d.id }))
       .filter((e) => !notifiedEventIds.has(e.docId));
-    if (events.length === 0) return;
 
-    const batch = writeBatch(this.db);
-    for (const event of events) {
-      const ref = doc(notifCollection); // auto-generated ID
-      const link = `#/manage-events/${event.docId}`;
-      // Stamp with the proposal's creation time (not "now") so the card date
-      // reflects when the event was proposed.
-      const createdIso = event.createdAt || new Date().toISOString();
-      const notification: MemberNotification = {
-        docId: ref.id,
-        markdown: `Event awaiting approval: [${event.title || 'Untitled event'}](${link})`,
-        createdAt: createdIso,
-        dismissed: false,
-        kind: NotificationKind.PendingEventApproval,
-        data: {
-          eventId: event.docId,
-          title: event.title || 'Untitled event',
-        },
-      };
-      batch.set(ref, notification);
+    if (events.length > 0) {
+      const batch = writeBatch(this.db);
+      for (const event of events) {
+        const ref = doc(notifCollection); // auto-generated ID
+        const title = event.title || 'Untitled event';
+        const notification: MemberNotification = {
+          docId: ref.id,
+          markdown: this.pendingEventMarkdown(event.docId, title),
+          // Stamp with the proposal's creation time (not "now") so the card date
+          // reflects when the event was proposed.
+          createdAt: event.createdAt || new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.PendingEventApproval,
+          data: { eventId: event.docId, title },
+        };
+        batch.set(ref, notification);
+      }
+      await batch.commit();
     }
-    await batch.commit();
+
+    // Reconcile already-surfaced approval notifications: a still-proposed event
+    // has its title refreshed; an event that has since been approved/rejected/
+    // cancelled (or deleted) is rewritten to say so and dismissed. A per-event
+    // getDoc also lets us distinguish "no longer proposed" from "beyond the live
+    // query's limit", which the create pass's capped query cannot.
+    await this.reconcileNotifications(existingSnap.docs, 'eventId', async (notif) => {
+      const data = notif.data as NotificationEventData;
+      const snap = await getDoc(doc(this.db, 'events', data.eventId));
+      if (!snap.exists()) {
+        return {
+          markdown: `Event "${data.title}" — removed`,
+          data: { ...data },
+          resolved: true,
+        };
+      }
+      const event = { ...initEvent(), ...(snap.data() as IlcEvent), docId: snap.id };
+      const title = event.title || 'Untitled event';
+      const link = `#/manage-events/${event.docId}`;
+      if (event.status !== EventStatus.Proposed) {
+        return {
+          markdown: `Event [${title}](${link}) — ${eventStatusLabel(event.status).toLowerCase()}`,
+          data: { eventId: event.docId, title },
+          resolved: true,
+        };
+      }
+      return {
+        markdown: this.pendingEventMarkdown(event.docId, title),
+        data: { eventId: event.docId, title },
+        resolved: false,
+      };
+    });
+  }
+
+  // The markdown for a pending-event-approval notification, shared by the create
+  // and reconcile passes.
+  private pendingEventMarkdown(eventDocId: string, title: string): string {
+    return `Event awaiting approval: [${title}](#/manage-events/${eventDocId})`;
   }
 
   // ---------------------------------------------------------------------------
@@ -661,43 +831,77 @@ export class NotificationService implements OnDestroy {
         where('ilcAppOrderStatus', 'in', NotificationService.ORDER_ATTENTION_STATUSES),
       ),
     );
-    if (ordersSnap.empty) return;
-
+    // May be empty when no orders currently need attention — we still fall
+    // through to reconciliation below.
     const orders = ordersSnap.docs
       .map((d) => firestoreDocToOrder(d))
       .filter((o) => !notifiedOrderIds.has(o.docId))
       // Most recently updated first, then cap to avoid flooding the feed.
       .sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''))
       .slice(0, NotificationService.MAX_ORDER_ISSUE_NOTIFICATIONS);
-    if (orders.length === 0) return;
 
-    const batch = writeBatch(this.db);
-    for (const order of orders) {
-      const ref = doc(notifCollection); // auto-generated ID
-      const link = `#/order-view/${order.docId}`;
-      const orderRef = this.orderRef(order);
-      const status = order.ilcAppOrderStatus as OrderStatus;
-      const verb = status === 'error' ? 'failed with an error' : 'needs manual processing';
-      const issues = order.ilcAppOrderIssues || [];
-      const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
-      const notification: MemberNotification = {
-        docId: ref.id,
-        markdown: `Order [#${orderRef}](${link}) ${verb}${issuesSuffix}`,
-        // Stamp with the order's last-updated time so the card date reflects the
-        // order rather than "now".
-        createdAt: order.lastUpdated || new Date().toISOString(),
-        dismissed: false,
-        kind: NotificationKind.OrderNeedsAttention,
-        data: {
-          orderDocId: order.docId,
-          orderRef,
-          status,
-          issues,
-        },
-      };
-      batch.set(ref, notification);
+    if (orders.length > 0) {
+      const batch = writeBatch(this.db);
+      for (const order of orders) {
+        const ref = doc(notifCollection); // auto-generated ID
+        const fields = this.orderIssueFields(order);
+        const notification: MemberNotification = {
+          docId: ref.id,
+          markdown: fields.markdown,
+          // Stamp with the order's last-updated time so the card date reflects the
+          // order rather than "now".
+          createdAt: order.lastUpdated || new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.OrderNeedsAttention,
+          data: fields.data,
+        };
+        batch.set(ref, notification);
+      }
+      await batch.commit();
     }
-    await batch.commit();
+
+    // Reconcile already-surfaced order-issue notifications: an order still flagged
+    // has its status/issues refreshed; an order that has since been resolved (no
+    // longer in an attention status, or deleted) is rewritten to say so and
+    // dismissed.
+    await this.reconcileNotifications(existingSnap.docs, 'orderDocId', async (notif) => {
+      const data = notif.data as NotificationOrderIssueData;
+      const snap = await getDoc(doc(this.db, 'orders', data.orderDocId));
+      if (!snap.exists()) {
+        return {
+          markdown: `Order #${data.orderRef} — no longer present`,
+          data: { ...data },
+          resolved: true,
+        };
+      }
+      const order = firestoreDocToOrder(snap);
+      const status = order.ilcAppOrderStatus as OrderStatus;
+      if (!NotificationService.ORDER_ATTENTION_STATUSES.includes(status)) {
+        return {
+          markdown: `Order [#${this.orderRef(order)}](#/order-view/${order.docId}) — now resolved (${status})`,
+          data: this.orderIssueFields(order).data,
+          resolved: true,
+        };
+      }
+      return { ...this.orderIssueFields(order), resolved: false };
+    });
+  }
+
+  // The markdown + data for an order-issue notification, shared by the create and
+  // reconcile passes.
+  private orderIssueFields(order: Order): {
+    markdown: string;
+    data: NotificationOrderIssueData;
+  } {
+    const orderRef = this.orderRef(order);
+    const status = order.ilcAppOrderStatus as OrderStatus;
+    const verb = status === 'error' ? 'failed with an error' : 'needs manual processing';
+    const issues = order.ilcAppOrderIssues || [];
+    const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
+    return {
+      markdown: `Order [#${orderRef}](#/order-view/${order.docId}) ${verb}${issuesSuffix}`,
+      data: { orderDocId: order.docId, orderRef, status, issues },
+    };
   }
 
   // Surfaces gradings that are completed (passed/not-passed) but not yet paid as
@@ -752,29 +956,72 @@ export class NotificationService implements OnDestroy {
           !notifiedGradingIds.has(g.docId),
       )
       .slice(0, NotificationService.MAX_UNPAID_GRADING_NOTIFICATIONS);
-    if (unpaid.length === 0) return;
 
-    const batch = writeBatch(this.db);
-    for (const g of unpaid) {
-      const ref = doc(notifCollection);
-      const link = `#/gradings/${g.docId}`;
-      const forSelf = g.studentMemberDocId === member.docId;
-      const markdown = forSelf
-        ? `⚠️ Your grading for **${g.level}** is complete but **not yet paid**. ` +
-          `Please arrange payment so it can be finalised. [Open the grading](${link}).`
-        : `⚠️ **${g.studentName || 'A student'}**'s grading for **${g.level}** is complete but ` +
-          `**not yet paid**. [Open the grading](${link}).`;
-      const notification: MemberNotification = {
-        docId: ref.id,
-        markdown,
-        createdAt: new Date().toISOString(),
-        dismissed: false,
-        kind: NotificationKind.GradingUnpaid,
-        data: { gradingDocId: g.docId, level: g.level },
-      };
-      batch.set(ref, notification);
+    // May be empty when nothing new is outstanding — we still fall through to
+    // reconciliation below.
+    if (unpaid.length > 0) {
+      const batch = writeBatch(this.db);
+      for (const g of unpaid) {
+        const ref = doc(notifCollection);
+        const notification: MemberNotification = {
+          docId: ref.id,
+          markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingUnpaid,
+          data: { gradingDocId: g.docId, level: g.level },
+        };
+        batch.set(ref, notification);
+      }
+      await batch.commit();
     }
-    await batch.commit();
+
+    // Reconcile already-surfaced unpaid-grading TODOs: a grading that is now paid
+    // (or no longer completed, or deleted) is rewritten to say so and dismissed; an
+    // outstanding one has its message refreshed in place.
+    await this.reconcileNotifications(existingSnap.docs, 'gradingDocId', async (notif) => {
+      const data = notif.data as NotificationGradingData;
+      const snap = await getDoc(doc(this.db, 'gradings', data.gradingDocId));
+      if (!snap.exists()) {
+        return {
+          markdown: `Grading for **${data.level}** — no longer present.`,
+          data: { ...data },
+          resolved: true,
+        };
+      }
+      const g = firestoreDocToGrading(snap);
+      const gradingData = { gradingDocId: g.docId, level: g.level };
+      if (!NotificationService.COMPLETED_GRADING_STATUSES.includes(g.status)) {
+        return {
+          markdown: `Grading for **${g.level}** — no longer awaiting payment.`,
+          data: gradingData,
+          resolved: true,
+        };
+      }
+      if (isGradingPaid(g)) {
+        return {
+          markdown: `✅ Grading for **${g.level}** is now paid.`,
+          data: gradingData,
+          resolved: true,
+        };
+      }
+      return {
+        markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+        data: gradingData,
+        resolved: false,
+      };
+    });
+  }
+
+  // The markdown for an unpaid-grading TODO notification, shared by the create and
+  // reconcile passes. `forSelf` is true when the recipient is the student.
+  private unpaidGradingMarkdown(g: Grading, forSelf: boolean): string {
+    const link = `#/gradings/${g.docId}`;
+    return forSelf
+      ? `⚠️ Your grading for **${g.level}** is complete but **not yet paid**. ` +
+          `Please arrange payment so it can be finalised. [Open the grading](${link}).`
+      : `⚠️ **${g.studentName || 'A student'}**'s grading for **${g.level}** is complete but ` +
+          `**not yet paid**. [Open the grading](${link}).`;
   }
 
   private seedPushedCache(activeNotifications: MemberNotification[]) {

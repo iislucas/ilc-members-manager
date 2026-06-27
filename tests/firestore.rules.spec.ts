@@ -1026,7 +1026,25 @@ describe('Firestore Rules', () => {
       );
     });
 
-    it('should deny member from updating restricted fields on their own notification', async () => {
+    it('should allow member to refresh markdown/data on their own notification (reconciliation)', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .update({
+            markdown: 'Refreshed content',
+            data: { blogPath: 'members-post', blogPostId: 'src-1' },
+            dismissed: true,
+          }),
+      );
+    });
+
+    it('should deny member from updating immutable notification fields (kind/createdAt)', async () => {
       const db = testEnv
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
         .firestore();
@@ -1037,7 +1055,7 @@ describe('Firestore Rules', () => {
           .collection('notifications')
           .doc('notif-1')
           .update({
-            markdown: 'Hacked content',
+            kind: 'OrderNeedsAttention',
           }),
       );
     });

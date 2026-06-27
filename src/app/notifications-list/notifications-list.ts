@@ -45,11 +45,35 @@ export class NotificationsListComponent {
   // up before the underlying doc is dismissed and removed from the stream.
   protected collapsingIds = signal<ReadonlySet<string>>(new Set());
 
+  // Most recent N notifications shown inline on the home page; the rest are
+  // reached via the "view all" link to the dedicated notifications page.
+  private static readonly HOME_MAX = 3;
+
   notifications = computed(() => {
     const list = this.notificationService.notifications();
     const settings = this.user()?.member?.notificationSettings;
     return list.filter((n) => settings?.homeEnabled?.[n.kind] !== false);
   });
+
+  // The slice actually rendered on the home page (newest first; the underlying
+  // stream is already sorted by createdAt desc).
+  protected visibleNotifications = computed(() =>
+    this.notifications().slice(0, NotificationsListComponent.HOME_MAX),
+  );
+
+  // True when there are more active notifications than we show inline, so the
+  // "view all" link should be offered.
+  protected hasMore = computed(
+    () => this.notifications().length > NotificationsListComponent.HOME_MAX,
+  );
+
+  // Deep link to the dedicated notifications page, opening on the "unread" filter
+  // (the home feed shows unread items, so "view all" should land on the same set
+  // with the rest of the history one click away). The explicit query param is
+  // preserved by resolveUrlWithParams.
+  protected notificationsHref = this.routingService.hrefWithParams(
+    '/notifications?filter=unread',
+  );
 
   private markCollapsing(...ids: string[]) {
     this.collapsingIds.update((s) => new Set([...s, ...ids]));

@@ -3,6 +3,14 @@
 .notifications-section {
   margin-bottom: 1.5rem;
 
+  // Layout only — visual style comes from the global .subtle-button class.
+  .view-all-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+  }
+
   .section-header {
     display: flex;
     justify-content: space-between;
