@@ -79,8 +79,8 @@ export class GradingEditComponent {
     disabled(schema.orderId, () => !this.userIsAdmin());
     disabled(schema.level, () => !this.userIsAdmin());
     disabled(schema.gradingInstructorId, () => !this.userIsAdmin() && !this.userIsStudent() && !this.userIsGradingInstructor());
-    // `assistantInstructorIds` maps to "Grading Managers" in the UI.
-    disabled(schema.assistantInstructorIds, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
+    // `gradingManagerIds` is displayed as "Grading Managers" in the UI.
+    disabled(schema.gradingManagerIds, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
     // Payment is editable by admins and grading managers/instructors (not students).
     disabled(schema.paymentStatus, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
     disabled(schema.paymentNote, () => !this.userIsAdmin() && !this.userIsGradingInstructor());
@@ -128,6 +128,16 @@ export class GradingEditComponent {
       schema.resultNotes,
       () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
     );
+
+    // Reason the instructor declined the request.
+    disabled(
+      schema.declineNotes,
+      () => !this.userIsAdmin() && !this.userIsGradingInstructor(),
+    );
+
+    // Snapshots of the student's levels captured at acceptance — admin only.
+    disabled(schema.studentLevelAtAcceptance, () => !this.userIsAdmin());
+    disabled(schema.applicationLevelAtAcceptance, () => !this.userIsAdmin());
   });
 
   // Sync input grading to the form model.
@@ -153,7 +163,7 @@ export class GradingEditComponent {
       this.form.orderId().value() !== original.orderId ||
       this.form.level().value() !== original.level ||
       this.form.gradingInstructorId().value() !== original.gradingInstructorId ||
-      !deepObjEq(this.form.assistantInstructorIds().value(), original.assistantInstructorIds) ||
+      !deepObjEq(this.form.gradingManagerIds().value(), original.gradingManagerIds) ||
       this.form.schoolId().value() !== original.schoolId ||
       this.form.studentMemberId().value() !== original.studentMemberId ||
       this.form.studentMemberDocId().value() !== original.studentMemberDocId ||
@@ -167,7 +177,10 @@ export class GradingEditComponent {
       this.form.resultNotes().value() !== original.resultNotes ||
       this.form.paymentStatus().value() !== original.paymentStatus ||
       this.form.paymentNote().value() !== original.paymentNote ||
-      this.form.reviewIssue().value() !== original.reviewIssue
+      this.form.reviewIssue().value() !== original.reviewIssue ||
+      this.form.declineNotes().value() !== original.declineNotes ||
+      this.form.studentLevelAtAcceptance().value() !== original.studentLevelAtAcceptance ||
+      this.form.applicationLevelAtAcceptance().value() !== original.applicationLevelAtAcceptance
     );
   });
   isSaving = signal(false);
@@ -211,8 +224,8 @@ export class GradingEditComponent {
   });
 
   // Returns true for the primary instructor, grading managers (stored in
-  // `gradingManagerIds`, legacy fallback `assistantInstructorIds`), and the
-  // organizer/managers of a linked event. All share the same edit permissions.
+  // `gradingManagerIds`), and the organizer/managers of a linked event. All
+  // share the same edit permissions.
   userIsGradingInstructor = computed(() => {
     const user = this.firebaseState.user();
     if (!user) return false;
@@ -315,7 +328,7 @@ export class GradingEditComponent {
     this.form.schoolId().markAsDirty();
   }
 
-  resolveAssistantName(instructorId: string): string {
+  resolveGradingManagerName(instructorId: string): string {
     if (!instructorId) return '';
     const instructor = this.dataService.instructors
       .entries()
@@ -325,31 +338,31 @@ export class GradingEditComponent {
       : instructorId;
   }
 
-  resolveAssistant(instructorId: string): InstructorPublicData | null {
+  resolveGradingManager(instructorId: string): InstructorPublicData | null {
     if (!instructorId) return null;
     return this.dataService.instructors.get(instructorId) ?? null;
   }
 
-  updateAssistantInstructorId(index: number, value: string) {
+  updateGradingManagerId(index: number, value: string) {
     const match = value.match(/\[([^\]]+)\]$/);
     const rawId = match ? match[1] : value;
-    const assistants = [...this.form.assistantInstructorIds().value()];
-    assistants[index] = rawId;
-    this.form.assistantInstructorIds().value.set(assistants);
-    this.form.assistantInstructorIds().markAsDirty();
+    const managers = [...this.form.gradingManagerIds().value()];
+    managers[index] = rawId;
+    this.form.gradingManagerIds().value.set(managers);
+    this.form.gradingManagerIds().markAsDirty();
   }
 
-  removeAssistantInstructor(index: number) {
-    const assistants = [...this.form.assistantInstructorIds().value()];
-    assistants.splice(index, 1);
-    this.form.assistantInstructorIds().value.set(assistants);
-    this.form.assistantInstructorIds().markAsDirty();
+  removeGradingManager(index: number) {
+    const managers = [...this.form.gradingManagerIds().value()];
+    managers.splice(index, 1);
+    this.form.gradingManagerIds().value.set(managers);
+    this.form.gradingManagerIds().markAsDirty();
   }
 
-  addAssistantInstructor() {
-    const assistants = [...this.form.assistantInstructorIds().value()];
-    this.form.assistantInstructorIds().value.set([...assistants, '']);
-    this.form.assistantInstructorIds().markAsDirty();
+  addGradingManager() {
+    const managers = [...this.form.gradingManagerIds().value()];
+    this.form.gradingManagerIds().value.set([...managers, '']);
+    this.form.gradingManagerIds().markAsDirty();
   }
 
   async saveGrading(event: Event) {
@@ -375,10 +388,7 @@ export class GradingEditComponent {
         orderId: this.form.orderId().value(),
         level: this.form.level().value(),
         gradingInstructorId: this.form.gradingInstructorId().value(),
-        // Write both the canonical `gradingManagerIds` and the legacy
-        // `assistantInstructorIds` during the migration window.
-        gradingManagerIds: this.form.assistantInstructorIds().value(),
-        assistantInstructorIds: this.form.assistantInstructorIds().value(),
+        gradingManagerIds: this.form.gradingManagerIds().value(),
         schoolId: this.form.schoolId().value(),
         studentMemberId: this.form.studentMemberId().value(),
         studentMemberDocId: this.form.studentMemberDocId().value(),
@@ -393,6 +403,9 @@ export class GradingEditComponent {
         paymentStatus: this.form.paymentStatus().value(),
         paymentNote: this.form.paymentNote().value(),
         reviewIssue: this.form.reviewIssue().value(),
+        declineNotes: this.form.declineNotes().value(),
+        studentLevelAtAcceptance: this.form.studentLevelAtAcceptance().value(),
+        applicationLevelAtAcceptance: this.form.applicationLevelAtAcceptance().value(),
       };
       if (grading.docId) {
         // Pass original grading for diff-based update so only changed

@@ -701,7 +701,7 @@ describe('Firestore Rules', () => {
         const db = context.firestore();
         await db.collection('gradings').doc('grading-1').set({
           gradingInstructorId: 'INST-001',
-          assistantInstructorIds: [],
+          gradingManagerIds: [],
           studentMemberDocId: 'FirestoreDocID-student1',
           schoolId: 'SCH-001',
           schoolDocId: 'FirestoreDocID-school1',
@@ -894,7 +894,7 @@ describe('Firestore Rules', () => {
           });
           await db.collection('gradings').doc('grading-2').set({
             gradingInstructorId: 'INST-001',
-            assistantInstructorIds: [],
+            gradingManagerIds: [],
             studentMemberDocId: 'FirestoreDocID-student2',
             schoolId: '',
             schoolDocId: '',

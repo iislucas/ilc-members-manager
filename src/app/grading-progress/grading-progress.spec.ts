@@ -311,6 +311,103 @@ describe('GradingProgressComponent', () => {
     expect(component.isNextGrading()).toBe(true);
   });
 
+  it('measures order against the acceptance snapshot once accepted, not the current level', () => {
+    const mockMember = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+    mockFirebaseState.user.set({
+      member: mockMember,
+      memberProfiles: [mockMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    // The student has since passed and is now Student 6 (next would be Student 7).
+    mockDataService.getMemberByDocId = (() => ({
+      ...initMember(),
+      studentLevel: '6',
+      applicationLevel: '2',
+    })) as never;
+
+    // A completed grading for Student 6 — in order at acceptance (student held
+    // Student 5 then). It must not be flagged out of order despite the student
+    // having since levelled up, and the warning must stay hidden.
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 6',
+      status: GradingStatus.Passed,
+      studentLevelAtAcceptance: '5',
+      applicationLevelAtAcceptance: '2',
+    });
+    fixture.detectChanges();
+    expect(component.studentNextGradingLevel()).toBe('Student 6');
+    expect(component.isNextGrading()).toBe(true);
+    expect(component.showGradingOutOfOrderWarning()).toBe(false);
+  });
+
+  it('shows the current-level out-of-order warning to the requesting student', () => {
+    // Student viewing their own out-of-order request (no acceptance snapshot yet)
+    // should see the warning, as should the accepting instructor.
+    const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+    mockFirebaseState.user.set({
+      member: studentMember,
+      memberProfiles: [studentMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    mockDataService.getMemberByDocId = (() => ({
+      ...initMember(),
+      studentLevel: '5',
+      applicationLevel: '2',
+    })) as never;
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingAcceptance,
+    });
+    fixture.detectChanges();
+    expect(component.isNextGrading()).toBe(false);
+    expect(component.canAccept()).toBe(false);
+    expect(component.userIsStudent()).toBe(true);
+    expect(component.showGradingOutOfOrderWarning()).toBe(true);
+  });
+
+  it('hides the current-level out-of-order warning from unrelated non-accepting viewers', () => {
+    // A logged-in member who is neither the student nor the accepting instructor
+    // should not see the pre-acceptance warning.
+    const otherMember = { ...initMember(), docId: 'doc-other-1', instructorId: '' };
+    mockFirebaseState.user.set({
+      member: otherMember,
+      memberProfiles: [otherMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+    mockDataService.getMemberByDocId = (() => ({
+      ...initMember(),
+      studentLevel: '5',
+      applicationLevel: '2',
+    })) as never;
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      gradingInstructorId: 'instr-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingAcceptance,
+    });
+    fixture.detectChanges();
+    expect(component.isNextGrading()).toBe(false);
+    expect(component.canAccept()).toBe(false);
+    expect(component.userIsStudent()).toBe(false);
+    expect(component.showGradingOutOfOrderWarning()).toBe(false);
+  });
+
   it('flags an instructor not qualified to assess the grading level', () => {
     const instructorsMap = new Map<string, any>();
     // Instructor at Student 4 cannot assess Application 3 (needs Student 5).
@@ -346,22 +443,22 @@ describe('GradingProgressComponent', () => {
     expect(component.selectedInstructorUnqualified()).toBe(false);
   });
 
-  it('should correctly compute assistantInstructors signal', () => {
+  it('should correctly compute the grading managers signal', () => {
     const instructorsMap = new Map<string, any>();
-    instructorsMap.set('assistant-1', { name: 'Assistant One', instructorId: 'assistant-1' });
-    
+    instructorsMap.set('manager-1', { name: 'Manager One', instructorId: 'manager-1' });
+
     // Mock get on instructors
     (mockDataService.instructors as any).get = (id: string) => instructorsMap.get(id) || null;
 
     componentRef.setInput('grading', {
       ...initGrading(),
-      gradingManagerIds: ['assistant-1', 'assistant-2'],
+      gradingManagerIds: ['manager-1', 'manager-2'],
     });
     fixture.detectChanges();
 
     const resolved = component.gradingManagers();
     expect(resolved.length).toBe(2);
-    expect(resolved[0]).toEqual({ id: 'assistant-1', data: { name: 'Assistant One', instructorId: 'assistant-1' } });
-    expect(resolved[1]).toEqual({ id: 'assistant-2', data: null });
+    expect(resolved[0]).toEqual({ id: 'manager-1', data: { name: 'Manager One', instructorId: 'manager-1' } });
+    expect(resolved[1]).toEqual({ id: 'manager-2', data: null });
   });
 });

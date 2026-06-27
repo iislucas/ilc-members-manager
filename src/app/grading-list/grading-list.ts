@@ -137,7 +137,7 @@ export class GradingListComponent {
           g.studentMemberId,
           g.studentName,
         ),
-        // Include the senior grading instructor plus any assistant instructors
+        // Include the senior grading instructor plus any grading managers
         // so searching for any examiner's name surfaces the grading. The primary
         // instructor's cached name is supplied as a fallback for non-admin views.
         instructorSearchText: [g.gradingInstructorId, ...gradingManagerIdsOf(g)]
@@ -260,7 +260,7 @@ export class GradingListComponent {
     }
     if (instructorId) {
       // Match if the selected instructor is the grading (senior) instructor or
-      // one of the grading managers (assistant instructors).
+      // one of the grading managers.
       results = results.filter(g =>
         g.gradingInstructorId === instructorId ||
         gradingManagerIdsOf(g).includes(instructorId),
