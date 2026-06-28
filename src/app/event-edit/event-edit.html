@@ -188,6 +188,13 @@
         <h3>Attached Documents</h3>
 
         <div class="rhs document-list" style="grid-column: 1 / -1;">
+          <p class="note">
+            These are additional links or files (PDFs, Word docs, etc.) related to this event,
+            that will be listed at the bottom of the event's page for attendees to download. 
+            Uploads, renaming, and deletions here are saved immediately and do not depend on 
+            the event's Save button.
+          </p>
+
           @let docs = eventFormModel().documents;
           @for (doc of docs; track $index; let last = $last) {
             <div class="document-row">
@@ -392,20 +399,15 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner">Owner</label>
+        <label for="event-owner">Owner (contact)</label>
         <div class="rhs">
-          @if (userIsAdmin()) {
-            <app-autocomplete
-              [searchableSet]="dataService.instructors"
-              [placeholder]="'Search for a member'"
-              [displayFns]="instructorDisplayFns"
-              [initSearchTerm]="dataService.members.get(eventFormModel().ownerDocId)?.instructorId || ''"
-              (textUpdated)="updateOwnerDocId($event)"
-            ></app-autocomplete>
-          } @else {
-            @let owner = dataService.members.get(eventFormModel().ownerDocId);
-            <span class="readonly-value">{{ owner?.name || eventFormModel().ownerDocId }}</span>
-          }
+          <app-autocomplete
+            [searchableSet]="dataService.instructors"
+            [placeholder]="'Search for a member'"
+            [displayFns]="instructorDisplayFns"
+            [initSearchTerm]="dataService.members.get(eventFormModel().ownerDocId)?.instructorId || ''"
+            (textUpdated)="updateOwnerDocId($event)"
+          ></app-autocomplete>
           @if (eventFormModel().ownerDocId) {
             @let owner = dataService.members.get(eventFormModel().ownerDocId);
             @if (owner) {

@@ -34,6 +34,16 @@
         name="searchTerm"
       />
     </div>
+    @if (isMyEvents()) {
+      <button
+        class="icon-only-button sort-direction-btn"
+        (click)="toggleSortDirection()"
+        [attr.aria-label]="sortDirection() === 'asc' ? 'Sorted oldest first' : 'Sorted newest first'"
+        [attr.title]="sortDirection() === 'asc' ? 'Oldest first' : 'Newest first'"
+      >
+        <app-icon [name]="sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+      </button>
+    }
     <div class="options-menu-container">
       <button
         class="icon-only-button"

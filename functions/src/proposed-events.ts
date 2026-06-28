@@ -130,39 +130,22 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   if (!before || !after) return;
 
-  // Resolve emails if missing or if owner/managers changed
   const db = admin.firestore();
-  
-  const ownerDoc = await db.collection('members').doc(after.ownerDocId).get();
-  const ownerEmails = ownerDoc.data()?.emails || [];
 
-  const managerEmails: string[] = [];
-  for (const id of (after.managerDocIds || [])) {
-    const mgrDoc = await db.collection('members').doc(id).get();
-    const emails = mgrDoc.data()?.emails || [];
-    managerEmails.push(...emails);
-  }
-
-  const ownerEmailsChanged = JSON.stringify(ownerEmails) !== JSON.stringify(after.ownerEmails || []);
-  const managerEmailsChanged = JSON.stringify(managerEmails) !== JSON.stringify(after.managerEmails || []);
-
-  if (ownerEmailsChanged || managerEmailsChanged) {
-    logger.info(`Updating emails for event ${event.params.docId}.`);
-    await event.data.after.ref.update({
-      ownerEmails,
-      managerEmails
-    });
-    return; // Let the next trigger handle mirroring
-  }
-
-  // Mirror to member subcollections for owner and managers
+  // Mirror to member subcollections for owner and managers.
+  //
+  // This MUST run on the same invocation that observes the membership change.
+  // Resolving emails below can trigger a follow-up write (to persist
+  // ownerEmails/managerEmails) whose before/after no longer reflect the
+  // owner/manager change — so deferring the mirror to that follow-up would
+  // leave a removed member's stale copy orphaned in their subcollection.
   const previousTargets = new Set([before.ownerDocId, ...(before.managerDocIds || [])].filter(Boolean));
   const currentTargets = new Set([after.ownerDocId, ...(after.managerDocIds || [])].filter(Boolean));
 
   // Remove from targets no longer associated
   for (const docId of previousTargets) {
     if (!currentTargets.has(docId)) {
-      await admin.firestore()
+      await db
         .collection('members')
         .doc(docId)
         .collection('events')
@@ -178,13 +161,43 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   const { ownerEmails: _, managerEmails: __, ...eventToMirror } = after;
 
   for (const docId of currentTargets) {
-    await admin.firestore()
+    await db
       .collection('members')
       .doc(docId)
       .collection('events')
       .doc(event.params.docId)
       .set(eventToMirror);
     logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
+  }
+
+  // Resolve emails if missing or if owner/managers changed. Done after
+  // mirroring (above) so a membership change is never lost.
+  const ownerDoc = await db.collection('members').doc(after.ownerDocId).get();
+  const ownerEmails = ownerDoc.data()?.emails || [];
+
+  const managerEmails: string[] = [];
+  for (const id of (after.managerDocIds || [])) {
+    const mgrDoc = await db.collection('members').doc(id).get();
+    const emails = mgrDoc.data()?.emails || [];
+    managerEmails.push(...emails);
+  }
+
+  // Compare as order-independent multisets: the stored and freshly-derived
+  // lists hold the same emails but their order depends on the member email
+  // array / managerDocIds ordering, which can change without the set changing.
+  // Sorting copies avoids spurious email rewrites (and an extra trigger cycle).
+  const sameEmails = (a: string[], b: string[]) =>
+    JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+  const ownerEmailsChanged = !sameEmails(ownerEmails, after.ownerEmails || []);
+  const managerEmailsChanged = !sameEmails(managerEmails, after.managerEmails || []);
+
+  if (ownerEmailsChanged || managerEmailsChanged) {
+    logger.info(`Updating emails for event ${event.params.docId}.`);
+    await event.data.after.ref.update({
+      ownerEmails,
+      managerEmails
+    });
+    return; // Let the follow-up trigger handle Google Calendar sync.
   }
 
   // Clean up Storage files for documents that were removed.

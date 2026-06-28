@@ -125,6 +125,23 @@ export class EventListComponent implements OnDestroy {
     return '';
   });
 
+  // The URL `sortDir` parameter (my-events view only).
+  private urlSortDir = computed(() => {
+    if (this.routingService.matchedPatternId() === Views.MyEvents) {
+      return this.routingService.signals[Views.MyEvents].urlParams.sortDir();
+    }
+    return '';
+  });
+
+  // Sort direction for the event list. Seeded from the URL, falling back to a
+  // sensible default per context: my-events shows latest first (desc), while
+  // the public events list shows soonest first (asc). Writable via the toggle.
+  sortDirection = linkedSignal<'asc' | 'desc'>(() => {
+    const fromUrl = this.urlSortDir();
+    if (fromUrl === 'asc' || fromUrl === 'desc') return fromUrl;
+    return this.isMyEvents() ? 'desc' : 'asc';
+  });
+
   // True when a school/instructor filter is active.
   protected isFiltered = computed(() => !!this.urlSchoolId() || !!this.urlInstructorId());
 
@@ -229,8 +246,9 @@ export class EventListComponent implements OnDestroy {
       ? baseEvents.filter(e => e.status === EventStatus.Listed || !e.status)
       : baseEvents;
 
+    const dirMul = this.sortDirection() === 'asc' ? 1 : -1;
     const sortedEvents = [...filteredEvents]
-      .sort((a, b) => a.start.localeCompare(b.start));
+      .sort((a, b) => dirMul * a.start.localeCompare(b.start));
     return sortedEvents.map((event, index) => ({
       ...event,
       id: `${index}`,
@@ -452,6 +470,15 @@ export class EventListComponent implements OnDestroy {
       this.routingService.signals[Views.EventsCalendar].urlParams.q.set(value);
     } else if (match === Views.MyEvents) {
       this.routingService.signals[Views.MyEvents].urlParams.q.set(value);
+    }
+  }
+
+  // Flip the sort direction and (on my-events) persist it to the URL.
+  toggleSortDirection(): void {
+    const next = this.sortDirection() === 'asc' ? 'desc' : 'asc';
+    this.sortDirection.set(next);
+    if (this.routingService.matchedPatternId() === Views.MyEvents) {
+      this.routingService.signals[Views.MyEvents].urlParams.sortDir.set(next);
     }
   }
 

@@ -410,6 +410,15 @@ export class SchoolEditComponent {
     return 'Manage Schools';
   });
 
+  // Link to this school's public profile page. Only available for an existing,
+  // saved school that has a human-readable schoolId.
+  publicListingHref = computed(() => {
+    if (this.isNewSchool()) return '';
+    const schoolId = this.editableSchool()?.schoolId;
+    if (!schoolId) return '';
+    return this.routingService.hrefForView(Views.SchoolView, { schoolId });
+  });
+
   constructor() {
     effect(async () => {
       const s = this.school();
