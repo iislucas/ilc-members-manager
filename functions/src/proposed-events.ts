@@ -182,8 +182,14 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     managerEmails.push(...emails);
   }
 
-  const ownerEmailsChanged = JSON.stringify(ownerEmails) !== JSON.stringify(after.ownerEmails || []);
-  const managerEmailsChanged = JSON.stringify(managerEmails) !== JSON.stringify(after.managerEmails || []);
+  // Compare as order-independent multisets: the stored and freshly-derived
+  // lists hold the same emails but their order depends on the member email
+  // array / managerDocIds ordering, which can change without the set changing.
+  // Sorting copies avoids spurious email rewrites (and an extra trigger cycle).
+  const sameEmails = (a: string[], b: string[]) =>
+    JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+  const ownerEmailsChanged = !sameEmails(ownerEmails, after.ownerEmails || []);
+  const managerEmailsChanged = !sameEmails(managerEmails, after.managerEmails || []);
 
   if (ownerEmailsChanged || managerEmailsChanged) {
     logger.info(`Updating emails for event ${event.params.docId}.`);
