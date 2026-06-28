@@ -6,6 +6,11 @@
     <a class="back-link subtle-button" [href]="backUrl()">
       <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
     </a>
+    @if (publicListingHref(); as href) {
+      <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
+        <app-icon name="link"></app-icon> <span>View public listing</span>
+      </a>
+    }
   </div>
 
   <div class="edit-form">

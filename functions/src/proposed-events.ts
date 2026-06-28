@@ -130,9 +130,48 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   if (!before || !after) return;
 
-  // Resolve emails if missing or if owner/managers changed
   const db = admin.firestore();
-  
+
+  // Mirror to member subcollections for owner and managers.
+  //
+  // This MUST run on the same invocation that observes the membership change.
+  // Resolving emails below can trigger a follow-up write (to persist
+  // ownerEmails/managerEmails) whose before/after no longer reflect the
+  // owner/manager change — so deferring the mirror to that follow-up would
+  // leave a removed member's stale copy orphaned in their subcollection.
+  const previousTargets = new Set([before.ownerDocId, ...(before.managerDocIds || [])].filter(Boolean));
+  const currentTargets = new Set([after.ownerDocId, ...(after.managerDocIds || [])].filter(Boolean));
+
+  // Remove from targets no longer associated
+  for (const docId of previousTargets) {
+    if (!currentTargets.has(docId)) {
+      await db
+        .collection('members')
+        .doc(docId)
+        .collection('events')
+        .doc(event.params.docId)
+        .delete();
+      logger.info(`Removed mirrored event ${event.params.docId} from member ${docId} subcollection.`);
+    }
+  }
+
+  // Update/Add to all current targets
+  // Destructuring extracts ownerEmails and managerEmails to ignore them (renaming to _ and __ to avoid
+  // collision with variables in scope). The rest operator (...) puts the remaining fields in eventToMirror.
+  const { ownerEmails: _, managerEmails: __, ...eventToMirror } = after;
+
+  for (const docId of currentTargets) {
+    await db
+      .collection('members')
+      .doc(docId)
+      .collection('events')
+      .doc(event.params.docId)
+      .set(eventToMirror);
+    logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
+  }
+
+  // Resolve emails if missing or if owner/managers changed. Done after
+  // mirroring (above) so a membership change is never lost.
   const ownerDoc = await db.collection('members').doc(after.ownerDocId).get();
   const ownerEmails = ownerDoc.data()?.emails || [];
 
@@ -152,39 +191,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
       ownerEmails,
       managerEmails
     });
-    return; // Let the next trigger handle mirroring
-  }
-
-  // Mirror to member subcollections for owner and managers
-  const previousTargets = new Set([before.ownerDocId, ...(before.managerDocIds || [])].filter(Boolean));
-  const currentTargets = new Set([after.ownerDocId, ...(after.managerDocIds || [])].filter(Boolean));
-
-  // Remove from targets no longer associated
-  for (const docId of previousTargets) {
-    if (!currentTargets.has(docId)) {
-      await admin.firestore()
-        .collection('members')
-        .doc(docId)
-        .collection('events')
-        .doc(event.params.docId)
-        .delete();
-      logger.info(`Removed mirrored event ${event.params.docId} from member ${docId} subcollection.`);
-    }
-  }
-
-  // Update/Add to all current targets
-  // Destructuring extracts ownerEmails and managerEmails to ignore them (renaming to _ and __ to avoid
-  // collision with variables in scope). The rest operator (...) puts the remaining fields in eventToMirror.
-  const { ownerEmails: _, managerEmails: __, ...eventToMirror } = after;
-
-  for (const docId of currentTargets) {
-    await admin.firestore()
-      .collection('members')
-      .doc(docId)
-      .collection('events')
-      .doc(event.params.docId)
-      .set(eventToMirror);
-    logger.info(`Updated mirrored event ${event.params.docId} for member ${docId} subcollection.`);
+    return; // Let the follow-up trigger handle Google Calendar sync.
   }
 
   // Clean up Storage files for documents that were removed.
