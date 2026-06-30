@@ -89,7 +89,7 @@ describe('LoginComponent', () => {
       isGoogleManaged: true,
     });
 
-    component.loginEmail.set('member@gmail.com');
+    component.loginEmail.set('member@example.com');
     await component.checkEmail();
 
     expect(component.loginStep()).toBe(LoginStep.GoogleSignin);
@@ -178,7 +178,7 @@ describe('LoginComponent', () => {
   it('should clear cache when goBackToEmail is called', async () => {
     // Set up a cache entry first.
     setCachedLoginInfo({
-      email: 'member@gmail.com',
+      email: 'member@example.com',
       isGoogleManaged: true,
       hasAuthAccount: true,
     });
@@ -198,7 +198,7 @@ describe('LoginComponent', () => {
   describe('with cached Google user', () => {
     beforeEach(async () => {
       setCachedLoginInfo({
-        email: 'member@gmail.com',
+        email: 'member@example.com',
         isGoogleManaged: true,
         hasAuthAccount: true,
       });
@@ -218,7 +218,7 @@ describe('LoginComponent', () => {
     });
 
     it('should pre-fill the email from cache', () => {
-      expect(component.loginEmail()).toBe('member@gmail.com');
+      expect(component.loginEmail()).toBe('member@example.com');
     });
 
     it('should set emailStatus from cache', () => {
@@ -329,12 +329,12 @@ describe('LoginComponent', () => {
       success: true,
       userCredential: {} as UserCredential,
     });
-    component.loginEmail.set('user@gmail.com');
+    component.loginEmail.set('user@example.com');
     await component.loginWithGoogle();
 
     const cached = getCachedLoginInfo();
     expect(cached).toEqual({
-      email: 'user@gmail.com',
+      email: 'user@example.com',
       isGoogleManaged: true,
       hasAuthAccount: true,
     });

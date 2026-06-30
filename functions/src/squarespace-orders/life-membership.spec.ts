@@ -16,7 +16,7 @@ const realOrder: SquareSpaceOrder = {
   orderNumber: '61814',
   createdOn: '2026-03-02T07:45:11.869Z',
   modifiedOn: '2026-03-02T07:47:04.763Z',
-  customerEmail: 'lucas.dixon@gmail.com',
+  customerEmail: 'student@example.com',
   fulfillmentStatus: 'FULFILLED',
   billingAddress: {
     countryCode: 'FR',
@@ -43,13 +43,13 @@ const realOrder: SquareSpaceOrder = {
       ],
       customizations: [
         { value: 'Lucas4 Dixon', label: 'Name' },
-        { value: 'lucas.dixon+4@gmail.com', label: 'Email' },
+        { value: 'member4@example.com', label: 'Email' },
         { value: '11/23/1979', label: 'Date of birth' },
         { value: 'New membership', label: 'Is this a new membership?' },
         { value: '', label: 'Member ID' },
         { value: 'France', label: 'Country' },
         { value: 'Lucas5 Dixon', label: 'Spouse name' },
-        { value: 'lucas.dixon+4@gmail.com', label: 'Spouse email' },
+        { value: 'member4@example.com', label: 'Spouse email' },
         { value: '11/23/1979', label: 'Spouse date of birth' },
         { value: 'New membership', label: 'Is this a new membership for the spouse?' },
         { value: '', label: 'Spouse member ID' },
@@ -71,7 +71,7 @@ describe('parseLifeMembershipInfo', () => {
 
     // Member info
     expect(parsed.member.name).toBe('Lucas4 Dixon');
-    expect(parsed.member.email).toBe('lucas.dixon+4@gmail.com');
+    expect(parsed.member.email).toBe('member4@example.com');
     expect(parsed.member.dateOfBirth).toBe('11/23/1979');
     expect(parsed.member.country).toBe('France');
     expect(parsed.member.memberId).toBe('');
@@ -80,7 +80,7 @@ describe('parseLifeMembershipInfo', () => {
     // Spouse info
     expect(parsed.spouse).toBeDefined();
     expect(parsed.spouse!.name).toBe('Lucas5 Dixon');
-    expect(parsed.spouse!.email).toBe('lucas.dixon+4@gmail.com');
+    expect(parsed.spouse!.email).toBe('member4@example.com');
     expect(parsed.spouse!.dateOfBirth).toBe('11/23/1979');
     expect(parsed.spouse!.country).toBe('France');
     expect(parsed.spouse!.memberId).toBe('');
@@ -158,7 +158,7 @@ describe('parseLifeMembershipInfo', () => {
 
     const parsed = parseLifeMembershipInfo(realOrder, lineItem);
     // Main member should fall back to customerEmail
-    expect(parsed.member.email).toBe('lucas.dixon@gmail.com');
+    expect(parsed.member.email).toBe('student@example.com');
     // Spouse should NOT fall back to customerEmail
     expect(parsed.spouse!.email).toBe('');
   });
@@ -173,7 +173,7 @@ describe('parseLifeMembershipInfo', () => {
     expect(parsed.hasSpouse).toBe(false);
     expect(parsed.spouse).toBeUndefined();
     expect(parsed.member.memberId).toBe('');
-    expect(parsed.member.email).toBe('lucas.dixon@gmail.com');
+    expect(parsed.member.email).toBe('student@example.com');
     expect(parsed.member.name).toBe('');
   });
 });

@@ -11,8 +11,8 @@ import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 /**
  * These tests reproduce the member-edit permissions scenario for two real users:
  *
- *   1. brett.drinkwater@iliqchuan.com — non-admin, no school, is owner of own member doc
- *   2. moilucasdixon@gmail.com        — non-admin, has school (not manager/owner), is owner of own member doc
+ *   1. brett@example.com — non-admin, no school, is owner of own member doc
+ *   2. member@example.com        — non-admin, has school (not manager/owner), is owner of own member doc
  *
  * Both should be able to update a specific subset of allowed fields on their own
  * member document (the owner-update rule). The data below is a snapshot pulled
@@ -31,7 +31,7 @@ const PROJECT_ID = 'ilc-user-edit-permissions';
 // ============================================================================
 
 const BRETT = {
-  email: 'brett.drinkwater@iliqchuan.com',
+  email: 'brett@example.com',
   acl: {
     memberDocIds: ['mSUDPNATSQa8uB55Oaq6'],
     isAdmin: false,
@@ -76,7 +76,7 @@ const BRETT = {
       primarySchoolDocId: '',
       primaryInstructorId: '105',
       primarySchoolId: '',
-      emails: ['awakenedmonki0@gmail.com', 'brett.drinkwater@iliqchuan.com'],
+      emails: ['brett.alt@example.com', 'brett@example.com'],
       lastUpdated: '2026-02-25T08:28:48.508Z',
       docId: 'mSUDPNATSQa8uB55Oaq6',
     },
@@ -84,7 +84,7 @@ const BRETT = {
 };
 
 const MOI = {
-  email: 'moilucasdixon@gmail.com',
+  email: 'member@example.com',
   acl: {
     isAdmin: false,
     memberDocIds: ['hUr2Qv3Q9hpx8KjlvkHy'],
@@ -114,7 +114,7 @@ const MOI = {
       classVideoLibrarySubscription: true,
       instructorId: 'foo-1',
       phone: '+33 648136124',
-      emails: ['moilucasdixon+test@gmail.com', 'moilucasdixon@gmail.com'],
+      emails: ['member+test@example.com', 'member@example.com'],
       country: 'United States',
       zipCode: '93500',
       gender: 'male',
@@ -123,7 +123,7 @@ const MOI = {
       name: 'moi ld',
       dateOfBirth: '2026-01-24',
       primaryInstructorId: '2',
-      publicEmail: 'moilucasdixon+test@gmail.com',
+      publicEmail: 'member+test@example.com',
       publicPhone: '+33 (0) 648136124',
       publicRegionOrCity: 'Pantin',
       publicCountyOrState: '',
@@ -149,7 +149,7 @@ const MOI = {
       schoolCountyOrState: 'Ile de France',
       schoolZipCode: '93500',
       schoolName: 'Zhong Xin Dao Paris',
-      ownerEmail: 'lucas.dixon@gmail.com',
+      ownerEmail: 'student@example.com',
       docId: '8JbQZ3KbNDQPfI5QpbC2',
       lastUpdated: '2026-02-25T00:48:46.732Z',
       schoolId: 'SCH-101',
@@ -220,8 +220,8 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
   // =====================================================================
   // Brett Drinkwater Tests
   // =====================================================================
-  describe('brett.drinkwater@iliqchuan.com (owner, non-admin, no school)', () => {
-    const email = 'brett.drinkwater@iliqchuan.com';
+  describe('brett@example.com (owner, non-admin, no school)', () => {
+    const email = 'brett@example.com';
     const memberDocId = 'mSUDPNATSQa8uB55Oaq6';
 
     function getDb() {
@@ -275,7 +275,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
       const db = getDb();
       await assertSucceeds(
         db.collection('members').doc(memberDocId).update({
-          emails: ['awakenedmonki0@gmail.com', 'brett.drinkwater@iliqchuan.com', 'new@email.com'],
+          emails: ['brett.alt@example.com', 'brett@example.com', 'new@example.com'],
           lastUpdated: serverTimestamp(),
         }),
       );
@@ -430,10 +430,10 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
   });
 
   // =====================================================================
-  // moilucasdixon@gmail.com Tests
+  // member@example.com Tests
   // =====================================================================
-  describe('moilucasdixon@gmail.com (owner, non-admin, has school but not manager)', () => {
-    const email = 'moilucasdixon@gmail.com';
+  describe('member@example.com (owner, non-admin, has school but not manager)', () => {
+    const email = 'member@example.com';
     const memberDocId = 'hUr2Qv3Q9hpx8KjlvkHy';
 
     function getDb() {
@@ -519,7 +519,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
   describe('Cross-user access', () => {
     it('brett should NOT be able to read moi member doc', async () => {
       const db = testEnv
-        .authenticatedContext('brett_uid', { email: 'brett.drinkwater@iliqchuan.com' })
+        .authenticatedContext('brett_uid', { email: 'brett@example.com' })
         .firestore();
       await assertFails(
         db.collection('members').doc('hUr2Qv3Q9hpx8KjlvkHy').get(),
@@ -528,7 +528,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
 
     it('moi should NOT be able to read brett member doc', async () => {
       const db = testEnv
-        .authenticatedContext('moi_uid', { email: 'moilucasdixon@gmail.com' })
+        .authenticatedContext('moi_uid', { email: 'member@example.com' })
         .firestore();
       await assertFails(
         db.collection('members').doc('mSUDPNATSQa8uB55Oaq6').get(),
@@ -537,7 +537,7 @@ describe('User Edit Permissions (Live Data Fixtures)', () => {
 
     it('brett should NOT be able to update moi member doc', async () => {
       const db = testEnv
-        .authenticatedContext('brett_uid', { email: 'brett.drinkwater@iliqchuan.com' })
+        .authenticatedContext('brett_uid', { email: 'brett@example.com' })
         .firestore();
       await assertFails(
         db.collection('members').doc('hUr2Qv3Q9hpx8KjlvkHy').update({

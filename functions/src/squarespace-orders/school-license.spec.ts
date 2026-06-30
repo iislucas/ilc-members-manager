@@ -58,7 +58,7 @@ const realLineItem: SquareSpaceLineItem = {
   ],
   customizations: [
     { label: 'Name', value: 'Lucas Dixon' },
-    { label: 'Email ', value: 'lucas.dixon@gmail.com' },
+    { label: 'Email ', value: 'student@example.com' },
     { value: 'US402', label: 'MemberID' },
     { label: 'School ID', value: 'SCH-101' },
     { value: 'Paris Zhong Xin Dao', label: 'Name of the School' },
@@ -76,7 +76,7 @@ const realOrder: SquareSpaceOrder = {
   orderNumber: '61813',
   createdOn: '2026-03-01T16:19:19.698Z',
   modifiedOn: '2026-03-01T16:19:20.081Z',
-  customerEmail: 'moilucasdixon@gmail.com',
+  customerEmail: 'member@example.com',
   fulfillmentStatus: 'PENDING',
   billingAddress: {
     lastName: 'Dixon',
@@ -103,7 +103,7 @@ const monthlyLineItem: SquareSpaceLineItem = {
   variantOptions: [],
   customizations: [
     { value: 'Yen Chin', label: 'Name' },
-    { label: 'Email ', value: 'yen@iliqchuan.com' },
+    { label: 'Email ', value: 'yen@example.com' },
     { label: 'MemberID', value: 'Family' },
     { label: 'School ID', value: 'ILC NYC' },
   ],
@@ -119,7 +119,7 @@ const monthlyOrder: SquareSpaceOrder = {
   orderNumber: '61808',
   createdOn: '2026-03-01T05:30:18.579Z',
   modifiedOn: '2026-03-01T22:48:58.056Z',
-  customerEmail: 'yen@iliqchuan.com',
+  customerEmail: 'yen@example.com',
   fulfillmentStatus: 'FULFILLED',
   billingAddress: {
     lastName: 'Chin',
@@ -145,7 +145,7 @@ describe('parseSchoolLicenseInfo', () => {
 
     expect(parsed).toEqual({
       schoolId: 'SCH-101',
-      email: 'lucas.dixon@gmail.com',
+      email: 'student@example.com',
       memberId: 'US402',
       orderDate: '2026-03-01',
     });
@@ -156,7 +156,7 @@ describe('parseSchoolLicenseInfo', () => {
 
     expect(parsed).toEqual({
       schoolId: 'ILC NYC',
-      email: 'yen@iliqchuan.com',
+      email: 'yen@example.com',
       memberId: 'Family',
       orderDate: '2026-03-01',
     });
@@ -172,7 +172,7 @@ describe('parseSchoolLicenseInfo', () => {
     };
 
     const parsed = parseSchoolLicenseInfo(realOrder, lineItem);
-    expect(parsed.email).toBe('moilucasdixon@gmail.com');
+    expect(parsed.email).toBe('member@example.com');
     expect(parsed.schoolId).toBe('SCH-200');
   });
 
@@ -228,7 +228,7 @@ describe('parseSchoolLicenseInfo', () => {
     const parsed = parseSchoolLicenseInfo(realOrder, lineItem);
     expect(parsed.schoolId).toBe('');
     expect(parsed.memberId).toBe('');
-    expect(parsed.email).toBe('moilucasdixon@gmail.com');
+    expect(parsed.email).toBe('member@example.com');
     expect(parsed.orderDate).toBe('2026-03-01');
   });
 });

@@ -10,7 +10,7 @@ describe('parseGradingOrderInfo', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -35,7 +35,7 @@ describe('parseGradingOrderInfo', () => {
         },
         {
           label: 'Email',
-          value: 'lucas.dixon@gmail.com'
+          value: 'student@example.com'
         },
         {
           label: 'Current Student Level',
@@ -63,7 +63,7 @@ describe('parseGradingOrderInfo', () => {
     const parsed = parseGradingOrderInfo(orderData, gradingItem);
 
     expect(parsed).toEqual({
-      email: 'lucas.dixon@gmail.com',
+      email: 'student@example.com',
       currentStudentLevel: 'Student 6',
       currentApplicationLevel: 'Application 3',
       gradingInfo: expect.objectContaining({
@@ -156,7 +156,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -168,7 +168,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
       ],
@@ -183,7 +183,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -254,7 +254,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -266,7 +266,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
         { label: 'Evaluating Instructor Instructor ID', value: 'Sam Chin [1]' },
@@ -282,7 +282,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -367,7 +367,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -379,7 +379,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
         { label: 'Evaluating Instructor Instructor ID', value: '999' },
@@ -395,7 +395,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -538,7 +538,7 @@ describe('processGradingOrder', () => {
       ref: { id: 'student-doc-id', update: vi.fn().mockResolvedValue({}) },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -588,7 +588,7 @@ describe('processGradingOrder', () => {
     orderNumber: '42',
     createdOn: '2026-03-01T10:00:00.000Z',
     modifiedOn: '2026-03-01T10:00:00.000Z',
-    customerEmail: 'lucas.dixon@iliqchuan.com',
+    customerEmail: 'orders@example.com',
     lastUpdated: '2026-03-01T10:00:00.000Z',
   } as SquareSpaceOrder;
 
@@ -599,7 +599,7 @@ describe('processGradingOrder', () => {
     variantOptions: [{ optionName: 'Level', value: 'Student Level 7' }],
     customizations: [
       { label: 'Member ID', value: 'US402' },
-      { label: 'Email', value: 'lucas.dixon@gmail.com' },
+      { label: 'Email', value: 'student@example.com' },
     ],
   } as SquareSpaceLineItem;
 

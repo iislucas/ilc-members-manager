@@ -19,7 +19,7 @@ const realLineItem: SquareSpaceLineItem = {
     { value: 'Renewing an existing member', label: 'Is this membership for a new member?' },
     { value: 'FR102', label: 'Member ID' },
     { label: 'Name', value: 'Lucas testing' },
-    { value: 'moilucasdixon@gmail.com', label: 'Email' },
+    { value: 'member@example.com', label: 'Email' },
     { value: '11/23/1979', label: 'Date of birth' },
     { label: 'Country', value: 'France' },
     { label: 'Terms and conditions', value: 'I agree' },
@@ -37,7 +37,7 @@ const realOrder: SquareSpaceOrder = {
   orderNumber: '61811',
   createdOn: '2026-03-01T16:11:17.601Z',
   modifiedOn: '2026-03-01T16:12:19.244Z',
-  customerEmail: 'moilucasdixon@gmail.com',
+  customerEmail: 'member@example.com',
   fulfillmentStatus: 'FULFILLED',
   billingAddress: {
     postalCode: '93500',
@@ -60,7 +60,7 @@ describe('parseMembershipRenewalInfo', () => {
     expect(parsed).toEqual({
       member: {
         memberId: 'FR102',
-        email: 'moilucasdixon@gmail.com',
+        email: 'member@example.com',
         name: 'Lucas testing',
         dateOfBirth: '11/23/1979',
         country: 'France',
@@ -102,7 +102,7 @@ describe('parseMembershipRenewalInfo', () => {
     };
 
     const parsed = parseMembershipRenewalInfo(realOrder, noEmailLineItem);
-    expect(parsed.member.email).toBe('moilucasdixon@gmail.com');
+    expect(parsed.member.email).toBe('member@example.com');
   });
 
   it('should fall back to billing address country when no country in customizations', () => {
@@ -135,7 +135,7 @@ describe('parseMembershipRenewalInfo', () => {
 
     const parsed = parseMembershipRenewalInfo(realOrder, emptyLineItem);
     expect(parsed.member.memberId).toBe('');
-    expect(parsed.member.email).toBe('moilucasdixon@gmail.com');
+    expect(parsed.member.email).toBe('member@example.com');
     expect(parsed.member.name).toBe('');
     expect(parsed.member.country).toBe('');
     expect(parsed.member.isNewMember).toBeUndefined();

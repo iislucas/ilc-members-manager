@@ -473,10 +473,10 @@ describe('ImportOrdersComponent', () => {
       { ...initMember(), memberId: 'DE12', emails: ['krischek@web.de'], name: 'Bernd Krischek' },
       // No member for PL62WLKP89 — will test email fallback
       { ...initMember(), memberId: 'PL-OTHER', emails: ['tomasz.nowak@nowapracownia.pl'], name: 'Tomasz Nowak' },
-      { ...initMember(), memberId: 'US318AZ', emails: ['thecharlesjean@gmail.com'], name: 'Charles Jean' },
+      { ...initMember(), memberId: 'US318AZ', emails: ['charles@example.com'], name: 'Charles Jean' },
       // No member for Ryu Cheng — will test not-found
       // Mikalai Filipau has Member Number N/A — will test email fallback
-      { ...initMember(), memberId: 'BY-001', emails: ['filippov.nikolai.v@gmail.com'], name: 'Mikalai Filipau' },
+      { ...initMember(), memberId: 'BY-001', emails: ['nikolai@example.com'], name: 'Mikalai Filipau' },
     ];
 
     // Build parsed rows as PapaParse would produce from the user's sample TSV.
@@ -534,10 +534,10 @@ describe('ImportOrdersComponent', () => {
         order_number_formatted: '6468',
         order_number: '',
         order_date: '2018-06-12 17:30:47',
-        line_items: 'id:983|name:Student Membership - Lifetime|product_id:2898|sku:|quantity:1|subtotal:500.00|subtotal_tax:0.00|total:500.00|total_tax:0.00|refunded:0.00|refunded_qty:0|meta:Membership Level=Lifetime,Member Number=N/A,Student Of=Dzmitry Siomau,Name=Mikalai Filipau,Email=filippov.nikolai.v@gmail.com,Address=4/1 285\\, Mogilevskaya\\, Minsk\\, Minsk\\, 220007\\, Belarus,Date of Birth=08/10/1988,Agree=I Agree',
+        line_items: 'id:983|name:Student Membership - Lifetime|product_id:2898|sku:|quantity:1|subtotal:500.00|subtotal_tax:0.00|total:500.00|total_tax:0.00|refunded:0.00|refunded_qty:0|meta:Membership Level=Lifetime,Member Number=N/A,Student Of=Dzmitry Siomau,Name=Mikalai Filipau,Email=nikolai@example.com,Address=4/1 285\\, Mogilevskaya\\, Minsk\\, Minsk\\, 220007\\, Belarus,Date of Birth=08/10/1988,Agree=I Agree',
         first_name: 'Mikalai',
         last_name: 'Filipau',
-        billing_email: 'filippov.nikolai.v@gmail.com',
+        billing_email: 'nikolai@example.com',
         billing_address_1: '4/1 Mogilevskaya',
         billing_address_2: '285',
         billing_postcode: '220007',
@@ -612,7 +612,7 @@ describe('ImportOrdersComponent', () => {
       const entry = delta.new.get('6468') || delta.issues.find(i => i.key === '6468');
       expect(entry).toBeTruthy();
       // N/A → externalId empty, email preserved for calculateSideEffects
-      expect(entry!.newItem.email).toBe('filippov.nikolai.v@gmail.com');
+      expect(entry!.newItem.email).toBe('nikolai@example.com');
     });
 
     it('should set externalId for unknown member numbers (validation later)', async () => {
@@ -622,10 +622,10 @@ describe('ImportOrdersComponent', () => {
         order_number_formatted: '6118',
         order_number: '',
         order_date: '2018-05-04 2:16:46',
-        line_items: 'id:797|name:Student Membership - Lifetime|product_id:2898|sku:|quantity:1|subtotal:500.00|subtotal_tax:0.00|total:500.00|total_tax:0.00|refunded:0.00|refunded_qty:0|meta:Membership Level=Lifetime,Member Number=US431-71,Student Of=Bernard Langan,Name=Ryu Cheng,Email=Ryu.cheng@gmail.com,Phone=(415) 860-7982,Address=4532 tulip avenue\\, Oakland\\, California\\, 94619\\, United States,Date of Birth=02/01/1979,Agree=I Agree',
+        line_items: 'id:797|name:Student Membership - Lifetime|product_id:2898|sku:|quantity:1|subtotal:500.00|subtotal_tax:0.00|total:500.00|total_tax:0.00|refunded:0.00|refunded_qty:0|meta:Membership Level=Lifetime,Member Number=US431-71,Student Of=Bernard Langan,Name=Ryu Cheng,Email=ryu@example.com,Phone=(415) 860-7982,Address=4532 tulip avenue\\, Oakland\\, California\\, 94619\\, United States,Date of Birth=02/01/1979,Agree=I Agree',
         first_name: 'Ryu',
         last_name: 'Cheng',
-        billing_email: 'Ryu.cheng@gmail.com',
+        billing_email: 'ryu@example.com',
         billing_address_1: '4532 tulip avenue',
         billing_address_2: '',
         billing_postcode: '94619',
@@ -994,7 +994,7 @@ describe('ImportOrdersComponent', () => {
   describe('Older Sheets Format (transaction ID / membership type headers)', () => {
     // Mock members matching the sample data External IDs
     const sheetsMembers: Member[] = [
-      { ...initMember(), memberId: 'US13', emails: ['yungbky@hotmail.com'], name: 'Bill Yung', lastRenewalDate: '', currentMembershipExpires: '' },
+      { ...initMember(), memberId: 'US13', emails: ['bill@example.com'], name: 'Bill Yung', lastRenewalDate: '', currentMembershipExpires: '' },
       { ...initMember(), memberId: 'US66', emails: ['hschneiker@hdslights.com'], name: 'Henry Schneiker', lastRenewalDate: '', currentMembershipExpires: '' },
       { ...initMember(), memberId: 'US80', emails: [], name: 'Dan Pasek' },
       { ...initMember(), memberId: 'AT1', emails: [], name: 'Miroslav Kovacik' },
@@ -1004,7 +1004,7 @@ describe('ImportOrdersComponent', () => {
     const sheetHeaders = ['Order', 'transaction ID', 'External ID', 'Student Of', 'membership type', 'New/Renew', 'Date Paid', 'Start Date', 'Last Name', 'First Name', 'email'];
 
     const sheetParsedRows: Record<string, string>[] = [
-      { 'Order': '', 'transaction ID': '2006016', 'External ID': 'US13', 'Student Of': '1', 'membership type': 'Member Dues - Life', 'New/Renew': '', 'Date Paid': '15-Jun-06', 'Start Date': '', 'Last Name': 'Yung', 'First Name': 'Bill', 'email': 'yungbky@hotmail.com' },
+      { 'Order': '', 'transaction ID': '2006016', 'External ID': 'US13', 'Student Of': '1', 'membership type': 'Member Dues - Life', 'New/Renew': '', 'Date Paid': '15-Jun-06', 'Start Date': '', 'Last Name': 'Yung', 'First Name': 'Bill', 'email': 'bill@example.com' },
       { 'Order': '', 'transaction ID': '2007099', 'External ID': 'US66', 'Student Of': '31', 'membership type': 'Member Dues - Life', 'New/Renew': '', 'Date Paid': '22-Apr-07', 'Start Date': '', 'Last Name': 'Schneiker', 'First Name': 'Henry', 'email': 'HSchneiker@hdslights.com' },
       { 'Order': '', 'transaction ID': '2007141', 'External ID': 'US80', 'Student Of': '1', 'membership type': 'Member Dues - Life', 'New/Renew': '', 'Date Paid': '7-Sep-07', 'Start Date': '', 'Last Name': 'Pasek', 'First Name': 'Dan', 'email': '' },
       { 'Order': '', 'transaction ID': '2008081', 'External ID': 'AT1', 'Student Of': '1', 'membership type': 'Member Dues - Life', 'New/Renew': '', 'Date Paid': '25-Jun-08', 'Start Date': '', 'Last Name': 'Kovacik', 'First Name': 'Miroslav', 'email': '' },
@@ -1047,7 +1047,7 @@ describe('ImportOrdersComponent', () => {
       expect(order.datePaid).toBe('2006-06-15');
       expect(order.lastName).toBe('Yung');
       expect(order.firstName).toBe('Bill');
-      expect(order.email).toBe('yungbky@hotmail.com');
+      expect(order.email).toBe('bill@example.com');
     });
 
     it('should handle rows without email and match by External ID', async () => {
