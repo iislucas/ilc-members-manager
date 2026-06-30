@@ -69,12 +69,26 @@ export class GradingViewComponent {
       this.dataService.myGradingsAssessed.loading();
   });
 
+  // True when the signed-in user is the student of the grading being viewed
+  // (one of their own member profiles). Such a viewer navigates back to their
+  // own "My Gradings" page, even if they are also an admin.
+  protected isOwnGrading = computed(() => {
+    const user = this.firebaseState.user();
+    const g = this.grading();
+    if (!user || !g) return false;
+    return user.memberProfiles.some((p) => p.docId === g.studentMemberDocId);
+  });
+
   protected backHref = computed(() => {
-    if (this.userIsAdmin()) {
+    if (this.userIsAdmin() && !this.isOwnGrading()) {
       return this.routingService.hrefForView(Views.ManageGradings);
     }
     return this.routingService.hrefForView(Views.MemberGradings);
   });
+
+  protected backLabel = computed(() =>
+    this.isOwnGrading() ? 'Back to My Gradings' : 'Back to Gradings',
+  );
 
   // Emit the title when the grading is loaded.
   private _emitTitle = effect(() => {

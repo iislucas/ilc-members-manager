@@ -99,10 +99,13 @@ export class GradingListComponent {
   private dataService = inject(DataManagerService);
   private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   user = this.firebaseStateService.user;
+  // Only admins, and only on the "Manage Gradings" page (viewMode 'all'), can
+  // create a grading directly. The member-facing "My Gradings" lists (viewMode
+  // 'member'/'instructor') use the request flow instead.
   canMakeNewGradings = computed(() => {
     const user = this.user();
     if (!user) return false;
-    return user.isAdmin;
+    return user.isAdmin && this.viewMode() === 'all';
   });
 
   viewMode = input<'all' | 'instructor' | 'member'>('all');

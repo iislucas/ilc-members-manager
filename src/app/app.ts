@@ -148,6 +148,19 @@ export class App {
   onInstructorTitleLoaded(title: string) {
     this.loadedInstructorTitle.set(title);
   }
+  // Whether the grading currently open in GradingView belongs to the signed-in
+  // user (they are its student, on any of their member profiles). Drives the
+  // parent breadcrumb so it matches the back link in grading-view.
+  public gradingViewIsOwn = computed(() => {
+    const gradingId = this.routingService.signals[Views.GradingView].pathVars.gradingId();
+    if (!gradingId) return false;
+    const grading = this.dataService.gradings.get(gradingId)
+      ?? this.dataService.myGradings.get(gradingId)
+      ?? this.dataService.myGradingsAssessed.get(gradingId);
+    if (!grading) return false;
+    const profiles = this.firebaseService.user()?.memberProfiles ?? [];
+    return profiles.some((p) => p.docId === grading.studentMemberDocId);
+  });
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
       { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
@@ -230,7 +243,14 @@ export class App {
       } else if (view === Views.MySchoolEdit) {
         baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
       } else if (view === Views.GradingView) {
-        baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
+        // When viewing your own grading, the parent is "My Gradings"; otherwise
+        // (an admin viewing someone else's) it's "Manage Gradings". Mirrors the
+        // back link in grading-view.
+        if (this.gradingViewIsOwn()) {
+          baseBreadcrumbs.push({ label: 'My Gradings', url: '#/my-gradings' });
+        } else {
+          baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
+        }
       }
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
       const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;

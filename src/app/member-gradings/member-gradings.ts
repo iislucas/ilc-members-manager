@@ -4,9 +4,11 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { GradingListComponent } from '../grading-list/grading-list';
 import { IconComponent } from '../icons/icon.component';
-import { nextGradingLevel, GradingStatus } from '../../../functions/src/data-model';
+import { nextGradingLevel, GradingStatus, ExpiryStatus, isGradingPaid } from '../../../functions/src/data-model';
+import { getMemberExpiryStatus } from '../member-tags';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { environment } from '../../environments/environment';
 
 type GradingTab = 'examined' | 'students' | 'mine';
 const VALID_TABS: GradingTab[] = ['examined', 'students', 'mine'];
@@ -26,10 +28,69 @@ export class MemberGradingsComponent {
 
   user = this.firebaseStateService.user;
 
+  // Link to the membership product page, shown to non-active members.
+  membershipLink = environment.links.membership;
+
+  private today = computed(() => new Date().toISOString().split('T')[0]);
+
   isInstructor = computed(() => {
     const u = this.user();
     return !!(u && u.member.instructorId);
   });
+
+  // Whether the member's membership is currently active (required to grade).
+  isActiveMember = computed(() => {
+    const u = this.user();
+    if (!u) return false;
+    return getMemberExpiryStatus(u.member, this.today()) === ExpiryStatus.Valid;
+  });
+
+  // The docId of an existing open (unpaid, not-failed) grading the member can
+  // continue editing, or '' if none. A member may only have one at a time.
+  openUnpaidGradingId = computed(() => {
+    const grading = this.dataService.myGradings
+      .entries()
+      .find((g) => !isGradingPaid(g) && g.status !== GradingStatus.NotPassed);
+    return grading ? grading.docId : '';
+  });
+
+  // Link to continue an existing open grading request.
+  openUnpaidGradingLink = computed(() => {
+    const id = this.openUnpaidGradingId();
+    if (!id) return '';
+    return this.routingService.hrefForView(Views.GradingView, { gradingId: id });
+  });
+
+  // Whether the member can request a brand-new grading: active member, has a
+  // next level to grade, and doesn't already have an open request or a purchased
+  // grading for that level.
+  canRequestGrading = computed(
+    () =>
+      this.isActiveMember() &&
+      !!this.nextGrading() &&
+      !this.openUnpaidGradingId() &&
+      !this.nextGradingPurchased(),
+  );
+
+  isRequesting = signal(false);
+  requestError = signal<string>('');
+
+  async requestGrading() {
+    const u = this.user();
+    if (!u || this.isRequesting()) return;
+    this.isRequesting.set(true);
+    this.requestError.set('');
+    try {
+      const gradingId = await this.dataService.requestGrading(u.member.docId);
+      this.routingService.navigateTo(`gradings/${gradingId}`);
+    } catch (e: unknown) {
+      this.requestError.set(
+        e instanceof Error ? e.message : 'Could not request a grading. Please try again.',
+      );
+    } finally {
+      this.isRequesting.set(false);
+    }
+  }
 
   // Derive the active tab from the URL `tab` parameter.
   // Selects the correct view signals based on which grading route matched.

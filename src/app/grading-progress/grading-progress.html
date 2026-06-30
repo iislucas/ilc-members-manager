@@ -182,6 +182,20 @@
         }
       }
 
+      <!-- Payment prompt: an unpaid grading the student still needs to pay for. -->
+      @if (userIsStudent() && isUnpaid()) {
+        <div class="warning-box payment-prompt">
+          <app-icon name="error" width="18" height="18" fill="#b06000"></app-icon>
+          <span>
+            <strong>Not paid yet.</strong> You can request and plan this grading
+            now, but it must be paid before your result counts.
+            <button type="button" class="purchase-grading-btn" (click)="purchaseGrading()">
+              <app-icon name="arrow_forward" width="16" height="16"></app-icon> Purchase grading
+            </button>
+          </span>
+        </div>
+      }
+
       <!-- Context message -->
       @if (userIsStudent()) {
         @if (
@@ -1191,6 +1205,11 @@
             </span>
             @if (grading().paymentNote) {
               <span class="detail-sub">— {{ grading().paymentNote }}</span>
+            }
+            @if (isUnpaid() && userIsStudent()) {
+              <button type="button" class="payment-purchase-btn" (click)="purchaseGrading()">
+                <app-icon name="arrow_forward" width="14" height="14"></app-icon> Purchase
+              </button>
             }
             @if (canEditGradingDetails()) {
               <button class="icon-only-button detail-edit-btn" (click)="isEditingPayment.set(true)" title="Edit payment status"><app-icon name="edit"></app-icon></button>

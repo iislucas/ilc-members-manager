@@ -12,8 +12,8 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventSourceKind, MembershipType, Member, EventDocument, initEvent } from './data-model';
-import { getMemberByEmail, allowedOrigins } from './common';
+import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, initEvent } from './data-model';
+import { getMemberByEmail, allowedOrigins, hasActiveMembership } from './common';
 import axios from 'axios';
 import { environment } from './environment/environment';
 import { contentChanged } from './content-cache';
@@ -57,11 +57,7 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
     return 'Must have a valid Member ID to propose events.';
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const isLife = member.membershipType === MembershipType.Life;
-  const isExpired = !isLife && (!member.currentMembershipExpires || member.currentMembershipExpires < today);
-
-  if (isExpired) {
+  if (!hasActiveMembership(member)) {
     return 'Must have an active membership to propose events.';
   }
 

@@ -42,6 +42,26 @@
   padding: 0.2em 0.6em;
 }
 
+// Inline "you must be an active member" prompt next to the next-grading level.
+.needs-membership {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.7em;
+  font-weight: 500;
+  color: v.$text-secondary;
+}
+
+.request-error {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--error-color, #b3261e);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
 .purchased-badge {
   display: inline-flex;
   align-items: center;

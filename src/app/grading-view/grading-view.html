@@ -1,6 +1,6 @@
 <!-- Back navigation -->
 <a class="subtle-button" [href]="backHref()">
-  <app-icon name="arrow_back"></app-icon> Back to Gradings
+  <app-icon name="arrow_back"></app-icon> {{ backLabel() }}
 </a>
 
 @if (asyncError(); as errMsg) {

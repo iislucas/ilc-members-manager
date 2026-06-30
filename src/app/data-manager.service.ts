@@ -1298,6 +1298,17 @@ export class DataManagerService {
     await fn();
   }
 
+  // Request a new (unpaid) grading for the member's next level via the guarded
+  // Cloud Function. Returns the new grading's doc ID.
+  async requestGrading(memberDocId: string): Promise<string> {
+    const fn = httpsCallable<{ memberDocId: string }, { gradingDocId: string }>(
+      this.functions,
+      'requestGrading',
+    );
+    const result = await fn({ memberDocId });
+    return result.data.gradingDocId;
+  }
+
   async reprocessOrder(docId: string): Promise<void> {
     const fn = httpsCallable<{ docId: string }, { success: boolean }>(
       this.functions,
