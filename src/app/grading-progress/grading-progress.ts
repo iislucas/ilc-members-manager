@@ -313,15 +313,9 @@ export class GradingProgressComponent {
     return this.routingService.hrefForView(Views.EventView, { eventId: docId });
   });
 
-  // Label for the connected-event link. When a date is known we show
-  // "YYYY-MM-DD — Event" so the grading date travels with the event, matching
-  // how linked events are displayed in the grading event input.
-  eventLinkLabel = computed(() => {
-    const g = this.grading();
-    return g.gradingEventDate
-      ? `${g.gradingEventDate} — ${g.gradingEvent}`
-      : g.gradingEvent;
-  });
+  // Label for the connected-event link — just the event name. The grading date
+  // is shown on its own row above the event, so it isn't repeated here.
+  eventLinkLabel = computed(() => this.grading().gradingEvent);
 
   // --- Editable fields (local signals synced from grading input) ---
   protected editInstructorId = signal('');
