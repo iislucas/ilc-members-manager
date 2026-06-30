@@ -199,6 +199,26 @@
   font-weight: 600;
 }
 
+// "Purchase grading" prompt shown to a student with an unpaid grading, rendered
+// as a warning box with the app's normal (raised) button to make paying an
+// obvious next step.
+.payment-prompt {
+  .purchase-grading-btn {
+    display: flex;
+    width: fit-content;
+    margin-top: 0.6em;
+    white-space: nowrap;
+  }
+}
+
+.payment-purchase-btn {
+  display: inline-flex;
+  margin-left: 0.5em;
+  font-size: 0.85em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .detail-sub {
   color: v.$text-secondary;
   font-size: 0.9em;

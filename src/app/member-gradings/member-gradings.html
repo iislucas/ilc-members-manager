@@ -10,23 +10,43 @@
         <span class="label">Next Grading:</span>
         <span class="value">
           {{ nextGrading() }}
-          @if (nextGradingPurchased()) {
+          @if (openUnpaidGradingId()) {
+            <a [href]="openUnpaidGradingLink()" class="purchased-badge clickable-badge">
+              <app-icon name="arrow_forward" class="link-icon" /> Continue your request
+            </a>
+          } @else if (nextGradingPurchased()) {
             <a [href]="nextGradingLink()" class="purchased-badge clickable-badge">
               <app-icon name="check" /> Purchased
               <app-icon name="arrow_forward" class="link-icon" />
             </a>
-          } @else {
-            <a
-              href="https://www.iliqchuan.com/products/gradings"
-              target="_blank"
-              rel="noopener noreferrer"
+          } @else if (canRequestGrading()) {
+            <button
               class="subtle-button purchase-btn"
+              (click)="requestGrading()"
+              [disabled]="isRequesting()"
             >
-              <app-icon name="arrow_forward" /> Purchase
-            </a>
+              <app-icon name="arrow_forward" /> Request grading
+            </button>
+          } @else if (!isActiveMember()) {
+            <span class="needs-membership">
+              You must be an active member to grade.
+              <a
+                [href]="membershipLink"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="subtle-button purchase-btn"
+              >
+                <app-icon name="arrow_forward" /> Membership
+              </a>
+            </span>
           }
         </span>
       </div>
+      @if (requestError()) {
+        <div class="summary-item request-error">
+          <app-icon name="error" /> {{ requestError() }}
+        </div>
+      }
     }
   </div>
 

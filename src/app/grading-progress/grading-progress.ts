@@ -48,6 +48,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { GradingEventInputComponent, GradingEventDetails } from '../grading-event-input/grading-event-input';
 import { MemberProfileLinkService } from '../member-profile-link.service';
+import { environment } from '../../environments/environment';
 
 
 
@@ -358,6 +359,15 @@ export class GradingProgressComponent {
   // The grading's current payment status label + whether it counts as unpaid.
   currentPaymentLabel = computed(() => this.paymentStatusLabel(this.grading().paymentStatus));
   isUnpaid = computed(() => !isGradingPaid(this.grading()));
+
+  // Link to the grading product page, shown to a student with an unpaid grading
+  // so they can pay for it (after which the order flips it to "Paid online").
+  gradingProductLink = environment.links.grading;
+
+  // Open the grading product page in a new tab to purchase the grading.
+  purchaseGrading() {
+    window.open(this.gradingProductLink, '_blank', 'noopener');
+  }
 
   // Sync local editing signals from grading input whenever it changes.
   private syncEffect = effect(() => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseGradingOrderInfo, processGradingOrder } from './grading';
-import { SquareSpaceOrder, SquareSpaceLineItem, GradingStatus } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, GradingStatus, PaymentStatus } from '../data-model';
 import * as admin from 'firebase-admin';
 
 describe('parseGradingOrderInfo', () => {
@@ -10,7 +10,7 @@ describe('parseGradingOrderInfo', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -35,7 +35,7 @@ describe('parseGradingOrderInfo', () => {
         },
         {
           label: 'Email',
-          value: 'lucas.dixon@gmail.com'
+          value: 'student@example.com'
         },
         {
           label: 'Current Student Level',
@@ -63,7 +63,7 @@ describe('parseGradingOrderInfo', () => {
     const parsed = parseGradingOrderInfo(orderData, gradingItem);
 
     expect(parsed).toEqual({
-      email: 'lucas.dixon@gmail.com',
+      email: 'student@example.com',
       currentStudentLevel: 'Student 6',
       currentApplicationLevel: 'Application 3',
       gradingInfo: expect.objectContaining({
@@ -156,7 +156,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -168,7 +168,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
       ],
@@ -183,7 +183,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -254,7 +254,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -266,7 +266,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
         { label: 'Evaluating Instructor Instructor ID', value: 'Sam Chin [1]' },
@@ -282,7 +282,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -367,7 +367,7 @@ describe('processGradingOrder', () => {
       orderNumber: '14',
       createdOn: '2026-02-22T23:54:59.673Z',
       modifiedOn: '2026-02-22T23:54:59.953Z',
-      customerEmail: 'lucas.dixon@iliqchuan.com',
+      customerEmail: 'orders@example.com',
       lastUpdated: '2026-02-22T23:54:59.953Z',
     } as SquareSpaceOrder;
 
@@ -379,7 +379,7 @@ describe('processGradingOrder', () => {
       customizations: [
         { label: 'Name', value: 'Lucas Dixon' },
         { label: 'Member ID', value: 'US402' },
-        { label: 'Email', value: 'lucas.dixon@gmail.com' },
+        { label: 'Email', value: 'student@example.com' },
         { label: 'Current Student Level', value: 'Student Level 6' },
         { label: 'Current Application Level', value: 'Application Level 3' },
         { label: 'Evaluating Instructor Instructor ID', value: '999' },
@@ -395,7 +395,7 @@ describe('processGradingOrder', () => {
       },
       data: () => ({
         memberId: 'US402',
-        emails: ['lucas.dixon@gmail.com'],
+        emails: ['student@example.com'],
         studentLevel: 'Student Level 6',
         applicationLevel: 'Application Level 3',
         name: 'Lucas Dixon',
@@ -526,6 +526,154 @@ describe('processGradingOrder', () => {
     expect(savedGrading.status).toBe(GradingStatus.RequiresReview);
     expect(savedGrading.studentMemberDocId).toBe('');
     expect(savedGrading.reviewIssue).toContain('Member ID US999 not found in database');
+  });
+
+  // Helper building a mock DB where the gradings collection returns
+  // `existingGradingDocs` when filtered by studentMemberDocId (the reuse query)
+  // and empty for the orderId idempotency query. The member lookup returns a
+  // single student doc.
+  function buildReuseMockDb(existingGradingDocs: any[]) {
+    const mockStudentDoc = {
+      id: 'student-doc-id',
+      ref: { id: 'student-doc-id', update: vi.fn().mockResolvedValue({}) },
+      data: () => ({
+        memberId: 'US402',
+        emails: ['student@example.com'],
+        studentLevel: 'Student Level 6',
+        applicationLevel: 'Application Level 3',
+        name: 'Lucas Dixon',
+      }),
+    };
+
+    const mockGet = vi.fn().mockImplementation(async function (this: any) {
+      const filters = this._filters || [];
+      const has = (field: string) => filters.find((f: any) => f.field === field);
+      if (has('orderId')) return { empty: true, docs: [] };
+      if (has('studentMemberDocId')) {
+        return { empty: existingGradingDocs.length === 0, docs: existingGradingDocs };
+      }
+      if (has('memberId') && has('memberId').value === 'US402') {
+        return { empty: false, docs: [mockStudentDoc] };
+      }
+      return { empty: true, docs: [] };
+    });
+
+    const mockSet = vi.fn().mockResolvedValue({});
+    const mockDoc = vi.fn().mockReturnValue({ id: 'new-grading-doc-id', set: mockSet });
+
+    function createQueryMock(filters: any[] = []): any {
+      return {
+        _filters: filters,
+        where(field: string, op: string, value: any) {
+          return createQueryMock([...filters, { field, op, value }]);
+        },
+        limit() { return this; },
+        get: mockGet,
+        doc: mockDoc,
+      };
+    }
+
+    const mockDb = {
+      collection: vi.fn().mockImplementation((name) => {
+        if (name === 'members' || name === 'gradings') return createQueryMock();
+        return { doc: mockDoc };
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    return { mockDb, mockSet, mockDoc };
+  }
+
+  const reuseOrder = {
+    docId: 'order-reuse-1',
+    orderNumber: '42',
+    createdOn: '2026-03-01T10:00:00.000Z',
+    modifiedOn: '2026-03-01T10:00:00.000Z',
+    customerEmail: 'orders@example.com',
+    lastUpdated: '2026-03-01T10:00:00.000Z',
+  } as SquareSpaceOrder;
+
+  const reuseGradingItem = {
+    id: 'line-item-reuse',
+    productId: 'prod-1',
+    productName: 'GRADING : Student Levels',
+    variantOptions: [{ optionName: 'Level', value: 'Student Level 7' }],
+    customizations: [
+      { label: 'Member ID', value: 'US402' },
+      { label: 'Email', value: 'student@example.com' },
+    ],
+  } as SquareSpaceLineItem;
+
+  it('reuses an existing unpaid request for the same level, marking it paid online and recording the order, with no duplicate', async () => {
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const existing = {
+      id: 'existing-grading-id',
+      ref: { update: mockUpdate },
+      data: () => ({
+        level: 'Student 7',
+        status: GradingStatus.AwaitingAcceptance,
+        paymentStatus: PaymentStatus.NotYetPaid,
+        studentMemberDocId: 'student-doc-id',
+        studentMemberId: 'US402',
+        gradingPurchaseDate: '',
+        orderId: '',
+      }),
+    };
+
+    const { mockDb, mockSet } = buildReuseMockDb([existing]);
+    const result = await processGradingOrder(reuseOrder, 'order-reuse-1', reuseGradingItem, mockDb);
+
+    expect(result).toEqual({ kind: 'success', gradingDocId: 'existing-grading-id' });
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    const update = mockUpdate.mock.calls[0][0];
+    expect(update.paymentStatus).toBe(PaymentStatus.PaidBySquarespace);
+    expect(update.orderId).toBe('order-reuse-1');
+    expect(update.gradingPurchaseDate).toBe('2026-03-01');
+    // No new grading document is created.
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a completed (not-passed) unpaid grading, creating a new grading instead', async () => {
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const existing = {
+      id: 'failed-grading-id',
+      ref: { update: mockUpdate },
+      data: () => ({
+        level: 'Student 7',
+        status: GradingStatus.NotPassed,
+        paymentStatus: PaymentStatus.NotYetPaid,
+        studentMemberDocId: 'student-doc-id',
+        studentMemberId: 'US402',
+      }),
+    };
+
+    const { mockDb, mockSet } = buildReuseMockDb([existing]);
+    const result = await processGradingOrder(reuseOrder, 'order-reuse-1', reuseGradingItem, mockDb);
+
+    expect(result).toEqual({ kind: 'success', gradingDocId: 'new-grading-doc-id' });
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockSet).toHaveBeenCalled();
+  });
+
+  it('does not reuse a grading for a different level, creating a new grading instead', async () => {
+    const mockUpdate = vi.fn().mockResolvedValue({});
+    const existing = {
+      id: 'other-level-grading-id',
+      ref: { update: mockUpdate },
+      data: () => ({
+        level: 'Student 5',
+        status: GradingStatus.AwaitingRequest,
+        paymentStatus: PaymentStatus.NotYetPaid,
+        studentMemberDocId: 'student-doc-id',
+        studentMemberId: 'US402',
+      }),
+    };
+
+    const { mockDb, mockSet } = buildReuseMockDb([existing]);
+    const result = await processGradingOrder(reuseOrder, 'order-reuse-1', reuseGradingItem, mockDb);
+
+    expect(result).toEqual({ kind: 'success', gradingDocId: 'new-grading-doc-id' });
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockSet).toHaveBeenCalled();
   });
 });
 

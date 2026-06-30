@@ -1,6 +1,6 @@
 import { environment } from './environment/environment';
 import * as admin from 'firebase-admin';
-import { Member, School } from './data-model';
+import { Member, MembershipType, School } from './data-model';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -52,6 +52,30 @@ export async function getMemberByEmail(
   }
 
   throw new HttpsError('not-found', 'Member not found');
+}
+
+// Whether a member has an active (non-expired) membership today. Life
+// memberships are always active; Annual memberships are active while
+// currentMembershipExpires is today or later. Mirrors the expiry check used
+// for event proposals and the client-side member-tags logic.
+export function hasActiveMembership(member: Member): boolean {
+  if (member.membershipType === MembershipType.Life) return true;
+  if (member.membershipType !== MembershipType.Annual) return false;
+  const today = new Date().toISOString().split('T')[0];
+  return !!member.currentMembershipExpires && member.currentMembershipExpires >= today;
+}
+
+// The Firestore member doc IDs a login email is allowed to manage, read from
+// the ACL document. Mirrors the `getUserMemberDocIds()` notion used by the
+// Firestore security rules. Returns [] when the email has no ACL entry.
+export async function getUserMemberDocIds(
+  email: string,
+  db: admin.firestore.Firestore,
+): Promise<string[]> {
+  const aclDoc = await db.collection('acl').doc(email).get();
+  if (!aclDoc.exists) return [];
+  const acl = aclDoc.data() as { memberDocIds?: string[] };
+  return acl.memberDocIds ?? [];
 }
 
 export async function getSchool(

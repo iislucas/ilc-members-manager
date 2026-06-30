@@ -7,7 +7,7 @@ through Squarespace.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, Grading, GradingStatus, PaymentStatus, initGrading, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Member, Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
 import { GradingResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -183,6 +183,37 @@ export async function processGradingOrder(
     });
 
     return { kind: 'success', gradingDocId: gradingRef.id };
+  }
+
+  // Reuse an existing unpaid request for the same level instead of creating a
+  // duplicate. If the student already requested this grading (e.g. via the
+  // requestGrading callable) and now paid for it, mark that record paid online
+  // and record the order number, preserving its current status/instructor. A
+  // failed (NotPassed) grading does not absorb a new payment.
+  const existingGradings = await db.collection('gradings')
+    .where('studentMemberDocId', '==', memberDocRef.id)
+    .get();
+  const reusable = existingGradings.docs
+    .map((d) => ({ ref: d.ref, g: { ...(d.data() as Grading), docId: d.id } }))
+    .filter(({ g }) =>
+      g.level === level &&
+      !isGradingPaid(g) &&
+      g.status !== GradingStatus.NotPassed)
+    .sort((a, b) => (b.g.gradingPurchaseDate || '').localeCompare(a.g.gradingPurchaseDate || ''))[0];
+
+  if (reusable) {
+    const update: Record<string, unknown> = {
+      paymentStatus: PaymentStatus.PaidBySquarespace,
+      orderId,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (!reusable.g.gradingPurchaseDate) {
+      update.gradingPurchaseDate = gradingInfo.gradingPurchaseDate;
+    }
+    logger.info(`[Grading] Order ${orderId}: matched existing unpaid grading ${reusable.g.docId} ` +
+      `for ${level}; marking paid online instead of creating a duplicate.`);
+    await reusable.ref.update(update);
+    return { kind: 'success', gradingDocId: reusable.g.docId };
   }
 
   let hasValidInstructor = false;

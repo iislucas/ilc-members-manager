@@ -16,7 +16,7 @@ const realLineItem: SquareSpaceLineItem = {
   ],
   customizations: [
     { label: 'Name', value: 'Lucas Dixon' },
-    { value: 'lucas.dixon@gmail.com', label: 'Email ' },
+    { value: 'student@example.com', label: 'Email ' },
     { label: 'Member ID', value: 'US402' },
   ],
 };
@@ -32,7 +32,7 @@ const realOrder: SquareSpaceOrder = {
   orderNumber: '61815',
   createdOn: '2026-03-02T10:44:26.747Z',
   modifiedOn: '2026-03-02T10:44:27.148Z',
-  customerEmail: 'lucas.dixon@gmail.com',
+  customerEmail: 'student@example.com',
   fulfillmentStatus: 'PENDING',
   billingAddress: {
     address2: 'Apt 4',
@@ -53,7 +53,7 @@ describe('parseInstructorLicenseInfo', () => {
     const parsed = parseInstructorLicenseInfo(realOrder, realLineItem);
     expect(parsed).toEqual({
       memberId: 'US402',
-      email: 'lucas.dixon@gmail.com',
+      email: 'student@example.com',
       orderDate: '2026-03-02',
     });
   });
@@ -67,7 +67,7 @@ describe('parseInstructorLicenseInfo', () => {
     };
 
     const parsed = parseInstructorLicenseInfo(realOrder, lineItem);
-    expect(parsed.email).toBe('lucas.dixon@gmail.com');
+    expect(parsed.email).toBe('student@example.com');
   });
 
   it('should handle empty customizations', () => {
@@ -78,7 +78,7 @@ describe('parseInstructorLicenseInfo', () => {
 
     const parsed = parseInstructorLicenseInfo(realOrder, lineItem);
     expect(parsed.memberId).toBe('');
-    expect(parsed.email).toBe('lucas.dixon@gmail.com');
+    expect(parsed.email).toBe('student@example.com');
     expect(parsed.orderDate).toBe('2026-03-02');
   });
 });

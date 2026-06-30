@@ -382,7 +382,7 @@ export const PAYMENT_STATUSES = Object.values(PaymentStatus);
 /** Human-readable labels for each payment status. */
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   [PaymentStatus.NotYetPaid]: 'Not yet paid',
-  [PaymentStatus.PaidBySquarespace]: 'Paid (Squarespace)',
+  [PaymentStatus.PaidBySquarespace]: 'Paid online',
   [PaymentStatus.PaidByCash]: 'Paid (cash)',
   [PaymentStatus.PaidOther]: 'Paid (other)',
 };

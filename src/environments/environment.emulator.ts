@@ -39,5 +39,6 @@ export const environment = {
     membership: 'http://localhost:5000/membership',
     license: 'http://localhost:5000/license',
     videos: 'http://localhost:5000/videos',
+    grading: 'http://localhost:5000/grading',
   },
 };

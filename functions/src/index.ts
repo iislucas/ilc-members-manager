@@ -30,6 +30,8 @@ export {
   onGradingDeleted,
 } from './on-grading-update';
 
+export { requestGrading } from './grading-request';
+
 export { sendPushOnNotification } from './send-push';
 
 export { scheduledBackup, manualBackup, listBackups } from './backup';

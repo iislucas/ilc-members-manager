@@ -40,6 +40,7 @@ export const environment = {
   links: {
     membership: 'YOUR_MEMBERSHIP_PRODUCT_URL',
     license: 'YOUR_LICENSE_PRODUCT_URL',
-    videos: 'YOUR_VIDEOS_PRODUCT_URL'
+    videos: 'YOUR_VIDEOS_PRODUCT_URL',
+    grading: 'YOUR_GRADING_PRODUCT_URL'
   }
 };
