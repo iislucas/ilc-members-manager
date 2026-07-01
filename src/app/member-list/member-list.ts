@@ -379,7 +379,7 @@ export class MemberListComponent {
       const hasDups = this.duplicateMemberIdEntries().some(m => m.memberId === member.memberId);
       const isMissing = !member.memberId;
       const idToRoute = (hasDups || isMissing) ? member.docId : member.memberId;
-      return `#/${base}/${idToRoute}`;
+      return `/${base}/${idToRoute}`;
     } else {
       console.warn('memberLink called but no basePath was provided to member-list component.');
       return null;

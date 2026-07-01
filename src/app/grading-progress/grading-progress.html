@@ -151,7 +151,7 @@
               <a
                 class="subtle-button"
                 [href]="
-                  '#/instructors/' + inst.instructorId
+                  '/instructors/' + inst.instructorId
                 "
                 style="
                   display: inline-flex;
@@ -210,7 +210,7 @@
                 <a
                   class="subtle-button"
                   [href]="
-                    '#/instructors/' + inst.instructorId
+                    '/instructors/' + inst.instructorId
                   "
                   style="
                     display: inline-flex;
@@ -487,7 +487,7 @@
                 <a
                   class="subtle-button"
                   [href]="
-                    '#/instructors/' + inst.instructorId
+                    '/instructors/' + inst.instructorId
                   "
                   style="
                     display: inline-flex;
@@ -575,7 +575,7 @@
               @if (gradingInstructor(); as inst) {
                 <a
                   class="instructor-link"
-                  [href]="'#/instructors/' + inst.instructorId"
+                  [href]="'/instructors/' + inst.instructorId"
                   ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
                 >
               } @else {
@@ -594,7 +594,7 @@
                   @if (manager.data) {
                     <a
                       class="instructor-link"
-                      [href]="'#/instructors/' + manager.data.instructorId"
+                      [href]="'/instructors/' + manager.data.instructorId"
                       ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a
                     >
                   } @else {
@@ -880,7 +880,7 @@
               @if (gradingInstructor(); as inst) {
                 <a
                   class="instructor-link"
-                  [href]="'#/instructors/' + inst.instructorId"
+                  [href]="'/instructors/' + inst.instructorId"
                   ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a
                 >
               } @else {
@@ -899,7 +899,7 @@
                   @if (manager.data) {
                     <a
                       class="instructor-link"
-                      [href]="'#/instructors/' + manager.data.instructorId"
+                      [href]="'/instructors/' + manager.data.instructorId"
                       ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a
                     >
                   } @else {
@@ -1104,7 +1104,7 @@
           <span class="detail-label">Grading Instructor</span>
           <span class="detail-value">
             @if (gradingInstructor(); as inst) {
-              <a class="instructor-link" [href]="'#/instructors/' + inst.instructorId"
+              <a class="instructor-link" [href]="'/instructors/' + inst.instructorId"
                 ><app-icon name="person" class="person-icon"></app-icon>{{ inst.name }} [{{ inst.instructorId }}]</a>
             } @else {
               <strong>{{ gradingInstructorLabel() }}</strong>
@@ -1144,7 +1144,7 @@
             <span class="detail-value">
               @for (manager of completedManagers; track manager.id; let last = $last) {
                 @if (manager.data) {
-                  <a class="instructor-link" [href]="'#/instructors/' + manager.data.instructorId"
+                  <a class="instructor-link" [href]="'/instructors/' + manager.data.instructorId"
                     ><app-icon name="person" class="person-icon"></app-icon>{{ manager.data.name }} [{{ manager.data.instructorId }}]</a>
                 } @else {
                   <strong>{{ manager.id }}</strong>

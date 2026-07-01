@@ -67,7 +67,7 @@ export class SchoolViewComponent implements OnInit {
   allEventsHref = computed(() => {
     const s = this.school();
     if (!s) return '';
-    return `#/events?schoolId=${encodeURIComponent(s.schoolId)}`;
+    return `/events?schoolId=${encodeURIComponent(s.schoolId)}`;
   });
 
   eventHref(ev: IlcEvent): string {

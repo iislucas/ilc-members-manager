@@ -186,7 +186,7 @@
                     <td class="custom-value">
                       {{ custom.value }}
                       @if (custom.label?.toLowerCase()?.includes('member id') && custom.value?.trim()) {
-                        <a class="icon-only-button" [href]="'#/members/' + $any(custom.value).trim()" title="View member profile">
+                        <a class="icon-only-button" [href]="'/members/' + $any(custom.value).trim()" title="View member profile">
                           <app-icon name="visibility"></app-icon>
                         </a>
                       }
@@ -239,7 +239,7 @@
                 <div class="inferred-member-saved">
                   <app-icon name="info"></app-icon>
                   Saved: {{ item.ilcAppMemberIdInferred }}
-                  <a class="icon-only-button" [href]="'#/members/' + item.ilcAppMemberIdInferred" title="View member profile">
+                  <a class="icon-only-button" [href]="'/members/' + item.ilcAppMemberIdInferred" title="View member profile">
                     <app-icon name="visibility"></app-icon>
                   </a>
                 </div>

@@ -7,7 +7,7 @@
  *
  * Attributes:
  *   event-link-prefix – Controls where event detail links point.
- *     When set (e.g. "https://app.iliqchuan.com/#/events/"), clicks
+ *     When set (e.g. "https://app.iliqchuan.com/events/"), clicks
  *     navigate to the main app. When empty, links are relative hash routes.
  *   initial-query – Optional initial search query to pre-populate the
  *     search field (e.g. "Seminar").
@@ -32,13 +32,13 @@ import { EventListComponent } from '../events-calendar/event-list/event-list';
 })
 export class EventsViewerComponent {
   // Base URL prefix for event detail links. Passed through to EventListComponent.
-  // Example: "https://app.iliqchuan.com/#/events/"
-  eventLinkPrefix = input<string>('https://app.iliqchuan.com/#/events/');
+  // Example: "https://app.iliqchuan.com/events/"
+  eventLinkPrefix = input<string>('https://app.iliqchuan.com/events/');
 
   // Base URL prefix for instructor profile links. Defaults to the main
   // app's Find an Instructor page so clicks navigate correctly from any host.
   instructorLinkPrefix = input<string>(
-    'https://app.iliqchuan.com/#/instructors/',
+    'https://app.iliqchuan.com/instructors/',
   );
 
   // Optional initial search query to pre-populate the search field.

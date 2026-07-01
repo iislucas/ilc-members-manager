@@ -2,7 +2,7 @@
  *
  * Standalone page for downloading a resource file. This provides stable,
  * shareable URLs in the form:
- *   #/resources/{accessLevel}/{fileName}
+ *   /resources/{accessLevel}/{fileName}
  *
  * The page checks the user's authentication and access tier, then calls
  * the getResourceDownloadUrl Cloud Function to obtain a signed download

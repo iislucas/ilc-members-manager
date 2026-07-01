@@ -121,6 +121,6 @@ describe('SchoolViewComponent', () => {
     expect(component.upcomingEvents().length).toBe(1);
     expect(component.pastEvents().length).toBe(1);
     expect(component.pastEventsTotal()).toBe(7);
-    expect(component.allEventsHref()).toBe('#/events?schoolId=SCH-1');
+    expect(component.allEventsHref()).toBe('/events?schoolId=SCH-1');
   });
 });

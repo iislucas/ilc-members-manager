@@ -108,6 +108,6 @@ describe('SchoolListComponent', () => {
     school.docId = 'test-doc-id';
     school.schoolId = 'SCH-123';
     const link = component.editLink(school);
-    expect(link).toBe('#/schools/test-doc-id/edit');
+    expect(link).toBe('/schools/test-doc-id/edit');
   });
 });

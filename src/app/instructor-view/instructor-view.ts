@@ -71,7 +71,7 @@ export class InstructorViewComponent implements OnInit {
   allEventsHref = computed(() => {
     const i = this.instructor();
     if (!i) return '';
-    return `#/events?instructorId=${encodeURIComponent(i.instructorId)}`;
+    return `/events?instructorId=${encodeURIComponent(i.instructorId)}`;
   });
 
   // A short location summary line (region/city, county/state, country).

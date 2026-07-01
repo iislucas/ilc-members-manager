@@ -67,6 +67,9 @@ describe('App', () => {
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
+    // Stub navigation so the logged-out Home redirect effect is a no-op and the
+    // view stays on Home (navigateTo now applies History changes synchronously).
+    vi.spyOn(app.routingService, 'navigateToParts').mockImplementation(() => {});
     app.routingService.matchedPatternId.set(Views.Home);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
@@ -93,7 +96,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
 
-    vi.spyOn(app.routingService, 'navigateToParts');
+    vi.spyOn(app.routingService, 'navigateToParts').mockImplementation(() => {});
 
     // Simulate being on the login page while logged in (no returnUrl set)
     firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);

@@ -227,7 +227,7 @@ describe('NotificationService', () => {
       expect(where).toHaveBeenCalledWith('id', '==', 'src-123');
       expect(result.resolved).toBe(false);
       expect(result.markdown).toBe(
-        'New Members post: [New Title](#/members-area/post/new-title)',
+        'New Members post: [New Title](/members-area/post/new-title)',
       );
     });
 
@@ -318,7 +318,7 @@ describe('NotificationService', () => {
 
       expect(updates).toHaveLength(1);
       expect(updates[0].patch['markdown']).toBe(
-        'New Members post: [New Title](#/members-area/post/new-title)',
+        'New Members post: [New Title](/members-area/post/new-title)',
       );
     });
 

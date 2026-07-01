@@ -93,7 +93,7 @@
                     <a
                       class="subtle-button"
                       [href]="
-                        '#/instructors/' +
+                        '/instructors/' +
                         school.ownerInstructorId
                       "
                       (click)="$event.stopPropagation()"
@@ -127,7 +127,7 @@
                 <app-icon name="calendar_today"></app-icon>
                 <a
                   class="subtle-button"
-                  [href]="'#/calendar/school/' + school.schoolId"
+                  [href]="'/calendar/school/' + school.schoolId"
                   (click)="$event.stopPropagation()"
                   >Class Calendar</a
                 >
