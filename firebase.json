@@ -9,7 +9,19 @@
     ],
     "rewrites": [
       {
-        "source": "/",
+        "source": "/events/*",
+        "function": "socialPreview"
+      },
+      {
+        "source": "/instructors/*",
+        "function": "socialPreview"
+      },
+      {
+        "source": "/school-profile/*",
+        "function": "socialPreview"
+      },
+      {
+        "source": "**",
         "destination": "/index.html"
       }
     ]

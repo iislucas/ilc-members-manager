@@ -235,9 +235,9 @@ export class ResourcesComponent implements OnInit {
     }
   }
 
-  // Copies the stable download URL (#/resources/{level}/{name}) to the clipboard.
+  // Copies the stable download URL (/resources/{level}/{name}) to the clipboard.
   async copyDownloadLink(resource: ResourceFile) {
-    const url = `${window.location.origin}${window.location.pathname}#/resources/${resource.accessLevel}/${resource.name}`;
+    const url = `${window.location.origin}/resources/${resource.accessLevel}/${resource.name}`;
     try {
       await navigator.clipboard.writeText(url);
       this.statusMessage.set(`Copied download link for "${resource.name}" to clipboard.`);

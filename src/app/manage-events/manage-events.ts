@@ -314,12 +314,12 @@ export class ManageEventsComponent implements OnDestroy {
 
   editLink(event: IlcEvent): string {
     const id = event.docId || event.sourceId || '';
-    return `#/events/${id}/edit`;
+    return `/events/${id}/edit`;
   }
 
   viewLink(event: IlcEvent): string {
     const id = event.docId || event.sourceId || '';
-    return `#/manage-events/${id}`;
+    return `/manage-events/${id}`;
   }
 
   // Resolve the event owner to a "Name (MemberId)" chip label.

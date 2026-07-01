@@ -50,3 +50,5 @@ export { submitProposedEvent, onEventUpdated, onEventCreated, onEventDeleted } f
 
 export { listResources, deleteResource, getResourceDownloadUrl } from './resources';
 
+export { socialPreview } from './social-preview';
+

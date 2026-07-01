@@ -15,12 +15,12 @@
         @if (school.schoolId) {
           <span class="school-id-chip">{{ school.schoolId }}</span>
         }
-        <h3><a class="school-name-link" [href]="'#/school-profile/' + school.schoolId">{{ school.schoolName }}</a></h3>
+        <h3><a class="school-name-link" [href]="'/school-profile/' + school.schoolId">{{ school.schoolName }}</a></h3>
         <div class="school-header-details">
           @if (dataManager.instructors.get(school.ownerInstructorId); as owner) {
             <div class="header-detail">
               <app-icon name="person"></app-icon>
-              <a class="subtle-button" [href]="'#/instructors/' + school.ownerInstructorId">{{ owner.name }}</a>
+              <a class="subtle-button" [href]="'/instructors/' + school.ownerInstructorId">{{ owner.name }}</a>
             </div>
           }
           <div class="header-detail">
@@ -41,7 +41,7 @@
         @if (school.schoolClassGoogleCalendarId) {
         <div class="detail-row">
           <app-icon name="calendar_today"></app-icon>
-          <a class="subtle-button" [href]="'#/calendar/school/' + school.schoolId">Class Calendar</a>
+          <a class="subtle-button" [href]="'/calendar/school/' + school.schoolId">Class Calendar</a>
         </div>
         }
       </div>

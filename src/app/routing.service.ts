@@ -16,9 +16,9 @@ Key Principles:
    seamlessly with Angular's `computed` and `effect` primitives and Zoneless Change Detection.
 
 4. Two-Way Synchronization: The service guarantees a bidirectional binding between the browser's
-   URL (using the hash fragment) and the internal Signal state. Mutating a routing Signal
-   automatically updates the browser URL, and navigation events instantly reflect back into the
-   Signals.
+   URL (using the HTML5 History API — path + query string) and the internal Signal state. Mutating
+   a routing Signal automatically updates the browser URL, and navigation events instantly reflect
+   back into the Signals.
 
 CRITICAL — Explicit Type Annotation Required:
 
@@ -73,7 +73,7 @@ export class ProfileComponent {
   }
 
   navigate(id: string) {
-    this.router.navigateToParts(['user', id]); // Updates hash, reflecting back into signals
+    this.router.navigateToParts(['user', id]); // Pushes a history entry, reflecting back into signals
   }
 }
 */
@@ -111,8 +111,8 @@ export type RoutingConfig<P extends PathPatterns> = {
   providedIn: 'root',
 })
 export class RoutingService<T extends PathPatterns> {
-  private urlHashPath: WritableSignal<string>;
-  private urlHashParams: WritableSignal<string>;
+  private currentPath: WritableSignal<string>;
+  private currentQuery: WritableSignal<string>;
   public matchedPatternId: WritableSignal<keyof T | null> = signal(null);
   public signals: {
     [pathId in keyof T]: PatternSignals<
@@ -129,8 +129,8 @@ export class RoutingService<T extends PathPatterns> {
   });
 
   constructor(@Inject(ROUTING_CONFIG) private config: RoutingConfig<T>) {
-    this.urlHashPath = signal('');
-    this.urlHashParams = signal('');
+    this.currentPath = signal('');
+    this.currentQuery = signal('');
 
     this.signals = {} as {
       [pathId in keyof T]: PatternSignals<
@@ -154,24 +154,42 @@ export class RoutingService<T extends PathPatterns> {
     // validatePaths(this.paths, this.pathParamSignals);
     // }
 
-    window.addEventListener('hashchange', () => this.handleUrlChange());
+    // Respond to back/forward navigation.
+    window.addEventListener('popstate', () => this.handleUrlChange());
+
+    // Seed the signals from the initial URL.
     this.handleUrlChange();
 
+    // Sync signal state back into the URL. This fires when a component mutates a
+    // URL-param signal (e.g. a search box); we use replaceState so those in-page
+    // updates don't spam the history stack. Genuine page navigations go through
+    // navigateTo() which pushes a new history entry.
     effect(() => {
+      // Only take over the URL when the current location actually matches one of
+      // our routes. This keeps the router inert when embedded as a web component
+      // on a host page whose path we don't own (so we never rewrite it).
+      if (this.matchedPatternId() === null) {
+        return;
+      }
       const path = this.constructPath();
       const query = this.constructQuery();
       const pathWithSlash = path.startsWith('/') ? path : `/${path}`;
-      const newHash = `${pathWithSlash}${query}`;
-      if (window.location.hash.substring(1) !== newHash) {
-        window.location.hash = newHash;
+      const newUrl = `${pathWithSlash}${query}`;
+      if (this.currentUrlPart() !== newUrl) {
+        window.history.replaceState(null, '', newUrl);
       }
     });
+  }
+
+  /** The current path + query as an absolute URL string, e.g. `/members?q=x`. */
+  private currentUrlPart(): string {
+    return `${window.location.pathname}${window.location.search}`;
   }
 
   private constructPath(): string {
     const patternId = this.matchedPatternId();
     if (!patternId) {
-      return this.urlHashPath();
+      return this.currentPath();
     }
     const parts = this.config.validPathPatterns[patternId].pathParts;
     const substParts = parts.map((part) => {
@@ -191,7 +209,7 @@ export class RoutingService<T extends PathPatterns> {
   private constructQuery(): string {
     const patternId = this.matchedPatternId();
     if (!patternId) {
-      return this.urlHashParams();
+      return this.currentQuery();
     }
     const patternSignals = this.signals[patternId];
     const defaults = patternSignals.urlParamDefaults;
@@ -215,11 +233,13 @@ export class RoutingService<T extends PathPatterns> {
   private previousPatternId: keyof T | null = null;
 
   private handleUrlChange() {
-    let hashlessUrlPart = window.location.hash.substring(1);
-    if (hashlessUrlPart.startsWith('/')) {
-      hashlessUrlPart = hashlessUrlPart.substring(1);
+    let path = window.location.pathname;
+    if (path.startsWith('/')) {
+      path = path.substring(1);
     }
-    const match = matchUrl(hashlessUrlPart, this.config.validPathPatterns);
+    // matchUrl expects the query string appended to the path (it splits on '?').
+    const urlPart = `${path}${window.location.search}`;
+    const match = matchUrl(urlPart, this.config.validPathPatterns);
     if (match) {
       const patternChanged = this.previousPatternId !== match.patternId;
       this.previousPatternId = match.patternId;
@@ -245,11 +265,11 @@ export class RoutingService<T extends PathPatterns> {
   navigateTo(pathAndParams: string, options?: { clearUrlParams?: boolean }) {
     const clearUrlParams = options?.clearUrlParams ?? false;
     const resolved = clearUrlParams ? pathAndParams : this.resolveUrlWithParams(pathAndParams);
-    if (resolved.startsWith('/')) {
-      window.location.hash = `#${resolved}`;
-    } else {
-      window.location.hash = `#/${resolved}`;
-    }
+    const url = resolved.startsWith('/') ? resolved : `/${resolved}`;
+    // pushState creates a new history entry but does not emit a popstate event,
+    // so we manually re-derive the signal state from the new URL.
+    window.history.pushState(null, '', url);
+    this.handleUrlChange();
   }
 
   /**
@@ -304,14 +324,14 @@ export class RoutingService<T extends PathPatterns> {
   }
 
   /**
-   * Generate an href string (with leading #) for an <a> link, preserving the
+   * Generate an absolute-path href string for an <a> link, preserving the
    * current URL param signal values for the target route pattern.
    *
    * Usage in templates: `<a [href]="routingService.hrefWithParams('/members')">`
    */
   hrefWithParams(basePath: string): string {
     const resolved = this.resolveUrlWithParams(basePath);
-    return `#${resolved.startsWith('/') ? resolved : '/' + resolved}`;
+    return resolved.startsWith('/') ? resolved : `/${resolved}`;
   }
 
   /**

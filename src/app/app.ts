@@ -164,92 +164,92 @@ export class App {
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
       { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
-      { label: 'Members Portal App', shortLabel: 'App', url: '#/' },
+      { label: 'Members Portal App', shortLabel: 'App', url: '/' },
     ];
     const view = this.currentView();
     if (view !== Views.Home && view) {
       if (view === Views.OrderView) {
-        baseBreadcrumbs.push({ label: 'Orders', url: '#/orders' });
+        baseBreadcrumbs.push({ label: 'Orders', url: '/orders' });
       } else if (view === Views.MembersAreaPost) {
-        baseBreadcrumbs.push({ label: 'Members Area', url: '#/members-area' });
+        baseBreadcrumbs.push({ label: 'Members Area', url: '/members-area' });
       } else if (view === Views.InstructorsAreaPost) {
-        baseBreadcrumbs.push({ label: 'Instructors Area', url: '#/instructors-area' });
+        baseBreadcrumbs.push({ label: 'Instructors Area', url: '/instructors-area' });
       } else if (view === Views.ManageMemberView) {
-        baseBreadcrumbs.push({ label: 'Manage Members', url: '#/members' });
+        baseBreadcrumbs.push({ label: 'Manage Members', url: '/members' });
       } else if (view === Views.SchoolMemberView) {
         const schoolId = this.routingService.signals[Views.SchoolMemberView].pathVars.schoolId();
-        baseBreadcrumbs.push({ label: `School ${schoolId} Members`, url: `#/school/${schoolId}/members` });
+        baseBreadcrumbs.push({ label: `School ${schoolId} Members`, url: `/school/${schoolId}/members` });
       } else if (view === Views.InstructorStudents || view === Views.InstructorStudentView) {
         const instructorId = view === Views.InstructorStudents
           ? this.routingService.signals[Views.InstructorStudents].pathVars.instructorId()
           : this.routingService.signals[Views.InstructorStudentView].pathVars.instructorId();
         const instructor = this.dataService.instructors.get(instructorId);
         if (!instructor) {
-          baseBreadcrumbs.push({ label: `Instructor Not Found (${instructorId})`, url: `#/instructor/${instructorId}/students` });
+          baseBreadcrumbs.push({ label: `Instructor Not Found (${instructorId})`, url: `/instructor/${instructorId}/students` });
           return baseBreadcrumbs;
         }
-        baseBreadcrumbs.push({ label: `Manage Members`, url: `#/members` });
-        baseBreadcrumbs.push({ label: `${instructor.name} [${instructorId}]`, url: `#/members/${instructor.memberId}` });
-        baseBreadcrumbs.push({ label: `Students of ${instructor.name} [${instructorId}]`, url: `#/instructor/${instructorId}/students` });
+        baseBreadcrumbs.push({ label: `Manage Members`, url: `/members` });
+        baseBreadcrumbs.push({ label: `${instructor.name} [${instructorId}]`, url: `/members/${instructor.memberId}` });
+        baseBreadcrumbs.push({ label: `Students of ${instructor.name} [${instructorId}]`, url: `/instructor/${instructorId}/students` });
         if (view === Views.InstructorStudentView) {
           const studentId = this.routingService.signals[Views.InstructorStudentView].pathVars.memberId();
           const student = this.dataService.getMember(studentId);
           if (!student) {
-            baseBreadcrumbs.push({ label: `Student Not Found (${studentId})`, url: `#/instructor/${instructorId}/students` });
+            baseBreadcrumbs.push({ label: `Student Not Found (${studentId})`, url: `/instructor/${instructorId}/students` });
             return baseBreadcrumbs;
           }
-          baseBreadcrumbs.push({ label: `${student.name} (${studentId})`, url: `#/instructor/${instructorId}/students` });
+          baseBreadcrumbs.push({ label: `${student.name} (${studentId})`, url: `/instructor/${instructorId}/students` });
         }
         return baseBreadcrumbs;
       } else if (view === Views.MyStudentView) {
-        baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
+        baseBreadcrumbs.push({ label: 'My Students', url: '/my-students' });
       } else if (view === Views.NewMember) {
         const basePath = this.routingService.signals[Views.NewMember].urlParams.basePath();
         if (basePath === 'members') {
-          baseBreadcrumbs.push({ label: 'Manage Members', url: '#/members' });
+          baseBreadcrumbs.push({ label: 'Manage Members', url: '/members' });
         } else if (basePath?.startsWith('school/')) {
-          baseBreadcrumbs.push({ label: 'School Members', url: `#/${basePath}` });
+          baseBreadcrumbs.push({ label: 'School Members', url: `/${basePath}` });
         } else if (basePath?.startsWith('instructor/')) {
-          baseBreadcrumbs.push({ label: 'Students', url: `#/${basePath}` });
+          baseBreadcrumbs.push({ label: 'Students', url: `/${basePath}` });
         } else if (basePath === 'my-students') {
-          baseBreadcrumbs.push({ label: 'My Students', url: '#/my-students' });
+          baseBreadcrumbs.push({ label: 'My Students', url: '/my-students' });
         }
       } else if (view === Views.ClassCalendarView) {
-        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
+        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '/find-an-instructor' });
       } else if (view === Views.SchoolCalendarView) {
-        baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
+        baseBreadcrumbs.push({ label: 'Find a School', url: '/find-school' });
       } else if (view === Views.InstructorView) {
-        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '#/find-an-instructor' });
+        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '/find-an-instructor' });
       } else if (view === Views.SchoolView) {
-        baseBreadcrumbs.push({ label: 'Find a School', url: '#/find-school' });
+        baseBreadcrumbs.push({ label: 'Find a School', url: '/find-school' });
       } else if (view === Views.EventsCalendar) {
         // No parent breadcrumb needed for events
       } else if (view === Views.EventView) {
-        baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
+        baseBreadcrumbs.push({ label: 'Events', url: '/events' });
       } else if (view === Views.MyEventView) {
-        baseBreadcrumbs.push({ label: 'My Events', url: '#/my-events' });
+        baseBreadcrumbs.push({ label: 'My Events', url: '/my-events' });
       } else if (view === Views.ManageEventView) {
-        baseBreadcrumbs.push({ label: 'Manage Events', url: '#/manage-events' });
+        baseBreadcrumbs.push({ label: 'Manage Events', url: '/manage-events' });
       } else if (view === Views.EventEdit || view === Views.ManageEventEdit) {
-        baseBreadcrumbs.push({ label: 'Manage Events', url: '#/manage-events' });
+        baseBreadcrumbs.push({ label: 'Manage Events', url: '/manage-events' });
       } else if (view === Views.MyEventEdit) {
-        baseBreadcrumbs.push({ label: 'My Events', url: '#/my-events' });
+        baseBreadcrumbs.push({ label: 'My Events', url: '/my-events' });
       } else if (view === Views.ProposeEvent) {
-        baseBreadcrumbs.push({ label: 'Events', url: '#/events' });
+        baseBreadcrumbs.push({ label: 'Events', url: '/events' });
       } else if (view === Views.ManageEvents) {
         // No parent breadcrumb needed for manage events
       } else if (view === Views.ManageSchoolEdit) {
-        baseBreadcrumbs.push({ label: 'Manage Schools', url: '#/schools' });
+        baseBreadcrumbs.push({ label: 'Manage Schools', url: '/schools' });
       } else if (view === Views.MySchoolEdit) {
-        baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
+        baseBreadcrumbs.push({ label: 'My Schools', url: '/my-schools' });
       } else if (view === Views.GradingView) {
         // When viewing your own grading, the parent is "My Gradings"; otherwise
         // (an admin viewing someone else's) it's "Manage Gradings". Mirrors the
         // back link in grading-view.
         if (this.gradingViewIsOwn()) {
-          baseBreadcrumbs.push({ label: 'My Gradings', url: '#/my-gradings' });
+          baseBreadcrumbs.push({ label: 'My Gradings', url: '/my-gradings' });
         } else {
-          baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
+          baseBreadcrumbs.push({ label: 'Manage Gradings', url: '/gradings' });
         }
       }
       const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;

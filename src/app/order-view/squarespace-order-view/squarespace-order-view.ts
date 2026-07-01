@@ -18,7 +18,7 @@ export interface ExpiryPreview {
   entityName: string; // The member name or school name, empty if not found.
   entityFound: boolean; // True if the entity was found in the database.
   entityKind: 'member' | 'school'; // What kind of entity this targets.
-  entityProfileLink: string; // Link to profile e.g. '#/members/US123', empty if N/A.
+  entityProfileLink: string; // Link to profile e.g. '/members/US123', empty if N/A.
   originalEntityId?: string;
   isOverridden?: boolean;
 }
@@ -177,7 +177,7 @@ export class SquarespaceOrderView {
           if (member) {
             entityName = member.name;
             entityFound = true;
-            entityProfileLink = '#/members/' + entityId;
+            entityProfileLink = '/members/' + entityId;
             // Read the current expiry for the relevant subscription type.
             if (config.label === 'Membership' || config.label === 'Life Membership') {
               currentExpiry = member.currentMembershipExpires || '';

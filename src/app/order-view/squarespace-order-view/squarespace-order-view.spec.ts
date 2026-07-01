@@ -124,7 +124,7 @@ describe('SquarespaceOrderView', () => {
     expect(preview!.entityFound).toBe(true);
     expect(preview!.entityName).toBe('Jane Doe');
     expect(preview!.entityKind).toBe('member');
-    expect(preview!.entityProfileLink).toBe('#/members/US123');
+    expect(preview!.entityProfileLink).toBe('/members/US123');
     // Preview dates based on order date 2026-03-01, 12 months.
     expect(preview!.renewalDate).toBe('2026-03-01');
     expect(preview!.expiryDate).toBe('2027-03-01');

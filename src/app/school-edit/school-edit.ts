@@ -397,9 +397,9 @@ export class SchoolEditComponent {
   backUrl = computed(() => {
     const match = this.routingService.matchedPatternId();
     if (match === Views.MySchoolEdit) {
-      return '#/my-schools';
+      return '/my-schools';
     }
-    return '#/schools';
+    return '/schools';
   });
 
   backLabel = computed(() => {
