@@ -45,7 +45,7 @@
         @if (owner(); as o) {
           <div class="header-detail">
             <app-icon name="person"></app-icon>
-            <a class="subtle-button" [href]="'#/members/' + o.docId">{{ o.name }}</a>
+            <a class="subtle-button" [href]="'/members/' + o.docId">{{ o.name }}</a>
             @if (isOwnerLicenseExpired() !== ExpiryStatus.Valid) {
               <span class="identifier-chip" [class.expired-recent]="isOwnerLicenseExpired() === ExpiryStatus.Recent" [class.expired-old]="isOwnerLicenseExpired() === ExpiryStatus.Expired">
                 @if (isOwnerLicenseExpired() === ExpiryStatus.Recent) {
@@ -67,7 +67,7 @@
     <form (submit)="saveSchool($event)">
       <div class="form-section">
         @if (userIsAdmin() || userIsSchoolManager()) {
-          <a class="subtle-button" href="#/school/{{ s.schoolId }}/members" (click)="gotoMembers(); $event.preventDefault()">
+          <a class="subtle-button" href="/school/{{ s.schoolId }}/members" (click)="gotoMembers(); $event.preventDefault()">
             <app-icon name="salut" /> Students</a>
         }
         <h3>School Details</h3>

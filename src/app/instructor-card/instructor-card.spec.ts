@@ -34,6 +34,6 @@ describe('InstructorCardComponent', () => {
 
   it('builds the profile href from the instructor id', () => {
     setInstructor({});
-    expect(component.profileHref()).toBe('#/instructors/I-101');
+    expect(component.profileHref()).toBe('/instructors/I-101');
   });
 });
