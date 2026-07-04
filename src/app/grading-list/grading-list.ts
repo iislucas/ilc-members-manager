@@ -476,8 +476,17 @@ export class GradingListComponent {
   }
 
   gradingLink(grading: Grading): string {
-    return this.routingService.hrefForView(Views.GradingView, {
+    const href = this.routingService.hrefForView(Views.GradingView, {
       gradingId: grading.docId,
     });
+    // Gradings opened from the member-facing "My Gradings" page (any of its
+    // tabs — viewMode 'member' or 'instructor') should navigate back to My
+    // Gradings, so tag the link with its origin. The admin "Manage Gradings"
+    // list (viewMode 'all') is left untagged and goes back there.
+    if (this.viewMode() === 'member' || this.viewMode() === 'instructor') {
+      const sep = href.includes('?') ? '&' : '?';
+      return `${href}${sep}from=my-gradings`;
+    }
+    return href;
   }
 }

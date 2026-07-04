@@ -20,9 +20,28 @@
   flex-shrink: 0;
   white-space: nowrap;
 
+  // Declined by the instructor; student needs to re-select.
   &.pending {
     background-color: #fff3cd;
     color: #856404;
+  }
+
+  // Purchased; waiting on the student to select an instructor.
+  &.awaiting-selection {
+    background-color: #fde2c4;
+    color: #8a4b00;
+  }
+
+  // Student has requested; waiting on the instructor to accept/decline.
+  &.awaiting-acceptance {
+    background-color: #cfe2ff;
+    color: #084298;
+  }
+
+  // Instructor accepted; waiting on grading & instructor notes.
+  &.awaiting-grading {
+    background-color: #e7dbf5;
+    color: #5a2a86;
   }
 
   &.passed {

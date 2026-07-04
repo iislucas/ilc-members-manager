@@ -48,15 +48,16 @@ export class GradingEventInputComponent {
   editDate = linkedSignal(() => this.gradingEventDate());
   editDocId = linkedSignal(() => this.gradingEventDocId());
 
-  // Whether the grading was NOT at a listed workshop/event. When checked, only
-  // the date is recorded (no event name/link). Seeded from the incoming data —
-  // a linked event means it WAS at a listed event — then user-controlled via the
-  // checkbox and preserved across re-renders.
-  notListed = linkedSignal<{ docId: string }, boolean>({
+  // Whether the grading was at a listed workshop/event. When checked, the event
+  // search is shown so an event can be linked; otherwise only the date is
+  // recorded (no event name/link). Seeded from the incoming data — a linked
+  // event means it WAS at a listed event — then user-controlled via the checkbox
+  // and preserved across re-renders.
+  atListedEvent = linkedSignal<{ docId: string }, boolean>({
     source: () => ({ docId: this.gradingEventDocId() }),
     computation: (src, prev) => {
       if (prev) return prev.value;
-      return false;
+      return !!src.docId;
     },
   });
 
@@ -111,7 +112,7 @@ export class GradingEventInputComponent {
   // invalid, ambiguous state: the grading must either link a real event or be
   // marked as not-at-a-listed-event (date only). Parents disable saving while so.
   isUnlinkedText = computed(
-    () => !this.notListed() && !this.editDocId() && this.editEvent().trim() !== '',
+    () => this.atListedEvent() && !this.editDocId() && this.editEvent().trim() !== '',
   );
 
   linkedEventHref = computed(() => {
@@ -120,12 +121,12 @@ export class GradingEventInputComponent {
     return this.routingService.hrefForView(Views.EventView, { eventId: docId });
   });
 
-  // Toggle "not at a listed event". When checked, the grading is date-only:
-  // clear any event name/link and keep just the date. When unchecked, the event
-  // search reappears (the date is preserved either way).
-  setNotListed(checked: boolean) {
-    this.notListed.set(checked);
-    if (checked) {
+  // Toggle "at a listed event". When checked, the event search appears so an
+  // event can be linked. When unchecked, the grading is date-only: clear any
+  // event name/link and keep just the date (the date is preserved either way).
+  setAtListedEvent(checked: boolean) {
+    this.atListedEvent.set(checked);
+    if (!checked) {
       this.editEvent.set('');
       this.editDocId.set('');
       this.emit();

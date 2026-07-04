@@ -79,15 +79,27 @@ export class GradingViewComponent {
     return user.memberProfiles.some((p) => p.docId === g.studentMemberDocId);
   });
 
-  protected backHref = computed(() => {
-    if (this.userIsAdmin() && !this.isOwnGrading()) {
-      return this.routingService.hrefForView(Views.ManageGradings);
-    }
-    return this.routingService.hrefForView(Views.MemberGradings);
-  });
+  // True when the grading was opened from the member-facing "My Gradings" page
+  // (any of its tabs), tagged via the `from` URL param on the link.
+  protected cameFromMyGradings = computed(
+    () => this.routingService.signals[Views.GradingView].urlParams.from() === 'my-gradings',
+  );
+
+  // Return to "My Gradings" when the viewer opened this from there or it's their
+  // own grading; otherwise (an admin browsing the global list) to "Manage
+  // Gradings".
+  protected returnsToMyGradings = computed(
+    () => this.cameFromMyGradings() || this.isOwnGrading() || !this.userIsAdmin(),
+  );
+
+  protected backHref = computed(() =>
+    this.returnsToMyGradings()
+      ? this.routingService.hrefForView(Views.MemberGradings)
+      : this.routingService.hrefForView(Views.ManageGradings),
+  );
 
   protected backLabel = computed(() =>
-    this.isOwnGrading() ? 'Back to My Gradings' : 'Back to Gradings',
+    this.returnsToMyGradings() ? 'Back to My Gradings' : 'Back to Gradings',
   );
 
   // Emit the title when the grading is loaded.

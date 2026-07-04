@@ -371,7 +371,7 @@ export class GradingEditComponent {
       this.asyncError.set(
         new Error(
           'The event isn\'t linked to a listed ILC event. Search and select it, ' +
-            'or tick "Grading was not at a listed workshop/event".',
+            'or untick "This grading was at a listed workshop/event".',
         ),
       );
       return;

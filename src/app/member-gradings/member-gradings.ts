@@ -58,7 +58,7 @@ export class MemberGradingsComponent {
   openUnpaidGradingLink = computed(() => {
     const id = this.openUnpaidGradingId();
     if (!id) return '';
-    return this.routingService.hrefForView(Views.GradingView, { gradingId: id });
+    return this.gradingLinkFromMyGradings(id);
   });
 
   // Whether the member can request a brand-new grading: active member, has a
@@ -82,7 +82,7 @@ export class MemberGradingsComponent {
     this.requestError.set('');
     try {
       const gradingId = await this.dataService.requestGrading(u.member.docId);
-      this.routingService.navigateTo(`gradings/${gradingId}`);
+      this.routingService.navigateTo(`gradings/${gradingId}?from=my-gradings`);
     } catch (e: unknown) {
       this.requestError.set(
         e instanceof Error ? e.message : 'Could not request a grading. Please try again.',
@@ -150,10 +150,16 @@ export class MemberGradingsComponent {
   nextGradingLink = computed(() => {
     const gradingId = this.nextGradingPurchasedId();
     if (!gradingId) return '';
-    return this.routingService.hrefForView(Views.GradingView, {
-      gradingId,
-    });
+    return this.gradingLinkFromMyGradings(gradingId);
   });
+
+  // Build a link to a grading detail tagged with its origin so the detail page's
+  // back link / breadcrumb return here to "My Gradings".
+  private gradingLinkFromMyGradings(gradingId: string): string {
+    const href = this.routingService.hrefForView(Views.GradingView, { gradingId });
+    const sep = href.includes('?') ? '&' : '?';
+    return `${href}${sep}from=my-gradings`;
+  }
 
 
   setActiveTab(tab: GradingTab) {

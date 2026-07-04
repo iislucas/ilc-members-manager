@@ -161,6 +161,11 @@ export class App {
     const profiles = this.firebaseService.user()?.memberProfiles ?? [];
     return profiles.some((p) => p.docId === grading.studentMemberDocId);
   });
+  // True when the grading detail was opened from the member-facing "My Gradings"
+  // page (any tab), tagged via the `from` URL param on the link.
+  public gradingViewFromMyGradings = computed(
+    () => this.routingService.signals[Views.GradingView].urlParams.from() === 'my-gradings',
+  );
   public breadcrumbs = computed<Breadcrumb[]>(() => {
     const baseBreadcrumbs: Breadcrumb[] = [
       { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
@@ -243,10 +248,11 @@ export class App {
       } else if (view === Views.MySchoolEdit) {
         baseBreadcrumbs.push({ label: 'My Schools', url: '#/my-schools' });
       } else if (view === Views.GradingView) {
-        // When viewing your own grading, the parent is "My Gradings"; otherwise
-        // (an admin viewing someone else's) it's "Manage Gradings". Mirrors the
-        // back link in grading-view.
-        if (this.gradingViewIsOwn()) {
+        // The parent is "My Gradings" when this was opened from there (any tab,
+        // tagged via the `from` param) or it's the viewer's own grading;
+        // otherwise (an admin browsing the global list) it's "Manage Gradings".
+        // Mirrors the back link in grading-view.
+        if (this.gradingViewIsOwn() || this.gradingViewFromMyGradings()) {
           baseBreadcrumbs.push({ label: 'My Gradings', url: '#/my-gradings' });
         } else {
           baseBreadcrumbs.push({ label: 'Manage Gradings', url: '#/gradings' });
