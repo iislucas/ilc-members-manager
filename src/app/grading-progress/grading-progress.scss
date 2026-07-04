@@ -289,7 +289,7 @@
 .details-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.35em 1em;
+  gap: 10px 1em;
   margin-top: 0.6em;
   align-items: baseline;
   font-size: 0.9em;
@@ -300,6 +300,13 @@
   white-space: nowrap;
   font-weight: 500;
   color: v.$text-secondary;
+
+  // Greyed-out key for a row whose value is empty — only shown to
+  // managers/admins (view-only users skip the row entirely).
+  &.is-empty {
+    font-weight: 400;
+    opacity: 0.55;
+  }
 }
 
 .detail-value {
@@ -380,7 +387,7 @@
 .inline-form {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 16px;
+  gap: 10px 16px;
   align-items: center;
   margin: 0.8em 0;
 
@@ -394,6 +401,16 @@
   .align-top {
     align-self: start;
     padding-top: 8px;
+  }
+
+  // For a field whose first row is the event input's "Date of grading" line
+  // (label + date input, vertically centred). Align this label's baseline to
+  // that first line rather than the very top of the multi-row field. The offset
+  // matches the date input's top padding (0.3em) + border (1px) so the two
+  // baselines line up and it scales with the font size.
+  .align-first-row {
+    align-self: start;
+    padding-top: calc(0.3em + 1px);
   }
 
   .field {

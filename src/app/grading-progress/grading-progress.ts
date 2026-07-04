@@ -406,6 +406,31 @@ export class GradingProgressComponent {
     () => this.editGradingEvent().trim() !== '' && !this.editGradingEventDocId(),
   );
 
+  // Whether the event fields have been changed from the saved grading.
+  private eventDirty = computed(() => {
+    const g = this.grading();
+    return (
+      this.editGradingEvent() !== g.gradingEvent ||
+      this.editGradingEventDate() !== g.gradingEventDate ||
+      this.editGradingEventDocId() !== g.gradingEventDocId
+    );
+  });
+
+  // Whether an invalid event should block a save. Only blocks when the user is
+  // actually setting/changing the event into the ambiguous "free text, not
+  // linked" state. A pre-existing unlinked event (legacy data from before event
+  // linking) that the user isn't touching must NOT block saving other fields
+  // such as grading managers — otherwise those edits silently fail. To fix the
+  // event itself, edit it: link a listed event, or untick "This grading was at a
+  // listed workshop/event".
+  eventBlocksSave = computed(() => this.eventDirty() && this.eventInputInvalid());
+
+  // Every grading needs a date, whether or not it happened at a listed event. A
+  // linked event supplies its own date; otherwise a manager/instructor must set
+  // one before a result can be recorded. When missing we warn and disable the
+  // grading result buttons.
+  gradingDateMissing = computed(() => !this.editGradingEventDate().trim());
+
   // Feedback shown next to the Save button after an explicit save.
   saveStatus = signal<'' | 'saving...' | 'saved'>('');
 
@@ -413,7 +438,7 @@ export class GradingProgressComponent {
   // explicitly. The component no longer auto-saves — the user must click Save (or
   // Discard) so changes are intentional and clearly visible.
   saveEdits() {
-    if (!this.isDirty() || this.eventInputInvalid()) return;
+    if (!this.isDirty() || this.eventBlocksSave()) return;
     this.saveStatus.set('saving...');
     this.gradingUpdated.emit({
       gradingEvent: this.editGradingEvent(),
@@ -524,6 +549,29 @@ export class GradingProgressComponent {
     this.isEditingManagers.set(false);
   }
 
+  // Open the grading-managers editor. When there are no managers yet, start with
+  // one empty input row rather than a lone "+" so the user can type straight
+  // away.
+  openManagersEditor() {
+    if (this.editGradingManagerIds().length === 0) {
+      this.editGradingManagerIds.set(['']);
+    }
+    this.isEditingManagers.set(true);
+  }
+
+  // Remove a manager row while editing. If this empties a list that had no saved
+  // managers to begin with (i.e. the user opened the editor to add one, then
+  // removed it), close the editor — same effect as Cancel.
+  removeManagerInEditor(index: number) {
+    this.removeGradingManager(index);
+    if (
+      this.editGradingManagerIds().length === 0 &&
+      gradingManagerIdsOf(this.grading()).length === 0
+    ) {
+      this.cancelManagerEdit();
+    }
+  }
+
   savePaymentDetails() {
     this.gradingUpdated.emit({
       paymentStatus: this.editPaymentStatus(),
@@ -624,7 +672,7 @@ export class GradingProgressComponent {
     // A grading can only be accepted when it's the student's next grading in the
     // progression (guarded here as well as in the template), and not while the
     // event input is in an invalid (unlinked free-text) state.
-    if (!this.isNextGrading() || this.eventInputInvalid()) return;
+    if (!this.isNextGrading() || this.eventBlocksSave()) return;
     this.isSaving.set(true);
     const today = new Date().toISOString().split('T')[0];
     const actor = this.currentActor();
@@ -646,11 +694,12 @@ export class GradingProgressComponent {
 
   // Step 3: Mark result
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
-    if (this.eventInputInvalid()) return;
+    // A grading date is mandatory (guarded here as well as in the template).
+    if (this.eventBlocksSave() || this.gradingDateMissing()) return;
     this.isSaving.set(true);
     const update: Partial<Grading> = {
       status,
-      gradingEventDate: this.editGradingEventDate() || new Date().toISOString().split('T')[0],
+      gradingEventDate: this.editGradingEventDate(),
       resultNotes: this.editResultNotes(),
       gradingInstructorId: this.editInstructorId(),
       ...this.managerIdsUpdate(),

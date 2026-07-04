@@ -120,6 +120,25 @@ export class SearchableSet<
     this.state.update((state) => ({ ...state, entries, loading: false }));
   }
 
+  /**
+   * Insert or replace a single entry (matched by its id field), leaving all
+   * other entries untouched. Used for optimistic local updates so a reactive
+   * view reflects a write immediately, without waiting for the next snapshot
+   * (important when the entry is backed by a denormalized mirror that only
+   * refreshes via a Cloud Function).
+   */
+  upsert(entry: T) {
+    this.state.update((state) => {
+      const id = entry[this.idField];
+      const idx = state.entries.findIndex((e) => e[this.idField] === id);
+      const entries =
+        idx >= 0
+          ? [...state.entries.slice(0, idx), entry, ...state.entries.slice(idx + 1)]
+          : [...state.entries, entry];
+      return { ...state, entries };
+    });
+  }
+
   setError(error: string) {
     this.state.update((state) => ({ ...state, error, loading: false }));
   }
