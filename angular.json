@@ -30,7 +30,7 @@
               "src/privacy.html"
             ],
             "styles": ["src/styles.scss"],
-            "allowedCommonJsDependencies": ["papaparse", "fast-deep-equal"]
+            "allowedCommonJsDependencies": ["papaparse", "fast-deep-equal", "extend"]
           },
           "configurations": {
             "production": {
