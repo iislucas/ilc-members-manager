@@ -6,7 +6,10 @@
       [class.passed]="g.status === GradingStatus.Passed"
       [class.not-passed]="g.status === GradingStatus.NotPassed"
       [class.in-review]="g.status === GradingStatus.RequiresReview"
-      [class.pending]="g.status === GradingStatus.AwaitingRequest || g.status === GradingStatus.AwaitingAcceptance || g.status === GradingStatus.AwaitingGrading || g.status === GradingStatus.Declined"
+      [class.pending]="g.status === GradingStatus.Declined"
+      [class.awaiting-selection]="g.status === GradingStatus.AwaitingRequest"
+      [class.awaiting-acceptance]="g.status === GradingStatus.AwaitingAcceptance"
+      [class.awaiting-grading]="g.status === GradingStatus.AwaitingGrading"
       >{{ getPrettyGradingStatus(g.status) }}</span
     >
   }

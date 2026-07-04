@@ -126,7 +126,7 @@ export const initPathPatterns = {
   [Views.InstructorsArea]: pathPattern`instructors-area`,
   [Views.InstructorsAreaCategory]: pathPattern`instructors-area/category/${pv('category')}`,
   [Views.ManageGradings]: addUrlParams(pathPattern`gradings`, ['tab', 'event']),
-  [Views.GradingView]: pathPattern`gradings/${pv('gradingId')}`,
+  [Views.GradingView]: addUrlParams(pathPattern`gradings/${pv('gradingId')}`, ['from']),
   [Views.MemberGradings]: addUrlParams(pathPattern`my-gradings`, ['tab', 'event']),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
   [Views.NotificationSettings]: pathPattern`settings/notifications`,

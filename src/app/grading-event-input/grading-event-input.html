@@ -10,19 +10,20 @@
     />
   </div>
 
-  <!-- Single checkbox: was the grading at a listed workshop/event, or not? -->
+  <!-- Single checkbox: was the grading at a listed workshop/event? When ticked,
+       the event search below is shown. -->
   <div class="event-not-listed-row">
     <label class="checkbox-label">
       <input
         type="checkbox"
-        [checked]="notListed()"
-        (change)="setNotListed($any($event.target).checked)"
+        [checked]="atListedEvent()"
+        (change)="setAtListedEvent($any($event.target).checked)"
       />
-      Grading was not at a listed workshop/event
+      This grading was at a listed workshop/event
     </label>
   </div>
 
-  @if (!notListed()) {
+  @if (atListedEvent()) {
     <!-- ILC event search -->
     <div class="event-search-section">
       <label class="small-label">Grading happened at event:</label>
@@ -67,8 +68,8 @@
           <app-icon name="error" width="16" height="16" fill="#b06000"></app-icon>
           <span>
             “<strong>{{ editEvent() }}</strong>” isn't a linked ILC event. Search
-            and select the event above, or tick
-            <strong>“Grading was not at a listed workshop/event”</strong>.
+            and select the event above, or untick
+            <strong>“This grading was at a listed workshop/event”</strong>.
           </span>
         </p>
       }
