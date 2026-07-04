@@ -461,4 +461,133 @@ describe('GradingProgressComponent', () => {
     expect(resolved[0]).toEqual({ id: 'manager-1', data: { name: 'Manager One', instructorId: 'manager-1' } });
     expect(resolved[1]).toEqual({ id: 'manager-2', data: null });
   });
+
+  // Regression: a pre-existing unlinked event (free-text `gradingEvent` with no
+  // linked `gradingEventDocId`, e.g. legacy data) must not silently block saving
+  // other fields such as grading managers. See grading ccN4T2XAgtxQ2HQQJjOf.
+  describe('unlinked-event save guard', () => {
+    beforeEach(() => {
+      const adminMember = { ...initMember(), docId: 'doc-admin', instructorId: '213' };
+      mockFirebaseState.user.set({
+        member: adminMember, memberProfiles: [adminMember], isAdmin: true,
+        schoolsManaged: [], firebaseUser: {} as never,
+      });
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        status: GradingStatus.AwaitingGrading,
+        gradingInstructorId: '222',
+        gradingManagerIds: ['213', '197'],
+        gradingEvent: 'Alberto Benedusi private lesson',
+        gradingEventDocId: '',
+      });
+      fixture.detectChanges();
+    });
+
+    it('does not block a save when the unlinked event is left untouched', () => {
+      // The event itself is invalid...
+      expect(component.eventInputInvalid()).toBe(true);
+      // ...but it isn't being changed, so it must not block other edits.
+      expect(component.eventBlocksSave()).toBe(false);
+
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.removeGradingManager(0); // remove self ('213')
+      component.saveEdits();
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].gradingManagerIds).toEqual(['197']);
+    });
+
+    it('blocks the save when the event is edited into an unlinked state', () => {
+      component['editGradingEvent'].set('Some new unlinked event');
+      component['editGradingEventDocId'].set('');
+      expect(component.eventBlocksSave()).toBe(true);
+    });
+  });
+
+  // A grading always needs a date; the result buttons are gated on it.
+  describe('grading date requirement', () => {
+    beforeEach(() => {
+      const instr = { ...initMember(), docId: 'doc-instr', instructorId: '222' };
+      mockFirebaseState.user.set({
+        member: instr, memberProfiles: [instr], isAdmin: false,
+        schoolsManaged: [], firebaseUser: {} as never,
+      });
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        status: GradingStatus.AwaitingGrading,
+        gradingInstructorId: '222',
+        gradingEvent: '',
+        gradingEventDate: '',
+        gradingEventDocId: '',
+      });
+      fixture.detectChanges();
+    });
+
+    it('flags a missing date and refuses to record a result', () => {
+      expect(component.gradingDateMissing()).toBe(true);
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.markResult(GradingStatus.Passed);
+      expect(emitted.length).toBe(0);
+    });
+
+    it('records the result once a date is set', () => {
+      component['editGradingEventDate'].set('2026-07-04');
+      expect(component.gradingDateMissing()).toBe(false);
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.markResult(GradingStatus.Passed);
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].status).toBe(GradingStatus.Passed);
+      expect(emitted[0].gradingEventDate).toBe('2026-07-04');
+    });
+  });
+
+  describe('grading managers editor', () => {
+    function setGrading(managerIds: string[]) {
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        status: GradingStatus.Passed,
+        gradingManagerIds: managerIds,
+      });
+      fixture.detectChanges();
+    }
+
+    it('opens with one empty row when there are no managers', () => {
+      setGrading([]);
+      component.openManagersEditor();
+      expect(component['isEditingManagers']()).toBe(true);
+      expect(component['editGradingManagerIds']()).toEqual(['']);
+    });
+
+    it('opens without adding a row when managers already exist', () => {
+      setGrading(['213']);
+      component.openManagersEditor();
+      expect(component['isEditingManagers']()).toBe(true);
+      expect(component['editGradingManagerIds']()).toEqual(['213']);
+    });
+
+    it('removing the sole added row closes the editor (add mode)', () => {
+      setGrading([]);
+      component.openManagersEditor();
+      component.removeManagerInEditor(0);
+      expect(component['isEditingManagers']()).toBe(false);
+      expect(component['editGradingManagerIds']()).toEqual([]);
+    });
+
+    it('keeps the editor open when clearing pre-existing managers', () => {
+      setGrading(['213']);
+      component.openManagersEditor();
+      component.removeManagerInEditor(0);
+      expect(component['isEditingManagers']()).toBe(true);
+      expect(component['editGradingManagerIds']()).toEqual([]);
+    });
+  });
 });

@@ -1140,6 +1140,21 @@ export class DataManagerService {
     }
   }
 
+  /**
+   * Optimistically apply a saved grading to whichever local cache currently
+   * holds it, so a reactive view reflects the change immediately. The main
+   * `gradings` set (admins) updates live from its own snapshot, but the
+   * per-instructor `myGradingsAssessed` mirror only refreshes once the
+   * `onGradingUpdated` Cloud Function re-syncs it — so without this patch a
+   * grading manager's view would appear unchanged after saving. The next real
+   * snapshot reconciles any difference.
+   */
+  applyLocalGradingUpdate(grading: Grading): void {
+    for (const set of [this.gradings, this.myGradings, this.myGradingsAssessed]) {
+      if (set.get(grading.docId)) set.upsert(grading);
+    }
+  }
+
   async deleteGrading(id: string): Promise<void> {
     return deleteDoc(doc(this.db, 'gradings', id));
   }

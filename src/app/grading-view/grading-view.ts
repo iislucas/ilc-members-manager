@@ -9,7 +9,7 @@
  */
 
 import { Component, computed, inject, input, output, signal, effect, ChangeDetectionStrategy } from '@angular/core';
-import { Grading, GradingStatus } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, gradingManagerIdsOf } from '../../../functions/src/data-model';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 import { GradingProgressComponent } from '../grading-progress/grading-progress';
@@ -167,10 +167,41 @@ export class GradingViewComponent {
     try {
       const merged: Grading = { ...g, ...update };
       await this.dataService.updateGrading(g.docId, merged, g);
+      // Reflect the save immediately. The visible grading may be backed by the
+      // per-instructor mirror (`myGradingsAssessed`), which only refreshes once
+      // the Cloud Function re-syncs it — so without this the page would appear
+      // unchanged after saving.
+      this.dataService.applyLocalGradingUpdate(merged);
+
+      // If this change revoked the current user's own access to the grading
+      // (e.g. a grading manager removed themselves), they can no longer see it —
+      // send them back to My Gradings rather than stranding them on a page that
+      // is about to become inaccessible.
+      if (this.hasAccess(g) && !this.hasAccess(merged)) {
+        this.routingService.navigateTo('my-gradings');
+      }
     } catch (e: unknown) {
       console.error('Error updating grading:', e);
       this.asyncError.set((e as Error).message);
     }
     this.isSaving.set(false);
+  }
+
+  // Whether the current (non-admin) user is associated with the grading as its
+  // student, primary grading instructor, or a grading manager — i.e. can still
+  // read it. Admins always retain access. Event/school-manager access is derived
+  // server-side and unaffected by editing the managers list, so it isn't checked
+  // here (we only redirect on a definite loss of the student/instructor roles).
+  private hasAccess(g: Grading): boolean {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    if (user.memberProfiles.some((p) => p.docId === g.studentMemberDocId)) return true;
+    const myInstructorId = user.member.instructorId;
+    if (!myInstructorId) return false;
+    return (
+      g.gradingInstructorId === myInstructorId ||
+      gradingManagerIdsOf(g).includes(myInstructorId)
+    );
   }
 }

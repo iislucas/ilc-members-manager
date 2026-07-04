@@ -75,10 +75,14 @@ describe('GradingViewComponent', () => {
 
     mockRoutingService = {
       hrefForView: () => '#/gradings',
+      navigateTo: () => {},
       signals: {
         gradingView: {
           pathVars: {
             gradingId: () => '123'
+          },
+          urlParams: {
+            from: () => ''
           }
         }
       }
@@ -113,5 +117,51 @@ describe('GradingViewComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('optimistically applies the saved grading to local caches', async () => {
+    const applied: Grading[] = [];
+    mockDataManagerService.applyLocalGradingUpdate = (g: Grading) => applied.push(g);
+    await component.onProgressAction({ resultNotes: 'Great work' });
+    expect(applied.length).toBe(1);
+    expect(applied[0].resultNotes).toBe('Great work');
+  });
+
+  // Build a fresh component after the mock grading + user are configured, since
+  // the mock's `gradings.get` isn't a signal and `grading()` memoizes on the
+  // value present at creation.
+  async function makeComponentFor(isAdmin: boolean): Promise<GradingViewComponent> {
+    mockDataManagerService.gradings = {
+      get: () => ({ ...initGrading(), docId: '123', gradingManagerIds: ['INSTR1'] }),
+      loading: () => false,
+    } as never;
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    const member = { docId: 'doc-instr', instructorId: 'INSTR1' } as never;
+    firebaseState.user.set({
+      member, memberProfiles: [member], isAdmin, schoolsManaged: [], firebaseUser: {} as never,
+    });
+    const f = TestBed.createComponent(GradingViewComponent);
+    f.componentRef.setInput('gradingId', '123');
+    await f.whenStable();
+    return f.componentInstance;
+  }
+
+  it('redirects to My Gradings when a manager removes their own access', async () => {
+    const nav: string[] = [];
+    (mockRoutingService as { navigateTo: (p: string) => void }).navigateTo = (p) => nav.push(p);
+    mockDataManagerService.applyLocalGradingUpdate = () => {};
+    const c = await makeComponentFor(false);
+    // Save with themselves removed from the managers.
+    await c.onProgressAction({ gradingManagerIds: [] });
+    expect(nav).toContain('my-gradings');
+  });
+
+  it('does not redirect an admin who removes themselves', async () => {
+    const nav: string[] = [];
+    (mockRoutingService as { navigateTo: (p: string) => void }).navigateTo = (p) => nav.push(p);
+    mockDataManagerService.applyLocalGradingUpdate = () => {};
+    const c = await makeComponentFor(true);
+    await c.onProgressAction({ gradingManagerIds: [] });
+    expect(nav).not.toContain('my-gradings');
   });
 });

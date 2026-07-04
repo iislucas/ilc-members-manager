@@ -327,7 +327,7 @@
               ></textarea>
             </div>
 
-            <label class="align-top">Event (optional)</label>
+            <label class="align-first-row">Event</label>
             <div class="field">
               <app-grading-event-input
                 [gradingEvent]="editGradingEvent()"
@@ -356,7 +356,7 @@
               }
               <button
                 (click)="saveRequestFields()"
-                [disabled]="isSaving() || !editInstructorId() || requestBlockedByUnpaid() || eventInputInvalid()"
+                [disabled]="isSaving() || !editInstructorId() || requestBlockedByUnpaid() || eventBlocksSave()"
               >
                 Submit Request
               </button>
@@ -383,7 +383,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || !isNextGrading() || eventInputInvalid()"
+              [disabled]="isSaving() || !isNextGrading() || eventBlocksSave()"
             >
               Change to Accept
             </button>
@@ -403,7 +403,7 @@
 
           <!-- Instructor can optionally set event/date before accepting -->
           <div class="inline-form">
-            <label class="align-top">Event (optional)</label>
+            <label class="align-first-row">Event</label>
             <div class="field">
               <app-grading-event-input
                 [gradingEvent]="editGradingEvent()"
@@ -421,7 +421,7 @@
               <button
                 class="subtle-button"
                 (click)="saveEdits()"
-                [disabled]="isSaving() || eventInputInvalid()"
+                [disabled]="isSaving() || eventBlocksSave()"
               >
                 Save changes
               </button>
@@ -438,7 +438,7 @@
           <div class="action-buttons">
             <button
               (click)="acceptAndGradeMyself()"
-              [disabled]="isSaving() || isDirty() || !isNextGrading() || eventInputInvalid()"
+              [disabled]="isSaving() || isDirty() || !isNextGrading() || eventBlocksSave()"
               [title]="isDirty() ? 'Save or discard your changes first' : ''"
             >
               Accept
@@ -667,43 +667,23 @@
         </p>
 
         <div class="inline-form">
-          <label>Notes for the student (feedback)</label>
+          <!-- Unified date + event widget: the grading date is always shown on
+               top, with a "held at a listed workshop/event" checkbox below that
+               reveals the event search. A grading always needs a date, so we warn
+               and (via the buttons) block recording a result until it's set. -->
+          <label class="align-first-row">Event</label>
           <div class="field">
-            <textarea
-              [value]="editResultNotes()"
-              (input)="editResultNotes.set($any($event.target).value)"
-              placeholder="Feedback or comments for the student..."
-              rows="3"
-            ></textarea>
-          </div>
-
-          <label class="align-top">Event</label>
-          <div class="field">
-            @if (isEditingEvent()) {
-              <app-grading-event-input
-                [gradingEvent]="editGradingEvent()"
-                [gradingEventDate]="editGradingEventDate()"
-                [gradingEventDocId]="editGradingEventDocId()"
-                (gradingEventChange)="onEventInputChange($event)"
-              ></app-grading-event-input>
-              <div class="detail-edit-actions">
-                <button class="subtle-button" (click)="saveEventDetails()" [disabled]="eventInputInvalid()">Save</button>
-                <button class="subtle-button" (click)="cancelEventEdit()">Cancel</button>
-              </div>
-            } @else if (g.gradingEvent || g.gradingEventDate) {
-              @if (g.gradingEventDate) {
-                <span class="detail-value">{{ g.gradingEventDate }}</span>
-              }
-              <span class="detail-value">
-                @if (eventLink()) {
-                  <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
-                } @else if (g.gradingEvent) {
-                  {{ g.gradingEvent }}
-                }
-                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
-              </span>
-            } @else {
-              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)"><app-icon name="edit"></app-icon> Set event details</button>
+            <app-grading-event-input
+              [gradingEvent]="editGradingEvent()"
+              [gradingEventDate]="editGradingEventDate()"
+              [gradingEventDocId]="editGradingEventDocId()"
+              (gradingEventChange)="onEventInputChange($event)"
+            ></app-grading-event-input>
+            @if (gradingDateMissing()) {
+              <p class="field-warning">
+                <app-icon name="error" width="16" height="16" fill="#b06000"></app-icon>
+                A grading date is required before you can record a result.
+              </p>
             }
           </div>
 
@@ -781,6 +761,16 @@
             />
           </div>
 
+          <label>Notes for the student (feedback)</label>
+          <div class="field">
+            <textarea
+              [value]="editResultNotes()"
+              (input)="editResultNotes.set($any($event.target).value)"
+              placeholder="Feedback or comments for the student..."
+              rows="3"
+            ></textarea>
+          </div>
+
           <label class="align-top">Internal notes</label>
           <div class="field">
             <textarea
@@ -823,16 +813,16 @@
           <button
             class="pass-button"
             (click)="markResult(GradingStatus.Passed)"
-            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
-            [title]="isDirty() ? 'Save or discard your changes first' : ''"
+            [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing()"
+            [title]="isDirty() ? 'Save or discard your changes first' : (gradingDateMissing() ? 'Set the grading date first' : '')"
           >
             Mark as Passed
           </button>
           <button
             class="not-pass-button"
             (click)="markResult(GradingStatus.NotPassed)"
-            [disabled]="isSaving() || isDirty() || eventInputInvalid()"
-            [title]="isDirty() ? 'Save or discard your changes first' : ''"
+            [disabled]="isSaving() || isDirty() || eventBlocksSave() || gradingDateMissing()"
+            [title]="isDirty() ? 'Save or discard your changes first' : (gradingDateMissing() ? 'Set the grading date first' : '')"
           >
             Mark as Not Passed
           </button>
@@ -1005,33 +995,6 @@
           }
         }
       </p>
-      @if (isEditingResultNotes()) {
-        <div class="detail-inline-edit result-notes-edit">
-          <label>Notes for the student</label>
-          <textarea
-            [value]="editResultNotes()"
-            (input)="editResultNotes.set($any($event.target).value)"
-            rows="3"
-            placeholder="Feedback or comments for the student..."
-          ></textarea>
-          <div class="detail-edit-actions">
-            <button class="subtle-button" (click)="saveResultNotes()">Save</button>
-            <button class="subtle-button" (click)="cancelResultNotesEdit()">Cancel</button>
-          </div>
-        </div>
-      } @else if (g.resultNotes) {
-        <p class="detail-note result-detail">
-          <strong>Grading Instructor's notes:</strong> {{ g.resultNotes }}
-          @if (canEditGradingDetails()) {
-            <button class="icon-only-button detail-edit-btn" (click)="isEditingResultNotes.set(true)" title="Edit notes for the student"><app-icon name="edit"></app-icon></button>
-          }
-        </p>
-      } @else if (canEditGradingDetails()) {
-        <p class="detail-note">
-          <button class="subtle-button detail-edit-btn" (click)="isEditingResultNotes.set(true)"><app-icon name="edit"></app-icon> Add notes for the student</button>
-        </p>
-      }
-
       <div class="details-grid">
 
         <!-- Event / date -->
@@ -1051,36 +1014,23 @@
             </div>
           </div>
         } @else {
-          @if (g.gradingEventDate) {
-            <span class="detail-label">Date</span>
-            <span class="detail-value">
-              {{ g.gradingEventDate }}
-              @if (canEditEvent()) {
-                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
-              }
-            </span>
-          }
-          @if (g.gradingEvent) {
-            <span class="detail-label">Event</span>
-            <span class="detail-value">
+          <!-- Single "Event" row: the grading date first ("Date of grading:"),
+               then the linked/free-text event if any — matching the inline event
+               widget's ordering used in the earlier stages. -->
+          <span class="detail-label">Event</span>
+          <span class="detail-value">
+            <span>Date of grading: {{ g.gradingEventDate || '—' }}</span>
+            @if (g.gradingEvent) {
               @if (eventLink()) {
                 <a class="event-link" [href]="eventLink()"><app-icon name="event" class="event-icon"></app-icon>{{ eventLinkLabel() }}</a>
               } @else {
-                {{ g.gradingEvent }}
+                <span>{{ g.gradingEvent }}</span>
               }
-              @if (canEditEvent()) {
-                <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
-              }
-            </span>
-          }
-          @if (canEditEvent() && !g.gradingEventDate && !g.gradingEvent) {
-            <span class="detail-label"></span>
-            <span class="detail-value">
-              <button class="subtle-button detail-edit-btn" (click)="isEditingEvent.set(true)">
-                <app-icon name="edit"></app-icon> Set event details
-              </button>
-            </span>
-          }
+            }
+            @if (canEditEvent()) {
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingEvent.set(true)" title="Edit event details"><app-icon name="edit"></app-icon></button>
+            }
+          </span>
         }
 
         <!-- Grading instructor -->
@@ -1123,13 +1073,11 @@
               @for (mgr of editGradingManagerIds(); track $index; let last = $last) {
                 <div class="manager-row">
                   <app-instructor-selector [value]="mgr" (valueChange)="updateGradingManagerId($index, $event)"></app-instructor-selector>
-                  <button type="button" class="icon-only-button" (click)="removeGradingManager($index)"><app-icon name="close" width="16" height="16"></app-icon></button>
+                  <button type="button" class="icon-only-button" (click)="removeManagerInEditor($index)"><app-icon name="close" width="16" height="16"></app-icon></button>
                   @if (last) {
                     <button type="button" class="icon-only-button" (click)="addGradingManager()"><app-icon name="add" width="16" height="16"></app-icon></button>
                   }
                 </div>
-              } @empty {
-                <button type="button" class="icon-only-button" (click)="addGradingManager()"><app-icon name="add" width="16" height="16"></app-icon></button>
               }
               <div class="detail-edit-actions">
                 <button class="subtle-button" (click)="saveManagers()">Save</button>
@@ -1152,13 +1100,13 @@
                 @if (!last) { , }
               }
               @if (canEditGradingDetails()) {
-                <button class="icon-only-button detail-edit-btn" (click)="isEditingManagers.set(true)" title="Edit grading managers"><app-icon name="edit"></app-icon></button>
+                <button class="icon-only-button detail-edit-btn" (click)="openManagersEditor()" title="Edit grading managers"><app-icon name="edit"></app-icon></button>
               }
             </span>
           } @else if (canEditGradingDetails()) {
-            <span class="detail-label"></span>
+            <span class="detail-label is-empty">Managers</span>
             <span class="detail-value">
-              <button class="subtle-button detail-edit-btn" (click)="isEditingManagers.set(true)">
+              <button class="subtle-button detail-edit-btn" (click)="openManagersEditor()">
                 <app-icon name="edit"></app-icon> Add grading managers
               </button>
             </span>
@@ -1218,45 +1166,81 @@
           </span>
         }
 
-        <!-- Note from the student (their request note), under the other info.
-             Skipped entirely when empty. -->
+        <!-- Notes for the student (instructor feedback), under Payment and above
+             the internal notes. Shown as a normal detail row (label + value),
+             with a full-width editor when editing — consistent with the other
+             rows. -->
+        @if (isEditingResultNotes()) {
+          <div class="detail-edit-span">
+            <div class="detail-inline-edit result-notes-edit">
+              <label>Notes for the student</label>
+              <textarea
+                [value]="editResultNotes()"
+                (input)="editResultNotes.set($any($event.target).value)"
+                rows="3"
+                placeholder="Feedback or comments for the student..."
+              ></textarea>
+              <div class="detail-edit-actions">
+                <button class="subtle-button" (click)="saveResultNotes()">Save</button>
+                <button class="subtle-button" (click)="cancelResultNotesEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        } @else if (g.resultNotes) {
+          <span class="detail-label">Notes for student</span>
+          <span class="detail-value">
+            {{ g.resultNotes }}
+            @if (canEditGradingDetails()) {
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingResultNotes.set(true)" title="Edit notes for the student"><app-icon name="edit"></app-icon></button>
+            }
+          </span>
+        } @else if (canEditGradingDetails()) {
+          <span class="detail-label is-empty">Notes for student</span>
+          <span class="detail-value">
+            <button class="subtle-button detail-edit-btn" (click)="isEditingResultNotes.set(true)"><app-icon name="edit"></app-icon> Add notes for the student</button>
+          </span>
+        }
+
+        <!-- Note from the student (their request note). Skipped when empty. -->
         @if (g.studentNotes) {
-          <p class="detail-note student-note-row">
-            <strong>Note from student:</strong> {{ g.studentNotes }}
-          </p>
+          <span class="detail-label">Note from student</span>
+          <span class="detail-value">{{ g.studentNotes }}</span>
+        }
+
+        <!-- Internal administrative notes — only for managers/instructors/admins;
+             never shown to the student. Same row style as the notes above. -->
+        @if (canEditGradingDetails()) {
+          @if (isEditingInternalNotes()) {
+            <div class="detail-edit-span">
+              <div class="detail-inline-edit result-notes-edit">
+                <label>Internal notes (not visible to the student)</label>
+                <textarea
+                  [value]="editInternalNotes()"
+                  (input)="editInternalNotes.set($any($event.target).value)"
+                  rows="3"
+                  placeholder="Notes for admins / grading managers only..."
+                ></textarea>
+                <div class="detail-edit-actions">
+                  <button class="subtle-button" (click)="saveInternalNotes()">Save</button>
+                  <button class="subtle-button" (click)="cancelInternalNotesEdit()">Cancel</button>
+                </div>
+              </div>
+            </div>
+          } @else if (g.notes) {
+            <span class="detail-label">Internal notes</span>
+            <span class="detail-value">
+              {{ g.notes }}
+              <button class="icon-only-button detail-edit-btn" (click)="isEditingInternalNotes.set(true)" title="Edit internal notes"><app-icon name="edit"></app-icon></button>
+            </span>
+          } @else {
+            <span class="detail-label is-empty">Internal notes</span>
+            <span class="detail-value">
+              <button class="subtle-button detail-edit-btn" (click)="isEditingInternalNotes.set(true)"><app-icon name="edit"></app-icon> Add internal notes</button>
+            </span>
+          }
         }
 
       </div>
-
-      <!-- Internal administrative notes — under the details table; only for
-           grading managers/instructors/admins; never shown to the student. -->
-      @if (canEditGradingDetails()) {
-        @if (isEditingInternalNotes()) {
-          <div class="detail-inline-edit result-notes-edit">
-            <label>Internal notes (not visible to the student)</label>
-            <textarea
-              [value]="editInternalNotes()"
-              (input)="editInternalNotes.set($any($event.target).value)"
-              rows="3"
-              placeholder="Notes for admins / grading managers only..."
-            ></textarea>
-            <div class="detail-edit-actions">
-              <button class="subtle-button" (click)="saveInternalNotes()">Save</button>
-              <button class="subtle-button" (click)="cancelInternalNotesEdit()">Cancel</button>
-            </div>
-          </div>
-        } @else if (g.notes) {
-          <p class="detail-note internal-note">
-            <app-icon name="admin" width="14" height="14"></app-icon>
-            <strong>Internal notes (not visible to the student):</strong> {{ g.notes }}
-            <button class="icon-only-button detail-edit-btn" (click)="isEditingInternalNotes.set(true)" title="Edit internal notes"><app-icon name="edit"></app-icon></button>
-          </p>
-        } @else {
-          <p class="detail-note">
-            <button class="subtle-button detail-edit-btn" (click)="isEditingInternalNotes.set(true)"><app-icon name="edit"></app-icon> Add internal notes</button>
-          </p>
-        }
-      }
     </div>
   }
 </div>

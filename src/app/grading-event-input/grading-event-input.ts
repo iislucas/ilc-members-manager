@@ -51,13 +51,15 @@ export class GradingEventInputComponent {
   // Whether the grading was at a listed workshop/event. When checked, the event
   // search is shown so an event can be linked; otherwise only the date is
   // recorded (no event name/link). Seeded from the incoming data — a linked
-  // event means it WAS at a listed event — then user-controlled via the checkbox
-  // and preserved across re-renders.
-  atListedEvent = linkedSignal<{ docId: string }, boolean>({
-    source: () => ({ docId: this.gradingEventDocId() }),
+  // event OR pre-existing free-text event info means it WAS at a listed event —
+  // then user-controlled via the checkbox and preserved across re-renders.
+  // Seeding checked for legacy free-text-without-link surfaces the search and
+  // the "isn't a linked ILC event" warning, so the user can link it or untick.
+  atListedEvent = linkedSignal<{ docId: string; event: string }, boolean>({
+    source: () => ({ docId: this.gradingEventDocId(), event: this.gradingEvent() }),
     computation: (src, prev) => {
       if (prev) return prev.value;
-      return !!src.docId;
+      return !!src.docId || src.event.trim() !== '';
     },
   });
 
