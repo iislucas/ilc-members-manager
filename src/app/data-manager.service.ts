@@ -600,7 +600,14 @@ export class DataManagerService {
 
       try {
         const snap = await getDocs(q);
-        return snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+        let results = snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+        // Apply the status filter client-side: adding `where('status', '==', …)`
+        // to the date-range query would require a composite index, so filter the
+        // fetched page instead.
+        if (status) {
+          results = results.filter((e) => e.status === status);
+        }
+        return results;
       } catch (error) {
         console.error('Error searching events by date bounds:', error);
         return [];

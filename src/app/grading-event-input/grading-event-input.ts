@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, linkedSignal, computed, output } from '@angular/core';
+import { Component, effect, inject, input, linkedSignal, computed, output, signal } from '@angular/core';
 import { IlcEvent } from '../../../functions/src/data-model';
 import { DataManagerService, EventSearchCriteriaDateRange } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
@@ -6,19 +6,6 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { IconComponent } from '../icons/icon.component';
-
-function oneMonthAgo(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().substring(0, 10);
-}
-
-// Shift a YYYY-MM-DD date string by a number of days, returning YYYY-MM-DD.
-function shiftDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().substring(0, 10);
-}
 
 export interface GradingEventDetails {
   gradingEvent: string;
@@ -63,19 +50,14 @@ export class GradingEventInputComponent {
     },
   });
 
-  // Event search. When the grading already has a date, default the search to a
-  // fortnight either side of it so the matching event is easy to find; otherwise
-  // fall back to the last month onwards. These stay user-editable via the date
-  // inputs (re-seeded only if the grading date itself changes).
+  // Event search. The autocomplete filters this preloaded set locally, so it can
+  // only find events that were loaded — a narrow default range silently hides
+  // the event the user is searching for. Default to loading all listed events
+  // (matching the grading list's event filter); the date inputs below let the
+  // user narrow the range when there are too many to scroll.
   eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
-  eventRangeFrom = linkedSignal(() => {
-    const date = this.gradingEventDate();
-    return date ? shiftDays(date, -15) : oneMonthAgo();
-  });
-  eventRangeTo = linkedSignal(() => {
-    const date = this.gradingEventDate();
-    return date ? shiftDays(date, 15) : '';
-  });
+  eventRangeFrom = signal<string>('');
+  eventRangeTo = signal<string>('');
 
   _loadEvents = effect(() => {
     const criteria: EventSearchCriteriaDateRange = {
