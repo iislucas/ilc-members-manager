@@ -44,6 +44,8 @@ describe('GradingListComponent', () => {
       instructors: new SearchableSet(['name'], 'instructorId'),
       memberDisplayName: (_docId: string, memberId: string) => memberId,
       instructorDisplayName: (instructorId: string) => instructorId,
+      loadMoreGradings: vi.fn(),
+      searchGradingsByDateAndInstructor: vi.fn().mockResolvedValue([]),
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
@@ -91,8 +93,21 @@ describe('GradingListComponent', () => {
     expect(component.totalGradings()).toBe(60);
   });
 
-  it('should show all gradings when showAll is called', () => {
-    component.showAll();
+  it('pages in more gradings in the admin view when showing more', () => {
+    const ds = TestBed.inject(DataManagerService) as any;
+    component.onShowMore();
+    fixture.detectChanges();
+    // Admin view is paginated: the display window grows by a page and the service
+    // is asked to subscribe to the next page from Firestore.
+    expect(ds.loadMoreGradings).toHaveBeenCalled();
+    expect(component.limit()).toBe(100);
+    expect(component.gradings().length).toBe(60);
+  });
+
+  it('shows the whole loaded set in the member view when showing more', () => {
+    fixture.componentRef.setInput('viewMode', 'member');
+    fixture.detectChanges();
+    component.onShowMore();
     fixture.detectChanges();
     expect(component.limit()).toBe(Infinity);
     expect(component.gradings().length).toBe(60);
@@ -199,6 +214,68 @@ describe('GradingListComponent', () => {
     // Clearing the filter removes it from the URL.
     component.clearEventFilter();
     expect(eventParam()).toBe('');
+  });
+
+  it('groups unlinked gradings sharing a date + instructor into an implicit event', () => {
+    const mk = (docId: string, date: string, instructorId: string): Grading => {
+      const g = initGrading();
+      g.docId = docId;
+      g.gradingEventDate = date;
+      g.gradingInstructorId = instructorId;
+      return g;
+    };
+    component.gradingSet().setEntries([
+      // Two share date + instructor → an implicit group.
+      mk('g1', '2026-05-01', 'inst-A'),
+      mk('g2', '2026-05-01', 'inst-A'),
+      // Same date, different instructor → its own singleton → plain row.
+      mk('g3', '2026-05-01', 'inst-B'),
+      // Same instructor, different date → plain row.
+      mk('g4', '2026-04-01', 'inst-A'),
+    ]);
+    fixture.detectChanges();
+
+    const items = component.listItems();
+    const implicit = items.find((i) => i.kind === 'implicit');
+    expect(implicit).toBeTruthy();
+    if (implicit && implicit.kind === 'implicit') {
+      expect(implicit.group.total).toBe(2);
+      expect(implicit.group.instructorId).toBe('inst-A');
+      expect(implicit.group.date).toBe('2026-05-01');
+      expect(implicit.group.gradings.map((g) => g.docId).sort()).toEqual(['g1', 'g2']);
+    }
+    // Singletons stay as plain grading rows, not headings.
+    expect(items.some((i) => i.key === 'grading:g3')).toBe(true);
+    expect(items.some((i) => i.key === 'grading:g4')).toBe(true);
+    expect(items.filter((i) => i.kind === 'implicit').length).toBe(1);
+  });
+
+  it('filters to a single implicit event via shareable URL params on click', () => {
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const groupDate = routing.signals[Views.ManageGradings].urlParams.groupDate;
+    const groupInstructor = routing.signals[Views.ManageGradings].urlParams.groupInstructor;
+    const ds = TestBed.inject(DataManagerService) as any;
+
+    component.onImplicitGroupClick({
+      key: '2026-05-01|inst-A',
+      date: '2026-05-01',
+      instructorId: 'inst-A',
+      instructorName: 'Instructor A',
+      gradings: [],
+      total: 2,
+    });
+
+    expect(groupDate()).toBe('2026-05-01');
+    expect(groupInstructor()).toBe('inst-A');
+    expect(component.hasGroupFilter()).toBe(true);
+    // A Firestore fetch backfills any members missing from the paginated set.
+    expect(ds.searchGradingsByDateAndInstructor).toHaveBeenCalledWith('2026-05-01', 'inst-A', undefined);
+
+    // Clearing removes both params.
+    component.clearGroupFilter();
+    expect(groupDate()).toBe('');
+    expect(groupInstructor()).toBe('');
+    expect(component.hasGroupFilter()).toBe(false);
   });
 
   it('does not group in the member view', () => {
