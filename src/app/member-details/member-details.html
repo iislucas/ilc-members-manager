@@ -32,8 +32,8 @@
         class="subtle-button"
         [href]="
           isOwnProfile()
-            ? '#/my-students'
-            : '#/instructor/' + e.instructorId + '/students'
+            ? '/my-students'
+            : '/instructor/' + e.instructorId + '/students'
         "
       >
         <app-icon name="salut" /> Students</a
@@ -105,7 +105,7 @@
                   track dup.docId;
                   let last = $last
                 ) {
-                  <a class="inline-link-button" href="#/members/{{ dup.docId }}"
+                  <a class="inline-link-button" href="/members/{{ dup.docId }}"
                     >{{ dup.name }} ({{ dup.memberId }})</a
                   >
                   @if (!last) {
@@ -538,8 +538,8 @@
               class="subtle-button"
               [href]="
                 isOwnProfile()
-                  ? '#/my-students'
-                  : '#/instructor/' + e.instructorId + '/students'
+                  ? '/my-students'
+                  : '/instructor/' + e.instructorId + '/students'
               "
             >
               <app-icon name="salut" /> View Students</a

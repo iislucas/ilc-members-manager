@@ -107,7 +107,7 @@
             <td class="file-info-cell">
               <div class="file-name-row">
                 <a class="inline-link-button file-name"
-                   [href]="'#/resources/' + resource.accessLevel + '/' + resource.name"
+                   [href]="'/resources/' + resource.accessLevel + '/' + resource.name"
                    [title]="'Download ' + resource.name"
                 >{{ resource.name }}</a>
                 @if (downloadingId() === resource.fullPath) {

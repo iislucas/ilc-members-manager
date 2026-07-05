@@ -161,7 +161,7 @@ export class EventListComponent implements OnDestroy {
   });
 
   // Link that clears the active filter (returns to the full events list).
-  protected clearFilterHref = '#/events';
+  protected clearFilterHref = '/events';
 
   // This signal is bound to the search input field and updates on every keystroke.
   // It is seeded from the URL `q` param (if present) or `initialQuery` (for the
@@ -190,7 +190,7 @@ export class EventListComponent implements OnDestroy {
 
   // Optional prefix for event detail links. When empty (default), the
   // component uses hash-based routes relative to the current page
-  // (e.g. '#/events/'). When set (e.g. 'https://app.iliqchuan.com/#/events/'),
+  // (e.g. '/events/'). When set (e.g. 'https://app.iliqchuan.com/events/'),
   // links point to an external domain — useful for the standalone WC.
   eventLinkPrefix = input<string>('');
 
@@ -204,7 +204,7 @@ export class EventListComponent implements OnDestroy {
   protected resolvedEventLinkPrefix = computed(() => {
     const explicit = this.eventLinkPrefix();
     if (explicit) return explicit;
-    return this.collectionPath() === 'events' ? '#/events/' : '#/my-events/';
+    return this.collectionPath() === 'events' ? '/events/' : '/my-events/';
   });
   // Determines if the current list is for the user's own events (non-public).
   protected isMyEvents = computed(() => this.collectionPath() !== 'events');

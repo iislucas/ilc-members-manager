@@ -34,16 +34,13 @@ export class HeaderComponent {
   isPublicPage = input<boolean>(false);
   menuOpen = model<boolean>(false);
 
-  // Encodes the current hash-based URL (path + query params) for use as
-  // a returnUrl parameter on the login page.
+  // Encodes the current URL (path + query params, without the leading slash)
+  // for use as a returnUrl parameter on the login page.
   encodeCurrentUrl(): string {
-    let hash = window.location.hash;
-    if (hash.startsWith('#')) {
-      hash = hash.substring(1);
+    let path = window.location.pathname + window.location.search;
+    if (path.startsWith('/')) {
+      path = path.substring(1);
     }
-    if (hash.startsWith('/')) {
-      hash = hash.substring(1);
-    }
-    return encodeURIComponent(hash);
+    return encodeURIComponent(path);
   }
 }

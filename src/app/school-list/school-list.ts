@@ -82,9 +82,9 @@ export class SchoolListComponent {
   editLink(school: School): string {
     const id = school.docId || school.schoolId;
     if (this.isMySchools()) {
-      return `#/my-schools/${encodeURIComponent(id)}/edit`;
+      return `/my-schools/${encodeURIComponent(id)}/edit`;
     }
-    return `#/schools/${encodeURIComponent(id)}/edit`;
+    return `/schools/${encodeURIComponent(id)}/edit`;
   }
 
 

@@ -18,7 +18,7 @@ export class InstructorCardComponent {
   instructor = input.required<InstructorPublicData>();
 
   // Link to the instructor's dedicated public profile page (hash route).
-  profileHref = computed(() => `#/instructors/${this.instructor().instructorId}`);
+  profileHref = computed(() => `/instructors/${this.instructor().instructorId}`);
 
   ensureUrl(url: string | undefined): string {
     if (!url) {

@@ -670,7 +670,7 @@ export class NotificationService implements OnDestroy {
     feed: { collection: string; label: string; route: string },
     post: CachedBlogPost,
   ): { markdown: string; data: NotificationBlogPostData } {
-    const link = `#/${feed.route}/${post.urlId}`;
+    const link = `/${feed.route}/${post.urlId}`;
     const publishedIso = new Date(post.publishOn || 0).toISOString();
     return {
       markdown: `New ${feed.label} post: [${post.title || 'Untitled'}](${link})`,
@@ -765,7 +765,7 @@ export class NotificationService implements OnDestroy {
       }
       const event = { ...initEvent(), ...(snap.data() as IlcEvent), docId: snap.id };
       const title = event.title || 'Untitled event';
-      const link = `#/manage-events/${event.docId}`;
+      const link = `/manage-events/${event.docId}`;
       if (event.status !== EventStatus.Proposed) {
         return {
           markdown: `Event [${title}](${link}) — ${eventStatusLabel(event.status).toLowerCase()}`,
@@ -784,7 +784,7 @@ export class NotificationService implements OnDestroy {
   // The markdown for a pending-event-approval notification, shared by the create
   // and reconcile passes.
   private pendingEventMarkdown(eventDocId: string, title: string): string {
-    return `Event awaiting approval: [${title}](#/manage-events/${eventDocId})`;
+    return `Event awaiting approval: [${title}](/manage-events/${eventDocId})`;
   }
 
   // ---------------------------------------------------------------------------
@@ -878,7 +878,7 @@ export class NotificationService implements OnDestroy {
       const status = order.ilcAppOrderStatus as OrderStatus;
       if (!NotificationService.ORDER_ATTENTION_STATUSES.includes(status)) {
         return {
-          markdown: `Order [#${this.orderRef(order)}](#/order-view/${order.docId}) — now resolved (${status})`,
+          markdown: `Order [#${this.orderRef(order)}](/order-view/${order.docId}) — now resolved (${status})`,
           data: this.orderIssueFields(order).data,
           resolved: true,
         };
@@ -899,7 +899,7 @@ export class NotificationService implements OnDestroy {
     const issues = order.ilcAppOrderIssues || [];
     const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
     return {
-      markdown: `Order [#${orderRef}](#/order-view/${order.docId}) ${verb}${issuesSuffix}`,
+      markdown: `Order [#${orderRef}](/order-view/${order.docId}) ${verb}${issuesSuffix}`,
       data: { orderDocId: order.docId, orderRef, status, issues },
     };
   }
@@ -1016,7 +1016,7 @@ export class NotificationService implements OnDestroy {
   // The markdown for an unpaid-grading TODO notification, shared by the create and
   // reconcile passes. `forSelf` is true when the recipient is the student.
   private unpaidGradingMarkdown(g: Grading, forSelf: boolean): string {
-    const link = `#/gradings/${g.docId}`;
+    const link = `/gradings/${g.docId}`;
     return forSelf
       ? `⚠️ Your grading for **${g.level}** is complete but **not yet paid**. ` +
           `Please arrange payment so it can be finalised. [Open the grading](${link}).`
