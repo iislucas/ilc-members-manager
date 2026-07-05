@@ -71,6 +71,12 @@
         @case (Views.DownloadResource) {
           <app-download-resource></app-download-resource>
         }
+        @case (Views.Products) {
+          <app-products></app-products>
+        }
+        @case (Views.OrderComplete) {
+          <app-order-complete></app-order-complete>
+        }
       }
     } @else if (!user) {
       <!-- Restricted page, not logged in: show initialisation or login -->

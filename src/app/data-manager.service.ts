@@ -75,11 +75,20 @@ export enum DataServiceState {
   Loaded = 'Loaded',
 }
 
+function orderSortDate(order: Order): string {
+  switch (order.ilcAppOrderKind) {
+    case 'https://api.squarespace.com/1.0/commerce/orders':
+      return order.createdOn;
+    case 'stripe':
+      return order.created;
+    default:
+      return order.datePaid;
+  }
+}
+
 export function sortOrdersByDateDesc(orders: Order[]): Order[] {
   return orders.sort((a, b) => {
-    const dateA = a.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders' ? a.createdOn : a.datePaid;
-    const dateB = b.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders' ? b.createdOn : b.datePaid;
-    return (dateB || '').localeCompare(dateA || '');
+    return (orderSortDate(b) || '').localeCompare(orderSortDate(a) || '');
   });
 }
 

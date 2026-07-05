@@ -1,3 +1,5 @@
+import { envConfig } from './sandbox.env.js';
+
 export const DEFAULT_STRIPE_API_VERSION = "2026-04-22.dahlia";
 
 export type AppConfig = {
@@ -12,13 +14,13 @@ export type AppConfig = {
 
 export function getConfig(): AppConfig {
   return {
-    appBaseUrl: process.env.APP_BASE_URL ?? "http://localhost:3000",
-    host: process.env.HOST ?? "127.0.0.1",
-    port: Number.parseInt(process.env.PORT ?? "3000", 10),
-    stripeApiVersion: process.env.STRIPE_API_VERSION ?? DEFAULT_STRIPE_API_VERSION,
-    stripePriceId: process.env.STRIPE_PRICE_ID,
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    appBaseUrl: envConfig.APP_BASE_URL ?? "http://localhost:3000",
+    host: envConfig.HOST ?? "127.0.0.1",
+    port: Number.parseInt(envConfig.PORT ?? "3000", 10),
+    stripeApiVersion: envConfig.STRIPE_API_VERSION ?? DEFAULT_STRIPE_API_VERSION,
+    stripePriceId: envConfig.STRIPE_PRICE_ID,
+    stripeSecretKey: envConfig.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: envConfig.STRIPE_WEBHOOK_SECRET,
   };
 }
 

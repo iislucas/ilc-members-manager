@@ -1,0 +1,89 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 2em 1em;
+}
+
+.order-complete-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25em;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+}
+
+.thanks-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  color: v.$heading-accent-color;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5em;
+  }
+}
+
+.lead {
+  margin: 0;
+  color: v.$text-secondary;
+}
+
+.order-summary {
+  width: 100%;
+  border: 1px solid v.$theme-border-color;
+  border-radius: 8px;
+  padding: 1em;
+  background: v.$theme-bg-color;
+  text-align: left;
+}
+
+.order-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.4em 0;
+}
+
+.line-qty {
+  color: v.$text-muted;
+  margin-left: 0.25em;
+}
+
+.order-total {
+  border-top: 1px solid v.$theme-border-color;
+  margin-top: 0.4em;
+  padding-top: 0.6em;
+  font-weight: 600;
+}
+
+.message-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75em;
+  padding: 1em;
+  border-radius: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.error-box {
+  background: v.$theme-error-bg-color;
+  color: v.$theme-error-text-color;
+}
+
+.message-title {
+  margin: 0 0 0.25em;
+  font-weight: 600;
+}
+
+.link-button {
+  text-decoration: none;
+}

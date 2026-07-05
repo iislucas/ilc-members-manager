@@ -337,9 +337,10 @@ export class ImportOrdersComponent {
 
     const data = this.parsedData();
     const allExistingOrders = this.dataService.orders.entries();
-    const existingOrders = allExistingOrders.filter((o) => {
-      return o.ilcAppOrderKind !== 'https://api.squarespace.com/1.0/commerce/orders';
-    });
+    const existingOrders = allExistingOrders.filter(
+      (o): o is SheetsImportOrder =>
+        o.ilcAppOrderKind === 'ilc-2005-sheets-db-import',
+    );
     const ordersMap = new Map(existingOrders.map(o => [o.referenceNumber, o]));
     const members = this.dataService.members.entries();
     const schools = this.dataService.schools.entries();

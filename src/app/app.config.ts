@@ -67,6 +67,8 @@ export enum Views {
   DownloadResource = 'downloadResource',
   NotificationSettings = 'notificationSettings',
   Notifications = 'notifications',
+  Products = 'products',
+  OrderComplete = 'orderComplete',
 }
 
 export const memberListPathPatterns = {
@@ -161,6 +163,10 @@ export const initPathPatterns = {
   ]),
   [Views.MyEvents]: addUrlParams(pathPattern`my-events`, ['q', 'fromDate', 'status', 'sortBy', 'sortDir']),
   [Views.DownloadResource]: pathPattern`resources/${pv('accessLevel')}/${pv('fileName')}`,
+  // Standalone Stripe purchase flow. Intentionally not linked from the home
+  // page or navigation — reachable directly via its URL.
+  [Views.Products]: pathPattern`products`,
+  [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, ['session_id']),
 };
 
 // Santiy check for type correctness...

@@ -46,6 +46,8 @@ import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { DownloadResourceComponent } from './download-resource/download-resource';
 import { NotificationSettingsComponent } from './settings/notification-settings/notification-settings.component';
 import { NotificationsViewComponent } from './notifications-view/notifications-view';
+import { ProductsComponent } from './products/products';
+import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 
@@ -94,6 +96,8 @@ import { APP_VERSION } from './version';
     DownloadResourceComponent,
     NotificationSettingsComponent,
     NotificationsViewComponent,
+    ProductsComponent,
+    OrderCompleteComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -124,6 +128,8 @@ export class App {
     Views.ClassCalendarView,
     Views.SchoolCalendarView,
     Views.DownloadResource,
+    Views.Products,
+    Views.OrderComplete,
   ]);
 
   public isPublicPage = computed(() => {
@@ -502,6 +508,10 @@ export class App {
         return 'Article';
       case Views.DownloadResource:
         return 'Download Resource';
+      case Views.Products:
+        return 'Products';
+      case Views.OrderComplete:
+        return 'Order Complete';
       case Views.Login:
         return 'Login';
       case Views.NewMember:

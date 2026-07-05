@@ -2,6 +2,8 @@ node_modules/
 .pnpm-store/
 
 sandbox.env
+sandbox.env.ts
+
 .env
 .env.*
 !.env.example

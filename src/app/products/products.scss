@@ -1,0 +1,97 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 2em 1em;
+}
+
+.products-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5em;
+  max-width: 900px;
+  width: 100%;
+}
+
+.products-header h1 {
+  margin: 0;
+  font-size: 1.4em;
+}
+
+.empty {
+  color: v.$text-muted;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5em;
+  width: 100%;
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid v.$theme-border-color;
+  border-radius: 8px;
+  overflow: hidden;
+  background: v.$theme-bg-color;
+}
+
+.product-image {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.product-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 1em;
+  flex-grow: 1;
+}
+
+.product-name {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+.product-description {
+  margin: 0;
+  color: v.$text-muted;
+  font-size: 0.9em;
+}
+
+.product-price {
+  margin: 0;
+  font-weight: 600;
+}
+
+.buy-button {
+  margin: 0 1em 1em;
+}
+
+.message-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75em;
+  padding: 1em;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.error-box {
+  background: v.$theme-error-bg-color;
+  color: v.$theme-error-text-color;
+}
+
+.message-title {
+  margin: 0 0 0.25em;
+  font-weight: 600;
+}

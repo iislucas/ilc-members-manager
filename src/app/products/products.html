@@ -1,0 +1,59 @@
+<div class="products-page">
+  <div class="products-header">
+    <h1>Products</h1>
+  </div>
+
+  @let currentState = state();
+
+  @switch (currentState.kind) {
+    @case ('loading') {
+      <app-spinner>Loading products…</app-spinner>
+    }
+    @case ('error') {
+      <div class="message-box error-box">
+        <app-icon name="error" width="1.4em" height="1.4em"></app-icon>
+        <div>
+          <p class="message-title">Something went wrong</p>
+          <p>{{ currentState.message }}</p>
+        </div>
+      </div>
+      <button (click)="retry()">Try Again</button>
+    }
+    @case ('loaded') {
+      @if (currentState.products.length === 0) {
+        <p class="empty">No products are available at the moment.</p>
+      } @else {
+        <div class="product-grid">
+          @for (product of currentState.products; track product.id) {
+            @let price = buyablePrice(product);
+            <div class="product-card">
+              @if (product.images.length > 0) {
+                <img class="product-image" [src]="product.images[0]" [alt]="product.name" />
+              }
+              <div class="product-body">
+                <h2 class="product-name">{{ product.name }}</h2>
+                @if (product.description) {
+                  <p class="product-description">{{ product.description }}</p>
+                }
+                @if (price) {
+                  <p class="product-price">{{ formatPrice(price) }}</p>
+                }
+              </div>
+              <button
+                class="buy-button"
+                [disabled]="!!checkoutPriceId()"
+                (click)="buy(product)"
+              >
+                @if (price && checkoutPriceId() === price.id) {
+                  Redirecting…
+                } @else {
+                  Buy
+                }
+              </button>
+            </div>
+          }
+        </div>
+      }
+    }
+  }
+</div>
