@@ -212,6 +212,11 @@ export class DataManagerService {
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
   );
+  // The admin "Manage Gradings" list is paginated: we only subscribe to the most
+  // recent N gradings (one extra beyond the 50-row display window, so the UI can
+  // tell whether a "Show more" affordance is needed). `loadMoreGradings` grows
+  // this, which re-subscribes with a larger `limit()`.
+  gradingsQueryLimit = signal(51);
   public myGradingsAssessed = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
@@ -311,8 +316,17 @@ export class DataManagerService {
       this.updateSchoolsSync();
       this.updateCountersSync();
       this.updateCountryCodesSync();
-      this.updateGradingsSync(user);
       this.updateMyGradingsAssessedSync(user);
+    });
+
+    // Admin "Manage Gradings" subscription, kept separate so it can re-subscribe
+    // when the page size (`gradingsQueryLimit`) grows without tearing down every
+    // other snapshot. Reads the user + limit signals synchronously so the effect
+    // re-runs on login/logout and on "Show more".
+    effect(() => {
+      const user = this.firebaseService.user();
+      const queryLimit = this.gradingsQueryLimit();
+      this.updateGradingsSync(user, queryLimit);
     });
 
     // Reactive effect for My Gradings: re-subscribes whenever the member's
@@ -850,26 +864,61 @@ export class DataManagerService {
     );
   }
 
-  async updateGradingsSync(user: UserDetails) {
-    if (user.isAdmin) {
+  private gradingsUnsubscribe: (() => void) | null = null;
+
+  updateGradingsSync(user: UserDetails | null, queryLimit: number) {
+    // Tear down any previous subscription first so growing the page size (or a
+    // login/logout) doesn't leave a stale listener attached.
+    if (this.gradingsUnsubscribe) {
+      this.gradingsUnsubscribe();
+      this.gradingsUnsubscribe = null;
+    }
+    if (user?.isAdmin) {
       const gradingsCollection = collection(this.db, 'gradings');
-      const q = query(gradingsCollection, orderBy('lastUpdated', 'desc'));
-      this.snapshotsToUnsubscribe.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const gradingsList = snapshot.docs.map(firestoreDocToGrading);
-            this.gradings.setEntries(gradingsList);
-          },
-          (error) => {
-            console.error('Error fetching gradings:', error);
-            this.gradings.setError(error.message);
-          },
-        ),
+      const q = query(gradingsCollection, orderBy('lastUpdated', 'desc'), limit(queryLimit));
+      this.gradingsUnsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const gradingsList = snapshot.docs.map(firestoreDocToGrading);
+          this.gradings.setEntries(gradingsList);
+        },
+        (error) => {
+          console.error('Error fetching gradings:', error);
+          this.gradings.setError(error.message);
+        },
       );
     } else {
       this.gradings.setEntries([]);
     }
+  }
+
+  // Grow the admin gradings page size, re-subscribing to pull the next page. The
+  // effect watching `gradingsQueryLimit` handles the re-subscription.
+  loadMoreGradings() {
+    this.gradingsQueryLimit.update((n) => n + 50);
+  }
+
+  // Fetch every grading matching a given event date + primary grading instructor,
+  // used when opening an "implicit event" group so the filtered view is complete
+  // even when the paginated list only loaded part of the day. Queries the admin
+  // top-level `gradings` collection, or an instructor's `gradings` subcollection
+  // when `instructorMemberDocId` is provided.
+  async searchGradingsByDateAndInstructor(
+    date: string,
+    instructorId: string,
+    opts?: { instructorMemberDocId?: string },
+  ): Promise<Grading[]> {
+    if (!date || !instructorId) return [];
+    const gradingsRef = opts?.instructorMemberDocId
+      ? collection(this.db, `instructors/${opts.instructorMemberDocId}/gradings`)
+      : collection(this.db, 'gradings');
+    const q = query(
+      gradingsRef,
+      where('gradingEventDate', '==', date),
+      where('gradingInstructorId', '==', instructorId),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(firestoreDocToGrading);
   }
 
   async updateMyGradingsAssessedSync(user: UserDetails) {

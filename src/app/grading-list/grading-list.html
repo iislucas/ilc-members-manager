@@ -11,6 +11,10 @@
       <button class="subtle-button show-all-events-btn" (click)="clearEventFilter()">
         <app-icon name="arrow_back"></app-icon> Show all events
       </button>
+    } @else if (groupByEvent() && hasGroupFilter()) {
+      <button class="subtle-button show-all-events-btn" (click)="clearGroupFilter()">
+        <app-icon name="arrow_back"></app-icon> Show all gradings
+      </button>
     } @else {
       <div class="search-box">
         <app-icon class="search-icon" name="search"></app-icon>
@@ -172,6 +176,24 @@
               </a>
             }
           </div>
+        } @else if (item.kind === 'implicit') {
+          <div class="event-group implicit-event-group">
+            <button
+              class="event-group-heading"
+              (click)="onImplicitGroupClick(item.group)"
+              [attr.title]="'Show only this date and instructor\'s gradings'"
+            >
+              <app-icon name="person" class="event-group-icon"></app-icon>
+              <span class="event-group-title">{{ item.group.instructorName || 'Instructor' }}</span>
+              <span class="event-group-date">{{ item.group.date }}</span>
+              <span class="event-group-count">{{ item.group.total }}</span>
+            </button>
+            @for (grading of item.group.gradings; track grading.docId) {
+              <a class="grading-card" [href]="gradingLink(grading)">
+                <app-grading-row-header [grading]="grading" [hideEvent]="true"></app-grading-row-header>
+              </a>
+            }
+          </div>
         } @else {
           <a class="grading-card" [href]="gradingLink(item.grading)">
             <app-grading-row-header [grading]="item.grading"></app-grading-row-header>
@@ -180,8 +202,8 @@
       }
       @if (gradings().length < totalGradings()) {
         <div class="show-more-container">
-          <button class="show-more-button" (click)="showAll()">
-            Show all {{ totalGradings() }} gradings
+          <button class="show-more-button" (click)="onShowMore()">
+            Show more gradings
           </button>
         </div>
       }
@@ -199,7 +221,7 @@
       }
       @if (gradingsList.length < totalGradings()) {
         <div class="show-more-container">
-          <button class="show-more-button" (click)="showAll()">
+          <button class="show-more-button" (click)="onShowMore()">
             Show all {{ totalGradings() }} gradings
           </button>
         </div>

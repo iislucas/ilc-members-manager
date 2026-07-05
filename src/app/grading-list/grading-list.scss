@@ -298,6 +298,25 @@ $event-group-border: v.$theme-tag-border-color;
   }
 }
 
+// An "implicit event" block: unlinked gradings sharing a date + instructor. Same
+// layout as a real event block but a distinct (amber) border/heading tint so it
+// reads as an inferred grouping rather than a formally-linked event.
+$implicit-group-border: #d9a441;
+$implicit-group-bg: #fbf1dc;
+
+.implicit-event-group {
+  border-color: $implicit-group-border;
+
+  .event-group-heading {
+    border-bottom-color: $implicit-group-border;
+    background-color: $implicit-group-bg;
+
+    &:hover {
+      background-color: #f5e3bd;
+    }
+  }
+}
+
 .create-form-container {
   border: 1px solid v.$theme-border-color;
   background: white;

@@ -56,13 +56,27 @@ export interface GradingEventGroup {
   total: number; // Full count of gradings in the group, before any limit.
 }
 
-// One row in the grouped grading list: either a single grading not linked to an
-// event, or an event block (heading + its gradings). Both are positioned on the
-// same date timeline so unlinked gradings interleave with event blocks rather
-// than being collected at the end.
+// A set of gradings not linked to any event that nonetheless share the same
+// grading date and primary grading instructor. These read as an "implicit event"
+// — a de-facto grading day run by one instructor — even though no `IlcEvent`
+// record ties them together.
+export interface GradingDateInstructorGroup {
+  key: string; // `${date}|${instructorId}`.
+  date: string; // Shared `gradingEventDate` (YYYY-MM-DD).
+  instructorId: string; // Shared primary `gradingInstructorId`.
+  instructorName: string; // Resolved display name for the heading.
+  gradings: Grading[]; // Possibly truncated for display; see `total`.
+  total: number; // Full count in the group, before any display limit.
+}
+
+// One row in the grouped grading list: a single grading not linked to an event,
+// an event block (heading + its gradings), or an "implicit event" block grouping
+// unlinked gradings by shared date + instructor. All are positioned on the same
+// date timeline so unlinked gradings and blocks interleave chronologically.
 export type GradingListItem =
   | { kind: 'grading'; key: string; grading: Grading }
-  | { kind: 'event'; key: string; group: GradingEventGroup };
+  | { kind: 'event'; key: string; group: GradingEventGroup }
+  | { kind: 'implicit'; key: string; group: GradingDateInstructorGroup };
 
 function compareGradingsByField(a: Grading, b: Grading, field: GradingSortField, dir: SortDirection): number {
   const mul = dir === SortDirection.Asc ? 1 : -1;
@@ -190,6 +204,31 @@ export class GradingListComponent {
     this.eventFilterParam().set(docId);
   }
 
+  // The "implicit event" selection (a grading date + primary instructor) lives in
+  // the URL `groupDate`/`groupInstructor` params, mirroring the event filter, so a
+  // filtered implicit-event view is shareable. Reads go through
+  // `filterGroupDate`/`filterGroupInstructor`; writes through `setGroupFilter`.
+  private groupDateParam = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MemberGradings) {
+      return this.routingService.signals[Views.MemberGradings].urlParams.groupDate;
+    }
+    return this.routingService.signals[Views.ManageGradings].urlParams.groupDate;
+  });
+  private groupInstructorParam = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MemberGradings) {
+      return this.routingService.signals[Views.MemberGradings].urlParams.groupInstructor;
+    }
+    return this.routingService.signals[Views.ManageGradings].urlParams.groupInstructor;
+  });
+  filterGroupDate = computed(() => this.groupDateParam()());
+  filterGroupInstructor = computed(() => this.groupInstructorParam()());
+  private setGroupFilter(date: string, instructorId: string) {
+    this.groupDateParam().set(date);
+    this.groupInstructorParam().set(instructorId);
+  }
+
   sortField = signal<GradingSortField>(GradingSortField.LastUpdated);
   sortDirection = signal<SortDirection>(SortDirection.Desc);
 
@@ -221,11 +260,14 @@ export class GradingListComponent {
     return event ? this.eventDisplayFns.toName(event) : '';
   });
 
+  // A group (implicit-event) selection is active only when both params are set.
+  hasGroupFilter = computed(() => !!this.filterGroupDate() && !!this.filterGroupInstructor());
+
   hasActiveFilters = computed(() =>
     !!this.filterFromDate() || !!this.filterToDate() ||
     !!this.filterInstructorId() || !!this.filterStatus() ||
     !!this.filterStudentMemberId() || !!this.filterEventDocId() ||
-    this.filterUnpaidOnly()
+    this.hasGroupFilter() || this.filterUnpaidOnly()
   );
 
   filteredByTab = computed<Grading[]>(() => {
@@ -278,6 +320,18 @@ export class GradingListComponent {
     if (eventDocId) {
       results = results.filter(g => g.gradingEventDocId === eventDocId);
     }
+    // An implicit-event selection narrows to the unlinked gradings sharing that
+    // exact date + primary instructor.
+    if (this.hasGroupFilter()) {
+      const groupDate = this.filterGroupDate();
+      const groupInstructor = this.filterGroupInstructor();
+      results = results.filter(
+        (g) =>
+          !g.gradingEventDocId &&
+          g.gradingEventDate === groupDate &&
+          g.gradingInstructorId === groupInstructor,
+      );
+    }
     if (this.filterUnpaidOnly()) {
       results = results.filter((g) => !isGradingPaid(g));
     }
@@ -321,12 +375,20 @@ export class GradingListComponent {
     const mul = dir === SortDirection.Asc ? 1 : -1;
 
     const byEvent = new Map<string, Grading[]>();
+    // Unlinked gradings bucketed by `${gradingEventDate}|${gradingInstructorId}` so
+    // those sharing a grading day and instructor form an implicit-event group.
+    const byDateInstructor = new Map<string, Grading[]>();
     const standalone: Grading[] = [];
     for (const g of all) {
       if (g.gradingEventDocId) {
         const list = byEvent.get(g.gradingEventDocId) ?? [];
         list.push(g);
         byEvent.set(g.gradingEventDocId, list);
+      } else if (g.gradingEventDate && g.gradingInstructorId) {
+        const key = `${g.gradingEventDate}|${g.gradingInstructorId}`;
+        const list = byDateInstructor.get(key) ?? [];
+        list.push(g);
+        byDateInstructor.set(key, list);
       } else {
         standalone.push(g);
       }
@@ -346,6 +408,24 @@ export class GradingListComponent {
         eventDocId, title, date, endDate, gradings: sorted, total: sorted.length,
       };
       positioned.push({ item: { kind: 'event', key: `event:${eventDocId}`, group }, date: endDate, isEvent: true });
+    }
+    // A bucket of 2+ becomes an implicit-event block; a lone grading stays a plain
+    // row so single unlinked gradings aren't wrapped in a spurious heading.
+    for (const [key, gs] of byDateInstructor) {
+      if (gs.length < 2) {
+        standalone.push(gs[0]);
+        continue;
+      }
+      const sorted = [...gs].sort((a, b) => compareGradingsByField(a, b, field, dir));
+      const [date, instructorId] = [gs[0].gradingEventDate, gs[0].gradingInstructorId];
+      const instructorName = this.dataService.instructorDisplayName(
+        instructorId,
+        gs.find((g) => g.gradingInstructorName)?.gradingInstructorName,
+      );
+      const group: GradingDateInstructorGroup = {
+        key, date, instructorId, instructorName, gradings: sorted, total: sorted.length,
+      };
+      positioned.push({ item: { kind: 'implicit', key: `implicit:${key}`, group }, date, isEvent: true });
     }
     for (const g of standalone) {
       const date = g.gradingEventDate || g.gradingPurchaseDate || '';
@@ -378,7 +458,7 @@ export class GradingListComponent {
       } else {
         const slice = item.group.gradings.slice(0, remaining);
         remaining -= slice.length;
-        out.push({ ...item, group: { ...item.group, gradings: slice } });
+        out.push({ ...item, group: { ...item.group, gradings: slice } } as GradingListItem);
       }
     }
     return out;
@@ -399,8 +479,17 @@ export class GradingListComponent {
       !gradingManagerIdsOf(grading).includes(myInstructorId);
   }
 
-  showAll() {
-    this.limit.set(Infinity);
+  // "Show more" behaviour. In the admin view only the most recent page of
+  // gradings is subscribed, so pull the next page from Firestore and grow the
+  // display window in step. Other views have their whole set loaded already, so
+  // just lift the display limit.
+  onShowMore() {
+    if (this.viewMode() === 'all') {
+      this.dataService.loadMoreGradings();
+      this.limit.update((n) => (n === Infinity ? n : n + 50));
+    } else {
+      this.limit.set(Infinity);
+    }
   }
 
   onSearch(event: Event) {
@@ -446,6 +535,32 @@ export class GradingListComponent {
     this.limit.set(50);
   }
 
+  // Clicking an implicit-event heading filters the list to that date + instructor.
+  // Because the admin list is paginated (only the most recent gradings are
+  // loaded), first fetch the full set for that date/instructor from Firestore and
+  // merge it in, so a group at the bottom of the loaded window shows every member.
+  onImplicitGroupClick(group: GradingDateInstructorGroup) {
+    this.setGroupFilter(group.date, group.instructorId);
+    this.limit.set(50);
+
+    const opts = this.viewMode() === 'instructor'
+      ? { instructorMemberDocId: this.user()?.member.docId }
+      : undefined;
+    this.dataService
+      .searchGradingsByDateAndInstructor(group.date, group.instructorId, opts)
+      .then((gradings) => {
+        for (const g of gradings) {
+          this.gradingSet().upsert(g);
+        }
+      })
+      .catch((err) => console.error('Failed to load implicit-event gradings:', err));
+  }
+
+  clearGroupFilter() {
+    this.setGroupFilter('', '');
+    this.limit.set(50);
+  }
+
   onEventFilterText(text: string) {
     if (!text) {
       this.setFilterEventDocId('');
@@ -460,6 +575,7 @@ export class GradingListComponent {
     this.filterStatus.set('');
     this.filterStudentMemberId.set('');
     this.setFilterEventDocId('');
+    this.setGroupFilter('', '');
     this.filterUnpaidOnly.set(false);
     this.limit.set(50);
   }

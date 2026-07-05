@@ -113,6 +113,34 @@
         }
       ],
       "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "gradings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gradingEventDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "gradingInstructorId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gradings",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "gradingEventDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "gradingInstructorId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
