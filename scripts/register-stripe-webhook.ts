@@ -14,19 +14,21 @@
  *     script just reconciles the event list. If you lost the secret, delete the
  *     endpoint in the Stripe Dashboard and re-run to create a fresh one.
  *
- * The webhook URL is derived automatically from the current Cloud project and
- * the function's region — no need to pass it in. Resolution order:
- *   - project: --project > GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT env >
- *              .firebaserc "default" > `gcloud config get-value project`
- *   - region:  --region  > FUNCTIONS_REGION env > us-central1 (Firebase default)
+ * Everything is derived from the current Cloud project — no manual key handling
+ * or URL required:
+ *   - project:  --project > GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT env >
+ *               .firebaserc "default" > `gcloud config get-value project`
+ *   - key:      STRIPE_SECRET_KEY env > Secret Manager (the same secret the
+ *               deployed functions use), read via `gcloud secrets versions access`
+ *   - region:   --region > FUNCTIONS_REGION env > us-central1 (Firebase default)
  * The resolved `https://<region>-<project>.cloudfunctions.net/stripeWebhook`
  * URL works for both gen1 and gen2 functions. Pass --url to override entirely.
  *
- * Usage:
- *   STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook
- *   STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook -- --dry-run
- *   STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook -- --project my-proj --region europe-west1
- *   STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook -- --url https://.../stripeWebhook
+ * Usage (needs an authenticated `gcloud`):
+ *   pnpm register:stripe-webhook
+ *   pnpm register:stripe-webhook -- --dry-run
+ *   pnpm register:stripe-webhook -- --project my-proj --region europe-west1
+ *   STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook   # override key
  *
  * A live-mode key (sk_live_) is refused unless --live is passed.
  */
@@ -137,12 +139,59 @@ function resolveProject(options: CliOptions): string {
   return project;
 }
 
-function resolveWebhookUrl(options: CliOptions): string {
+function resolveWebhookUrl(options: CliOptions, project: string): string {
   if (options.url) return options.url;
-  const project = resolveProject(options);
   const region =
     options.region || process.env['FUNCTIONS_REGION'] || DEFAULT_REGION;
   return `https://${region}-${project}.cloudfunctions.net/${FUNCTION_NAME}`;
+}
+
+/**
+ * Reads a secret's latest value from Google Secret Manager via the gcloud CLI.
+ * Returns undefined if gcloud is missing, unauthenticated, or the secret does
+ * not exist — the caller decides whether that is fatal.
+ */
+function secretFromSecretManager(
+  name: string,
+  project: string,
+): string | undefined {
+  try {
+    const value = execFileSync(
+      'gcloud',
+      [
+        'secrets',
+        'versions',
+        'access',
+        'latest',
+        `--secret=${name}`,
+        `--project=${project}`,
+      ],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    return value.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The Stripe secret key. Prefers an explicit STRIPE_SECRET_KEY env var (handy
+ * for CI or a throwaway test key); otherwise reads it from Secret Manager — the
+ * same STRIPE_SECRET_KEY the deployed functions use — so no manual key handling
+ * is needed.
+ */
+function resolveStripeSecretKey(project: string): string {
+  const key =
+    process.env['STRIPE_SECRET_KEY'] ||
+    secretFromSecretManager('STRIPE_SECRET_KEY', project);
+  if (!key) {
+    throw new Error(
+      'Could not obtain STRIPE_SECRET_KEY. Set it in the environment, or make ' +
+        'sure gcloud is authenticated and the STRIPE_SECRET_KEY secret exists ' +
+        `in project "${project}".`,
+    );
+  }
+  return key;
 }
 
 function sameEvents(existing: string[], desired: string[]): boolean {
@@ -155,13 +204,13 @@ function sameEvents(existing: string[], desired: string[]): boolean {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
-  const secretKey = process.env['STRIPE_SECRET_KEY'];
-  if (!secretKey) throw new Error('STRIPE_SECRET_KEY is required');
+  const project = resolveProject(options);
+  const secretKey = resolveStripeSecretKey(project);
   if (secretKey.startsWith('sk_live_') && !options.live) {
     throw new Error('Refusing to use a live-mode key unless --live is passed');
   }
 
-  const webhookUrl = resolveWebhookUrl(options);
+  const webhookUrl = resolveWebhookUrl(options, project);
 
   type StripeApiVersion = NonNullable<
     ConstructorParameters<typeof Stripe>[1]

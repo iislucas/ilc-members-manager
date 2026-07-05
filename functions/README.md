@@ -66,13 +66,15 @@ register its URL with Stripe and capture the signing secret by running (from the
 repo root):
 
 ```sh
-STRIPE_SECRET_KEY=sk_test_... pnpm register:stripe-webhook
+pnpm register:stripe-webhook
 ```
 
-The webhook URL is derived automatically from the active Cloud project (via
-`gcloud config`, `GOOGLE_CLOUD_PROJECT`, or `.firebaserc`) and the function's
-region (default `us-central1`). Override with `--project`, `--region`, or a full
-`--url` if needed, and add `--dry-run` to preview.
+With an authenticated `gcloud`, the script needs no arguments: it reads
+`STRIPE_SECRET_KEY` from Secret Manager and derives the webhook URL from the
+active Cloud project (via `gcloud config`, `GOOGLE_CLOUD_PROJECT`, or
+`.firebaserc`) and the function's region (default `us-central1`). Override with
+`STRIPE_SECRET_KEY=...` (e.g. a throwaway test key), `--project`, `--region`, or
+a full `--url`; add `--dry-run` to preview.
 
 The script is idempotent (re-running reconciles the subscribed events). On first
 creation it prints the `whsec_...` signing secret — Stripe only shows it once —
