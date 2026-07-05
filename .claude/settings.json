@@ -15,7 +15,9 @@
       "Bash(git rev-list *)",
       "Bash(git switch *)",
       "Bash(gcloud auth *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git restore *)",
+      "Bash(git apply *)"
     ]
   }
 }
