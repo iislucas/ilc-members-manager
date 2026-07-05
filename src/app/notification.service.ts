@@ -797,6 +797,9 @@ export class NotificationService implements OnDestroy {
     if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
       return order.orderNumber || order.docId;
     }
+    if (order.ilcAppOrderKind === 'stripe') {
+      return order.stripeObjectId || order.docId;
+    }
     return order.referenceNumber || order.docId;
   }
 

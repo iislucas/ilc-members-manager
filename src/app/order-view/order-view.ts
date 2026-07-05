@@ -8,12 +8,13 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { SquarespaceOrderView } from './squarespace-order-view/squarespace-order-view';
 import { SheetOrderView } from './sheet-order-view/sheet-order-view';
+import { StripeOrderView } from './stripe-order-view/stripe-order-view';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-order-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView, FormsModule],
+  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView, StripeOrderView, FormsModule],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })
@@ -51,6 +52,10 @@ export class OrderView {
       const name = [o.billingAddress?.firstName, o.billingAddress?.lastName].filter(Boolean).join(' ');
       const date = o.createdOn ? new Date(o.createdOn).toLocaleDateString() : '';
       return `Order #${o.orderNumber} - ${date} - ${name}`;
+    } else if (o.ilcAppOrderKind === 'stripe') {
+      const date = o.created ? new Date(o.created).toLocaleDateString() : '';
+      const name = o.customerName || o.customerEmail || '';
+      return `Stripe ${o.stripeOrderType} - ${date} - ${name}`;
     }
     // (o.ilcAppOrderKind === 'ilc-2005-sheets-db-import')
     else {

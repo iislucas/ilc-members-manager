@@ -1,0 +1,59 @@
+<div class="order-complete-page">
+  @let currentState = state();
+
+  @switch (currentState.kind) {
+    @case ('idle') {
+      <app-spinner>Loading your order…</app-spinner>
+    }
+    @case ('loading') {
+      <app-spinner>Confirming your order…</app-spinner>
+    }
+    @case ('error') {
+      <div class="message-box error-box">
+        <app-icon name="error" width="1.4em" height="1.4em"></app-icon>
+        <div>
+          <p class="message-title">We couldn't confirm your order</p>
+          <p>{{ currentState.message }}</p>
+        </div>
+      </div>
+      <a class="link-button" href="/products">Back to Products</a>
+    }
+    @case ('loaded') {
+      @let summary = currentState.summary;
+      <div class="thanks-header">
+        <app-icon name="check" width="2.5em" height="2.5em"></app-icon>
+        <h1>Thanks for your order!</h1>
+      </div>
+
+      @if (isPaid(summary)) {
+        <p class="lead">Your payment was successful. A receipt has been sent
+          @if (summary.customerEmail) { to {{ summary.customerEmail }} }.</p>
+      } @else {
+        <p class="lead">We've received your order. Payment is still being
+          processed — you'll receive a confirmation by email once it completes.</p>
+      }
+
+      @if (summary.lineItems.length > 0) {
+        <div class="order-summary">
+          @for (item of summary.lineItems; track $index) {
+            <div class="order-line">
+              <span class="line-description">
+                {{ item.description }}
+                @if (item.quantity && item.quantity > 1) {
+                  <span class="line-qty">× {{ item.quantity }}</span>
+                }
+              </span>
+              <span class="line-amount">{{ formatMoney(item.amountTotal, item.currency) }}</span>
+            </div>
+          }
+          <div class="order-line order-total">
+            <span>Total</span>
+            <span>{{ formatMoney(summary.amountTotal, summary.currency) }}</span>
+          </div>
+        </div>
+      }
+
+      <a class="link-button" href="/products">Back to Products</a>
+    }
+  }
+</div>

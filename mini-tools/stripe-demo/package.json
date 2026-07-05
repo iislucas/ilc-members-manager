@@ -14,6 +14,7 @@
     "test": "pnpm typecheck"
   },
   "dependencies": {
+    "@stripe/cli": "^1.42.14",
     "express": "^5.1.0",
     "stripe": "^18.2.1"
   },

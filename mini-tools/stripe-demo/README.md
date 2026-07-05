@@ -72,12 +72,21 @@ Do not commit Stripe secrets.
 
 ```bash
 pnpm install
-pnpm dev
-pnpm stripe:listen
-pnpm build
-pnpm start
-pnpm typecheck
+# Creates a test product; and prints out a an environment file for you to save to `./sandbox.env`
 pnpm bootstrap:stripe
+
+# Connects to Stripe, and forward webhooks to env specified server (default: localhost:3000)
+pnpm stripe:listen
+
+# Runs tsx file directly (default server runs on: localhost:3000)
+pnpm dev
+
+# just runs tsc...
+pnpm typecheck 
+
+pnpm build
+# Runs compiled JS version
+pnpm start
 ```
 
 ## Checkout Flow

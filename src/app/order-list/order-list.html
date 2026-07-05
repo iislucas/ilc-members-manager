@@ -208,6 +208,8 @@
               <td>
                 @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
                   {{ order.createdOn | date: "yyyy-MM-dd" }}
+                } @else if (order.ilcAppOrderKind === "stripe") {
+                  {{ order.created | date: "yyyy-MM-dd" }}
                 } @else {
                   {{ order.datePaid | date: "yyyy-MM-dd" }}
                 }
@@ -218,6 +220,8 @@
                   "https://api.squarespace.com/1.0/commerce/orders"
                 ) {
                   <div>{{ order.orderNumber }}</div>
+                } @else if (order.ilcAppOrderKind === "stripe") {
+                  <div>{{ order.stripeOrderType }}</div>
                 } @else {
                   <div>{{ order.referenceNumber }}</div>
                 }
@@ -225,12 +229,11 @@
                   class="kind-badge"
                   [class.ss]="order.ilcAppOrderKind.includes('squarespace')"
                 >
-                  {{
-                    order.ilcAppOrderKind ===
-                    "https://api.squarespace.com/1.0/commerce/orders"
-                      ? "squarespace"
-                      : "sheets"
-                  }}
+                  @switch (order.ilcAppOrderKind) {
+                    @case ("https://api.squarespace.com/1.0/commerce/orders") { squarespace }
+                    @case ("stripe") { stripe }
+                    @default { sheets }
+                  }
                 </span>
               </td>
               <td>
@@ -239,6 +242,9 @@
                   "https://api.squarespace.com/1.0/commerce/orders"
                 ) {
                   <div>{{ order.billingAddress?.firstName }} {{ order.billingAddress?.lastName }}</div>
+                  <div class="small-text">{{ order.customerEmail }}</div>
+                } @else if (order.ilcAppOrderKind === "stripe") {
+                  <div>{{ order.customerName }}</div>
                   <div class="small-text">{{ order.customerEmail }}</div>
                 } @else {
                   <div>{{ order.firstName }} {{ order.lastName }}</div>
@@ -252,6 +258,10 @@
                 ) {
                   @for (item of order.lineItems; track item.id) {
                     <div class="small-text">&bull; {{ item.quantity }}x {{ item.productName || item.sku }}</div>
+                  }
+                } @else if (order.ilcAppOrderKind === "stripe") {
+                  @for (item of order.lineItems; track $index) {
+                    <div class="small-text">&bull; {{ item.quantity ?? 1 }}x {{ item.description || item.priceId }}</div>
                   }
                 } @else {
                   <div>{{ order['paidFor'] }}</div>

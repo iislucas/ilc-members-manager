@@ -1,0 +1,60 @@
+<div class="fields-grid">
+  <div class="field">
+    <label>Order Type</label>
+    <div class="value">{{ typeLabel() }}</div>
+  </div>
+  <div class="field">
+    <label>Customer Name / Email</label>
+    <div class="value">
+      <div>{{ order().customerName || "(No name)" }}</div>
+      <div class="small">{{ order().customerEmail || "(No email)" }}</div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Amount</label>
+    <div class="value">{{ formattedTotal() }}</div>
+  </div>
+  <div class="field">
+    <label>Payment Status</label>
+    <div class="value">{{ order().paymentStatus || "—" }}</div>
+  </div>
+  <div class="field">
+    <label>Created</label>
+    <div class="value">{{ order().created | date: "medium" }}</div>
+  </div>
+  <div class="field">
+    <label>Mode</label>
+    <div class="value">{{ order().mode || "—" }}</div>
+  </div>
+
+  <div class="field span-2">
+    <label>Line Items</label>
+    <div class="value">
+      @if (order().lineItems.length > 0) {
+        <ul class="line-items">
+          @for (item of order().lineItems; track $index) {
+            <li>
+              <span class="desc">{{ item.description || item.priceId || "Item" }}</span>
+              <span class="qty">×{{ item.quantity ?? 1 }}</span>
+              <span class="amount">{{ formatLineAmount(item.amountTotal, item.currency) }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <span class="small">(No line items)</span>
+      }
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Stripe Object ID</label>
+    <div class="value small">{{ order().stripeObjectId }}</div>
+  </div>
+  <div class="field">
+    <label>Customer / Subscription</label>
+    <div class="value small">
+      <div>{{ order().stripeCustomerId || "—" }}</div>
+      <div>{{ order().subscriptionId || "" }}</div>
+    </div>
+  </div>
+</div>

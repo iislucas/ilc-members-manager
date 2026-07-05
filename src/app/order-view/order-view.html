@@ -35,12 +35,13 @@
           class="kind-tag"
           [class.ss]="o.ilcAppOrderKind.includes('squarespace')"
         >
-          {{
-            o.ilcAppOrderKind ===
-            "https://api.squarespace.com/1.0/commerce/orders"
-              ? "Squarespace"
-              : "Legacy Import"
-          }}
+          @switch (o.ilcAppOrderKind) {
+            @case ("https://api.squarespace.com/1.0/commerce/orders") {
+              Squarespace
+            }
+            @case ("stripe") { Stripe }
+            @default { Legacy Import }
+          }
         </div>
       </div>
 
@@ -49,12 +50,13 @@
           <div class="info-item">
             <label>Reference / Order ID</label>
             <div class="value bold">
-              {{
-                o.ilcAppOrderKind ===
-                "https://api.squarespace.com/1.0/commerce/orders"
-                  ? o.orderNumber
-                  : o.referenceNumber
-              }}
+              @switch (o.ilcAppOrderKind) {
+                @case ("https://api.squarespace.com/1.0/commerce/orders") {
+                  {{ o.orderNumber }}
+                }
+                @case ("stripe") { {{ o.stripeObjectId }} }
+                @default { {{ o.referenceNumber }} }
+              }
             </div>
           </div>
           <div class="info-item">
@@ -163,6 +165,8 @@
             [order]="o"
             (orderUpdated)="fetchOrder(orderId())"
           ></app-squarespace-order-view>
+        } @else if (o.ilcAppOrderKind === "stripe") {
+          <app-stripe-order-view [order]="o"></app-stripe-order-view>
         }
       </div>
     </div>

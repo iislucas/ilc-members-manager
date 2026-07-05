@@ -868,7 +868,8 @@ export type OrderStatus = 'processed' | 'needs-manual-processing' | 'error' | 'i
 
 export type OrderKind =
   | 'https://api.squarespace.com/1.0/commerce/orders'
-  | 'ilc-2005-sheets-db-import';
+  | 'ilc-2005-sheets-db-import'
+  | 'stripe';
 
 export type BaseOrder = {
   docId: string; // Firestore ID
@@ -978,7 +979,68 @@ export type SquareSpaceOrder = BaseOrder & {
   lineItems?: SquareSpaceLineItem[];
 }
 
-export type Order = SheetsImportOrder | SquareSpaceOrder;
+// What kind of Stripe event produced an order record. A subscription's initial
+// payment arrives as a `checkout` order; each subsequent renewal invoice as a
+// `renewal` order; and ending the subscription as a `cancellation` order. This
+// mirrors how Squarespace renewals each become their own order record.
+export type StripeOrderType = 'checkout' | 'renewal' | 'cancellation';
+
+// A single purchased line, mapped from a Checkout Session line item or an
+// invoice line. Product/price ids are retained so future downstream logic can
+// map Stripe products to memberships/gradings (the Stripe analogue of a SKU).
+export interface StripeOrderLineItem {
+  productId: string | null;
+  priceId: string | null;
+  description: string;
+  quantity: number | null;
+  // Total for this line in the currency's minor unit (e.g. cents).
+  amountTotal: number;
+  currency: string;
+}
+
+// Firestore path: /orders/{doc-id}
+export type StripeOrder = BaseOrder & {
+  ilcAppOrderKind: 'stripe';
+  stripeOrderType: StripeOrderType;
+  // Idempotency identity: the id of the primary Stripe object this record was
+  // built from (checkout session `cs_...`, invoice `in_...`, or subscription
+  // `sub_...` for cancellations). These id namespaces do not collide, so a
+  // single equality lookup on this field is enough to dedupe redelivered
+  // webhook events.
+  stripeObjectId: string;
+  // Specific ids, populated when available on the source object.
+  checkoutSessionId?: string;
+  invoiceId?: string;
+  paymentIntentId?: string;
+  subscriptionId?: string;
+  stripeCustomerId?: string;
+  mode?: 'payment' | 'subscription';
+  // Session or subscription status, verbatim from Stripe (e.g. 'complete',
+  // 'active', 'canceled').
+  status?: string;
+  paymentStatus?: 'no_payment_required' | 'paid' | 'unpaid' | null;
+  customerEmail?: string;
+  customerName?: string;
+  billingAddress?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  // Grand total in the currency's minor unit, or null if not applicable.
+  amountTotal: number | null;
+  currency: string | null;
+  // When the underlying Stripe event/object was created (ISO string). Also used
+  // to populate `lastUpdated` for chronological sorting alongside other orders.
+  created: string;
+  metadata?: Record<string, string>;
+  clientReferenceId?: string | null;
+  lineItems: StripeOrderLineItem[];
+};
+
+export type Order = SheetsImportOrder | SquareSpaceOrder | StripeOrder;
 
 export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'docId'> & {
   lastUpdated: Timestamp;
@@ -988,7 +1050,14 @@ export type SquarespaceOrderFirebaseDoc = Omit<SquareSpaceOrder, 'lastUpdated' |
   lastUpdated: Timestamp;
 };
 
-export type OrderFirebaseDoc = SheetsImportOrderFirebaseDoc | SquarespaceOrderFirebaseDoc;
+export type StripeOrderFirebaseDoc = Omit<StripeOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: Timestamp;
+};
+
+export type OrderFirebaseDoc =
+  | SheetsImportOrderFirebaseDoc
+  | SquarespaceOrderFirebaseDoc
+  | StripeOrderFirebaseDoc;
 
 export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
   const docData = doc.data() as OrderFirebaseDoc;
@@ -1149,6 +1218,20 @@ export function initSheetsImportOrder(): SheetsImportOrder {
     collected: '',
     split: '',
     notes: '',
+  };
+}
+
+export function initStripeOrder(): StripeOrder {
+  return {
+    docId: '',
+    lastUpdated: new Date().toISOString(),
+    ilcAppOrderKind: 'stripe',
+    stripeOrderType: 'checkout',
+    stripeObjectId: '',
+    amountTotal: null,
+    currency: null,
+    created: new Date().toISOString(),
+    lineItems: [],
   };
 }
 

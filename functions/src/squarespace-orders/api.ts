@@ -285,6 +285,16 @@ export const processSquarespaceOrder = onDocumentWritten(
       return;
     }
 
+    // The `orders` collection also holds Stripe and legacy sheets imports. This
+    // trigger only knows how to process Squarespace orders, so ignore any other
+    // kind (writing a Stripe order must not run Squarespace-specific logic).
+    if (
+      orderData.ilcAppOrderKind !==
+      'https://api.squarespace.com/1.0/commerce/orders'
+    ) {
+      return;
+    }
+
     const docId = event.params.orderId;
     const db = admin.firestore();
 

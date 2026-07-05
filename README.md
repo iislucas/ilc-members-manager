@@ -53,6 +53,11 @@ When adding new environment variables, be sure to update both files accordingly.
 Copy & fill out `functions/src/environments/environment.template.ts`, saving it as
 `functions/src/environments/environment.ts`.
 
+The cloud functions also need API-key secrets (Google Calendar, Squarespace, and
+Stripe — including the `STRIPE_WEBHOOK_SECRET` for the orders webhook). See
+[functions/README.md](functions/README.md#api-key-secrets) for the
+`firebase functions:secrets:set …` commands.
+
 ## How to Code on this project
 
 Make sure to see the AI context doc [.gemini/GEMINI.md](./.gemini/GEMINI.md] for

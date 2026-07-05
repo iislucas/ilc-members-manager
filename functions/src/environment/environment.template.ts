@@ -29,4 +29,9 @@ export const environment = {
   // the private key is provided via the VAPID_PRIVATE_KEY secret. Empty disables push.
   vapidPublicKey: '',
   pushContactEmail: 'mailto:admin@example.com',
+  // Stripe integration. The secret key is provided via the STRIPE_SECRET_KEY
+  // secret (defineSecret), not stored here. Only non-secret config lives here.
+  stripe: {
+    apiVersion: '2026-04-22.dahlia' as const,
+  },
 };
