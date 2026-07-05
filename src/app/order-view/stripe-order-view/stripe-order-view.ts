@@ -1,12 +1,11 @@
 import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StripeOrder } from '../../../../functions/src/data-model';
-import { IconComponent } from '../../icons/icon.component';
 
 @Component({
   selector: 'app-stripe-order-view',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule],
   templateUrl: './stripe-order-view.html',
   styleUrl: './stripe-order-view.scss',
 })
