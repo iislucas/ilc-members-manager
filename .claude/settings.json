@@ -17,7 +17,8 @@
       "Bash(gcloud auth *)",
       "Bash(git pull *)",
       "Bash(git restore *)",
-      "Bash(git apply *)"
+      "Bash(git apply *)",
+      "Bash(firebase emulators:start --only functions --project ilc-paris-class-tracker)"
     ]
   }
 }
