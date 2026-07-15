@@ -595,19 +595,35 @@ export class DataManagerService {
       const field = criteria.searchField;
       if (!term) return [];
 
-      let q;
+      let results: IlcEvent[] = [];
       if (field === 'ownerEmails') {
-        q = query(this.eventsCollection, where('ownerEmails', 'array-contains', term));
+        const qOwner = query(this.eventsCollection, where('ownerEmails', 'array-contains', term));
+        const qManager = query(this.eventsCollection, where('managerEmails', 'array-contains', term));
+        const [snapOwner, snapManager] = await Promise.all([
+          getDocs(qOwner),
+          getDocs(qManager),
+        ]);
+        const merged = new Map<string, IlcEvent>();
+        for (const d of snapOwner.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        for (const d of snapManager.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        results = Array.from(merged.values());
       } else {
-        q = query(this.eventsCollection, where(field, '==', term));
-      }
-      
-      if (status) {
-        q = query(q, where('status', '==', status));
+        let q = query(this.eventsCollection, where(field, '==', term));
+        if (status) {
+          q = query(q, where('status', '==', status));
+        }
+        const snap = await getDocs(q);
+        results = snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
       }
 
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
+      if (field === 'ownerEmails' && status) {
+        results = results.filter((e) => e.status === status);
+      }
+      return results;
     } else if (criteria.kind === 'date') {
       let q = query(this.eventsCollection);
 
