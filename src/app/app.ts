@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, effect } from '@angular/core';
+import { Component, computed, inject, signal, effect, HostListener } from '@angular/core';
 import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -139,6 +139,37 @@ export class App {
 
   onEventTitleLoaded(title: string) {
     this.loadedEventTitle.set(title);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    if (
+      !href.startsWith('http') &&
+      !href.startsWith('//') &&
+      !href.startsWith('#') &&
+      !href.startsWith('mailto:') &&
+      !href.startsWith('tel:') &&
+      !anchor.hasAttribute('download') &&
+      anchor.getAttribute('target') !== '_blank' &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      event.button === 0
+    ) {
+      event.preventDefault();
+      let path = href;
+      if (path.startsWith('/')) {
+        path = path.substring(1);
+      }
+      this.routingService.navigateTo(path);
+    }
   }
 
   onOrderTitleLoaded(title: string) {

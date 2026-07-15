@@ -20,10 +20,11 @@ describe('App', () => {
     firebaseStateServiceMock = createFirebaseStateServiceMock();
     dataManagerServiceMock = {
       loadingState: signal(DataServiceState.Loaded) as any,
-      members: { loaded: signal(true) } as any,
-      schools: { loaded: signal(true) } as any,
-      instructors: { loaded: signal(true) } as any,
-      myStudents: { loaded: signal(true) } as any,
+      members: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      schools: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      instructors: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      myStudents: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      getMember: vi.fn(),
     };
 
 
@@ -191,4 +192,48 @@ describe('App', () => {
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
     expect(breadcrumbLabels).toEqual(['I Liq Chuan', 'Members Portal App', 'Members Area', 'Article']);
   });
+
+  it('should intercept click on breadcrumb links and navigate client-side', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    // Simulate logged in user
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+    } as unknown as UserDetails);
+
+    // Simulate routing to a member view
+    app.routingService.matchedPatternId.set(Views.ManageMemberView);
+    app.routingService.signals[Views.ManageMemberView].pathVars.memberId.set('M1');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const navigateSpy = vi.spyOn(app.routingService, 'navigateTo').mockImplementation(() => {});
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    // Find the link to "/members"
+    const crumbLink = Array.from(compiled.querySelectorAll('.crumb-link'))
+      .find((el) => el.getAttribute('href') === '/members') as HTMLAnchorElement;
+    expect(crumbLink).toBeTruthy();
+
+    // Click it!
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    crumbLink.dispatchEvent(clickEvent);
+
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(navigateSpy).toHaveBeenCalledWith('members');
+  });
 });
+
