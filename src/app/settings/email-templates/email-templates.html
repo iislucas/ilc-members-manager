@@ -1,0 +1,66 @@
+<div class="settings-card">
+  <div class="settings-header">
+    <h3>Email Templates</h3>
+    <p class="description">Edit the templates sent automatically to new members and instructors upon license activation. You can use markdown like bold (**text**) or links ([label](url)).</p>
+  </div>
+
+  <div class="settings-body">
+    <div class="template-section">
+      <h4>New Member Welcome Email</h4>
+      <div class="placeholder-guide">
+        <span class="guide-title">Available Placeholders:</span>
+        <span class="placeholder-chip">{{"{name}"}}</span>
+        <span class="placeholder-chip">{{"{memberId}"}}</span>
+        <span class="placeholder-chip">{{"{email}"}}</span>
+      </div>
+
+      <div class="form-group">
+        <label for="member-subject">Email Subject</label>
+        <input id="member-subject" type="text" [(ngModel)]="templates().membershipActivatedSubject" placeholder="Welcome Subject..." class="input-style" />
+      </div>
+
+      <div class="form-group">
+        <label for="member-body">Email Body (Markdown)</label>
+        <textarea id="member-body" rows="6" [(ngModel)]="templates().membershipActivatedBody" placeholder="Welcome Body..." class="input-style textarea-style"></textarea>
+      </div>
+    </div>
+
+    <div class="template-section">
+      <h4>New Instructor Welcome Email</h4>
+      <div class="placeholder-guide">
+        <span class="guide-title">Available Placeholders:</span>
+        <span class="placeholder-chip">{{"{name}"}}</span>
+        <span class="placeholder-chip">{{"{memberId}"}}</span>
+        <span class="placeholder-chip">{{"{instructorId}"}}</span>
+        <span class="placeholder-chip">{{"{email}"}}</span>
+      </div>
+
+      <div class="form-group">
+        <label for="instructor-subject">Email Subject</label>
+        <input id="instructor-subject" type="text" [(ngModel)]="templates().instructorLicenseActivatedSubject" placeholder="Instructor Subject..." class="input-style" />
+      </div>
+
+      <div class="form-group">
+        <label for="instructor-body">Email Body (Markdown)</label>
+        <textarea id="instructor-body" rows="6" [(ngModel)]="templates().instructorLicenseActivatedBody" placeholder="Instructor Body..." class="input-style textarea-style"></textarea>
+      </div>
+    </div>
+
+    @if (statusMessage()) {
+      <div class="status-msg" [class.error]="statusMessage().startsWith('Error')">
+        {{ statusMessage() }}
+      </div>
+    }
+
+    <div class="actions">
+      <button class="btn btn-primary" (click)="saveTemplates()" [disabled]="isSaving()">
+        @if (isSaving()) {
+          <app-spinner></app-spinner>
+          Saving...
+        } @else {
+          Save Templates
+        }
+      </button>
+    </div>
+  </div>
+</div>

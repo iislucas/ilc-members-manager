@@ -31,6 +31,7 @@
     "deploy:find-instructor-wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-find-instructor-wc.ts",
     "deploy:events-wc": "ts-node -O '{\"module\": \"commonjs\"}' scripts/deploy-events-wc.ts",
     "mcp": "ng mcp",
+    "postinstall": "pnpm --prefix functions install",
     "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
     "start:emulator": "ng serve --configuration emulator --project ilc-members-manager",
     "seed:emulator": "pnpm --prefix functions exec ts-node scripts/seed-emulator.ts",

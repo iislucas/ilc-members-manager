@@ -1,0 +1,112 @@
+.settings-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.settings-header {
+  margin-bottom: 24px;
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.25rem;
+    color: var(--text-primary, #333);
+  }
+  .description {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+    line-height: 1.4;
+  }
+}
+
+.template-section {
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  padding: 24px 0;
+  &:first-of-type {
+    border-top: none;
+    padding-top: 0;
+  }
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 1rem;
+    color: var(--text-primary, #333);
+  }
+}
+
+.placeholder-guide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.75rem;
+  .guide-title {
+    color: var(--text-secondary, #666);
+    font-weight: 500;
+  }
+  .placeholder-chip {
+    background: var(--bg-hover, #f0f0f0);
+    color: var(--text-primary, #333);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-family: monospace;
+    border: 1px solid var(--border-color, #e0e0e0);
+  }
+}
+
+.form-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #555);
+  }
+}
+
+.input-style {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #333);
+  transition: border-color 0.2s;
+  &:focus {
+    border-color: var(--primary-color, #0056b3);
+    outline: none;
+  }
+}
+
+.textarea-style {
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.status-msg {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+  &.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}

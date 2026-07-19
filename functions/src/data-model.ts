@@ -1,6 +1,12 @@
 import {
   Timestamp,
 } from 'firebase/firestore';
+import {
+  membershipActivatedSubject,
+  membershipActivatedBody,
+  instructorLicenseActivatedSubject,
+  instructorLicenseActivatedBody,
+} from './email-templates.js';
 
 // ==================================================================
 // # Collections in Firebase
@@ -522,6 +528,10 @@ export enum NotificationKind {
   // Admin-only: an order failed automatic processing (ilcAppOrderStatus 'error' or
   // 'needs-manual-processing') and needs an admin to resolve it from the order view.
   OrderNeedsAttention = 'OrderNeedsAttention',
+  MembershipPending = 'MembershipPending',
+  MembershipActivated = 'MembershipActivated',
+  InstructorLicensePending = 'InstructorLicensePending',
+  InstructorLicenseActivated = 'InstructorLicenseActivated',
 }
 
 // Two presentation styles for notifications: an 'action' has an expectation/TODO
@@ -539,6 +549,7 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.GradingUnpaid,
   NotificationKind.PendingEventApproval,
   NotificationKind.OrderNeedsAttention,
+  NotificationKind.InstructorLicenseActivated,
 ]);
 
 export function notificationStyle(kind: NotificationKind): NotificationStyle {
@@ -612,6 +623,15 @@ export interface NotificationOrderIssueData {
   issues: string[];
 }
 
+export interface NotificationMembershipActivatedData {
+  orderId?: string;
+}
+
+export interface NotificationInstructorLicenseActivatedData {
+  orderId?: string;
+  instructorId?: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -668,6 +688,22 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.PurchaseFulfilled;
     data: NotificationPurchaseData;
+  }
+  | {
+    kind: NotificationKind.MembershipPending;
+    data: NotificationPurchaseData;
+  }
+  | {
+    kind: NotificationKind.MembershipActivated;
+    data: NotificationMembershipActivatedData;
+  }
+  | {
+    kind: NotificationKind.InstructorLicensePending;
+    data: NotificationPurchaseData;
+  }
+  | {
+    kind: NotificationKind.InstructorLicenseActivated;
+    data: NotificationInstructorLicenseActivatedData;
   }
 );
 
@@ -1700,5 +1736,23 @@ export function initCacheMetadata(): CacheMetadata {
     blogsItemCount: 0,
     blogsLastSyncUpdated: 0,
     blogsLastSyncRemoved: 0,
+  };
+}
+
+// System configuration for welcome/activation email templates,
+// stored at /system/email-templates.
+export interface EmailTemplates {
+  membershipActivatedSubject: string;
+  membershipActivatedBody: string; // Markdown template
+  instructorLicenseActivatedSubject: string;
+  instructorLicenseActivatedBody: string; // Markdown template
+}
+
+export function initEmailTemplates(): EmailTemplates {
+  return {
+    membershipActivatedSubject: membershipActivatedSubject(),
+    membershipActivatedBody: membershipActivatedBody(),
+    instructorLicenseActivatedSubject: instructorLicenseActivatedSubject(),
+    instructorLicenseActivatedBody: instructorLicenseActivatedBody({ instructorId: '{instructorId}' }),
   };
 }

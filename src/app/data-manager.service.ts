@@ -51,6 +51,8 @@ import {
   EventStatus,
   initEvent,
   ResourceAccessLevel,
+  EmailTemplates,
+  initEmailTemplates,
 } from '../../functions/src/data-model';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
@@ -216,6 +218,7 @@ export class DataManagerService {
     'docId',
   );
   public counters = signal<Counters | null>(null);
+  public emailTemplates = signal<EmailTemplates | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
   public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
@@ -325,6 +328,7 @@ export class DataManagerService {
       this.updateSchoolsSync();
       this.updateCountersSync();
       this.updateCountryCodesSync();
+      this.updateEmailTemplatesSync();
       this.updateMyGradingsAssessedSync(user);
     });
 
@@ -885,6 +889,22 @@ export class DataManagerService {
       }, (error) => {
         console.error('Error fetching country codes:', error);
         this.countries.setError(error.message);
+      }),
+    );
+  }
+
+  async updateEmailTemplatesSync() {
+    const emailTemplatesRef = doc(this.db, 'system', 'email-templates');
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(emailTemplatesRef, (doc) => {
+        if (doc.exists()) {
+          this.emailTemplates.set(doc.data() as EmailTemplates);
+        } else {
+          console.warn('system/email-templates document does not exist, using defaults.');
+          this.emailTemplates.set(initEmailTemplates());
+        }
+      }, (error) => {
+        console.error('Error fetching email templates:', error);
       }),
     );
   }
@@ -1551,6 +1571,10 @@ export class DataManagerService {
 
   async saveCountryCodes(data: CountryCodesDoc) {
     return setDoc(doc(this.db, 'system', 'country-codes'), data);
+  }
+
+  async saveEmailTemplates(data: EmailTemplates) {
+    return setDoc(doc(this.db, 'system', 'email-templates'), data);
   }
 
   downloadSchoolsAsJsonL() {

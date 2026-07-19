@@ -27,7 +27,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, NotificationKind } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, NotificationKind, Member, MembershipType } from '../data-model';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
@@ -453,6 +453,56 @@ async function notifyPurchaseFulfilled(
   });
 }
 
+async function createPendingNotificationIfNeeded(
+  orderData: SquareSpaceOrder,
+  orderId: string,
+  lineItem: SquareSpaceLineItem,
+  db: admin.firestore.Firestore,
+): Promise<void> {
+  const sku = lineItem.sku || '';
+  const email = orderData.customerEmail || orderData.billingAddress?.email || '';
+  if (!email) return;
+
+  let member: Member;
+  try {
+    member = await getMemberByEmail(email, db);
+  } catch {
+    return;
+  }
+
+  const orderRef = orderData.orderNumber ? `#${orderData.orderNumber}` : orderId;
+
+  if (sku.startsWith('MEM-')) {
+    if (member.membershipType === MembershipType.NotYetAMember || !member.membershipType) {
+      const summary = lineItem.productName || 'Membership';
+      await createMemberNotification(db, member.docId, {
+        kind: NotificationKind.MembershipPending,
+        markdown: `⏳ Your purchase of **${summary}** (Order ${orderRef}) is in progress. We are setting up your account and will notify you as soon as it is active.`,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        data: {
+          orderId: orderData.orderNumber || orderId,
+          summary,
+        },
+      });
+    }
+  } else if (sku === 'LIS-YEAR-GL' || sku === 'LIS-YEAR-INS' || sku === 'LIS-YEAR-LI') {
+    if (!member.instructorId) {
+      const summary = lineItem.productName || 'Instructor License';
+      await createMemberNotification(db, member.docId, {
+        kind: NotificationKind.InstructorLicensePending,
+        markdown: `⏳ Your purchase of **${summary}** (Order ${orderRef}) is in progress. We are preparing your instructor profile and will notify you as soon as it is active.`,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        data: {
+          orderId: orderData.orderNumber || orderId,
+          summary,
+        },
+      });
+    }
+  }
+}
+
 // Called automatically by the `processSquarespaceOrder` Firestore trigger
 // whenever an order is created or updated, and manually by `reprocessOrder`.
 export async function executeOrderDownstreamLogic(
@@ -611,6 +661,18 @@ export async function executeOrderDownstreamLogic(
       await notifyPurchaseFulfilled(orderData, orderId, db);
     } catch (error) {
       logger.error(`Order ${orderId}: failed to create purchase-fulfilled notification:`, error);
+    }
+  }
+
+  if (!allItemsFulfilled) {
+    for (const lineItem of lineItems) {
+      if (lineItem.ilcAppProcessingStatus === 'error' || lineItem.ilcAppProcessingStatus === 'needs-manual-processing') {
+        try {
+          await createPendingNotificationIfNeeded(orderData, orderId, lineItem, db);
+        } catch (error) {
+          logger.error(`Order ${orderId}: failed to create pending notification for SKU ${lineItem.sku}:`, error);
+        }
+      }
     }
   }
 

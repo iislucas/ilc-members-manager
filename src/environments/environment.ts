@@ -13,6 +13,8 @@
  *   add it here with a template/placeholder value so other developers know it exists.
  */
 
+import { AppEnvironment } from './environment.types';
+
 const firebaseConfig = {
   apiKey: 'YOUR_API_KEY',
   authDomain: 'YOUR_AUTH_DOMAIN',
@@ -23,7 +25,7 @@ const firebaseConfig = {
   measurementId: 'YOUR_MEASUREMENT_ID_FROM_FIREBASE',
 };
 
-export const environment = {
+export const environment: AppEnvironment = {
   production: false,
   useEmulator: false,
   firebase: firebaseConfig,

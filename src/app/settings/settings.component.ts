@@ -4,18 +4,19 @@ import { CountryCodesComponent } from './country-codes/country-codes';
 import { Backups } from './backups/backups';
 import { ContentCacheComponent } from './content-cache/content-cache';
 import { ResourcesComponent } from './resources/resources';
+import { EmailTemplatesComponent } from './email-templates/email-templates';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
 // Valid tab identifiers for the settings page.
-type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources';
-const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources'];
+type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'email-templates';
+const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'email-templates'];
 const DEFAULT_TAB: SettingsTab = 'counters';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CountersComponent, CountryCodesComponent, Backups, ContentCacheComponent, ResourcesComponent],
+  imports: [CountersComponent, CountryCodesComponent, Backups, ContentCacheComponent, ResourcesComponent, EmailTemplatesComponent],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

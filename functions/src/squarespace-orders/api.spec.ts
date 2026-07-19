@@ -267,4 +267,81 @@ describe('executeOrderDownstreamLogic with physical products', () => {
     expect(updateData.ilcAppOrderStatus).toBe('processed');
     expect(updateData.lineItems[0].ilcAppProcessingStatus).toBe('processed');
   });
+
+  describe('executeOrderDownstreamLogic pending notifications', () => {
+    it('should create a pending membership notification if order processing fails for a first membership purchase', async () => {
+      const order = {
+        orderNumber: '123',
+        customerEmail: 'test@example.com',
+        fulfillmentStatus: 'PENDING',
+        lineItems: [
+          {
+            id: 'item1',
+            sku: 'MEM-YEAR-REG',
+            quantity: '1',
+            unitPricePaid: { value: '85.00' },
+            customizations: [
+              { label: 'Is this membership for a new member?', value: 'Renewing an existing member' },
+              { label: 'Member ID', value: 'US999' },
+            ]
+          },
+        ],
+      } as unknown as SquareSpaceOrder;
+
+      const mockUpdate = vi.fn().mockResolvedValue({});
+      const mockSet = vi.fn().mockResolvedValue({});
+
+      const mockCollection = vi.fn().mockImplementation((colName) => {
+        const colObj: any = {
+          doc: vi.fn().mockImplementation((docId) => {
+            return {
+              get: vi.fn().mockResolvedValue({ exists: false }),
+              set: mockSet,
+              update: mockUpdate,
+              collection: vi.fn().mockReturnValue(colObj),
+            };
+          }),
+          where: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          get: vi.fn()
+            .mockResolvedValueOnce({
+              empty: false,
+              docs: [{
+                id: 'member-doc-id',
+                ref: {
+                  id: 'member-doc-id',
+                  update: vi.fn(),
+                },
+                data: () => ({
+                  docId: 'member-doc-id',
+                  emails: ['other@example.com'],
+                  membershipType: 'NotYetAMember',
+                  instructorId: '',
+                  memberId: 'US999',
+                })
+              }]
+            })
+            .mockResolvedValue({ empty: true, docs: [] }),
+        };
+        return colObj;
+      });
+
+      const mockDb = {
+        collection: mockCollection,
+        batch: vi.fn().mockReturnValue({
+          delete: vi.fn(),
+          commit: vi.fn().mockResolvedValue({}),
+        }),
+      } as unknown as admin.firestore.Firestore;
+
+      await executeOrderDownstreamLogic(order, 'doc1', mockDb, { skipFulfillment: true });
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockCollection).toHaveBeenCalledWith('members');
+      expect(mockSet).toHaveBeenCalled();
+      const notificationCall = mockSet.mock.calls[0][0];
+      expect(notificationCall.kind).toBe('MembershipPending');
+      expect(notificationCall.markdown).toContain('Your purchase of **Membership**');
+    });
+  });
 });
