@@ -14,6 +14,8 @@
  *   pnpm start:emulator
  */
 
+import { AppEnvironment } from './environment.types';
+
 const firebaseConfig = {
   apiKey: 'emulator-api-key',
   authDomain: 'localhost',
@@ -24,7 +26,7 @@ const firebaseConfig = {
   measurementId: '',
 };
 
-export const environment = {
+export const environment: AppEnvironment = {
   production: false,
   useEmulator: true,
   firebase: firebaseConfig,

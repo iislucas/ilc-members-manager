@@ -1,4 +1,6 @@
 // Template: make a copy with your domains, named environment.ts
+import { FunctionsEnvironment } from './environment.types.js';
+
 const domains = [
   `https://iliqchuan.com`,
   `https://www.iliqchuan.com`,
@@ -11,7 +13,7 @@ const domains = [
   'https://ilc-paris-class-tracker.firebaseapp.com',
   'https://lute-denim-99n2.squarespace.com',
 ];
-export const environment = {
+export const environment: FunctionsEnvironment = {
   domains,
   CLOUD_BUCKET_NAME_AND_ROOT_PATH: 'resources.zxd.fr',
   CORS_CONFIG: [
@@ -29,6 +31,10 @@ export const environment = {
   // the private key is provided via the VAPID_PRIVATE_KEY secret. Empty disables push.
   vapidPublicKey: '',
   pushContactEmail: 'mailto:admin@example.com',
+  // Outbound email address configuration. If `from` is empty, email notifications are disabled.
+  email: {
+    from: '', // e.g. 'admin@iliqchuan.com'
+  },
   // Stripe integration. The secret key is provided via the STRIPE_SECRET_KEY
   // secret (defineSecret), not stored here. Only non-secret config lives here.
   stripe: {

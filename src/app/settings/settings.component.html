@@ -9,6 +9,8 @@
       (click)="setActiveTab('content-cache')">Content Cache</button>
     <button class="pill-tab" data-label="Resources" [class.active]="activeTab() === 'resources'"
       (click)="setActiveTab('resources')">Resources</button>
+    <button class="pill-tab" data-label="Email Templates" [class.active]="activeTab() === 'email-templates'"
+      (click)="setActiveTab('email-templates')">Email Templates</button>
   </div>
 
   @if (activeTab() === 'counters') {
@@ -38,6 +40,12 @@
   @if (activeTab() === 'resources') {
   <div class="tab-content">
     <app-resources></app-resources>
+  </div>
+  }
+
+  @if (activeTab() === 'email-templates') {
+  <div class="tab-content">
+    <app-email-templates></app-email-templates>
   </div>
   }
 </div>

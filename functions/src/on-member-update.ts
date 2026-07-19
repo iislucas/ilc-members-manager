@@ -10,13 +10,22 @@ import * as admin from 'firebase-admin';
 // named import works in both the emulator and production. (Same fix as
 // on-grading-update.ts.)
 import { FieldValue } from 'firebase-admin/firestore';
-import { Member, ACL, Grading, gradingManagerIdsOf } from './data-model';
+import { Member, ACL, Grading, gradingManagerIdsOf, MembershipType, NotificationKind } from './data-model';
 import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
+import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
 import { FirestoreUpdate } from './common';
 import * as logger from 'firebase-functions/logger';
+import { environment } from './environment/environment.js';
+import {
+  membershipActivatedSubject,
+  membershipActivatedBody,
+  instructorLicenseActivatedSubject,
+  instructorLicenseActivatedBody,
+} from './email-templates.js';
+import { markdownToHtml } from './email-markdown.js';
 
 const db = admin.firestore();
 
@@ -258,6 +267,148 @@ async function populateInstructorMembers(instructorDocId: string, instructorId: 
 
 
 
+export async function cleanUpPendingNotifications(
+  db: admin.firestore.Firestore,
+  memberDocId: string,
+  kinds: NotificationKind[]
+) {
+  const notifications = db
+    .collection('members')
+    .doc(memberDocId)
+    .collection('notifications');
+
+  for (const kind of kinds) {
+    const snap = await notifications.where('kind', '==', kind).get();
+    if (!snap.empty) {
+      const batch = db.batch();
+      for (const doc of snap.docs) {
+        batch.delete(doc.ref);
+      }
+      await batch.commit();
+    }
+  }
+}
+
+function formatTemplate(template: string, replacements: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    result = result.replace(new RegExp(`{${key}}`, 'g'), value || '');
+  }
+  return result;
+}
+
+export async function sendTemplateEmail(
+  db: admin.firestore.Firestore,
+  toEmails: string[],
+  templateKey: 'membershipActivated' | 'instructorLicenseActivated',
+  replacements: Record<string, string>,
+) {
+  if (!environment.email?.from) {
+    logger.info(`[Email] environment.email.from is not configured. Skipping email for ${toEmails.join(', ')}.`);
+    return;
+  }
+  if (toEmails.length === 0) return;
+
+  const templatesSnap = await db.doc('system/email-templates').get();
+  const templates = templatesSnap.exists ? templatesSnap.data() : {};
+
+  let subject = '';
+  let markdownBody = '';
+
+  if (templateKey === 'membershipActivated') {
+    subject = templates?.membershipActivatedSubject
+      ? formatTemplate(templates.membershipActivatedSubject, replacements)
+      : membershipActivatedSubject(replacements);
+    markdownBody = templates?.membershipActivatedBody
+      ? formatTemplate(templates.membershipActivatedBody, replacements)
+      : membershipActivatedBody(replacements);
+  } else {
+    subject = templates?.instructorLicenseActivatedSubject
+      ? formatTemplate(templates.instructorLicenseActivatedSubject, replacements)
+      : instructorLicenseActivatedSubject(replacements);
+    markdownBody = templates?.instructorLicenseActivatedBody
+      ? formatTemplate(templates.instructorLicenseActivatedBody, replacements)
+      : instructorLicenseActivatedBody(replacements);
+  }
+  const htmlBody = markdownToHtml(markdownBody);
+
+  await db.collection('mail').add({
+    to: toEmails,
+    from: environment.email.from,
+    message: {
+      subject: subject,
+      text: markdownBody,
+      html: htmlBody,
+    },
+  });
+  logger.info(`[Email] Enqueued ${templateKey} email for ${toEmails.join(', ')}.`);
+}
+
+export async function handleMembershipActivation(
+  db: admin.firestore.Firestore,
+  member: Member,
+  previous?: Member
+) {
+  const isNowActive =
+    (member.membershipType === MembershipType.Annual || member.membershipType === MembershipType.Life) &&
+    (!previous || (previous.membershipType !== MembershipType.Annual && previous.membershipType !== MembershipType.Life));
+
+  if (isNowActive) {
+    await cleanUpPendingNotifications(db, member.docId, [NotificationKind.MembershipPending]);
+
+    await createMemberNotification(db, member.docId, {
+      kind: NotificationKind.MembershipActivated,
+      markdown: `Welcome to the I Liq Chuan family! Your membership is now active. You can now access the [Active Members Area](#/members-area) to read the blog, view classes, and more.`,
+      createdAt: new Date().toISOString(),
+      dismissed: false,
+      data: {}
+    });
+
+    try {
+      await sendTemplateEmail(db, member.emails || [], 'membershipActivated', {
+        name: member.name || '',
+        memberId: member.memberId || '',
+        email: (member.emails || [])[0] || '',
+      });
+    } catch (error) {
+      logger.error(`Failed to enqueue welcome email for member ${member.docId}:`, error);
+    }
+  }
+}
+
+export async function handleInstructorActivation(
+  db: admin.firestore.Firestore,
+  member: Member,
+  previous?: Member
+) {
+  const isNowInstructor = member.instructorId && (!previous || !previous.instructorId);
+
+  if (isNowInstructor) {
+    await cleanUpPendingNotifications(db, member.docId, [NotificationKind.InstructorLicensePending]);
+
+    await createMemberNotification(db, member.docId, {
+      kind: NotificationKind.InstructorLicenseActivated,
+      markdown: `Congratulations on getting your Instructor ID **${member.instructorId}**! Please [update your public instructor profile](#/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](#/instructors-area/post/sop) in the Instructors Area.`,
+      createdAt: new Date().toISOString(),
+      dismissed: false,
+      data: {
+        instructorId: member.instructorId
+      }
+    });
+
+    try {
+      await sendTemplateEmail(db, member.emails || [], 'instructorLicenseActivated', {
+        name: member.name || '',
+        memberId: member.memberId || '',
+        instructorId: member.instructorId || '',
+        email: (member.emails || [])[0] || '',
+      });
+    } catch (error) {
+      logger.error(`Failed to enqueue welcome email for instructor ${member.docId}:`, error);
+    }
+  }
+}
+
 export const onMemberCreated = onDocumentCreated(
   'members/{memberId}',
   async (event) => {
@@ -276,6 +427,9 @@ export const onMemberCreated = onDocumentCreated(
     if (member.instructorId) {
       await populateInstructorMembers(snap.id, member.instructorId);
     }
+
+    await handleMembershipActivation(db, member);
+    await handleInstructorActivation(db, member);
   },
 );
 
@@ -307,6 +461,9 @@ export const onMemberUpdated = onDocumentUpdated(
     }
 
     await updateACL({ previous, member });
+
+    await handleMembershipActivation(db, member, previous);
+    await handleInstructorActivation(db, member, previous);
   },
 );
 

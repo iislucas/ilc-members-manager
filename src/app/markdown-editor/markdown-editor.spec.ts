@@ -159,6 +159,55 @@ describe('MarkdownEditor', () => {
     expect(emittedValue).toContain('Line 1');
   });
 
+  it('shows all toolbar features by default and restricts them via enabledFeatures', () => {
+    // Open the formatting menu so the items render.
+    component.menuOpen.set(true);
+    fixture.detectChanges();
+    const labels = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.menu-item')).map((el) =>
+        (el as HTMLElement).title || (el as HTMLElement).textContent?.trim(),
+      );
+
+    // Default: italic and headings are present.
+    const menuText = fixture.nativeElement.querySelector('.menu').textContent;
+    expect(menuText).toContain('I'); // italic icon
+    expect(menuText).toContain('H1');
+
+    // Restrict to bold + link only.
+    fixture.componentRef.setInput('enabledFeatures', ['bold', 'link']);
+    fixture.detectChanges();
+    const restrictedText = fixture.nativeElement.querySelector('.menu').textContent;
+    expect(restrictedText).toContain('B'); // bold still there
+    expect(restrictedText).not.toContain('H1'); // headings gone
+    expect(restrictedText).not.toContain('H2');
+    // Undo/redo and clear-formatting remain available regardless.
+    expect(labels().length).toBeGreaterThan(0);
+  });
+
+  it('inserts a chip token at the cursor', async () => {
+    let emittedValue = '';
+    component.changed.subscribe((value) => {
+      emittedValue = value;
+    });
+
+    fixture.componentRef.setInput('initialValue', 'Hi ');
+    fixture.componentRef.setInput('chips', [{ token: '{name}' }]);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+
+    component['editor']?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
+    });
+
+    component.insertChip({ token: '{name}' });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    fixture.detectChanges();
+
+    expect(emittedValue).toContain('{name}');
+  });
+
   it('should toggle heading H1 without selection (cursor)', async () => {
     let emittedValue = '';
     component.changed.subscribe((value) => {

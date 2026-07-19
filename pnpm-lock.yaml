@@ -50,6 +50,12 @@ importers:
       '@milkdown/preset-commonmark':
         specifier: 7.20.0
         version: 7.20.0
+      '@milkdown/prose':
+        specifier: 7.20.0
+        version: 7.20.0
+      '@milkdown/utils':
+        specifier: 7.20.0
+        version: 7.20.0
       '@types/papaparse':
         specifier: ^5.3.16
         version: 5.5.2
