@@ -1,7 +1,7 @@
 <div class="settings-card">
   <div class="settings-header">
     <h3>Email Templates</h3>
-    <p class="description">Edit the templates sent automatically to new members and instructors upon license activation. You can use markdown like bold (**text**) or links ([label](url)).</p>
+    <p class="description">Edit the templates sent automatically to new members and instructors upon license activation. Emails support {{ supportedMarkdown }}; other formatting will appear as literal text.</p>
   </div>
 
   <div class="settings-body">
@@ -9,9 +9,9 @@
       <h4>New Member Welcome Email</h4>
       <div class="placeholder-guide">
         <span class="guide-title">Available Placeholders:</span>
-        <span class="placeholder-chip">{{"{name}"}}</span>
-        <span class="placeholder-chip">{{"{memberId}"}}</span>
-        <span class="placeholder-chip">{{"{email}"}}</span>
+        @for (chip of memberChips; track chip.token) {
+          <span class="placeholder-chip">{{ chip.token }}</span>
+        }
       </div>
 
       <div class="form-group">
@@ -20,8 +20,21 @@
       </div>
 
       <div class="form-group">
-        <label for="member-body">Email Body (Markdown)</label>
-        <textarea id="member-body" rows="6" [(ngModel)]="templates().membershipActivatedBody" placeholder="Welcome Body..." class="input-style textarea-style"></textarea>
+        <label>Email Body (Markdown)</label>
+        <div class="editor-wrapper">
+          <app-markdown-editor
+            [initialValue]="templates().membershipActivatedBody"
+            [chips]="memberChips"
+            [enabledFeatures]="bodyFeatures"
+            (changed)="setMemberBody($event)"
+          ></app-markdown-editor>
+        </div>
+        @if (memberBodyWarnings().length > 0) {
+          <div class="format-warning">
+            ⚠️ Unsupported formatting will appear as literal text in the email:
+            {{ memberBodyWarnings().join(', ') }}.
+          </div>
+        }
       </div>
     </div>
 
@@ -29,10 +42,9 @@
       <h4>New Instructor Welcome Email</h4>
       <div class="placeholder-guide">
         <span class="guide-title">Available Placeholders:</span>
-        <span class="placeholder-chip">{{"{name}"}}</span>
-        <span class="placeholder-chip">{{"{memberId}"}}</span>
-        <span class="placeholder-chip">{{"{instructorId}"}}</span>
-        <span class="placeholder-chip">{{"{email}"}}</span>
+        @for (chip of instructorChips; track chip.token) {
+          <span class="placeholder-chip">{{ chip.token }}</span>
+        }
       </div>
 
       <div class="form-group">
@@ -41,8 +53,21 @@
       </div>
 
       <div class="form-group">
-        <label for="instructor-body">Email Body (Markdown)</label>
-        <textarea id="instructor-body" rows="6" [(ngModel)]="templates().instructorLicenseActivatedBody" placeholder="Instructor Body..." class="input-style textarea-style"></textarea>
+        <label>Email Body (Markdown)</label>
+        <div class="editor-wrapper">
+          <app-markdown-editor
+            [initialValue]="templates().instructorLicenseActivatedBody"
+            [chips]="instructorChips"
+            [enabledFeatures]="bodyFeatures"
+            (changed)="setInstructorBody($event)"
+          ></app-markdown-editor>
+        </div>
+        @if (instructorBodyWarnings().length > 0) {
+          <div class="format-warning">
+            ⚠️ Unsupported formatting will appear as literal text in the email:
+            {{ instructorBodyWarnings().join(', ') }}.
+          </div>
+        }
       </div>
     </div>
 

@@ -25,6 +25,7 @@ import {
   instructorLicenseActivatedSubject,
   instructorLicenseActivatedBody,
 } from './email-templates.js';
+import { markdownToHtml } from './email-markdown.js';
 
 const db = admin.firestore();
 
@@ -286,13 +287,6 @@ export async function cleanUpPendingNotifications(
       await batch.commit();
     }
   }
-}
-
-function markdownToHtml(md: string): string {
-  return md
-    .replace(/\r?\n/g, '<br>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 
 function formatTemplate(template: string, replacements: Record<string, string>): string {

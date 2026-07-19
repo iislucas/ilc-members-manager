@@ -24,7 +24,31 @@ import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInHeadingCo
 import { history, undoCommand, redoCommand } from '@milkdown/plugin-history';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { indent as indentPlugin } from '@milkdown/plugin-indent';
+import { $prose } from '@milkdown/utils';
+import { Plugin, PluginKey } from '@milkdown/prose/state';
+import { Decoration, DecorationSet } from '@milkdown/prose/view';
+import { Node as ProseNode } from '@milkdown/prose/model';
 import { IconComponent } from '../icons/icon.component';
+
+// Content-producing toolbar actions that can be individually enabled. Used to
+// restrict the editor to whatever subset the downstream renderer supports (e.g.
+// the email template editor only allows bold + link). Undo/redo and
+// clear-formatting are always available since they never introduce unsupported
+// markup.
+export type MarkdownFeature = 'bold' | 'italic' | 'heading' | 'bulletList' | 'indent' | 'link';
+
+// A generic, insertable, non-editable token surfaced by the editor. Chips are a
+// pure view-layer concern: their `token` text lives verbatim in the markdown, so
+// serialization/parsing is untouched — the editor only adds a one-click way to
+// insert a token and renders any occurrences of it as a styled pill. Callers use
+// this for placeholders (e.g. `{name}` in an email template), mentions, merge
+// fields, etc.
+export interface EditorChip {
+  // Literal text inserted into and matched within the document, e.g. '{name}'.
+  token: string;
+  // Optional label for the insertion button; defaults to `token`.
+  label?: string;
+}
 
 @Component({
   selector: 'app-markdown-editor',
@@ -35,6 +59,13 @@ import { IconComponent } from '../icons/icon.component';
 })
 export class MarkdownEditor implements AfterViewInit, OnDestroy {
   initialValue = input<string>('');
+  // Insertable placeholder tokens rendered as chips (see EditorChip). Empty by
+  // default, so editors without chips behave exactly as before.
+  chips = input<EditorChip[]>([]);
+  // Which content-producing toolbar features to expose. `null` (the default)
+  // shows all of them, preserving the full editor for existing callers; pass a
+  // list to restrict to a supported subset.
+  enabledFeatures = input<MarkdownFeature[] | null>(null);
   changed = output<string>();
   menuOpen = signal<boolean>(false);
   showDescriptions = signal<boolean>(false);
@@ -54,6 +85,18 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     if (url.length <= 40) return url;
     return url.substring(0, 20) + '...' + url.substring(url.length - 15);
   });
+
+  private featureSet = computed(() => {
+    const list = this.enabledFeatures();
+    return list === null ? null : new Set(list);
+  });
+
+  // Whether a given content-producing toolbar feature should be shown. A null
+  // feature set (the default) enables everything.
+  protected has(feature: MarkdownFeature): boolean {
+    const set = this.featureSet();
+    return set === null || set.has(feature);
+  }
 
   @ViewChild('editorRef') editorRef!: ElementRef;
   @ViewChild('contentWrapper') contentWrapperRef!: ElementRef;
@@ -172,6 +215,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       .use(history)
       .use(listener)
       .use(indentPlugin)
+      .use(this.chipDecorationPlugin())
       .create();
     
     this.editor = editor;
@@ -193,6 +237,52 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
       const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc);
       view.dispatch(tr);
     });
+  }
+
+  // Inserts a chip's token text at the current selection, replacing any
+  // selected range. The token is plain text, so it round-trips through the
+  // markdown untouched and the decoration below re-styles it as a pill.
+  insertChip(chip: EditorChip) {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      const { from, to } = state.selection;
+      view.dispatch(state.tr.insertText(chip.token, from, to));
+      view.focus();
+    });
+  }
+
+  // A ProseMirror plugin that decorates every occurrence of a configured chip
+  // token with the `md-chip` class. Purely presentational: it adds no nodes or
+  // marks, so the underlying document (and its markdown) is unchanged. Reads the
+  // `chips` input lazily so it reflects whatever tokens are configured.
+  private chipDecorationPlugin() {
+    return $prose(() => new Plugin({
+      key: new PluginKey('markdown-editor-chips'),
+      props: {
+        decorations: (state) => this.buildChipDecorations(state.doc),
+      },
+    }));
+  }
+
+  private buildChipDecorations(doc: ProseNode): DecorationSet {
+    const tokens = this.chips().map((c) => c.token).filter((t) => t.length > 0);
+    if (tokens.length === 0) return DecorationSet.empty;
+
+    const decorations: Decoration[] = [];
+    doc.descendants((node: ProseNode, pos: number) => {
+      if (!node.isText || !node.text) return;
+      const text = node.text;
+      for (const token of tokens) {
+        let idx = text.indexOf(token);
+        while (idx !== -1) {
+          const from = pos + idx;
+          decorations.push(Decoration.inline(from, from + token.length, { class: 'md-chip' }));
+          idx = text.indexOf(token, idx + token.length);
+        }
+      }
+    });
+    return DecorationSet.create(doc, decorations);
   }
 
   toggleBold() {

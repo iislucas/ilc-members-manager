@@ -321,3 +321,44 @@
     }
   }
 }
+
+/* Chip insertion palette: one-click buttons that insert placeholder tokens. */
+.chip-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-x: auto;
+
+  .chip-insert {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    white-space: nowrap;
+    cursor: pointer;
+    background: $theme-chip-bg-color;
+    color: $text-primary;
+    border: 1px solid $theme-chip-border-color;
+    box-shadow: none !important;
+    transition: filter 0.15s ease;
+
+    &:hover {
+      filter: brightness(0.95);
+    }
+  }
+}
+
+/* In-editor rendering of a chip token (e.g. {name}) as a non-editable pill.
+   Applied via a ProseMirror inline decoration, so it only styles the text. */
+.editor-content ::ng-deep .md-chip {
+  background: $theme-chip-bg-color;
+  border: 1px solid $theme-chip-border-color;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-family: monospace;
+  font-size: 0.9em;
+  white-space: nowrap;
+}

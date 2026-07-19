@@ -90,6 +90,27 @@
   line-height: 1.5;
 }
 
+/* Bounded, bordered box the markdown editor fills (the editor host is
+   height:100%, so it needs a sized container). */
+.editor-wrapper {
+  height: 260px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--input-bg, #fff);
+}
+
+.format-warning {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  background: #fff8e1;
+  color: #8a6d00;
+  border: 1px solid #ffe082;
+}
+
 .status-msg {
   margin: 16px 0;
   padding: 12px;
