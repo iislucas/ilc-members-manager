@@ -373,6 +373,25 @@ describe('NotificationService', () => {
       );
     });
 
+    it('shows a sensible summary for a physical-product order, using SKU as fallback', () => {
+      const order = {
+        docId: 'o4',
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+        ilcAppOrderStatus: 'needs-manual-processing',
+        orderNumber: '5678',
+        billingAddress: { firstName: 'Sam', lastName: 'Lee' },
+        // A physical book (as displayed "1x BOOK : System Guide - 3rd Edition")
+        // plus a second item that only carries a SKU.
+        lineItems: [
+          { productName: 'BOOK : System Guide - 3rd Edition', sku: 'PRINT-3SGUIDE' },
+          { sku: 'PRINT-POSTER' },
+        ],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#5678](/order-view/o4) (from Sam Lee for BOOK : System Guide - 3rd Edition, PRINT-POSTER) needs manual processing',
+      );
+    });
+
     it('falls back to email and omits the details clause when nothing is known', () => {
       const order = {
         docId: 'o3',
