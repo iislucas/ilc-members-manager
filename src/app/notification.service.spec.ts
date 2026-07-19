@@ -339,4 +339,70 @@ describe('NotificationService', () => {
       expect(commit).not.toHaveBeenCalled();
     });
   });
+
+  describe('orderIssueFields', () => {
+    const fields = (order: unknown) => (service as any).orderIssueFields(order);
+
+    it('includes who placed a Squarespace order and what it was for', () => {
+      const order = {
+        docId: 'o1',
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+        ilcAppOrderStatus: 'needs-manual-processing',
+        orderNumber: '1234',
+        customerEmail: 'jane@example.com',
+        billingAddress: { firstName: 'Jane', lastName: 'Doe' },
+        lineItems: [{ productName: 'Annual Membership' }, { productName: 'Video Library' }],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership, Video Library) needs manual processing',
+      );
+    });
+
+    it('uses customerName/description for Stripe orders and appends issues', () => {
+      const order = {
+        docId: 'o2',
+        ilcAppOrderKind: 'stripe',
+        ilcAppOrderStatus: 'error',
+        stripeObjectId: 'cs_123',
+        customerName: 'John Smith',
+        lineItems: [{ description: 'Grading Fee' }],
+        ilcAppOrderIssues: ['no matching member'],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#cs_123](/order-view/o2) (from John Smith for Grading Fee) failed with an error — no matching member',
+      );
+    });
+
+    it('shows a sensible summary for a physical-product order, using SKU as fallback', () => {
+      const order = {
+        docId: 'o4',
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+        ilcAppOrderStatus: 'needs-manual-processing',
+        orderNumber: '5678',
+        billingAddress: { firstName: 'Sam', lastName: 'Lee' },
+        // A physical book (as displayed "1x BOOK : System Guide - 3rd Edition")
+        // plus a second item that only carries a SKU.
+        lineItems: [
+          { productName: 'BOOK : System Guide - 3rd Edition', sku: 'PRINT-3SGUIDE' },
+          { sku: 'PRINT-POSTER' },
+        ],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#5678](/order-view/o4) (from Sam Lee for BOOK : System Guide - 3rd Edition, PRINT-POSTER) needs manual processing',
+      );
+    });
+
+    it('falls back to email and omits the details clause when nothing is known', () => {
+      const order = {
+        docId: 'o3',
+        ilcAppOrderKind: 'stripe',
+        ilcAppOrderStatus: 'error',
+        stripeObjectId: 'cs_9',
+        lineItems: [],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#cs_9](/order-view/o3) failed with an error',
+      );
+    });
+  });
 });
