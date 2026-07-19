@@ -803,6 +803,37 @@ export class NotificationService implements OnDestroy {
     return order.referenceNumber || order.docId;
   }
 
+  // Who placed the order: a name where available, falling back to the email.
+  // Empty string when neither is known.
+  private orderCustomer(order: Order): string {
+    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+      const name = [order.billingAddress?.firstName, order.billingAddress?.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return name || order.customerEmail || '';
+    }
+    if (order.ilcAppOrderKind === 'stripe') {
+      return (order.customerName || order.customerEmail || '').trim();
+    }
+    const name = [order.firstName, order.lastName].filter(Boolean).join(' ').trim();
+    return name || order.email || '';
+  }
+
+  // Short human-readable summary of what was purchased (line-item product names
+  // or descriptions). Empty string when the order carries no itemised lines.
+  private orderItemsSummary(order: Order): string {
+    let names: string[] = [];
+    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+      names = (order.lineItems || []).map((li) => (li.productName || li.sku || '').trim());
+    } else if (order.ilcAppOrderKind === 'stripe') {
+      names = (order.lineItems || []).map((li) => (li.description || '').trim());
+    } else {
+      names = [order.paidFor, order.orderType].map((s) => (s || '').trim());
+    }
+    return names.filter(Boolean).join(', ');
+  }
+
   // Surfaces orders that failed automatic processing (ilcAppOrderStatus 'error'
   // or 'needs-manual-processing') as notifications in this admin's feed, most
   // recent first. Idempotent and modelled on the pending-event catch-up: it
@@ -901,8 +932,17 @@ export class NotificationService implements OnDestroy {
     const verb = status === 'error' ? 'failed with an error' : 'needs manual processing';
     const issues = order.ilcAppOrderIssues || [];
     const issuesSuffix = issues.length > 0 ? ` — ${issues.join('; ')}` : '';
+    // Basic context so the admin can tell what the order is at a glance: who
+    // placed it and what it was for.
+    const customer = this.orderCustomer(order);
+    const items = this.orderItemsSummary(order);
+    const details = [
+      customer ? `from ${customer}` : '',
+      items ? `for ${items}` : '',
+    ].filter(Boolean).join(' ');
+    const detailsSuffix = details ? ` (${details})` : '';
     return {
-      markdown: `Order [#${orderRef}](/order-view/${order.docId}) ${verb}${issuesSuffix}`,
+      markdown: `Order [#${orderRef}](/order-view/${order.docId})${detailsSuffix} ${verb}${issuesSuffix}`,
       data: { orderDocId: order.docId, orderRef, status, issues },
     };
   }

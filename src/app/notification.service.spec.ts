@@ -339,4 +339,51 @@ describe('NotificationService', () => {
       expect(commit).not.toHaveBeenCalled();
     });
   });
+
+  describe('orderIssueFields', () => {
+    const fields = (order: unknown) => (service as any).orderIssueFields(order);
+
+    it('includes who placed a Squarespace order and what it was for', () => {
+      const order = {
+        docId: 'o1',
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+        ilcAppOrderStatus: 'needs-manual-processing',
+        orderNumber: '1234',
+        customerEmail: 'jane@example.com',
+        billingAddress: { firstName: 'Jane', lastName: 'Doe' },
+        lineItems: [{ productName: 'Annual Membership' }, { productName: 'Video Library' }],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership, Video Library) needs manual processing',
+      );
+    });
+
+    it('uses customerName/description for Stripe orders and appends issues', () => {
+      const order = {
+        docId: 'o2',
+        ilcAppOrderKind: 'stripe',
+        ilcAppOrderStatus: 'error',
+        stripeObjectId: 'cs_123',
+        customerName: 'John Smith',
+        lineItems: [{ description: 'Grading Fee' }],
+        ilcAppOrderIssues: ['no matching member'],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#cs_123](/order-view/o2) (from John Smith for Grading Fee) failed with an error — no matching member',
+      );
+    });
+
+    it('falls back to email and omits the details clause when nothing is known', () => {
+      const order = {
+        docId: 'o3',
+        ilcAppOrderKind: 'stripe',
+        ilcAppOrderStatus: 'error',
+        stripeObjectId: 'cs_9',
+        lineItems: [],
+      };
+      expect(fields(order).markdown).toBe(
+        'Order [#cs_9](/order-view/o3) failed with an error',
+      );
+    });
+  });
 });
