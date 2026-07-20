@@ -207,7 +207,8 @@
       &.BlogPost {
         background-color: #e6f4ea; // Soft green (matching blog post accent)
       }
-      &.NewEventPosted {
+      &.NewEventPosted,
+      &.EventProposalSubmitted {
         background-color: #e8f0fe; // Soft blue
       }
       // Admin-only kinds — soft orange tint matching the card background.

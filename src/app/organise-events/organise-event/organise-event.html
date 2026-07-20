@@ -1,14 +1,15 @@
 <div class="organise-event-container">
   <div class="intro-text">
     <p>
-      This form is to ask ILC HQ if you can organise an I Liq Chuan event.
+      This form is to ask ILC HQ to list an workshop or event. You can use it to 
+      request an event also.
       Please make sure the instructor you have listed has already agreed to the
       proposal (they will need to confirm in the members portal).
     </p>
     <p>
-      The proposal will then be reviewed by ILC HQ and you will be contacted
-      once it has been approved (or rejected if the timing and location is not
-      compatible with other events).
+      Once submitted, the proposal will be reviewed by ILC HQ and either it will be 
+      approved and listed, or you will be contacted
+      (e.g. if the timing and location is not compatible with another events).
     </p>
   </div>
 
@@ -25,57 +26,134 @@
       />
     </div>
 
-    <div class="input-field">
-      <label for="start" [class.invalid]="proposeForm.start().errors()"
-        >Start Date *</label
-      >
-      <input id="start" type="date" [formField]="proposeForm.start" />
-    </div>
-
-    <div class="input-field">
-      <label for="end" [class.invalid]="proposeForm.end().errors()"
-        >End Date *</label
-      >
-      <input id="end" type="date" [formField]="proposeForm.end" />
-    </div>
-
-    <div class="input-field">
-      <div class="instructor-id-selection">
-        <label for="leadingInstructor">Instructor</label>
-        <app-autocomplete
-          name="Leading Instructor"
-          [searchableSet]="membersService.instructors"
-          [placeholder]="'Search for an instructor'"
-          [displayFns]="instructorDisplayFns"
-          [searchOptions]="{
-            strictDigits: true,
-            interpretQuotesAsStrict: true,
-          }"
-          [initSearchTerm]="eventModel().leadingInstructorId"
-          (textUpdated)="updateLeadingInstructorId($event)"
-        ></app-autocomplete>
+    <div class="date-row">
+      <div class="input-field date-field">
+        <label for="start" [class.invalid]="proposeForm.start().errors()"
+          >Start Date *</label
+        >
+        <input id="start" type="date" [formField]="proposeForm.start" />
       </div>
-      @if (
-        membersService.instructors.get(eventModel().leadingInstructorId);
-        as instructorData
-      ) {
-        <div class="leading-instructor-name">{{ instructorData.name }}</div>
-        <div class="intro-text">
-          This is the instructor who will lead training, please make sure you've
-          contacted them and they have agreed. Once this form has been
-          submitted, they will need to confirm their desire to lead training at
-          this event.
-        </div>
-      } @else {
+
+      <div class="input-field date-field">
+        <label for="end" [class.invalid]="proposeForm.end().errors()"
+          >End Date *</label
+        >
+        <input id="end" type="date" [formField]="proposeForm.end" />
+      </div>
+    </div>
+
+    <div class="input-field">
+      <label
+        for="leadingInstructor"
+        [class.invalid]="proposeForm.leadingInstructorId().errors()"
+        >Instructor *</label
+      >
+      <div class="intro-text">
+        This is the instructor who will lead training, please make sure you've
+        contacted them and they have agreed. Once this form has been submitted,
+        they will need to confirm their desire to lead training at this event.
+      </div>
+      <app-public-instructor-selector
+        name="Leading Instructor"
+        [placeholder]="'Search for an instructor'"
+        [value]="eventModel().leadingInstructorId"
+        emptyLabel="No instructor selected yet"
+        (valueChange)="updateLeadingInstructorId($event)"
+      ></app-public-instructor-selector>
+      @if (!membersService.instructors.get(eventModel().leadingInstructorId)) {
         <div class="error-message">
-          Please select a valid instructor ID for the person who will be leading
+          Please select a valid instructor for the person who will be leading
           training at this event.
         </div>
       }
     </div>
 
     <div class="input-field">
+      <label for="event-owner">Main contact (event owner)</label>
+      <div class="intro-text">
+        The owner is the main contact for the event. This defaults to you; you can
+        hand it to another instructor who has agreed to be the main contact.
+      </div>
+      <app-public-instructor-selector
+        name="Owner"
+        [placeholder]="'Search for an instructor'"
+        [value]="ownerInitSearchTerm()"
+        emptyLabel="You (the event submitter)"
+        selectLabel="Choose a different owner"
+        (valueChange)="updateOwnerDocId($event)"
+      ></app-public-instructor-selector>
+    </div>
+
+    <div class="input-field">
+      <label>Event managers</label>
+      <div class="intro-text">
+        Managers can edit this event's details. You are always a manager. Add other
+        instructors who should be able to manage it.
+      </div>
+      <div class="manager-list">
+        @if (submitter(); as me) {
+          <div
+            class="manager-row"
+            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
+          >
+            <span class="selected-name">{{ me.name }} (you)</span>
+            @if (me.memberId) {
+              <span class="identifier-chip">{{ me.memberId }}</span>
+            }
+          </div>
+        }
+        @for (
+          managerDocId of eventModel().managerDocIds;
+          track $index;
+          let last = $last
+        ) {
+          <div
+            class="manager-row"
+            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
+          >
+            <app-public-instructor-selector
+              [placeholder]="'Search for a manager'"
+              [value]="instructorByDocId(managerDocId)?.instructorId || ''"
+              emptyLabel="No manager selected yet"
+              selectLabel="Select manager"
+              (valueChange)="updateManagerDocId($index, $event)"
+            ></app-public-instructor-selector>
+            <button
+              type="button"
+              class="icon-only-button"
+              (click)="removeManagerDocId($index)"
+              title="Remove manager"
+            >
+              <app-icon name="trash" />
+            </button>
+            @if (last) {
+              <button
+                type="button"
+                class="icon-only-button add-manager-btn"
+                (click)="addEmptyManagerRow()"
+                title="Add another manager"
+              >
+                <app-icon name="add" />
+              </button>
+            }
+          </div>
+        }
+        @if (eventModel().managerDocIds.length === 0) {
+          <div>
+            <button type="button" class="subtle-button" (click)="addEmptyManagerRow()">
+              + add manager
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="input-field">
       <label for="location">Location</label>
+      <div class="intro-text">
+        Where the event will be held — e.g. the venue name, city and country. This
+        helps attendees find the event.
+      </div>
       <input
         id="location"
         type="text"
@@ -86,6 +164,11 @@
 
     <div class="input-field">
       <label>Image</label>
+      <div class="intro-text">
+        The main banner shown across the top of the event's page, and as the
+        thumbnail in event listings. Landscape photos work best — you can crop it
+        after uploading.
+      </div>
       <div class="rhs">
         @if (showImageUploader()) {
           <app-image-upload-preview
@@ -151,6 +234,11 @@
 
     <div class="input-field">
       <label for="description">Description</label>
+      <div class="intro-text">
+        The main text on the event's page — describe the event, what to expect,
+        the schedule, pricing and how to register. Basic formatting (headings,
+        bold, lists and links) is supported.
+      </div>
       <div class="description-container">
         <app-markdown-editor
           [initialValue]="eventModel().description"
@@ -161,6 +249,11 @@
 
     <div class="input-field">
       <label>Attached Documents</label>
+      <div class="intro-text">
+        Optional files for attendees to download — e.g. a flyer, schedule or
+        registration form. Each appears as a named download link in the
+        "Documents" section of the event's page.
+      </div>
       <div class="document-list">
         @let docs = pendingDocumentFiles();
         @for (entry of docs; track $index; let last = $last) {

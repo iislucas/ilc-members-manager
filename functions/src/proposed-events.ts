@@ -12,8 +12,9 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, initEvent } from './data-model';
+import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, initEvent, NotificationKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership } from './common';
+import { createMemberNotification } from './notifications';
 import axios from 'axios';
 import { environment } from './environment/environment';
 import { contentChanged } from './content-cache';
@@ -52,6 +53,59 @@ async function deleteStorageFiles(urls: string[]) {
   }
 }
 
+/**
+ * Given a human-readable instructorId, find the member document that carries it
+ * and return that member's Firestore doc ID (or undefined if none / empty id).
+ */
+async function findInstructorMemberDocId(
+  db: admin.firestore.Firestore,
+  instructorId: string,
+): Promise<string | undefined> {
+  if (!instructorId) return undefined;
+  const snap = await db
+    .collection('members')
+    .where('instructorId', '==', instructorId)
+    .limit(1)
+    .get();
+  return snap.empty ? undefined : snap.docs[0].id;
+}
+
+/**
+ * The de-duplicated set of member doc IDs that make up an event's organising
+ * team: the owner, every manager, and the leading instructor (resolved from
+ * their human-readable instructorId to their member doc). Used to fan out the
+ * "listing request submitted" and "now listed publicly" notifications.
+ */
+async function eventOrganiserDocIds(
+  db: admin.firestore.Firestore,
+  ownerDocId: string,
+  managerDocIds: string[],
+  leadingInstructorId: string,
+): Promise<string[]> {
+  const ids = new Set<string>();
+  if (ownerDocId) ids.add(ownerDocId);
+  for (const id of managerDocIds || []) {
+    if (id) ids.add(id);
+  }
+  const instructorDocId = await findInstructorMemberDocId(db, leadingInstructorId);
+  if (instructorDocId) ids.add(instructorDocId);
+  return [...ids];
+}
+
+/**
+ * The manager doc IDs to store on a proposed event: the caller-supplied list
+ * plus the submitter (who is always a manager), with empty entries removed and
+ * duplicates collapsed while preserving order.
+ */
+export function buildManagerDocIds(
+  providedIds: string[] | undefined,
+  submitterDocId: string,
+): string[] {
+  return Array.from(
+    new Set([...(providedIds || []), submitterDocId].filter(Boolean)),
+  );
+}
+
 export function validateProposal(member: Member, data: Record<string, unknown>): string | null {
   if (!member.memberId || member.memberId.trim() === '') {
     return 'Must have a valid Member ID to propose events.';
@@ -71,7 +125,7 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
 // Submit a new event proposal — writes directly to /events with status='proposed'.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string }>) => {
+  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[] }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -84,17 +138,26 @@ export const submitProposedEvent = onCall(
       throw new HttpsError('permission-denied', error);
     }
 
-    // Check limit of 3 proposed events
+    // Check limit of 3 proposed events. Counted via managerEmails (the submitter
+    // is always a manager) so the limit still applies when the submitter hands
+    // ownership of the event to someone else.
     const proposedEventsQuery = await db.collection('events')
-      .where('ownerEmails', 'array-contains', request.auth.token.email)
+      .where('managerEmails', 'array-contains', request.auth.token.email)
       .where('status', '==', EventStatus.Proposed)
       .get();
-    
+
     if (proposedEventsQuery.size >= 3) {
       throw new HttpsError('permission-denied', 'You have already reached the limit of 3 proposed events.');
     }
 
     const data = request.data;
+
+    // Owner defaults to the submitter; the submitter is always included as a
+    // manager (pinned in the form and enforced here). ownerEmails/managerEmails
+    // are resolved from these doc IDs by the onEventCreated trigger.
+    const ownerDocId = data.ownerDocId || member.docId;
+    const managerDocIds = buildManagerDocIds(data.managerDocIds, member.docId);
+
     const event: Omit<IlcEvent, 'docId'> = {
       ...initEvent(),
       title: data.title,
@@ -105,13 +168,30 @@ export const submitProposedEvent = onCall(
       status: EventStatus.Proposed,
       kind: EventSourceKind.FirebaseSourced,
       createdAt: new Date().toISOString(),
-      ownerDocId: member.docId,
-      ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [request.auth.token.email],
+      ownerDocId,
+      managerDocIds,
       leadingInstructorId: data.leadingInstructorId || '',
     };
 
     const docRef = await db.collection('events').add(event);
     logger.info(`Event proposal submitted by ${member.memberId} with docId ${docRef.id}`);
+
+    // Notify the whole organising team (owner + managers + leading instructor)
+    // that a listing request has been submitted.
+    const submitterName = member.name || member.memberId || 'A member';
+    const organiserDocIds = await eventOrganiserDocIds(
+      db, ownerDocId, managerDocIds, event.leadingInstructorId,
+    );
+    for (const docId of organiserDocIds) {
+      await createMemberNotification(db, docId, {
+        markdown: `${submitterName} has submitted an event listing request for [${event.title}](/my-events/${docRef.id}).`,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        kind: NotificationKind.EventProposalSubmitted,
+        data: { eventDocId: docRef.id, title: event.title, submitterName },
+      });
+    }
+
     return { success: true, docId: docRef.id };
   }
 );
@@ -214,6 +294,26 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     after as unknown as Record<string, unknown>
   );
   const wasListedAndChanged = before.status === EventStatus.Listed && after.status === EventStatus.Listed && contentFieldsChanged;
+
+  // When the event first becomes publicly listed, tell the organising team
+  // (owner + managers + leading instructor) it is live, with a shareable URL.
+  // Dedups on eventId (NewEventPosted), so a re-trigger won't duplicate it.
+  if (becameListed) {
+    const title = after.title || 'your event';
+    const shareUrl = `https://app.iliqchuan.com/events/${event.params.docId}`;
+    const organiserDocIds = await eventOrganiserDocIds(
+      db, after.ownerDocId, after.managerDocIds || [], after.leadingInstructorId,
+    );
+    for (const docId of organiserDocIds) {
+      await createMemberNotification(db, docId, {
+        markdown: `Event [${title}](/events/${event.params.docId}) is now listed publicly. Share it: ${shareUrl}`,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        kind: NotificationKind.NewEventPosted,
+        data: { eventId: event.params.docId, title },
+      });
+    }
+  }
 
   if (becameListed || wasListedAndChanged) {
     logger.info(`Syncing event ${event.params.docId} to Google Calendar.`);

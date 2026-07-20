@@ -18,7 +18,11 @@
       "Bash(git pull *)",
       "Bash(git restore *)",
       "Bash(git apply *)",
-      "Bash(firebase emulators:start --only functions --project ilc-paris-class-tracker)"
+      "Bash(firebase emulators:start --only functions --project ilc-paris-class-tracker)",
+      "Bash(git check-ignore *)",
+      "Bash(tee /private/tmp/claude-*)",
+      "Bash(git --no-pager diff -- *)",
+      "Bash(git rebase *)"
     ]
   }
 }

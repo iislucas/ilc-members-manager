@@ -9,7 +9,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData, EventDocument } from '../../../../functions/src/data-model';
-import { AutocompleteComponent } from '../../autocomplete/autocomplete';
+import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
@@ -18,7 +18,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MarkdownEditor, ImageUploadPreviewComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })
@@ -60,6 +60,15 @@ export class ProposeEventComponent {
     effect(() => {
       localStorage.setItem('proposeEventFormData', JSON.stringify(this.eventModel()));
     });
+
+    // Default the owner (main contact) to the submitter once the member loads,
+    // unless one has already been chosen / restored from local storage.
+    effect(() => {
+      const member = this.submitter();
+      if (member && !this.eventModel().ownerDocId) {
+        this.eventModel.update(m => ({ ...m, ownerDocId: member.docId }));
+      }
+    });
   }
   errorMessage = signal<string | null>(null);
   imageUploadError = signal<string | null>(null);
@@ -73,12 +82,22 @@ export class ProposeEventComponent {
     location: '',
     description: '',
     leadingInstructorId: '',
+    // Member doc ID of the event owner (main contact). Defaults to the submitter
+    // (filled by the effect below) but can be reassigned to another instructor.
+    ownerDocId: '',
+    // Member doc IDs of the *additional* managers. The submitter is always a
+    // manager too (shown as a pinned row) and is added server-side.
+    managerDocIds: [] as string[],
   });
+
+  // The submitting member — always pinned as a manager of the event.
+  submitter = computed(() => this.firebaseState.user()?.member ?? null);
 
   proposeForm = form(this.eventModel, (schema) => {
     required(schema.title, { message: 'Title required.' });
     required(schema.start, { message: 'Start date required.' });
     required(schema.end, { message: 'End date required.' });
+    required(schema.leadingInstructorId, { message: 'Instructor required.' });
   });
 
   // Reactively collects specific validation error messages from required fields.
@@ -88,6 +107,7 @@ export class ProposeEventComponent {
       { field: this.proposeForm.title, label: 'Title' },
       { field: this.proposeForm.start, label: 'Start date' },
       { field: this.proposeForm.end, label: 'End date' },
+      { field: this.proposeForm.leadingInstructorId, label: 'Instructor' },
     ];
     for (const { field, label } of fields) {
       const fieldErrors = field().errors();
@@ -100,16 +120,66 @@ export class ProposeEventComponent {
     return errors;
   });
 
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
+  private extractInstructorId(value: string): string {
+    const match = value.match(/\[([^\]]+)\]$/);
+    return match ? match[1] : value;
+  }
 
   updateLeadingInstructorId(value: string) {
-    const match = value.match(/\[([^\]]+)\]$/);
-    const id = match ? match[1] : value;
+    const id = this.extractInstructorId(value);
     this.eventModel.update(m => ({ ...m, leadingInstructorId: id }));
     this.proposeForm().dirty();
+  }
+
+  updateOwnerDocId(value: string) {
+    const instructorId = this.extractInstructorId(value);
+    const instructor = this.membersService.instructors.get(instructorId);
+    if (instructor) {
+      this.eventModel.update(m => ({ ...m, ownerDocId: instructor.docId }));
+      this.proposeForm().dirty();
+    }
+  }
+
+  updateManagerDocId(index: number, value: string) {
+    const instructorId = this.extractInstructorId(value);
+    const instructor = this.membersService.instructors.get(instructorId);
+    if (!instructor) return;
+    this.eventModel.update(m => {
+      const managerDocIds = [...m.managerDocIds];
+      managerDocIds[index] = instructor.docId;
+      return { ...m, managerDocIds };
+    });
+    this.proposeForm().dirty();
+  }
+
+  addEmptyManagerRow() {
+    this.eventModel.update(m => ({ ...m, managerDocIds: [...m.managerDocIds, ''] }));
+  }
+
+  removeManagerDocId(index: number) {
+    this.eventModel.update(m => ({
+      ...m,
+      managerDocIds: m.managerDocIds.filter((_, i) => i !== index),
+    }));
+    this.proposeForm().dirty();
+  }
+
+  // Reverse lookup: find an instructor by their member doc ID. The public
+  // instructors set is keyed by human-readable instructorId, so a stored
+  // ownerDocId/managerDocId (member doc IDs) needs this scan to display. Called
+  // from the template (default change detection) so it re-runs as the set loads.
+  instructorByDocId(docId: string): InstructorPublicData | undefined {
+    if (!docId) return undefined;
+    for (const instructor of this.membersService.instructors.entries()) {
+      if (instructor.docId === docId) return instructor;
+    }
+    return undefined;
+  }
+
+  // Instructor search term to pre-fill the owner autocomplete. Empty when the
+  // owner is a non-instructor (e.g. the submitting member themselves).
+  ownerInitSearchTerm(): string {
+    return this.instructorByDocId(this.eventModel().ownerDocId)?.instructorId || '';
   }
 
   onDescriptionChanged(val: string) {

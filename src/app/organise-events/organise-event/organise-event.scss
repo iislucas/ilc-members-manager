@@ -11,13 +11,6 @@
     font-size: 0.9rem;
   }
 
-  .instructor-id-selection {
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
   .header {
     display: flex;
     align-items: center;
@@ -34,21 +27,23 @@
   form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    // A little extra whitespace to separate the sections.
+    gap: 2rem;
 
     .input-field {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
 
-      label {
-        font-weight: 500;
-        color: $text-secondary;
-        font-size: 0.9rem;
+      // The label acts as the section heading: bold and larger so it clearly
+      // signals what needs to be entered.
+      > label {
+        font-weight: 700;
+        color: $text-primary;
+        font-size: 1rem;
 
         &.invalid {
           color: #b30000;
-          font-weight: 700;
         }
       }
 
@@ -86,8 +81,27 @@
       }
     }
 
-    .leading-instructor-name {
-      font-weight: bold;
+    // Start/End dates sit side by side on one line, each keeping its label and
+    // input box together. On narrow screens the two fields wrap independently.
+    .date-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2.5rem;
+
+      .date-field {
+        flex: 0 1 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+      }
+    }
+
+    // Matches the selected-name shown by app-public-instructor-selector so the
+    // pinned "you" manager row looks the same as the instructor/owner/manager
+    // pickers.
+    .selected-name {
+      font-weight: 400;
+      color: $text-primary;
     }
 
     .success-message {

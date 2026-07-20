@@ -1,0 +1,60 @@
+<div class="public-instructor-selector">
+  @if (isEditing()) {
+    <div class="edit-panel">
+      <app-instructor-selector
+        [name]="name()"
+        [placeholder]="placeholder()"
+        [value]="draft()"
+        (valueChange)="draft.set($event)"
+      ></app-instructor-selector>
+      <div class="edit-actions">
+        <button
+          type="button"
+          class="subtle-button"
+          (click)="setValue()"
+          [disabled]="!canSet()"
+        >
+          Set
+        </button>
+        <button type="button" class="subtle-button" (click)="cancel()">
+          Cancel
+        </button>
+      </div>
+    </div>
+  } @else {
+    @if (selectedInstructor(); as inst) {
+      <div class="selected-display">
+        <span class="selected-name">{{ inst.name }}</span>
+        <span class="identifier-chip">{{ inst.instructorId }}</span>
+        <a
+          class="icon-only-button"
+          [href]="'/instructors/' + inst.instructorId"
+          title="View instructor profile"
+        >
+          <app-icon name="visibility"></app-icon>
+        </a>
+        <button
+          type="button"
+          class="icon-only-button"
+          (click)="startEdit()"
+          title="Change instructor"
+        >
+          <app-icon name="edit"></app-icon>
+        </button>
+      </div>
+    } @else {
+      <div class="selected-display empty">
+        <span class="empty-label">
+          @if (value()) {
+            Instructor "{{ value() }}" not found
+          } @else {
+            {{ emptyLabel() }}
+          }
+        </span>
+        <button type="button" class="subtle-button" (click)="startEdit()">
+          <app-icon name="edit"></app-icon> {{ selectLabel() }}
+        </button>
+      </div>
+    }
+  }
+</div>

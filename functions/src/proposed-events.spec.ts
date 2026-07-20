@@ -1,6 +1,6 @@
 /* proposed-events.spec.ts — tests for event proposal validation. */
 import { describe, it, expect } from 'vitest';
-import { validateProposal } from './proposed-events';
+import { validateProposal, buildManagerDocIds } from './proposed-events';
 import { Member, MembershipType } from './data-model';
 
 describe('validateProposal', () => {
@@ -49,5 +49,24 @@ describe('validateProposal', () => {
   it('should return error if end date is missing', () => {
     const invalidData: Record<string, unknown> = { ...validData, end: '' };
     expect(validateProposal(validMember, invalidData)).toBe('Title, start, and end dates are required.');
+  });
+});
+
+describe('buildManagerDocIds', () => {
+  it('always includes the submitter when no managers are provided', () => {
+    expect(buildManagerDocIds(undefined, 'member-1')).toEqual(['member-1']);
+    expect(buildManagerDocIds([], 'member-1')).toEqual(['member-1']);
+  });
+
+  it('appends the submitter to the provided managers', () => {
+    expect(buildManagerDocIds(['mgr-a', 'mgr-b'], 'member-1')).toEqual(['mgr-a', 'mgr-b', 'member-1']);
+  });
+
+  it('does not duplicate the submitter if already listed', () => {
+    expect(buildManagerDocIds(['mgr-a', 'member-1'], 'member-1')).toEqual(['mgr-a', 'member-1']);
+  });
+
+  it('removes empty entries and de-duplicates', () => {
+    expect(buildManagerDocIds(['mgr-a', '', 'mgr-a', ''], 'member-1')).toEqual(['mgr-a', 'member-1']);
   });
 });
