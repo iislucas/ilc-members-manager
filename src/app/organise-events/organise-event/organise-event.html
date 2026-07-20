@@ -47,6 +47,11 @@
         [class.invalid]="proposeForm.leadingInstructorId().errors()"
         >Instructor *</label
       >
+      <div class="intro-text">
+        This is the instructor who will lead training, please make sure you've
+        contacted them and they have agreed. Once this form has been submitted,
+        they will need to confirm their desire to lead training at this event.
+      </div>
       <app-autocomplete
         name="Leading Instructor"
         [searchableSet]="membersService.instructors"
@@ -64,12 +69,6 @@
         as instructorData
       ) {
         <div class="leading-instructor-name">{{ instructorData.name }}</div>
-        <div class="intro-text">
-          This is the instructor who will lead training, please make sure you've
-          contacted them and they have agreed. Once this form has been
-          submitted, they will need to confirm their desire to lead training at
-          this event.
-        </div>
       } @else {
         <div class="error-message">
           Please select a valid instructor ID for the person who will be leading
