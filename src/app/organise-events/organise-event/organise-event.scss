@@ -81,6 +81,21 @@
       }
     }
 
+    // Start/End dates sit side by side on one line, each keeping its label and
+    // input box together. On narrow screens the two fields wrap independently.
+    .date-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2.5rem;
+
+      .date-field {
+        flex: 0 1 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+      }
+    }
+
     .leading-instructor-name {
       font-weight: bold;
     }

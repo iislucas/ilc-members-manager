@@ -25,18 +25,20 @@
       />
     </div>
 
-    <div class="input-field">
-      <label for="start" [class.invalid]="proposeForm.start().errors()"
-        >Start Date *</label
-      >
-      <input id="start" type="date" [formField]="proposeForm.start" />
-    </div>
+    <div class="date-row">
+      <div class="input-field date-field">
+        <label for="start" [class.invalid]="proposeForm.start().errors()"
+          >Start Date *</label
+        >
+        <input id="start" type="date" [formField]="proposeForm.start" />
+      </div>
 
-    <div class="input-field">
-      <label for="end" [class.invalid]="proposeForm.end().errors()"
-        >End Date *</label
-      >
-      <input id="end" type="date" [formField]="proposeForm.end" />
+      <div class="input-field date-field">
+        <label for="end" [class.invalid]="proposeForm.end().errors()"
+          >End Date *</label
+        >
+        <input id="end" type="date" [formField]="proposeForm.end" />
+      </div>
     </div>
 
     <div class="input-field">
