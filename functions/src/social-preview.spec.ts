@@ -1,6 +1,69 @@
 /* social-preview.spec.ts — tests for the social preview helpers. */
 import { describe, it, expect } from 'vitest';
-import { toPlainSummary, injectMeta, Preview } from './social-preview';
+import {
+  toPlainSummary,
+  injectMeta,
+  formatEventDate,
+  buildEventPreview,
+  Preview,
+} from './social-preview';
+
+describe('buildEventPreview', () => {
+  const host = 'app.iliqchuan.com';
+
+  it('prepends date · location to the description', () => {
+    const p = buildEventPreview(
+      {
+        title: 'Master Hsin Chin',
+        start: '2026-08-15',
+        end: '2026-08-17',
+        location: 'Poland, Narewka',
+        descriptionMarkdown: 'A **weekend** of training.',
+      },
+      host,
+    );
+    expect(p.description).toBe(
+      'Aug 15, 2026 – Aug 17, 2026 · Poland, Narewka — A weekend of training.',
+    );
+  });
+
+  it('shows just the facts when there is no marketing copy', () => {
+    const p = buildEventPreview({ start: '2026-08-15', location: 'Poland' }, host);
+    expect(p.description).toBe('Aug 15, 2026 · Poland');
+  });
+
+  it('falls back to the static logo image when the event has no hero image', () => {
+    const p = buildEventPreview({ title: 'E', start: '2026-08-15' }, host);
+    expect(p.image).toBe('https://app.iliqchuan.com/icons/icon-512x512.png');
+  });
+
+  it('prefers the event hero image over the fallback', () => {
+    const p = buildEventPreview(
+      { title: 'E', heroImageLargeUrl: 'https://cdn/x.jpg' },
+      host,
+    );
+    expect(p.image).toBe('https://cdn/x.jpg');
+  });
+});
+
+describe('formatEventDate', () => {
+  it('formats a single bare date in UTC (no TZ drift)', () => {
+    expect(formatEventDate('2026-08-15')).toBe('Aug 15, 2026');
+  });
+
+  it('formats a date range when start and end differ', () => {
+    expect(formatEventDate('2026-08-15', '2026-08-17')).toBe('Aug 15, 2026 – Aug 17, 2026');
+  });
+
+  it('collapses a same-day range to a single date', () => {
+    expect(formatEventDate('2026-08-15T09:00:00Z', '2026-08-15T17:00:00Z')).toBe('Aug 15, 2026');
+  });
+
+  it('returns empty string for missing or invalid input', () => {
+    expect(formatEventDate('')).toBe('');
+    expect(formatEventDate('not-a-date')).toBe('');
+  });
+});
 
 describe('toPlainSummary', () => {
   it('strips markdown and collapses whitespace', () => {

@@ -18,6 +18,12 @@ import * as admin from 'firebase-admin';
 
 const SITE_NAME = 'I Liq Chuan Members Portal';
 
+// Fallback preview image for items that have no image of their own. Social
+// crawlers (notably WhatsApp) refuse to render any link preview card without an
+// og:image, so we point at a static logo. Must be a raster format — WhatsApp,
+// Facebook and X all ignore SVG og:images — hence the PNG rather than ilc.svg.
+const DEFAULT_IMAGE_PATH = '/icons/icon-512x512.png';
+
 export interface Preview {
   title: string;
   description: string;
@@ -75,6 +81,31 @@ export function toPlainSummary(text: string, maxLen = 200): string {
   return s;
 }
 
+/**
+ * Format an event's date (or date range) as a short human-readable string, e.g.
+ * "Aug 15, 2026" or "Aug 15 – 17, 2026". `start`/`end` may be ISO date-times or
+ * bare YYYY-MM-DD; we format in UTC so a bare date doesn't drift a day by TZ.
+ */
+export function formatEventDate(start: string, end?: string): string {
+  if (!start) return '';
+  const s = new Date(start);
+  if (isNaN(s.getTime())) return '';
+  const opts: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  };
+  const startStr = s.toLocaleDateString('en-US', opts);
+  if (end) {
+    const e = new Date(end);
+    if (!isNaN(e.getTime()) && e.toISOString().slice(0, 10) !== s.toISOString().slice(0, 10)) {
+      return `${startStr} – ${e.toLocaleDateString('en-US', opts)}`;
+    }
+  }
+  return startStr;
+}
+
 /** Fetch the first document in `collection` where `field` == `value`. */
 async function firstWhere(
   collection: string,
@@ -90,23 +121,46 @@ async function firstWhere(
   return snap.empty ? null : snap.docs[0].data();
 }
 
+/** Absolute URL for the static fallback image; crawlers reject relative ones. */
+export function fallbackImageUrl(host: string): string {
+  return `https://${host}${DEFAULT_IMAGE_PATH}`;
+}
+
+/** Build an event preview from its Firestore data (pure; no I/O). */
+export function buildEventPreview(
+  data: admin.firestore.DocumentData,
+  host: string,
+): Preview {
+  // Lead the description with the date · location facts, so the preview shows
+  // the key details even when the marketing copy buries them (or is empty).
+  const facts = [formatEventDate(data.start, data.end), data.location]
+    .filter(Boolean)
+    .join(' · ');
+  const summary = toPlainSummary(data.descriptionMarkdown || data.description || '');
+  const description = facts ? (summary ? `${facts} — ${summary}` : facts) : summary;
+  return {
+    title: data.title ?? 'Event',
+    description,
+    image: data.heroImageLargeUrl || data.heroImageUrl || fallbackImageUrl(host),
+  };
+}
+
 /** Resolve a request path to a preview, or null if it's not a known detail page. */
-async function loadPreview(path: string): Promise<Preview | null> {
+async function loadPreview(path: string, host: string): Promise<Preview | null> {
   const parts = path.split('/').filter(Boolean);
   const route = parts[0];
   const id = decodeURIComponent(parts[1] ?? '');
   if (!id) return null;
+
+  // Absolute URL for the static fallback image; crawlers reject relative ones.
+  const fallbackImage = fallbackImageUrl(host);
 
   if (route === 'events') {
     const db = admin.firestore();
     const byId = await db.collection('events').doc(id).get();
     const data = byId.exists ? byId.data() : await firstWhere('events', 'sourceId', id);
     if (!data) return null;
-    return {
-      title: data.title ?? 'Event',
-      description: toPlainSummary(data.descriptionMarkdown || data.description || ''),
-      image: data.heroImageLargeUrl || data.heroImageUrl || undefined,
-    };
+    return buildEventPreview(data, host);
   }
 
   if (route === 'instructors') {
@@ -117,7 +171,7 @@ async function loadPreview(path: string): Promise<Preview | null> {
     return {
       title: `${data.name ?? id} — I Liq Chuan Instructor`,
       description: bio || (location ? `I Liq Chuan instructor in ${location}.` : ''),
-      image: data.publicCoverImageUrl || data.publicProfileImageUrl || undefined,
+      image: data.publicCoverImageUrl || data.publicProfileImageUrl || fallbackImage,
     };
   }
 
@@ -129,7 +183,7 @@ async function loadPreview(path: string): Promise<Preview | null> {
     return {
       title: `${data.schoolName || id} — I Liq Chuan School`,
       description: bio || (location ? `I Liq Chuan school in ${location}.` : ''),
-      image: data.publicCoverImageUrl || data.publicProfileImageUrl || undefined,
+      image: data.publicCoverImageUrl || data.publicProfileImageUrl || fallbackImage,
     };
   }
 
@@ -190,7 +244,7 @@ export const socialPreview = onRequest(async (request, response) => {
   }
 
   try {
-    const preview = await loadPreview(path);
+    const preview = await loadPreview(path, host);
     if (preview) {
       html = injectMeta(html, preview, canonicalUrl);
     }
