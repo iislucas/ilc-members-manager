@@ -9,7 +9,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData, EventDocument } from '../../../../functions/src/data-model';
-import { AutocompleteComponent } from '../../autocomplete/autocomplete';
+import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
@@ -18,7 +18,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, AutocompleteComponent, MarkdownEditor, ImageUploadPreviewComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })
@@ -120,11 +120,6 @@ export class ProposeEventComponent {
     return errors;
   });
 
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
-
   private extractInstructorId(value: string): string {
     const match = value.match(/\[([^\]]+)\]$/);
     return match ? match[1] : value;
@@ -179,17 +174,6 @@ export class ProposeEventComponent {
       if (instructor.docId === docId) return instructor;
     }
     return undefined;
-  }
-
-  // Name + id to show for the currently selected owner. Falls back to the
-  // submitter (who may not be an instructor, so isn't in the instructors set).
-  ownerDisplay(): { name: string; id: string } | null {
-    const ownerDocId = this.eventModel().ownerDocId;
-    if (!ownerDocId) return null;
-    const me = this.submitter();
-    if (me && me.docId === ownerDocId) return { name: `${me.name} (you)`, id: me.memberId };
-    const instructor = this.instructorByDocId(ownerDocId);
-    return instructor ? { name: instructor.name, id: instructor.instructorId } : null;
   }
 
   // Instructor search term to pre-fill the owner autocomplete. Empty when the

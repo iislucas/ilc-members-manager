@@ -1,0 +1,38 @@
+@use "../../scss_variables" as v;
+
+.public-instructor-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .selected-display {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    .selected-name {
+      font-weight: 400;
+      color: v.$text-primary;
+    }
+
+    &.empty .empty-label {
+      color: v.$text-secondary;
+      font-size: 0.9rem;
+    }
+  }
+
+  .edit-panel {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+
+    .edit-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+  }
+}

@@ -96,8 +96,12 @@
       }
     }
 
-    .leading-instructor-name {
-      font-weight: bold;
+    // Matches the selected-name shown by app-public-instructor-selector so the
+    // pinned "you" manager row looks the same as the instructor/owner/manager
+    // pickers.
+    .selected-name {
+      font-weight: 400;
+      color: $text-primary;
     }
 
     .success-message {
