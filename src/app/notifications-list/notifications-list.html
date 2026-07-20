@@ -57,6 +57,9 @@
               @case ('NewEventPosted') {
                 <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
               }
+              @case ('EventProposalSubmitted') {
+                <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
+              }
               @default {
                 @if (isGradingNotification(n)) {
                   <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>

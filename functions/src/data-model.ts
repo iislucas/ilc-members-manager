@@ -522,6 +522,10 @@ export enum NotificationKind {
   // can determine what new posts/classes are available to catch up on.
   BlogPost = 'BlogPost',
   NewEventPosted = 'NewEventPosted',
+  // Sent to the owner, managers and leading instructor of a member-proposed event
+  // when it is first submitted (status='proposed'), letting the whole organising
+  // team know the listing request is in.
+  EventProposalSubmitted = 'EventProposalSubmitted',
   // Admin-only: a member-proposed event is waiting for approval (status='proposed').
   // Surfaced to admins so they can review and approve/reject it from Manage Events.
   PendingEventApproval = 'PendingEventApproval',
@@ -600,6 +604,17 @@ export interface NotificationEventData {
   title: string;
 }
 
+export interface NotificationEventProposalData {
+  // Firestore doc ID of the proposed event. Intentionally named `eventDocId`
+  // (not `eventId`) so this notification is NOT caught by the `eventId`
+  // de-duplication in notifications.ts — the later "now listed publicly"
+  // notification (NewEventPosted, keyed on `eventId`) must not clobber it.
+  eventDocId: string;
+  title: string;
+  // Display name of the member who submitted the listing request.
+  submitterName: string;
+}
+
 export interface NotificationPurchaseData {
   // The human-readable order number (or order doc ID) this notification is
   // about; used for de-duplication so an order is only announced once.
@@ -676,6 +691,10 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.NewEventPosted;
     data: NotificationEventData;
+  }
+  | {
+    kind: NotificationKind.EventProposalSubmitted;
+    data: NotificationEventProposalData;
   }
   | {
     kind: NotificationKind.PendingEventApproval;

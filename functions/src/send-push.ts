@@ -57,6 +57,8 @@ function notificationTitle(kind: NotificationKind): string {
       return 'New post for you';
     case NotificationKind.NewEventPosted:
       return 'New event posted';
+    case NotificationKind.EventProposalSubmitted:
+      return 'Event listing request submitted 📝';
     case NotificationKind.PurchaseFulfilled:
       return 'Purchase processed ✅';
     default:

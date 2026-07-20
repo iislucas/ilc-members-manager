@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { WritableSignal } from '@angular/core';
 import { ProposeEventComponent } from './organise-event';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../../firebase-state.service';
 import { RoutingService } from '../../routing.service';
@@ -54,5 +55,19 @@ describe('ProposeEventComponent', () => {
     await fixture.whenStable();
     const button = fixture.nativeElement.querySelector('button[type="submit"]');
     expect(button.disabled).toBe(false);
+  });
+
+  it('defaults the owner to the signed-in submitter and pins them as a manager', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: { docId: 'member-1', name: 'Alice Organiser', memberId: 'FR1' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Owner (main contact) defaults to the submitter's member doc.
+    expect(component.eventModel().ownerDocId).toBe('member-1');
+    // The submitter is shown as a pinned manager row.
+    expect(fixture.nativeElement.textContent).toContain('Alice Organiser (you)');
   });
 });

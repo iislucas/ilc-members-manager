@@ -60,6 +60,15 @@ export class ProposeEventComponent {
     effect(() => {
       localStorage.setItem('proposeEventFormData', JSON.stringify(this.eventModel()));
     });
+
+    // Default the owner (main contact) to the submitter once the member loads,
+    // unless one has already been chosen / restored from local storage.
+    effect(() => {
+      const member = this.submitter();
+      if (member && !this.eventModel().ownerDocId) {
+        this.eventModel.update(m => ({ ...m, ownerDocId: member.docId }));
+      }
+    });
   }
   errorMessage = signal<string | null>(null);
   imageUploadError = signal<string | null>(null);
@@ -73,7 +82,16 @@ export class ProposeEventComponent {
     location: '',
     description: '',
     leadingInstructorId: '',
+    // Member doc ID of the event owner (main contact). Defaults to the submitter
+    // (filled by the effect below) but can be reassigned to another instructor.
+    ownerDocId: '',
+    // Member doc IDs of the *additional* managers. The submitter is always a
+    // manager too (shown as a pinned row) and is added server-side.
+    managerDocIds: [] as string[],
   });
+
+  // The submitting member — always pinned as a manager of the event.
+  submitter = computed(() => this.firebaseState.user()?.member ?? null);
 
   proposeForm = form(this.eventModel, (schema) => {
     required(schema.title, { message: 'Title required.' });
@@ -105,11 +123,77 @@ export class ProposeEventComponent {
     toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
   };
 
-  updateLeadingInstructorId(value: string) {
+  private extractInstructorId(value: string): string {
     const match = value.match(/\[([^\]]+)\]$/);
-    const id = match ? match[1] : value;
+    return match ? match[1] : value;
+  }
+
+  updateLeadingInstructorId(value: string) {
+    const id = this.extractInstructorId(value);
     this.eventModel.update(m => ({ ...m, leadingInstructorId: id }));
     this.proposeForm().dirty();
+  }
+
+  updateOwnerDocId(value: string) {
+    const instructorId = this.extractInstructorId(value);
+    const instructor = this.membersService.instructors.get(instructorId);
+    if (instructor) {
+      this.eventModel.update(m => ({ ...m, ownerDocId: instructor.docId }));
+      this.proposeForm().dirty();
+    }
+  }
+
+  updateManagerDocId(index: number, value: string) {
+    const instructorId = this.extractInstructorId(value);
+    const instructor = this.membersService.instructors.get(instructorId);
+    if (!instructor) return;
+    this.eventModel.update(m => {
+      const managerDocIds = [...m.managerDocIds];
+      managerDocIds[index] = instructor.docId;
+      return { ...m, managerDocIds };
+    });
+    this.proposeForm().dirty();
+  }
+
+  addEmptyManagerRow() {
+    this.eventModel.update(m => ({ ...m, managerDocIds: [...m.managerDocIds, ''] }));
+  }
+
+  removeManagerDocId(index: number) {
+    this.eventModel.update(m => ({
+      ...m,
+      managerDocIds: m.managerDocIds.filter((_, i) => i !== index),
+    }));
+    this.proposeForm().dirty();
+  }
+
+  // Reverse lookup: find an instructor by their member doc ID. The public
+  // instructors set is keyed by human-readable instructorId, so a stored
+  // ownerDocId/managerDocId (member doc IDs) needs this scan to display. Called
+  // from the template (default change detection) so it re-runs as the set loads.
+  instructorByDocId(docId: string): InstructorPublicData | undefined {
+    if (!docId) return undefined;
+    for (const instructor of this.membersService.instructors.entries()) {
+      if (instructor.docId === docId) return instructor;
+    }
+    return undefined;
+  }
+
+  // Name + id to show for the currently selected owner. Falls back to the
+  // submitter (who may not be an instructor, so isn't in the instructors set).
+  ownerDisplay(): { name: string; id: string } | null {
+    const ownerDocId = this.eventModel().ownerDocId;
+    if (!ownerDocId) return null;
+    const me = this.submitter();
+    if (me && me.docId === ownerDocId) return { name: `${me.name} (you)`, id: me.memberId };
+    const instructor = this.instructorByDocId(ownerDocId);
+    return instructor ? { name: instructor.name, id: instructor.instructorId } : null;
+  }
+
+  // Instructor search term to pre-fill the owner autocomplete. Empty when the
+  // owner is a non-instructor (e.g. the submitting member themselves).
+  ownerInitSearchTerm(): string {
+    return this.instructorByDocId(this.eventModel().ownerDocId)?.instructorId || '';
   }
 
   onDescriptionChanged(val: string) {

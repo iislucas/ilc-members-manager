@@ -75,6 +75,99 @@
     </div>
 
     <div class="input-field">
+      <label for="event-owner">Main contact (owner)</label>
+      <app-autocomplete
+        name="Owner"
+        [searchableSet]="membersService.instructors"
+        [placeholder]="'Search for an instructor'"
+        [displayFns]="instructorDisplayFns"
+        [initSearchTerm]="ownerInitSearchTerm()"
+        (textUpdated)="updateOwnerDocId($event)"
+      ></app-autocomplete>
+      @if (ownerDisplay(); as owner) {
+        <div class="note" style="display: flex; gap: 10px; align-items: center;">
+          <span>{{ owner.name }}</span>
+          @if (owner.id) {
+            <span class="identifier-chip">{{ owner.id }}</span>
+          }
+        </div>
+      }
+      <div class="intro-text">
+        The owner is the main contact for the event. This defaults to you; you can
+        hand it to another instructor who has agreed to be the main contact.
+      </div>
+    </div>
+
+    <div class="input-field">
+      <label>Event managers</label>
+      <div class="manager-list">
+        @if (submitter(); as me) {
+          <div
+            class="manager-row"
+            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
+          >
+            <span class="note">{{ me.name }} (you)</span>
+            @if (me.memberId) {
+              <span class="identifier-chip">{{ me.memberId }}</span>
+            }
+          </div>
+        }
+        @for (
+          managerDocId of eventModel().managerDocIds;
+          track $index;
+          let last = $last
+        ) {
+          <div
+            class="manager-row"
+            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
+          >
+            <app-autocomplete
+              [searchableSet]="membersService.instructors"
+              [placeholder]="'Search for a manager'"
+              [displayFns]="instructorDisplayFns"
+              [initSearchTerm]="instructorByDocId(managerDocId)?.instructorId || ''"
+              (textUpdated)="updateManagerDocId($index, $event)"
+            ></app-autocomplete>
+            @let manager = instructorByDocId(managerDocId);
+            @if (manager) {
+              <span class="note">{{ manager.name }}</span>
+              <span class="identifier-chip">{{ manager.instructorId }}</span>
+            }
+            <button
+              type="button"
+              class="icon-only-button"
+              (click)="removeManagerDocId($index)"
+              title="Remove manager"
+            >
+              <app-icon name="trash" />
+            </button>
+            @if (last) {
+              <button
+                type="button"
+                class="icon-only-button add-manager-btn"
+                (click)="addEmptyManagerRow()"
+                title="Add another manager"
+              >
+                <app-icon name="add" />
+              </button>
+            }
+          </div>
+        }
+        @if (eventModel().managerDocIds.length === 0) {
+          <div>
+            <button type="button" class="subtle-button" (click)="addEmptyManagerRow()">
+              + add manager
+            </button>
+          </div>
+        }
+      </div>
+      <div class="intro-text">
+        Managers can edit this event's details. You are always a manager. Add other
+        instructors who should be able to manage it.
+      </div>
+    </div>
+
+    <div class="input-field">
       <label for="location">Location</label>
       <input
         id="location"

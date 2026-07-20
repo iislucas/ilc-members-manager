@@ -165,6 +165,8 @@ export class NotificationSettingsComponent implements OnInit {
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:
         return 'New Event Posted';
+      case NotificationKind.EventProposalSubmitted:
+        return 'Event Listing Request Submitted';
       case NotificationKind.PendingEventApproval:
         return 'Event Awaiting Approval (Admins)';
       case NotificationKind.OrderNeedsAttention:

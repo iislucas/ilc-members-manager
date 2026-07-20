@@ -116,6 +116,8 @@ export class MemberDetailsComponent {
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:
         return 'New Event Posted';
+      case NotificationKind.EventProposalSubmitted:
+        return 'Event Listing Request Submitted';
       case NotificationKind.PurchaseFulfilled:
         return 'Purchase Processed';
       default:
