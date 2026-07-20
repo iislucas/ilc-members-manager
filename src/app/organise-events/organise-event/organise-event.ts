@@ -97,6 +97,7 @@ export class ProposeEventComponent {
     required(schema.title, { message: 'Title required.' });
     required(schema.start, { message: 'Start date required.' });
     required(schema.end, { message: 'End date required.' });
+    required(schema.leadingInstructorId, { message: 'Instructor required.' });
   });
 
   // Reactively collects specific validation error messages from required fields.
@@ -106,6 +107,7 @@ export class ProposeEventComponent {
       { field: this.proposeForm.title, label: 'Title' },
       { field: this.proposeForm.start, label: 'Start date' },
       { field: this.proposeForm.end, label: 'End date' },
+      { field: this.proposeForm.leadingInstructorId, label: 'Instructor' },
     ];
     for (const { field, label } of fields) {
       const fieldErrors = field().errors();

@@ -50,11 +50,19 @@ describe('ProposeEventComponent', () => {
       title: 'Test Event',
       start: '2026-04-04',
       end: '2026-04-05',
+      leadingInstructorId: 'FR102',
     }));
     fixture.detectChanges();
     await fixture.whenStable();
     const button = fixture.nativeElement.querySelector('button[type="submit"]');
     expect(button.disabled).toBe(false);
+  });
+
+  it('lists Instructor among the missing required fields when unset', async () => {
+    component.eventModel.update(m => ({ ...m, leadingInstructorId: '' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.missingFields()).toContain('Instructor required.');
   });
 
   it('defaults the owner to the signed-in submitter and pins them as a manager', async () => {

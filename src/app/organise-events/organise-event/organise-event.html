@@ -40,21 +40,23 @@
     </div>
 
     <div class="input-field">
-      <div class="instructor-id-selection">
-        <label for="leadingInstructor">Instructor</label>
-        <app-autocomplete
-          name="Leading Instructor"
-          [searchableSet]="membersService.instructors"
-          [placeholder]="'Search for an instructor'"
-          [displayFns]="instructorDisplayFns"
-          [searchOptions]="{
-            strictDigits: true,
-            interpretQuotesAsStrict: true,
-          }"
-          [initSearchTerm]="eventModel().leadingInstructorId"
-          (textUpdated)="updateLeadingInstructorId($event)"
-        ></app-autocomplete>
-      </div>
+      <label
+        for="leadingInstructor"
+        [class.invalid]="proposeForm.leadingInstructorId().errors()"
+        >Instructor *</label
+      >
+      <app-autocomplete
+        name="Leading Instructor"
+        [searchableSet]="membersService.instructors"
+        [placeholder]="'Search for an instructor'"
+        [displayFns]="instructorDisplayFns"
+        [searchOptions]="{
+          strictDigits: true,
+          interpretQuotesAsStrict: true,
+        }"
+        [initSearchTerm]="eventModel().leadingInstructorId"
+        (textUpdated)="updateLeadingInstructorId($event)"
+      ></app-autocomplete>
       @if (
         membersService.instructors.get(eventModel().leadingInstructorId);
         as instructorData
@@ -75,7 +77,7 @@
     </div>
 
     <div class="input-field">
-      <label for="event-owner">Main contact (owner)</label>
+      <label for="event-owner">Main contact (event owner)</label>
       <app-autocomplete
         name="Owner"
         [searchableSet]="membersService.instructors"
