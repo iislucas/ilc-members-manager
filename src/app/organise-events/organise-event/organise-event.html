@@ -80,6 +80,10 @@
 
     <div class="input-field">
       <label for="event-owner">Main contact (event owner)</label>
+      <div class="intro-text">
+        The owner is the main contact for the event. This defaults to you; you can
+        hand it to another instructor who has agreed to be the main contact.
+      </div>
       <app-autocomplete
         name="Owner"
         [searchableSet]="membersService.instructors"
@@ -96,14 +100,14 @@
           }
         </div>
       }
-      <div class="intro-text">
-        The owner is the main contact for the event. This defaults to you; you can
-        hand it to another instructor who has agreed to be the main contact.
-      </div>
     </div>
 
     <div class="input-field">
       <label>Event managers</label>
+      <div class="intro-text">
+        Managers can edit this event's details. You are always a manager. Add other
+        instructors who should be able to manage it.
+      </div>
       <div class="manager-list">
         @if (submitter(); as me) {
           <div
@@ -165,24 +169,20 @@
           </div>
         }
       </div>
-      <div class="intro-text">
-        Managers can edit this event's details. You are always a manager. Add other
-        instructors who should be able to manage it.
-      </div>
     </div>
 
     <div class="input-field">
       <label for="location">Location</label>
+      <div class="intro-text">
+        Where the event will be held — e.g. the venue name, city and country. This
+        helps attendees find the event.
+      </div>
       <input
         id="location"
         type="text"
         [formField]="proposeForm.location"
         placeholder="Location"
       />
-      <div class="intro-text">
-        Where the event will be held — e.g. the venue name, city and country. This
-        helps attendees find the event.
-      </div>
     </div>
 
     <div class="input-field">
