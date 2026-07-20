@@ -411,13 +411,13 @@
     }
 
     <div class="actions">
-      <button type="submit" [disabled]="isSaving() || !proposeForm().valid() || !ownerContactValid()">
-        @if (isSaving()) {
-          <app-spinner>Submitting...</app-spinner>
-        } @else {
+      @if (isSaving()) {
+        <app-spinner>Submitting...</app-spinner>
+      } @else {
+        <button type="submit" [disabled]="!proposeForm().valid() || !ownerContactValid()">
           Submit Proposal
-        }
-      </button>
+        </button>
+      }
     </div>
   </form>
 </div>
