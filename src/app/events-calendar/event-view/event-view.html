@@ -63,6 +63,47 @@
               <span class="detail-text">Instructor: {{ instructorLabel() }}</span>
             </a>
           }
+
+          @if (ownerContact(); as owner) {
+            @if (owner.hasOwner) {
+              @if (owner.instructorId) {
+                <a class="instructor-chip" [href]="ownerInstructorLink()">
+                  <span class="icon-only-button">
+                    <app-icon name="salut"></app-icon>
+                  </span>
+                  <span class="detail-text">Contact: {{ owner.name }}</span>
+                </a>
+              } @else {
+                <div class="instructor-chip">
+                  <span class="icon-only-button">
+                    <app-icon name="salut"></app-icon>
+                  </span>
+                  <span class="detail-text">Contact: {{ owner.name }}</span>
+                </div>
+              }
+              @if (owner.contactEmail) {
+                <a class="instructor-chip" [href]="'mailto:' + owner.contactEmail">
+                  <span class="icon-only-button">
+                    <app-icon name="person"></app-icon>
+                  </span>
+                  <span class="detail-text">{{ owner.contactEmail }}</span>
+                </a>
+              }
+              @if (owner.contactUrl) {
+                <a
+                  class="instructor-chip"
+                  [href]="owner.contactUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span class="icon-only-button">
+                    <app-icon name="link"></app-icon>
+                  </span>
+                  <span class="detail-text">{{ owner.contactUrl }}</span>
+                </a>
+              }
+            }
+          }
         </div>
       </div>
 

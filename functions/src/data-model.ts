@@ -1653,8 +1653,19 @@ export type IlcEvent = {
   googleCalEventLink?: string;
   kind: EventSourceKind;  // used by sync pruning
   createdAt?: string;      // ISO date-time
+  // The event owner / main contact. `ownerDocId` is the member's Firestore doc ID
+  // and stays the authoritative membership field (used by firestore.rules, the
+  // /members/{docId}/events mirror, and notifications). The owner does NOT need to
+  // be an instructor; the fields below cache the owner's identity and an optional
+  // inline "mini-profile" contact so a non-instructor can be the contact without
+  // depending on an instructorId. '' throughout when there is no owner.
   ownerDocId: string;
   ownerEmails: string[];
+  ownerName: string;          // Cached member name / contact display name.
+  ownerMemberId: string;      // Cached human-readable memberId.
+  ownerInstructorId: string;  // Cached instructorId, or '' if the owner is not an instructor.
+  ownerContactEmail: string;  // Optional mini-profile contact email (may be set even for an instructor owner).
+  ownerContactUrl: string;    // Optional mini-profile contact URL.
   leadingInstructorId: string; // Primary instructor leading the event
   // The human-readable schoolId (e.g. SCH-123) this event is hosted by /
   // associated with, or '' if none. Used to list a school's events on its
@@ -1686,6 +1697,11 @@ export function initEvent(): IlcEvent {
     status: EventStatus.Proposed,
     ownerDocId: '',
     ownerEmails: [],
+    ownerName: '',
+    ownerMemberId: '',
+    ownerInstructorId: '',
+    ownerContactEmail: '',
+    ownerContactUrl: '',
     leadingInstructorId: '',
     schoolId: '',
     schoolDocId: '',
@@ -1693,6 +1709,49 @@ export function initEvent(): IlcEvent {
     managerEmails: [],
     documents: [],
     updatedByEmail: '',
+  };
+}
+
+// A normalised view of an event's owner / main contact for display. Callers must
+// NOT branch on the owner being an instructor: `instructorId` is only a hint for
+// optionally linking to the public instructor profile page. `hasMiniProfile` is
+// independent — an instructor owner may also set an event-specific contact.
+export type EventOwnerContact = {
+  hasOwner: boolean;      // Whether the event has an assigned owner at all.
+  memberDocId: string;
+  name: string;           // Display name (falls back to memberId, then email).
+  memberId: string;
+  instructorId: string;   // '' if not an instructor; links to /instructors/{id} when set.
+  contactEmail: string;
+  contactUrl: string;
+  hasMiniProfile: boolean; // Whether an inline contact email/url is present.
+};
+
+// Resolve an event's owner into a normalised contact for the UI. Tolerates old
+// events that predate the cached owner fields (name/memberId/instructorId absent).
+export function eventOwnerContact(event: {
+  ownerDocId?: string;
+  ownerName?: string;
+  ownerMemberId?: string;
+  ownerInstructorId?: string;
+  ownerContactEmail?: string;
+  ownerContactUrl?: string;
+  ownerEmails?: string[];
+}): EventOwnerContact {
+  const memberDocId = event.ownerDocId || '';
+  const contactEmail = event.ownerContactEmail || '';
+  const contactUrl = event.ownerContactUrl || '';
+  const memberId = event.ownerMemberId || '';
+  const fallbackEmail = event.ownerEmails && event.ownerEmails.length > 0 ? event.ownerEmails[0] : '';
+  return {
+    hasOwner: memberDocId !== '',
+    memberDocId,
+    name: event.ownerName || memberId || fallbackEmail,
+    memberId,
+    instructorId: event.ownerInstructorId || '',
+    contactEmail,
+    contactUrl,
+    hasMiniProfile: contactEmail !== '' || contactUrl !== '',
   };
 }
 

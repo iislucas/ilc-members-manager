@@ -401,21 +401,79 @@
         @if (ev) {
         <label for="event-owner">Owner (contact)</label>
         <div class="rhs">
-          <app-autocomplete
-            [searchableSet]="dataService.instructors"
-            [placeholder]="'Search for a member'"
-            [displayFns]="instructorDisplayFns"
-            [initSearchTerm]="dataService.members.get(eventFormModel().ownerDocId)?.instructorId || ''"
-            (textUpdated)="updateOwnerDocId($event)"
-          ></app-autocomplete>
+          @if (userIsAdmin()) {
+            <label class="checkbox-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+              <input
+                type="checkbox"
+                [checked]="assignMemberAsOwner()"
+                (change)="assignMemberAsOwner.set($any($event.target).checked)"
+              />
+              Assign a member (non-instructor) as the event owner
+            </label>
+          }
+
+          @if (userIsAdmin() && assignMemberAsOwner()) {
+            <app-autocomplete
+              [searchableSet]="dataService.members"
+              [placeholder]="'Search for a member'"
+              [displayFns]="memberDisplayFns"
+              [initSearchTerm]="eventFormModel().ownerMemberId"
+              (textUpdated)="updateOwnerMember($event)"
+            ></app-autocomplete>
+          } @else {
+            <app-autocomplete
+              [searchableSet]="dataService.instructors"
+              [placeholder]="'Search for an instructor'"
+              [displayFns]="instructorDisplayFns"
+              [initSearchTerm]="eventFormModel().ownerInstructorId"
+              (textUpdated)="updateOwnerInstructor($event)"
+            ></app-autocomplete>
+          }
+
           @if (eventFormModel().ownerDocId) {
-            @let owner = dataService.members.get(eventFormModel().ownerDocId);
-            @if (owner) {
-              <div class="note" style="display: flex; gap: 10px; align-items: center;">
-                <span>{{ owner.name }}</span>
-                <span class="identifier-chip">{{ owner.memberId }}</span>
-              </div>
-            }
+            <div class="note" style="display: flex; gap: 10px; align-items: center;">
+              <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
+              @if (eventFormModel().ownerMemberId) {
+                <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+              }
+              @if (eventFormModel().ownerInstructorId) {
+                <span class="identifier-chip">{{ eventFormModel().ownerInstructorId }}</span>
+              }
+              <button type="button" class="subtle-button" (click)="clearOwner()">
+                Clear owner
+              </button>
+            </div>
+
+            <div class="mini-profile" style="margin-top: 8px;">
+              <label for="ownerContactName">Contact name</label>
+              <input
+                id="ownerContactName"
+                type="text"
+                [value]="eventFormModel().ownerName"
+                (input)="updateOwnerContactField('ownerName', $event)"
+                placeholder="Contact name"
+              />
+              <label for="ownerContactEmail">Contact email</label>
+              <input
+                id="ownerContactEmail"
+                type="email"
+                [value]="eventFormModel().ownerContactEmail"
+                (input)="updateOwnerContactField('ownerContactEmail', $event)"
+                placeholder="you@example.com"
+              />
+              <label for="ownerContactUrl">Contact link</label>
+              <input
+                id="ownerContactUrl"
+                type="url"
+                [value]="eventFormModel().ownerContactUrl"
+                (input)="updateOwnerContactField('ownerContactUrl', $event)"
+                placeholder="https://…"
+              />
+            </div>
+          } @else {
+            <div class="note">
+              No owner — the leading instructor will be shown as the contact.
+            </div>
           }
         </div>
 

@@ -62,6 +62,11 @@ type EventFormModel = {
   heroImageThumbUrl?: string;
   heroImageOriginalUrl?: string;
   ownerDocId: string;
+  ownerName: string;
+  ownerMemberId: string;
+  ownerInstructorId: string;
+  ownerContactEmail: string;
+  ownerContactUrl: string;
   managerDocIds: string[];
   leadingInstructorId: string;
   schoolId: string;
@@ -94,6 +99,11 @@ function toFormModel(event: IlcEvent): EventFormModel {
     status: event.status,
     heroImageUrl: event.heroImageUrl,
     ownerDocId: event.ownerDocId || '',
+    ownerName: event.ownerName || '',
+    ownerMemberId: event.ownerMemberId || '',
+    ownerInstructorId: event.ownerInstructorId || '',
+    ownerContactEmail: event.ownerContactEmail || '',
+    ownerContactUrl: event.ownerContactUrl || '',
     managerDocIds: event.managerDocIds || [],
     leadingInstructorId: event.leadingInstructorId || '',
     schoolId: event.schoolId || '',
@@ -151,12 +161,22 @@ export class EventEditComponent implements OnInit {
     heroImageThumbUrl: '',
     heroImageOriginalUrl: '',
     ownerDocId: '',
+    ownerName: '',
+    ownerMemberId: '',
+    ownerInstructorId: '',
+    ownerContactEmail: '',
+    ownerContactUrl: '',
     managerDocIds: [],
     leadingInstructorId: '',
     schoolId: '',
     schoolDocId: '',
     documents: [],
   });
+
+  // UI-only: when an admin ticks this, the owner picker switches from the
+  // instructor autocomplete to a member autocomplete so any member (not just
+  // instructors) can be assigned as the event owner/contact.
+  assignMemberAsOwner = signal(false);
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
     required(schema.title, { message: 'Title is required.' });
@@ -330,6 +350,9 @@ export class EventEditComponent implements OnInit {
         }
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
+        // Default the picker to "member" mode when the existing owner is a
+        // non-instructor member, so an admin sees the member selector.
+        this.assignMemberAsOwner.set(!!data.ownerDocId && !(data.ownerInstructorId || ''));
         this.titleLoaded.emit(data.title);
         if (data.docId && this.canManageMaterials()) {
           this.loadMaterials(data.docId);
@@ -456,12 +479,64 @@ export class EventEditComponent implements OnInit {
     this.eventFormModel.update((m) => ({ ...m, leadingInstructorId: instructorId }));
   }
 
-  updateOwnerDocId(value: string) {
+  // Extract the human-readable memberId from an autocomplete label like
+  // "(MEM-123) Jane Doe" or a bare id.
+  private extractMemberId(value: string): string {
+    const match = value.match(/^\(([^)]+)\)/);
+    return match ? match[1] : value.trim();
+  }
+
+  // Assign the owner from the instructor autocomplete. Caches the instructor's
+  // identity and clears any inline mini-profile (the instructor's own profile is
+  // the contact).
+  updateOwnerInstructor(value: string) {
     const instructorId = this.extractInstructorId(value);
     const instructor = this.dataService.instructors.get(instructorId);
-    if (instructor) {
-      this.eventFormModel.update((m) => ({ ...m, ownerDocId: instructor.docId }));
-    }
+    if (!instructor) return;
+    this.eventFormModel.update((m) => ({
+      ...m,
+      ownerDocId: instructor.docId,
+      ownerName: instructor.name,
+      ownerMemberId: instructor.memberId,
+      ownerInstructorId: instructor.instructorId,
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+    }));
+  }
+
+  // Assign the owner from the member autocomplete (admin-only). Caches the
+  // member's identity; instructorId may be '' for a non-instructor.
+  updateOwnerMember(value: string) {
+    const memberId = this.extractMemberId(value);
+    const member = this.dataService.getMemberByMemberId(memberId);
+    if (!member) return;
+    this.eventFormModel.update((m) => ({
+      ...m,
+      ownerDocId: member.docId,
+      ownerName: member.name,
+      ownerMemberId: member.memberId,
+      ownerInstructorId: member.instructorId || '',
+    }));
+  }
+
+  clearOwner() {
+    this.eventFormModel.update((m) => ({
+      ...m,
+      ownerDocId: '',
+      ownerName: '',
+      ownerMemberId: '',
+      ownerInstructorId: '',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+    }));
+  }
+
+  updateOwnerContactField(
+    field: 'ownerName' | 'ownerContactEmail' | 'ownerContactUrl',
+    event: Event,
+  ) {
+    const value = (event.target as HTMLInputElement).value;
+    this.eventFormModel.update((m) => ({ ...m, [field]: value }));
   }
 
   updateManagerDocId(index: number, value: string) {
@@ -766,6 +841,11 @@ export class EventEditComponent implements OnInit {
         heroImageThumbUrl: formData.heroImageThumbUrl,
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
         ownerDocId: formData.ownerDocId,
+        ownerName: formData.ownerName,
+        ownerMemberId: formData.ownerMemberId,
+        ownerInstructorId: formData.ownerInstructorId,
+        ownerContactEmail: formData.ownerContactEmail,
+        ownerContactUrl: formData.ownerContactUrl,
         managerDocIds: formData.managerDocIds.filter(Boolean),
         leadingInstructorId: formData.leadingInstructorId,
         schoolId: formData.schoolId,

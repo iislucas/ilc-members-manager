@@ -13,7 +13,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventOwnerContact } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
@@ -63,6 +63,18 @@ export class EventViewComponent implements OnInit {
     return `/instructors/${encodeURIComponent(id)}`;
   });
 
+
+  // The owner / main contact for public display. Falls back to no-owner (in which
+  // case the template shows the leading instructor as the contact instead).
+  ownerContact = computed(() => {
+    const ev = this.event();
+    return ev ? eventOwnerContact(ev) : null;
+  });
+
+  ownerInstructorLink = computed(() => {
+    const id = this.ownerContact()?.instructorId;
+    return id ? `/instructors/${encodeURIComponent(id)}` : '';
+  });
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();

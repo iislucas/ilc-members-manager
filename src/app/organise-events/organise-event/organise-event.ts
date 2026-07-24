@@ -69,6 +69,22 @@ export class ProposeEventComponent {
         this.eventModel.update(m => ({ ...m, ownerDocId: member.docId }));
       }
     });
+
+    // Prefill the non-instructor mini-profile from the submitter's own details the
+    // first time they load, without clobbering anything restored from local storage
+    // or already typed.
+    effect(() => {
+      const member = this.submitter();
+      if (!member || member.instructorId) return;
+      this.eventModel.update(m => {
+        if (m.ownerContactName || m.ownerContactEmail) return m;
+        return {
+          ...m,
+          ownerContactName: member.name || '',
+          ownerContactEmail: member.publicEmail || member.emails?.[0] || '',
+        };
+      });
+    });
   }
   errorMessage = signal<string | null>(null);
   imageUploadError = signal<string | null>(null);
@@ -83,8 +99,14 @@ export class ProposeEventComponent {
     description: '',
     leadingInstructorId: '',
     // Member doc ID of the event owner (main contact). Defaults to the submitter
-    // (filled by the effect below) but can be reassigned to another instructor.
+    // (filled by the effect below). Only an instructor submitter may reassign it
+    // to another instructor; a non-instructor submitter must remain the owner.
     ownerDocId: '',
+    // Inline "mini-profile" contact for a non-instructor owner (the submitter).
+    // ownerContactName also acts as the owner's display name.
+    ownerContactName: '',
+    ownerContactEmail: '',
+    ownerContactUrl: '',
     // Member doc IDs of the *additional* managers. The submitter is always a
     // manager too (shown as a pinned row) and is added server-side.
     managerDocIds: [] as string[],
@@ -92,6 +114,16 @@ export class ProposeEventComponent {
 
   // The submitting member — always pinned as a manager of the event.
   submitter = computed(() => this.firebaseState.user()?.member ?? null);
+
+  // Whether the submitter is an instructor. Instructors may reassign the owner to
+  // another instructor; non-instructors provide an inline mini-profile instead.
+  submitterIsInstructor = computed(() => !!this.submitter()?.instructorId);
+
+  // Whether the owner is still the submitter (vs. reassigned to another instructor).
+  ownerIsSubmitter = computed(() => {
+    const me = this.submitter();
+    return !!me && this.eventModel().ownerDocId === me.docId;
+  });
 
   proposeForm = form(this.eventModel, (schema) => {
     required(schema.title, { message: 'Title required.' });
@@ -117,7 +149,18 @@ export class ProposeEventComponent {
         }
       }
     }
+    if (!this.ownerContactValid()) {
+      errors.push('Contact name and email for the main contact.');
+    }
     return errors;
+  });
+
+  // A non-instructor submitter (who must be the owner) needs to provide a
+  // mini-profile contact name and email. Instructors and reassigned owners are fine.
+  ownerContactValid = computed(() => {
+    if (this.submitterIsInstructor() || !this.ownerIsSubmitter()) return true;
+    const m = this.eventModel();
+    return !!m.ownerContactName.trim() && !!m.ownerContactEmail.trim();
   });
 
   private extractInstructorId(value: string): string {
@@ -135,9 +178,36 @@ export class ProposeEventComponent {
     const instructorId = this.extractInstructorId(value);
     const instructor = this.membersService.instructors.get(instructorId);
     if (instructor) {
-      this.eventModel.update(m => ({ ...m, ownerDocId: instructor.docId }));
+      // Reassigned to another instructor: drop the submitter's mini-profile so the
+      // reassigned instructor's own profile is used as the contact.
+      this.eventModel.update(m => ({
+        ...m,
+        ownerDocId: instructor.docId,
+        ownerContactName: '',
+        ownerContactEmail: '',
+        ownerContactUrl: '',
+      }));
       this.proposeForm().dirty();
     }
+  }
+
+  // Return ownership to the submitter (used to undo a reassignment).
+  resetOwnerToMe() {
+    const me = this.submitter();
+    if (!me) return;
+    this.eventModel.update(m => ({
+      ...m,
+      ownerDocId: me.docId,
+      ownerContactName: me.instructorId ? '' : (me.name || ''),
+      ownerContactEmail: me.instructorId ? '' : (me.publicEmail || me.emails?.[0] || ''),
+    }));
+    this.proposeForm().dirty();
+  }
+
+  updateOwnerContactField(field: 'ownerContactName' | 'ownerContactEmail' | 'ownerContactUrl', event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.eventModel.update(m => ({ ...m, [field]: value }));
+    this.proposeForm().dirty();
   }
 
   updateManagerDocId(index: number, value: string) {
@@ -174,12 +244,6 @@ export class ProposeEventComponent {
       if (instructor.docId === docId) return instructor;
     }
     return undefined;
-  }
-
-  // Instructor search term to pre-fill the owner autocomplete. Empty when the
-  // owner is a non-instructor (e.g. the submitting member themselves).
-  ownerInitSearchTerm(): string {
-    return this.instructorByDocId(this.eventModel().ownerDocId)?.instructorId || '';
   }
 
   onDescriptionChanged(val: string) {

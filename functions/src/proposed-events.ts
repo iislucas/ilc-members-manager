@@ -125,7 +125,7 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
 // Submit a new event proposal — writes directly to /events with status='proposed'.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[] }>) => {
+  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -158,6 +158,31 @@ export const submitProposedEvent = onCall(
     const ownerDocId = data.ownerDocId || member.docId;
     const managerDocIds = buildManagerDocIds(data.managerDocIds, member.docId);
 
+    // Cache the owner's identity + optional inline mini-profile so a non-instructor
+    // owner displays without depending on an instructorId. The mini-profile contact
+    // fields only apply when the submitter keeps ownership; reassigning to another
+    // instructor caches that instructor's identity instead.
+    let ownerName = '';
+    let ownerMemberId = '';
+    let ownerInstructorId = '';
+    let ownerContactEmail = '';
+    let ownerContactUrl = '';
+    if (ownerDocId === member.docId) {
+      ownerName = (data.ownerContactName || member.name || '').trim();
+      ownerMemberId = member.memberId || '';
+      ownerInstructorId = member.instructorId || '';
+      ownerContactEmail = (data.ownerContactEmail || '').trim();
+      ownerContactUrl = (data.ownerContactUrl || '').trim();
+    } else {
+      const ownerDoc = await db.collection('members').doc(ownerDocId).get();
+      const ownerMember = ownerDoc.data() as Member | undefined;
+      if (ownerMember) {
+        ownerName = ownerMember.name || '';
+        ownerMemberId = ownerMember.memberId || '';
+        ownerInstructorId = ownerMember.instructorId || '';
+      }
+    }
+
     const event: Omit<IlcEvent, 'docId'> = {
       ...initEvent(),
       title: data.title,
@@ -170,6 +195,11 @@ export const submitProposedEvent = onCall(
       createdAt: new Date().toISOString(),
       ownerDocId,
       managerDocIds,
+      ownerName,
+      ownerMemberId,
+      ownerInstructorId,
+      ownerContactEmail,
+      ownerContactUrl,
       leadingInstructorId: data.leadingInstructorId || '',
     };
 

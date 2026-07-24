@@ -78,4 +78,50 @@ describe('ProposeEventComponent', () => {
     // The submitter is shown as a pinned manager row.
     expect(fixture.nativeElement.textContent).toContain('Alice Organiser (you)');
   });
+
+  it('requires a contact name and email for a non-instructor owner', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: {
+        docId: 'member-1', name: 'Non Instructor', memberId: 'FR9',
+        instructorId: '', emails: [], publicEmail: '',
+      },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Prefill fills the contact name but there is no email to prefill → invalid.
+    expect(component.submitterIsInstructor()).toBe(false);
+    expect(component.ownerContactValid()).toBe(false);
+    expect(component.missingFields()).toContain(
+      'Contact name and email for the main contact.',
+    );
+
+    component.eventModel.update((m) => ({ ...m, ownerContactEmail: 'contact@example.com' }));
+    expect(component.ownerContactValid()).toBe(true);
+  });
+
+  it('lets an instructor submitter reassign the owner, clearing the mini-profile', async () => {
+    const dataService = TestBed.inject(DataManagerService);
+    (dataService.instructors as unknown as SearchableSet<'instructorId', { instructorId: string; docId: string; name: string }>)
+      .setEntries([{ docId: 'other-doc', instructorId: 'FR200', name: 'Other Instructor' }]);
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: { docId: 'member-1', name: 'Instructor Submitter', memberId: 'FR1', instructorId: 'FR1' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.eventModel.update((m) => ({
+      ...m, ownerContactName: 'X', ownerContactEmail: 'x@example.com',
+    }));
+    component.updateOwnerDocId('FR200');
+
+    expect(component.eventModel().ownerDocId).toBe('other-doc');
+    expect(component.eventModel().ownerContactName).toBe('');
+    expect(component.eventModel().ownerContactEmail).toBe('');
+    expect(component.ownerIsSubmitter()).toBe(false);
+    // A non-instructor submitter has no reassign option, so validity ignores contact.
+    expect(component.ownerContactValid()).toBe(true);
+  });
 });
