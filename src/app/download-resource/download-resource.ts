@@ -21,6 +21,7 @@ import {
   inject,
   signal,
   effect,
+  untracked,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { RoutingService } from '../routing.service';
@@ -121,8 +122,15 @@ export class DownloadResourceComponent {
       }
 
       // Public resources: download immediately, no login needed.
+      // Wrap startDownload in untracked() so this effect only depends on its
+      // real inputs (path, access level, login status). startDownload reads
+      // and writes `state`; without untracked() that read makes `state` a
+      // dependency of this effect, so a failed download (state = 'error')
+      // would re-trigger the effect and start the download again in an
+      // infinite loop — the error card with its renewal link would never
+      // stay on screen.
       if (level === ResourceAccessLevel.Public) {
-        this.startDownload(path);
+        untracked(() => this.startDownload(path));
         return;
       }
 
@@ -134,15 +142,22 @@ export class DownloadResourceComponent {
 
       // Signed in — attempt the download.
       if (login === LoginStatus.SignedIn) {
-        this.startDownload(path);
+        untracked(() => this.startDownload(path));
       }
     });
   }
 
   async startDownload(fullPath: string) {
-    // Prevent re-entry if already downloading or done.
+    // Prevent re-entry if already downloading, done, or showing an error.
+    // (retry() resets to 'idle' first, so a deliberate retry still proceeds.)
     const current = this.state();
-    if (current.kind === 'downloading' || current.kind === 'done') return;
+    if (
+      current.kind === 'downloading' ||
+      current.kind === 'done' ||
+      current.kind === 'error'
+    ) {
+      return;
+    }
 
     this.state.set({ kind: 'downloading' });
     try {
