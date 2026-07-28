@@ -79,19 +79,11 @@
 
         <label for="event-instructor">Instructor</label>
         <div class="rhs">
-          <app-autocomplete
-            [searchableSet]="dataService.instructors"
+          <app-instructor-selector
             [placeholder]="'Search for an instructor'"
-            [displayFns]="instructorDisplayFns"
-            [initSearchTerm]="eventFormModel().leadingInstructorId"
-            (textUpdated)="updateLeadingInstructorId($event)"
-          ></app-autocomplete>
-          @if (dataService.instructors.get(eventFormModel().leadingInstructorId); as instructorData) {
-            <div class="note" style="display: flex; gap: 10px; align-items: center;">
-              <span>{{ instructorData.name }}</span>
-              <span class="identifier-chip">{{ instructorData.instructorId }}</span>
-            </div>
-          }
+            [value]="eventFormModel().leadingInstructorId"
+            (valueChange)="updateLeadingInstructorId($event)"
+          ></app-instructor-selector>
         </div>
 
         <label for="event-school">School</label>
@@ -499,28 +491,11 @@
           @let managerIds = eventFormModel().managerDocIds;
           @for (managerId of managerIds; track $index; let last = $last) {
             <div class="manager-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
-              @if (userIsAdmin()) {
-                <app-autocomplete
-                  [searchableSet]="dataService.instructors"
-                  [placeholder]="'Search for a manager'"
-                  [displayFns]="instructorDisplayFns"
-                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
-                  (textUpdated)="updateManagerDocId($index, $event)"
-                ></app-autocomplete>
-              } @else {
-                <app-autocomplete
-                  [searchableSet]="dataService.instructors"
-                  [placeholder]="'Search for a manager'"
-                  [displayFns]="instructorDisplayFns"
-                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
-                  (textUpdated)="updateManagerDocId($index, $event)"
-                ></app-autocomplete>
-              }
-              @let manager = dataService.members.get(managerId);
-              @if (manager) {
-                <span class="note">{{ manager.name }}</span>
-                <span class="identifier-chip">{{ manager.memberId }}</span>
-              }
+              <app-instructor-selector
+                [placeholder]="'Search for a manager'"
+                [value]="dataService.members.get(managerId)?.instructorId || ''"
+                (valueChange)="updateManagerDocId($index, $event)"
+              ></app-instructor-selector>
               <button type="button" class="icon-only-button" (click)="removeManagerDocId($index)" title="Remove manager">
                 <app-icon name="trash" />
               </button>

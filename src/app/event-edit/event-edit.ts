@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument, School } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, EventDocument, School } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -440,11 +440,6 @@ export class EventEditComponent implements OnInit {
   }
 
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
-
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
 
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,
