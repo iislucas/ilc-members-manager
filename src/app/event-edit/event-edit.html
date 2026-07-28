@@ -399,27 +399,31 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner">Owner (contact)</label>
-        <div class="rhs">
+        <label for="event-owner" class="align-top">Owner (contact)</label>
+        <div class="rhs owner-editor">
           @if (userIsAdmin()) {
-            <label class="checkbox-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+            <label class="checkbox-row">
               <input
                 type="checkbox"
                 [checked]="assignMemberAsOwner()"
                 (change)="assignMemberAsOwner.set($any($event.target).checked)"
               />
-              Assign a member (non-instructor) as the event owner
+              List a non-instructor as the event owner &amp; contact
             </label>
           }
 
-          @if (userIsAdmin() && assignMemberAsOwner()) {
-            <app-autocomplete
-              [searchableSet]="dataService.members"
-              [placeholder]="'Search for a member'"
-              [displayFns]="memberDisplayFns"
-              [initSearchTerm]="eventFormModel().ownerMemberId"
-              (textUpdated)="updateOwnerMember($event)"
-            ></app-autocomplete>
+          <!-- Owner selector: a member search in mini-profile mode (admins only),
+               otherwise the instructor search. -->
+          @if (assignMemberAsOwner()) {
+            @if (userIsAdmin()) {
+              <app-autocomplete
+                [searchableSet]="dataService.members"
+                [placeholder]="'Search for a member'"
+                [displayFns]="memberDisplayFns"
+                [initSearchTerm]="eventFormModel().ownerMemberId"
+                (textUpdated)="updateOwnerMember($event)"
+              ></app-autocomplete>
+            }
           } @else {
             <app-autocomplete
               [searchableSet]="dataService.instructors"
@@ -431,8 +435,8 @@
           }
 
           @if (eventFormModel().ownerDocId) {
-            <div class="note" style="display: flex; gap: 10px; align-items: center;">
-              <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
+            <div class="owner-chip">
+              <span class="owner-name">{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
               @if (eventFormModel().ownerMemberId) {
                 <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
               }
@@ -443,8 +447,15 @@
                 Clear owner
               </button>
             </div>
+          } @else {
+            <div class="note">
+              No owner — the leading instructor will be shown as the contact.
+            </div>
+          }
 
-            <div class="mini-profile" style="margin-top: 8px;">
+          <!-- Mini-profile contact: only in "non-instructor owner" mode. -->
+          @if (assignMemberAsOwner()) {
+            <div class="mini-profile">
               <label for="ownerContactName">Contact name</label>
               <input
                 id="ownerContactName"
@@ -469,10 +480,6 @@
                 (input)="updateOwnerContactField('ownerContactUrl', $event)"
                 placeholder="https://…"
               />
-            </div>
-          } @else {
-            <div class="note">
-              No owner — the leading instructor will be shown as the contact.
             </div>
           }
         </div>
