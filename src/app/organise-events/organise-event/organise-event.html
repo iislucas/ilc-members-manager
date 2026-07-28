@@ -69,19 +69,79 @@
     </div>
 
     <div class="input-field">
-      <label for="event-owner">Main contact (event owner)</label>
+      <label>Main contact (event owner)</label>
       <div class="intro-text">
-        The owner is the main contact for the event. This defaults to you; you can
-        hand it to another instructor who has agreed to be the main contact.
+        The owner is the main contact shown publicly for the event. It defaults to
+        you.
       </div>
-      <app-public-instructor-selector
-        name="Owner"
-        [placeholder]="'Search for an instructor'"
-        [value]="ownerInitSearchTerm()"
-        emptyLabel="You (the event submitter)"
-        selectLabel="Choose a different owner"
-        (valueChange)="updateOwnerDocId($event)"
-      ></app-public-instructor-selector>
+
+      @if (ownerIsSubmitter()) {
+        <div class="intro-text">
+          @if (submitterIsInstructor()) {
+            You'll be listed as the contact via your instructor profile. Optionally
+            add an event-specific contact below.
+          } @else {
+            You'll be listed as the main contact for this event. Please provide
+            contact details attendees can use.
+          }
+        </div>
+        <div class="mini-profile">
+          <div class="input-field">
+            <label for="ownerContactName">Contact name *</label>
+            <input
+              id="ownerContactName"
+              type="text"
+              [value]="eventModel().ownerContactName"
+              (input)="updateOwnerContactField('ownerContactName', $event)"
+              placeholder="Contact name"
+            />
+          </div>
+          <div class="input-field">
+            <label for="ownerContactEmail">Contact email *</label>
+            <input
+              id="ownerContactEmail"
+              type="email"
+              [value]="eventModel().ownerContactEmail"
+              (input)="updateOwnerContactField('ownerContactEmail', $event)"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div class="input-field">
+            <label for="ownerContactUrl">Contact link (optional)</label>
+            <input
+              id="ownerContactUrl"
+              type="url"
+              [value]="eventModel().ownerContactUrl"
+              (input)="updateOwnerContactField('ownerContactUrl', $event)"
+              placeholder="https://…"
+            />
+          </div>
+        </div>
+
+        @if (submitterIsInstructor()) {
+          <app-public-instructor-selector
+            name="Owner"
+            [placeholder]="'Search for an instructor'"
+            [value]="''"
+            emptyLabel="You (the event submitter)"
+            selectLabel="Hand the main contact to another instructor"
+            (valueChange)="updateOwnerDocId($event)"
+          ></app-public-instructor-selector>
+        }
+      } @else {
+        <div
+          class="manager-row"
+          style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
+        >
+          @if (instructorByDocId(eventModel().ownerDocId); as owner) {
+            <span class="selected-name">{{ owner.name }}</span>
+            <span class="identifier-chip">{{ owner.instructorId }}</span>
+          }
+          <button type="button" class="subtle-button" (click)="resetOwnerToMe()">
+            Make me the contact again
+          </button>
+        </div>
+      }
     </div>
 
     <div class="input-field">
@@ -340,7 +400,7 @@
     }
 
     <div class="actions">
-      <button type="submit" [disabled]="isSaving() || !proposeForm().valid()">
+      <button type="submit" [disabled]="isSaving() || !proposeForm().valid() || !ownerContactValid()">
         @if (isSaving()) {
           <app-spinner>Submitting...</app-spinner>
         } @else {

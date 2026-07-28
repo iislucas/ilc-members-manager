@@ -37,6 +37,7 @@ describe('EventEditComponent', () => {
 
     mockDataManagerService = {
       getEventById: vi.fn().mockResolvedValue(undefined),
+      getMemberByMemberId: vi.fn().mockReturnValue(undefined),
       members: new SearchableSet(['name'], 'docId', []),
       instructors: new SearchableSet(['instructorId'], 'instructorId', []),
     } as unknown as DataManagerService;
@@ -88,6 +89,11 @@ describe('EventEditComponent', () => {
       status: EventStatus.Listed,
       heroImageUrl: 'http://example.com/image.jpg',
       ownerDocId: 'owner-id',
+      ownerName: '',
+      ownerMemberId: '',
+      ownerInstructorId: '',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
       managerDocIds: [],
       leadingInstructorId: '',
       schoolId: '',
@@ -162,17 +168,40 @@ describe('EventEditComponent', () => {
     expect(titleLoadedSpy).toHaveBeenCalledWith('Test Event Title');
   });
 
-  it('should update ownerDocId via instructor lookup', () => {
+  it('should assign the owner via instructor lookup and cache identity', () => {
     const mockInstructor = {
       docId: 'instructor-member-doc-id',
       instructorId: 'I-101',
+      memberId: 'MEM-101',
       name: 'Instructor Name',
     };
     (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
 
-    component.updateOwnerDocId('I-101');
+    component.updateOwnerInstructor('I-101');
 
-    expect(component.eventFormModel().ownerDocId).toBe('instructor-member-doc-id');
+    const m = component.eventFormModel();
+    expect(m.ownerDocId).toBe('instructor-member-doc-id');
+    expect(m.ownerName).toBe('Instructor Name');
+    expect(m.ownerMemberId).toBe('MEM-101');
+    expect(m.ownerInstructorId).toBe('I-101');
+  });
+
+  it('should assign the owner via member lookup for a non-instructor', () => {
+    const mockMember = {
+      docId: 'member-doc-id',
+      memberId: 'MEM-500',
+      instructorId: '',
+      name: 'Non Instructor',
+    };
+    (mockDataManagerService.getMemberByMemberId as any).mockReturnValue(mockMember);
+
+    component.updateOwnerMember('(MEM-500) Non Instructor');
+
+    const m = component.eventFormModel();
+    expect(m.ownerDocId).toBe('member-doc-id');
+    expect(m.ownerName).toBe('Non Instructor');
+    expect(m.ownerMemberId).toBe('MEM-500');
+    expect(m.ownerInstructorId).toBe('');
   });
 
   it('should update managerDocIds via instructor lookup', () => {
