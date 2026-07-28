@@ -405,40 +405,50 @@
                otherwise the shared instructor selector. -->
           @if (assignMemberAsOwner()) {
             @if (userIsAdmin()) {
-              <app-autocomplete
-                [searchableSet]="dataService.members"
-                [placeholder]="'Search for a member'"
-                [displayFns]="memberDisplayFns"
-                [initSearchTerm]="eventFormModel().ownerMemberId"
-                (textUpdated)="updateOwnerMember($event)"
-              ></app-autocomplete>
-            }
-            @if (eventFormModel().ownerDocId) {
-              <div class="owner-chip">
-                <span class="owner-name">{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
-                @if (eventFormModel().ownerMemberId) {
-                  <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+              <div class="owner-selector-row">
+                <span class="member-selector-label">Member selector:</span>
+                <app-autocomplete
+                  [searchableSet]="dataService.members"
+                  [placeholder]="'Search for a member'"
+                  [displayFns]="memberDisplayFns"
+                  [initSearchTerm]="eventFormModel().ownerMemberId"
+                  [inputBoxIsChip]="true"
+                  (textUpdated)="updateOwnerMember($event)"
+                ></app-autocomplete>
+                @if (eventFormModel().ownerDocId) {
+                  <span class="note selected-note">
+                    <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
+                    @if (eventFormModel().ownerMemberId) {
+                      <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+                      <a class="icon-only-button" [href]="ownerMemberLink()" title="Go to member">
+                        <app-icon name="visibility"></app-icon>
+                      </a>
+                    }
+                  </span>
+                  <button type="button" class="subtle-button" (click)="clearOwner()">
+                    Clear owner
+                  </button>
                 }
+              </div>
+              @if (!eventFormModel().ownerDocId) {
+                <div class="note">
+                  No owner — the leading instructor will be shown as the contact.
+                </div>
+              }
+            }
+          } @else {
+            <div class="owner-selector-row">
+              <app-instructor-selector
+                [placeholder]="'Search for an instructor'"
+                [value]="eventFormModel().ownerInstructorId"
+                (valueChange)="updateOwnerInstructor($event)"
+              ></app-instructor-selector>
+              @if (eventFormModel().ownerDocId) {
                 <button type="button" class="subtle-button" (click)="clearOwner()">
                   Clear owner
                 </button>
-              </div>
-            } @else {
-              <div class="note">
-                No owner — the leading instructor will be shown as the contact.
-              </div>
-            }
-          } @else {
-            <app-instructor-selector
-              [placeholder]="'Search for an instructor'"
-              [value]="eventFormModel().ownerInstructorId"
-              (valueChange)="updateOwnerInstructor($event)"
-            ></app-instructor-selector>
-            @if (eventFormModel().ownerDocId) {
-              <button type="button" class="subtle-button" (click)="clearOwner()">
-                Clear owner
-              </button>
-            }
+              }
+            </div>
           }
 
           <!-- The mode toggle sits under the selector. -->

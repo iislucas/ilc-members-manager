@@ -520,6 +520,14 @@ export class EventEditComponent implements OnInit {
     }));
   }
 
+  // Link to the owner's member page (admin member view), for the "jump to member"
+  // eye icon next to a selected non-instructor owner. '' when no owner.
+  ownerMemberLink = computed(() => {
+    const docId = this.eventFormModel().ownerDocId;
+    if (!docId) return '';
+    return this.routingService.hrefForView(Views.ManageMemberView, { memberId: docId });
+  });
+
   clearOwner() {
     this.eventFormModel.update((m) => ({
       ...m,
