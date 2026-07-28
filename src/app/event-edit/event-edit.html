@@ -401,19 +401,8 @@
         @if (ev) {
         <label for="event-owner" class="align-top">Owner (contact)</label>
         <div class="rhs owner-editor">
-          @if (userIsAdmin()) {
-            <label class="checkbox-row">
-              <input
-                type="checkbox"
-                [checked]="assignMemberAsOwner()"
-                (change)="assignMemberAsOwner.set($any($event.target).checked)"
-              />
-              List a non-instructor as the event owner &amp; contact
-            </label>
-          }
-
-          <!-- Owner selector: a member search in mini-profile mode (admins only),
-               otherwise the instructor search. -->
+          <!-- Owner selector: a member search in non-instructor mode (admins only),
+               otherwise the shared instructor selector. -->
           @if (assignMemberAsOwner()) {
             @if (userIsAdmin()) {
               <app-autocomplete
@@ -424,33 +413,44 @@
                 (textUpdated)="updateOwnerMember($event)"
               ></app-autocomplete>
             }
+            @if (eventFormModel().ownerDocId) {
+              <div class="owner-chip">
+                <span class="owner-name">{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
+                @if (eventFormModel().ownerMemberId) {
+                  <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+                }
+                <button type="button" class="subtle-button" (click)="clearOwner()">
+                  Clear owner
+                </button>
+              </div>
+            } @else {
+              <div class="note">
+                No owner — the leading instructor will be shown as the contact.
+              </div>
+            }
           } @else {
-            <app-autocomplete
-              [searchableSet]="dataService.instructors"
+            <app-instructor-selector
               [placeholder]="'Search for an instructor'"
-              [displayFns]="instructorDisplayFns"
-              [initSearchTerm]="eventFormModel().ownerInstructorId"
-              (textUpdated)="updateOwnerInstructor($event)"
-            ></app-autocomplete>
-          }
-
-          @if (eventFormModel().ownerDocId) {
-            <div class="owner-chip">
-              <span class="owner-name">{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
-              @if (eventFormModel().ownerMemberId) {
-                <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
-              }
-              @if (eventFormModel().ownerInstructorId) {
-                <span class="identifier-chip">{{ eventFormModel().ownerInstructorId }}</span>
-              }
+              [value]="eventFormModel().ownerInstructorId"
+              (valueChange)="updateOwnerInstructor($event)"
+            ></app-instructor-selector>
+            @if (eventFormModel().ownerDocId) {
               <button type="button" class="subtle-button" (click)="clearOwner()">
                 Clear owner
               </button>
-            </div>
-          } @else {
-            <div class="note">
-              No owner — the leading instructor will be shown as the contact.
-            </div>
+            }
+          }
+
+          <!-- The mode toggle sits under the selector. -->
+          @if (userIsAdmin()) {
+            <label class="checkbox-row">
+              <input
+                type="checkbox"
+                [checked]="assignMemberAsOwner()"
+                (change)="assignMemberAsOwner.set($any($event.target).checked)"
+              />
+              List a non-instructor as the event owner &amp; contact
+            </label>
           }
 
           <!-- Mini-profile contact: only in "non-instructor owner" mode. -->

@@ -33,6 +33,7 @@ import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../util
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import {
   getStorage,
@@ -125,7 +126,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
