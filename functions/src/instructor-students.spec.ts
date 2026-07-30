@@ -2,7 +2,7 @@
  * permission guard and the message the removed student is sent. */
 import { describe, it, expect } from 'vitest';
 import { findRemovingInstructor, removedStudentMarkdown } from './instructor-students';
-import { Member } from './data-model';
+import { Member, NotificationKind, notificationStyle } from './data-model';
 
 const member = (overrides: Partial<Member>): Member =>
   ({ docId: 'doc', name: '', memberId: '', instructorId: '', primaryInstructorId: '', ...overrides }) as Member;
@@ -51,5 +51,11 @@ describe('removedStudentMarkdown', () => {
     expect(md).toContain('INST-1');
     expect(md).toContain('(#/myProfile)');
     expect(md).toContain('talk to them directly');
+  });
+
+  // Choosing a new primary instructor is optional, so this is something to
+  // know rather than a TODO — it must not render with the 'action' styling.
+  it('is an informational notification, not an action', () => {
+    expect(notificationStyle(NotificationKind.PrimaryInstructorRemoved)).toBe('info');
   });
 });

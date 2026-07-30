@@ -37,17 +37,17 @@ export function findRemovingInstructor(
 
 /**
  * The message the removed student sees in their notification feed. Names the
- * instructor, points at the profile page where a new primary instructor is
+ * instructor, points at the profile page where a new primary instructor can be
  * chosen, and invites them to talk to the instructor if this looks like a
- * mistake.
+ * mistake. Deliberately informational in tone — this is an 'info' notification,
+ * so nothing here is presented as a task the student must complete.
  */
 export function removedStudentMarkdown(instructor: Member): string {
   const who = `**${instructor.name}** (${instructor.instructorId})`;
   return (
     `${who} has removed you from their student list, so you no longer have a ` +
     `primary instructor.\n\n` +
-    `Please [choose your primary instructor](#/myProfile) so your membership, ` +
-    `gradings and classes stay linked to the right person.\n\n` +
+    `You can [choose a new primary instructor](#/myProfile) whenever you like.\n\n` +
     `If you think this was a mistake and you would like ${who} to remain your ` +
     `primary instructor, please talk to them directly and they can add you back.`
   );

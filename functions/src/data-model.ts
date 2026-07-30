@@ -533,8 +533,9 @@ export enum NotificationKind {
   // 'needs-manual-processing') and needs an admin to resolve it from the order view.
   OrderNeedsAttention = 'OrderNeedsAttention',
   // Sent to a student when their primary instructor removes them from their
-  // student list (which clears the student's primaryInstructorId). The student
-  // needs to pick a new primary instructor, so this is an action.
+  // student list (which clears the student's primaryInstructorId). Informational
+  // rather than an action: picking a new primary instructor is entirely optional
+  // and in practice is not something the student is expected to act on here.
   PrimaryInstructorRemoved = 'PrimaryInstructorRemoved',
   MembershipPending = 'MembershipPending',
   MembershipActivated = 'MembershipActivated',
@@ -558,7 +559,6 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.PendingEventApproval,
   NotificationKind.OrderNeedsAttention,
   NotificationKind.InstructorLicenseActivated,
-  NotificationKind.PrimaryInstructorRemoved,
 ]);
 
 export function notificationStyle(kind: NotificationKind): NotificationStyle {
