@@ -172,6 +172,7 @@ describe('on-member-update triggers logic', () => {
       const setCall = mockSet.mock.calls[0][0] as MemberNotification;
       expect(setCall.kind).toBe(NotificationKind.MembershipActivated);
       expect(setCall.markdown).toContain('Welcome to the I Liq Chuan family');
+      expect(setCall.markdown).toContain('](/members-area)');
 
       // Verify email was enqueued
       expect(mockAdd).toHaveBeenCalled();
@@ -179,6 +180,7 @@ describe('on-member-update triggers logic', () => {
       expect(addCall.to).toEqual(['member-email@example.com']);
       expect(addCall.message.subject).toBe('Welcome to the I Liq Chuan Family!');
       expect(addCall.message.html).toContain('Welcome to the I Liq Chuan family');
+      expect(addCall.message.html).toContain(`${environment.links.appBase}/members-area`);
     });
 
     it('should use custom templates from Firestore system/email-templates document if present', async () => {
@@ -295,6 +297,12 @@ describe('on-member-update triggers logic', () => {
       expect(setCall.kind).toBe(NotificationKind.InstructorLicenseActivated);
       expect(setCall.markdown).toContain('Congratulations on getting your Instructor ID');
       expect(setCall.data.instructorId).toBe('INST-777');
+      // Regression: in-app links must be root-relative paths. A legacy `#/...`
+      // href only resolves on a full page load (see the rewrite in main.ts), so
+      // clicking one inside the running app does nothing at all.
+      expect(setCall.markdown).not.toContain('](#/');
+      expect(setCall.markdown).toContain('](/myProfile)');
+      expect(setCall.markdown).toContain(`](${environment.links.instructorSopPath})`);
 
       // Verify email was enqueued
       expect(mockAdd).toHaveBeenCalled();
@@ -303,6 +311,11 @@ describe('on-member-update triggers logic', () => {
       expect(addCall.message.subject).toBe('Congratulations on your Instructor License!');
       expect(addCall.message.html).toContain('Congratulations on getting your Instructor ID');
       expect(addCall.message.html).toContain('INST-777');
+      // Email links have no app to resolve against, so they must be absolute.
+      expect(addCall.message.html).toContain(`${environment.links.appBase}/myProfile`);
+      expect(addCall.message.html).toContain(
+        `${environment.links.appBase}${environment.links.instructorSopPath}`,
+      );
     });
 
     it('should do nothing if instructorId remains unchanged or empty', async () => {

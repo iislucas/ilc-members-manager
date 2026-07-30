@@ -358,7 +358,7 @@ export async function handleMembershipActivation(
 
     await createMemberNotification(db, member.docId, {
       kind: NotificationKind.MembershipActivated,
-      markdown: `Welcome to the I Liq Chuan family! Your membership is now active. You can now access the [Active Members Area](#/members-area) to read the blog, view classes, and more.`,
+      markdown: `Welcome to the I Liq Chuan family! Your membership is now active. You can now access the [Active Members Area](/members-area) to read the blog, view classes, and more.`,
       createdAt: new Date().toISOString(),
       dismissed: false,
       data: {}
@@ -369,6 +369,7 @@ export async function handleMembershipActivation(
         name: member.name || '',
         memberId: member.memberId || '',
         email: (member.emails || [])[0] || '',
+        appBase: environment.links.appBase,
       });
     } catch (error) {
       logger.error(`Failed to enqueue welcome email for member ${member.docId}:`, error);
@@ -388,7 +389,7 @@ export async function handleInstructorActivation(
 
     await createMemberNotification(db, member.docId, {
       kind: NotificationKind.InstructorLicenseActivated,
-      markdown: `Congratulations on getting your Instructor ID **${member.instructorId}**! Please [update your public instructor profile](#/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](#/instructors-area/post/sop) in the Instructors Area.`,
+      markdown: `Congratulations on getting your Instructor ID **${member.instructorId}**! Please [update your public instructor profile](/myProfile) with a bio, photos, and links, and make sure to review the [Instructor Standard Operating Procedures (SOP)](${environment.links.instructorSopPath}) in the Instructors Area.`,
       createdAt: new Date().toISOString(),
       dismissed: false,
       data: {
@@ -402,6 +403,8 @@ export async function handleInstructorActivation(
         memberId: member.memberId || '',
         instructorId: member.instructorId || '',
         email: (member.emails || [])[0] || '',
+        appBase: environment.links.appBase,
+        instructorSopUrl: `${environment.links.appBase}${environment.links.instructorSopPath}`,
       });
     } catch (error) {
       logger.error(`Failed to enqueue welcome email for instructor ${member.docId}:`, error);

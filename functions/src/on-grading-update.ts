@@ -359,7 +359,7 @@ async function notifyEventManagers(
   event: EventManagers,
   eventDocId: string,
 ): Promise<void> {
-  const gradingHref = `#/gradings/${gradingDocId}`;
+  const gradingHref = `/gradings/${gradingDocId}`;
   for (const memberDocId of memberDocIds) {
     if (memberDocId === grading.studentMemberDocId) continue;
     const msg = added
@@ -432,7 +432,7 @@ export const onGradingCreated = onDocumentCreated(
     // yet actionable by the student) or has no linked student.
     if (grading.studentMemberDocId && grading.status !== GradingStatus.RequiresReview) {
       const awaitingInstructor = grading.status === GradingStatus.AwaitingRequest;
-      const gradingHref = `#/gradings/${gradingDocId}`;
+      const gradingHref = `/gradings/${gradingDocId}`;
       const msg = awaitingInstructor
         ? `🥋 Your grading for **${grading.level}** is ready! Next step: choose the instructor who will grade you. ` +
           `[Open your grading](${gradingHref}) to select your instructor and send your request.`
@@ -485,7 +485,7 @@ export const onGradingCreated = onDocumentCreated(
           grading.statusChangedByMemberDocId,
         );
         if (sifu) {
-          const gradingHref = `#/gradings/${gradingDocId}`;
+          const gradingHref = `/gradings/${gradingDocId}`;
           const instructorName = await getMemberName(
             await findInstructorMemberDocId(grading.gradingInstructorId),
             'another instructor',
@@ -762,7 +762,7 @@ export const onGradingUpdated = onDocumentUpdated(
 
     // Notify the student when their grading result is recorded.
     if (grading.studentMemberDocId) {
-      const gradingHref = `#/gradings/${gradingDocId}`;
+      const gradingHref = `/gradings/${gradingDocId}`;
       if (
         grading.status === GradingStatus.Passed &&
         previous.status !== GradingStatus.Passed
@@ -907,7 +907,7 @@ export const onGradingUpdated = onDocumentUpdated(
         grading.acceptedByMemberDocId,
       );
       if (sifu) {
-        const gradingHref = `#/gradings/${gradingDocId}`;
+        const gradingHref = `/gradings/${gradingDocId}`;
         const acceptorName = grading.acceptedByName || 'a grading manager';
         await createNotification(sifu.sifuMemberDocId, {
           markdown:
@@ -1014,7 +1014,7 @@ export const onGradingUpdated = onDocumentUpdated(
           grading.statusChangedByMemberDocId,
         );
         if (sifu) {
-          const gradingHref = `#/gradings/${gradingDocId}`;
+          const gradingHref = `/gradings/${gradingDocId}`;
           const instructorName = await getMemberName(
             await findInstructorMemberDocId(grading.gradingInstructorId),
             'another instructor',

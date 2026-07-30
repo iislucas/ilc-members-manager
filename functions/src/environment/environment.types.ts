@@ -50,6 +50,19 @@ export interface FunctionsEnvironment {
   vapidPublicKey: string;
   // Contact mailto: URI included in Web Push VAPID headers per Web Push specification
   pushContactEmail: string;
+  // Public URLs used when linking a member back into the app from a
+  // notification or an outbound email.
+  links: {
+    // Origin the members app is served from, with no trailing slash
+    // (e.g. 'https://app.iliqchuan.com'). Email links must be absolute, so they
+    // are built from this; in-app notification links stay root-relative so they
+    // also work on localhost and preview deploys.
+    appBase: string;
+    // Root-relative path of the Instructors Area post holding the instructor
+    // SOP. Configured here because the post's urlId is content, and can change
+    // without a code change.
+    instructorSopPath: string;
+  };
   // Outbound email notification settings
   email: {
     // Default 'From' email sender address (e.g. 'info@iliqchuan.com').

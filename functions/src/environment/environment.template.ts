@@ -31,6 +31,12 @@ export const environment: FunctionsEnvironment = {
   // the private key is provided via the VAPID_PRIVATE_KEY secret. Empty disables push.
   vapidPublicKey: '',
   pushContactEmail: 'mailto:admin@example.com',
+  // Where the links in notifications and emails point. `appBase` is only needed
+  // to make email links absolute; in-app links use the paths on their own.
+  links: {
+    appBase: 'https://app.iliqchuan.com',
+    instructorSopPath: '/instructors-area/post/instructor-packet',
+  },
   // Outbound email address configuration. If `from` is empty, email notifications are disabled.
   email: {
     from: '', // e.g. 'admin@iliqchuan.com'
