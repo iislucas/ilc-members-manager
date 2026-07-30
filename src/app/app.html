@@ -246,6 +246,7 @@
             [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
             basePath="my-students"
             backLabel="My Students"
+            [allowRemoveStudent]="true"
           ></app-member-view>
         }
         @case (Views.MembersAreaCategory) {

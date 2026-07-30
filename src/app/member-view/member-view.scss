@@ -1,6 +1,23 @@
+@use "../../scss_variables.scss" as v;
 
 :host {
   display: block;
+}
+
+.remove-student {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid v.$border-color-light;
+
+  p {
+    max-width: 55em;
+  }
+
+  .remove-student-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
 }
 
 .member-view-actions {

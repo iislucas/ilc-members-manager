@@ -12,6 +12,44 @@
       [allMembers]="dataService.members.entries()"
       (close)="goBack()"
     ></app-member-details>
+
+    @if (allowRemoveStudent()) {
+      <div class="remove-student">
+        @if (removeError()) {
+          <div class="error-message">{{ removeError() }}</div>
+        }
+        @if (isRemoving()) {
+          <app-spinner></app-spinner>
+        } @else if (confirmingRemove()) {
+          <p>
+            Remove <strong>{{ m.name }}</strong> from your students? You will no
+            longer be their primary instructor and will lose access to their
+            details. {{ m.name }} will be notified, can then choose a new primary
+            instructor, and is told to talk to you if they think it was a mistake.
+          </p>
+          <div class="remove-student-buttons">
+            <button type="button" class="delete-button" (click)="removeStudent()">
+              <app-icon name="trash" fill="#000" /> Yes, remove {{ m.name }}
+            </button>
+            <button
+              type="button"
+              class="subtle-button"
+              (click)="confirmingRemove.set(false)"
+            >
+              Cancel
+            </button>
+          </div>
+        } @else {
+          <button
+            type="button"
+            class="delete-button"
+            (click)="confirmingRemove.set(true)"
+          >
+            <app-icon name="trash" fill="#000" /> Remove from my students
+          </button>
+        }
+      </div>
+    }
   } @else {
     <div class="not-found">
       Member not found.

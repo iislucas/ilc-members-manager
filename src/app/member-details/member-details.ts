@@ -120,6 +120,8 @@ export class MemberDetailsComponent {
         return 'Event Listing Request Submitted';
       case NotificationKind.PurchaseFulfilled:
         return 'Purchase Processed';
+      case NotificationKind.PrimaryInstructorRemoved:
+        return 'Removed by Your Primary Instructor';
       default:
         return kind;
     }

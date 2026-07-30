@@ -532,6 +532,11 @@ export enum NotificationKind {
   // Admin-only: an order failed automatic processing (ilcAppOrderStatus 'error' or
   // 'needs-manual-processing') and needs an admin to resolve it from the order view.
   OrderNeedsAttention = 'OrderNeedsAttention',
+  // Sent to a student when their primary instructor removes them from their
+  // student list (which clears the student's primaryInstructorId). Informational
+  // rather than an action: picking a new primary instructor is entirely optional
+  // and in practice is not something the student is expected to act on here.
+  PrimaryInstructorRemoved = 'PrimaryInstructorRemoved',
   MembershipPending = 'MembershipPending',
   MembershipActivated = 'MembershipActivated',
   InstructorLicensePending = 'InstructorLicensePending',
@@ -647,6 +652,13 @@ export interface NotificationInstructorLicenseActivatedData {
   instructorId?: string;
 }
 
+export interface NotificationPrimaryInstructorRemovedData {
+  // The instructor who removed the student, as they were listed on the
+  // student's profile before the removal.
+  instructorId: string;
+  instructorName: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -723,6 +735,10 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.InstructorLicenseActivated;
     data: NotificationInstructorLicenseActivatedData;
+  }
+  | {
+    kind: NotificationKind.PrimaryInstructorRemoved;
+    data: NotificationPrimaryInstructorRemovedData;
   }
 );
 

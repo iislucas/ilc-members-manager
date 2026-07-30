@@ -173,6 +173,8 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Order Needs Manual Processing (Admins)';
       case NotificationKind.PurchaseFulfilled:
         return 'Purchase Processed';
+      case NotificationKind.PrimaryInstructorRemoved:
+        return 'Removed by Your Primary Instructor';
       default:
         return kind;
     }
