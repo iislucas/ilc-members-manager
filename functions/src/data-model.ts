@@ -1829,8 +1829,12 @@ export interface EmailTemplates {
 export function initEmailTemplates(): EmailTemplates {
   return {
     membershipActivatedSubject: membershipActivatedSubject(),
-    membershipActivatedBody: membershipActivatedBody(),
+    membershipActivatedBody: membershipActivatedBody({ appBase: '{appBase}' }),
     instructorLicenseActivatedSubject: instructorLicenseActivatedSubject(),
-    instructorLicenseActivatedBody: instructorLicenseActivatedBody({ instructorId: '{instructorId}' }),
+    instructorLicenseActivatedBody: instructorLicenseActivatedBody({
+      instructorId: '{instructorId}',
+      appBase: '{appBase}',
+      instructorSopUrl: '{instructorSopUrl}',
+    }),
   };
 }

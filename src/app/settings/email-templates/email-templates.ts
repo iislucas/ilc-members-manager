@@ -25,12 +25,15 @@ export class EmailTemplatesComponent {
     { token: '{name}' },
     { token: '{memberId}' },
     { token: '{email}' },
+    { token: '{appBase}' },
   ];
   readonly instructorChips: EditorChip[] = [
     { token: '{name}' },
     { token: '{memberId}' },
     { token: '{instructorId}' },
     { token: '{email}' },
+    { token: '{appBase}' },
+    { token: '{instructorSopUrl}' },
   ];
 
   // The email renderer only understands a subset of Markdown, so the body
