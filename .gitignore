@@ -61,3 +61,8 @@ src/app/version.ts
 # Mini-tools (logo maker)
 mini-tools/logo-maker/build/
 mini-tools/logo-maker/node_modules/
+
+# Scratch git worktrees used by coding agents. These are full checkouts (often
+# with their own node_modules), so committing one would drag a copy of the repo
+# into the repo.
+.claude/worktrees/

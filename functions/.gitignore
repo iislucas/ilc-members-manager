@@ -4,8 +4,10 @@ dist
 # TypeScript v1 declaration files
 typings/
 
-# Node.js dependency directory
-node_modules/
+# Node.js dependency directory. No trailing slash: in a scratch worktree this is
+# often a symlink to the main checkout's node_modules, and a trailing slash only
+# matches real directories, which left the symlink showing up as untracked.
+node_modules
 *.local
 
 src/environment/environment.ts
