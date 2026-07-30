@@ -493,7 +493,7 @@
             <div class="manager-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
               <app-instructor-selector
                 [placeholder]="'Search for a manager'"
-                [value]="dataService.members.get(managerId)?.instructorId || ''"
+                [value]="managerInstructorId(managerId)"
                 (valueChange)="updateManagerDocId($index, $event)"
               ></app-instructor-selector>
               <button type="button" class="icon-only-button" (click)="removeManagerDocId($index)" title="Remove manager">
