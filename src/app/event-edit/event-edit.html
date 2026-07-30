@@ -391,9 +391,9 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner" class="align-top">Owner (contact)</label>
+        <label for="event-owner" class="align-top">Creator</label>
         <div class="rhs owner-editor">
-          <!-- Owner selector: a member search in non-instructor mode (admins only),
+          <!-- Creator selector: a member search in non-instructor mode (admins only),
                otherwise the shared instructor selector. -->
           @if (assignMemberAsOwner()) {
             @if (userIsAdmin()) {
@@ -418,13 +418,14 @@
                     }
                   </span>
                   <button type="button" class="subtle-button" (click)="clearOwner()">
-                    Clear owner
+                    Clear creator
                   </button>
                 }
               </div>
               @if (!eventFormModel().ownerDocId) {
                 <div class="note">
-                  No owner — the leading instructor will be shown as the contact.
+                  No creator — with no contacts listed, the leading instructor is
+                  shown as the contact.
                 </div>
               }
             }
@@ -437,7 +438,7 @@
               ></app-instructor-selector>
               @if (eventFormModel().ownerDocId) {
                 <button type="button" class="subtle-button" (click)="clearOwner()">
-                  Clear owner
+                  Clear creator
                 </button>
               }
             </div>
@@ -451,12 +452,24 @@
                 [checked]="assignMemberAsOwner()"
                 (change)="assignMemberAsOwner.set($any($event.target).checked)"
               />
-              List a non-instructor as the event owner &amp; contact
+              Allow a non-instructor to be the event creator
             </label>
           }
 
-          <!-- Mini-profile contact: only in "non-instructor owner" mode. -->
-          @if (assignMemberAsOwner()) {
+          <!-- Ticking this lists the creator publicly as a contact; the
+               mini-profile below is their optional public email/link. -->
+          @if (eventFormModel().ownerDocId) {
+            <label class="checkbox-row">
+              <input
+                type="checkbox"
+                [checked]="isListedContact(eventFormModel().ownerDocId)"
+                (change)="setContactListed(eventFormModel().ownerDocId, $any($event.target).checked)"
+              />
+              List the creator as a public contact for this event
+            </label>
+          }
+
+          @if (isListedContact(eventFormModel().ownerDocId)) {
             <div class="mini-profile">
               <label for="ownerContactName">Contact name</label>
               <input
@@ -486,7 +499,7 @@
           }
         </div>
 
-        <label>Managers</label>
+        <label class="align-top">Managers</label>
         <div class="rhs">
           @let managerIds = eventFormModel().managerDocIds;
           @for (managerId of managerIds; track $index; let last = $last) {
@@ -505,6 +518,36 @@
                 </button>
               }
             </div>
+            @if (managerId) {
+              <label class="checkbox-row manager-contact-row">
+                <input
+                  type="checkbox"
+                  [checked]="isListedContact(managerId)"
+                  (change)="setContactListed(managerId, $any($event.target).checked)"
+                />
+                List as a public contact
+              </label>
+              @if (contactFor(managerId); as contact) {
+                <div class="mini-profile manager-contact-profile">
+                  <label [for]="'contactEmail-' + $index">Contact email</label>
+                  <input
+                    [id]="'contactEmail-' + $index"
+                    type="email"
+                    [value]="contact.contactEmail"
+                    (input)="updateContactField(managerId, 'contactEmail', $event)"
+                    placeholder="them@example.com"
+                  />
+                  <label [for]="'contactUrl-' + $index">Contact link</label>
+                  <input
+                    [id]="'contactUrl-' + $index"
+                    type="url"
+                    [value]="contact.contactUrl"
+                    (input)="updateContactField(managerId, 'contactUrl', $event)"
+                    placeholder="https://…"
+                  />
+                </div>
+              }
+            }
           }
           @if (managerIds.length === 0) {
             <div>

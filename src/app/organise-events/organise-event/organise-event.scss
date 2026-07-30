@@ -124,6 +124,17 @@
     }
   }
 
+  // A manager's "list as a public contact" toggle, indented under their row.
+  .manager-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px 1.5em;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: $text-secondary;
+  }
+
   .document-list {
     display: flex;
     flex-direction: column;

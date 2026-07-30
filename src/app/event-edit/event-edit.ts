@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, InstructorPublicData, Member, EventDocument, School } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -69,11 +69,38 @@ type EventFormModel = {
   ownerContactEmail: string;
   ownerContactUrl: string;
   managerDocIds: string[];
+  // The creator/managers listed publicly as contacts. Membership IS the flag.
+  contacts: EventContact[];
   leadingInstructorId: string;
   schoolId: string;
   schoolDocId: string;
   documents: EventDocument[];
 };
+
+// Whether a member is listed as a public contact in the given form model.
+function isContactIn(model: EventFormModel, memberDocId: string): boolean {
+  return !!memberDocId && model.contacts.some((c) => c.memberDocId === memberDocId);
+}
+
+// The contacts to persist: only the creator and current managers, with the
+// creator's entry taking its display name and contact details from the owner*
+// fields (the single place those are edited).
+function contactsToSave(model: EventFormModel): EventContact[] {
+  const allowed = new Set(
+    [model.ownerDocId, ...model.managerDocIds].filter(Boolean));
+  return model.contacts
+    .filter((c) => allowed.has(c.memberDocId))
+    .map((c) => c.memberDocId === model.ownerDocId
+      ? {
+        ...c,
+        name: model.ownerName,
+        memberId: model.ownerMemberId,
+        instructorId: model.ownerInstructorId,
+        contactEmail: model.ownerContactEmail,
+        contactUrl: model.ownerContactUrl,
+      }
+      : c);
+}
 
 // A single private event material file, as presented in the UI. Materials live
 // only in Cloud Storage (not on the public event doc); see the materials
@@ -106,6 +133,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     ownerContactEmail: event.ownerContactEmail || '',
     ownerContactUrl: event.ownerContactUrl || '',
     managerDocIds: event.managerDocIds || [],
+    contacts: (event.contacts || []).map((c) => ({ ...initEventContact(), ...c })),
     leadingInstructorId: event.leadingInstructorId || '',
     schoolId: event.schoolId || '',
     schoolDocId: event.schoolDocId || '',
@@ -168,6 +196,7 @@ export class EventEditComponent implements OnInit {
     ownerContactEmail: '',
     ownerContactUrl: '',
     managerDocIds: [],
+    contacts: [],
     leadingInstructorId: '',
     schoolId: '',
     schoolDocId: '',
@@ -482,15 +511,14 @@ export class EventEditComponent implements OnInit {
     return match ? match[1] : value.trim();
   }
 
-  // Assign the owner from the instructor autocomplete. Caches the instructor's
+  // Assign the creator from the instructor autocomplete. Caches the instructor's
   // identity and clears any inline mini-profile (the instructor's own profile is
   // the contact).
   updateOwnerInstructor(value: string) {
     const instructorId = this.extractInstructorId(value);
     const instructor = this.dataService.instructors.get(instructorId);
     if (!instructor) return;
-    this.eventFormModel.update((m) => ({
-      ...m,
+    this.eventFormModel.update((m) => this.applyCreatorChange(m, {
       ownerDocId: instructor.docId,
       ownerName: instructor.name,
       ownerMemberId: instructor.memberId,
@@ -500,18 +528,19 @@ export class EventEditComponent implements OnInit {
     }));
   }
 
-  // Assign the owner from the member autocomplete (admin-only). Caches the
+  // Assign the creator from the member autocomplete (admin-only). Caches the
   // member's identity; instructorId may be '' for a non-instructor.
   updateOwnerMember(value: string) {
     const memberId = this.extractMemberId(value);
     const member = this.dataService.getMemberByMemberId(memberId);
     if (!member) return;
-    this.eventFormModel.update((m) => ({
-      ...m,
+    this.eventFormModel.update((m) => this.applyCreatorChange(m, {
       ownerDocId: member.docId,
       ownerName: member.name,
       ownerMemberId: member.memberId,
       ownerInstructorId: member.instructorId || '',
+      ownerContactEmail: m.ownerContactEmail,
+      ownerContactUrl: m.ownerContactUrl,
     }));
   }
 
@@ -524,8 +553,7 @@ export class EventEditComponent implements OnInit {
   });
 
   clearOwner() {
-    this.eventFormModel.update((m) => ({
-      ...m,
+    this.eventFormModel.update((m) => this.applyCreatorChange(m, {
       ownerDocId: '',
       ownerName: '',
       ownerMemberId: '',
@@ -576,8 +604,15 @@ export class EventEditComponent implements OnInit {
     const instructor = this.dataService.instructors.get(instructorId);
     this.eventFormModel.update((m) => {
       const managerDocIds = [...m.managerDocIds];
-      managerDocIds[index] = instructor?.docId || '';
-      return { ...m, managerDocIds };
+      const previousDocId = managerDocIds[index] || '';
+      const nextDocId = instructor?.docId || '';
+      managerDocIds[index] = nextDocId;
+      const next = { ...m, managerDocIds };
+      // A listed manager who is swapped out hands their contact listing to
+      // whoever replaces them; clearing the row drops the listing entirely.
+      if (!isContactIn(m, previousDocId) || previousDocId === m.ownerDocId) return next;
+      const withoutPrevious = this.withoutContact(next, previousDocId);
+      return nextDocId ? this.withContact(withoutPrevious, nextDocId) : withoutPrevious;
     });
   }
 
@@ -589,10 +624,98 @@ export class EventEditComponent implements OnInit {
   }
 
   removeManagerDocId(index: number) {
+    this.eventFormModel.update((m) => {
+      const removedDocId = m.managerDocIds[index] || '';
+      const next = {
+        ...m,
+        managerDocIds: m.managerDocIds.filter((_, i) => i !== index),
+      };
+      // Someone who is no longer on the team can no longer be a contact —
+      // unless they are the creator, who is on the team either way.
+      return removedDocId && removedDocId !== m.ownerDocId
+        ? this.withoutContact(next, removedDocId)
+        : next;
+    });
+  }
+
+  // --- Publicly listed contacts ----------------------------------------
+  // Membership of `contacts` is the "listed as a contact" flag; only the
+  // creator and the managers may appear in it. The creator's entry takes its
+  // display name and contact details from the owner* fields at save time (they
+  // stay the single place those are edited), so entries here for the creator
+  // hold no separately-edited state.
+
+  isListedContact(memberDocId: string): boolean {
+    return isContactIn(this.eventFormModel(), memberDocId);
+  }
+
+  contactFor(memberDocId: string): EventContact | undefined {
+    return this.eventFormModel().contacts.find((c) => c.memberDocId === memberDocId);
+  }
+
+  setContactListed(memberDocId: string, listed: boolean) {
+    if (!memberDocId) return;
+    this.eventFormModel.update((m) =>
+      listed ? this.withContact(m, memberDocId) : this.withoutContact(m, memberDocId));
+  }
+
+  updateContactField(
+    memberDocId: string,
+    field: 'contactEmail' | 'contactUrl',
+    event: Event,
+  ) {
+    const value = (event.target as HTMLInputElement).value;
     this.eventFormModel.update((m) => ({
       ...m,
-      managerDocIds: m.managerDocIds.filter((_, i) => i !== index)
+      contacts: m.contacts.map((c) =>
+        c.memberDocId === memberDocId ? { ...c, [field]: value } : c),
     }));
+  }
+
+  // Add a contact entry, caching what we know of the member for display. The
+  // onEventUpdated trigger refreshes these fields server-side after each save.
+  private withContact(m: EventFormModel, memberDocId: string): EventFormModel {
+    if (!memberDocId || m.contacts.some((c) => c.memberDocId === memberDocId)) return m;
+    const member = this.dataService.members.get(memberDocId);
+    const contact: EventContact = memberDocId === m.ownerDocId
+      ? {
+        memberDocId,
+        name: m.ownerName,
+        memberId: m.ownerMemberId,
+        instructorId: m.ownerInstructorId,
+        contactEmail: m.ownerContactEmail,
+        contactUrl: m.ownerContactUrl,
+      }
+      : {
+        ...initEventContact(),
+        memberDocId,
+        name: member?.name || '',
+        memberId: member?.memberId || '',
+        instructorId: member?.instructorId || '',
+      };
+    return { ...m, contacts: [...m.contacts, contact] };
+  }
+
+  private withoutContact(m: EventFormModel, memberDocId: string): EventFormModel {
+    return { ...m, contacts: m.contacts.filter((c) => c.memberDocId !== memberDocId) };
+  }
+
+  // Swap in a new creator. The outgoing creator's contact entry goes unless
+  // they are also a manager, and the incoming creator inherits the "listed"
+  // state so an event never silently loses its only contact.
+  private applyCreatorChange(
+    m: EventFormModel,
+    creator: Pick<EventFormModel,
+      'ownerDocId' | 'ownerName' | 'ownerMemberId' | 'ownerInstructorId'
+      | 'ownerContactEmail' | 'ownerContactUrl'>,
+  ): EventFormModel {
+    const wasListed = isContactIn(m, m.ownerDocId);
+    const previousWasManager = m.managerDocIds.includes(m.ownerDocId);
+    let next: EventFormModel = { ...m, ...creator };
+    if (m.ownerDocId && !previousWasManager) {
+      next = this.withoutContact(next, m.ownerDocId);
+    }
+    return wasListed ? this.withContact(next, creator.ownerDocId) : next;
   }
 
   // Document management methods
@@ -859,6 +982,8 @@ export class EventEditComponent implements OnInit {
     try {
       const docRef = doc(this.db, 'events', eventData.docId);
       const formData = this.editableEvent();
+      const managerDocIds = formData.managerDocIds.filter(Boolean);
+      const contacts = contactsToSave({ ...formData, managerDocIds });
       await updateDoc(docRef, {
         title: formData.title,
         start: formData.start,
@@ -876,7 +1001,8 @@ export class EventEditComponent implements OnInit {
         ownerInstructorId: formData.ownerInstructorId,
         ownerContactEmail: formData.ownerContactEmail,
         ownerContactUrl: formData.ownerContactUrl,
-        managerDocIds: formData.managerDocIds.filter(Boolean),
+        managerDocIds,
+        contacts,
         leadingInstructorId: formData.leadingInstructorId,
         schoolId: formData.schoolId,
         schoolDocId: formData.schoolDocId,
@@ -886,11 +1012,15 @@ export class EventEditComponent implements OnInit {
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
       this.successMessage.set('Event saved successfully.');
+      // Mirror the persisted manager/contact lists back into the form model so
+      // isDirty resets (both are normalised on the way out).
+      this.eventFormModel.update((m) => ({ ...m, managerDocIds, contacts }));
       // Update the local event data so isDirty resets
       this.event.set({
         ...eventData,
         ...formData,
-        managerDocIds: formData.managerDocIds.filter(Boolean),
+        managerDocIds,
+        contacts,
         descriptionMarkdown: formData.description,
         status: formData.status as EventStatus,
         heroImageUrl: formData.heroImageUrl,

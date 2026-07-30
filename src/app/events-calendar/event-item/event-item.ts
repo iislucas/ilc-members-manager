@@ -6,7 +6,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { IlcEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, eventContacts } from '../../../../functions/src/data-model';
 import { IconComponent } from '../../icons/icon.component';
 import { formatDateRange } from '../format-date-range';
 import { FindInstructorsService } from '../../find-instructors.service';
@@ -54,30 +54,38 @@ export class EventItemComponent {
     return `/instructors/${encodeURIComponent(id)}`;
   });
 
-  // Resolve the event owner (contact) to a display label.
-  // Only shows when the owner is different from the leading instructor.
-  readonly contactLabel = computed(() => {
-    const ownerDocId = this.event().ownerDocId;
-    if (!ownerDocId) return '';
-    const owner = this.findInstructorsService.instructors.entries().find(i => i.docId === ownerDocId);
-    if (!owner) return '';
-    // Don't duplicate if the owner is already shown as the instructor.
-    if (owner.instructorId === this.event().leadingInstructorId) return '';
-    return owner.name;
+  // The event's first listed contact (the creator when none is listed), skipped
+  // when it would just repeat the leading instructor shown above it. This
+  // compact card has room for one contact; the event page lists them all.
+  private readonly firstContact = computed(() => {
+    const contact = eventContacts(this.event())[0];
+    if (!contact) return null;
+    // Prefer the public instructor profile over the fields cached on the event:
+    // events that predate those fields have neither a name nor an instructorId
+    // stored, and the profile is the more current name anyway.
+    const instructors = this.findInstructorsService.instructors;
+    const instructor = contact.instructorId
+      ? instructors.get(contact.instructorId)
+      : instructors.entries().find((i) => i.docId === contact.memberDocId);
+    const instructorId = instructor?.instructorId || contact.instructorId;
+    const name = instructor?.name || contact.name;
+    if (!name) return null;
+    // Don't repeat the leading instructor, shown above.
+    if (instructorId && instructorId === this.event().leadingInstructorId) return null;
+    return { name, instructorId };
   });
 
-  // Build a link to the owner's instructor profile.
+  readonly contactLabel = computed(() => this.firstContact()?.name || '');
+
+  // Link to the contact's instructor profile; '' when they aren't an instructor.
   readonly contactLink = computed(() => {
-    const ownerDocId = this.event().ownerDocId;
-    if (!ownerDocId) return '';
-    const owner = this.findInstructorsService.instructors.entries().find(i => i.docId === ownerDocId);
-    if (!owner || !owner.instructorId) return '';
-    if (owner.instructorId === this.event().leadingInstructorId) return '';
+    const instructorId = this.firstContact()?.instructorId;
+    if (!instructorId) return '';
     const prefix = this.instructorLinkPrefix();
     if (prefix) {
-      return `${prefix}${encodeURIComponent(owner.instructorId)}`;
+      return `${prefix}${encodeURIComponent(instructorId)}`;
     }
-    return `/instructors/${encodeURIComponent(owner.instructorId)}`;
+    return `/instructors/${encodeURIComponent(instructorId)}`;
   });
 
   readonly expandMoreName = 'expand_more' as const;

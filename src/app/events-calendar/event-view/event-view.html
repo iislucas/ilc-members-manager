@@ -64,44 +64,45 @@
             </a>
           }
 
-          @if (ownerContact(); as owner) {
-            @if (owner.hasOwner) {
-              @if (owner.instructorId) {
-                <a class="instructor-chip" [href]="ownerInstructorLink()">
-                  <span class="icon-only-button">
-                    <app-icon name="salut"></app-icon>
-                  </span>
-                  <span class="detail-text">Contact: {{ owner.name }}</span>
-                </a>
-              } @else {
-                <div class="instructor-chip">
-                  <span class="icon-only-button">
-                    <app-icon name="salut"></app-icon>
-                  </span>
-                  <span class="detail-text">Contact: {{ owner.name }}</span>
-                </div>
-              }
-              @if (owner.contactEmail) {
-                <a class="instructor-chip" [href]="'mailto:' + owner.contactEmail">
-                  <span class="icon-only-button">
-                    <app-icon name="person"></app-icon>
-                  </span>
-                  <span class="detail-text">{{ owner.contactEmail }}</span>
-                </a>
-              }
-              @if (owner.contactUrl) {
-                <a
-                  class="instructor-chip"
-                  [href]="owner.contactUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <span class="icon-only-button">
-                    <app-icon name="link"></app-icon>
-                  </span>
-                  <span class="detail-text">{{ owner.contactUrl }}</span>
-                </a>
-              }
+          <!-- The contacts listed for the event (the creator when none was
+               chosen). With no contacts at all the instructor chip above is
+               the only contact shown. -->
+          @for (contact of contacts(); track contact.memberDocId) {
+            @if (contact.instructorId) {
+              <a class="instructor-chip" [href]="instructorProfileLink(contact.instructorId)">
+                <span class="icon-only-button">
+                  <app-icon name="salut"></app-icon>
+                </span>
+                <span class="detail-text">Contact: {{ contact.name }}</span>
+              </a>
+            } @else {
+              <div class="instructor-chip">
+                <span class="icon-only-button">
+                  <app-icon name="salut"></app-icon>
+                </span>
+                <span class="detail-text">Contact: {{ contact.name }}</span>
+              </div>
+            }
+            @if (contact.contactEmail) {
+              <a class="instructor-chip" [href]="'mailto:' + contact.contactEmail">
+                <span class="icon-only-button">
+                  <app-icon name="person"></app-icon>
+                </span>
+                <span class="detail-text">{{ contact.contactEmail }}</span>
+              </a>
+            }
+            @if (contact.contactUrl) {
+              <a
+                class="instructor-chip"
+                [href]="contact.contactUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span class="icon-only-button">
+                  <app-icon name="link"></app-icon>
+                </span>
+                <span class="detail-text">{{ contact.contactUrl }}</span>
+              </a>
             }
           }
         </div>

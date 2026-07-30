@@ -12,7 +12,7 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, initEvent, NotificationKind } from './data-model';
+import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership } from './common';
 import { createMemberNotification } from './notifications';
 import axios from 'axios';
@@ -106,6 +106,64 @@ export function buildManagerDocIds(
   );
 }
 
+/** Loads member documents on demand, caching each doc ID's result. */
+function memberLoader(db: admin.firestore.Firestore) {
+  const cache = new Map<string, Member | undefined>();
+  return async (docId: string): Promise<Member | undefined> => {
+    if (!docId) return undefined;
+    if (!cache.has(docId)) {
+      const snap = await db.collection('members').doc(docId).get();
+      cache.set(docId, snap.data() as Member | undefined);
+    }
+    return cache.get(docId);
+  };
+}
+
+/**
+ * The contacts to store on an event: every entry that still belongs to the
+ * organising team (the creator or a manager), de-duplicated and with its cached
+ * display fields refreshed from the member document. Membership of the list is
+ * the "listed publicly" flag, so the pruning here is what drops a removed
+ * manager from the public page. The editor owns the ordering and the opt-in
+ * contactEmail/contactUrl, so those are preserved exactly as typed.
+ */
+export async function resolveEventContacts(
+  contacts: EventContact[] | undefined,
+  ownerDocId: string,
+  managerDocIds: string[],
+  loadMember: (docId: string) => Promise<Member | undefined>,
+): Promise<EventContact[]> {
+  const allowed = new Set([ownerDocId, ...(managerDocIds || [])].filter(Boolean));
+  const resolved: EventContact[] = [];
+  const seen = new Set<string>();
+  for (const contact of contacts || []) {
+    const docId = contact?.memberDocId || '';
+    if (!docId || !allowed.has(docId) || seen.has(docId)) continue;
+    seen.add(docId);
+    const member = await loadMember(docId);
+    resolved.push({
+      ...initEventContact(),
+      ...contact,
+      // A typed-in display name wins; identifiers always follow the member doc
+      // so that e.g. losing an instructorId also drops the instructor link.
+      name: contact.name || member?.name || '',
+      memberId: member ? member.memberId || '' : contact.memberId || '',
+      instructorId: member ? member.instructorId || '' : contact.instructorId || '',
+    });
+  }
+  return resolved;
+}
+
+/** Order-sensitive but key-order-independent comparison of two contact lists. */
+export function sameContacts(a: EventContact[], b: EventContact[]): boolean {
+  const norm = (list: EventContact[]) =>
+    JSON.stringify(list.map((c) => {
+      const entry = c as unknown as Record<string, unknown>;
+      return Object.keys(entry).sort().map((k) => [k, entry[k]]);
+    }));
+  return norm(a) === norm(b);
+}
+
 export function validateProposal(member: Member, data: Record<string, unknown>): string | null {
   if (!member.memberId || member.memberId.trim() === '') {
     return 'Must have a valid Member ID to propose events.';
@@ -125,7 +183,7 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
 // Submit a new event proposal — writes directly to /events with status='proposed'.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
+  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; contactDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -183,6 +241,25 @@ export const submitProposedEvent = onCall(
       }
     }
 
+    // Who is listed publicly as a contact. The creator is a contact by default;
+    // the form may also tick managers, whose display fields are resolved from
+    // their member documents (no email/link — those are typed in the editor).
+    const creatorContact = contactFromCreator({
+      ownerDocId, ownerName, ownerMemberId, ownerInstructorId, ownerContactEmail, ownerContactUrl,
+    });
+    const requestedContactDocIds = (data.contactDocIds || []).filter(Boolean);
+    const contacts = await resolveEventContacts(
+      requestedContactDocIds.length > 0
+        ? requestedContactDocIds.map((memberDocId) =>
+          memberDocId === ownerDocId && creatorContact
+            ? creatorContact
+            : { ...initEventContact(), memberDocId })
+        : creatorContact ? [creatorContact] : [],
+      ownerDocId,
+      managerDocIds,
+      memberLoader(db),
+    );
+
     const event: Omit<IlcEvent, 'docId'> = {
       ...initEvent(),
       title: data.title,
@@ -200,6 +277,7 @@ export const submitProposedEvent = onCall(
       ownerInstructorId,
       ownerContactEmail,
       ownerContactUrl,
+      contacts,
       leadingInstructorId: data.leadingInstructorId || '',
     };
 
@@ -278,15 +356,19 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
 
   // Resolve emails if missing or if owner/managers changed. Done after
   // mirroring (above) so a membership change is never lost.
-  const ownerDoc = await db.collection('members').doc(after.ownerDocId).get();
-  const ownerEmails = ownerDoc.data()?.emails || [];
+  const loadMember = memberLoader(db);
+  const ownerEmails = (await loadMember(after.ownerDocId))?.emails || [];
 
   const managerEmails: string[] = [];
   for (const id of (after.managerDocIds || [])) {
-    const mgrDoc = await db.collection('members').doc(id).get();
-    const emails = mgrDoc.data()?.emails || [];
-    managerEmails.push(...emails);
+    managerEmails.push(...((await loadMember(id))?.emails || []));
   }
+
+  // Drop contacts who are no longer on the organising team and refresh the
+  // display fields cached for the public event page.
+  const contacts = await resolveEventContacts(
+    after.contacts, after.ownerDocId, after.managerDocIds || [], loadMember,
+  );
 
   // Compare as order-independent multisets: the stored and freshly-derived
   // lists hold the same emails but their order depends on the member email
@@ -296,12 +378,18 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
   const ownerEmailsChanged = !sameEmails(ownerEmails, after.ownerEmails || []);
   const managerEmailsChanged = !sameEmails(managerEmails, after.managerEmails || []);
+  // Contacts are an ordered list, so compare position by position — but with
+  // each entry's keys sorted, since the field order Firestore returns need not
+  // match the order the objects are built in (a mismatch there would rewrite
+  // the document on every trigger, looping forever).
+  const contactsChanged = !sameContacts(contacts, after.contacts || []);
 
-  if (ownerEmailsChanged || managerEmailsChanged) {
-    logger.info(`Updating emails for event ${event.params.docId}.`);
+  if (ownerEmailsChanged || managerEmailsChanged || contactsChanged) {
+    logger.info(`Updating derived owner/manager/contact fields for event ${event.params.docId}.`);
     await event.data.after.ref.update({
       ownerEmails,
-      managerEmails
+      managerEmails,
+      contacts
     });
     return; // Let the follow-up trigger handle Google Calendar sync.
   }
