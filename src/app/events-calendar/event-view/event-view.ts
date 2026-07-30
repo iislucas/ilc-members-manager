@@ -13,7 +13,7 @@ import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { FIREBASE_APP } from '../../app.config';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventOwnerContact } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
@@ -64,17 +64,17 @@ export class EventViewComponent implements OnInit {
   });
 
 
-  // The owner / main contact for public display. Falls back to no-owner (in which
-  // case the template shows the leading instructor as the contact instead).
-  ownerContact = computed(() => {
+  // The contacts listed publicly for this event. Falls back to the creator when
+  // none is listed, and is empty when the event has no creator either (the
+  // template then shows only the leading instructor).
+  contacts = computed(() => {
     const ev = this.event();
-    return ev ? eventOwnerContact(ev) : null;
+    return ev ? eventContacts(ev) : [];
   });
 
-  ownerInstructorLink = computed(() => {
-    const id = this.ownerContact()?.instructorId;
-    return id ? `/instructors/${encodeURIComponent(id)}` : '';
-  });
+  instructorProfileLink(instructorId: string): string {
+    return instructorId ? `/instructors/${encodeURIComponent(instructorId)}` : '';
+  }
 
   isOwner = computed(() => {
     const user = this.firebaseState.user();

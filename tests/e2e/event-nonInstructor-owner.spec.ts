@@ -89,6 +89,27 @@ describe('story: event-nonInstructor-owner', () => {
       ownerContactEmail: 'owner@example.com',
       ownerContactUrl: 'https://example.com/workshop',
       leadingInstructorId: '',
+      // The owner is listed as a public contact (with the display fields left
+      // for the trigger to fill in), alongside a stale entry for someone who is
+      // no longer on the organising team.
+      contacts: [
+        {
+          memberDocId: ownerDocId,
+          name: '',
+          memberId: '',
+          instructorId: '',
+          contactEmail: 'owner@example.com',
+          contactUrl: 'https://example.com/workshop',
+        },
+        {
+          memberDocId: 'removed-manager',
+          name: 'Removed Manager',
+          memberId: 'RM001',
+          instructorId: '',
+          contactEmail: '',
+          contactUrl: '',
+        },
+      ],
     };
     await db.collection('events').doc(eventDocId).set(event);
   });
@@ -122,6 +143,22 @@ describe('story: event-nonInstructor-owner', () => {
       'My Events mirror',
     );
     expect(mirrored?.['title']).toBe('Community Workshop');
+  });
+
+  it('keeps only the contacts still on the team and fills their cached name', async () => {
+    const event = await waitFor(
+      async () => (await db.collection('events').doc(eventDocId).get()).data() as IlcEvent,
+      (e) => (e.contacts || []).length === 1,
+      'contacts pruning',
+    );
+    expect(event.contacts).toEqual([{
+      memberDocId: ownerDocId,
+      name: 'Non Instructor Owner',
+      memberId: 'NIO001',
+      instructorId: '',
+      contactEmail: 'owner@example.com',
+      contactUrl: 'https://example.com/workshop',
+    }]);
   });
 
   it('notifies the non-instructor owner when the event becomes listed', async () => {

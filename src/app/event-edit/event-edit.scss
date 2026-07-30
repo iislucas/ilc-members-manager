@@ -229,8 +229,8 @@
   gap: 4px;
 }
 
-// Owner / main-contact editor: stack the selector row, the mode toggle and (in
-// non-instructor mode) the mini-profile contact fields vertically.
+// Creator editor: stack the selector row, the toggles and (when the creator is
+// listed as a contact) the mini-profile contact fields vertically.
 .owner-editor {
   flex-direction: column;
   align-items: stretch;
@@ -256,43 +256,56 @@
     font-size: 0.85em;
   }
 
-  .checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-align: left;
+}
+
+// Shared by the creator editor and the manager rows: the "list as a public
+// contact" toggle, and the optional public email/link fields it reveals.
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding-left: 0;
+  cursor: pointer;
+  font-size: 0.95em;
+}
+
+.mini-profile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background: v.$theme-bg-color;
+
+  label {
+    text-align: right;
     padding-left: 0;
-    cursor: pointer;
-    font-size: 0.95em;
+    font-size: 0.9em;
+    color: v.$text-secondary;
   }
 
-  .mini-profile {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 12px;
-    align-items: center;
-    padding: 12px;
-    border: 1px solid v.$border-color-light;
-    border-radius: 6px;
-    background: v.$theme-bg-color;
+  input {
+    width: 100%;
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
 
     label {
-      text-align: right;
-      padding-left: 0;
-      font-size: 0.9em;
-      color: v.$text-secondary;
-    }
-
-    input {
-      width: 100%;
-    }
-
-    @media (max-width: 600px) {
-      grid-template-columns: 1fr;
-
-      label {
-        text-align: left;
-      }
+      text-align: left;
     }
   }
+}
+
+// Indent a manager's contact toggle and fields under the manager they belong to.
+.manager-contact-row,
+.manager-contact-profile {
+  margin-left: 1.5em;
+}
+
+.manager-contact-profile {
+  margin-bottom: 10px;
 }

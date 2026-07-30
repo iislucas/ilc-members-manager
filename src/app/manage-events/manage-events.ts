@@ -322,10 +322,10 @@ export class ManageEventsComponent implements OnDestroy {
     return `/manage-events/${id}`;
   }
 
-  // Resolve the event owner to a "Name (MemberId)" chip label.
+  // Resolve the event creator to a "Name (MemberId)" chip label.
   ownerLabel(event: IlcEvent): string {
     if (!event.ownerDocId) return '';
-    // Prefer the fields cached on the event (work for non-instructor owners and
+    // Prefer the fields cached on the event (work for non-instructor creators and
     // when the members collection isn't fully loaded); fall back to a lookup.
     const member = this.dataService.getMemberByDocId(event.ownerDocId);
     const name = event.ownerName || member?.name || '';

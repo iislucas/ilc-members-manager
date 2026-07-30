@@ -1647,6 +1647,33 @@ export type EventDocument = {
   url: string;    // Download URL in Firebase Storage
 };
 
+// One publicly-listed contact for an event. Membership of `IlcEvent.contacts`
+// IS the "listed as a contact" flag: a contact must be the event's creator
+// (ownerDocId) or one of its managerDocIds, and onEventUpdated prunes entries
+// that are neither. The display fields are cached on the (publicly readable)
+// event because /members is not public, so a visitor cannot resolve a member
+// doc ID into a name. `contactEmail`/`contactUrl` are opt-in and typed by the
+// editor — a member's own emails are never copied here automatically.
+export type EventContact = {
+  memberDocId: string;
+  name: string;          // Cached member name / contact display name.
+  memberId: string;      // Cached human-readable memberId.
+  instructorId: string;  // Cached instructorId, or '' if not an instructor.
+  contactEmail: string;  // Optional public contact email.
+  contactUrl: string;    // Optional public contact link.
+};
+
+export function initEventContact(): EventContact {
+  return {
+    memberDocId: '',
+    name: '',
+    memberId: '',
+    instructorId: '',
+    contactEmail: '',
+    contactUrl: '',
+  };
+}
+
 // A single unified event type. All events live in /events/{docId}.
 // Calendar-synced events have kind='calendar-sourced' and status='listed'.
 // Member-proposed events have kind='firebase-sourced' and status='proposed'.
@@ -1669,12 +1696,14 @@ export type IlcEvent = {
   googleCalEventLink?: string;
   kind: EventSourceKind;  // used by sync pruning
   createdAt?: string;      // ISO date-time
-  // The event owner / main contact. `ownerDocId` is the member's Firestore doc ID
-  // and stays the authoritative membership field (used by firestore.rules, the
-  // /members/{docId}/events mirror, and notifications). The owner does NOT need to
-  // be an instructor; the fields below cache the owner's identity and an optional
-  // inline "mini-profile" contact so a non-instructor can be the contact without
-  // depending on an instructorId. '' throughout when there is no owner.
+  // The event creator (historically called the owner; the field names are kept).
+  // `ownerDocId` is the member's Firestore doc ID and stays the authoritative
+  // membership field (used by firestore.rules, the /members/{docId}/events
+  // mirror, and notifications). The creator does NOT need to be an instructor;
+  // the fields below cache their identity and an optional inline "mini-profile"
+  // contact so a non-instructor can be listed as a contact without depending on
+  // an instructorId. '' throughout when there is no creator. Who is shown
+  // publicly is `contacts` below, NOT this field.
   ownerDocId: string;
   ownerEmails: string[];
   ownerName: string;          // Cached member name / contact display name.
@@ -1690,6 +1719,10 @@ export type IlcEvent = {
   schoolDocId: string; // Firestore doc ID of the associated school, or ''.
   managerDocIds: string[];
   managerEmails: string[];
+  // The subset of the creator + managers that is listed publicly as a contact
+  // for the event, in display order. Empty means "nobody chosen" — the UI then
+  // falls back to the creator, and then to the leading instructor.
+  contacts: EventContact[];
   // Attached documents (max 10). Each entry has a display name and a
   // Firebase Storage download URL.
   documents: EventDocument[];
@@ -1723,13 +1756,14 @@ export function initEvent(): IlcEvent {
     schoolDocId: '',
     managerDocIds: [],
     managerEmails: [],
+    contacts: [],
     documents: [],
     updatedByEmail: '',
   };
 }
 
-// A normalised view of an event's owner / main contact for display. Callers must
-// NOT branch on the owner being an instructor: `instructorId` is only a hint for
+// A normalised view of an event's creator for display. Callers must
+// NOT branch on the creator being an instructor: `instructorId` is only a hint for
 // optionally linking to the public instructor profile page. `hasMiniProfile` is
 // independent — an instructor owner may also set an event-specific contact.
 export type EventOwnerContact = {
@@ -1769,6 +1803,41 @@ export function eventOwnerContact(event: {
     contactUrl,
     hasMiniProfile: contactEmail !== '' || contactUrl !== '',
   };
+}
+
+// The event fields `contactFromCreator` / `eventContacts` read. Every field is
+// optional so old event documents (and partial form models) can be passed in.
+export type EventContactFields = {
+  contacts?: EventContact[];
+  ownerDocId?: string;
+  ownerName?: string;
+  ownerMemberId?: string;
+  ownerInstructorId?: string;
+  ownerContactEmail?: string;
+  ownerContactUrl?: string;
+  ownerEmails?: string[];
+};
+
+// Build the contact entry for an event's creator from the cached owner* fields.
+// Returns null when the event has no creator.
+export function contactFromCreator(event: EventContactFields): EventContact | null {
+  const creator = eventOwnerContact(event);
+  if (!creator.hasOwner) return null;
+  const { hasOwner: _, hasMiniProfile: __, ...contact } = creator;
+  return contact;
+}
+
+// Resolve the contacts to list publicly for an event: the explicitly chosen
+// `contacts`, or — when nobody has been chosen — the creator, so events that
+// predate the contacts list still show someone. An empty result means the
+// caller should fall back to the leading instructor.
+export function eventContacts(event: EventContactFields): EventContact[] {
+  const listed = (event.contacts || []).filter((c) => c && c.memberDocId);
+  if (listed.length > 0) {
+    return listed.map((c) => ({ ...initEventContact(), ...c }));
+  }
+  const creator = contactFromCreator(event);
+  return creator ? [creator] : [];
 }
 
 // A single cached blog post with only the fields the UI needs.

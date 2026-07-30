@@ -110,6 +110,9 @@ export class ProposeEventComponent {
     // Member doc IDs of the *additional* managers. The submitter is always a
     // manager too (shown as a pinned row) and is added server-side.
     managerDocIds: [] as string[],
+    // The managers ticked to be listed publicly as contacts for the event. The
+    // owner is always a contact on a new proposal (added in onSubmit).
+    contactDocIds: [] as string[],
   });
 
   // The submitting member — always pinned as a manager of the event.
@@ -216,8 +219,13 @@ export class ProposeEventComponent {
     if (!instructor) return;
     this.eventModel.update(m => {
       const managerDocIds = [...m.managerDocIds];
+      const previousDocId = managerDocIds[index] || '';
       managerDocIds[index] = instructor.docId;
-      return { ...m, managerDocIds };
+      // A manager swapped out hands their contact listing to their replacement.
+      const contactDocIds = m.contactDocIds.includes(previousDocId)
+        ? [...m.contactDocIds.filter(id => id !== previousDocId), instructor.docId]
+        : m.contactDocIds;
+      return { ...m, managerDocIds, contactDocIds };
     });
     this.proposeForm().dirty();
   }
@@ -227,9 +235,30 @@ export class ProposeEventComponent {
   }
 
   removeManagerDocId(index: number) {
+    this.eventModel.update(m => {
+      const removedDocId = m.managerDocIds[index] || '';
+      return {
+        ...m,
+        managerDocIds: m.managerDocIds.filter((_, i) => i !== index),
+        contactDocIds: m.contactDocIds.filter(id => id !== removedDocId),
+      };
+    });
+    this.proposeForm().dirty();
+  }
+
+  // Whether a manager is ticked to be listed publicly as a contact. The
+  // submitter/owner is always a contact, so they have no checkbox.
+  isListedContact(managerDocId: string): boolean {
+    return !!managerDocId && this.eventModel().contactDocIds.includes(managerDocId);
+  }
+
+  setContactListed(managerDocId: string, listed: boolean) {
+    if (!managerDocId) return;
     this.eventModel.update(m => ({
       ...m,
-      managerDocIds: m.managerDocIds.filter((_, i) => i !== index),
+      contactDocIds: listed
+        ? [...m.contactDocIds.filter(id => id !== managerDocId), managerDocId]
+        : m.contactDocIds.filter(id => id !== managerDocId),
     }));
     this.proposeForm().dirty();
   }
@@ -324,7 +353,13 @@ export class ProposeEventComponent {
         'submitProposedEvent'
       );
 
-      const result = await submitFn(this.eventModel());
+      const model = this.eventModel();
+      const result = await submitFn({
+        ...model,
+        // The owner is always listed as a contact on a new proposal; any ticked
+        // managers are listed alongside them.
+        contactDocIds: [model.ownerDocId, ...model.contactDocIds].filter(Boolean),
+      });
 
       if (result.data.success) {
         const docId = result.data.docId;

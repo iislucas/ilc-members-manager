@@ -68,15 +68,25 @@
         }
         @if (contactLabel()) {
           <div>
-          <a class="instructor-link"
-            [href]="contactLink()"
-            title="View contact profile"
-            (click)="$event.stopPropagation()">
-            <span class="icon-only-button">
-              <app-icon name="person"></app-icon>
+          <!-- A contact who isn't an instructor has no profile to link to. -->
+          @if (contactLink()) {
+            <a class="instructor-link"
+              [href]="contactLink()"
+              title="View contact profile"
+              (click)="$event.stopPropagation()">
+              <span class="icon-only-button">
+                <app-icon name="person"></app-icon>
+              </span>
+              <span class="detail-text">Contact: {{ contactLabel() }}</span>
+            </a>
+          } @else {
+            <span class="instructor-link">
+              <span class="icon-only-button">
+                <app-icon name="person"></app-icon>
+              </span>
+              <span class="detail-text">Contact: {{ contactLabel() }}</span>
             </span>
-            <span class="detail-text">Contact: {{ contactLabel() }}</span>
-          </a>
+          }
           </div>
         }
       </div>

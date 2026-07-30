@@ -148,7 +148,8 @@
       <label>Event managers</label>
       <div class="intro-text">
         Managers can edit this event's details. You are always a manager. Add other
-        instructors who should be able to manage it.
+        instructors who should be able to manage it, and tick any who should also
+        be listed publicly as a contact for the event.
       </div>
       <div class="manager-list">
         @if (submitter(); as me) {
@@ -197,6 +198,16 @@
               </button>
             }
           </div>
+          @if (managerDocId) {
+            <label class="manager-contact-row">
+              <input
+                type="checkbox"
+                [checked]="isListedContact(managerDocId)"
+                (change)="setContactListed(managerDocId, $any($event.target).checked)"
+              />
+              List as a public contact
+            </label>
+          }
         }
         @if (eventModel().managerDocIds.length === 0) {
           <div>

@@ -97,6 +97,7 @@ describe('EventEditComponent', () => {
       ownerContactEmail: '',
       ownerContactUrl: '',
       managerDocIds: [],
+      contacts: [],
       leadingInstructorId: '',
       schoolId: '',
       schoolDocId: '',
@@ -240,6 +241,19 @@ describe('EventEditComponent', () => {
     expect(component.eventFormModel().managerDocIds[0]).toBe('');
   });
 
+  it('should drop the contact listing when a manager row is cleared', () => {
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      managerDocIds: ['manager-doc-id'],
+    });
+    component.setContactListed('manager-doc-id', true);
+
+    component.updateManagerDocId(0, 'Someone El');
+
+    expect(component.eventFormModel().managerDocIds[0]).toBe('');
+    expect(component.eventFormModel().contacts).toEqual([]);
+  });
+
   it('resolves a manager row for a non-admin (empty members cache)', async () => {
     // Only admins load the full `members` collection; on /my-events/{id}/edit
     // the viewer is usually an ordinary instructor with an empty members cache,
@@ -272,5 +286,113 @@ describe('EventEditComponent', () => {
     );
     expect(input.value).toBe('197');
     expect(fixture.nativeElement.textContent).toContain('Manager Name');
+  });
+
+  it('should list and unlist a manager as a public contact', () => {
+    (mockDataManagerService.members as any).setEntries([{
+      docId: 'manager-doc-id',
+      memberId: 'MEM-200',
+      instructorId: 'I-200',
+      name: 'Manager Name',
+    }]);
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      managerDocIds: ['manager-doc-id'],
+    });
+
+    component.setContactListed('manager-doc-id', true);
+
+    expect(component.isListedContact('manager-doc-id')).toBe(true);
+    expect(component.contactFor('manager-doc-id')).toMatchObject({
+      memberDocId: 'manager-doc-id',
+      name: 'Manager Name',
+      memberId: 'MEM-200',
+      instructorId: 'I-200',
+    });
+
+    component.setContactListed('manager-doc-id', false);
+
+    expect(component.isListedContact('manager-doc-id')).toBe(false);
+    expect(component.eventFormModel().contacts).toEqual([]);
+  });
+
+  it('should drop a removed manager from the contacts', () => {
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      managerDocIds: ['manager-doc-id'],
+    });
+    component.setContactListed('manager-doc-id', true);
+
+    component.removeManagerDocId(0);
+
+    expect(component.eventFormModel().managerDocIds).toEqual([]);
+    expect(component.eventFormModel().contacts).toEqual([]);
+  });
+
+  it('should hand the creator listing to a newly assigned creator', () => {
+    const mockInstructor = {
+      docId: 'instructor-member-doc-id',
+      instructorId: 'I-101',
+      memberId: 'MEM-101',
+      name: 'Instructor Name',
+    };
+    (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      ownerDocId: 'old-owner-doc-id',
+      ownerName: 'Old Owner',
+    });
+    component.setContactListed('old-owner-doc-id', true);
+
+    component.updateOwnerInstructor('I-101');
+
+    expect(component.eventFormModel().contacts).toEqual([{
+      memberDocId: 'instructor-member-doc-id',
+      name: 'Instructor Name',
+      memberId: 'MEM-101',
+      instructorId: 'I-101',
+      contactEmail: '',
+      contactUrl: '',
+    }]);
+  });
+
+  it('should save only creator/manager contacts, with the creator details', async () => {
+    component.event.set({
+      docId: 'test-doc-id',
+      title: 'Title',
+      ownerDocId: 'owner-id',
+    } as IlcEvent);
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      title: 'Title',
+      start: '2026-04-13',
+      end: '2026-04-13',
+      ownerDocId: 'owner-id',
+      ownerName: 'Owner Name',
+      ownerMemberId: 'MEM-1',
+      ownerInstructorId: 'I-1',
+      ownerContactEmail: 'owner@example.com',
+      ownerContactUrl: 'https://example.com',
+      managerDocIds: ['manager-doc-id'],
+      contacts: [
+        { memberDocId: 'owner-id', name: 'stale', memberId: '', instructorId: '', contactEmail: '', contactUrl: '' },
+        { memberDocId: 'ex-manager-doc-id', name: 'Gone', memberId: '', instructorId: '', contactEmail: '', contactUrl: '' },
+      ],
+    });
+
+    await component.saveEvent({ preventDefault: vi.fn() } as unknown as Event);
+
+    expect(component.errorMessage()).toBe(null);
+    const saved = (updateDoc as any).mock.calls.at(-1)[1];
+    // Round-tripped through JSON: the form model tags its objects with symbol
+    // properties that a direct deep-equality would trip over.
+    expect(JSON.parse(JSON.stringify(saved.contacts))).toEqual([{
+      memberDocId: 'owner-id',
+      name: 'Owner Name',
+      memberId: 'MEM-1',
+      instructorId: 'I-1',
+      contactEmail: 'owner@example.com',
+      contactUrl: 'https://example.com',
+    }]);
   });
 });
