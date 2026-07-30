@@ -1425,6 +1425,17 @@ export class DataManagerService {
     return result.data.gradingDocId;
   }
 
+  // Remove a student who lists the signed-in instructor as their primary
+  // instructor. Guarded by a Cloud Function because instructors have no write
+  // access to their students' member documents.
+  async removeStudentFromInstructor(studentMemberDocId: string): Promise<void> {
+    const fn = httpsCallable<
+      { studentMemberDocId: string },
+      { success: boolean }
+    >(this.functions, 'removeStudentFromInstructor');
+    await fn({ studentMemberDocId });
+  }
+
   async reprocessOrder(docId: string): Promise<void> {
     const fn = httpsCallable<{ docId: string }, { success: boolean }>(
       this.functions,

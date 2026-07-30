@@ -32,6 +32,8 @@ export {
 
 export { requestGrading } from './grading-request';
 
+export { removeStudentFromInstructor } from './instructor-students';
+
 export { sendPushOnNotification } from './send-push';
 
 export { scheduledBackup, manualBackup, listBackups } from './backup';
