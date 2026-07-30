@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { signal, provideZonelessChangeDetection } from '@angular/core';
 import { vi } from 'vitest';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
@@ -39,12 +39,14 @@ describe('EventEditComponent', () => {
       getEventById: vi.fn().mockResolvedValue(undefined),
       getMemberByMemberId: vi.fn().mockReturnValue(undefined),
       members: new SearchableSet(['name'], 'docId', []),
-      instructors: new SearchableSet(['instructorId'], 'instructorId', []),
+      instructors: new SearchableSet(['instructorId', 'name', 'memberId'], 'instructorId', []),
+      schools: new SearchableSet(['schoolId'], 'schoolId', []),
     } as unknown as DataManagerService;
 
     await TestBed.configureTestingModule({
       imports: [EventEditComponent],
       providers: [
+        provideZonelessChangeDetection(),
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} }, // Mock app object
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
@@ -216,5 +218,59 @@ describe('EventEditComponent', () => {
     component.updateManagerDocId(0, 'I-101');
 
     expect(component.eventFormModel().managerDocIds[0]).toBe('instructor-member-doc-id');
+  });
+
+  it('should clear a manager row whose text no longer names an instructor', () => {
+    const mockInstructor = {
+      docId: 'instructor-member-doc-id',
+      instructorId: 'I-101',
+      name: 'Instructor Name',
+    };
+    (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
+    component.eventFormModel.set({
+      ...component.eventFormModel(),
+      managerDocIds: ['instructor-member-doc-id'],
+    });
+
+    // The user clears the box and starts typing a name. Nothing resolves yet,
+    // so the row must no longer claim the previous manager — otherwise the
+    // edit is silently discarded and the Save button never enables.
+    component.updateManagerDocId(0, 'Someone El');
+
+    expect(component.eventFormModel().managerDocIds[0]).toBe('');
+  });
+
+  it('resolves a manager row for a non-admin (empty members cache)', async () => {
+    // Only admins load the full `members` collection; on /my-events/{id}/edit
+    // the viewer is usually an ordinary instructor with an empty members cache,
+    // so manager rows have to resolve through the public `instructors` set.
+    const mockInstructor = {
+      docId: 'manager-member-doc-id',
+      instructorId: '197',
+      memberId: 'MEM-197',
+      name: 'Manager Name',
+    };
+    (mockDataManagerService.instructors as any).setEntries([mockInstructor]);
+    (mockDataManagerService.members as any).setEntries([]);
+
+    (mockDataManagerService.getEventById as any).mockResolvedValue({
+      docId: 'test-doc-id',
+      title: 'T', start: '2026-04-13', end: '2026-04-13',
+      description: 'D', location: 'L',
+      status: EventStatus.Proposed,
+      heroImageUrl: '',
+      ownerDocId: 'owner-id',
+      managerDocIds: ['manager-member-doc-id'],
+    } as IlcEvent);
+
+    await component.loadEvent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[placeholder="Search for a manager"]',
+    );
+    expect(input.value).toBe('197');
+    expect(fixture.nativeElement.textContent).toContain('Manager Name');
   });
 });

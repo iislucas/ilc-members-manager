@@ -228,3 +228,71 @@
   justify-content: flex-end;
   gap: 4px;
 }
+
+// Owner / main-contact editor: stack the selector row, the mode toggle and (in
+// non-instructor mode) the mini-profile contact fields vertically.
+.owner-editor {
+  flex-direction: column;
+  align-items: stretch;
+
+  // The selector + its selected-name note + clear button on one wrapping row,
+  // so the clear button stays its natural width (not stretched full-width).
+  .owner-selector-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em;
+  }
+
+  .member-selector-label {
+    font-size: 0.9em;
+    color: v.$text-secondary;
+  }
+
+  .selected-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85em;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    padding-left: 0;
+    cursor: pointer;
+    font-size: 0.95em;
+  }
+
+  .mini-profile {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background: v.$theme-bg-color;
+
+    label {
+      text-align: right;
+      padding-left: 0;
+      font-size: 0.9em;
+      color: v.$text-secondary;
+    }
+
+    input {
+      width: 100%;
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+
+      label {
+        text-align: left;
+      }
+    }
+  }
+}

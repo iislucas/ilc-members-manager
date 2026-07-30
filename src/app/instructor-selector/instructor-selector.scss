@@ -6,6 +6,12 @@
   align-items: center;
   justify-content: flex-start;
   gap: 0.5em;
+
+  // Instructor IDs are only a few characters, so the search box does not need
+  // the full-width default; keep it compact.
+  input[type="text"] {
+    width: 12em;
+  }
 }
 
 .selected-note {

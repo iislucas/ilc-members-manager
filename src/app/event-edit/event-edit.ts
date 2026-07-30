@@ -25,7 +25,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, Member, InstructorPublicData, EventDocument, School } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, InstructorPublicData, Member, EventDocument, School } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -33,6 +33,7 @@ import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../util
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import {
   getStorage,
@@ -125,7 +126,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -440,11 +441,6 @@ export class EventEditComponent implements OnInit {
 
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
 
-  instructorDisplayFns = {
-    toChipId: (i: InstructorPublicData) => i.instructorId,
-    toName: (i: InstructorPublicData) => i.instructorId ? `${i.name} [${i.instructorId}]` : i.name,
-  };
-
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,
     toName: (m: Member) => m.memberId ? `(${m.memberId}) ${m.name}` : m.name,
@@ -519,6 +515,14 @@ export class EventEditComponent implements OnInit {
     }));
   }
 
+  // Link to the owner's member page (admin member view), for the "jump to member"
+  // eye icon next to a selected non-instructor owner. '' when no owner.
+  ownerMemberLink = computed(() => {
+    const docId = this.eventFormModel().ownerDocId;
+    if (!docId) return '';
+    return this.routingService.hrefForView(Views.ManageMemberView, { memberId: docId });
+  });
+
   clearOwner() {
     this.eventFormModel.update((m) => ({
       ...m,
@@ -539,14 +543,40 @@ export class EventEditComponent implements OnInit {
     this.eventFormModel.update((m) => ({ ...m, [field]: value }));
   }
 
+  // Managers are stored as member doc IDs but picked by instructorId. The
+  // instructor cache is public (unlike `members`, which only admins load in
+  // full), so it is the lookup that works for every viewer; `members` is only a
+  // fallback for a manager who is no longer a listed instructor.
+  private instructorsByDocId = computed(() => {
+    const byDocId = new Map<string, InstructorPublicData>();
+    for (const instructor of this.dataService.instructors.entries()) {
+      byDocId.set(instructor.docId, instructor);
+    }
+    return byDocId;
+  });
+
+  // The instructorId to show in a manager row, or '' when the row is empty or
+  // unresolvable. Must round-trip with updateManagerDocId below, otherwise a
+  // just-picked manager renders as "None selected".
+  managerInstructorId(managerDocId: string): string {
+    if (!managerDocId) return '';
+    return (
+      this.instructorsByDocId().get(managerDocId)?.instructorId ||
+      this.dataService.members.get(managerDocId)?.instructorId ||
+      ''
+    );
+  }
+
+  // Text that doesn't (yet) name an instructor clears the row rather than
+  // leaving the previous manager in place: the row shows nothing selected, so
+  // keeping the old doc ID would silently discard the edit and leave the Save
+  // button disabled.
   updateManagerDocId(index: number, value: string) {
     const instructorId = this.extractInstructorId(value);
+    const instructor = this.dataService.instructors.get(instructorId);
     this.eventFormModel.update((m) => {
       const managerDocIds = [...m.managerDocIds];
-      const instructor = this.dataService.instructors.get(instructorId);
-      if (instructor) {
-        managerDocIds[index] = instructor.docId;
-      }
+      managerDocIds[index] = instructor?.docId || '';
       return { ...m, managerDocIds };
     });
   }

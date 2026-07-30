@@ -79,19 +79,11 @@
 
         <label for="event-instructor">Instructor</label>
         <div class="rhs">
-          <app-autocomplete
-            [searchableSet]="dataService.instructors"
+          <app-instructor-selector
             [placeholder]="'Search for an instructor'"
-            [displayFns]="instructorDisplayFns"
-            [initSearchTerm]="eventFormModel().leadingInstructorId"
-            (textUpdated)="updateLeadingInstructorId($event)"
-          ></app-autocomplete>
-          @if (dataService.instructors.get(eventFormModel().leadingInstructorId); as instructorData) {
-            <div class="note" style="display: flex; gap: 10px; align-items: center;">
-              <span>{{ instructorData.name }}</span>
-              <span class="identifier-chip">{{ instructorData.instructorId }}</span>
-            </div>
-          }
+            [value]="eventFormModel().leadingInstructorId"
+            (valueChange)="updateLeadingInstructorId($event)"
+          ></app-instructor-selector>
         </div>
 
         <label for="event-school">School</label>
@@ -399,52 +391,73 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner">Owner (contact)</label>
-        <div class="rhs">
+        <label for="event-owner" class="align-top">Owner (contact)</label>
+        <div class="rhs owner-editor">
+          <!-- Owner selector: a member search in non-instructor mode (admins only),
+               otherwise the shared instructor selector. -->
+          @if (assignMemberAsOwner()) {
+            @if (userIsAdmin()) {
+              <div class="owner-selector-row">
+                <span class="member-selector-label">Member selector:</span>
+                <app-autocomplete
+                  [searchableSet]="dataService.members"
+                  [placeholder]="'Search for a member'"
+                  [displayFns]="memberDisplayFns"
+                  [initSearchTerm]="eventFormModel().ownerMemberId"
+                  [inputBoxIsChip]="true"
+                  (textUpdated)="updateOwnerMember($event)"
+                ></app-autocomplete>
+                @if (eventFormModel().ownerDocId) {
+                  <span class="note selected-note">
+                    <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
+                    @if (eventFormModel().ownerMemberId) {
+                      <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+                      <a class="icon-only-button" [href]="ownerMemberLink()" title="Go to member">
+                        <app-icon name="visibility"></app-icon>
+                      </a>
+                    }
+                  </span>
+                  <button type="button" class="subtle-button" (click)="clearOwner()">
+                    Clear owner
+                  </button>
+                }
+              </div>
+              @if (!eventFormModel().ownerDocId) {
+                <div class="note">
+                  No owner — the leading instructor will be shown as the contact.
+                </div>
+              }
+            }
+          } @else {
+            <div class="owner-selector-row">
+              <app-instructor-selector
+                [placeholder]="'Search for an instructor'"
+                [value]="eventFormModel().ownerInstructorId"
+                (valueChange)="updateOwnerInstructor($event)"
+              ></app-instructor-selector>
+              @if (eventFormModel().ownerDocId) {
+                <button type="button" class="subtle-button" (click)="clearOwner()">
+                  Clear owner
+                </button>
+              }
+            </div>
+          }
+
+          <!-- The mode toggle sits under the selector. -->
           @if (userIsAdmin()) {
-            <label class="checkbox-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+            <label class="checkbox-row">
               <input
                 type="checkbox"
                 [checked]="assignMemberAsOwner()"
                 (change)="assignMemberAsOwner.set($any($event.target).checked)"
               />
-              Assign a member (non-instructor) as the event owner
+              List a non-instructor as the event owner &amp; contact
             </label>
           }
 
-          @if (userIsAdmin() && assignMemberAsOwner()) {
-            <app-autocomplete
-              [searchableSet]="dataService.members"
-              [placeholder]="'Search for a member'"
-              [displayFns]="memberDisplayFns"
-              [initSearchTerm]="eventFormModel().ownerMemberId"
-              (textUpdated)="updateOwnerMember($event)"
-            ></app-autocomplete>
-          } @else {
-            <app-autocomplete
-              [searchableSet]="dataService.instructors"
-              [placeholder]="'Search for an instructor'"
-              [displayFns]="instructorDisplayFns"
-              [initSearchTerm]="eventFormModel().ownerInstructorId"
-              (textUpdated)="updateOwnerInstructor($event)"
-            ></app-autocomplete>
-          }
-
-          @if (eventFormModel().ownerDocId) {
-            <div class="note" style="display: flex; gap: 10px; align-items: center;">
-              <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
-              @if (eventFormModel().ownerMemberId) {
-                <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
-              }
-              @if (eventFormModel().ownerInstructorId) {
-                <span class="identifier-chip">{{ eventFormModel().ownerInstructorId }}</span>
-              }
-              <button type="button" class="subtle-button" (click)="clearOwner()">
-                Clear owner
-              </button>
-            </div>
-
-            <div class="mini-profile" style="margin-top: 8px;">
+          <!-- Mini-profile contact: only in "non-instructor owner" mode. -->
+          @if (assignMemberAsOwner()) {
+            <div class="mini-profile">
               <label for="ownerContactName">Contact name</label>
               <input
                 id="ownerContactName"
@@ -470,10 +483,6 @@
                 placeholder="https://…"
               />
             </div>
-          } @else {
-            <div class="note">
-              No owner — the leading instructor will be shown as the contact.
-            </div>
           }
         </div>
 
@@ -482,28 +491,11 @@
           @let managerIds = eventFormModel().managerDocIds;
           @for (managerId of managerIds; track $index; let last = $last) {
             <div class="manager-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
-              @if (userIsAdmin()) {
-                <app-autocomplete
-                  [searchableSet]="dataService.instructors"
-                  [placeholder]="'Search for a manager'"
-                  [displayFns]="instructorDisplayFns"
-                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
-                  (textUpdated)="updateManagerDocId($index, $event)"
-                ></app-autocomplete>
-              } @else {
-                <app-autocomplete
-                  [searchableSet]="dataService.instructors"
-                  [placeholder]="'Search for a manager'"
-                  [displayFns]="instructorDisplayFns"
-                  [initSearchTerm]="dataService.members.get(managerId)?.instructorId || ''"
-                  (textUpdated)="updateManagerDocId($index, $event)"
-                ></app-autocomplete>
-              }
-              @let manager = dataService.members.get(managerId);
-              @if (manager) {
-                <span class="note">{{ manager.name }}</span>
-                <span class="identifier-chip">{{ manager.memberId }}</span>
-              }
+              <app-instructor-selector
+                [placeholder]="'Search for a manager'"
+                [value]="managerInstructorId(managerId)"
+                (valueChange)="updateManagerDocId($index, $event)"
+              ></app-instructor-selector>
               <button type="button" class="icon-only-button" (click)="removeManagerDocId($index)" title="Remove manager">
                 <app-icon name="trash" />
               </button>
