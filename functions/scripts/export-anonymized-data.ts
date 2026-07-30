@@ -18,6 +18,17 @@
 import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  RawDoc,
+  anonymiseEvent,
+  anonymiseInstructor,
+  anonymiseMember,
+  anonymiseSchool,
+  anonymiseSheetsOrder,
+  anonymiseSquarespaceOrder,
+  buildMemberIndex,
+  memberEmail,
+} from './anonymise';
 
 // ============================================================
 // CLI args
@@ -51,87 +62,6 @@ fs.mkdirSync(subcollectionsDir, { recursive: true });
 // ============================================================
 admin.initializeApp({ projectId });
 const db = admin.firestore();
-
-// ============================================================
-// Anonymisation helpers
-// ============================================================
-
-type RawDoc = Record<string, unknown>;
-
-// Email addresses must be lowercase — checkEmailStatus normalises with .toLowerCase()
-function memberEmail(memberId: string): string {
-  return `member-${memberId.toLowerCase()}@example.com`;
-}
-
-function anonymiseMember(doc: RawDoc, memberId: string): RawDoc {
-  return {
-    ...doc,
-    name: `Test Member ${memberId}`,
-    emails: [memberEmail(memberId)],
-    phone: doc['phone'] ? '555-0000' : '',
-    address: doc['address'] ? '123 Test St' : '',
-    city: doc['city'] ? 'Test City' : '',
-    zipCode: doc['zipCode'] ? '00000' : '',
-    countyOrState: doc['countyOrState'] ? 'Test State' : '',
-    // publicEmail / publicPhone appear on member AND instructor records
-    publicEmail: doc['publicEmail'] ? memberEmail(memberId) : '',
-    publicPhone: doc['publicPhone'] ? '555-0000' : '',
-    // Clear admin-only free-text notes
-    notes: '',
-  };
-}
-
-function anonymiseInstructor(doc: RawDoc, instructorId: string): RawDoc {
-  return {
-    ...doc,
-    name: `Instructor ${instructorId}`,
-    publicEmail: doc['publicEmail'] ? `instructor-${instructorId}@example.com` : '',
-    publicPhone: doc['publicPhone'] ? '555-0000' : '',
-  };
-}
-
-function anonymiseSchool(doc: RawDoc, schoolId: string): RawDoc {
-  return {
-    ...doc,
-    schoolName: `Test School ${schoolId}`,
-    // Contact fields
-    contactEmail: doc['contactEmail'] ? `school-${schoolId}@example.com` : '',
-    contactPhone: doc['contactPhone'] ? '555-0000' : '',
-    address: doc['address'] ? '123 Test St' : '',
-    city: doc['city'] ? 'Test City' : '',
-    zipCode: doc['zipCode'] ? '00000' : '',
-  };
-}
-
-function anonymiseSheetsOrder(doc: RawDoc): RawDoc {
-  const externalId = (doc['externalId'] as string) || '';
-  return {
-    ...doc,
-    firstName: 'Test',
-    lastName: `Member${externalId}`,
-    email: externalId ? `member-${externalId}@example.com` : 'unknown@example.com',
-  };
-}
-
-function anonymiseSquarespaceOrder(doc: RawDoc): RawDoc {
-  const email = (doc['customerEmail'] as string) || '';
-  const anonEmail = email ? `order-${Buffer.from(email).toString('base64').substring(0, 8)}@example.com` : 'unknown@example.com';
-  // Anonymise billing address if present
-  let billingAddress = doc['billingAddress'];
-  if (billingAddress && typeof billingAddress === 'object') {
-    billingAddress = {
-      ...(billingAddress as Record<string, unknown>),
-      firstName: 'Test',
-      lastName: 'Customer',
-      address1: '123 Test St',
-      address2: '',
-      city: 'Test City',
-      postalCode: '00000',
-      phone: '',
-    };
-  }
-  return { ...doc, customerEmail: anonEmail, billingAddress };
-}
 
 // ============================================================
 // Collection fetchers
@@ -177,12 +107,9 @@ async function main(): Promise<void> {
   const members = rawMembers.map((m) => anonymiseMember(m, (m['memberId'] as string) || m.id));
   save('members.json', members);
 
-  // Build docId -> memberId map for ACL remapping
-  const docIdToMemberId = new Map<string, string>();
-  for (const m of rawMembers) {
-    const memberId = (m['memberId'] as string) || '';
-    if (memberId) docIdToMemberId.set(m.id, memberId);
-  }
+  // docId/email -> memberId lookups, used to remap the member references that
+  // event and ACL documents carry.
+  const memberIndex = buildMemberIndex(rawMembers);
 
   // --- Schools ---
   console.log('\nFetching schools...');
@@ -237,7 +164,8 @@ async function main(): Promise<void> {
 
   // --- Events ---
   console.log('\nFetching events...');
-  const events = await fetchCollection('events');
+  const rawEvents = await fetchCollection('events');
+  const events = rawEvents.map((e) => anonymiseEvent(e, memberIndex));
   save('events.json', events);
 
   // --- Orders ---
@@ -265,7 +193,7 @@ async function main(): Promise<void> {
     const memberDocIds = (entry['memberDocIds'] as string[]) || [];
     // Derive the canonical memberId from the first linked member
     const firstMemberId = memberDocIds.length > 0
-      ? (docIdToMemberId.get(memberDocIds[0]) ?? memberDocIds[0])
+      ? (memberIndex.memberIdByDocId.get(memberDocIds[0]) ?? memberDocIds[0])
       : null;
     const anonEmail = firstMemberId
       ? memberEmail(firstMemberId)
