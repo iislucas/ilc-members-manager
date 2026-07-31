@@ -1,17 +1,25 @@
 {
+  "worktree": {
+    "symlinkDirectories": ["node_modules", "functions/node_modules"]
+  },
   "permissions": {
     "allow": [
-      "Bash(pnpm test *)",
-      "Bash(pnpm exec tsc *)",
-      "Bash(pnpm exec vitest run *)",
+      "Bash(cd *)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm run test*)",
       "Bash(pnpm build*)",
-      "Bash(pnpm run build *)",
-      "Bash(pnpm exec ng build *)",
-      "Bash(pnpm --filter functions build*)",
-      "Bash(pnpm --prefix functions exec ts-node scripts/build-fixture-subset.ts *)",
-      "Bash(git status --short *)",
-      "Bash(pnpm --prefix functions exec vitest run src/grading-progression.spec.ts *)",
-      "Bash(pnpm --prefix functions test *)",
+      "Bash(pnpm run build*)",
+      "Bash(pnpm exec tsc*)",
+      "Bash(pnpm exec vitest*)",
+      "Bash(pnpm exec ng build*)",
+      "Bash(pnpm --filter functions *)",
+      "Bash(pnpm --prefix functions build*)",
+      "Bash(pnpm --prefix functions run build*)",
+      "Bash(pnpm --prefix functions test*)",
+      "Bash(pnpm --prefix functions exec tsc*)",
+      "Bash(pnpm --prefix functions exec vitest*)",
+      "Bash(pnpm --prefix functions exec ts-node scripts/*)",
+      "Bash(git status*)",
       "Bash(git rev-list *)",
       "Bash(git switch *)",
       "Bash(gcloud auth *)",
@@ -21,7 +29,7 @@
       "Bash(firebase emulators:start --only functions --project ilc-paris-class-tracker)",
       "Bash(git check-ignore *)",
       "Bash(tee /private/tmp/claude-*)",
-      "Bash(git --no-pager diff -- *)",
+      "Bash(git --no-pager diff*)",
       "Bash(git rebase *)"
     ]
   }
