@@ -8,10 +8,14 @@
 import { describe, expect, it } from 'vitest';
 import { EventContact } from '../../functions/src/data-model';
 import {
+  REDACTED_EMAIL,
+  REDACTED_PHONE,
+  REDACTED_URL,
   anonymiseEvent,
   anonymiseMember,
   buildMemberIndex,
   memberEmail,
+  redactFreeText,
 } from '../../functions/scripts/anonymise';
 
 const rawMembers = [
@@ -160,6 +164,33 @@ describe('anonymiseEvent', () => {
     expect(out['managerEmails']).toEqual(['event-manager-0@example.com', 'event-manager-1@example.com']);
   });
 
+  it('redacts contact details left loose in the description and location copy', () => {
+    const out = anonymiseEvent(
+      anEvent({
+        description:
+          '<p>Book with Sifu at <a href="mailto:real.owner@gmail.com">real.owner@gmail.com</a> or call +33 6 12 34 56 78.</p>',
+        descriptionMarkdown:
+          'Book with Sifu at [real.owner@gmail.com](mailto:real.owner@gmail.com) or call +33 6 12 34 56 78.',
+        location: 'Dojo Paris, contact 06 12 34 56 78 or real.owner@gmail.com',
+      }),
+      index,
+    );
+    expect(out['description']).toBe(
+      `<p>Book with Sifu at <a href="mailto:${REDACTED_EMAIL}">${REDACTED_EMAIL}</a> or call ${REDACTED_PHONE}.</p>`,
+    );
+    expect(out['descriptionMarkdown']).toBe(
+      `Book with Sifu at [${REDACTED_EMAIL}](mailto:${REDACTED_EMAIL}) or call ${REDACTED_PHONE}.`,
+    );
+    expect(out['location']).toBe(`Dojo Paris, contact ${REDACTED_PHONE} or ${REDACTED_EMAIL}`);
+  });
+
+  it('leaves free-text fields absent rather than materialising them', () => {
+    const out = anonymiseEvent(anEvent(), index);
+    expect('description' in out).toBe(false);
+    expect('descriptionMarkdown' in out).toBe(false);
+    expect('location' in out).toBe(false);
+  });
+
   it('leaves no real name, email or personal URL anywhere in the output', () => {
     const out = anonymiseEvent(anEvent({ contacts }), index);
     for (const s of allStrings(out)) {
@@ -170,5 +201,68 @@ describe('anonymiseEvent', () => {
     expect(out['title']).toBe('Sydney Workshop');
     expect(out['ownerDocId']).toBe('ownerDoc');
     expect(out['managerDocIds']).toEqual(['mgrDoc1', 'mgrDoc2']);
+  });
+});
+
+describe('redactFreeText', () => {
+  it('keeps the links the events pages render, which carry no PII', () => {
+    for (const url of [
+      'https://www.google.com/maps/search/?api=1&query=Dojo+Paris',
+      'https://calendar.google.com/event?eid=abc123',
+      'https://www.iliqchuan.com/workshops',
+      'https://firebasestorage.googleapis.com/v0/b/x/o/hero.jpg',
+    ]) {
+      expect(redactFreeText(`See ${url} for details`)).toBe(`See ${url} for details`);
+    }
+  });
+
+  it('replaces links to somebody else, which may be a personal site', () => {
+    expect(redactFreeText('Book at https://sifu-dupont.fr/stages')).toBe(`Book at ${REDACTED_URL}`);
+    expect(redactFreeText('Book at www.sifu-dupont.fr/stages')).toBe(`Book at ${REDACTED_URL}`);
+  });
+
+  it('sees through the Google Calendar /url redirector to the real destination', () => {
+    // Calendar rewrites outbound links this way, so an allowlisted google.com
+    // host can still be carrying somebody's personal site in its query string.
+    expect(
+      redactFreeText('https://www.google.com/url?q=https://sifu-dupont.fr/stages&sa=D'),
+    ).toBe(REDACTED_URL);
+    // ...but a wrapped map link is not PII and stays.
+    const wrappedMap = 'https://www.google.com/url?q=https://www.google.com/maps/search/x&sa=D';
+    expect(redactFreeText(wrappedMap)).toBe(wrappedMap);
+  });
+
+  it('treats trailing punctuation as sentence, not link', () => {
+    expect(redactFreeText('Details: https://www.iliqchuan.com/a.')).toBe(
+      'Details: https://www.iliqchuan.com/a.',
+    );
+    expect(redactFreeText('Details: https://sifu-dupont.fr/a.')).toBe(`Details: ${REDACTED_URL}.`);
+  });
+
+  it('does not mistake dates, times or prices for phone numbers', () => {
+    for (const text of [
+      'Seminar 2-4 December 2026',
+      'Doors 10:00-17:00 each day',
+      'Cost is 1,200 EUR for the weekend',
+      'Runs 0800-1200 on Saturday',
+      'Group of 10 to 12 students',
+    ]) {
+      expect(redactFreeText(text)).toBe(text);
+    }
+  });
+
+  it('does not let a kept link swallow numbers elsewhere in the copy', () => {
+    // Guards the internal stash-and-restore: plain numbers in the surrounding
+    // prose must survive untouched.
+    expect(redactFreeText('From 10 to 12 at https://www.iliqchuan.com/x, room 3')).toBe(
+      'From 10 to 12 at https://www.iliqchuan.com/x, room 3',
+    );
+  });
+
+  it('passes through copy with nothing to redact, including empty strings', () => {
+    expect(redactFreeText('A weekend of internal martial arts training.')).toBe(
+      'A weekend of internal martial arts training.',
+    );
+    expect(redactFreeText('')).toBe('');
   });
 });
