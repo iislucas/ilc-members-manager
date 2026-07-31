@@ -395,4 +395,148 @@ describe('EventEditComponent', () => {
       contactUrl: 'https://example.com',
     }]);
   });
+
+  // --- Contact checkboxes and mini-profiles in the rendered form ---------
+
+  // Loads an event and renders it. Contacts are keyed by member doc ID, so the
+  // rendered checkboxes are what tell us whether two of them share a flag.
+  async function renderEvent(event: Partial<IlcEvent>) {
+    (mockDataManagerService.getEventById as any).mockResolvedValue({
+      docId: 'test-doc-id',
+      title: 'T', start: '2026-04-13', end: '2026-04-13',
+      description: 'D', location: 'L',
+      status: EventStatus.Proposed,
+      heroImageUrl: '',
+      ...event,
+    } as IlcEvent);
+    await component.loadEvent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  const creatorCheckbox = (): HTMLInputElement =>
+    fixture.nativeElement.querySelector('.owner-editor input[type="checkbox"]');
+  const managerCheckboxes = (): HTMLInputElement[] =>
+    Array.from(fixture.nativeElement.querySelectorAll('.manager-contact-row input[type="checkbox"]'));
+
+  it('gives the creator a single contact checkbox when they are also a manager', async () => {
+    const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator' };
+    const other = { docId: 'other-doc-id', instructorId: '9', memberId: 'MEM-9', name: 'Other' };
+    (mockDataManagerService.instructors as any).setEntries([creator, other]);
+
+    // Every proposed event starts this way: the submitter is both the creator
+    // and a manager.
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      ownerName: 'Creator',
+      ownerMemberId: 'MEM-7',
+      ownerInstructorId: '7',
+      managerDocIds: ['creator-doc-id', 'other-doc-id'],
+      contacts: [],
+    });
+
+    // Only the second manager gets a row checkbox; the creator's listing is
+    // controlled once, in the Creator section.
+    expect(managerCheckboxes().length).toBe(1);
+
+    creatorCheckbox().click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isListedContact('creator-doc-id')).toBe(true);
+    expect(component.isListedContact('other-doc-id')).toBe(false);
+    expect(managerCheckboxes()[0].checked).toBe(false);
+  });
+
+  it('keeps each manager contact checkbox independent', async () => {
+    const a = { docId: 'doc-a', instructorId: '1', memberId: 'MEM-A', name: 'A' };
+    const b = { docId: 'doc-b', instructorId: '2', memberId: 'MEM-B', name: 'B' };
+    (mockDataManagerService.instructors as any).setEntries([a, b]);
+
+    await renderEvent({ ownerDocId: '', managerDocIds: ['doc-a', 'doc-b'], contacts: [] });
+
+    const [first, second] = managerCheckboxes();
+    first.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isListedContact('doc-a')).toBe(true);
+    expect(component.isListedContact('doc-b')).toBe(false);
+    expect(managerCheckboxes()[1].checked).toBe(false);
+    expect(second).toBeTruthy();
+  });
+
+  it('omits the contact details fields for an instructor', async () => {
+    const instructor = { docId: 'doc-a', instructorId: '1', memberId: 'MEM-A', name: 'A' };
+    (mockDataManagerService.instructors as any).setEntries([instructor]);
+
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      ownerInstructorId: '7',
+      managerDocIds: ['doc-a'],
+      contacts: [
+        { memberDocId: 'creator-doc-id', name: 'Creator', memberId: 'MEM-7', instructorId: '7', contactEmail: '', contactUrl: '' },
+        { memberDocId: 'doc-a', name: 'A', memberId: 'MEM-A', instructorId: '1', contactEmail: '', contactUrl: '' },
+      ],
+    });
+
+    // Both are instructors: their public profile is the contact, so there is
+    // nothing extra to fill in.
+    expect(fixture.nativeElement.querySelectorAll('.mini-profile').length).toBe(0);
+  });
+
+  it('keeps the contact details fields for a non-instructor', async () => {
+    (mockDataManagerService.instructors as any).setEntries([]);
+    (mockDataManagerService.members as any).setEntries([
+      { docId: 'doc-a', instructorId: '', memberId: 'MEM-A', name: 'A' },
+    ]);
+
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      ownerName: 'Creator',
+      ownerInstructorId: '',
+      managerDocIds: ['doc-a'],
+      contacts: [
+        { memberDocId: 'creator-doc-id', name: 'Creator', memberId: '', instructorId: '', contactEmail: '', contactUrl: '' },
+        { memberDocId: 'doc-a', name: 'A', memberId: 'MEM-A', instructorId: '', contactEmail: '', contactUrl: '' },
+      ],
+    });
+
+    expect(fixture.nativeElement.querySelector('.manager-contact-profile')).toBeTruthy();
+  });
+
+  it('shows a creator that the event only stored as a doc ID', async () => {
+    // Events created before the owner identity was cached on the document have
+    // an ownerDocId and nothing else, so the creator has to be resolved from
+    // the caches or the section renders blank.
+    const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator Name' };
+    (mockDataManagerService.instructors as any).setEntries([creator]);
+
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      managerDocIds: ['creator-doc-id'],
+      contacts: [],
+    });
+
+    const selector: HTMLInputElement = fixture.nativeElement.querySelector(
+      '.owner-editor input[type="text"]',
+    );
+    expect(selector.value).toBe('7');
+    expect(fixture.nativeElement.querySelector('.owner-editor').textContent)
+      .toContain('Creator Name');
+  });
+
+  it('caches a doc-ID-only creator identity on save', async () => {
+    const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator Name' };
+    (mockDataManagerService.instructors as any).setEntries([creator]);
+    await renderEvent({ ownerDocId: 'creator-doc-id', managerDocIds: [], contacts: [] });
+
+    await component.saveEvent({ preventDefault: vi.fn() } as unknown as Event);
+
+    expect(component.errorMessage()).toBe(null);
+    const saved = (updateDoc as any).mock.calls.at(-1)[1];
+    expect(saved.ownerName).toBe('Creator Name');
+    expect(saved.ownerMemberId).toBe('MEM-7');
+    expect(saved.ownerInstructorId).toBe('7');
+  });
 });

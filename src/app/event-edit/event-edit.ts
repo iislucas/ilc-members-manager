@@ -13,6 +13,7 @@ import {
   inject,
   signal,
   computed,
+  linkedSignal,
   effect,
   ChangeDetectionStrategy,
   OnInit,
@@ -203,10 +204,41 @@ export class EventEditComponent implements OnInit {
     documents: [],
   });
 
-  // UI-only: when an admin ticks this, the owner picker switches from the
+  // The creator's identity for display. Events written before these fields were
+  // cached on the document hold only an ownerDocId, so fall back to the caches —
+  // otherwise the whole Creator section renders blank.
+  creatorInstructorId = computed(() =>
+    this.eventFormModel().ownerInstructorId ||
+    this.instructorIdForMember(this.eventFormModel().ownerDocId));
+
+  creatorName = computed(() => {
+    const m = this.eventFormModel();
+    return m.ownerName || this.memberFieldFor(m.ownerDocId, 'name');
+  });
+
+  creatorMemberId = computed(() => {
+    const m = this.eventFormModel();
+    return m.ownerMemberId || this.memberFieldFor(m.ownerDocId, 'memberId');
+  });
+
+  private memberFieldFor(memberDocId: string, field: 'name' | 'memberId'): string {
+    if (!memberDocId) return '';
+    return (
+      this.instructorsByDocId().get(memberDocId)?.[field] ||
+      this.dataService.members.get(memberDocId)?.[field] ||
+      ''
+    );
+  }
+
+  // UI-only: when an admin ticks this, the creator picker switches from the
   // instructor autocomplete to a member autocomplete so any member (not just
-  // instructors) can be assigned as the event owner/contact.
-  assignMemberAsOwner = signal(false);
+  // instructors) can be assigned as the event creator/contact. Derived from the
+  // resolved creator so it settles on the right mode once the instructor cache
+  // arrives, while still honouring an admin's manual toggle.
+  assignMemberAsOwner = linkedSignal(() => {
+    const m = this.eventFormModel();
+    return !!m.ownerDocId && !this.creatorInstructorId();
+  });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
     required(schema.title, { message: 'Title is required.' });
@@ -380,9 +412,6 @@ export class EventEditComponent implements OnInit {
         }
         this.event.set(data);
         this.eventFormModel.set(toFormModel(data));
-        // Default the picker to "member" mode when the existing owner is a
-        // non-instructor member, so an admin sees the member selector.
-        this.assignMemberAsOwner.set(!!data.ownerDocId && !(data.ownerInstructorId || ''));
         this.titleLoaded.emit(data.title);
         if (data.docId && this.canManageMaterials()) {
           this.loadMaterials(data.docId);
@@ -583,14 +612,15 @@ export class EventEditComponent implements OnInit {
     return byDocId;
   });
 
-  // The instructorId to show in a manager row, or '' when the row is empty or
-  // unresolvable. Must round-trip with updateManagerDocId below, otherwise a
-  // just-picked manager renders as "None selected".
-  managerInstructorId(managerDocId: string): string {
-    if (!managerDocId) return '';
+  // The instructorId for a member doc ID, or '' if they have no public
+  // instructor profile. Used for the manager row's value, which must round-trip
+  // with updateManagerDocId below, otherwise a just-picked manager renders as
+  // "None selected".
+  instructorIdForMember(memberDocId: string): string {
+    if (!memberDocId) return '';
     return (
-      this.instructorsByDocId().get(managerDocId)?.instructorId ||
-      this.dataService.members.get(managerDocId)?.instructorId ||
+      this.instructorsByDocId().get(memberDocId)?.instructorId ||
+      this.dataService.members.get(memberDocId)?.instructorId ||
       ''
     );
   }
@@ -651,6 +681,17 @@ export class EventEditComponent implements OnInit {
 
   contactFor(memberDocId: string): EventContact | undefined {
     return this.eventFormModel().contacts.find((c) => c.memberDocId === memberDocId);
+  }
+
+  // A contact with a public instructor profile needs no separately-entered
+  // name, email or link — the event page links to their profile instead. The
+  // cached instructorId is the fallback for someone who has since dropped off
+  // the public instructor list.
+  contactIsInstructor(memberDocId: string): boolean {
+    return !!(
+      this.instructorIdForMember(memberDocId) ||
+      this.contactFor(memberDocId)?.instructorId
+    );
   }
 
   setContactListed(memberDocId: string, listed: boolean) {
@@ -981,7 +1022,15 @@ export class EventEditComponent implements OnInit {
     this.isSaving.set(true);
     try {
       const docRef = doc(this.db, 'events', eventData.docId);
-      const formData = this.editableEvent();
+      // A creator the event only stored as a doc ID gets their identity cached
+      // on save, so their public contact entry resolves to an instructor
+      // profile instead of showing up as a bare name.
+      const formData = {
+        ...this.editableEvent(),
+        ownerName: this.creatorName(),
+        ownerMemberId: this.creatorMemberId(),
+        ownerInstructorId: this.creatorInstructorId(),
+      };
       const managerDocIds = formData.managerDocIds.filter(Boolean);
       const contacts = contactsToSave({ ...formData, managerDocIds });
       await updateDoc(docRef, {
