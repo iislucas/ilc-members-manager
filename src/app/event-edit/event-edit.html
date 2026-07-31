@@ -469,7 +469,9 @@
             </label>
           }
 
-          @if (isListedContact(eventFormModel().ownerDocId)) {
+          <!-- An instructor creator is contacted through their public profile,
+               so only a non-instructor needs these details filled in. -->
+          @if (isListedContact(eventFormModel().ownerDocId) && !eventFormModel().ownerInstructorId) {
             <div class="mini-profile">
               <label for="ownerContactName">Contact name</label>
               <input
@@ -506,7 +508,7 @@
             <div class="manager-row" style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
               <app-instructor-selector
                 [placeholder]="'Search for a manager'"
-                [value]="managerInstructorId(managerId)"
+                [value]="instructorIdForMember(managerId)"
                 (valueChange)="updateManagerDocId($index, $event)"
               ></app-instructor-selector>
               <button type="button" class="icon-only-button" (click)="removeManagerDocId($index)" title="Remove manager">
@@ -518,7 +520,15 @@
                 </button>
               }
             </div>
-            @if (managerId) {
+            <!-- A contact is one flag per person, so the creator — who is also
+                 a manager on every proposed event — is listed from the Creator
+                 section above rather than getting a second checkbox here that
+                 would move in lockstep with it. -->
+            @if (managerId && managerId === eventFormModel().ownerDocId) {
+              <div class="note manager-contact-row">
+                Also the event creator — set their public listing above.
+              </div>
+            } @else if (managerId) {
               <label class="checkbox-row manager-contact-row">
                 <input
                   type="checkbox"
@@ -527,7 +537,8 @@
                 />
                 List as a public contact
               </label>
-              @if (contactFor(managerId); as contact) {
+              <!-- An instructor is contacted through their public profile. -->
+              @if (!contactIsInstructor(managerId) && contactFor(managerId); as contact) {
                 <div class="mini-profile manager-contact-profile">
                   <label [for]="'contactEmail-' + $index">Contact email</label>
                   <input

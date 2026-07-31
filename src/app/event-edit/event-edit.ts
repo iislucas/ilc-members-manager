@@ -583,14 +583,15 @@ export class EventEditComponent implements OnInit {
     return byDocId;
   });
 
-  // The instructorId to show in a manager row, or '' when the row is empty or
-  // unresolvable. Must round-trip with updateManagerDocId below, otherwise a
-  // just-picked manager renders as "None selected".
-  managerInstructorId(managerDocId: string): string {
-    if (!managerDocId) return '';
+  // The instructorId for a member doc ID, or '' if they have no public
+  // instructor profile. Used for the manager row's value, which must round-trip
+  // with updateManagerDocId below, otherwise a just-picked manager renders as
+  // "None selected".
+  instructorIdForMember(memberDocId: string): string {
+    if (!memberDocId) return '';
     return (
-      this.instructorsByDocId().get(managerDocId)?.instructorId ||
-      this.dataService.members.get(managerDocId)?.instructorId ||
+      this.instructorsByDocId().get(memberDocId)?.instructorId ||
+      this.dataService.members.get(memberDocId)?.instructorId ||
       ''
     );
   }
@@ -651,6 +652,17 @@ export class EventEditComponent implements OnInit {
 
   contactFor(memberDocId: string): EventContact | undefined {
     return this.eventFormModel().contacts.find((c) => c.memberDocId === memberDocId);
+  }
+
+  // A contact with a public instructor profile needs no separately-entered
+  // name, email or link — the event page links to their profile instead. The
+  // cached instructorId is the fallback for someone who has since dropped off
+  // the public instructor list.
+  contactIsInstructor(memberDocId: string): boolean {
+    return !!(
+      this.instructorIdForMember(memberDocId) ||
+      this.contactFor(memberDocId)?.instructorId
+    );
   }
 
   setContactListed(memberDocId: string, listed: boolean) {
