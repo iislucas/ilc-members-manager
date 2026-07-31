@@ -504,4 +504,39 @@ describe('EventEditComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.manager-contact-profile')).toBeTruthy();
   });
+
+  it('shows a creator that the event only stored as a doc ID', async () => {
+    // Events created before the owner identity was cached on the document have
+    // an ownerDocId and nothing else, so the creator has to be resolved from
+    // the caches or the section renders blank.
+    const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator Name' };
+    (mockDataManagerService.instructors as any).setEntries([creator]);
+
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      managerDocIds: ['creator-doc-id'],
+      contacts: [],
+    });
+
+    const selector: HTMLInputElement = fixture.nativeElement.querySelector(
+      '.owner-editor input[type="text"]',
+    );
+    expect(selector.value).toBe('7');
+    expect(fixture.nativeElement.querySelector('.owner-editor').textContent)
+      .toContain('Creator Name');
+  });
+
+  it('caches a doc-ID-only creator identity on save', async () => {
+    const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator Name' };
+    (mockDataManagerService.instructors as any).setEntries([creator]);
+    await renderEvent({ ownerDocId: 'creator-doc-id', managerDocIds: [], contacts: [] });
+
+    await component.saveEvent({ preventDefault: vi.fn() } as unknown as Event);
+
+    expect(component.errorMessage()).toBe(null);
+    const saved = (updateDoc as any).mock.calls.at(-1)[1];
+    expect(saved.ownerName).toBe('Creator Name');
+    expect(saved.ownerMemberId).toBe('MEM-7');
+    expect(saved.ownerInstructorId).toBe('7');
+  });
 });

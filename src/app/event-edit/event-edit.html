@@ -403,15 +403,15 @@
                   [searchableSet]="dataService.members"
                   [placeholder]="'Search for a member'"
                   [displayFns]="memberDisplayFns"
-                  [initSearchTerm]="eventFormModel().ownerMemberId"
+                  [initSearchTerm]="creatorMemberId()"
                   [inputBoxIsChip]="true"
                   (textUpdated)="updateOwnerMember($event)"
                 ></app-autocomplete>
                 @if (eventFormModel().ownerDocId) {
                   <span class="note selected-note">
-                    <span>{{ eventFormModel().ownerName || eventFormModel().ownerMemberId }}</span>
-                    @if (eventFormModel().ownerMemberId) {
-                      <span class="identifier-chip">{{ eventFormModel().ownerMemberId }}</span>
+                    <span>{{ creatorName() || creatorMemberId() }}</span>
+                    @if (creatorMemberId()) {
+                      <span class="identifier-chip">{{ creatorMemberId() }}</span>
                       <a class="icon-only-button" [href]="ownerMemberLink()" title="Go to member">
                         <app-icon name="visibility"></app-icon>
                       </a>
@@ -428,12 +428,23 @@
                   shown as the contact.
                 </div>
               }
+            } @else {
+              <!-- Only admins can reassign a non-instructor creator, but everyone
+                   who can edit the event needs to see who it is. -->
+              <div class="owner-selector-row">
+                <span class="note selected-note">
+                  <span>{{ creatorName() || creatorMemberId() }}</span>
+                  @if (creatorMemberId()) {
+                    <span class="identifier-chip">{{ creatorMemberId() }}</span>
+                  }
+                </span>
+              </div>
             }
           } @else {
             <div class="owner-selector-row">
               <app-instructor-selector
                 [placeholder]="'Search for an instructor'"
-                [value]="eventFormModel().ownerInstructorId"
+                [value]="creatorInstructorId()"
                 (valueChange)="updateOwnerInstructor($event)"
               ></app-instructor-selector>
               @if (eventFormModel().ownerDocId) {
@@ -452,7 +463,7 @@
                 [checked]="assignMemberAsOwner()"
                 (change)="assignMemberAsOwner.set($any($event.target).checked)"
               />
-              Allow a non-instructor to be the event creator
+              Set a non-instructor to be the event creator
             </label>
           }
 
@@ -471,7 +482,7 @@
 
           <!-- An instructor creator is contacted through their public profile,
                so only a non-instructor needs these details filled in. -->
-          @if (isListedContact(eventFormModel().ownerDocId) && !eventFormModel().ownerInstructorId) {
+          @if (isListedContact(eventFormModel().ownerDocId) && !creatorInstructorId()) {
             <div class="mini-profile">
               <label for="ownerContactName">Contact name</label>
               <input
