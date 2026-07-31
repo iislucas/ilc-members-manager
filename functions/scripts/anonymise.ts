@@ -100,6 +100,106 @@ export function anonymiseSchool(doc: RawDoc, schoolId: string): RawDoc {
   };
 }
 
+/*
+ * Event copy is written by hand — much of it pasted into Google Calendar — so
+ * it routinely carries the organiser's own email, phone number and personal
+ * links inline, well away from the structured fields below.
+ *
+ * This copy is public-facing (it renders on the live events pages), so the PII
+ * is substituted in place rather than the field being blanked: the seeded event
+ * keeps prose of a realistic shape and length, which is the whole reason the
+ * export carries real descriptions at all.
+ */
+export const REDACTED_EMAIL = 'event-contact@example.com';
+export const REDACTED_PHONE = '555-0000';
+export const REDACTED_URL = 'https://example.com/event-link';
+
+// Hosts that carry no personal information and that the events pages render
+// meaningfully — the venue map, the calendar entry, ILC's own site, and the
+// storage buckets images are embedded from. Compared against the host, so
+// subdomains are covered. Everything else is treated as somebody's personal
+// link and replaced.
+const KEPT_URL_HOSTS = [
+  'iliqchuan.com',
+  'google.com',
+  'goo.gl',
+  'googleapis.com',
+  'googleusercontent.com',
+];
+
+// Stops at the delimiters that end a link in HTML (" '), markdown ( ) ] ) or
+// prose, so the surrounding copy is left intact.
+const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"'`)\]]+/gi;
+const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+// Anchored on an international (+CC) or trunk (0X) prefix, so the date ranges,
+// opening times and prices that fill event copy are not read as phone numbers.
+const PHONE_RE = /(?:\+\d|\b0\d)[\d\s().-]{6,}\d/g;
+
+function isKeptUrl(url: string, depth = 0): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.toLowerCase().startsWith('www.') ? `https://${url}` : url);
+  } catch {
+    return false; // Unparseable, so we cannot vouch for it.
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (!KEPT_URL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return false;
+
+  // Google Calendar rewrites outbound links through its own /url redirector, so
+  // most personal links in this copy arrive wrapped in an allowlisted host with
+  // the real destination sitting in the query string. Judge the destination.
+  if ((host === 'google.com' || host.endsWith('.google.com')) && parsed.pathname === '/url') {
+    const target = parsed.searchParams.get('q') ?? parsed.searchParams.get('url');
+    if (!target) return false;
+    return depth < 3 && isKeptUrl(target, depth + 1);
+  }
+  return true;
+}
+
+// Replaces personal contact details embedded in free text, leaving the rest of
+// the wording untouched.
+export function redactFreeText(input: string): string {
+  if (!input) return input;
+
+  // Links we keep are stashed behind a NUL sentinel first, so that the email
+  // and phone passes below cannot chew through their query strings and place
+  // IDs. NUL cannot occur in Firestore string data, so the sentinel can never
+  // collide with something that was already in the copy.
+  const kept: string[] = [];
+
+  let out = input.replace(URL_RE, (match) => {
+    // Trailing punctuation belongs to the sentence, not to the link.
+    const trailing = /[.,;:!?]+$/.exec(match)?.[0] ?? '';
+    const url = match.slice(0, match.length - trailing.length);
+    if (!isKeptUrl(url)) return REDACTED_URL + trailing;
+    return `\u0000${kept.push(url) - 1}\u0000${trailing}`;
+  });
+
+  // Runs after the URL pass, which leaves `mailto:` untouched (it is neither
+  // http(s) nor www), so this covers both bare addresses and mailto: hrefs.
+  out = out.replace(EMAIL_RE, REDACTED_EMAIL);
+
+  out = out.replace(PHONE_RE, (match) => {
+    const digits = match.match(/\d/g)?.length ?? 0;
+    // E.164 caps a real number at 15 digits; under 9 and this is far more
+    // likely to be a date range, an opening time or a price.
+    return digits >= 9 && digits <= 15 ? REDACTED_PHONE : match;
+  });
+
+  return out.replace(/\u0000(\d+)\u0000/g, (_, i: string) => kept[Number(i)]);
+}
+
+// The free-text event fields, redacted. Absent fields stay absent rather than
+// being materialised as empty strings.
+function redactedEventText(doc: RawDoc): RawDoc {
+  const out: RawDoc = {};
+  for (const key of ['description', 'descriptionMarkdown', 'location']) {
+    const value = doc[key];
+    if (typeof value === 'string') out[key] = redactFreeText(value);
+  }
+  return out;
+}
+
 // One entry of an event's `contacts` array (see EventContact in
 // functions/src/data-model.ts). Every entry is the event's creator or one of
 // its managers, so its identity is anonymised the same way theirs is; the
@@ -127,6 +227,9 @@ function anonymiseEventContact(contact: RawDoc, index: MemberIndex): RawDoc {
  * anonymiseMember() gives each member. That keeps the seeded data usable:
  * firestore.rules and the event notifications both match a signed-in user to an
  * event by looking their email up in ownerEmails / managerEmails.
+ *
+ * The same details also turn up loose in the description and location copy, so
+ * those are redacted in place — see redactFreeText above.
  */
 export function anonymiseEvent(doc: RawDoc, index: MemberIndex): RawDoc {
   const ownerKey = memberKey(index, str(doc, 'ownerDocId'), str(doc, 'ownerMemberId'));
@@ -137,6 +240,7 @@ export function anonymiseEvent(doc: RawDoc, index: MemberIndex): RawDoc {
 
   return {
     ...doc,
+    ...redactedEventText(doc),
     ownerName: doc['ownerName'] ? `Test Member ${ownerKey}` : '',
     ownerEmails: ownerKey ? [memberEmail(ownerKey)] : [],
     // A member's real `emails` array can hold several addresses, so the stored
