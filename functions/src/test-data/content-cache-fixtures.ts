@@ -1,76 +1,9 @@
 /* test-data/content-cache-fixtures.ts
  *
  * Minimal test fixtures for content-cache.spec.ts. Based on real data
- * from the live Squarespace and Google Calendar APIs but stripped down
- * to only the fields the caching code actually uses.
+ * from the live Squarespace API but stripped down to only the fields
+ * the caching code actually uses.
  */
-
-import { GoogleCalendarEventItem } from '../calendar.types';
-
-// ------------------------------------------------------------------
-// Google Calendar API response fixtures
-// ------------------------------------------------------------------
-
-// A timed event (has dateTime, not just date).
-export const timedCalendarEvent: GoogleCalendarEventItem = {
-  id: 'evt-timed-001',
-  summary: 'Loose, Soft, and Elastic Energies with Jeffrey Wong',
-  start: {
-    dateTime: '2026-03-07T19:00:00Z',
-  },
-  end: {
-    dateTime: '2026-03-07T20:30:00Z',
-  },
-  location: 'Zoom - Online',
-  description: '<p>Join us LIVE! Mar 7, 2026 02:00 PM Eastern Time</p>',
-  htmlLink: 'https://www.google.com/calendar/event?eid=abc123',
-};
-
-// An all-day event (has date, not dateTime).
-export const allDayCalendarEvent: GoogleCalendarEventItem = {
-  id: 'evt-allday-001',
-  summary: 'Annual ILC Retreat 2026',
-  start: {
-    date: '2026-06-15',
-  },
-  end: {
-    // Google Calendar all-day events: end date is exclusive, so a
-    // 3-day event June 15–17 has end date June 18.
-    date: '2026-06-18',
-  },
-  location: 'ILC Center, Kuala Lumpur, Malaysia',
-  description: 'Annual retreat with Grandmaster Sam Chin.',
-  htmlLink: 'https://www.google.com/calendar/event?eid=def456',
-};
-
-// An event with no location.
-export const noLocationEvent: GoogleCalendarEventItem = {
-  id: 'evt-noloc-001',
-  summary: 'Online Members Meeting',
-  start: {
-    dateTime: '2026-04-01T18:00:00Z',
-  },
-  end: {
-    dateTime: '2026-04-01T19:00:00Z',
-  },
-  location: '',
-  description: '',
-  htmlLink: '',
-};
-
-// An event with no summary.
-export const noSummaryEvent: GoogleCalendarEventItem = {
-  id: 'evt-nosum-001',
-  summary: '',
-  start: {
-    dateTime: '2026-05-01T10:00:00Z',
-  },
-  end: {
-    dateTime: '2026-05-01T11:00:00Z',
-  },
-  description: 'Untitled event',
-  htmlLink: '',
-};
 
 // ------------------------------------------------------------------
 // Squarespace blog API response fixtures

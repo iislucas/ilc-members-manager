@@ -2,29 +2,28 @@
  *
  * Firebase Cloud Functions to cache external content in Firestore.
  *
- * This module fetches content from Google Calendar and Squarespace,
- * normalises it into lean documents containing only the fields the
- * frontend UI actually uses, and writes each item as its own Firestore
- * document under flat top-level collections. The frontend subscribes
- * to these collections with onSnapshot for fast, real-time reads — no
- * Cloud Function call needed on the read path.
+ * This module fetches content from Squarespace, normalises it into
+ * lean documents containing only the fields the frontend UI actually
+ * uses, and writes each item as its own Firestore document under flat
+ * top-level collections. The frontend subscribes to these collections
+ * with onSnapshot for fast, real-time reads — no Cloud Function call
+ * needed on the read path.
  *
  * Sync strategy:
  *   Each item stores a stable source identifier in a designated field
- *   (e.g. `sourceId` for calendar events, `id` for blog posts). On
- *   re-sync the engine queries existing documents by that field to
- *   decide whether to create, update, or delete — Firestore document
- *   IDs remain auto-generated. Only items whose content has actually
- *   changed are written, and only items that no longer exist in the
- *   source are deleted. Each document carries a `lastUpdated` timestamp
- *   set only when content meaningfully changes.
+ *   (`id` for blog posts). On re-sync the engine queries existing
+ *   documents by that field to decide whether to create, update, or
+ *   delete — Firestore document IDs remain auto-generated. Only items
+ *   whose content has actually changed are written, and only items
+ *   that no longer exist in the source are deleted. Each document
+ *   carries a `lastUpdated` timestamp set only when content
+ *   meaningfully changes.
  *
  *   Blog posts carry a `kind` field (e.g. 'squarespace') so that
  *   pruning only removes posts from the same source, allowing other
  *   kinds of posts to coexist safely in the same collection.
  *
  * Collections written:
- *   /events/{docId}            — cached calendar events (public)
  *   /members-post/{docId}      — cached members-area blog posts
  *   /instructors-post/{docId}  — cached instructors blog posts
  *   /system/cache-metadata     — refresh timestamps, item counts,
@@ -37,16 +36,11 @@
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
 import { assertAdmin, allowedOrigins } from './common';
-import { GoogleCalendarResponse, GoogleCalendarEventItem } from './calendar.types';
-import { IlcEvent, EventStatus, EventSourceKind, CachedBlogPost, CacheMetadata, initEvent } from './data-model';
-import { environment } from './environment/environment';
-
-const calendarApiKey = defineSecret('GOOGLE_CALENDAR_API_KEY');
+import { EventSourceKind, CachedBlogPost, CacheMetadata } from './data-model';
 
 // Squarespace configuration
 const SQUARESPACE_BASE_URL = 'https://lute-denim-99n2.squarespace.com';
@@ -73,36 +67,6 @@ export type SyncResult = {
 // ------------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------------
-
-export function getEventEndDate(end?: { dateTime?: string; date?: string }): string {
-  if (!end) return 'N/A';
-  if (end.date && !end.dateTime) {
-    const endDate = new Date(end.date);
-    endDate.setDate(endDate.getDate() - 1);
-    return endDate.toISOString().split('T')[0];
-  }
-  return end.dateTime || end.date || 'N/A';
-}
-
-export function mapToCalendarEvent(item: GoogleCalendarEventItem): IlcEvent {
-  const location = item.location || '';
-  const googleMapsUrl = location
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
-    : '';
-  return {
-    ...initEvent(),
-    sourceId: item.id,
-    title: item.summary || 'No Title',
-    start: item.start?.dateTime || item.start?.date || 'N/A',
-    end: getEventEndDate(item.end),
-    description: item.description || '',
-    location,
-    googleMapsUrl,
-    googleCalEventLink: item.htmlLink || '',
-    status: EventStatus.Listed,
-    kind: EventSourceKind.CalendarSourced,
-  };
-}
 
 // Process HTML to fix Squarespace-specific issues (protocol-relative
 // URLs, lazy-loaded images, video embeds). This is the same logic the
@@ -235,7 +199,7 @@ async function syncCollection(
   collectionPath: string,
   freshItems: Record<string, unknown>[],
   sourceIdField: string,
-  options?: { kindFilter?: string; disablePruning?: boolean },
+  options?: { kindFilter?: string },
 ): Promise<SyncResult> {
   const colRef = db.collection(collectionPath);
   const now = new Date().toISOString();
@@ -306,9 +270,6 @@ async function syncCollection(
   }
 
   // Phase 2: Prune — delete docs no longer present in the source.
-  if (options?.disablePruning) {
-    return { total: freshMap.size, updated, removed: 0, unchanged };
-  }
   const staleIds: string[] = [];
 
   // Docs with a source ID that no longer appears in the fresh set.
@@ -378,49 +339,6 @@ async function deleteCollection(
 // ------------------------------------------------------------------
 // Core refresh logic
 // ------------------------------------------------------------------
-
-async function refreshEventsCache(db: admin.firestore.Firestore): Promise<SyncResult> {
-  const calendarId = environment.googleCalendar.calendarId;
-  if (!calendarId) {
-    logger.warn('EVENTS_CALENDAR_ID is not set; skipping events cache refresh.');
-    return { total: 0, updated: 0, removed: 0, unchanged: 0 };
-  }
-
-  if (!calendarApiKey.value()) {
-    logger.warn('Google Calendar API key not configured; skipping events cache refresh.');
-    return { total: 0, updated: 0, removed: 0, unchanged: 0 };
-  }
-
-  const params: Record<string, unknown> = {
-    key: calendarApiKey.value(),
-    singleEvents: true,
-    orderBy: 'startTime',
-    maxResults: 2500,
-  };
-
-  const calendarApiUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-    calendarId,
-  )}/events`;
-
-  const response = await axios.get<GoogleCalendarResponse>(calendarApiUrl, { params });
-  const items = response.data.items || [];
-
-  // Map to cached format; each item carries `sourceId` (the Google
-  // Calendar event ID) for matching during sync.
-  const freshItems = items.map(
-    (item) => mapToCalendarEvent(item) as unknown as Record<string, unknown>,
-  );
-
-  const result = await syncCollection(db, 'events', freshItems, 'sourceId', {
-    kindFilter: EventSourceKind.CalendarSourced,
-    disablePruning: true,
-  });
-  logger.info(
-    `Events cache synced: ${result.total} total, ${result.updated} updated, ` +
-    `${result.removed} removed, ${result.unchanged} unchanged.`,
-  );
-  return result;
-}
 
 async function refreshBlogCache(db: admin.firestore.Firestore): Promise<SyncResult> {
   let totalResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
@@ -493,27 +411,19 @@ async function updateCacheMetadata(
 
 // Scheduled: runs every 2 hours.
 export const refreshContentCache = onSchedule(
-  { schedule: 'every 2 hours', secrets: [calendarApiKey] },
+  { schedule: 'every 2 hours' },
   async () => {
     const db = admin.firestore();
     try {
-      const [eventResult, blogResult] = await Promise.all([
-        refreshEventsCache(db),
-        refreshBlogCache(db),
-      ]);
+      const blogResult = await refreshBlogCache(db);
       await updateCacheMetadata(db, {
-        eventsLastRefreshed: new Date().toISOString(),
-        eventsItemCount: eventResult.total,
-        eventsLastSyncUpdated: eventResult.updated,
-        eventsLastSyncRemoved: eventResult.removed,
         blogsLastRefreshed: new Date().toISOString(),
         blogsItemCount: blogResult.total,
         blogsLastSyncUpdated: blogResult.updated,
         blogsLastSyncRemoved: blogResult.removed,
       });
       logger.info(
-        `Scheduled cache sync complete: ${eventResult.total} events ` +
-        `(${eventResult.updated} updated), ${blogResult.total} blog posts ` +
+        `Scheduled cache sync complete: ${blogResult.total} blog posts ` +
         `(${blogResult.updated} updated).`,
       );
     } catch (error) {
@@ -524,43 +434,23 @@ export const refreshContentCache = onSchedule(
 
 // Admin-callable: allows admins to trigger a manual refresh.
 export const manualRefreshCache = onCall(
-  { cors: allowedOrigins, secrets: [calendarApiKey] },
+  { cors: allowedOrigins },
   async (request) => {
     logger.info('manualRefreshCache called.');
     await assertAdmin(request);
 
-    const eventsOnly = request.data?.eventsOnly === true;
-    const blogsOnly = request.data?.blogsOnly === true;
-
     const db = admin.firestore();
-    let eventResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
-    let blogResult: SyncResult = { total: 0, updated: 0, removed: 0, unchanged: 0 };
-
-    if (!blogsOnly) {
-      eventResult = await refreshEventsCache(db);
-      await updateCacheMetadata(db, {
-        eventsLastRefreshed: new Date().toISOString(),
-        eventsItemCount: eventResult.total,
-        eventsLastSyncUpdated: eventResult.updated,
-        eventsLastSyncRemoved: eventResult.removed,
-      });
-    }
-    if (!eventsOnly) {
-      blogResult = await refreshBlogCache(db);
-      await updateCacheMetadata(db, {
-        blogsLastRefreshed: new Date().toISOString(),
-        blogsItemCount: blogResult.total,
-        blogsLastSyncUpdated: blogResult.updated,
-        blogsLastSyncRemoved: blogResult.removed,
-      });
-    }
+    const blogResult = await refreshBlogCache(db);
+    await updateCacheMetadata(db, {
+      blogsLastRefreshed: new Date().toISOString(),
+      blogsItemCount: blogResult.total,
+      blogsLastSyncUpdated: blogResult.updated,
+      blogsLastSyncRemoved: blogResult.removed,
+    });
 
     return {
       success: true,
-      eventCount: eventResult.total,
       postCount: blogResult.total,
-      eventsUpdated: eventResult.updated,
-      eventsRemoved: eventResult.removed,
       blogsUpdated: blogResult.updated,
       blogsRemoved: blogResult.removed,
     };
@@ -575,7 +465,9 @@ export const clearContentCache = onCall(
     await assertAdmin(request);
 
     const db = admin.firestore();
-    const collectionsToDelete = ['events', ...BLOG_CONFIGS.map((c) => c.collection)];
+    // Only cached blog collections are cleared. `/events` is authored in
+    // the app itself, so it is never treated as disposable cache.
+    const collectionsToDelete = BLOG_CONFIGS.map((c) => c.collection);
 
     let totalDeleted = 0;
     for (const collection of collectionsToDelete) {
@@ -585,10 +477,6 @@ export const clearContentCache = onCall(
     }
 
     await updateCacheMetadata(db, {
-      eventsLastRefreshed: '',
-      eventsItemCount: 0,
-      eventsLastSyncUpdated: 0,
-      eventsLastSyncRemoved: 0,
       blogsLastRefreshed: '',
       blogsItemCount: 0,
       blogsLastSyncUpdated: 0,

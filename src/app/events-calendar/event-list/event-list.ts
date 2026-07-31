@@ -28,7 +28,6 @@ import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { environment } from '../../../environments/environment';
 
 
 function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
@@ -68,7 +67,6 @@ export class EventListComponent implements OnDestroy {
 
   // --- Component State Signals ---
   errorMessage = signal<string | null>(null);
-  inputCalendarId = signal('');
   optionsMenuOpen = signal(false);
   showFromDateFilter = signal(false);
 
@@ -179,7 +177,6 @@ export class EventListComponent implements OnDestroy {
   fromDateDirty = computed(() => this.fromDateInput() !== this.activeFromDate());
 
   // --- Component Inputs ---
-  calendarId = input<string>(environment.googleCalendar.calendarId);
   showBackButton = input<boolean>(false);
   backLabel = input<string>('Back');
   backUrl = input<string>('');
@@ -332,14 +329,6 @@ export class EventListComponent implements OnDestroy {
       this.miniSearch.removeAll();
       if (events.length > 0) {
         this.miniSearch.addAll(events);
-      }
-    });
-
-    // Set the calendar link when the input is provided.
-    effect(() => {
-      const calendarId = this.calendarId();
-      if (calendarId) {
-        this.inputCalendarId.set(calendarId);
       }
     });
 

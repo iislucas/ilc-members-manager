@@ -1,17 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getEventEndDate,
-  mapToCalendarEvent,
   processSquarespaceHtml,
   cleanAssetUrl,
   mapToCachedBlogPost,
   contentChanged,
 } from './content-cache';
 import {
-  timedCalendarEvent,
-  allDayCalendarEvent,
-  noLocationEvent,
-  noSummaryEvent,
   squarespaceBaseUrl,
   memberBlogItem,
   blogItemWithProtocolRelativeUrls,
@@ -19,87 +13,6 @@ import {
   blogItemWithRelativeAssetUrl,
   blogItemWithBadAssetUrl,
 } from './test-data/content-cache-fixtures';
-
-// ==================================================================
-// getEventEndDate
-// ==================================================================
-describe('getEventEndDate', () => {
-  it('should return dateTime when present', () => {
-    expect(getEventEndDate({ dateTime: '2026-03-07T20:30:00Z' })).toBe('2026-03-07T20:30:00Z');
-  });
-
-  it('should subtract one day for all-day events (exclusive end date)', () => {
-    // Google Calendar: a 3-day event June 15–17 has end = June 18.
-    // We subtract 1 to get the last actual day.
-    const result = getEventEndDate({ date: '2026-06-18' });
-    expect(result).toBe('2026-06-17');
-  });
-
-  it('should prefer dateTime over date', () => {
-    expect(getEventEndDate({ dateTime: '2026-01-01T10:00:00Z', date: '2026-01-01' })).toBe('2026-01-01T10:00:00Z');
-  });
-
-  it('should return N/A when end is undefined', () => {
-    expect(getEventEndDate(undefined)).toBe('N/A');
-  });
-
-  it('should return N/A when end object has no fields', () => {
-    expect(getEventEndDate({})).toBe('N/A');
-  });
-});
-
-// ==================================================================
-// mapToCalendarEvent
-// ==================================================================
-describe('mapToCalendarEvent', () => {
-  it('should map a timed event correctly', () => {
-    const result = mapToCalendarEvent(timedCalendarEvent);
-    expect(result.sourceId).toBe('evt-timed-001');
-    expect(result.title).toBe('Loose, Soft, and Elastic Energies with Jeffrey Wong');
-    expect(result.start).toBe('2026-03-07T19:00:00Z');
-    expect(result.end).toBe('2026-03-07T20:30:00Z');
-    expect(result.location).toBe('Zoom - Online');
-    expect(result.googleMapsUrl).toContain('Zoom%20-%20Online');
-    expect(result.googleCalEventLink).toBe('https://www.google.com/calendar/event?eid=abc123');
-    expect(result.description).toContain('Join us LIVE');
-    expect(result.status).toBe('listed');
-    expect(result.kind).toBe('calendar-sourced');
-  });
-
-  it('should map an all-day event and adjust end date', () => {
-    const result = mapToCalendarEvent(allDayCalendarEvent);
-    expect(result.sourceId).toBe('evt-allday-001');
-    expect(result.title).toBe('Annual ILC Retreat 2026');
-    expect(result.start).toBe('2026-06-15');
-    // End date 2026-06-18 should be adjusted to 2026-06-17.
-    expect(result.end).toBe('2026-06-17');
-    expect(result.location).toBe('ILC Center, Kuala Lumpur, Malaysia');
-    expect(result.googleMapsUrl).toContain('ILC%20Center');
-    expect(result.status).toBe('listed');
-    expect(result.kind).toBe('calendar-sourced');
-  });
-
-  it('should handle missing location with empty googleMapsUrl', () => {
-    const result = mapToCalendarEvent(noLocationEvent);
-    expect(result.location).toBe('');
-    expect(result.googleMapsUrl).toBe('');
-  });
-
-  it('should default title to "No Title" when summary is empty', () => {
-    const result = mapToCalendarEvent(noSummaryEvent);
-    expect(result.title).toBe('No Title');
-  });
-
-  it('should handle missing htmlLink gracefully', () => {
-    const result = mapToCalendarEvent(noLocationEvent);
-    expect(result.googleCalEventLink).toBe('');
-  });
-
-  it('should not set lastUpdated (managed by sync logic)', () => {
-    const result = mapToCalendarEvent(timedCalendarEvent);
-    expect(result.lastUpdated).toBeUndefined();
-  });
-});
 
 // ==================================================================
 // processSquarespaceHtml

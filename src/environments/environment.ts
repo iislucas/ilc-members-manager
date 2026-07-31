@@ -29,9 +29,6 @@ export const environment: AppEnvironment = {
   production: false,
   useEmulator: false,
   firebase: firebaseConfig,
-  googleCalendar: {
-    calendarId: '12c944d5b7101ad4d3234e063fc6b16b7ae5a05d650dd3d102b5a3a2838b7443@group.calendar.google.com',
-  },
   adminEmail: 'web-helper-team@iliqchuan.com',
   passwordResetEmailSender: 'noreply@app.iliqchuan.com',
   // Web Push VAPID public key (base64url). Generate a key pair with

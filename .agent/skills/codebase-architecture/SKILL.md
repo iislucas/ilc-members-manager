@@ -202,7 +202,7 @@ All seeded Auth accounts use password `testpassword123`:
 
 **1. Functions not loaded** — always `pnpm build:functions` before `pnpm emulator:start`. The emulator loads from `functions/dist/` at startup and does NOT hot-reload TypeScript source. It DOES hot-reload if you rebuild the JS dist while it's running.
 
-**2. Missing `functions/src/environment/environment.ts`** — `build:functions` will fail silently (type errors) if this file is missing or incomplete. It must include `googleCalendar.calendarId`. Copy from `environment.template.ts` if needed.
+**2. Missing `functions/src/environment/environment.ts`** — `build:functions` will fail silently (type errors) if this file is missing or incomplete. Copy from `environment.template.ts` if needed.
 
 **3. Timestamp deserialization** — `firebase-admin` exports Firestore Timestamps as `{_seconds, _nanoseconds}` plain objects in JSON. The seed script restores these to proper `admin.firestore.Timestamp` instances before writing, so `firestoreDocToXxx()` converters work. If you see `RangeError: Invalid time value` from `firestoreDocToMember`, this is why.
 

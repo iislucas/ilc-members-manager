@@ -1879,10 +1879,6 @@ export function initCachedBlogPost(): CachedBlogPost {
 
 // Metadata about the content cache, stored at /system/cache-metadata.
 export type CacheMetadata = {
-  eventsLastRefreshed: string;  // ISO date-time
-  eventsItemCount: number;
-  eventsLastSyncUpdated: number;  // items written (new or changed) in last sync
-  eventsLastSyncRemoved: number;  // stale items pruned in last sync
   blogsLastRefreshed: string;   // ISO date-time
   blogsItemCount: number;
   blogsLastSyncUpdated: number;   // items written (new or changed) in last sync
@@ -1891,10 +1887,6 @@ export type CacheMetadata = {
 
 export function initCacheMetadata(): CacheMetadata {
   return {
-    eventsLastRefreshed: '',
-    eventsItemCount: 0,
-    eventsLastSyncUpdated: 0,
-    eventsLastSyncRemoved: 0,
     blogsLastRefreshed: '',
     blogsItemCount: 0,
     blogsLastSyncUpdated: 0,
