@@ -36,13 +36,6 @@ export interface FunctionsEnvironment {
   // push these to the bucket via setCorsConfiguration() so browsers on the
   // allowed origins can load the deployed components.
   CORS_CONFIG: CorsConfigItem[];
-  // Google Calendar integration settings
-  googleCalendar: {
-    // Google Calendar ID the backend reads to source events, used by
-    // proposed-events (event creation/validation) and content-cache (caching
-    // the public calendar feed).
-    calendarId: string;
-  };
   // Base64url VAPID public key passed to webpush.setVapidDetails() in
   // send-push.ts. Must match the client's environment.vapidPublicKey, or
   // browsers reject the push; the paired private key comes from the

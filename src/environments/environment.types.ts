@@ -47,13 +47,6 @@ export interface AppEnvironment {
   useEmulator: boolean;
   // Firebase web credentials configuration
   firebase: FirebaseConfig;
-  // Google Calendar integration settings
-  googleCalendar: {
-    // Default public Google Calendar ID used as the initial `calendarId` input
-    // of the events-calendar list, populating the app's public events view when
-    // no calendar is passed explicitly.
-    calendarId: string;
-  };
   // Public support/help contact address. Displayed to users (not emailed
   // automatically) on the login and unauthorized pages, in the footer, and in
   // error dialogs (e.g. firebase-state) inviting them to get in touch.

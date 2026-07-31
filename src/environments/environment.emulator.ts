@@ -30,9 +30,6 @@ export const environment: AppEnvironment = {
   production: false,
   useEmulator: true,
   firebase: firebaseConfig,
-  googleCalendar: {
-    calendarId: '',
-  },
   adminEmail: 'admin@example.com',
   passwordResetEmailSender: 'noreply@example.com',
   // Web push is generally not used against the emulator; leave empty to disable.

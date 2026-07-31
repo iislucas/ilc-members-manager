@@ -28,7 +28,6 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
     metadataLoading = signal(true);
 
     isRefreshing = signal(false);
-    refreshTarget = signal<'all' | 'events' | 'blogs' | null>(null);
     isClearing = signal(false);
     resultMessage = signal('');
     errorMessage = signal('');
@@ -64,68 +63,40 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
         );
     }
 
-    async refreshAll() {
-        await this.doRefresh('all');
-    }
-
-    async refreshEvents() {
-        await this.doRefresh('events');
-    }
-
     async refreshBlogs() {
-        await this.doRefresh('blogs');
-    }
-
-    private async doRefresh(target: 'all' | 'events' | 'blogs') {
         this.isRefreshing.set(true);
-        this.refreshTarget.set(target);
         this.resultMessage.set('');
         this.errorMessage.set('');
 
         try {
             const refreshFn = httpsCallable<
-                { eventsOnly?: boolean; blogsOnly?: boolean },
+                void,
                 {
                     success: boolean;
-                    eventCount: number;
                     postCount: number;
-                    eventsUpdated?: number;
-                    eventsRemoved?: number;
                     blogsUpdated?: number;
                     blogsRemoved?: number;
                 }
             >(this.functions, 'manualRefreshCache');
 
-            const result = await refreshFn({
-                eventsOnly: target === 'events',
-                blogsOnly: target === 'blogs',
-            });
+            const result = await refreshFn();
 
-            const parts: string[] = [];
-            if (result.data.eventCount > 0) {
-                const detail = result.data.eventsUpdated !== undefined
-                    ? ` (${result.data.eventsUpdated} updated, ${result.data.eventsRemoved} removed)`
-                    : '';
-                parts.push(`${result.data.eventCount} events${detail}`);
-            }
             if (result.data.postCount > 0) {
                 const detail = result.data.blogsUpdated !== undefined
                     ? ` (${result.data.blogsUpdated} updated, ${result.data.blogsRemoved} removed)`
                     : '';
-                parts.push(`${result.data.postCount} blog posts${detail}`);
+                this.resultMessage.set(
+                    `Cache synced: ${result.data.postCount} blog posts${detail}.`,
+                );
+            } else {
+                this.resultMessage.set('Cache synced (no items found).');
             }
-            this.resultMessage.set(
-                parts.length > 0
-                    ? `Cache synced: ${parts.join(', ')}.`
-                    : 'Cache synced (no items found).',
-            );
         } catch (error) {
             console.error('Cache refresh failed:', error);
             const msg = error instanceof Error ? error.message : String(error);
             this.errorMessage.set(`Cache refresh failed: ${msg}`);
         } finally {
             this.isRefreshing.set(false);
-            this.refreshTarget.set(null);
         }
     }
 

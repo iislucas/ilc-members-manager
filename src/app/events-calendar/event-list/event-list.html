@@ -60,17 +60,6 @@
             <app-icon [name]="showFromDateFilter() ? 'check_box' : 'check_box_outline_blank'"></app-icon>
             <span>Find events from date</span>
           </div>
-          @if (inputCalendarId()) {
-            <a
-              class="menu-item"
-              href="https://calendar.google.com/calendar/embed?mode=AGENDA&src={{ inputCalendarId() }}"
-              target="_blank"
-              (click)="optionsMenuOpen.set(false)"
-            >
-              <app-icon name="calendar_today"></app-icon>
-              <span>Open in Google Calendar</span>
-            </a>
-          }
         </div>
       }
     </div>

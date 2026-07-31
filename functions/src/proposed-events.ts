@@ -15,8 +15,6 @@ import * as logger from 'firebase-functions/logger';
 import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership } from './common';
 import { createMemberNotification } from './notifications';
-import axios from 'axios';
-import { environment } from './environment/environment';
 import { contentChanged } from './content-cache';
 
 /**
@@ -403,7 +401,8 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     logger.info(`Cleaning up ${removedUrls.length} removed document(s) for event ${event.params.docId}.`);
     await deleteStorageFiles(removedUrls);
   }
-  // Only sync firebase-sourced events (calendar-sourced events are managed by the calendar sync).
+  // Legacy events imported from Google Calendar before that sync was removed
+  // are left untouched; only app-authored events are processed here.
   if (after.kind === EventSourceKind.CalendarSourced) return;
 
   const becameListed = before.status !== EventStatus.Listed && after.status === EventStatus.Listed;
@@ -434,48 +433,6 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
   }
 
   if (becameListed || wasListedAndChanged) {
-    logger.info(`Syncing event ${event.params.docId} to Google Calendar.`);
-
-    const calendarId = environment.googleCalendar.calendarId;
-    let googleCalEventId = after.sourceId;
-
-    try {
-      const tokenResponse = await admin.credential.applicationDefault().getAccessToken();
-      const accessToken = tokenResponse.access_token;
-
-      if (accessToken && calendarId) {
-        const calendarApiUrl = googleCalEventId
-          ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(googleCalEventId)}`
-          : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
-
-        const gcalEvent = {
-          summary: after.title,
-          location: after.location,
-          description: after.description,
-          start: after.start.includes('T') ? { dateTime: after.start } : { date: after.start },
-          end: after.end.includes('T') ? { dateTime: after.end } : { date: after.end },
-        };
-
-        const response = await (googleCalEventId
-          ? axios.put(calendarApiUrl, gcalEvent, { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } })
-          : axios.post(calendarApiUrl, gcalEvent, { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } })
-        );
-
-        if (!googleCalEventId) {
-          googleCalEventId = response.data.id;
-          logger.info(`Created Google Calendar event with ID: ${googleCalEventId}`);
-          await event.data.after.ref.update({
-            sourceId: googleCalEventId,
-            googleCalEventLink: `https://www.google.com/calendar/event?eid=${googleCalEventId}`,
-          });
-        } else {
-          logger.info(`Updated Google Calendar event with ID: ${googleCalEventId}`);
-        }
-      }
-    } catch (err) {
-      logger.error('Failed to write to Google Calendar.', err);
-    }
-
     // Update lastUpdated timestamp
     await event.data.after.ref.update({ lastUpdated: new Date().toISOString() });
   }
@@ -527,22 +484,6 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
     logger.info(`Removed mirrored event ${eventDocId} from member ${docId} subcollection.`);
   }
 
-  // Also remove from Google Calendar if it was listed
-  if (eventData.status === EventStatus.Listed && eventData.sourceId) {
-    const calendarId = environment.googleCalendar.calendarId;
-    const googleCalEventId = eventData.sourceId;
-    try {
-      const tokenResponse = await admin.credential.applicationDefault().getAccessToken();
-      const accessToken = tokenResponse.access_token;
-      if (accessToken && calendarId) {
-        const calendarApiUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(googleCalEventId)}`;
-        await axios.delete(calendarApiUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
-        logger.info(`Deleted Google Calendar event with ID: ${googleCalEventId}`);
-      }
-    } catch (err) {
-      logger.error('Failed to delete from Google Calendar.', err);
-    }
-  }
   // Delete all uploaded documents and images from Storage.
   const bucket = admin.storage().bucket();
   try {
