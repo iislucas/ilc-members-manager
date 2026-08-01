@@ -59,8 +59,8 @@ const memberLevel = (docId: string) => async () => {
   const snap = await db.collection('members').doc(docId).get();
   const d = (snap.data() as Record<string, unknown> | undefined) || {};
   return {
-    studentLevel: (d.studentLevel as string) || '',
-    applicationLevel: (d.applicationLevel as string) || '',
+    studentLevel: (d['studentLevel'] as string) || '',
+    applicationLevel: (d['applicationLevel'] as string) || '',
   };
 };
 
