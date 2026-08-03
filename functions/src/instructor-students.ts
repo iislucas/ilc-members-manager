@@ -54,7 +54,7 @@ export function removedStudentMarkdown(instructor: Member): string {
   return (
     `${who} has removed you from their student list, so you no longer have a ` +
     `primary instructor.\n\n` +
-    `You can [choose a new primary instructor](#/myProfile) whenever you like.\n\n` +
+    `You can [choose a new primary instructor](/myProfile) whenever you like.\n\n` +
     `If you think this was a mistake and you would like ${who} to remain your ` +
     `primary instructor, please talk to them directly and they can add you back.`
   );

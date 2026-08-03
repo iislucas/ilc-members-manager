@@ -151,7 +151,7 @@ describe('story: instructor-remove-student', () => {
       (n) => n.kind === NotificationKind.PrimaryInstructorRemoved,
     )!;
     expect(note.markdown).toContain('Sifu Sam');
-    expect(note.markdown).toContain('#/myProfile');
+    expect(note.markdown).toContain('](/myProfile)');
     expect(note.markdown).toContain('talk to them directly');
     expect(note.data).toMatchObject({
       instructorId: sifuInstructorId,
