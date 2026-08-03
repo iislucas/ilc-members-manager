@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "emulator",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "start:emulator"],
+      "port": 4200
+    }
+  ]
+}

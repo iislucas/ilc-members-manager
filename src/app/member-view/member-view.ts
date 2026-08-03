@@ -6,6 +6,16 @@ import { AppPathPatterns } from '../app.config';
 import { MemberDetailsComponent } from '../member-details/member-details';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { canMarkMembershipInactive } from '../../../functions/src/data-model';
+
+/** The actions a primary instructor can take on one of their own students. */
+export enum StudentAction {
+  // Record a lapsed membership as Inactive, which hides the student from the
+  // default (active-only) view of the instructor's students list.
+  MarkInactive = 'MarkInactive',
+  // Clear the student's primaryInstructorId, ending the relationship.
+  Remove = 'Remove',
+}
 
 @Component({
   selector: 'app-member-view',
@@ -22,14 +32,18 @@ export class MemberViewComponent implements OnInit {
   basePath = input.required<string>();
   backLabel = input.required<string>();
 
-  // Offers the "remove from my students" action. Only set on the My Students
-  // route, where the viewer is the member's primary instructor.
-  allowRemoveStudent = input<boolean>(false);
+  // Offers the instructor actions menu. Only set on the My Students route,
+  // where the viewer is the member's primary instructor.
+  allowStudentActions = input<boolean>(false);
 
-  // Two-step confirmation state for the removal.
-  confirmingRemove = signal(false);
-  isRemoving = signal(false);
-  removeError = signal('');
+  StudentAction = StudentAction;
+
+  // The three-dot actions menu, and the two-step confirmation every action in
+  // it goes through.
+  menuOpen = signal(false);
+  pendingAction = signal<StudentAction | null>(null);
+  isWorking = signal(false);
+  actionError = signal('');
 
   ngOnInit() {
     window.scrollTo(0, 0);
@@ -49,26 +63,63 @@ export class MemberViewComponent implements OnInit {
     );
   });
 
+  // "Mark as inactive" is only on offer once the membership has actually
+  // lapsed. The callable re-checks this, so a stale copy of the member here can
+  // only cost the instructor an error message, never deactivate a live
+  // membership.
+  canMarkInactive = computed(() => {
+    const m = this.member();
+    if (!m || !this.allowStudentActions()) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return canMarkMembershipInactive(m, today);
+  });
+
   goBack() {
     this.routingService.navigateToParts([`/${this.basePath()}?jumpTo=${this.memberId()}`]);
   }
 
-  async removeStudent() {
+  /** Closes the menu and asks the instructor to confirm `action`. */
+  startAction(action: StudentAction) {
+    this.menuOpen.set(false);
+    this.actionError.set('');
+    this.pendingAction.set(action);
+  }
+
+  cancelAction() {
+    this.pendingAction.set(null);
+    this.actionError.set('');
+  }
+
+  /**
+   * Runs the confirmed action. Both actions take the student out of the
+   * instructor's default list view, so both return to that list on success —
+   * where the effect of the action is visible.
+   */
+  async confirmAction() {
     const m = this.member();
-    if (!m || this.isRemoving()) return;
-    this.isRemoving.set(true);
-    this.removeError.set('');
+    const action = this.pendingAction();
+    if (!m || !action || this.isWorking()) return;
+    this.isWorking.set(true);
+    this.actionError.set('');
     try {
-      await this.dataService.removeStudentFromInstructor(m.docId);
+      if (action === StudentAction.Remove) {
+        await this.dataService.removeStudentFromInstructor(m.docId);
+      } else {
+        await this.dataService.markStudentInactive(m.docId);
+      }
+      this.pendingAction.set(null);
       this.routingService.navigateToParts([`/${this.basePath()}`]);
     } catch (e) {
-      console.error('Failed to remove student', e);
-      this.removeError.set(
-        e instanceof Error ? e.message : 'Failed to remove this student.',
+      console.error(`Failed to run ${action} on student ${m.docId}`, e);
+      this.actionError.set(
+        e instanceof Error
+          ? e.message
+          : action === StudentAction.Remove
+            ? 'Failed to remove this student.'
+            : 'Failed to mark this student inactive.',
       );
     } finally {
-      this.isRemoving.set(false);
-      this.confirmingRemove.set(false);
+      this.isWorking.set(false);
     }
   }
 }

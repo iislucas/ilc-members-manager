@@ -1436,6 +1436,17 @@ export class DataManagerService {
     await fn({ studentMemberDocId });
   }
 
+  // Record a student's lapsed membership as Inactive, so they drop out of the
+  // default view of the signed-in instructor's My Students list. Guarded by the
+  // same Cloud Function as the removal, for the same reason.
+  async markStudentInactive(studentMemberDocId: string): Promise<void> {
+    const fn = httpsCallable<
+      { studentMemberDocId: string },
+      { success: boolean }
+    >(this.functions, 'markStudentInactive');
+    await fn({ studentMemberDocId });
+  }
+
   async reprocessOrder(docId: string): Promise<void> {
     const fn = httpsCallable<{ docId: string }, { success: boolean }>(
       this.functions,

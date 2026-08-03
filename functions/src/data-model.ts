@@ -141,6 +141,49 @@ export enum MembershipType {
   NotYetAMember = 'NotYetAMember',
 }
 
+/** The membership fields the active/inactive rules below look at. */
+export type MembershipFields = {
+  membershipType: MembershipType;
+  currentMembershipExpires: string;
+};
+
+/**
+ * Whether the member's ILC membership is live right now: Life members always
+ * are, Annual members are up to and including `currentMembershipExpires`, and
+ * every other type (Inactive, Deceased, NotYetAMember) never is.
+ *
+ * `today` is a YYYY-MM-DD string, the same format expiry dates are stored in,
+ * so the two compare lexicographically.
+ */
+export function hasActiveMembership(
+  member: MembershipFields,
+  today: string,
+): boolean {
+  if (member.membershipType === MembershipType.Life) return true;
+  if (member.membershipType !== MembershipType.Annual) return false;
+  const expires = member.currentMembershipExpires;
+  return !!expires && expires >= today;
+}
+
+/**
+ * Whether a primary instructor may mark this student's membership Inactive
+ * (the action offered on the My Students view). Only lapsed memberships
+ * qualify: a live membership must never be switched off this way, and someone
+ * already recorded as Inactive or Deceased has nothing to change.
+ */
+export function canMarkMembershipInactive(
+  member: MembershipFields,
+  today: string,
+): boolean {
+  if (
+    member.membershipType === MembershipType.Inactive ||
+    member.membershipType === MembershipType.Deceased
+  ) {
+    return false;
+  }
+  return !hasActiveMembership(member, today);
+}
+
 /** Status of a membership or license expiry. */
 export enum ExpiryStatus {
   Valid = 'valid',
@@ -537,6 +580,10 @@ export enum NotificationKind {
   // rather than an action: picking a new primary instructor is entirely optional
   // and in practice is not something the student is expected to act on here.
   PrimaryInstructorRemoved = 'PrimaryInstructorRemoved',
+  // Sent to a student when their primary instructor records their lapsed
+  // membership as Inactive. Informational: renewing is always an option, but
+  // nothing is being asked of them here.
+  MembershipMarkedInactive = 'MembershipMarkedInactive',
   MembershipPending = 'MembershipPending',
   MembershipActivated = 'MembershipActivated',
   InstructorLicensePending = 'InstructorLicensePending',
@@ -659,6 +706,12 @@ export interface NotificationPrimaryInstructorRemovedData {
   instructorName: string;
 }
 
+export interface NotificationMembershipMarkedInactiveData {
+  // The primary instructor who recorded the membership as inactive.
+  instructorId: string;
+  instructorName: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -739,6 +792,10 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.PrimaryInstructorRemoved;
     data: NotificationPrimaryInstructorRemovedData;
+  }
+  | {
+    kind: NotificationKind.MembershipMarkedInactive;
+    data: NotificationMembershipMarkedInactiveData;
   }
 );
 
