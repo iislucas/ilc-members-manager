@@ -1,33 +1,97 @@
 @use "../../scss_variables.scss" as v;
+@use "../../styles.scss" as *;
 
 :host {
   display: block;
 }
 
-.remove-student {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid v.$border-color-light;
-
-  p {
-    max-width: 55em;
-  }
-
-  .remove-student-buttons {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-}
-
 .member-view-actions {
   margin-bottom: 1rem;
-  
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
   .back-link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
     padding: 0.5rem 0.5rem;
+  }
+}
+
+.actions-menu-container {
+  position: relative;
+}
+
+.actions-menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 20em;
+
+  // The menu items are buttons (for keyboard access) styled as menu rows, so
+  // the default button chrome has to go.
+  .menu-item {
+    background: none;
+    border: none;
+    box-shadow: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    align-items: flex-start;
+    width: 100%;
+    white-space: normal;
+
+    &:hover {
+      box-shadow: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
+    }
+
+    app-icon {
+      flex-shrink: 0;
+      // Line the icon up with the label rather than the wrapped note below it.
+      margin-top: 0.1em;
+    }
+  }
+
+  .action-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+  }
+
+  .action-note {
+    font-size: 0.8em;
+    color: v.$text-secondary;
+    max-width: 24em;
+  }
+}
+
+.action-confirm {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid v.$border-color-light;
+  border-radius: 5px;
+
+  h3 {
+    margin-top: 0;
+  }
+
+  p {
+    max-width: 55em;
+  }
+
+  .action-confirm-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
   }
 }

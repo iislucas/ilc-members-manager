@@ -175,6 +175,8 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Purchase Processed';
       case NotificationKind.PrimaryInstructorRemoved:
         return 'Removed by Your Primary Instructor';
+      case NotificationKind.MembershipMarkedInactive:
+        return 'Membership Marked Inactive';
       default:
         return kind;
     }

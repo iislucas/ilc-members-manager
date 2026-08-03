@@ -1,55 +1,122 @@
+@let m = member();
+
 <div class="member-view-actions">
   <a class="back-link subtle-button" [href]="routingService.hrefWithParams('/' + basePath() + '?jumpTo=' + memberId())">
     <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
   </a>
+
+  @if (m && allowStudentActions()) {
+    <div class="actions-menu-container">
+      <button
+        type="button"
+        class="icon-only-button"
+        (click)="menuOpen.set(!menuOpen())"
+        [attr.aria-expanded]="menuOpen()"
+        aria-haspopup="true"
+        aria-label="More actions for this student"
+        title="More actions"
+      >
+        <app-icon name="more_vert"></app-icon>
+      </button>
+      @if (menuOpen()) {
+        <div class="menu-overlay transparent" (click)="menuOpen.set(false)"></div>
+        <div class="actions-menu">
+          @if (canMarkInactive()) {
+            <button
+              type="button"
+              class="menu-item"
+              (click)="startAction(StudentAction.MarkInactive)"
+            >
+              <app-icon name="visibility_off"></app-icon>
+              <span class="action-text">
+                <span class="action-label">Mark as inactive</span>
+                <span class="action-note">
+                  Their membership is no longer current. Records it as inactive,
+                  which hides them from your students list.
+                </span>
+              </span>
+            </button>
+          }
+          <button
+            type="button"
+            class="menu-item"
+            (click)="startAction(StudentAction.Remove)"
+          >
+            <app-icon name="trash"></app-icon>
+            <span class="action-text">
+              <span class="action-label">Remove from my students</span>
+              <span class="action-note">
+                You stop being their primary instructor and lose access to their
+                details.
+              </span>
+            </span>
+          </button>
+        </div>
+      }
+    </div>
+  }
 </div>
 
+@if (m && pendingAction(); as action) {
+  <div class="action-confirm">
+    @if (action === StudentAction.MarkInactive) {
+      <h3>Mark {{ m.name }} as inactive?</h3>
+      <p>
+        This records <strong>{{ m.name }}</strong>'s membership status as
+        <strong>Inactive</strong>, because their ILC membership is no longer
+        current. They stay your student and all their records are kept, but they
+        will no longer appear in your students list unless you choose to show
+        inactive members, and they lose access to the members' area until they
+        renew.
+      </p>
+      <p>
+        {{ m.name }} is notified, told that you are still their primary
+        instructor, and can renew their membership at any time — which makes
+        them active again.
+      </p>
+    } @else {
+      <h3>Remove {{ m.name }} from your students?</h3>
+      <p>
+        You will no longer be <strong>{{ m.name }}</strong>'s primary instructor
+        and will lose access to their details. {{ m.name }} will be notified,
+        can then choose a new primary instructor, and is told to talk to you if
+        they think it was a mistake.
+      </p>
+    }
+
+    @if (actionError()) {
+      <div class="error-message">{{ actionError() }}</div>
+    }
+
+    @if (isWorking()) {
+      <app-spinner></app-spinner>
+    } @else {
+      <div class="action-confirm-buttons">
+        @if (action === StudentAction.MarkInactive) {
+          <button type="button" (click)="confirmAction()">
+            <app-icon name="visibility_off" fill="#000" /> Yes, mark
+            {{ m.name }} inactive
+          </button>
+        } @else {
+          <button type="button" class="delete-button" (click)="confirmAction()">
+            <app-icon name="trash" fill="#000" /> Yes, remove {{ m.name }}
+          </button>
+        }
+        <button type="button" class="subtle-button" (click)="cancelAction()">
+          Cancel
+        </button>
+      </div>
+    }
+  </div>
+}
+
 <div class="member-view-content">
-  @let m = member();
   @if (m) {
     <app-member-details
       [member]="m"
       [allMembers]="dataService.members.entries()"
       (close)="goBack()"
     ></app-member-details>
-
-    @if (allowRemoveStudent()) {
-      <div class="remove-student">
-        @if (removeError()) {
-          <div class="error-message">{{ removeError() }}</div>
-        }
-        @if (isRemoving()) {
-          <app-spinner></app-spinner>
-        } @else if (confirmingRemove()) {
-          <p>
-            Remove <strong>{{ m.name }}</strong> from your students? You will no
-            longer be their primary instructor and will lose access to their
-            details. {{ m.name }} will be notified, can then choose a new primary
-            instructor, and is told to talk to you if they think it was a mistake.
-          </p>
-          <div class="remove-student-buttons">
-            <button type="button" class="delete-button" (click)="removeStudent()">
-              <app-icon name="trash" fill="#000" /> Yes, remove {{ m.name }}
-            </button>
-            <button
-              type="button"
-              class="subtle-button"
-              (click)="confirmingRemove.set(false)"
-            >
-              Cancel
-            </button>
-          </div>
-        } @else {
-          <button
-            type="button"
-            class="delete-button"
-            (click)="confirmingRemove.set(true)"
-          >
-            <app-icon name="trash" fill="#000" /> Remove from my students
-          </button>
-        }
-      </div>
-    }
   } @else {
     <div class="not-found">
       Member not found.
