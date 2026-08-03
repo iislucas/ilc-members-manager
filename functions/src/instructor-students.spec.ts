@@ -49,7 +49,7 @@ describe('removedStudentMarkdown', () => {
     const md = removedStudentMarkdown(sifu);
     expect(md).toContain('Sifu Sam');
     expect(md).toContain('INST-1');
-    expect(md).toContain('(#/myProfile)');
+    expect(md).toContain('](/myProfile)');
     expect(md).toContain('talk to them directly');
   });
 
