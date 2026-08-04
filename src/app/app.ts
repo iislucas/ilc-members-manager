@@ -150,12 +150,25 @@ export class App {
     const href = anchor.getAttribute('href');
     if (!href) return;
 
+    // Legacy hash-routing links (`/#/resources/...`, `#/notifications`) name an
+    // app route, not an in-page anchor — they still turn up in older emails and
+    // notifications. main.ts rewrites them to their path equivalent, but only on
+    // a cold load; a click from inside the app is handled here and never
+    // reloads, so without the same rewrite we would `preventDefault` and push
+    // `/#/resources/...`, leaving the user on Home with the fragment stuck in
+    // the URL.
+    const linkPath = href.startsWith('/#/')
+      ? href.substring(2)
+      : href.startsWith('#/')
+        ? href.substring(1)
+        : href;
+
     if (
-      !href.startsWith('http') &&
-      !href.startsWith('//') &&
-      !href.startsWith('#') &&
-      !href.startsWith('mailto:') &&
-      !href.startsWith('tel:') &&
+      !linkPath.startsWith('http') &&
+      !linkPath.startsWith('//') &&
+      !linkPath.startsWith('#') &&
+      !linkPath.startsWith('mailto:') &&
+      !linkPath.startsWith('tel:') &&
       !anchor.hasAttribute('download') &&
       anchor.getAttribute('target') !== '_blank' &&
       !event.ctrlKey &&
@@ -164,7 +177,7 @@ export class App {
       event.button === 0
     ) {
       event.preventDefault();
-      let path = href;
+      let path = linkPath;
       if (path.startsWith('/')) {
         path = path.substring(1);
       }

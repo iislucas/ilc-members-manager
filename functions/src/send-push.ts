@@ -133,7 +133,7 @@ export const sendPushOnNotification = onDocumentCreated(
           notifId,
           kind: notification.kind,
           onActionClick: {
-            default: { operation: 'focusLastFocusedOrOpen', url: '/#/notifications' },
+            default: { operation: 'focusLastFocusedOrOpen', url: '/notifications' },
           },
         },
       },

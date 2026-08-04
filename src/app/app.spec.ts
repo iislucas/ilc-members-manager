@@ -235,5 +235,54 @@ describe('App', () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(navigateSpy).toHaveBeenCalledWith('members');
   });
+
+  // Legacy hash-routing links still turn up in old emails and notifications.
+  // main.ts rewrites them on a cold load, but a click inside the app never
+  // reloads, so the interceptor has to strip the `#` itself — otherwise it
+  // pushes `/#/...` and silently leaves the user on Home.
+  it('should navigate to the path equivalent of a legacy hash link', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    await fixture.whenStable();
+
+    const navigateSpy = vi.spyOn(app.routingService, 'navigateTo').mockImplementation(() => {});
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    for (const [href, expected] of [
+      ['/#/resources/instructors/Instructor%20Packet%202026.pdf',
+       'resources/instructors/Instructor%20Packet%202026.pdf'],
+      ['#/notifications', 'notifications'],
+    ]) {
+      navigateSpy.mockClear();
+      const link = document.createElement('a');
+      link.setAttribute('href', href);
+      compiled.appendChild(link);
+
+      const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+      link.dispatchEvent(clickEvent);
+
+      expect(clickEvent.defaultPrevented).toBe(true);
+      expect(navigateSpy).toHaveBeenCalledWith(expected);
+    }
+  });
+
+  it('should leave genuine in-page anchors to the browser', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    await fixture.whenStable();
+
+    const navigateSpy = vi.spyOn(app.routingService, 'navigateTo').mockImplementation(() => {});
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const link = document.createElement('a');
+    link.setAttribute('href', '#section-2');
+    compiled.appendChild(link);
+
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    link.dispatchEvent(clickEvent);
+
+    expect(clickEvent.defaultPrevented).toBe(false);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
 });
 
