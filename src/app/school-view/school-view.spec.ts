@@ -6,6 +6,7 @@ import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, AppPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 import {
   School,
   initSchool,
@@ -67,6 +68,7 @@ describe('SchoolViewComponent', () => {
       imports: [SchoolViewComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: FIREBASE_APP, useValue: {} },
         {

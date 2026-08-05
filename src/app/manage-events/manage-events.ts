@@ -312,14 +312,11 @@ export class ManageEventsComponent implements OnDestroy {
     }
   }
 
+  // Stays inside the manage-events subtree, so the breadcrumbs and back link on
+  // the editor lead back here rather than into the public events pages.
   editLink(event: IlcEvent): string {
     const id = event.docId || event.sourceId || '';
-    return `/events/${id}/edit`;
-  }
-
-  viewLink(event: IlcEvent): string {
-    const id = event.docId || event.sourceId || '';
-    return `/manage-events/${id}`;
+    return `/manage-events/${id}/edit`;
   }
 
   // Resolve the event creator to a "Name (MemberId)" chip label.

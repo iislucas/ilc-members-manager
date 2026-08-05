@@ -15,6 +15,10 @@ export type PathPattern<T1 extends string, T2 extends string> = {
   urlParams: {
     [key in T2]: string;
   };
+
+  // Keys that are ephemeral navigation tags (e.g. 'from', 'returnUrl').
+  // These are not persisted or carried forward when constructing links.
+  ephemeralUrlParams?: Set<string>;
 };
 
 // The main type for specifing path patterns in a router.
@@ -43,14 +47,19 @@ export function makeUrlParams<T extends string>(
 }
 
 // A URL param definition: either a plain string name (default='') or an
-// object with a name and a non-empty default value.
-export type UrlParamDef<T extends string> = T | { name: T; default: string };
+// object with a name and options (e.g. non-empty default, ephemeral flag).
+// Ephemeral params (like 'from' or 'returnUrl') are transient navigation tags
+// and are never carried forward when constructing links to a page.
+export type UrlParamDef<T extends string> =
+  | T
+  | { name: T; default?: string; ephemeral?: boolean };
 
 // Add URL params to a PathPattern that doesn't have them.
-// Accepts plain strings (default '') or { name, default } objects.
+// Accepts plain strings (default '') or { name, default, ephemeral } objects.
 //
 //   addUrlParams(pattern, ['q', 'tab'])
 //   addUrlParams(pattern, ['q', { name: 'sortDir', default: 'asc' }])
+//   addUrlParams(pattern, [{ name: 'from', ephemeral: true }])
 export function addUrlParams<
   P1 extends string,
   U1 extends string,
@@ -63,11 +72,15 @@ export function addUrlParams<
     ...(pathPattern as PathPattern<P1, U1 | U2>),
   };
   newPathPattern.urlParams = { ...newPathPattern.urlParams };
+  newPathPattern.ephemeralUrlParams = new Set(pathPattern.ephemeralUrlParams ?? []);
   for (const def of urlParamDefs) {
     if (typeof def === 'string') {
       newPathPattern.urlParams[def] = '';
     } else {
-      newPathPattern.urlParams[def.name] = def.default;
+      newPathPattern.urlParams[def.name] = def.default ?? '';
+      if (def.ephemeral) {
+        newPathPattern.ephemeralUrlParams.add(def.name);
+      }
     }
   }
   return newPathPattern;
@@ -206,6 +219,8 @@ export class PatternSignals<PathVars extends string, UrlParams extends string> {
   urlParams: { [key in UrlParams]: WritableSignal<string> };
   // Stored defaults so the routing service can skip writing default values to the URL.
   urlParamDefaults: { [key: string]: string };
+  // Keys of urlParams that are ephemeral navigation tags (not carried forward in links).
+  ephemeralUrlParams: Set<string>;
 
   constructor(pattern: PathPattern<PathVars, UrlParams>) {
     this.pathVars = {} as {
@@ -218,6 +233,7 @@ export class PatternSignals<PathVars extends string, UrlParams extends string> {
 
     pattern.urlParams ??= {} as { [key in UrlParams]: string };
     this.urlParamDefaults = {};
+    this.ephemeralUrlParams = new Set(pattern.ephemeralUrlParams ?? []);
     this.urlParams = {} as {
       [key in UrlParams]: WritableSignal<string>;
     };

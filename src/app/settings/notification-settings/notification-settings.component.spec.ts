@@ -6,6 +6,7 @@ import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { NotificationKind } from '../../../../functions/src/data-model';
+import { provideNavigationTreeStub } from '../../navigation-tree.testing';
 
 describe('NotificationSettingsComponent', () => {
   let component: NotificationSettingsComponent;
@@ -46,6 +47,7 @@ describe('NotificationSettingsComponent', () => {
       imports: [NotificationSettingsComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: FirebaseStateService, useValue: mockFirebaseService },
         {

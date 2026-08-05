@@ -73,14 +73,14 @@ export enum Views {
 
 export const memberListPathPatterns = {
   [Views.MyStudents]: addUrlParams(pathPattern`my-students`, [
-    'jumpTo', 'q', 'tag',
+    { name: 'jumpTo', ephemeral: true }, 'q', 'tag',
     { name: 'sortBy', default: 'lastUpdated' },
     { name: 'sortDir', default: 'desc' },
   ]),
   [Views.SchoolMembers]: addUrlParams(
     pathPattern`school/${pv('schoolId')}/members`,
     [
-      'jumpTo', 'q', 'tag',
+      { name: 'jumpTo', ephemeral: true }, 'q', 'tag',
       { name: 'sortBy', default: 'lastUpdated' },
       { name: 'sortDir', default: 'desc' },
     ],
@@ -88,7 +88,7 @@ export const memberListPathPatterns = {
   [Views.InstructorStudents]: addUrlParams(
     pathPattern`instructor/${pv('instructorId')}/students`,
     [
-      'jumpTo', 'q', 'tag',
+      { name: 'jumpTo', ephemeral: true }, 'q', 'tag',
       { name: 'sortBy', default: 'lastUpdated' },
       { name: 'sortDir', default: 'desc' },
     ],
@@ -101,7 +101,7 @@ export type MemberListPathPatternsIds = keyof MemberListPathPatterns;
 export const initPathPatterns = {
   ...memberListPathPatterns,
   [Views.Home]: pathPattern``,
-  [Views.Login]: addUrlParams(pathPattern`login`, ['returnUrl']),
+  [Views.Login]: addUrlParams(pathPattern`login`, [{ name: 'returnUrl', ephemeral: true }]),
   [Views.ClassCalendarView]: pathPattern`calendar/instructor/${pv('instructorId')}`,
   [Views.SchoolCalendarView]: pathPattern`calendar/school/${pv('schoolId')}`,
   [Views.ImportExport]: addUrlParams(pathPattern`import-export`, ['tab']),
@@ -113,7 +113,7 @@ export const initPathPatterns = {
   [Views.ManageSchoolEdit]: pathPattern`schools/${pv('schoolId')}/edit`,
   [Views.MyProfile]: pathPattern`myProfile`,
   [Views.ManageMembers]: addUrlParams(pathPattern`members`, [
-    'jumpTo', 'q', 'tag',
+    { name: 'jumpTo', ephemeral: true }, 'q', 'tag',
     { name: 'sortBy', default: 'lastUpdated' },
     { name: 'sortDir', default: 'desc' },
   ]),
@@ -128,7 +128,7 @@ export const initPathPatterns = {
   [Views.InstructorsArea]: pathPattern`instructors-area`,
   [Views.InstructorsAreaCategory]: pathPattern`instructors-area/category/${pv('category')}`,
   [Views.ManageGradings]: addUrlParams(pathPattern`gradings`, ['tab', 'event', 'groupDate', 'groupInstructor']),
-  [Views.GradingView]: addUrlParams(pathPattern`gradings/${pv('gradingId')}`, ['from']),
+  [Views.GradingView]: addUrlParams(pathPattern`gradings/${pv('gradingId')}`, [{ name: 'from', ephemeral: true }]),
   [Views.MemberGradings]: addUrlParams(pathPattern`my-gradings`, ['tab', 'event', 'groupDate', 'groupInstructor']),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
   [Views.NotificationSettings]: pathPattern`settings/notifications`,
@@ -144,7 +144,7 @@ export const initPathPatterns = {
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
   [Views.MembersAreaPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
-  [Views.NewMember]: addUrlParams(pathPattern`new-member`, ['basePath']),
+  [Views.NewMember]: addUrlParams(pathPattern`new-member`, [{ name: 'basePath', ephemeral: true }]),
   [Views.Statistics]: pathPattern`statistics`,
   [Views.EventsCalendar]: addUrlParams(pathPattern`events`, ['q', 'fromDate', 'schoolId', 'instructorId']),
   [Views.EventView]: pathPattern`events/${pv('eventId')}`,
@@ -166,13 +166,15 @@ export const initPathPatterns = {
   // Standalone Stripe purchase flow. Intentionally not linked from the home
   // page or navigation — reachable directly via its URL.
   [Views.Products]: pathPattern`products`,
-  [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, ['session_id']),
+  [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, [{ name: 'session_id', ephemeral: true }]),
 };
 
 // Santiy check for type correctness...
 addUrlParams(pathPattern`school/${pv('schoolId')}/members`, []).pathVars
   .schoolId;
 addUrlParams(pathPattern`school/${pv('schoolId')}/members`, ['jumpTo'])
+  .urlParams.jumpTo;
+addUrlParams(pathPattern`school/${pv('schoolId')}/members`, [{ name: 'jumpTo', ephemeral: true }])
   .urlParams.jumpTo;
 addUrlParams(pathPattern`school/${pv('schoolId')}/members`, ['jumpTo'])
   .pathVars.schoolId;

@@ -3,7 +3,7 @@
 } @else if (loadError()) {
   <div class="error-container">
     <span class="error-message">{{ loadError() }}</span>
-    <a class="subtle-button" [href]="routingService.hrefWithParams(backUrl())">
+    <a class="subtle-button" [href]="routingService.hrefWithParams(listUrl())">
       <app-icon name="arrow_back" /> Back
     </a>
   </div>
@@ -654,18 +654,7 @@
         }
       </div>
       <div style="margin-top: 1em; padding-bottom: 1em; display: flex; gap: 1em; align-items: center;">
-        <a
-          class="subtle-button"
-          [href]="routingService.hrefWithParams(backUrl())"
-        >
-          <app-icon name="arrow_back" /> Back
-        </a>
-        <a
-          class="subtle-button"
-          [href]="routingService.hrefWithParams(viewEventUrl())"
-        >
-          <app-icon name="visibility" /> View event page
-        </a>
+        <app-back-link></app-back-link>
       </div>
     </form>
   </div>

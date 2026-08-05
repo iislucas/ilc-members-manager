@@ -7,6 +7,7 @@ import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, AppPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 import {
   InstructorPublicData,
   initInstructor,
@@ -56,6 +57,7 @@ describe('InstructorViewComponent', () => {
       imports: [InstructorViewComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         { provide: FindInstructorsService, useValue: mockFindInstructorsService },
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: FIREBASE_APP, useValue: {} },

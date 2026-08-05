@@ -22,7 +22,7 @@
                 ? crumb.shortLabel || crumb.label
                 : crumb.label;
             @if (crumb.url) {
-              <a [href]="crumb.url" class="crumb-link">{{ text }}</a>
+              <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
             } @else {
               <span class="crumb-label">{{ text }}</span>
             }

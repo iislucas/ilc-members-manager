@@ -86,6 +86,16 @@
     color: inherit;
     padding: 0.2em $crumb-side-padding;
     border-radius: 12px;
+    /* Ancestor crumbs are named after the record they point at (an event, a
+       school, a member), so they can be long. Keep each to one short chip —
+       the full text stays available as the link's tooltip — otherwise a single
+       parent can push the header several lines tall on a phone. */
+    display: inline-block;
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
     background-color: transparent;
     border: 1px solid transparent;
     transition: all 0.2s ease-in-out;

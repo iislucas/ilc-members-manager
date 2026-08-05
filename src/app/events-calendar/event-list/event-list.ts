@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { RoutingService } from '../../routing.service';
+import { BackLinkComponent } from '../../back-link/back-link';
 import { CalendarEvent } from '../event.model';
 import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';
@@ -56,7 +57,7 @@ type SearchableCalendarEvent = IlcEvent & { id: string };
 @Component({
   selector: 'app-event-list',
   standalone: true,
-  imports: [FormsModule, EventItemComponent, IconComponent, SpinnerComponent],
+  imports: [FormsModule, EventItemComponent, IconComponent, SpinnerComponent, BackLinkComponent],
   templateUrl: './event-list.html',
   styleUrl: './event-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -177,10 +178,6 @@ export class EventListComponent implements OnDestroy {
   fromDateDirty = computed(() => this.fromDateInput() !== this.activeFromDate());
 
   // --- Component Inputs ---
-  showBackButton = input<boolean>(false);
-  backLabel = input<string>('Back');
-  backUrl = input<string>('');
-
   // The Firestore collection path to load events from.
   // Defaults to 'events' for the public events list.
   collectionPath = input<string>('events');

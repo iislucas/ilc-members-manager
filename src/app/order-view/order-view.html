@@ -1,9 +1,6 @@
 <div class="order-view-container">
   <div class="header-actions">
-    <a [href]="routingService.hrefWithParams('orders')" class="subtle-button back-link">
-      <app-icon name="arrow_back"></app-icon>
-      Back to Orders
-    </a>
+    <app-back-link></app-back-link>
     @if (
       order()?.ilcAppOrderKind ===
       "https://api.squarespace.com/1.0/commerce/orders"

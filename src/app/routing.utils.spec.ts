@@ -5,6 +5,10 @@ import {
   mergeSubsts,
   matchUrl,
   updateSignalsFromSubsts,
+  pathPattern,
+  pv,
+  addUrlParams,
+  PatternSignals,
 } from './routing.utils';
 
 describe('Routing Utils', () => {
@@ -169,6 +173,22 @@ describe('Routing Utils', () => {
       };
       const remaining = updateSignalsFromSubsts(substs, signals);
       expect(remaining).toEqual({ invalid: 'param' });
+    });
+  });
+
+  describe('addUrlParams and PatternSignals with ephemeral params', () => {
+    it('should record ephemeralUrlParams in PathPattern and PatternSignals', () => {
+      const pattern = addUrlParams(pathPattern`gradings/${pv('gradingId')}`, [
+        { name: 'from', ephemeral: true },
+        'tab',
+      ]);
+      expect(pattern.ephemeralUrlParams).toBeDefined();
+      expect(pattern.ephemeralUrlParams?.has('from')).toBe(true);
+      expect(pattern.ephemeralUrlParams?.has('tab')).toBe(false);
+
+      const signals = new PatternSignals(pattern);
+      expect(signals.ephemeralUrlParams.has('from')).toBe(true);
+      expect(signals.ephemeralUrlParams.has('tab')).toBe(false);
     });
   });
 });
