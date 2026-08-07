@@ -38,6 +38,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 | [`angular-developer`](.agent/skills/angular-developer/SKILL.md) | When editing Angular components, templates, or routing |
 | [`html-css-developer`](.agent/skills/html-css-developer/SKILL.md) | When editing HTML templates or SCSS styles |
 | [`logo-iteration`](.agent/skills/logo-iteration/SKILL.md) | When working on the SVG logo generator in `mini-tools/` |
+| [`debug-user-access`](.agent/skills/debug-user-access/SKILL.md) | When investigating user login, permission, ACL desync, or resource access issues |
 
 **Adding a new skill**: create `.agent/skills/{skill-name}/SKILL.md` with frontmatter `name:` and `description:`, then populate it.
 **Updating a skill**: edit the relevant `SKILL.md` directly whenever you discover something non-obvious worth preserving across sessions.
