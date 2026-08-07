@@ -105,7 +105,7 @@ function todayStr(): string {
 // Checks whether the caller has access to a resource at the given access level.
 // Throws a descriptive HttpsError if access is denied, so the frontend can
 // display a helpful message (e.g. "Your membership expired on 2025-03-15").
-async function assertResourceAccess(
+export async function assertResourceAccess(
   request: import('firebase-functions/v2/https').CallableRequest<unknown>,
   accessLevel: ResourceAccessLevel,
 ): Promise<void> {
@@ -149,7 +149,7 @@ async function assertResourceAccess(
           { reason: 'missing', tier: 'membership' },
         );
       }
-      if (expires < today) {
+      if (expires !== 'life' && expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for active members. Your membership expired on ${expires}.`,
@@ -167,7 +167,7 @@ async function assertResourceAccess(
           { reason: 'missing', tier: 'instructor' },
         );
       }
-      if (expires < today) {
+      if (expires !== 'life' && expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for licensed instructors. Your instructor license expired on ${expires}.`,
@@ -185,7 +185,7 @@ async function assertResourceAccess(
           { reason: 'missing', tier: 'school' },
         );
       }
-      if (expires < today) {
+      if (expires !== 'life' && expires < today) {
         throw new HttpsError(
           'permission-denied',
           `This resource is for school owners/managers. Your school license expired on ${expires}.`,

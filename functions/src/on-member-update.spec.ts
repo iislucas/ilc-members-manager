@@ -65,6 +65,8 @@ describe('on-member-update triggers logic', () => {
   type MemberUpdateModule = typeof import('./on-member-update.js');
   let handleMembershipActivation: MemberUpdateModule['handleMembershipActivation'];
   let handleInstructorActivation: MemberUpdateModule['handleInstructorActivation'];
+  let updateACL: MemberUpdateModule['updateACL'];
+  let bestExpiry: MemberUpdateModule['bestExpiry'];
 
   let mockDb: MockFirestore;
   let mockBatch: MockBatch;
@@ -87,6 +89,8 @@ describe('on-member-update triggers logic', () => {
     const mod = await import('./on-member-update.js');
     handleMembershipActivation = mod.handleMembershipActivation;
     handleInstructorActivation = mod.handleInstructorActivation;
+    updateACL = mod.updateACL;
+    bestExpiry = mod.bestExpiry;
   });
 
   beforeEach(() => {
@@ -336,6 +340,203 @@ describe('on-member-update triggers logic', () => {
       expect(mockSet).not.toHaveBeenCalled();
       expect(mockBatch.delete).not.toHaveBeenCalled();
       expect(mockAdd).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('bestExpiry', () => {
+    it('returns "life" if any value is "life"', () => {
+      expect(bestExpiry(['2024-01-01', 'life', '2028-05-11'])).toBe('life');
+      expect(bestExpiry(['life', '2099-12-31'])).toBe('life');
+    });
+
+    it('returns the latest date string among valid dates', () => {
+      expect(bestExpiry(['2024-01-01', '2028-05-11', '2026-06-01'])).toBe('2028-05-11');
+      expect(bestExpiry(['2025-10-15', '2025-01-01'])).toBe('2025-10-15');
+    });
+
+    it('returns empty string if all values are empty', () => {
+      expect(bestExpiry(['', ''])).toBe('');
+      expect(bestExpiry([])).toBe('');
+    });
+  });
+
+  describe('updateACL', () => {
+    it('should trigger refresh when instructorLicenseExpires changes', async () => {
+      const aclData = {
+        memberDocIds: ['member-123'],
+        instructorIds: ['289'],
+        isAdmin: false,
+        instructorLicenseExpires: '',
+      };
+
+      const member = {
+        docId: 'member-123',
+        instructorId: '289',
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '2028-05-11',
+        membershipType: 'Life',
+        emails: ['tim@zxdpdx.com'],
+      } as Member;
+
+      const previous = {
+        docId: 'member-123',
+        instructorId: '289',
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '',
+        membershipType: 'Life',
+        emails: ['tim@zxdpdx.com'],
+      } as Member;
+
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => aclData,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      };
+
+      const mockMemberRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => member,
+        }),
+      };
+
+      const mockSchoolQuery = {
+        get: vi.fn().mockResolvedValue({ docs: [] }),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        batch: vi.fn().mockReturnValue(mockBatch),
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue(mockAclRef),
+            };
+          }
+          if (col === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue(mockMemberRef),
+            };
+          }
+          if (col === 'schools') {
+            return {
+              where: vi.fn().mockReturnValue(mockSchoolQuery),
+            };
+          }
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([
+          {
+            exists: true,
+            data: () => member,
+          },
+        ]),
+      } as any);
+
+      await updateACL({ previous, member });
+
+      // Verify that ACL was updated with the new instructorLicenseExpires date
+      expect(mockAclRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instructorLicenseExpires: '2028-05-11',
+          membershipExpires: 'life',
+          instructorIds: ['289'],
+        }),
+      );
+    });
+
+    it('should trigger refresh when membershipExpires changes', async () => {
+      const aclData = {
+        memberDocIds: ['member-123'],
+        isAdmin: false,
+        membershipExpires: '2025-01-01',
+      };
+
+      const member = {
+        docId: 'member-123',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2027-01-01',
+        emails: ['user@example.com'],
+      } as Member;
+
+      const previous = {
+        docId: 'member-123',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2025-01-01',
+        emails: ['user@example.com'],
+      } as Member;
+
+      const mockAclRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => aclData,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      };
+
+      const mockMemberRef = {
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          data: () => member,
+        }),
+      };
+
+      vi.spyOn(admin, 'firestore').mockReturnValue({
+        batch: vi.fn().mockReturnValue(mockBatch),
+        collection: vi.fn().mockImplementation((col: string) => {
+          if (col === 'acl') return { doc: vi.fn().mockReturnValue(mockAclRef) };
+          if (col === 'members') return { doc: vi.fn().mockReturnValue(mockMemberRef) };
+          if (col === 'schools') return { where: vi.fn().mockReturnValue({ get: vi.fn().mockResolvedValue({ docs: [] }) }) };
+          return {};
+        }),
+        getAll: vi.fn().mockResolvedValue([
+          {
+            exists: true,
+            data: () => member,
+          },
+        ]),
+      } as any);
+
+      await updateACL({ previous, member });
+
+      expect(mockAclRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          membershipExpires: '2027-01-01',
+        }),
+      );
+    });
+
+    it('should do nothing when no permissions or expiry fields change', async () => {
+      const member = {
+        docId: 'member-123',
+        name: 'Updated Name Only',
+        instructorId: '289',
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '2028-05-11',
+        membershipType: 'Life',
+        currentMembershipExpires: '',
+        emails: ['user@example.com'],
+      } as Member;
+
+      const previous = {
+        docId: 'member-123',
+        name: 'Old Name',
+        instructorId: '289',
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '2028-05-11',
+        membershipType: 'Life',
+        currentMembershipExpires: '',
+        emails: ['user@example.com'],
+      } as Member;
+
+      const firestoreSpy = vi.spyOn(admin, 'firestore');
+      firestoreSpy.mockClear();
+
+      await updateACL({ previous, member });
+
+      // No firestore calls should have occurred because updateACL returned early
+      expect(firestoreSpy).not.toHaveBeenCalled();
     });
   });
 });

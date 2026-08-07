@@ -27,9 +27,9 @@ import {
 } from './email-templates.js';
 import { markdownToHtml } from './email-markdown.js';
 
-const db = admin.firestore();
+const getDb = () => admin.firestore();
 
-async function updateACL(aclUpdate: {
+export async function updateACL(aclUpdate: {
   previous?: Member;
   member?: Member;
 }) {
@@ -50,16 +50,29 @@ async function updateACL(aclUpdate: {
 
   const isAdminChanged = member?.isAdmin !== previous?.isAdmin;
   const instructorIdChanged = instructorId !== previousInstructorId;
+  const membershipTypeChanged = member?.membershipType !== previous?.membershipType;
+  const membershipExpiresChanged = member?.currentMembershipExpires !== previous?.currentMembershipExpires;
+  const instructorLicenseTypeChanged = member?.instructorLicenseType !== previous?.instructorLicenseType;
+  const instructorLicenseExpiresChanged = member?.instructorLicenseExpires !== previous?.instructorLicenseExpires;
 
-  if (added.length === 0 && removed.length === 0 && !isAdminChanged && !instructorIdChanged) {
+  if (
+    added.length === 0 &&
+    removed.length === 0 &&
+    !isAdminChanged &&
+    !instructorIdChanged &&
+    !membershipTypeChanged &&
+    !membershipExpiresChanged &&
+    !instructorLicenseTypeChanged &&
+    !instructorLicenseExpiresChanged
+  ) {
     return;
   }
 
-  const batch = db.batch();
+  const batch = getDb().batch();
 
   for (const email of added) {
     if (!email) continue;
-    const aclRef = db.collection('acl').doc(email);
+    const aclRef = getDb().collection('acl').doc(email);
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: FieldValue.arrayUnion(memberDocId),
     };
@@ -68,7 +81,7 @@ async function updateACL(aclUpdate: {
 
   for (const email of removed) {
     if (!email) continue;
-    const aclRef = db.collection('acl').doc(email);
+    const aclRef = getDb().collection('acl').doc(email);
     const update: FirestoreUpdate<ACL> = {
       memberDocIds: FieldValue.arrayRemove(memberDocId),
     };
@@ -132,7 +145,7 @@ async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[]
 
   // Query schools where this user is the owner.
   for (const instId of validIds) {
-    const ownerSnap = await db.collection('schools')
+    const ownerSnap = await getDb().collection('schools')
       .where('ownerInstructorId', '==', instId).get();
     for (const doc of ownerSnap.docs) {
       docIdSet.add(doc.id);
@@ -142,7 +155,7 @@ async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[]
 
   // Query schools where this user is a manager.
   for (const instId of validIds) {
-    const managerSnap = await db.collection('schools')
+    const managerSnap = await getDb().collection('schools')
       .where('managerInstructorIds', 'array-contains', instId).get();
     for (const doc of managerSnap.docs) {
       docIdSet.add(doc.id);
@@ -154,7 +167,7 @@ async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[]
 }
 
 export async function refreshACLAdminStatus(email: string) {
-  const aclRef = db.collection('acl').doc(email);
+  const aclRef = getDb().collection('acl').doc(email);
   const aclSnap = await aclRef.get();
 
   if (!aclSnap.exists) return;
@@ -166,11 +179,11 @@ export async function refreshACLAdminStatus(email: string) {
   }
 
   const memberRefs = data.memberDocIds.map((memberDocId: string) =>
-    db.collection('members').doc(memberDocId),
+    getDb().collection('members').doc(memberDocId),
   );
   let memberSnaps: admin.firestore.DocumentSnapshot[] = [];
   if (memberRefs.length > 0) {
-    memberSnaps = await db.getAll(...memberRefs);
+    memberSnaps = await getDb().getAll(...memberRefs);
   }
 
   const anyAdmin = memberSnaps.some(
@@ -221,7 +234,7 @@ async function mirrorGradingsForSifuChange(
   if (previousSifu === currentSifu) return;
   if (!previousSifu && !currentSifu) return;
 
-  const gradingsSnap = await db.collection('gradings')
+  const gradingsSnap = await getDb().collection('gradings')
     .where('studentMemberDocId', '==', memberDocId)
     .get();
 
@@ -248,14 +261,14 @@ async function mirrorGradingsForSifuChange(
 
 async function populateInstructorMembers(instructorDocId: string, instructorId: string) {
   if (!instructorId) return;
-  const snapshot = await db.collection('members').where('primaryInstructorId', '==', instructorId).get();
+  const snapshot = await getDb().collection('members').where('primaryInstructorId', '==', instructorId).get();
 
   const chunks: admin.firestore.WriteBatch[] = [];
   let i = 0;
   snapshot.docs.forEach((doc) => {
-    if (i % 500 === 0) chunks.push(db.batch());
+    if (i % 500 === 0) chunks.push(getDb().batch());
     const batch = chunks[chunks.length - 1];
-    const ref = db.collection('instructors').doc(instructorDocId).collection('members').doc(doc.id);
+    const ref = getDb().collection('instructors').doc(instructorDocId).collection('members').doc(doc.id);
     batch.set(ref, doc.data());
     i++;
   });
@@ -431,8 +444,8 @@ export const onMemberCreated = onDocumentCreated(
       await populateInstructorMembers(snap.id, member.instructorId);
     }
 
-    await handleMembershipActivation(db, member);
-    await handleInstructorActivation(db, member);
+    await handleMembershipActivation(getDb(), member);
+    await handleInstructorActivation(getDb(), member);
   },
 );
 
@@ -465,8 +478,8 @@ export const onMemberUpdated = onDocumentUpdated(
 
     await updateACL({ previous, member });
 
-    await handleMembershipActivation(db, member, previous);
-    await handleInstructorActivation(db, member, previous);
+    await handleMembershipActivation(getDb(), member, previous);
+    await handleInstructorActivation(getDb(), member, previous);
   },
 );
 
