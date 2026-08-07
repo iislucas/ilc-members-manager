@@ -219,9 +219,11 @@ describe('App', () => {
     const navigateSpy = vi.spyOn(app.routingService, 'navigateTo').mockImplementation(() => {});
 
     const compiled = fixture.nativeElement as HTMLElement;
-    // Find the link to "/members"
+    // Find the link back to the members list. It carries `jumpTo` so the list
+    // scrolls to the member you came from — the same target the in-page back
+    // link uses, since both come from the navigation tree.
     const crumbLink = Array.from(compiled.querySelectorAll('.crumb-link'))
-      .find((el) => el.getAttribute('href') === '/members') as HTMLAnchorElement;
+      .find((el) => el.getAttribute('href') === '/members?jumpTo=M1') as HTMLAnchorElement;
     expect(crumbLink).toBeTruthy();
 
     // Click it!
@@ -233,7 +235,7 @@ describe('App', () => {
     crumbLink.dispatchEvent(clickEvent);
 
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(navigateSpy).toHaveBeenCalledWith('members');
+    expect(navigateSpy).toHaveBeenCalledWith('members?jumpTo=M1');
   });
 
   // Legacy hash-routing links still turn up in old emails and notifications.

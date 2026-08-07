@@ -242,6 +242,17 @@ export class RoutingService<T extends PathPatterns> {
     const match = matchUrl(urlPart, this.config.validPathPatterns);
     if (match) {
       const patternChanged = this.previousPatternId !== match.patternId;
+      if (patternChanged && this.previousPatternId) {
+        const prevSignals = this.signals[this.previousPatternId];
+        if (prevSignals) {
+          for (const key of prevSignals.ephemeralUrlParams ?? []) {
+            prevSignals.urlParams[key]?.set(prevSignals.urlParamDefaults[key] ?? '');
+          }
+          for (const key of Object.keys(prevSignals.pathVars)) {
+            prevSignals.pathVars[key]?.set('');
+          }
+        }
+      }
       this.previousPatternId = match.patternId;
       this.matchedPatternId.set(match.patternId);
       updateSignalsFromSubsts(
@@ -306,11 +317,16 @@ export class RoutingService<T extends PathPatterns> {
     if (!match) return pathAndParams;
 
     // Carry forward current signal values for the matched pattern's URL params.
+    // Ephemeral params (e.g. 'from', 'returnUrl') are skipped so they are not
+    // accidentally carried into newly constructed links.
     const patternSignals = this.signals[match.patternId as keyof T];
     const defaults = patternSignals.urlParamDefaults;
     for (const [key, sig] of Object.entries<WritableSignal<string>>(
       patternSignals.urlParams,
     )) {
+      if (patternSignals.ephemeralUrlParams?.has(key)) {
+        continue;
+      }
       if (!existingParams.has(key)) {
         const val = sig();
         if (val !== (defaults[key] ?? '')) {

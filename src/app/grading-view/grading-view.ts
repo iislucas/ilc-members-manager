@@ -18,7 +18,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { AppPathPatterns, Views } from '../app.config';
+import { AppPathPatterns } from '../app.config';
+import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
   selector: 'app-grading-view',
@@ -30,6 +31,7 @@ import { AppPathPatterns, Views } from '../app.config';
     GradingProgressComponent,
     IconComponent,
     SpinnerComponent,
+    BackLinkComponent,
   ],
   templateUrl: './grading-view.html',
   styleUrl: './grading-view.scss',
@@ -68,39 +70,6 @@ export class GradingViewComponent {
       this.dataService.myGradings.loading() ||
       this.dataService.myGradingsAssessed.loading();
   });
-
-  // True when the signed-in user is the student of the grading being viewed
-  // (one of their own member profiles). Such a viewer navigates back to their
-  // own "My Gradings" page, even if they are also an admin.
-  protected isOwnGrading = computed(() => {
-    const user = this.firebaseState.user();
-    const g = this.grading();
-    if (!user || !g) return false;
-    return user.memberProfiles.some((p) => p.docId === g.studentMemberDocId);
-  });
-
-  // True when the grading was opened from the member-facing "My Gradings" page
-  // (any of its tabs), tagged via the `from` URL param on the link.
-  protected cameFromMyGradings = computed(
-    () => this.routingService.signals[Views.GradingView].urlParams.from() === 'my-gradings',
-  );
-
-  // Return to "My Gradings" when the viewer opened this from there or it's their
-  // own grading; otherwise (an admin browsing the global list) to "Manage
-  // Gradings".
-  protected returnsToMyGradings = computed(
-    () => this.cameFromMyGradings() || this.isOwnGrading() || !this.userIsAdmin(),
-  );
-
-  protected backHref = computed(() =>
-    this.returnsToMyGradings()
-      ? this.routingService.hrefForView(Views.MemberGradings)
-      : this.routingService.hrefForView(Views.ManageGradings),
-  );
-
-  protected backLabel = computed(() =>
-    this.returnsToMyGradings() ? 'Back to My Gradings' : 'Back to Gradings',
-  );
 
   // Emit the title when the grading is loaded.
   private _emitTitle = effect(() => {

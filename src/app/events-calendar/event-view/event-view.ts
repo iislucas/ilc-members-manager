@@ -17,11 +17,12 @@ import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts } fro
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
+import { BackLinkComponent } from '../../back-link/back-link';
 
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, MarkdownViewer],
+  imports: [IconComponent, SpinnerComponent, MarkdownViewer, BackLinkComponent],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })
@@ -101,26 +102,6 @@ export class EventViewComponent implements OnInit {
     }
     return this.routingService.hrefForView(Views.EventEdit, { eventId });
   });
-
-  backHref = computed(() => {
-    const view = this.routingService.matchedPatternId();
-    if (view === Views.MyEventView) {
-      return this.routingService.hrefForView(Views.MyEvents, {});
-    }
-    if (view === Views.ManageEventView) {
-      return this.routingService.hrefForView(Views.ManageEvents, {});
-    }
-    return this.routingService.hrefForView(Views.EventsCalendar, {});
-  });
-
-  computedBackLabel = computed(() => {
-    const view = this.routingService.matchedPatternId();
-    if (view === Views.MyEventView) return 'My Events';
-    if (view === Views.ManageEventView) return 'Manage Events';
-    return 'Events List';
-  });
-
-
 
   ngOnInit() {
     window.scrollTo(0, 0);

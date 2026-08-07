@@ -1,9 +1,7 @@
 @let m = member();
 
 <div class="member-view-actions">
-  <a class="back-link subtle-button" [href]="routingService.hrefWithParams('/' + basePath() + '?jumpTo=' + memberId())">
-    <app-icon name="arrow_back"></app-icon> <span>Back to {{ backLabel() }}</span>
-  </a>
+  <app-back-link></app-back-link>
 
   @if (m && allowStudentActions()) {
     <div class="actions-menu-container">

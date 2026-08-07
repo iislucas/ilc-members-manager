@@ -9,6 +9,7 @@ import { DataManagerService } from '../data-manager.service';
 import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -47,6 +48,7 @@ describe('EventEditComponent', () => {
       imports: [EventEditComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} }, // Mock app object
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },

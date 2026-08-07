@@ -18,6 +18,7 @@ import { SearchableSet } from '../searchable-set';
 import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { User } from 'firebase/auth';
 import { CountryCode } from '../country-codes';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 
 describe('SchoolEditComponent', () => {
   let component: SchoolEditComponent;
@@ -68,6 +69,7 @@ describe('SchoolEditComponent', () => {
       imports: [SchoolEditComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         { provide: DataManagerService, useValue: dataManagerServiceMock },
         { provide: FirebaseStateService, useValue: firebaseStateServiceMock },
         { provide: FIREBASE_APP, useValue: {} },

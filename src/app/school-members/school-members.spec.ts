@@ -3,6 +3,7 @@ import { SchoolMembersComponent } from './school-members';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { signal, provideZonelessChangeDetection } from '@angular/core';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 
 describe('SchoolMembers', () => {
   let component: SchoolMembersComponent;
@@ -13,6 +14,7 @@ describe('SchoolMembers', () => {
       imports: [SchoolMembersComponent],
       providers: [
         provideZonelessChangeDetection(),
+        provideNavigationTreeStub(),
         {
           provide: DataManagerService,
           useValue: {
