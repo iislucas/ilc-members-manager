@@ -14,11 +14,12 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MembershipType, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model';
 import { ProcessedBlogEntry } from './squarespace-content.component';
+import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
     selector: 'app-squarespace-article',
     standalone: true,
-    imports: [CommonModule, SpinnerComponent],
+    imports: [CommonModule, SpinnerComponent, BackLinkComponent],
     templateUrl: './squarespace-article.component.html',
     styleUrls: ['./squarespace-content.component.scss'],
     encapsulation: ViewEncapsulation.None,

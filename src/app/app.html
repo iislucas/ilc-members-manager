@@ -47,16 +47,12 @@
           <app-class-calendar
             [calendarId]="instructorCalendarId()"
             [calendarOwnerName]="instructorCalendarOwnerName()"
-            backLabel="Find an Instructor"
-            backUrl="find-an-instructor"
           ></app-class-calendar>
         }
         @case (Views.SchoolCalendarView) {
           <app-class-calendar
             [calendarId]="schoolCalendarId()"
             [calendarOwnerName]="schoolCalendarOwnerName()"
-            backLabel="Find a School"
-            backUrl="find-school"
           ></app-class-calendar>
         }
         @case (Views.EventsCalendar) {
@@ -199,9 +195,6 @@
         @case (Views.MyEvents) {
           <app-event-list
             [collectionPath]="'members/' + user.member.docId + '/events'"
-            [showBackButton]="true"
-            backLabel="Back to Home"
-            backUrl="/"
           ></app-event-list>
         }
         @case (Views.MySchools) {
@@ -224,28 +217,24 @@
           <app-member-view
             [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
             basePath="members"
-            backLabel="Members List"
           ></app-member-view>
         }
         @case (Views.SchoolMemberView) {
           <app-member-view
             [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
             [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
-            [backLabel]="'School ' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + ' Members'"
           ></app-member-view>
         }
         @case (Views.InstructorStudentView) {
           <app-member-view
             [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
             [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
-            backLabel="Students List"
           ></app-member-view>
         }
         @case (Views.MyStudentView) {
           <app-member-view
             [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
             basePath="my-students"
-            backLabel="My Students"
             [allowStudentActions]="true"
           ></app-member-view>
         }

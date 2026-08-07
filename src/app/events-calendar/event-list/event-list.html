@@ -18,11 +18,7 @@
   <app-spinner>Loading events...</app-spinner>
 } @else if (hasLoaded()) {
   <div class="list-search-header">
-    @if (showBackButton()) {
-      <a class="back-link subtle-button" [href]="backUrl()">
-        <app-icon name="arrow_back"></app-icon> <span>{{ backLabel() }}</span>
-      </a>
-    }
+    <app-back-link></app-back-link>
     <div class="search-box">
       <app-icon class="search-icon" name="search"></app-icon>
       <input

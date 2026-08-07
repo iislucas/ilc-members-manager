@@ -6,6 +6,8 @@ import { AppPathPatterns } from '../app.config';
 import { MemberDetailsComponent } from '../member-details/member-details';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { BackLinkComponent } from '../back-link/back-link';
+import { NavigationTreeService } from '../navigation-tree';
 import { canMarkMembershipInactive } from '../../../functions/src/data-model';
 
 /** The actions a primary instructor can take on one of their own students. */
@@ -20,17 +22,23 @@ export enum StudentAction {
 @Component({
   selector: 'app-member-view',
   standalone: true,
-  imports: [CommonModule, MemberDetailsComponent, IconComponent, SpinnerComponent],
+  imports: [
+    CommonModule,
+    MemberDetailsComponent,
+    IconComponent,
+    SpinnerComponent,
+    BackLinkComponent,
+  ],
   templateUrl: './member-view.html',
   styleUrl: './member-view.scss',
 })
 export class MemberViewComponent implements OnInit {
   routingService = inject(RoutingService<AppPathPatterns>);
   dataService = inject(DataManagerService);
+  private navTree = inject(NavigationTreeService);
 
   memberId = input.required<string>();
   basePath = input.required<string>();
-  backLabel = input.required<string>();
 
   // Offers the instructor actions menu. Only set on the My Students route,
   // where the viewer is the member's primary instructor.
@@ -74,8 +82,12 @@ export class MemberViewComponent implements OnInit {
     return canMarkMembershipInactive(m, today);
   });
 
+  // Closing the details goes exactly where the back link goes: up to the list,
+  // scrolled to this member's row.
   goBack() {
-    this.routingService.navigateToParts([`/${this.basePath()}?jumpTo=${this.memberId()}`]);
+    this.routingService.navigateTo(
+      this.navTree.parent()?.url ?? `/${this.basePath()}`,
+    );
   }
 
   /** Closes the menu and asks the instructor to confirm `action`. */
@@ -108,6 +120,8 @@ export class MemberViewComponent implements OnInit {
         await this.dataService.markStudentInactive(m.docId);
       }
       this.pendingAction.set(null);
+      // Back to the plain list — the student has just been taken out of it, so
+      // there is no row left to jump to.
       this.routingService.navigateToParts([`/${this.basePath()}`]);
     } catch (e) {
       console.error(`Failed to run ${action} on student ${m.docId}`, e);

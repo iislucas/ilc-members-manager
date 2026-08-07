@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, effect, HostListener } from '@angular/core';
+import { Component, computed, inject, signal, effect, HostListener, Signal } from '@angular/core';
 import { FirebaseStateService, LoginStatus } from './firebase-state.service';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -50,6 +50,7 @@ import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
+import { NavigationTreeService } from './navigation-tree';
 
 @Component({
   selector: 'app-root',
@@ -110,12 +111,8 @@ export class App {
   public findInstructorsService = inject(FindInstructorsService);
   public routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
+  public navTree = inject(NavigationTreeService);
   public menuOpen = signal(false);
-  public loadedEventTitle = signal<string | null>(null);
-  public loadedOrderTitle = signal<string | null>(null);
-  public loadedSchoolTitle = signal<string | null>(null);
-  public loadedGradingTitle = signal<string | null>(null);
-  public loadedInstructorTitle = signal<string | null>(null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
@@ -138,7 +135,7 @@ export class App {
   });
 
   onEventTitleLoaded(title: string) {
-    this.loadedEventTitle.set(title);
+    this.navTree.loadedEventTitle.set(title);
   }
 
   @HostListener('document:click', ['$event'])
@@ -186,144 +183,25 @@ export class App {
   }
 
   onOrderTitleLoaded(title: string) {
-    this.loadedOrderTitle.set(title);
+    this.navTree.loadedOrderTitle.set(title);
   }
 
   onSchoolTitleLoaded(title: string) {
-    this.loadedSchoolTitle.set(title);
+    this.navTree.loadedSchoolTitle.set(title);
   }
   onGradingTitleLoaded(title: string) {
-    this.loadedGradingTitle.set(title);
+    this.navTree.loadedGradingTitle.set(title);
   }
   onInstructorTitleLoaded(title: string) {
-    this.loadedInstructorTitle.set(title);
+    this.navTree.loadedInstructorTitle.set(title);
   }
-  // Whether the grading currently open in GradingView belongs to the signed-in
-  // user (they are its student, on any of their member profiles). Drives the
-  // parent breadcrumb so it matches the back link in grading-view.
-  public gradingViewIsOwn = computed(() => {
-    const gradingId = this.routingService.signals[Views.GradingView].pathVars.gradingId();
-    if (!gradingId) return false;
-    const grading = this.dataService.gradings.get(gradingId)
-      ?? this.dataService.myGradings.get(gradingId)
-      ?? this.dataService.myGradingsAssessed.get(gradingId);
-    if (!grading) return false;
-    const profiles = this.firebaseService.user()?.memberProfiles ?? [];
-    return profiles.some((p) => p.docId === grading.studentMemberDocId);
-  });
-  // True when the grading detail was opened from the member-facing "My Gradings"
-  // page (any tab), tagged via the `from` URL param on the link.
-  public gradingViewFromMyGradings = computed(
-    () => this.routingService.signals[Views.GradingView].urlParams.from() === 'my-gradings',
-  );
-  public breadcrumbs = computed<Breadcrumb[]>(() => {
-    const baseBreadcrumbs: Breadcrumb[] = [
-      { label: 'I Liq Chuan', shortLabel: 'ILC', url: 'https://iliqchuan.com' },
-      { label: 'Members Portal App', shortLabel: 'App', url: '/' },
-    ];
-    const view = this.currentView();
-    if (view !== Views.Home && view) {
-      if (view === Views.OrderView) {
-        baseBreadcrumbs.push({ label: 'Orders', url: '/orders' });
-      } else if (view === Views.MembersAreaPost) {
-        baseBreadcrumbs.push({ label: 'Members Area', url: '/members-area' });
-      } else if (view === Views.InstructorsAreaPost) {
-        baseBreadcrumbs.push({ label: 'Instructors Area', url: '/instructors-area' });
-      } else if (view === Views.ManageMemberView) {
-        baseBreadcrumbs.push({ label: 'Manage Members', url: '/members' });
-      } else if (view === Views.SchoolMemberView) {
-        const schoolId = this.routingService.signals[Views.SchoolMemberView].pathVars.schoolId();
-        baseBreadcrumbs.push({ label: `School ${schoolId} Members`, url: `/school/${schoolId}/members` });
-      } else if (view === Views.InstructorStudents || view === Views.InstructorStudentView) {
-        const instructorId = view === Views.InstructorStudents
-          ? this.routingService.signals[Views.InstructorStudents].pathVars.instructorId()
-          : this.routingService.signals[Views.InstructorStudentView].pathVars.instructorId();
-        const instructor = this.dataService.instructors.get(instructorId);
-        if (!instructor) {
-          baseBreadcrumbs.push({ label: `Instructor Not Found (${instructorId})`, url: `/instructor/${instructorId}/students` });
-          return baseBreadcrumbs;
-        }
-        baseBreadcrumbs.push({ label: `Manage Members`, url: `/members` });
-        baseBreadcrumbs.push({ label: `${instructor.name} [${instructorId}]`, url: `/members/${instructor.memberId}` });
-        baseBreadcrumbs.push({ label: `Students of ${instructor.name} [${instructorId}]`, url: `/instructor/${instructorId}/students` });
-        if (view === Views.InstructorStudentView) {
-          const studentId = this.routingService.signals[Views.InstructorStudentView].pathVars.memberId();
-          const student = this.dataService.getMember(studentId);
-          if (!student) {
-            baseBreadcrumbs.push({ label: `Student Not Found (${studentId})`, url: `/instructor/${instructorId}/students` });
-            return baseBreadcrumbs;
-          }
-          baseBreadcrumbs.push({ label: `${student.name} (${studentId})`, url: `/instructor/${instructorId}/students` });
-        }
-        return baseBreadcrumbs;
-      } else if (view === Views.MyStudentView) {
-        baseBreadcrumbs.push({ label: 'My Students', url: '/my-students' });
-      } else if (view === Views.NewMember) {
-        const basePath = this.routingService.signals[Views.NewMember].urlParams.basePath();
-        if (basePath === 'members') {
-          baseBreadcrumbs.push({ label: 'Manage Members', url: '/members' });
-        } else if (basePath?.startsWith('school/')) {
-          baseBreadcrumbs.push({ label: 'School Members', url: `/${basePath}` });
-        } else if (basePath?.startsWith('instructor/')) {
-          baseBreadcrumbs.push({ label: 'Students', url: `/${basePath}` });
-        } else if (basePath === 'my-students') {
-          baseBreadcrumbs.push({ label: 'My Students', url: '/my-students' });
-        }
-      } else if (view === Views.ClassCalendarView) {
-        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '/find-an-instructor' });
-      } else if (view === Views.SchoolCalendarView) {
-        baseBreadcrumbs.push({ label: 'Find a School', url: '/find-school' });
-      } else if (view === Views.InstructorView) {
-        baseBreadcrumbs.push({ label: 'Find an Instructor', url: '/find-an-instructor' });
-      } else if (view === Views.SchoolView) {
-        baseBreadcrumbs.push({ label: 'Find a School', url: '/find-school' });
-      } else if (view === Views.EventsCalendar) {
-        // No parent breadcrumb needed for events
-      } else if (view === Views.EventView) {
-        baseBreadcrumbs.push({ label: 'Events', url: '/events' });
-      } else if (view === Views.MyEventView) {
-        baseBreadcrumbs.push({ label: 'My Events', url: '/my-events' });
-      } else if (view === Views.ManageEventView) {
-        baseBreadcrumbs.push({ label: 'Manage Events', url: '/manage-events' });
-      } else if (view === Views.EventEdit || view === Views.ManageEventEdit) {
-        baseBreadcrumbs.push({ label: 'Manage Events', url: '/manage-events' });
-      } else if (view === Views.MyEventEdit) {
-        baseBreadcrumbs.push({ label: 'My Events', url: '/my-events' });
-      } else if (view === Views.ProposeEvent) {
-        baseBreadcrumbs.push({ label: 'Events', url: '/events' });
-      } else if (view === Views.ManageEvents) {
-        // No parent breadcrumb needed for manage events
-      } else if (view === Views.ManageSchoolEdit) {
-        baseBreadcrumbs.push({ label: 'Manage Schools', url: '/schools' });
-      } else if (view === Views.MySchoolEdit) {
-        baseBreadcrumbs.push({ label: 'My Schools', url: '/my-schools' });
-      } else if (view === Views.GradingView) {
-        // The parent is "My Gradings" when this was opened from there (any tab,
-        // tagged via the `from` param) or it's the viewer's own grading;
-        // otherwise (an admin browsing the global list) it's "Manage Gradings".
-        // Mirrors the back link in grading-view.
-        if (this.gradingViewIsOwn() || this.gradingViewFromMyGradings()) {
-          baseBreadcrumbs.push({ label: 'My Gradings', url: '/my-gradings' });
-        } else {
-          baseBreadcrumbs.push({ label: 'Manage Gradings', url: '/gradings' });
-        }
-      }
-      const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
-      const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
-      const isOrderView = view === Views.OrderView;
-      const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
-      const isGradingView = view === Views.GradingView;
-      const isLoading = ((isEventView || isEventEdit) && !this.loadedEventTitle()) || (isOrderView && !this.loadedOrderTitle()) || (isSchoolEdit && !this.loadedSchoolTitle()) || (isGradingView && !this.loadedGradingTitle());
-      baseBreadcrumbs.push({ label: this.currentViewTitle(), isLoading });
-    }
-    return baseBreadcrumbs;
-  });
-  public currentView = computed(() => {
-    const view = this.routingService.matchedPatternId() as Views | null;
-    if (view === Views.MembersArea) return Views.MembersAreaCategory;
-    if (view === Views.InstructorsArea) return Views.InstructorsAreaCategory;
-    return view;
-  });
+  // Breadcrumbs, the current view and its title all come from the navigation
+  // tree, which the in-page back links are derived from too — see
+  // NavigationTreeService. That is what keeps the two in step.
+  public breadcrumbs: Signal<Breadcrumb[]> = this.navTree.breadcrumbs;
+  public currentView = this.navTree.currentView;
+  public currentViewTitle = this.navTree.currentTitle;
+
 
   /** Resolved calendar ID for instructor calendar view. */
   instructorCalendarId = computed(() => {
@@ -372,12 +250,6 @@ export class App {
     return '';
   });
 
-  currentViewTitle = computed(() => {
-    return this.viewIdToTitle(
-      this.routingService.matchedPatternId() as Views | '',
-    );
-  });
-
   constructor() {
     effect(() => {
       const isLoggedOut =
@@ -385,25 +257,6 @@ export class App {
       const isLoggedIn =
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
       const view = this.routingService.matchedPatternId();
-
-      const isEventView = view === Views.EventView || view === Views.MyEventView || view === Views.ManageEventView;
-      const isEventEdit = view === Views.EventEdit || view === Views.MyEventEdit || view === Views.ManageEventEdit;
-      const isSchoolEdit = view === Views.ManageSchoolEdit || view === Views.MySchoolEdit;
-      if (!isEventView && !isEventEdit) {
-        this.loadedEventTitle.set(null);
-      }
-      if (view !== Views.OrderView) {
-        this.loadedOrderTitle.set(null);
-      }
-      if (!isSchoolEdit && view !== Views.SchoolView) {
-        this.loadedSchoolTitle.set(null);
-      }
-      if (view !== Views.GradingView) {
-        this.loadedGradingTitle.set(null);
-      }
-      if (view !== Views.InstructorView) {
-        this.loadedInstructorTitle.set(null);
-      }
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
       if (isLoggedOut && (!view || view === Views.Home)) {
@@ -450,150 +303,6 @@ export class App {
     );
   });
 
-  viewIdToTitle(viewId: Views | ''): string {
-    switch (viewId) {
-      case Views.ManageMembers:
-        return 'Manage Members';
-      case Views.FindAnInstructor:
-        return 'Find an Instructor';
-      case Views.InstructorView:
-        return this.loadedInstructorTitle() || 'Instructor';
-      case Views.ManageSchools:
-        return 'Manage Schools';
-      case Views.ManageSchoolEdit:
-        return this.loadedSchoolTitle() ? `Edit: ${this.loadedSchoolTitle()}` : 'Edit School';
-      case Views.MySchoolEdit:
-        return this.loadedSchoolTitle() || 'My School';
-      case Views.FindSchool:
-        return 'Find a School';
-      case Views.SchoolView:
-        return this.loadedSchoolTitle() || 'School';
-      case Views.ClassCalendarView:
-        const calInstructorId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
-        const calInstructor = calInstructorId
-          ? this.findInstructorsService.instructors.get(calInstructorId)
-          : undefined;
-        return calInstructor
-          ? `${calInstructor.name} (${calInstructorId})'s Class Calendar`
-          : 'Class Calendar';
-      case Views.SchoolCalendarView:
-        const calSchoolId = this.routingService.signals[Views.SchoolCalendarView].pathVars.schoolId();
-        const calSchool = calSchoolId
-          ? this.dataService.schools.get(calSchoolId)
-          : undefined;
-        return calSchool
-          ? `${calSchool.schoolName}'s Calendar`
-          : 'School Calendar';
-      case Views.SchoolMembers:
-        const schoolId =
-          this.routingService.signals[viewId].pathVars.schoolId();
-        return `School ${schoolId} Members`;
-      case Views.InstructorStudents:
-        return 'Students';
-      case Views.ImportExport:
-        return 'Import/Export';
-      case Views.Home:
-        return 'Home';
-      case Views.MyProfile:
-        return 'My Profile';
-      case Views.MyStudents:
-        return 'My Students';
-      case Views.MyEvents:
-        return 'My Events';
-      case Views.MySchools:
-        return 'My Schools';
-      case Views.MembersArea:
-      case Views.MembersAreaCategory:
-        return 'Members Area';
-      case Views.InstructorsArea:
-      case Views.InstructorsAreaCategory:
-        return 'Instructors Area';
-      case Views.ManageGradings:
-        return 'Manage Gradings';
-      case Views.MemberGradings: {
-        const member = this.firebaseService.user()?.member;
-        if (member) {
-          return `My Gradings: (${member.memberId || 'No ID'}) ${member.name}`;
-        }
-        return 'My Gradings';
-      }
-      case Views.GradingView:
-        return this.loadedGradingTitle() || 'Grading Details';
-      case Views.Settings:
-        return 'Settings';
-      case Views.NotificationSettings:
-        return 'Notification Settings';
-      case Views.Notifications:
-        return 'Notifications';
-      case Views.Statistics:
-        return 'Statistics';
-      case Views.EventsCalendar:
-        return 'Events & Workshops';
-      case Views.EventView:
-      case Views.MyEventView:
-      case Views.ManageEventView:
-        return this.loadedEventTitle() || 'Event Details';
-      case Views.EventEdit:
-      case Views.MyEventEdit:
-      case Views.ManageEventEdit:
-        return this.loadedEventTitle() ? `Edit: ${this.loadedEventTitle()}` : 'Edit Event';
-      case Views.ProposeEvent:
-        return 'Organise Event';
-      case Views.ManageEvents:
-        return 'Manage Events';
-      case Views.ClassVideoLibrary:
-        return 'Class Video Library';
-      case Views.ManageOrders:
-        return 'Manage Orders';
-      case Views.OrderView:
-        return this.loadedOrderTitle() || 'Order Details';
-      case Views.MembersAreaPost:
-      case Views.InstructorsAreaPost:
-        return 'Article';
-      case Views.DownloadResource:
-        return 'Download Resource';
-      case Views.Products:
-        return 'Products';
-      case Views.OrderComplete:
-        return 'Order Complete';
-      case Views.Login:
-        return 'Login';
-      case Views.NewMember:
-        return 'New Member';
-      case Views.MyStudentView: {
-        const mIdOrDocId = this.routingService.signals[viewId].pathVars.memberId();
-        const m = this.dataService.getMyStudent(mIdOrDocId);
-        if (!m) {
-          return `Unknown student of yours (${mIdOrDocId})`;
-        }
-        if (m.name?.trim() && m.memberId) {
-          return `${m.name} (${m.memberId})`;
-        }
-        if (m.name?.trim()) {
-          return `${m.name} (Not yet a Member)`;
-        }
-        return `Unknown student of yours (doc:${m.docId})`;
-      }
-      case Views.ManageMemberView:
-      case Views.SchoolMemberView:
-      case Views.InstructorStudentView: {
-        const mIdOrDocId = this.routingService.signals[viewId].pathVars.memberId();
-        const m = this.dataService.getMember(mIdOrDocId);
-        if (!m) {
-          return `Unknown (${mIdOrDocId})`;
-        }
-        if (m.name.trim() && m.memberId) {
-          return `${m.name} (${m.memberId})`;
-        }
-        if (m.name.trim() && !m.memberId) {
-          return `${m.name} (Not yet a Member)`;
-        }
-        return `Unnamed and not yet a Member (doc:${m.docId})`;
-      }
-      default:
-        return 'Unknown View';
-    }
-  }
 
   public logoutError = signal<string | null>(null);
 

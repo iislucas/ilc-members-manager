@@ -385,4 +385,39 @@ describe('RoutingService', () => {
       (service as any).hrefForView(Views.SchoolMembers);
     }).toThrowError(/Missing path variable schoolId/);
   });
+
+  it('hrefForView should not attach ephemeral params like from on GradingView', async () => {
+    await configureTestBed(testConfig);
+
+    // Simulate visiting a grading with from=my-gradings
+    setUrl('/gradings/G1?from=my-gradings');
+    await fixture.whenStable();
+    expect(service.signals[Views.GradingView].urlParams.from()).toBe('my-gradings');
+
+    // Generating a link to another grading should not have from=my-gradings attached
+    const href = service.hrefForView(Views.GradingView, { gradingId: 'G2' });
+    expect(href).toBe('/gradings/G2');
+  });
+
+  it('should reset ephemeral params and pathVars when navigating to a different pattern', async () => {
+    await configureTestBed(testConfig);
+
+    // Visit a grading with from=my-gradings
+    setUrl('/gradings/G1?from=my-gradings');
+    await fixture.whenStable();
+    expect(service.signals[Views.GradingView].pathVars.gradingId()).toBe('G1');
+    expect(service.signals[Views.GradingView].urlParams.from()).toBe('my-gradings');
+
+    // Navigate to Manage Gradings (/gradings)
+    setUrl('/gradings');
+    await fixture.whenStable();
+
+    // GradingView signals should be reset
+    expect(service.signals[Views.GradingView].pathVars.gradingId()).toBe('');
+    expect(service.signals[Views.GradingView].urlParams.from()).toBe('');
+
+    // Links generated for gradings on Manage Gradings page must not carry from=my-gradings
+    const href = service.hrefForView(Views.GradingView, { gradingId: 'bx6DELDrgqSu8RRqDv3M' });
+    expect(href).toBe('/gradings/bx6DELDrgqSu8RRqDv3M');
+  });
 });

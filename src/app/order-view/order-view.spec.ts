@@ -7,6 +7,7 @@ import { signal } from '@angular/core';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import { vi } from 'vitest';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 
 describe('OrderView', () => {
   let component: OrderView;
@@ -16,6 +17,7 @@ describe('OrderView', () => {
     await TestBed.configureTestingModule({
       imports: [OrderView],
       providers: [
+        provideNavigationTreeStub(),
         { provide: RoutingService, useValue: { navigateTo: vi.fn(), hrefWithParams: vi.fn().mockReturnValue('#/orders'), matchedPatternId: signal(''), signals: { [Views.OrderView]: { pathVars: { orderId: signal('123') } } } } },
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: DataManagerService, useValue: { loadingState: signal('loaded'), getOrderByIdOrRef: vi.fn() } }

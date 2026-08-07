@@ -35,6 +35,8 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
+import { BackLinkComponent } from '../back-link/back-link';
+import { NavigationTreeService } from '../navigation-tree';
 import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
@@ -59,6 +61,7 @@ import { FirebaseStateService } from '../firebase-state.service';
     IdAssignmentComponent,
     ImageUploadPreviewComponent,
     MarkdownEditor,
+    BackLinkComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -70,6 +73,7 @@ export class SchoolEditComponent {
   private firebaseApp = inject(FIREBASE_APP);
   private routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
+  private navTree = inject(NavigationTreeService);
 
   // The schoolId comes from the route path variable, passed in by app.html.
   schoolId = input.required<string>();
@@ -393,23 +397,6 @@ export class SchoolEditComponent {
     this.form.publicBioMarkdown().markAsDirty();
   }
 
-  // Build the back navigation URL based on context.
-  backUrl = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match === Views.MySchoolEdit) {
-      return '/my-schools';
-    }
-    return '/schools';
-  });
-
-  backLabel = computed(() => {
-    const match = this.routingService.matchedPatternId();
-    if (match === Views.MySchoolEdit) {
-      return 'My Schools';
-    }
-    return 'Manage Schools';
-  });
-
   // Link to this school's public profile page. Only available for an existing,
   // saved school that has a human-readable schoolId.
   publicListingHref = computed(() => {
@@ -496,20 +483,10 @@ export class SchoolEditComponent {
     this.navigateBack();
   }
 
+  // Leaving the editor goes where the back link goes: one level up the
+  // navigation tree (the schools list this school was opened from).
   private navigateBack() {
-    const match = this.routingService.matchedPatternId();
-    if (match === Views.MySchoolEdit) {
-      this.routingService.navigateTo('/my-schools');
-    } else {
-      this.routingService.navigateTo('/schools');
-    }
-  }
-
-  gotoMembers() {
-    const s = this.school() || this.editableSchool();
-    this.routingService.matchedPatternId.set(Views.SchoolMembers);
-    const signals = this.routingService.signals[Views.SchoolMembers];
-    signals.pathVars.schoolId.set(s.schoolId);
+    this.routingService.navigateTo(this.navTree.parent()?.url ?? '/');
   }
 
   isDupSchoolId = computed(() => {

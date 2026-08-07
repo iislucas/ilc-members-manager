@@ -48,6 +48,7 @@ import {
 } from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
+import { BackLinkComponent } from '../back-link/back-link';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 
@@ -155,7 +156,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, BackLinkComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -316,18 +317,17 @@ export class EventEditComponent implements OnInit {
     return this.isAdmin() || ((this.isOwner() || this.isManager()) && ev.status === EventStatus.Proposed);
   });
 
-  // TODO: do something more diciplined and thoughtful with back urls, and router. 
-  backUrl = computed(() => {
+  /*
+  The events list this editor's subtree hangs off. Normal navigation out of the
+  editor goes one level up the tree — to the event's own page, via the shared
+  back link — but once the event is deleted (or failed to load) that page no
+  longer exists, so those two cases fall back to the list.
+  */
+  listUrl = computed(() => {
     const view = this.routingService.matchedPatternId();
     if (view === Views.MyEventEdit) return 'my-events';
     if (view === Views.ManageEventEdit) return 'manage-events';
-    return 'manage-events'; // Default fallback
-  });
-
-  viewEventUrl = computed(() => {
-    const prefix = this.backUrl();
-    const eventId = this.eventId();
-    return `${prefix}/${eventId}`;
+    return 'events';
   });
   // Change the event status via the chip dropdown. For non-admins only
   // 'cancelled' is allowed, with a confirmation warning.
@@ -382,7 +382,7 @@ export class EventEditComponent implements OnInit {
       const docRef = doc(this.db, 'events', ev.docId);
       await deleteDoc(docRef);
       this.successMessage.set('Event deleted successfully.');
-      setTimeout(() => this.routingService.navigateToParts([this.backUrl()]), 1500);
+      setTimeout(() => this.routingService.navigateToParts([this.listUrl()]), 1500);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error deleting event:', error);

@@ -15,6 +15,7 @@ import { initGrading, Grading } from '../../../functions/src/data-model';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 import { GradingProgressComponent } from '../grading-progress/grading-progress';
+import { provideNavigationTreeStub } from '../navigation-tree.testing';
 
 @Component({
   selector: 'app-grading-edit',
@@ -96,6 +97,7 @@ describe('GradingViewComponent', () => {
         MockGradingProgressComponent,
       ],
       providers: [
+        provideNavigationTreeStub(),
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: RoutingService, useValue: mockRoutingService },

@@ -1,7 +1,5 @@
 <div class="instructor-view">
-  <a class="back-link" [href]="backHref()">
-    <app-icon name="arrow_back" /> Find an Instructor
-  </a>
+  <app-back-link></app-back-link>
 
   @if (isLoading()) {
     <div class="center">

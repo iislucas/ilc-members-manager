@@ -33,11 +33,18 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { EventItemComponent } from '../events-calendar/event-item/event-item';
+import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
   selector: 'app-school-view',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, MarkdownViewer, EventItemComponent],
+  imports: [
+    IconComponent,
+    SpinnerComponent,
+    MarkdownViewer,
+    EventItemComponent,
+    BackLinkComponent,
+  ],
   templateUrl: './school-view.html',
   styleUrl: './school-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,7 +68,6 @@ export class SchoolViewComponent implements OnInit {
   pastEventsTotal = signal(0);
   eventsLoading = signal(false);
 
-  backHref = computed(() => this.routingService.hrefForView(Views.FindSchool, {}));
 
   // Link to the events search page, pre-filtered to this school.
   allEventsHref = computed(() => {
