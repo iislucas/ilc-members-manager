@@ -297,6 +297,12 @@
         @case (Views.OrderView) {
           <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
         }
+        @case (Views.MyMaterials) {
+          <app-my-materials></app-my-materials>
+        }
+        @case (Views.ManageMaterials) {
+          <app-manage-materials></app-manage-materials>
+        }
       }
     }
   </main>

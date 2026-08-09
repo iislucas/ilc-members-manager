@@ -89,6 +89,40 @@ service cloud.firestore {
         }
         allow read, write: if isSubscriptionOwner() || isAdmin();
       }
+
+      // Member uploaded materials (videos, photos, files) metadata subcollection.
+      // Readable by the upload owner, admins, or managers of a linked event.
+      // Writable by the upload owner or admins.
+      match /uploads/{uploadDocId} {
+        function isUploadOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                 (memberDocId in getUserMemberDocIds());
+        }
+        function isLinkedEventManager() {
+          let eventDocId = resource.data.get('eventDocId', '');
+          let eventPath = /databases/$(database)/documents/events/$(eventDocId);
+          return eventDocId != '' && exists(eventPath) && (
+            get(eventPath).data.ownerDocId in getUserMemberDocIds() ||
+            getUserMemberDocIds().hasAny(get(eventPath).data.get('managerDocIds', []))
+          );
+        }
+        allow read: if isUploadOwner() || isAdmin() || isLinkedEventManager();
+        allow write: if isUploadOwner() || isAdmin();
+      }
+    }
+
+    // Collection group query support for /uploads
+    match /{path=**}/uploads/{uploadDocId} {
+      function isLinkedEventManager() {
+        let eventDocId = resource.data.get('eventDocId', '');
+        let eventPath = /databases/$(database)/documents/events/$(eventDocId);
+        return eventDocId != '' && exists(eventPath) && (
+          get(eventPath).data.ownerDocId in getUserMemberDocIds() ||
+          getUserMemberDocIds().hasAny(get(eventPath).data.get('managerDocIds', []))
+        );
+      }
+      allow read: if isAdmin() || isLinkedEventManager();
+      allow write: if isAdmin();
     }
 
     match /instructors/{instructorMemberDocId} {

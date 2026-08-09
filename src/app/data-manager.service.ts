@@ -8,7 +8,9 @@ import {
 } from '@angular/core';
 import {
   collection,
+  collectionGroup,
   doc,
+  addDoc,
   getDoc,
   setDoc,
   updateDoc,
@@ -53,7 +55,11 @@ import {
   ResourceAccessLevel,
   EmailTemplates,
   initEmailTemplates,
+  UploadItem,
+  firestoreDocToUploadItem,
+  initUploadItem,
 } from '../../functions/src/data-model';
+import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import * as Papa from 'papaparse';
@@ -1628,6 +1634,113 @@ export class DataManagerService {
     );
     const result = await fn({ memberDocId });
     return result.data;
+  }
+
+  // --- Uploads & Materials Management ---------------------------------------
+
+  /**
+   * Fetches all uploaded materials for a specific member from their subcollection.
+   */
+  async getMemberUploads(memberDocId: string): Promise<UploadItem[]> {
+    if (!memberDocId) return [];
+    const colRef = collection(this.db, 'members', memberDocId, 'uploads');
+    const q = query(colRef);
+    const snap = await getDocs(q);
+    const items = snap.docs.map((d) => firestoreDocToUploadItem(d));
+    // Sort newest first by date or createdAt
+    items.sort((a, b) => (b.date || b.createdAt).localeCompare(a.date || a.createdAt));
+    return items;
+  }
+
+  /**
+   * Admin-only: fetches all uploaded materials across all instructors via collection group.
+   */
+  async getAllUploads(): Promise<UploadItem[]> {
+    const colGroup = collectionGroup(this.db, 'uploads');
+    const snap = await getDocs(colGroup);
+    const items = snap.docs.map((d) => firestoreDocToUploadItem(d));
+    items.sort((a, b) => (b.date || b.createdAt).localeCompare(a.date || a.createdAt));
+    return items;
+  }
+
+  /**
+   * Fetches all uploaded materials linked to a specific event via collection group.
+   */
+  async getEventUploads(eventDocId: string): Promise<UploadItem[]> {
+    if (!eventDocId) return [];
+    const colGroup = collectionGroup(this.db, 'uploads');
+    const q = query(colGroup, where('eventDocId', '==', eventDocId));
+    const snap = await getDocs(q);
+    const items = snap.docs.map((d) => firestoreDocToUploadItem(d));
+    items.sort((a, b) => (b.date || b.createdAt).localeCompare(a.date || a.createdAt));
+    return items;
+  }
+
+  /**
+   * Creates a new UploadItem document in the member's /uploads subcollection.
+   */
+  async createUploadItem(upload: Omit<UploadItem, 'docId'>): Promise<string> {
+    if (!upload.memberDocId) {
+      throw new Error('Cannot create upload item without memberDocId.');
+    }
+    const colRef = collection(this.db, 'members', upload.memberDocId, 'uploads');
+    const now = new Date().toISOString();
+    const payload = {
+      ...upload,
+      createdAt: upload.createdAt || now,
+      lastUpdated: now,
+    };
+    const docRef = await addDoc(colRef, payload);
+    return docRef.id;
+  }
+
+  /**
+   * Updates metadata for an existing UploadItem document.
+   */
+  async updateUploadMetadata(
+    memberDocId: string,
+    uploadDocId: string,
+    patch: Partial<UploadItem>,
+  ): Promise<void> {
+    if (!memberDocId || !uploadDocId) {
+      throw new Error('memberDocId and uploadDocId are required to update upload metadata.');
+    }
+    const docRef = doc(this.db, 'members', memberDocId, 'uploads', uploadDocId);
+    const payload = {
+      ...patch,
+      lastUpdated: new Date().toISOString(),
+    };
+    await updateDoc(docRef, payload);
+  }
+
+  /**
+   * Deletes an UploadItem metadata document and its corresponding files in Cloud Storage.
+   */
+  async deleteUploadItem(upload: UploadItem): Promise<void> {
+    if (!upload.memberDocId || !upload.docId) {
+      throw new Error('Cannot delete upload item without memberDocId and docId.');
+    }
+
+    // 1. Delete Firestore document
+    const docRef = doc(this.db, 'members', upload.memberDocId, 'uploads', upload.docId);
+    await deleteDoc(docRef);
+
+    // 2. Delete storage files if paths are recorded
+    const storage = getStorage(this.firebaseService.app);
+    if (upload.storagePath) {
+      try {
+        await deleteObject(storageRef(storage, upload.storagePath));
+      } catch (err) {
+        console.warn(`Failed to delete original file at ${upload.storagePath}:`, err);
+      }
+    }
+    if (upload.previewStoragePath) {
+      try {
+        await deleteObject(storageRef(storage, upload.previewStoragePath));
+      } catch (err) {
+        console.warn(`Failed to delete preview file at ${upload.previewStoragePath}:`, err);
+      }
+    }
   }
 
   private downloadFile(filename: string, content: string, mimeType: string) {

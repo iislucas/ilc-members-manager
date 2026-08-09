@@ -10,6 +10,9 @@ vi.mock('firebase/firestore', () => {
   return {
     getFirestore: vi.fn(),
     collection: vi.fn(),
+    collectionGroup: vi.fn(),
+    addDoc: vi.fn().mockResolvedValue({ id: 'test-doc-id' }),
+    deleteDoc: vi.fn().mockResolvedValue(undefined),
     query: vi.fn(),
     onSnapshot: vi.fn().mockReturnValue(() => {}), // return unsubscribe function
     doc: vi.fn(),
@@ -84,4 +87,20 @@ describe('DataManagerService - searchEvents', () => {
     // Confirm that two queries were made with the expected filters
     expect(getDocsMock).toHaveBeenCalledTimes(2);
   });
+
+  it('getMemberUploads should query member uploads and return sorted items', async () => {
+    const mockDocs = [
+      { id: 'up1', data: () => ({ name: 'Video 1', date: '2026-01-01', createdAt: '2026-01-01T00:00:00Z' }) },
+      { id: 'up2', data: () => ({ name: 'Video 2', date: '2026-05-01', createdAt: '2026-05-01T00:00:00Z' }) },
+    ];
+    const getDocsMock = vi.mocked(getDocs);
+    getDocsMock.mockResolvedValueOnce({ docs: mockDocs } as any);
+
+    const uploads = await service.getMemberUploads('mem1');
+    expect(uploads).toHaveLength(2);
+    // Should be sorted newest first (up2 first)
+    expect(uploads[0].docId).toBe('up2');
+    expect(uploads[1].docId).toBe('up1');
+  });
 });
+

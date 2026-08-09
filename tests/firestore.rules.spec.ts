@@ -1183,4 +1183,114 @@ describe('Firestore Rules', () => {
       );
     });
   });
+
+  describe('Uploads / Materials Subcollection', () => {
+    it('should allow a member to create, read, update, and delete their own uploads', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+
+      const uploadRef = db
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('uploads')
+        .doc('test-upload-1');
+
+      // Create
+      await assertSucceeds(
+        uploadRef.set({
+          memberDocId: 'FirestoreDocID-student1',
+          name: 'Video 1.mp4',
+          contentType: 'video/mp4',
+          size: 1024,
+          url: 'https://storage/v1.mp4',
+          date: '2026-05-01',
+          location: 'New York',
+          eventDocId: '',
+          notes: 'Test notes',
+        }),
+      );
+
+      // Read
+      await assertSucceeds(uploadRef.get());
+
+      // Update
+      await assertSucceeds(
+        uploadRef.update({
+          name: 'Video 1 Renamed.mp4',
+          location: 'Brooklyn, NY',
+        }),
+      );
+
+      // Delete
+      await assertSucceeds(uploadRef.delete());
+    });
+
+    it('should deny another member from reading or writing a private upload', async () => {
+      // First create upload with admin context
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        await adminContext
+          .firestore()
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('uploads')
+          .doc('secret-upload')
+          .set({
+            memberDocId: 'FirestoreDocID-student1',
+            name: 'Private Video.mp4',
+            eventDocId: '',
+          });
+      });
+
+      const otherDb = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+
+      const secretRef = otherDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('uploads')
+        .doc('secret-upload');
+
+      // Deny read
+      await assertFails(secretRef.get());
+
+      // Deny write
+      await assertFails(secretRef.update({ name: 'Hacked' }));
+      await assertFails(secretRef.delete());
+    });
+
+    it('should allow admin to read, update, and delete any upload', async () => {
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        await adminContext
+          .firestore()
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('uploads')
+          .doc('admin-test-upload')
+          .set({
+            memberDocId: 'FirestoreDocID-student1',
+            name: 'Instructor Material.mp4',
+            eventDocId: '',
+          });
+      });
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+
+      const uploadRef = adminDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('uploads')
+        .doc('admin-test-upload');
+
+      await assertSucceeds(uploadRef.get());
+      await assertSucceeds(uploadRef.update({ name: 'Admin Edited' }));
+      await assertSucceeds(uploadRef.delete());
+
+      // Collection group query
+      await assertSucceeds(adminDb.collectionGroup('uploads').get());
+    });
+  });
 });

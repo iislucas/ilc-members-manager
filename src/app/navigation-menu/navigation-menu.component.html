@@ -69,6 +69,10 @@
         <app-icon name="salut" width="24px" height="24px"></app-icon>
         <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
       </div>
+      <div class="menu-item" (click)="onSelect(Views.MyMaterials)">
+        <app-icon name="video_library" width="24px" height="24px"></app-icon>
+        <span>{{ viewIdToTitle(Views.MyMaterials) }}</span>
+      </div>
     }
     @if (u.schoolsManaged.length > 0) {
       <div class="menu-item" (click)="onSelect(Views.MySchools)">
@@ -99,6 +103,10 @@
       <div class="menu-item" (click)="onSelect(Views.ManageEvents)">
         <app-icon name="event" width="24px" height="24px"></app-icon>
         <span>Manage Events</span>
+      </div>
+      <div class="menu-item" (click)="onSelect(Views.ManageMaterials)">
+        <app-icon name="video_library" width="24px" height="24px"></app-icon>
+        <span>Manage Materials</span>
       </div>
 
       <div class="menu-seperator"></div>

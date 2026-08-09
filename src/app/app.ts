@@ -48,6 +48,8 @@ import { NotificationSettingsComponent } from './settings/notification-settings/
 import { NotificationsViewComponent } from './notifications-view/notifications-view';
 import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
+import { MyMaterialsComponent } from './my-materials/my-materials';
+import { ManageMaterialsComponent } from './manage-materials/manage-materials';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
@@ -99,6 +101,8 @@ import { NavigationTreeService } from './navigation-tree';
     NotificationsViewComponent,
     ProductsComponent,
     OrderCompleteComponent,
+    MyMaterialsComponent,
+    ManageMaterialsComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

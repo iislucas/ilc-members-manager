@@ -227,6 +227,16 @@
             <p>Manage your students</p>
           </div>
         </a>
+
+        <a class="card" [href]="routingService.hrefForView(Views.MyMaterials)">
+          <div class="icon-container">
+            <app-icon name="video_library" width="48px" height="48px"></app-icon>
+          </div>
+          <div class="content">
+            <h2>My Materials</h2>
+            <p>Upload and organize your class videos and photos</p>
+          </div>
+        </a>
       }
 
       @if (u.schoolsManaged.length > 0) {
@@ -300,6 +310,17 @@
           <div class="content">
             <h2>Manage Events</h2>
             <p>Administer events and proposals</p>
+          </div>
+        </a>
+
+        <!-- Manage Materials -->
+        <a class="card" [href]="routingService.hrefForView(Views.ManageMaterials)">
+          <div class="icon-container">
+            <app-icon name="video_library" width="48px" height="48px"></app-icon>
+          </div>
+          <div class="content">
+            <h2>Manage Materials</h2>
+            <p>Administer all uploaded instructor and event media</p>
           </div>
         </a>
       </div>

@@ -26,7 +26,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -104,16 +104,23 @@ function contactsToSave(model: EventFormModel): EventContact[] {
       : c);
 }
 
-// A single private event material file, as presented in the UI. Materials live
-// only in Cloud Storage (not on the public event doc); see the materials
-// section below.
+// A single private event material file, as presented in the UI.
+// Metadata is indexed in Firestore /members/{memberDocId}/uploads/{uploadDocId}
+// with files in Cloud Storage.
 type Material = {
-  itemId: string;       // folder id under events/{eventId}/materials/originals/
-  name: string;         // display name (stored in the original's customMetadata)
+  docId?: string;       // Firestore upload document ID (if present)
+  memberDocId?: string; // Member document ID of the uploader
+  itemId: string;       // Folder/item id under events/{eventId}/materials/originals/
+  name: string;         // Display name
   contentType: string;  // MIME type from object metadata
-  size: number;         // bytes
-  url: string;          // download URL of the original file
-  previewUrl?: string;  // download URL of the generated JPEG preview, if any
+  size: number;         // Bytes
+  url: string;          // Download URL of the original file
+  previewUrl?: string;  // Download URL of the generated JPEG preview, if any
+  storagePath?: string;
+  previewStoragePath?: string;
+  date?: string;
+  location?: string;
+  notes?: string;
 };
 
 function toFormModel(event: IlcEvent): EventFormModel {
@@ -854,35 +861,72 @@ export class EventEditComponent implements OnInit {
     this.isLoadingMaterials.set(true);
     this.materialUploadError.set(null);
     try {
+      // 1. Load materials from Firestore uploads subcollection (indexed metadata)
+      const firestoreUploads = await this.dataService.getEventUploads(eventDocId).catch((err) => {
+        console.warn('Could not query Firestore event uploads:', err);
+        return [] as UploadItem[];
+      });
+
+      const loadedMap = new Map<string, Material>();
+      for (const u of firestoreUploads) {
+        const key = u.storagePath || u.docId;
+        loadedMap.set(key, {
+          docId: u.docId,
+          memberDocId: u.memberDocId,
+          itemId: u.docId,
+          name: u.name,
+          contentType: u.contentType,
+          size: u.size,
+          url: u.url,
+          previewUrl: u.previewUrl,
+          storagePath: u.storagePath,
+          previewStoragePath: u.previewStoragePath,
+          date: u.date,
+          location: u.location,
+          notes: u.notes,
+        });
+      }
+
+      // 2. Also check Cloud Storage for any legacy files not yet in Firestore
       const storage = getStorage(this.firebaseApp);
       const originalsRoot = ref(storage, `events/${eventDocId}/materials/originals`);
-      const listed = await listAll(originalsRoot);
+      const listed = await listAll(originalsRoot).catch(() => ({ prefixes: [] }));
 
-      const loaded = await Promise.all(
+      await Promise.all(
         listed.prefixes.map(async (itemFolder) => {
-          const itemId = itemFolder.name;
-          const original = this.originalRef(eventDocId, itemId);
-          const [md, url] = await Promise.all([
-            getMetadata(original),
-            getDownloadURL(original),
-          ]);
-          const previewUrl = await getDownloadURL(this.previewRef(eventDocId, itemId)).catch(
-            () => undefined,
-          );
-          const material: Material = {
-            itemId,
-            name: md.customMetadata?.['name'] || itemId,
-            contentType: md.contentType || '',
-            size: md.size || 0,
-            url,
-            previewUrl,
-          };
-          return material;
+          const folderKey = itemFolder.name;
+          const expectedStoragePath = `events/${eventDocId}/materials/originals/${folderKey}/original`;
+          if (loadedMap.has(expectedStoragePath)) return; // already loaded from Firestore
+
+          try {
+            const original = this.originalRef(eventDocId, folderKey);
+            const [md, url] = await Promise.all([
+              getMetadata(original),
+              getDownloadURL(original),
+            ]);
+            const previewUrl = await getDownloadURL(this.previewRef(eventDocId, folderKey)).catch(
+              () => undefined,
+            );
+            const material: Material = {
+              itemId: folderKey,
+              name: md.customMetadata?.['name'] || folderKey,
+              contentType: md.contentType || '',
+              size: md.size || 0,
+              url,
+              previewUrl,
+              storagePath: expectedStoragePath,
+              previewStoragePath: `events/${eventDocId}/materials/previews/${folderKey}.jpg`,
+            };
+            loadedMap.set(expectedStoragePath, material);
+          } catch (storageErr) {
+            console.warn(`Error reading legacy material ${folderKey}:`, storageErr);
+          }
         }),
       );
 
-      // Stable order: newest first (itemId is prefixed with Date.now()).
-      loaded.sort((a, b) => (a.itemId < b.itemId ? 1 : a.itemId > b.itemId ? -1 : 0));
+      const loaded = Array.from(loadedMap.values());
+      // Stable order: newest first
+      loaded.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       this.materials.set(loaded);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -914,12 +958,23 @@ export class EventEditComponent implements OnInit {
     this.materialUploadedCount.set(0);
     this.materialTotalToUpload.set(files.length);
 
+    const ev = this.event();
+    const currentUser = this.firebaseState.user();
+    const uploaderMemberDocId = currentUser?.member?.docId || ev?.ownerDocId || '';
+    const uploaderMemberId = currentUser?.member?.memberId || ev?.ownerMemberId || '';
+    const uploaderMemberName = currentUser?.member?.name || ev?.ownerName || '';
+    const uploaderInstructorId = currentUser?.member?.instructorId || ev?.ownerInstructorId || '';
+
     const failures: string[] = [];
 
     for (const file of files) {
-      const itemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const folderKey = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const storagePath = `events/${eventDocId}/materials/originals/${folderKey}/original`;
+      const previewStoragePath = `events/${eventDocId}/materials/previews/${folderKey}.jpg`;
+
       try {
-        const original = this.originalRef(eventDocId, itemId);
+        const storage = getStorage(this.firebaseApp);
+        const original = this.originalRef(eventDocId, folderKey);
         await uploadBytes(original, file, {
           contentType: file.type || 'application/octet-stream',
           customMetadata: { name: file.name },
@@ -930,20 +985,57 @@ export class EventEditComponent implements OnInit {
         let previewUrl: string | undefined;
         try {
           const thumb = await makeThumbnail(file, this.MATERIAL_PREVIEW_MAX_DIM);
-          const preview = this.previewRef(eventDocId, itemId);
+          const preview = this.previewRef(eventDocId, folderKey);
           await uploadBytes(preview, thumb, { contentType: 'image/jpeg' });
           previewUrl = await getDownloadURL(preview);
         } catch (previewError) {
           console.warn(`No preview generated for "${file.name}":`, previewError);
         }
 
+        // Create Firestore UploadItem metadata document if uploader has a member record
+        let docId: string | undefined;
+        if (uploaderMemberDocId) {
+          try {
+            docId = await this.dataService.createUploadItem({
+              memberDocId: uploaderMemberDocId,
+              memberId: uploaderMemberId,
+              memberName: uploaderMemberName,
+              instructorId: uploaderInstructorId,
+              name: file.name,
+              contentType: file.type || 'application/octet-stream',
+              size: file.size,
+              url,
+              previewUrl: previewUrl || '',
+              storagePath,
+              previewStoragePath: previewUrl ? previewStoragePath : '',
+              date: ev?.start ? ev.start.split('T')[0] : new Date().toISOString().split('T')[0],
+              location: ev?.location || '',
+              eventDocId,
+              eventTitle: ev?.title || '',
+              notes: '',
+              tags: [],
+              source: 'event',
+              createdAt: new Date().toISOString(),
+              lastUpdated: new Date().toISOString(),
+            });
+          } catch (fsErr) {
+            console.warn('Could not write Firestore upload metadata doc for event material:', fsErr);
+          }
+        }
+
         const material: Material = {
-          itemId,
+          docId,
+          memberDocId: uploaderMemberDocId,
+          itemId: folderKey,
           name: file.name,
           contentType: file.type || '',
           size: file.size,
           url,
           previewUrl,
+          storagePath,
+          previewStoragePath,
+          date: ev?.start ? ev.start.split('T')[0] : '',
+          location: ev?.location || '',
         };
         this.materials.update((list) => [material, ...list]);
       } catch (error: unknown) {
@@ -976,6 +1068,15 @@ export class EventEditComponent implements OnInit {
           console.warn('Failed to delete material preview:', err),
         );
       }
+
+      // Delete Firestore doc if present
+      if (material.docId && material.memberDocId) {
+        await this.dataService.deleteUploadItem({
+          docId: material.docId,
+          memberDocId: material.memberDocId,
+        } as UploadItem).catch((err) => console.warn('Failed to delete Firestore upload doc:', err));
+      }
+
       this.materials.update((list) => list.filter((m) => m.itemId !== itemId));
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -988,6 +1089,8 @@ export class EventEditComponent implements OnInit {
     const ev = this.event();
     if (!ev?.docId) return;
     const name = (event.target as HTMLInputElement).value;
+    const material = this.materials().find((m) => m.itemId === itemId);
+
     // Optimistically reflect the new name; persist to object metadata.
     this.materials.update((list) =>
       list.map((m) => (m.itemId === itemId ? { ...m, name } : m)),
@@ -996,6 +1099,11 @@ export class EventEditComponent implements OnInit {
       await updateMetadata(this.originalRef(ev.docId, itemId), {
         customMetadata: { name },
       });
+
+      // Update Firestore doc if present
+      if (material?.docId && material?.memberDocId) {
+        await this.dataService.updateUploadMetadata(material.memberDocId, material.docId, { name });
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error renaming material:', error);

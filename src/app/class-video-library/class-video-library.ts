@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { IconComponent } from '../icons/icon.component';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-class-video-library',
@@ -19,6 +20,6 @@ export class ClassVideoLibraryComponent {
   }
 
   openVideoLibrarySubscription() {
-    window.open('https://iliqchuan.com/product/video-library-subscriber/', '_blank');
+    window.open(environment.links.videos, '_blank');
   }
 }

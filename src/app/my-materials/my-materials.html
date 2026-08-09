@@ -1,0 +1,511 @@
+<div class="materials-page-container">
+  <div class="header-section">
+    <div class="title-row">
+      <h2>My Uploaded Materials</h2>
+      <div class="view-toggle">
+        <button
+          type="button"
+          class="icon-button"
+          [class.active]="viewMode() === 'grid'"
+          (click)="viewMode.set('grid')"
+          title="Grid view"
+        >
+          <app-icon name="map" />
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          [class.active]="viewMode() === 'list'"
+          (click)="viewMode.set('list')"
+          title="List view"
+        >
+          <app-icon name="bullet_list" />
+        </button>
+      </div>
+    </div>
+    <p class="description-note">
+      Manage, preview, and organize your uploaded class videos, workshop photos, and event recordings.
+      Files are stored privately in Cloud Storage with metadata indexed in Firestore.
+    </p>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="upload-card">
+    <h3><app-icon name="upload_file" /> Upload Content</h3>
+    
+    <!-- Pre-fill metadata controls -->
+    <div class="upload-defaults-row">
+      <div class="input-group">
+        <label for="defaultDate">Media Date</label>
+        <input
+          id="defaultDate"
+          type="date"
+          [value]="defaultUploadDate()"
+          (input)="defaultUploadDate.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="defaultLoc">Location</label>
+        <input
+          id="defaultLoc"
+          type="text"
+          placeholder="e.g. New York Workshop, Online"
+          [value]="defaultUploadLocation()"
+          (input)="defaultUploadLocation.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="defaultEvent">Link to Event</label>
+        <div class="autocomplete-wrapper">
+          <app-autocomplete
+            id="defaultEvent"
+            class="event-autocomplete"
+            name="Link to Event"
+            [searchableSet]="eventsSet"
+            [displayFns]="eventDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="defaultUploadEventSearchTerm()"
+            placeholder="Type to search events by title, date, or location..."
+            (itemSelected)="onDefaultEventSelected($event)"
+            (textUpdated)="onDefaultEventTextUpdated($event)"
+          ></app-autocomplete>
+          @if (defaultUploadEventDocId()) {
+            <button
+              type="button"
+              class="icon-only-button clear-event-btn"
+              (click)="clearDefaultEvent()"
+              title="Unlink event"
+            >
+              <app-icon name="close" />
+            </button>
+          }
+        </div>
+        @if (defaultUploadEventDocId() && defaultUploadEventTitle()) {
+          <div class="linked-event-badge">
+            <app-icon name="event" />
+            <span class="linked-title">{{ defaultUploadEventTitle() }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="upload-actions">
+      <button
+        type="button"
+        class="button primary-button"
+        (click)="fileInput.click()"
+        [disabled]="isUploading()"
+      >
+        <app-icon name="upload_file" /> Select Files
+      </button>
+      <button
+        type="button"
+        class="outlined-button"
+        (click)="folderInput.click()"
+        [disabled]="isUploading()"
+      >
+        <app-icon name="upload_file" /> Select Folder
+      </button>
+
+      <input
+        #fileInput
+        type="file"
+        multiple
+        style="display: none"
+        (change)="onFilesSelected($event)"
+      />
+      <input
+        #folderInput
+        type="file"
+        webkitdirectory
+        style="display: none"
+        (change)="onFilesSelected($event)"
+      />
+    </div>
+
+    @if (isUploading()) {
+      <div class="upload-progress-container">
+        <app-spinner>Uploading {{ uploadCount() }} of {{ uploadTotal() }} files...</app-spinner>
+      </div>
+    }
+
+    @if (errorMessage(); as err) {
+      <div class="inline-error">
+        <span>{{ err }}</span>
+        <button type="button" class="icon-only-button" (click)="errorMessage.set(null)" title="Dismiss">
+          <app-icon name="close" />
+        </button>
+      </div>
+    }
+
+    @if (successMessage(); as msg) {
+      <div class="inline-success">
+        <span>{{ msg }}</span>
+        <button type="button" class="icon-only-button" (click)="successMessage.set(null)" title="Dismiss">
+          <app-icon name="close" />
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- Search & Filters Toolbar -->
+  <div class="filter-toolbar">
+    <div class="search-box">
+      <app-icon name="search" />
+      <input
+        type="text"
+        placeholder="Search files by name, location, event, notes..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+      @if (searchQuery()) {
+        <button type="button" class="icon-only-button" (click)="searchQuery.set('')" title="Clear search">
+          <app-icon name="close" />
+        </button>
+      }
+    </div>
+
+    <div class="filters-row">
+      <!-- Event filter -->
+      <div class="filter-item">
+        <label for="filterEvent">Event:</label>
+        <select
+          id="filterEvent"
+          [value]="selectedEventFilter()"
+          (change)="selectedEventFilter.set($any($event.target).value)"
+        >
+          <option value="">All Events</option>
+          @for (ev of availableEvents(); track ev.docId) {
+            <option [value]="ev.docId">{{ ev.title }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Year filter -->
+      <div class="filter-item">
+        <label for="filterYear">Year:</label>
+        <select
+          id="filterYear"
+          [value]="selectedYearFilter()"
+          (change)="selectedYearFilter.set($any($event.target).value)"
+        >
+          <option value="all">All Years</option>
+          @for (year of availableYears(); track year) {
+            <option [value]="year">{{ year }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Media Type filter -->
+      <div class="filter-item">
+        <label for="filterType">Type:</label>
+        <select
+          id="filterType"
+          [value]="selectedMediaType()"
+          (change)="selectedMediaType.set($any($event.target).value)"
+        >
+          <option value="all">All Types</option>
+          <option value="video">Videos</option>
+          <option value="image">Images</option>
+          <option value="other">Documents / Other</option>
+        </select>
+      </div>
+
+      <!-- Sort -->
+      <div class="filter-item">
+        <label for="sortOption">Sort:</label>
+        <select
+          id="sortOption"
+          [value]="sortOption()"
+          (change)="sortOption.set($any($event.target).value)"
+        >
+          <option value="date_desc">Date (Newest First)</option>
+          <option value="date_asc">Date (Oldest First)</option>
+          <option value="name_asc">Name (A–Z)</option>
+          <option value="name_desc">Name (Z–A)</option>
+          <option value="size_desc">File Size (Largest)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Count -->
+  <div class="results-meta">
+    <span>Showing {{ filteredMaterials().length }} of {{ materials().length }} material(s)</span>
+  </div>
+
+  <!-- Content Loading -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <app-spinner>Loading your uploaded materials...</app-spinner>
+    </div>
+  } @else if (filteredMaterials().length === 0) {
+    <div class="empty-state">
+      <app-icon name="video_library" />
+      <p>
+        @if (materials().length === 0) {
+          No materials uploaded yet. Use the upload box above to add videos or photos.
+        } @else {
+          No materials match your current search and filters.
+        }
+      </p>
+    </div>
+  } @else {
+    <!-- Grid View -->
+    @if (viewMode() === 'grid') {
+      <div class="materials-grid">
+        @for (mat of filteredMaterials(); track mat.docId) {
+          <div class="material-card">
+            <a
+              class="material-preview"
+              [href]="mat.url"
+              target="_blank"
+              rel="noopener"
+              [title]="'Open ' + mat.name"
+            >
+              @if (mat.previewUrl) {
+                <img [src]="mat.previewUrl" [alt]="mat.name" loading="lazy" />
+                @if (mat.contentType.startsWith('video/')) {
+                  <span class="material-play-badge"><app-icon name="video_library" /></span>
+                }
+              } @else if (mat.contentType.startsWith('video/')) {
+                <app-icon name="video_library" />
+              } @else {
+                <app-icon name="upload_file" />
+              }
+            </a>
+
+            <div class="material-info">
+              <span class="material-title" [title]="mat.name">{{ mat.name }}</span>
+              
+              <div class="material-badges">
+                @if (mat.date) {
+                  <span class="meta-chip date-chip" title="Date">
+                    <app-icon name="event" /> {{ mat.date }}
+                  </span>
+                }
+                @if (mat.location) {
+                  <span class="meta-chip loc-chip" title="Location">
+                    <app-icon name="map" /> {{ mat.location }}
+                  </span>
+                }
+                @if (mat.eventTitle) {
+                  <span class="meta-chip event-chip" title="Linked Event">
+                    <app-icon name="link" /> {{ mat.eventTitle }}
+                  </span>
+                }
+                <span class="meta-chip size-chip">{{ formatBytes(mat.size) }}</span>
+              </div>
+
+              @if (mat.notes) {
+                <p class="material-notes">{{ mat.notes }}</p>
+              }
+
+              <div class="material-card-actions">
+                <a
+                  class="icon-only-button"
+                  [href]="mat.url"
+                  target="_blank"
+                  rel="noopener"
+                  title="Open/Download"
+                >
+                  <app-icon name="link" />
+                </a>
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  (click)="openEditModal(mat)"
+                  title="Edit metadata"
+                >
+                  <app-icon name="admin" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button danger"
+                  (click)="deleteUpload(mat)"
+                  title="Delete file"
+                >
+                  <app-icon name="trash" />
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- List View -->
+      <div class="materials-list">
+        <table class="materials-table">
+          <thead>
+            <tr>
+              <th>Preview</th>
+              <th>Name</th>
+              <th>Date</th>
+              <th>Location</th>
+              <th>Linked Event</th>
+              <th>Size</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (mat of filteredMaterials(); track mat.docId) {
+              <tr>
+                <td class="preview-cell">
+                  <a [href]="mat.url" target="_blank" rel="noopener" class="mini-thumb">
+                    @if (mat.previewUrl) {
+                      <img [src]="mat.previewUrl" [alt]="mat.name" />
+                    } @else if (mat.contentType.startsWith('video/')) {
+                      <app-icon name="video_library" />
+                    } @else {
+                      <app-icon name="upload_file" />
+                    }
+                  </a>
+                </td>
+                <td class="name-cell">
+                  <span class="file-name">{{ mat.name }}</span>
+                  @if (mat.notes) {
+                    <span class="table-notes">{{ mat.notes }}</span>
+                  }
+                </td>
+                <td>{{ mat.date || '—' }}</td>
+                <td>{{ mat.location || '—' }}</td>
+                <td>
+                  @if (mat.eventTitle) {
+                    <span class="event-tag">{{ mat.eventTitle }}</span>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="size-cell">{{ formatBytes(mat.size) }}</td>
+                <td class="actions-cell">
+                  <a [href]="mat.url" target="_blank" rel="noopener" class="icon-only-button" title="Open">
+                    <app-icon name="link" />
+                  </a>
+                  <button type="button" class="icon-only-button" (click)="openEditModal(mat)" title="Edit">
+                    <app-icon name="admin" />
+                  </button>
+                  <button type="button" class="icon-only-button danger" (click)="deleteUpload(mat)" title="Delete">
+                    <app-icon name="trash" />
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <!-- Edit Metadata Modal -->
+  @if (editingUpload(); as upload) {
+    <div class="modal-backdrop" (click)="closeEditModal()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Edit Material Metadata</h3>
+          <button type="button" class="icon-only-button" (click)="closeEditModal()" title="Close">
+            <app-icon name="close" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="editName">Display Name</label>
+            <input
+              id="editName"
+              type="text"
+              [value]="editName()"
+              (input)="editName.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDate">Date</label>
+              <input
+                id="editDate"
+                type="date"
+                [value]="editDate()"
+                (input)="editDate.set($any($event.target).value)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="editLocation">Location</label>
+              <input
+                id="editLocation"
+                type="text"
+                placeholder="e.g. New York, Online"
+                [value]="editLocation()"
+                (input)="editLocation.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editEvent">Linked Event</label>
+            <div class="autocomplete-wrapper">
+              <app-autocomplete
+                id="editEvent"
+                class="event-autocomplete"
+                name="Linked Event"
+                [searchableSet]="eventsSet"
+                [displayFns]="eventDisplayFns"
+                [inputBoxIsChip]="false"
+                [initSearchTerm]="editEventSearchTerm()"
+                placeholder="Type to search events by title, date, or location..."
+                (itemSelected)="onEditEventSelected($event)"
+                (textUpdated)="onEditEventTextUpdated($event)"
+              ></app-autocomplete>
+              @if (editEventDocId()) {
+                <button
+                  type="button"
+                  class="icon-only-button clear-event-btn"
+                  (click)="clearEditEvent()"
+                  title="Unlink event"
+                >
+                  <app-icon name="close" />
+                </button>
+              }
+            </div>
+            @if (editEventDocId() && editEventTitle()) {
+              <div class="linked-event-badge">
+                <app-icon name="event" />
+                <span class="linked-title">{{ editEventTitle() }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="editNotes">Notes / Description</label>
+            <textarea
+              id="editNotes"
+              rows="3"
+              placeholder="Add optional notes or descriptions about this material"
+              [value]="editNotes()"
+              (input)="editNotes.set($any($event.target).value)"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="outlined-button" (click)="closeEditModal()" [disabled]="isSavingEdit()">
+            Cancel
+          </button>
+          <button type="button" class="button" (click)="saveEdit()" [disabled]="isSavingEdit()">
+            @if (isSavingEdit()) {
+              <app-spinner>Saving...</app-spinner>
+            } @else {
+              Save Changes
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="back-link-container">
+    <app-back-link />
+  </div>
+</div>

@@ -2,6 +2,7 @@
   "name": "ilc-members-manager",
   "version": "0.0.1",
   "scripts": {
+    "backfill:event-materials": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\"}' ../scripts/backfill-event-materials.ts",
     "build:all": "pnpm run build && pnpm run build:functions",
     "build:events-wc": "ng build --project events-viewer-wc",
     "build:find-instructor-wc": "ng build --project find-an-instructor-wc",

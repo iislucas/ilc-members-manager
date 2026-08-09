@@ -494,6 +494,10 @@ export class NavigationTreeService {
         return 'Products';
       case Views.OrderComplete:
         return 'Order Complete';
+      case Views.MyMaterials:
+        return 'My Materials';
+      case Views.ManageMaterials:
+        return 'Manage Materials';
       case Views.Login:
         return 'Login';
       case Views.NewMember:

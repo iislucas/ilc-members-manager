@@ -69,6 +69,8 @@ export enum Views {
   Notifications = 'notifications',
   Products = 'products',
   OrderComplete = 'orderComplete',
+  MyMaterials = 'myMaterials',
+  ManageMaterials = 'manageMaterials',
 }
 
 export const memberListPathPatterns = {
@@ -167,6 +169,8 @@ export const initPathPatterns = {
   // page or navigation — reachable directly via its URL.
   [Views.Products]: pathPattern`products`,
   [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, [{ name: 'session_id', ephemeral: true }]),
+  [Views.MyMaterials]: addUrlParams(pathPattern`my-materials`, ['q', 'eventId', 'date']),
+  [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, ['q', 'memberId', 'eventId', 'date']),
 };
 
 // Santiy check for type correctness...
