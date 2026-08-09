@@ -36,7 +36,7 @@
     <!-- Pre-fill metadata controls -->
     <div class="upload-defaults-row">
       <div class="input-group">
-        <label for="defaultDate">Media Date</label>
+        <label for="defaultDate">Date</label>
         <input
           id="defaultDate"
           type="date"
@@ -88,6 +88,41 @@
             <span class="linked-title">{{ defaultUploadEventTitle() }}</span>
           </div>
         }
+      </div>
+    </div>
+
+    <!-- Upload Tags Default Input -->
+    <div class="upload-tags-row">
+      <label for="defaultUploadTags">Tags (Optional):</label>
+      <div class="tags-input-container">
+        <div class="tags-chips-list">
+          @for (tag of defaultUploadTags(); track tag) {
+            <span class="tag-chip editable-tag-chip">
+              #{{ tag }}
+              <button type="button" class="remove-tag-btn" (click)="removeUploadTag(tag)" title="Remove tag">
+                <app-icon name="close" />
+              </button>
+            </span>
+          }
+        </div>
+        <div class="tag-input-row">
+          <input
+            id="defaultUploadTags"
+            type="text"
+            placeholder="Add tag to batch upload..."
+            [value]="defaultUploadTagsInput()"
+            (input)="defaultUploadTagsInput.set($any($event.target).value)"
+            (keydown.enter)="$event.preventDefault(); addUploadTag(defaultUploadTagsInput())"
+          />
+          <button
+            type="button"
+            class="button subtle-button"
+            (click)="addUploadTag(defaultUploadTagsInput())"
+            [disabled]="!defaultUploadTagsInput().trim()"
+          >
+            Add
+          </button>
+        </div>
       </div>
     </div>
 
@@ -156,46 +191,97 @@
       <app-icon name="search" />
       <input
         type="text"
-        placeholder="Search files by name, location, event, notes..."
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
+        placeholder="Search files by name, location, event, notes, tags..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="setSearchQuery($event)"
       />
       @if (searchQuery()) {
-        <button type="button" class="icon-only-button" (click)="searchQuery.set('')" title="Clear search">
+        <button type="button" class="icon-only-button" (click)="setSearchQuery('')" title="Clear search">
           <app-icon name="close" />
         </button>
       }
     </div>
 
     <div class="filters-row">
-      <!-- Event filter -->
-      <div class="filter-item">
-        <label for="filterEvent">Event:</label>
-        <select
-          id="filterEvent"
-          [value]="selectedEventFilter()"
-          (change)="selectedEventFilter.set($any($event.target).value)"
-        >
-          <option value="">All Events</option>
-          @for (ev of availableEvents(); track ev.docId) {
-            <option [value]="ev.docId">{{ ev.title }}</option>
+      <!-- Event filter autocomplete -->
+      <div class="filter-item autocomplete-filter-item">
+        <label>Event:</label>
+        <div class="filter-autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Event"
+            [searchableSet]="eventsSet"
+            [displayFns]="eventDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedEventFilterSearchTerm()"
+            placeholder="All Events (type to search)..."
+            (itemSelected)="onEventFilterSelected($event)"
+            (textUpdated)="onEventFilterTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedEventFilter()) {
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="clearEventFilter()"
+              title="Clear event filter"
+            >
+              <app-icon name="close" />
+            </button>
           }
-        </select>
+        </div>
       </div>
 
-      <!-- Year filter -->
-      <div class="filter-item">
-        <label for="filterYear">Year:</label>
-        <select
-          id="filterYear"
-          [value]="selectedYearFilter()"
-          (change)="selectedYearFilter.set($any($event.target).value)"
-        >
-          <option value="all">All Years</option>
-          @for (year of availableYears(); track year) {
-            <option [value]="year">{{ year }}</option>
+      <!-- Date Prefix Filter -->
+      <div class="filter-item date-filter-item">
+        <label for="filterDate">Date:</label>
+        <div class="filter-input-wrapper">
+          <input
+            id="filterDate"
+            type="text"
+            placeholder="e.g. 2026, 2026-05"
+            [ngModel]="selectedDateFilter()"
+            (ngModelChange)="setDateFilter($event)"
+          />
+          @if (selectedDateFilter()) {
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="setDateFilter('')"
+              title="Clear date filter"
+            >
+              <app-icon name="close" />
+            </button>
           }
-        </select>
+        </div>
+      </div>
+
+      <!-- Tag filter -->
+      <div class="filter-item tag-filter-item">
+        <label for="filterTag">Tag:</label>
+        <div class="filter-input-wrapper">
+          <input
+            id="filterTag"
+            type="text"
+            placeholder="Filter by tag..."
+            [ngModel]="selectedTagFilter()"
+            (ngModelChange)="setTagFilter($event)"
+            list="myTagsDatalist"
+          />
+          <datalist id="myTagsDatalist">
+            @for (tag of availableTags(); track tag) {
+              <option [value]="tag"></option>
+            }
+          </datalist>
+          @if (selectedTagFilter()) {
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="setTagFilter('')"
+              title="Clear tag filter"
+            >
+              <app-icon name="close" />
+            </button>
+          }
+        </div>
       </div>
 
       <!-- Media Type filter -->
@@ -204,7 +290,7 @@
         <select
           id="filterType"
           [value]="selectedMediaType()"
-          (change)="selectedMediaType.set($any($event.target).value)"
+          (change)="setMediaType($any($event.target).value)"
         >
           <option value="all">All Types</option>
           <option value="video">Videos</option>
@@ -282,22 +368,85 @@
               
               <div class="material-badges">
                 @if (mat.date) {
-                  <span class="meta-chip date-chip" title="Date">
-                    <app-icon name="event" /> {{ mat.date }}
-                  </span>
+                  <div class="meta-item">
+                    <a
+                      class="mini-icon-btn"
+                      [href]="getDateHref(mat.date)"
+                      target="_blank"
+                      (click)="$event.stopPropagation()"
+                      title="View calendar around {{ mat.date }}"
+                    >
+                      <app-icon name="event" />
+                    </a>
+                    <button
+                      type="button"
+                      class="filter-chip date-chip"
+                      (click)="filterByDate(mat.date)"
+                      title="Filter materials by {{ mat.date }}"
+                    >
+                      {{ mat.date }}
+                    </button>
+                  </div>
                 }
                 @if (mat.location) {
-                  <span class="meta-chip loc-chip" title="Location">
-                    <app-icon name="map" /> {{ mat.location }}
-                  </span>
+                  <div class="meta-item">
+                    <a
+                      class="mini-icon-btn"
+                      [href]="getLocationHref(mat.location)"
+                      target="_blank"
+                      (click)="$event.stopPropagation()"
+                      title="Find schools/events in {{ mat.location }}"
+                    >
+                      <app-icon name="map" />
+                    </a>
+                    <button
+                      type="button"
+                      class="filter-chip loc-chip"
+                      (click)="filterByLocation(mat.location)"
+                      title="Filter materials by {{ mat.location }}"
+                    >
+                      {{ mat.location }}
+                    </button>
+                  </div>
                 }
                 @if (mat.eventTitle) {
-                  <span class="meta-chip event-chip" title="Linked Event">
-                    <app-icon name="link" /> {{ mat.eventTitle }}
-                  </span>
+                  <div class="meta-item">
+                    <a
+                      class="mini-icon-btn"
+                      [href]="getEventHref(mat)"
+                      target="_blank"
+                      (click)="$event.stopPropagation()"
+                      title="View event details"
+                    >
+                      <app-icon name="link" />
+                    </a>
+                    <button
+                      type="button"
+                      class="filter-chip event-chip"
+                      (click)="filterByEvent(mat)"
+                      title="Filter materials by {{ mat.eventTitle }}"
+                    >
+                      <span class="truncate-text">{{ mat.eventTitle }}</span>
+                    </button>
+                  </div>
                 }
-                <span class="meta-chip size-chip">{{ formatBytes(mat.size) }}</span>
+                <span class="size-badge">{{ formatBytes(mat.size) }}</span>
               </div>
+
+              @if (mat.tags.length) {
+                <div class="meta-tags">
+                  @for (tag of mat.tags; track tag) {
+                    <button
+                      type="button"
+                      class="tag-chip mini-tag"
+                      (click)="filterByTag(tag)"
+                      title="Filter by tag: {{ tag }}"
+                    >
+                      #{{ tag }}
+                    </button>
+                  }
+                </div>
+              }
 
               @if (mat.notes) {
                 <p class="material-notes">{{ mat.notes }}</p>
@@ -365,20 +514,102 @@
                 </td>
                 <td class="name-cell">
                   <span class="file-name">{{ mat.name }}</span>
+                  @if (mat.tags.length) {
+                    <div class="table-tags">
+                      @for (tag of mat.tags; track tag) {
+                        <button
+                          type="button"
+                          class="tag-chip mini-tag"
+                          (click)="filterByTag(tag)"
+                          title="Filter by tag: {{ tag }}"
+                        >
+                          #{{ tag }}
+                        </button>
+                      }
+                    </div>
+                  }
                   @if (mat.notes) {
                     <span class="table-notes">{{ mat.notes }}</span>
                   }
                 </td>
-                <td>{{ mat.date || '—' }}</td>
-                <td>{{ mat.location || '—' }}</td>
                 <td>
-                  @if (mat.eventTitle) {
-                    <span class="event-tag">{{ mat.eventTitle }}</span>
+                  @if (mat.date) {
+                    <div class="meta-inline-cell">
+                      <a
+                        class="mini-icon-btn"
+                        [href]="getDateHref(mat.date)"
+                        target="_blank"
+                        (click)="$event.stopPropagation()"
+                        title="View calendar"
+                      >
+                        <app-icon name="event" />
+                      </a>
+                      <button
+                        type="button"
+                        class="filter-chip date-chip"
+                        (click)="filterByDate(mat.date)"
+                        title="Filter by date"
+                      >
+                        {{ mat.date }}
+                      </button>
+                    </div>
                   } @else {
                     —
                   }
                 </td>
-                <td class="size-cell">{{ formatBytes(mat.size) }}</td>
+                <td>
+                  @if (mat.location) {
+                    <div class="meta-inline-cell">
+                      <a
+                        class="mini-icon-btn"
+                        [href]="getLocationHref(mat.location)"
+                        target="_blank"
+                        (click)="$event.stopPropagation()"
+                        title="Find schools/events in {{ mat.location }}"
+                      >
+                        <app-icon name="map" />
+                      </a>
+                      <button
+                        type="button"
+                        class="filter-chip loc-chip"
+                        (click)="filterByLocation(mat.location)"
+                        title="Filter by location"
+                      >
+                        {{ mat.location }}
+                      </button>
+                    </div>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td>
+                  @if (mat.eventTitle) {
+                    <div class="meta-inline-cell">
+                      <a
+                        class="mini-icon-btn"
+                        [href]="getEventHref(mat)"
+                        target="_blank"
+                        (click)="$event.stopPropagation()"
+                        title="View event details"
+                      >
+                        <app-icon name="link" />
+                      </a>
+                      <button
+                        type="button"
+                        class="filter-chip event-chip"
+                        (click)="filterByEvent(mat)"
+                        title="Filter by this event"
+                      >
+                        <span class="truncate-text">{{ mat.eventTitle }}</span>
+                      </button>
+                    </div>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="size-cell">
+                  <span class="size-badge">{{ formatBytes(mat.size) }}</span>
+                </td>
                 <td class="actions-cell">
                   <a [href]="mat.url" target="_blank" rel="noopener" class="icon-only-button" title="Open">
                     <app-icon name="link" />
@@ -399,9 +630,9 @@
   }
 
   <!-- Edit Metadata Modal -->
-  @if (editingUpload(); as upload) {
+  @if (editingUpload()) {
     <div class="modal-backdrop" (click)="closeEditModal()">
-      <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <h3>Edit Material Metadata</h3>
           <button type="button" class="icon-only-button" (click)="closeEditModal()" title="Close">
@@ -475,6 +706,41 @@
                 <span class="linked-title">{{ editEventTitle() }}</span>
               </div>
             }
+          </div>
+
+          <!-- Tags in Edit Modal -->
+          <div class="form-group">
+            <label for="editTags">Tags</label>
+            <div class="tags-input-container">
+              <div class="tags-chips-list">
+                @for (tag of editTags(); track tag) {
+                  <span class="tag-chip editable-tag-chip">
+                    #{{ tag }}
+                    <button type="button" class="remove-tag-btn" (click)="removeEditTag(tag)" title="Remove tag">
+                      <app-icon name="close" />
+                    </button>
+                  </span>
+                }
+              </div>
+              <div class="tag-input-row">
+                <input
+                  id="editTags"
+                  type="text"
+                  placeholder="Add a tag..."
+                  [value]="editTagsInput()"
+                  (input)="editTagsInput.set($any($event.target).value)"
+                  (keydown.enter)="$event.preventDefault(); addEditTag(editTagsInput())"
+                />
+                <button
+                  type="button"
+                  class="button subtle-button"
+                  (click)="addEditTag(editTagsInput())"
+                  [disabled]="!editTagsInput().trim()"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">

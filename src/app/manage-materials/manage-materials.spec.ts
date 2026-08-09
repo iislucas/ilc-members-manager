@@ -5,6 +5,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, ROUTING_CONFIG, initPathPatterns } from '../app.config';
 import { UploadItem, initUploadItem, InstructorPublicData } from '../../../functions/src/data-model';
+import { SearchableSet } from '../searchable-set';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -78,8 +79,10 @@ describe('ManageMaterialsComponent', () => {
     getAllUploads: vi.fn().mockResolvedValue([...mockUploads]),
     updateUploadMetadata: vi.fn().mockResolvedValue(undefined),
     deleteUploadItem: vi.fn().mockResolvedValue(undefined),
-    instructors: {
-      entries: signal<InstructorPublicData[]>([
+    instructors: new SearchableSet<'instructorId', InstructorPublicData>(
+      ['name', 'instructorId', 'city', 'country'],
+      'instructorId',
+      [
         {
           docId: 'mem1',
           name: 'Jane Doe',
@@ -92,8 +95,8 @@ describe('ManageMaterialsComponent', () => {
           instructorId: '20',
           memberId: 'PL100',
         } as unknown as InstructorPublicData,
-      ]),
-    },
+      ],
+    ),
     getRecentEvents: vi.fn().mockResolvedValue([]),
     searchEvents: vi.fn().mockResolvedValue([
       { docId: 'ev1', title: 'NYC Spring Workshop', start: '2026-05-10T10:00:00Z', location: 'New York' },
@@ -130,18 +133,92 @@ describe('ManageMaterialsComponent', () => {
     expect(component.materials().length).toBe(2);
   });
 
-  it('should filter by instructor', async () => {
+  it('should filter by instructor using autocomplete selection and clear', async () => {
     await component.loadAllMaterials();
-    component.selectedInstructorFilter.set('mem1');
+    component.onInstructorFilterSelected({
+      docId: 'mem1',
+      name: 'Jane Doe',
+      instructorId: '10',
+    } as any);
+
+    expect(component.selectedInstructorFilter()).toBe('mem1');
+    expect(component.selectedInstructorSearchTerm()).toBe('Jane Doe [10]');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].memberName).toBe('Jane Doe');
+
+    component.clearInstructorFilter();
+    expect(component.selectedInstructorFilter()).toBe('');
+    expect(component.selectedInstructorSearchTerm()).toBe('');
+    expect(component.filteredMaterials().length).toBe(2);
+  });
+
+  it('should filter by event using autocomplete selection and clear', async () => {
+    await component.loadAllMaterials();
+    component.onEventFilterSelected({
+      docId: 'ev1',
+      title: 'NYC Spring Workshop',
+      start: '2026-05-10T10:00:00Z',
+      location: 'New York',
+    } as any);
+
+    expect(component.selectedEventFilter()).toBe('ev1');
+    expect(component.selectedEventFilterSearchTerm()).toBe('NYC Spring Workshop');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].eventTitle).toBe('NYC Spring Workshop');
+
+    component.clearEventFilter();
+    expect(component.selectedEventFilter()).toBe('');
+    expect(component.selectedEventFilterSearchTerm()).toBe('');
+    expect(component.filteredMaterials().length).toBe(2);
   });
 
   it('should filter by search text', async () => {
     await component.loadAllMaterials();
-    component.searchQuery.set('Warsaw');
+    component.setSearchQuery('Warsaw');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].location).toBe('Warsaw');
+  });
+
+  it('should filter by date prefix', async () => {
+    await component.loadAllMaterials();
+    component.setDateFilter('2026-05');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].date).toBe('2026-05-10');
+
+    component.setDateFilter('2027');
+    expect(component.filteredMaterials().length).toBe(0);
+
+    component.setDateFilter('');
+    expect(component.filteredMaterials().length).toBe(2);
+  });
+
+  it('should filter by tag and add/remove tags in edit modal', async () => {
+    await component.loadAllMaterials();
+    const item = component.materials()[0];
+
+    // Open edit modal and add tags
+    component.openEditModal(item);
+    component.addEditTag('spinning');
+    component.addEditTag('technique');
+    expect(component.editTags()).toEqual(['spinning', 'technique']);
+
+    component.removeEditTag('spinning');
+    expect(component.editTags()).toEqual(['technique']);
+
+    await component.saveEdit();
+
+    expect(mockDataManagerService.updateUploadMetadata).toHaveBeenCalledWith(
+      'mem1',
+      'upload1',
+      expect.objectContaining({
+        tags: ['technique'],
+      }),
+    );
+
+    // Filter by tag
+    component.filterByTag('technique');
+    expect(component.selectedTagFilter()).toBe('technique');
+    expect(component.filteredMaterials().length).toBe(1);
   });
 
   it('should update metadata via admin modal', async () => {
@@ -190,5 +267,37 @@ describe('ManageMaterialsComponent', () => {
         eventTitle: 'Paris Summer Retreat',
       }),
     );
+  });
+
+  it('should format instructor name as "name [instructorId]" and generate correct hrefs', () => {
+    const item = mockUploads[0];
+    expect(component.getInstructorDisplay(item)).toBe('Jane Doe [10]');
+    expect(component.getInstructorHref(item)).toBe('/instructors/10');
+    expect(component.getEventHref(item)).toBe('/events/ev1');
+    expect(component.getDateHref(item.date)).toBe('/events?q=2026-05-10');
+    expect(component.getLocationHref(item.location)).toBe('/find-school?q=New+York');
+  });
+
+  it('should filter materials when clicking instructor, event, date, or location text', async () => {
+    await component.loadAllMaterials();
+    const item1 = component.materials()[0];
+    const item2 = component.materials()[1];
+
+    component.filterByInstructor(item1);
+    expect(component.selectedInstructorFilter()).toBe('mem1');
+    expect(component.filteredMaterials().length).toBe(1);
+
+    component.clearInstructorFilter();
+    component.filterByEvent(item1);
+    expect(component.selectedEventFilter()).toBe('ev1');
+    expect(component.filteredMaterials().length).toBe(1);
+
+    component.clearEventFilter();
+    component.filterByLocation(item2.location);
+    expect(component.searchQuery()).toBe('Warsaw');
+    expect(component.filteredMaterials().length).toBe(1);
+
+    component.filterByDate(item1.date);
+    expect(component.selectedDateFilter()).toBe('2026-05-10');
   });
 });

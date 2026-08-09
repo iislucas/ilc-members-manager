@@ -207,4 +207,14 @@ describe('NavigationTreeService', () => {
       'Members Portal App',
     ]);
   });
+
+  it('shows Page Not Found breadcrumb and title when route does not match any view', () => {
+    routing.matchedPatternId.set(null);
+    expect(navTree.currentTitle()).toBe('Page Not Found');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'I Liq Chuan',
+      'Members Portal App',
+      'Page Not Found',
+    ]);
+  });
 });

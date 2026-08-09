@@ -399,6 +399,22 @@ describe('RoutingService', () => {
     expect(href).toBe('/gradings/G2');
   });
 
+  it('hrefForView should support strongly-typed urlParams for views with or without path vars', async () => {
+    await configureTestBed(testConfig);
+
+    // View without path vars, with query params
+    const eventsHref = service.hrefForView(Views.EventsCalendar, { q: 'retreat' });
+    expect(eventsHref).toBe('/events?q=retreat');
+
+    // View without path vars, no params
+    const plainEventsHref = service.hrefForView(Views.EventsCalendar);
+    expect(plainEventsHref).toBe('/events');
+
+    // View with path vars and query params
+    const schoolMembersHref = service.hrefForView(Views.SchoolMembers, { schoolId: 'S123' }, { q: 'alice' });
+    expect(schoolMembersHref).toBe('/school/S123/members?q=alice');
+  });
+
   it('should reset ephemeral params and pathVars when navigating to a different pattern', async () => {
     await configureTestBed(testConfig);
 

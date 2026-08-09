@@ -165,6 +165,20 @@
   }
 }
 
+.upload-tags-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px dashed v.$border-color-light;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: v.$text-secondary;
+  }
+}
+
 .upload-actions {
   display: flex;
   flex-wrap: wrap;
@@ -226,6 +240,7 @@
 .filters-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 
   .filter-item {
@@ -237,6 +252,7 @@
     label {
       color: v.$text-secondary;
       white-space: nowrap;
+      font-weight: 500;
     }
 
     select {
@@ -245,6 +261,81 @@
       border-radius: 4px;
       background: white;
       font-size: 0.9rem;
+    }
+
+    &.autocomplete-filter-item {
+      min-width: 220px;
+      flex: 1 1 220px;
+      max-width: 320px;
+    }
+
+    &.date-filter-item,
+    &.tag-filter-item {
+      min-width: 150px;
+    }
+  }
+
+  .filter-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    input {
+      padding: 6px 28px 6px 10px;
+      border: 1px solid v.$border-color-light;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.9rem;
+      min-width: 140px;
+
+      &:focus {
+        outline: none;
+        border-color: v.$heading-accent-color;
+      }
+    }
+
+    .clear-filter-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      padding: 2px;
+      color: v.$text-muted;
+      background: transparent;
+      border: none;
+
+      &:hover {
+        color: v.$text-primary;
+      }
+    }
+  }
+
+  .filter-autocomplete-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    flex: 1;
+
+    app-autocomplete {
+      width: 100%;
+    }
+
+    .clear-filter-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      padding: 2px;
+      color: v.$text-muted;
+      background: transparent;
+      border: none;
+
+      &:hover {
+        color: v.$text-primary;
+      }
     }
   }
 }
@@ -355,42 +446,120 @@
 .material-badges {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 
-.meta-chip {
+.meta-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  background: #f1f5f9;
+}
+
+.mini-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f4f4f5;
   color: v.$text-secondary;
+  border: 1px solid v.$border-color-light;
+  text-decoration: none;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+
+  app-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &:hover {
+    background: #e4e4e7;
+    color: v.$text-primary;
+    border-color: #a1a1aa;
+    transform: scale(1.1);
+  }
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid v.$border-color-light;
+  background: #f4f4f5;
+  color: v.$text-primary;
+  box-shadow: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e4e4e7;
+    border-color: #a1a1aa;
+  }
 
   &.date-chip {
     background: #eef2ff;
     color: #4338ca;
+    border-color: #e0e7ff;
+
+    &:hover {
+      background: #e0e7ff;
+      border-color: #a5b4fc;
+    }
   }
 
   &.loc-chip {
     background: #ecfdf5;
     color: #065f46;
+    border-color: #d1fae5;
+
+    &:hover {
+      background: #d1fae5;
+      border-color: #6ee7b7;
+    }
   }
 
   &.event-chip {
     background: #fff7ed;
     color: #9a3412;
-    max-width: 140px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    border-color: #ffedd5;
+    max-width: 180px;
 
-  &.size-chip {
-    background: #f3f4f6;
-    color: #6b7280;
+    .truncate-text {
+      max-width: 155px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    &:hover {
+      background: #ffedd5;
+      border-color: #fdba74;
+    }
   }
+}
+
+.size-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: v.$text-muted;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
 }
 
 .material-notes {
@@ -486,6 +655,12 @@
     }
   }
 
+  .meta-inline-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .event-tag {
     display: inline-block;
     padding: 2px 6px;
@@ -507,6 +682,95 @@
   }
 }
 
+.meta-tags,
+.table-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+    border-color: #cbd5e1;
+  }
+
+  &.mini-tag {
+    padding: 1px 6px;
+    font-size: 0.75rem;
+  }
+
+  &.editable-tag-chip {
+    background: #e0f2fe;
+    border-color: #bae6fd;
+    color: #0369a1;
+    cursor: default;
+
+    .remove-tag-btn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin-left: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      color: #0284c7;
+
+      &:hover {
+        color: #dc2626;
+      }
+
+      app-icon {
+        font-size: 0.75rem;
+        width: 12px;
+        height: 12px;
+      }
+    }
+  }
+}
+
+.tags-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .tags-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tag-input-row {
+    display: flex;
+    gap: 6px;
+
+    input {
+      flex: 1;
+    }
+
+    .subtle-button {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+  }
+}
+
 // Modal dialog styling
 .modal-backdrop {
   position: fixed;
@@ -519,7 +783,8 @@
   padding: 16px;
 }
 
-.modal-dialog {
+.modal-dialog,
+.modal-card {
   background: white;
   border-radius: 8px;
   width: 100%;

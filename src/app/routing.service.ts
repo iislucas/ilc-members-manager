@@ -349,30 +349,61 @@ export class RoutingService<T extends PathPatterns> {
     const resolved = this.resolveUrlWithParams(basePath);
     return resolved.startsWith('/') ? resolved : `/${resolved}`;
   }
-
   /**
-   * Generate an href string for a specific View pattern, with strongly typed path variables.
-   * Preserves current URL param signals.
+   * Generate an href string for a specific View pattern, with strongly typed path variables
+   * and optional strongly typed URL query parameters.
+   * Preserves current URL param signals for any parameters not explicitly specified.
    */
   hrefForView<K extends keyof T>(
     view: K,
-    ...args: PathVarNames<T[K]> extends never ? [] : [{ [key in PathVarNames<T[K]>]: string }]
+    ...args: [PathVarNames<T[K]>] extends [never]
+      ? [urlParams?: Partial<{ [key in UrlParamNames<T[K]>]: string }>]
+      : [
+          pathVars: { [key in PathVarNames<T[K]>]: string },
+          urlParams?: Partial<{ [key in UrlParamNames<T[K]>]: string }>,
+        ]
   ): string {
     const pattern = this.config.validPathPatterns[view];
-    const pathVars = args[0] as { [key: string]: string } | undefined;
+    const hasPathVars = pattern.pathParts.some((part) => part.startsWith(':'));
+    let pathVars: { [key: string]: string } | undefined;
+    let urlParams: { [key: string]: string } | undefined;
+
+    if (hasPathVars) {
+      pathVars = args[0] as { [key: string]: string } | undefined;
+      urlParams = args[1] as { [key: string]: string } | undefined;
+    } else {
+      urlParams = args[0] as { [key: string]: string } | undefined;
+    }
+
     const substParts = pattern.pathParts.map((part) => {
       if (part.startsWith(':')) {
         const paramName = part.substring(1);
         const val = pathVars?.[paramName];
         if (val === undefined) {
-          throw new Error(`Missing path variable ${paramName} for view ${String(view)}`);
+          throw new Error(
+            `Missing path variable ${paramName} for view ${String(view)}`,
+          );
         }
         return encodeURIComponent(val);
       } else {
         return part;
       }
     });
-    const path = substParts.join('/');
+
+    let path = substParts.join('/');
+    if (urlParams) {
+      const searchParams = new URLSearchParams();
+      for (const [k, v] of Object.entries(urlParams)) {
+        if (v !== undefined && v !== null && v !== '') {
+          searchParams.set(k, v);
+        }
+      }
+      const qs = searchParams.toString();
+      if (qs) {
+        path = `${path}?${qs}`;
+      }
+    }
+
     return this.hrefWithParams(path);
   }
 }

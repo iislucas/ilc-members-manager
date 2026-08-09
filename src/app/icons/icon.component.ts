@@ -36,7 +36,7 @@ export class IconComponent {
   viewbox = computed(() => this.iconData()?.viewbox);
   computedWidth = computed(() => this.width() || this.iconData()?.width);
   computedHeight = computed(() => this.height() || this.iconData()?.height);
-  computedFill = computed(() => this.fill() || this.iconData()?.fill);
+  computedFill = computed(() => this.fill() || this.iconData()?.fill || 'currentColor');
 
   svgContent = computed(() => {
     const html = this.iconData()?.html;

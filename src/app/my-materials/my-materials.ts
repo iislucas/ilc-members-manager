@@ -55,6 +55,8 @@ export class MyMaterialsComponent implements OnInit {
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
+  private viewSignals = this.routingService.signals[Views.MyMaterials];
+
   readonly MAX_PREVIEW_DIM = 320;
 
   // State signals
@@ -66,13 +68,26 @@ export class MyMaterialsComponent implements OnInit {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
-  // Search & Filter signals
-  searchQuery = signal('');
-  selectedEventFilter = signal('');
-  selectedYearFilter = signal('all');
-  selectedMediaType = signal<MediaTypeFilter>('all');
+  // Search & Filter signals (backed by URL params for shareability)
+  searchQuery = computed(() => this.viewSignals.urlParams.q());
+  selectedTagFilter = computed(() => this.viewSignals.urlParams.tag());
+  selectedDateFilter = computed(() => this.viewSignals.urlParams.date());
+  selectedEventFilter = computed(() => this.viewSignals.urlParams.eventId());
+  selectedMediaType = computed<MediaTypeFilter>(
+    () => (this.viewSignals.urlParams.type() as MediaTypeFilter) || 'all',
+  );
   sortOption = signal<SortOption>('date_desc');
   viewMode = signal<'grid' | 'list'>('grid');
+
+  // Input states for event autocomplete
+  eventSearchInput = signal('');
+
+  selectedEventFilterSearchTerm = computed(() => {
+    const id = this.selectedEventFilter();
+    if (!id) return this.eventSearchInput();
+    const ev = this.availableEvents().find((e) => e.docId === id);
+    return this.eventSearchInput() || (ev ? ev.title : id);
+  });
 
   // Pre-fill upload defaults (for batch uploads)
   defaultUploadDate = signal(new Date().toISOString().split('T')[0]);
@@ -80,6 +95,8 @@ export class MyMaterialsComponent implements OnInit {
   defaultUploadEventDocId = signal('');
   defaultUploadEventTitle = signal('');
   defaultUploadEventSearchTerm = signal('');
+  defaultUploadTags = signal<string[]>([]);
+  defaultUploadTagsInput = signal('');
 
   // Edit metadata modal state
   editingUpload = signal<UploadItem | null>(null);
@@ -91,6 +108,8 @@ export class MyMaterialsComponent implements OnInit {
   editEventTitle = signal('');
   editEventSearchTerm = signal('');
   editNotes = signal('');
+  editTags = signal<string[]>([]);
+  editTagsInput = signal('');
 
   // Searchable set for event autocomplete
   eventsSet = new SearchableSet<'docId', IlcEvent>(['title', 'location', 'start'], 'docId');
@@ -106,23 +125,23 @@ export class MyMaterialsComponent implements OnInit {
   // Available events for linking
   availableEvents = signal<IlcEvent[]>([]);
 
-  // Extract distinct years from materials for filter dropdown
-  availableYears = computed<string[]>(() => {
-    const years = new Set<string>();
+  // Distinct tags collected across all uploaded materials
+  availableTags = computed<string[]>(() => {
+    const tags = new Set<string>();
     for (const m of this.materials()) {
-      const year = (m.date || m.createdAt).slice(0, 4);
-      if (year && !isNaN(Number(year))) {
-        years.add(year);
+      for (const t of m.tags || []) {
+        if (t && t.trim()) tags.add(t.trim());
       }
     }
-    return Array.from(years).sort().reverse();
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
   });
 
   // Filtered and sorted materials list
   filteredMaterials = computed<UploadItem[]>(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const eventFilter = this.selectedEventFilter();
-    const yearFilter = this.selectedYearFilter();
+    const dateFilter = this.selectedDateFilter().trim();
+    const tagFilter = this.selectedTagFilter().trim().toLowerCase();
     const mediaType = this.selectedMediaType();
     const sort = this.sortOption();
 
@@ -134,7 +153,8 @@ export class MyMaterialsComponent implements OnInit {
           const matchEvent = (m.eventTitle || '').toLowerCase().includes(query);
           const matchLocation = (m.location || '').toLowerCase().includes(query);
           const matchNotes = (m.notes || '').toLowerCase().includes(query);
-          if (!matchName && !matchEvent && !matchLocation && !matchNotes) {
+          const matchTags = (m.tags || []).some((t) => t.toLowerCase().includes(query));
+          if (!matchName && !matchEvent && !matchLocation && !matchNotes && !matchTags) {
             return false;
           }
         }
@@ -144,10 +164,18 @@ export class MyMaterialsComponent implements OnInit {
           return false;
         }
 
-        // Year filter
-        if (yearFilter !== 'all') {
-          const itemYear = (m.date || m.createdAt).slice(0, 4);
-          if (itemYear !== yearFilter) {
+        // Date prefix filter (e.g. '2026', '2026-05', '2026-05-10')
+        if (dateFilter) {
+          const itemDate = m.date || (m.createdAt ? m.createdAt.split('T')[0] : '');
+          if (!itemDate.startsWith(dateFilter)) {
+            return false;
+          }
+        }
+
+        // Tag filter
+        if (tagFilter) {
+          const matchTag = (m.tags || []).some((t) => t.toLowerCase() === tagFilter);
+          if (!matchTag) {
             return false;
           }
         }
@@ -228,6 +256,46 @@ export class MyMaterialsComponent implements OnInit {
     }
   }
 
+  setSearchQuery(q: string) {
+    this.viewSignals.urlParams.q.set(q);
+  }
+
+  setTagFilter(tag: string) {
+    this.viewSignals.urlParams.tag.set(tag);
+  }
+
+  setDateFilter(date: string) {
+    this.viewSignals.urlParams.date.set(date);
+  }
+
+  setMediaType(type: MediaTypeFilter) {
+    this.viewSignals.urlParams.type.set(type === 'all' ? '' : type);
+  }
+
+  addUploadTag(tag: string) {
+    const t = tag.trim().replace(/^#/, '');
+    if (t && !this.defaultUploadTags().includes(t)) {
+      this.defaultUploadTags.update((list) => [...list, t]);
+      this.defaultUploadTagsInput.set('');
+    }
+  }
+
+  removeUploadTag(tag: string) {
+    this.defaultUploadTags.update((list) => list.filter((t) => t !== tag));
+  }
+
+  addEditTag(tag: string) {
+    const t = tag.trim().replace(/^#/, '');
+    if (t && !this.editTags().includes(t)) {
+      this.editTags.update((list) => [...list, t]);
+      this.editTagsInput.set('');
+    }
+  }
+
+  removeEditTag(tag: string) {
+    this.editTags.update((list) => list.filter((t) => t !== tag));
+  }
+
   onFilesSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const files = input.files;
@@ -237,13 +305,15 @@ export class MyMaterialsComponent implements OnInit {
     input.value = '';
   }
 
-  async uploadFiles(files: File[]) {
+  async uploadFiles(files: FileList | File[]) {
     const memberDocId = this.userMemberDocId();
     const member = this.userMember();
     if (!memberDocId || !member) {
-      this.errorMessage.set('Cannot upload: you must be logged in as a member.');
+      this.errorMessage.set('You must be signed in to upload files.');
       return;
     }
+
+    if (!files || files.length === 0) return;
 
     this.isUploading.set(true);
     this.errorMessage.set(null);
@@ -261,6 +331,7 @@ export class MyMaterialsComponent implements OnInit {
     const eventTitle = linkedEvent?.title || '';
     const uploadDate = this.defaultUploadDate() || new Date().toISOString().split('T')[0];
     const uploadLocation = this.defaultUploadLocation() || linkedEvent?.location || '';
+    const uploadTags = [...this.defaultUploadTags()];
 
     for (const file of files) {
       const itemId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -305,7 +376,7 @@ export class MyMaterialsComponent implements OnInit {
           eventDocId: selectedEvId,
           eventTitle,
           notes: '',
-          tags: [],
+          tags: uploadTags,
           source: 'direct',
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString(),
@@ -368,6 +439,8 @@ export class MyMaterialsComponent implements OnInit {
     this.editLocation.set(upload.location || '');
     this.editEventDocId.set(upload.eventDocId || '');
     this.editNotes.set(upload.notes || '');
+    this.editTags.set([...(upload.tags || [])]);
+    this.editTagsInput.set('');
 
     let title = upload.eventTitle || '';
     if (upload.eventDocId && !title) {
@@ -382,6 +455,8 @@ export class MyMaterialsComponent implements OnInit {
 
   closeEditModal() {
     this.editingUpload.set(null);
+    this.editTags.set([]);
+    this.editTagsInput.set('');
   }
 
   onEditEventSelected(event: IlcEvent) {
@@ -429,6 +504,7 @@ export class MyMaterialsComponent implements OnInit {
       eventDocId: selectedEvId,
       eventTitle: selectedEvId ? eventTitle : '',
       notes: this.editNotes().trim(),
+      tags: this.editTags(),
     };
 
     try {
@@ -448,7 +524,11 @@ export class MyMaterialsComponent implements OnInit {
   }
 
   async deleteUpload(upload: UploadItem) {
-    if (!confirm(`Are you sure you want to permanently delete "${upload.name}"? This removes the file and thumbnail.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete "${upload.name}"? This removes the file and thumbnail.`,
+      )
+    ) {
       return;
     }
 
@@ -469,5 +549,80 @@ export class MyMaterialsComponent implements OnInit {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  onEventFilterSelected(event: IlcEvent) {
+    this.viewSignals.urlParams.eventId.set(event.docId);
+    this.eventSearchInput.set(event.title);
+  }
+
+  onEventFilterTextUpdated(text: string) {
+    this.eventSearchInput.set(text);
+    if (!text.trim()) {
+      this.viewSignals.urlParams.eventId.set('');
+    }
+  }
+
+  clearEventFilter() {
+    this.viewSignals.urlParams.eventId.set('');
+    this.eventSearchInput.set('');
+  }
+
+  getEventHref(mat: UploadItem): string {
+    if (mat.eventDocId) {
+      return this.routingService.hrefForView(Views.EventView, {
+        eventId: mat.eventDocId,
+      });
+    }
+    if (mat.eventTitle) {
+      return this.routingService.hrefForView(Views.EventsCalendar, {
+        q: mat.eventTitle,
+      });
+    }
+    return this.routingService.hrefForView(Views.EventsCalendar);
+  }
+
+  getDateHref(date?: string): string {
+    if (date) {
+      return this.routingService.hrefForView(Views.EventsCalendar, {
+        q: date,
+      });
+    }
+    return this.routingService.hrefForView(Views.EventsCalendar);
+  }
+
+  getLocationHref(location?: string): string {
+    if (location) {
+      return this.routingService.hrefForView(Views.FindSchool, {
+        q: location,
+      });
+    }
+    return this.routingService.hrefForView(Views.FindSchool);
+  }
+
+  filterByEvent(mat: UploadItem) {
+    if (mat.eventDocId) {
+      this.viewSignals.urlParams.eventId.set(mat.eventDocId);
+    } else if (mat.eventTitle) {
+      this.setSearchQuery(mat.eventTitle);
+    }
+  }
+
+  filterByDate(date?: string) {
+    if (date) {
+      const current = this.selectedDateFilter();
+      this.setDateFilter(current === date ? '' : date);
+    }
+  }
+
+  filterByLocation(location?: string) {
+    if (location) {
+      this.setSearchQuery(location);
+    }
+  }
+
+  filterByTag(tag: string) {
+    const current = this.selectedTagFilter();
+    this.setTagFilter(current === tag ? '' : tag);
   }
 }

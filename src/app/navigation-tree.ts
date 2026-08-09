@@ -115,8 +115,15 @@ export class NavigationTreeService {
   public breadcrumbs = computed(() => {
     const view = this.currentView();
     const appRoot = { label: 'Members Portal App', shortLabel: 'App', url: '/' };
-    if (!view || view === Views.Home) {
+    if (view === Views.Home) {
       return [SITE_ROOT, appRoot];
+    }
+    if (!view) {
+      return [
+        SITE_ROOT,
+        appRoot,
+        { label: 'Page Not Found', isLoading: false },
+      ];
     }
     return [
       SITE_ROOT,
@@ -533,7 +540,7 @@ export class NavigationTreeService {
         return `Unnamed and not yet a Member (doc:${m.docId})`;
       }
       default:
-        return 'Unknown View';
+        return 'Page Not Found';
     }
   }
 }

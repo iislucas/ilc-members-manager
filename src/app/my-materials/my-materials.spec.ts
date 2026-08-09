@@ -115,24 +115,75 @@ describe('MyMaterialsComponent', () => {
 
   it('should filter materials by search query', async () => {
     await component.loadMaterials();
-    component.searchQuery.set('Spinning');
+    component.setSearchQuery('Spinning');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].name).toContain('Workshop');
 
-    component.searchQuery.set('Boulder');
+    component.setSearchQuery('Boulder');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].name).toContain('Group Photo');
   });
 
   it('should filter materials by media type', async () => {
     await component.loadMaterials();
-    component.selectedMediaType.set('video');
+    component.setMediaType('video');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].contentType).toBe('video/mp4');
 
-    component.selectedMediaType.set('image');
+    component.setMediaType('image');
     expect(component.filteredMaterials().length).toBe(1);
     expect(component.filteredMaterials()[0].contentType).toBe('image/jpeg');
+  });
+
+  it('should filter materials by date prefix', async () => {
+    await component.loadMaterials();
+    component.setDateFilter('2026-05');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].date).toBe('2026-05-10');
+
+    component.setDateFilter('2025');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].date).toBe('2025-11-20');
+
+    component.setDateFilter('2024');
+    expect(component.filteredMaterials().length).toBe(0);
+
+    component.setDateFilter('');
+    expect(component.filteredMaterials().length).toBe(2);
+  });
+
+  it('should support tags for uploads, editing, and filtering', async () => {
+    await component.loadMaterials();
+
+    // Default upload tags
+    component.addUploadTag('camp');
+    component.addUploadTag('highlights');
+    expect(component.defaultUploadTags()).toEqual(['camp', 'highlights']);
+    component.removeUploadTag('camp');
+    expect(component.defaultUploadTags()).toEqual(['highlights']);
+
+    // Edit modal tags
+    const item = component.materials()[0];
+    component.openEditModal(item);
+    component.addEditTag('workshop');
+    component.addEditTag('2026');
+    expect(component.editTags()).toEqual(['workshop', '2026']);
+    component.removeEditTag('2026');
+    expect(component.editTags()).toEqual(['workshop']);
+    await component.saveEdit();
+
+    expect(mockDataManagerService.updateUploadMetadata).toHaveBeenCalledWith(
+      'mem1',
+      'upload1',
+      expect.objectContaining({
+        tags: ['workshop'],
+      }),
+    );
+
+    // Tag filtering
+    component.filterByTag('workshop');
+    expect(component.selectedTagFilter()).toBe('workshop');
+    expect(component.filteredMaterials().length).toBe(1);
   });
 
   it('should open and save edit metadata modal', async () => {
@@ -156,5 +207,44 @@ describe('MyMaterialsComponent', () => {
       }),
     );
     expect(component.editingUpload()).toBeNull();
+  });
+
+  it('should filter by event using autocomplete and clear', async () => {
+    await component.loadMaterials();
+    component.onEventFilterSelected({
+      docId: 'ev1',
+      title: 'NYC Spring Workshop',
+      start: '2026-05-10T10:00:00Z',
+      location: 'New York',
+    } as any);
+
+    expect(component.selectedEventFilter()).toBe('ev1');
+    expect(component.selectedEventFilterSearchTerm()).toBe('NYC Spring Workshop');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].eventTitle).toBe('NYC Spring Workshop');
+
+    component.clearEventFilter();
+    expect(component.selectedEventFilter()).toBe('');
+    expect(component.filteredMaterials().length).toBe(2);
+  });
+
+  it('should filter by date and location via helper methods', async () => {
+    await component.loadMaterials();
+
+    component.filterByDate('2026-05-10');
+    expect(component.selectedDateFilter()).toBe('2026-05-10');
+
+    component.setDateFilter('');
+    component.filterByLocation('Boulder, CO');
+    expect(component.searchQuery()).toBe('Boulder, CO');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].location).toBe('Boulder, CO');
+  });
+
+  it('should generate correct hrefs for event, date, and location', () => {
+    const item = mockUploads[0];
+    expect(component.getEventHref(item)).toBe('/events/ev1');
+    expect(component.getDateHref(item.date)).toBe('/events?q=2026-05-10');
+    expect(component.getLocationHref(item.location)).toBe('/find-school?q=New+York');
   });
 });

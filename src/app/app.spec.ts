@@ -286,5 +286,42 @@ describe('App', () => {
     expect(clickEvent.defaultPrevented).toBe(false);
     expect(navigateSpy).not.toHaveBeenCalled();
   });
+
+  it('should render not-found error page when navigating to an unknown route while logged in', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+    } as unknown as UserDetails);
+    app.routingService.matchedPatternId.set(null);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-not-found')).toBeTruthy();
+  });
+
+  it('should render not-found error page when navigating to an unknown route while logged out', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+    app.routingService.matchedPatternId.set(null);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-not-found')).toBeTruthy();
+  });
 });
 

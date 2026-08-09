@@ -169,8 +169,12 @@ export const initPathPatterns = {
   // page or navigation — reachable directly via its URL.
   [Views.Products]: pathPattern`products`,
   [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, [{ name: 'session_id', ephemeral: true }]),
-  [Views.MyMaterials]: addUrlParams(pathPattern`my-materials`, ['q', 'eventId', 'date']),
-  [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, ['q', 'memberId', 'eventId', 'date']),
+  [Views.MyMaterials]: addUrlParams(pathPattern`my-materials`, [
+    'q', 'tag', 'date', 'eventId', 'type', 'location',
+  ]),
+  [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, [
+    'q', 'tag', 'date', 'eventId', 'type', 'instructorId', 'memberId', 'location',
+  ]),
 };
 
 // Santiy check for type correctness...

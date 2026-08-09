@@ -19,7 +19,9 @@
   }
 
   <main>
-    @if (isPublicPage()) {
+    @if (isNotFound()) {
+      <app-not-found></app-not-found>
+    } @else if (isPublicPage()) {
       <!-- Public pages: render immediately, regardless of auth/data-loading state.
            This single block replaces the duplicate public-view cases that were
            previously in both the logged-in and logged-out branches, eliminating
@@ -302,6 +304,9 @@
         }
         @case (Views.ManageMaterials) {
           <app-manage-materials></app-manage-materials>
+        }
+        @default {
+          <app-not-found></app-not-found>
         }
       }
     }

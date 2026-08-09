@@ -50,6 +50,7 @@ import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MyMaterialsComponent } from './my-materials/my-materials';
 import { ManageMaterialsComponent } from './manage-materials/manage-materials';
+import { NotFoundComponent } from './not-found/not-found';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
@@ -103,6 +104,7 @@ import { NavigationTreeService } from './navigation-tree';
     OrderCompleteComponent,
     MyMaterialsComponent,
     ManageMaterialsComponent,
+    NotFoundComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -117,6 +119,8 @@ export class App {
     inject(RoutingService);
   public navTree = inject(NavigationTreeService);
   public menuOpen = signal(false);
+
+  public isNotFound = computed(() => this.currentView() === null);
 
   // Views that are accessible without login.
   private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
@@ -263,12 +267,12 @@ export class App {
       const view = this.routingService.matchedPatternId();
 
       const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
-      if (isLoggedOut && (!view || view === Views.Home)) {
+      if (isLoggedOut && view === Views.Home) {
         this.routingService.navigateToParts(['login']);
       } else if (isLoggedOut && view === Views.Login) {
         // Stay on login page
-      } else if (isLoggedOut && isOnPublicPage) {
-        // Stay on public page — login is in the nav bar
+      } else if (isLoggedOut && (isOnPublicPage || !view)) {
+        // Stay on public page or not found page — login is available in header
       } else if (isLoggedIn) {
         if (view === Views.Login) {
           // After login, redirect to the returnUrl if one was provided
