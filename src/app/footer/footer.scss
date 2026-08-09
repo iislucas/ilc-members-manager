@@ -3,9 +3,24 @@
 footer {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
   margin-top: 1em;
   padding: 20px;
-  background-color: $theme-bg-color;
+  background-color: $footer-bg-color;
+  color: $footer-text-color;
   gap: 20px;
-  border-top: 2px solid $theme-border-color;
+  border-top: 2px solid $footer-border-color;
+  font-size: 0.9em;
+
+  a {
+    color: #e4e4e7;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+  }
 }

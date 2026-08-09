@@ -89,10 +89,9 @@ button {
 }
 
 .delete-button:hover {
-  background-color: unset;
-  border: 1px solid #c66;
-  background-color: #faa;
-  color: $button-text-color;
+  background-color: $theme-error-bg-color;
+  border: 1px solid $theme-error-border-color;
+  color: $theme-error-text-color;
 }
 
 .icon-only-button.delete-button {
@@ -690,6 +689,7 @@ a.selectable-card {
 // ----------------------------------------------------------------------------
 .menu-style {
   background-color: white;
+  color: $text-primary;
   border: 1px solid $border-color-light;
   border-radius: 5px;
   padding: 0.4em;
@@ -701,6 +701,7 @@ a.selectable-card {
 }
 
 .menu-item {
+  color: $text-primary;
   padding: 0.5em;
   white-space: nowrap; /* Prevent text from wrapping */
   cursor: pointer;
@@ -709,10 +710,14 @@ a.selectable-card {
   align-items: center;
   gap: 0.75em;
   @include row-highlight-base;
+
+  app-icon {
+    color: $text-secondary;
+  }
 }
 
 .menu-seperator {
-  border-top: 1px solid #ddd;
+  border-top: 1px solid $border-color-light;
 }
 
 .menu-item:hover {

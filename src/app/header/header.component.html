@@ -3,7 +3,7 @@
     @if (isLoggedIn()) {
       <div class="menu-anchor">
         <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-          <app-icon name="menu" width="1.4em" height="1.4em"></app-icon>
+          <app-icon name="menu" width="1.4em" height="1.4em" fill="white"></app-icon>
         </button>
         @if (menuOpen()) {
           <app-navigation-menu

@@ -10,13 +10,15 @@
   flex-grow: 0;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
-  background-color: $theme-bg-color;
-  border-bottom: 2px solid $theme-border-color;
+  background-color: $header-bg-color;
+  color: $header-text-color;
+  border-bottom: 2px solid $header-border-color;
   padding: 0.5em 0.5em;
 
   .title {
     font-size: large;
     font-weight: bold;
+    color: $header-text-color;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -49,6 +51,20 @@
 
   .icon-only-button {
     margin-right: 0.5em;
+    color: #ffffff;
+
+    app-icon {
+      color: #ffffff;
+
+      svg {
+        fill: currentColor;
+      }
+    }
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
   }
 }
 
@@ -70,7 +86,7 @@
   flex-wrap: wrap;
   font-size: 0.75em; /* Larger chip size */
   font-weight: normal;
-  color: $text-muted;
+  color: #cbd5e1;
   margin-bottom: 0.4em;
   /* Matches the breadcrumb left/right-padding; enables breadcrumb text to start 
      flush left with title text. */
@@ -83,7 +99,7 @@
 
   .crumb-link {
     text-decoration: none;
-    color: inherit;
+    color: #e2e8f0;
     padding: 0.2em $crumb-side-padding;
     border-radius: 12px;
     /* Ancestor crumbs are named after the record they point at (an event, a
@@ -102,9 +118,9 @@
 
     &:hover {
       text-decoration: none;
-      background-color: $menu-item-hover-color;
-      border: 1px solid $border-color-light;
-      color: $text-primary;
+      background-color: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #ffffff;
     }
 
     &:active {
@@ -115,7 +131,7 @@
   .crumb-separator {
     margin: 0 0.1em;
     font-weight: normal;
-    color: $text-placeholder;
+    color: #94a3b8;
   }
 }
 
@@ -125,14 +141,15 @@
   line-height: 1;
   font-size: 0.9em; /* slightly smaller than the inherited 'large' */
   text-align: center;
+  color: $header-text-color;
 
   &.doc-id {
     font-family: monospace;
-    color: #777;
-    background-color: #f5f5f5;
+    color: #f1f5f9;
+    background-color: #334155;
     padding: 0.2em 0.4em;
     border-radius: 4px;
-    border: 1px solid #ddd;
+    border: 1px solid #64748b;
     display: inline-block;
   }
 }
@@ -140,7 +157,7 @@
 .loading-slider {
   width: 100px;
   height: 4px;
-  background-color: #e0e0e0;
+  background-color: #64748b;
   border-radius: 2px;
   overflow: hidden;
   position: relative;
@@ -154,7 +171,7 @@
     left: -50%;
     width: 50%;
     height: 100%;
-    background-color: $theme-border-color;
+    background-color: #ef4444;
     animation: loading-anim 1.5s infinite linear;
   }
 }
@@ -170,20 +187,20 @@
 
 .nav-sign-in-link {
   text-decoration: none;
-  color: $text-primary;
+  color: #ffffff;
   font-size: 0.9em;
   font-weight: 500;
   padding: 0.35em 1em;
   border-radius: 6px;
-  border: 1px solid $theme-border-color;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   background-color: transparent;
   white-space: nowrap;
   transition: all 0.2s ease-in-out;
 
   &:hover {
-    background-color: $menu-item-hover-color;
-    border-color: $button-border-color;
-    color: $text-primary;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: #ffffff;
+    color: #ffffff;
   }
 
   &:active {

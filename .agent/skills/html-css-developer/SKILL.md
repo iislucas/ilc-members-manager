@@ -17,7 +17,7 @@ description: Read this when making HTML templates/files or CSS/SCSS styling chan
 The app is a **functional, data-dense management portal** — not a marketing site. The aesthetic priorities are:
 
 1. **Clarity over decoration**: Clean layouts, readable typography, moderate whitespace.
-2. **Warm muted palette**: The brand uses `$theme-bg-color` / `$theme-border-color` / `$theme-chip-bg-color` (warm reds/pinks) as the primary accent. Blue (`$theme-tag-*`) is reserved for tags and interactive states.
+2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #18181b`, `$button-bg-color: #f4f4f5`), dark slate grey header/footer (`$header-bg-color: #2d3748`), classic red accents (`$heading-accent-color: #991b1b`), and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`).
 3. **Subtle depth**: Light box-shadows (`$shadow-color`) and border-based separation rather than heavy gradients.
 4. **Responsive simplicity**: Grid/flexbox layouts that collapse gracefully at 600px. No complex responsive breakpoint system — just a single mobile breakpoint.
 5. **Reuse global styles**: Shared UI patterns (buttons, chips, cards, menus, inputs, errors) are defined once in `styles.scss`. Component SCSS should only handle layout and component-specific positioning.

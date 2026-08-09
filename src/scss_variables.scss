@@ -2,73 +2,78 @@
 //  Text Colors
 //  Used for headings, body copy, labels, and metadata throughout the app.
 // ============================================================================
-$text-primary: #333;          // Main body text, headings (e.g. card titles, form values)
-$text-secondary: #555;        // Labels, secondary descriptions, form hints
-$text-muted: #666;            // De-emphasised text (e.g. card descriptions, timestamps)
-$text-placeholder: #888;      // Placeholder-like text, search icons, breadcrumb separators
+$text-primary: #18181b;          // Deep black / near-black — main body text, primary titles
+$text-secondary: #52525b;        // Charcoal gray — labels, descriptions, secondary text
+$text-muted: #71717a;            // Medium neutral gray — timestamps, metadata
+$text-placeholder: #a1a1aa;      // Light neutral gray — placeholders, search icons
 
 // ============================================================================
 //  Border & Separator Colors
 //  Used for input borders, card outlines, dividers, and section separators.
 // ============================================================================
-$border-color-light: #ccc;    // Generic borders on inputs, cards, menus, and dividers
-$separator-color: #eee;       // Subtle separators between list items, sections, and backgrounds
+$border-color-light: #e4e4e7;    // Clean neutral borders on inputs, cards, menus, and dividers
+$separator-color: #f4f4f5;       // Subtle separators between list items, sections, and backgrounds
 
 // ============================================================================
 //  Brand / Theme Colors
-//  The warm red/pink palette that defines the ILC brand identity.
+//  Yin/Yang monochrome palette (crisp black & white) with vibrant red accent.
 //  Used for the header, footer, card backgrounds, and form section headings.
 // ============================================================================
-$theme-bg-color: #ffeeee;              // Light pink — header, footer, card, form section bg
-$theme-border-color: #955;             // Dark red — header/footer border stripe
-$theme-heading-color-subtle: #777;     // Form section heading text
-$heading-accent-color: #722;           // Bold heading accent (e.g. edit-form h3)
+$theme-bg-color: #ffffff;              // Crisp white — card, panel, and content background
+$theme-border-color: #18181b;          // Solid black stripe — card outlines and active borders
+$theme-heading-color-subtle: #27272a;  // Dark charcoal — form section heading text
+$heading-accent-color: #991b1b;        // Bold red accent — headings, primary accents (e.g. edit-form h3)
+
+// Header & Footer (Lighter Slate Grey Surface with Black Underline & White Text)
+$header-bg-color: #64748b;             // Lighter slate grey header background
+$header-text-color: #ffffff;           // Crisp white header text
+$header-border-color: #18181b;         // Distinct black underline stripe under header
+$footer-bg-color: #64748b;             // Lighter slate grey footer background
+$footer-text-color: #f8fafc;           // Clean light footer text
+$footer-border-color: #18181b;         // Distinct black border stripe above footer
 
 // ============================================================================
 //  Interactive / Focus Colors
-//  Used for focus rings on search inputs and active tab indicators.
 // ============================================================================
-$focus-ring-color: #007bff;   // Focus border on search inputs, active tab underlines
+$focus-ring-color: #007bff;   // Light blue focus ring on search inputs and active tags
 
 // ============================================================================
-//  Button Colors
+//  Button Colors (Monochrome Yin/Yang with Dark Borders)
 //  Base styling for all <button> elements. See styles.scss for variants
 //  like .icon-only-button, .delete-button, .subtle-button, etc.
 // ============================================================================
-$button-bg-color: #bbf;
-$button-border-color: #66a;
-$button-text-color: #222;
-$button-hover-bg-color: #aae;
-$button-active-bg-color: #99d;
-$shadow-color: rgba(0, 0, 0, 0.1);
-$shadow-color-hover: rgba(0, 0, 0, 0.15);
+$button-bg-color: #f4f4f5;
+$button-border-color: #27272a;
+$button-text-color: #18181b;
+$button-hover-bg-color: #e4e4e7;
+$button-active-bg-color: #d4d4d8;
+$shadow-color: rgba(0, 0, 0, 0.08);
+$shadow-color-hover: rgba(0, 0, 0, 0.14);
 $shadow-color-active: rgba(0, 0, 0, 0.2);
 
 // ============================================================================
 //  Chip Colors
-//  Used for .level-chip, .identifier-chip, .email-chip (warm pink)
-//  and .tag-chip (blue tint). See styles.scss for all chip classes.
+//  Used for .level-chip, .identifier-chip, .email-chip (clean neutral)
+//  and .tag-chip (light blue tag tint). See styles.scss for all chip classes.
 // ============================================================================
-$theme-chip-bg-color: #eedddd;
-$theme-chip-border-color: #caa;
+$theme-chip-bg-color: #f4f4f5;
+$theme-chip-border-color: #d4d4d8;
 
 $theme-tag-bg-color: #e0f2fe;
 $theme-tag-border-color: #bae6fd;
 
 // ============================================================================
 //  Menu Colors
-//  Used by .menu-style, .menu-item, and .subtle-button hover states.
 // ============================================================================
-$menu-item-hover-color: #ddf;
-$menu-sep-color: #ddd;
+$menu-item-hover-color: #f0f7ff;
+$menu-sep-color: #e4e4e7;
 
 // ============================================================================
-//  Error Colors
-//  Used by .error-container and .error-message in styles.scss.
+//  Error Colors (Red Accent)
 // ============================================================================
-$theme-error-text-color: #744;
-$theme-error-bg-color: #ffdddd;
-$theme-error-border-color: #c99;
+$theme-error-text-color: #991b1b;
+$theme-error-bg-color: #fef2f2;
+$theme-error-border-color: #fecaca;
 
 // ============================================================================
 //  Layout Constants
@@ -77,8 +82,8 @@ $max-main-width: 900px;        // Default max-width for centered page containers
 $card-padding: 10px;
 $card-sep: 0.75em;
 
-// List styling
-$row-border-color: #ebebeb;
+// List styling (Light blue hover and selection highlights)
+$row-border-color: #e4e4e7;
 $row-highlight-bg: #f4f9ff;
 $row-highlight-border: #4da3ff;
 
