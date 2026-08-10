@@ -26,11 +26,11 @@
     }
 
     <div class="title-container">
-      <div class="breadcrumbs-accordion" [class.open]="breadcrumbs().length > 1">
+      <div class="breadcrumbs-accordion" [class.open]="hasParentCrumbs()">
         <div class="breadcrumbs-inner">
-          @if (breadcrumbs().length > 1) {
+          @if (displayParentCrumbs().length > 0) {
             <div class="breadcrumb-parents">
-              @for (crumb of breadcrumbs().slice(0, -1); track $index) {
+              @for (crumb of displayParentCrumbs(); track $index) {
                 <span class="crumb">
                   @let text =
                     abbreviateParents()

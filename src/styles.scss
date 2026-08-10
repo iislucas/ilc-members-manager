@@ -12,6 +12,20 @@
 @use "scss_variables" as *;
 @use "sass:color";
 
+:root {
+  view-transition-name: none;
+}
+
+main {
+  view-transition-name: main-content;
+}
+
+::view-transition-old(main-content),
+::view-transition-new(main-content) {
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0px;

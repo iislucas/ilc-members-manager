@@ -1,4 +1,4 @@
-import { Component, input, model, inject, computed } from '@angular/core';
+import { Component, input, model, inject, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { NavigationMenuComponent } from '../navigation-menu/navigation-menu.component';
@@ -43,6 +43,30 @@ export class HeaderComponent {
 
   isHome = this.navTree.isHome;
   upNode = this.navTree.upNode;
+
+  hasParentCrumbs = computed(() => this.breadcrumbs().length > 1);
+  displayParentCrumbs = signal<Breadcrumb[]>([]);
+
+  constructor() {
+    let timeoutId: any = null;
+    effect(() => {
+      const crumbs = this.breadcrumbs();
+      if (crumbs.length > 1) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        this.displayParentCrumbs.set(crumbs.slice(0, -1));
+      } else {
+        // Retain previous parent crumbs in DOM while accordion collapses (250ms)
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          this.displayParentCrumbs.set([]);
+          timeoutId = null;
+        }, 260);
+      }
+    });
+  }
 
   hasTopTabs = computed(() => {
     const view = this.routingService.matchedPatternId();
