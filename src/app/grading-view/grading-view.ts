@@ -19,7 +19,6 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
-import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
   selector: 'app-grading-view',
@@ -31,7 +30,6 @@ import { BackLinkComponent } from '../back-link/back-link';
     GradingProgressComponent,
     IconComponent,
     SpinnerComponent,
-    BackLinkComponent,
   ],
   templateUrl: './grading-view.html',
   styleUrl: './grading-view.scss',

@@ -10,18 +10,6 @@
   gap: 1.5em;
 }
 
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  color: $text-secondary;
-  text-decoration: none;
-  width: fit-content;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
 
 .center {
   display: flex;
@@ -37,8 +25,7 @@
 }
 
 .cover {
-  aspect-ratio: 800 / 600;
-  max-height: 280px;
+  aspect-ratio: 1200 / 450;
   background: $theme-bg-color;
   overflow: hidden;
 

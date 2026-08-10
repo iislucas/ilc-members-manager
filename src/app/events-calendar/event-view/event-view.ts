@@ -17,12 +17,11 @@ import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts } fro
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
-import { BackLinkComponent } from '../../back-link/back-link';
 
 @Component({
   selector: 'app-event-view',
   standalone: true,
-  imports: [IconComponent, SpinnerComponent, MarkdownViewer, BackLinkComponent],
+  imports: [IconComponent, SpinnerComponent, MarkdownViewer],
   templateUrl: './event-view.html',
   styleUrl: './event-view.scss',
 })

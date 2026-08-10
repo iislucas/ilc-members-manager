@@ -1,9 +1,7 @@
 @let m = member();
 
-<div class="member-view-actions">
-  <app-back-link></app-back-link>
-
-  @if (m && allowStudentActions()) {
+@if (m && allowStudentActions()) {
+  <div class="member-view-actions">
     <div class="actions-menu-container">
       <button
         type="button"
@@ -52,8 +50,8 @@
         </div>
       }
     </div>
-  }
-</div>
+  </div>
+}
 
 @if (m && pendingAction(); as action) {
   <div class="action-confirm">

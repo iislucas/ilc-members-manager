@@ -48,7 +48,6 @@ import {
 } from 'firebase/storage';
 import { FIREBASE_APP } from '../app.config';
 import { RoutingService } from '../routing.service';
-import { BackLinkComponent } from '../back-link/back-link';
 import { AppPathPatterns, Views } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 
@@ -163,7 +162,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, BackLinkComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

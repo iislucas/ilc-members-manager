@@ -35,7 +35,6 @@ import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
-import { BackLinkComponent } from '../back-link/back-link';
 import { NavigationTreeService } from '../navigation-tree';
 import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -61,7 +60,6 @@ import { FirebaseStateService } from '../firebase-state.service';
     IdAssignmentComponent,
     ImageUploadPreviewComponent,
     MarkdownEditor,
-    BackLinkComponent,
   ],
   templateUrl: './school-edit.html',
   styleUrl: './school-edit.scss',
@@ -299,8 +297,8 @@ export class SchoolEditComponent {
   // --- Public profile page: images and description ---
   readonly profileLargeDimensions = { width: 400, height: 400 };
   readonly profileThumbDimensions = { width: 96, height: 96 };
-  readonly coverLargeDimensions = { width: 800, height: 600 };
-  readonly coverThumbDimensions = { width: 400, height: 300 };
+  readonly coverLargeDimensions = { width: 1200, height: 450 };
+  readonly coverThumbDimensions = { width: 400, height: 150 };
 
   isEditingProfileCrop = signal(false);
   isEditingCoverCrop = signal(false);

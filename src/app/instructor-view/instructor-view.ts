@@ -35,7 +35,6 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { EventItemComponent } from '../events-calendar/event-item/event-item';
-import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
   selector: 'app-instructor-view',
@@ -45,7 +44,6 @@ import { BackLinkComponent } from '../back-link/back-link';
     SpinnerComponent,
     MarkdownViewer,
     EventItemComponent,
-    BackLinkComponent,
   ],
   templateUrl: './instructor-view.html',
   styleUrl: './instructor-view.scss',

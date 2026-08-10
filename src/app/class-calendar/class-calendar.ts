@@ -24,11 +24,10 @@ export type CalendarEntriesState =
   | { status: 'loaded'; data: GoogleCalendarEventItem[] };
 
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
   selector: 'app-class-calendar',
-  imports: [CommonModule, IconComponent, SpinnerComponent, BackLinkComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent],
   templateUrl: './class-calendar.html',
   styleUrl: './class-calendar.scss',
 })

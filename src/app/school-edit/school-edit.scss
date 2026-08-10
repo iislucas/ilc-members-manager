@@ -5,16 +5,10 @@
   display: block;
 }
 
-.back-link-container {
+.top-actions {
   margin-bottom: 1rem;
-
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    padding: 0.5rem 0.5rem;
-  }
+  display: flex;
+  justify-content: flex-end;
 }
 
 .school-header {
@@ -92,7 +86,7 @@
   .cover-image-preview {
     width: 100%;
     max-width: 400px;
-    aspect-ratio: 800 / 600;
+    aspect-ratio: 1200 / 450;
     object-fit: cover;
     border-radius: 8px;
     border: 1px solid v.$border-color-light;

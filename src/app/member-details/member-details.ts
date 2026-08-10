@@ -523,11 +523,11 @@ export class MemberDetailsComponent {
   // and their download URLs are written into the form model; they persist to
   // Firestore (and on to the public instructor profile) when the member saves.
 
-  // Output dimensions for the square profile picture and 4:3 cover image.
+  // Output dimensions for the square profile picture and wide cover image.
   readonly profileLargeDimensions = { width: 400, height: 400 };
   readonly profileThumbDimensions = { width: 96, height: 96 };
-  readonly coverLargeDimensions = { width: 800, height: 600 };
-  readonly coverThumbDimensions = { width: 400, height: 300 };
+  readonly coverLargeDimensions = { width: 1200, height: 450 };
+  readonly coverThumbDimensions = { width: 400, height: 150 };
 
   // Prompt shown to instructors above the markdown bio editor.
   readonly bioPrompt =

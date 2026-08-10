@@ -38,6 +38,14 @@
       >
         <app-icon name="salut" /> Students</a
       >
+      <a
+        class="subtle-button"
+        [href]="'/instructors/' + e.instructorId"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <app-icon name="person" /> Instructor Profile</a
+      >
     </div>
   }
 
@@ -677,7 +685,19 @@
             />
           </div>
 
-          <h3>Instructor Profile Page</h3>
+          <div class="section-header-row">
+            <h3>Instructor Profile Page</h3>
+            @if (e.instructorId && e.instructorId.trim() !== "") {
+              <a
+                class="subtle-button"
+                [href]="'/instructors/' + e.instructorId"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <app-icon name="link" /> View Profile
+              </a>
+            }
+          </div>
           <p class="note">
             A profile picture, cover image, and a short description of yourself.
             These appear on your dedicated instructor profile page, reachable by
@@ -743,10 +763,10 @@
             }
             @if (!e.publicCoverImageUrl || isEditingCoverCrop()) {
               <app-image-upload-preview
-                [aspectRatio]="800 / 600"
+                [aspectRatio]="1200 / 450"
                 [largeDimensions]="coverLargeDimensions"
                 [thumbDimensions]="coverThumbDimensions"
-                uploadPromptText="select an 800x600 or larger image"
+                uploadPromptText="select a 1200x450 or larger image"
                 [initialImageUrl]="e.publicCoverImageUrl"
                 (imageCropped)="onCoverImageCropped($event)"
                 (cancel)="cancelCoverCrop()"

@@ -19,12 +19,11 @@ import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { Member, NotificationKind } from '../../../../functions/src/data-model';
 import { IconComponent } from '../../icons/icon.component';
-import { BackLinkComponent } from '../../back-link/back-link';
 
 @Component({
   selector: 'app-notification-settings',
   standalone: true,
-  imports: [CommonModule, IconComponent, BackLinkComponent],
+  imports: [CommonModule, IconComponent],
   templateUrl: './notification-settings.component.html',
   styleUrl: './notification-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

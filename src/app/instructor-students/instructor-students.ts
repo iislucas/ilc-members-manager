@@ -4,7 +4,6 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FilteredMembersComponent } from '../filtered-members/filtered-members';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { BackLinkComponent } from '../back-link/back-link';
 import { InstructorPublicData } from '../../../functions/src/data-model';
 
 export enum InstructorStatusKind {
@@ -31,7 +30,7 @@ type InstructorStatus =
 
 @Component({
   selector: 'app-instructor-students',
-  imports: [FilteredMembersComponent, SpinnerComponent, BackLinkComponent],
+  imports: [FilteredMembersComponent, SpinnerComponent],
   templateUrl: './instructor-students.html',
   styleUrl: './instructor-students.scss',
   standalone: true,

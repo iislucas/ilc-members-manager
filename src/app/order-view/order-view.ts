@@ -6,7 +6,6 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { BackLinkComponent } from '../back-link/back-link';
 import { SquarespaceOrderView } from './squarespace-order-view/squarespace-order-view';
 import { SheetOrderView } from './sheet-order-view/sheet-order-view';
 import { StripeOrderView } from './stripe-order-view/stripe-order-view';
@@ -15,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-order-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView, StripeOrderView, FormsModule, BackLinkComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent, SquarespaceOrderView, SheetOrderView, StripeOrderView, FormsModule],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })

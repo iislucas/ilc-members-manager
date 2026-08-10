@@ -4,14 +4,13 @@ import { RoutingService } from '../routing.service';
 import { DataManagerService } from '../data-manager.service';
 import { AppPathPatterns } from '../app.config';
 import { MemberDetailsComponent } from '../member-details/member-details';
-import { BackLinkComponent } from '../back-link/back-link';
 import { NavigationTreeService } from '../navigation-tree';
 import { initMember, Member } from '../../../functions/src/data-model';
 
 @Component({
   selector: 'app-member-create',
   standalone: true,
-  imports: [CommonModule, MemberDetailsComponent, BackLinkComponent],
+  imports: [CommonModule, MemberDetailsComponent],
   templateUrl: './member-create.html',
   styleUrl: './member-create.scss',
 })

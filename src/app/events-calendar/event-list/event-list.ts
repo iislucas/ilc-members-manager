@@ -21,7 +21,6 @@ import {
 } from 'firebase/firestore';
 import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { RoutingService } from '../../routing.service';
-import { BackLinkComponent } from '../../back-link/back-link';
 import { CalendarEvent } from '../event.model';
 import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
 import MiniSearch from 'minisearch';

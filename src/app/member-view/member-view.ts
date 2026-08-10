@@ -6,7 +6,6 @@ import { AppPathPatterns } from '../app.config';
 import { MemberDetailsComponent } from '../member-details/member-details';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { BackLinkComponent } from '../back-link/back-link';
 import { NavigationTreeService } from '../navigation-tree';
 import { canMarkMembershipInactive } from '../../../functions/src/data-model';
 
@@ -27,7 +26,6 @@ export enum StudentAction {
     MemberDetailsComponent,
     IconComponent,
     SpinnerComponent,
-    BackLinkComponent,
   ],
   templateUrl: './member-view.html',
   styleUrl: './member-view.scss',

@@ -867,7 +867,7 @@ export type Member = {
   // URLs point to Firebase Storage under instructors/{docId}/images/.
   publicProfileImageUrl: string; // Square profile picture (large, e.g. 400x400).
   publicProfileImageThumbUrl: string; // Square profile thumbnail (e.g. 96x96), used in cards.
-  publicCoverImageUrl: string; // Cover/banner image (800x600).
+  publicCoverImageUrl: string; // Cover/banner image (e.g. 1200x450).
   // Markdown self-description shown on the instructor's public profile page.
   publicBioMarkdown: string;
 
@@ -953,7 +953,7 @@ export type InstructorPublicData = {
   // Public profile media and self-description, mirrored from the Member.
   publicProfileImageUrl: string; // Square profile picture (large).
   publicProfileImageThumbUrl: string; // Square profile thumbnail, used in cards.
-  publicCoverImageUrl: string; // Cover/banner image (800x600).
+  publicCoverImageUrl: string; // Cover/banner image (e.g. 1200x450).
   publicBioMarkdown: string; // Markdown self-description.
 
   // Level information

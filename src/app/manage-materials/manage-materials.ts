@@ -25,7 +25,6 @@ import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { BackLinkComponent } from '../back-link/back-link';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
 import { MediaTypeFilter, SortOption } from '../my-materials/my-materials';
@@ -38,7 +37,6 @@ import { MediaTypeFilter, SortOption } from '../my-materials/my-materials';
     FormsModule,
     IconComponent,
     SpinnerComponent,
-    BackLinkComponent,
     AutocompleteComponent,
   ],
   templateUrl: './manage-materials.html',

@@ -2,14 +2,13 @@
 @if (!s && !isNewSchool()) {
   <app-spinner>Loading school...</app-spinner>
 } @else {
-  <div class="back-link-container">
-    <app-back-link></app-back-link>
     @if (publicListingHref(); as href) {
-      <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
-        <app-icon name="link"></app-icon> <span>View public listing</span>
-      </a>
+      <div class="top-actions">
+        <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
+          <app-icon name="link"></app-icon> <span>View public listing</span>
+        </a>
+      </div>
     }
-  </div>
 
   <div class="edit-form">
     <div class="school-header">
@@ -270,7 +269,19 @@
 
       @if (userIsAdmin() || userIsSchoolManager()) {
         <div class="form-section">
-          <h3>School Profile Page</h3>
+          <div class="section-header-row">
+            <h3>School Profile Page</h3>
+            @if (s.schoolId) {
+              <a
+                class="subtle-button"
+                [href]="'/school-profile/' + s.schoolId"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <app-icon name="link" /> View Profile
+              </a>
+            }
+          </div>
           <p class="note">
             A logo, cover image, and description shown on the school's dedicated
             public profile page, reachable by clicking the school's name in the
@@ -328,10 +339,10 @@
             }
             @if (!s.publicCoverImageUrl || isEditingCoverCrop()) {
               <app-image-upload-preview
-                [aspectRatio]="800 / 600"
+                [aspectRatio]="1200 / 450"
                 [largeDimensions]="coverLargeDimensions"
                 [thumbDimensions]="coverThumbDimensions"
-                uploadPromptText="select an 800x600 or larger image"
+                uploadPromptText="select a 1200x450 or larger image"
                 [initialImageUrl]="s.publicCoverImageUrl"
                 (imageCropped)="onCoverImageCropped($event)"
                 (cancel)="cancelCoverCrop()"
@@ -346,12 +357,13 @@
           </div>
 
           <label class="align-top">About</label>
-          <div class="rhs">
-            <p class="note">A description of the school, shown on its public profile page.</p>
-            <app-markdown-editor
-              [initialValue]="s.publicBioMarkdown"
-              (changed)="onBioChanged($event)"
-            ></app-markdown-editor>
+          <div class="rhs bio-rhs">
+            <div class="bio-editor-container">
+              <app-markdown-editor
+                [initialValue]="s.publicBioMarkdown"
+                (changed)="onBioChanged($event)"
+              ></app-markdown-editor>
+            </div>
           </div>
         </div>
       }
