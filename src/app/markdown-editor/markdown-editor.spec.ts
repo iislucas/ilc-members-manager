@@ -242,4 +242,125 @@ describe('MarkdownEditor', () => {
     expect(emittedValue).not.toContain('# Line 1');
     expect(emittedValue).toContain('Line 1');
   });
+
+  it('should default toolbar to open and toggle open/close with format button', () => {
+    // Default open
+    expect(component.menuOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.toolbar-wrapper')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.menu')).toBeTruthy();
+
+    const formatBtn = fixture.nativeElement.querySelector('.format-btn');
+    expect(formatBtn).toBeTruthy();
+    expect(formatBtn.classList).toContain('active');
+
+    // Toggle close
+    formatBtn.click();
+    fixture.detectChanges();
+
+    expect(component.menuOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.toolbar-wrapper')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.menu')).toBeNull();
+    expect(formatBtn.classList).not.toContain('active');
+
+    // Toggle open
+    formatBtn.click();
+    fixture.detectChanges();
+
+    expect(component.menuOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.toolbar-wrapper')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.menu')).toBeTruthy();
+  });
+
+  it('should toggle fullscreen mode with button and escape key', () => {
+    expect(component.isFullscreen()).toBe(false);
+    const container = fixture.nativeElement.querySelector('.markdown-editor-container');
+    expect(container.classList).not.toContain('fullscreen');
+    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
+
+    const fullscreenBtn = fixture.nativeElement.querySelector('.fullscreen-menu-item');
+    expect(fullscreenBtn).toBeTruthy();
+
+    // Enter fullscreen
+    fullscreenBtn.click();
+    fixture.detectChanges();
+
+    expect(component.isFullscreen()).toBe(true);
+    expect(container.classList).toContain('fullscreen');
+
+    // In fullscreen mode, the fixed leftmost exit button should be present
+    const fixedExitBtn = fixture.nativeElement.querySelector('.fullscreen-fixed-btn');
+    expect(fixedExitBtn).toBeTruthy();
+
+    // Click fixed button to exit fullscreen
+    fixedExitBtn.click();
+    fixture.detectChanges();
+
+    expect(component.isFullscreen()).toBe(false);
+    expect(container.classList).not.toContain('fullscreen');
+    expect(fixture.nativeElement.querySelector('.fullscreen-fixed-btn')).toBeNull();
+
+    // Re-enter and exit with Escape key
+    component.isFullscreen.set(true);
+    fixture.detectChanges();
+    expect(component.isFullscreen()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(component.isFullscreen()).toBe(false);
+    expect(container.classList).not.toContain('fullscreen');
+  });
+
+  it('should toggle descriptions in toolbar menu', () => {
+    expect(component.showDescriptions()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.menu.collapsed')).toBeTruthy();
+
+    const infoBtn = fixture.nativeElement.querySelector('.info-btn');
+    infoBtn.click();
+    fixture.detectChanges();
+
+    expect(component.showDescriptions()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.menu.collapsed')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.menu-title')?.textContent).toContain('Actions');
+  });
+
+  it('should display scroll arrows when content overflows and handle scrolling', () => {
+    const menuEl = fixture.nativeElement.querySelector('.menu') as HTMLElement;
+    expect(menuEl).toBeTruthy();
+
+    // Mock scroll dimensions where right overflow exists
+    Object.defineProperty(menuEl, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(menuEl, 'scrollWidth', { value: 600, writable: true, configurable: true });
+    Object.defineProperty(menuEl, 'clientWidth', { value: 300, writable: true, configurable: true });
+
+    component.updateScrollState();
+    fixture.detectChanges();
+
+    expect(component.canScrollLeft()).toBe(false);
+    expect(component.canScrollRight()).toBe(true);
+
+    const rightArrow = fixture.nativeElement.querySelector('.scroll-arrow-btn.right');
+    expect(rightArrow).toBeTruthy();
+
+    // Spy on scrollBy
+    const scrollBySpy = vi.fn();
+    menuEl.scrollBy = scrollBySpy;
+
+    rightArrow.click();
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: 120, behavior: 'smooth' });
+
+    // Mock scrolled to middle
+    Object.defineProperty(menuEl, 'scrollLeft', { value: 100, writable: true, configurable: true });
+    component.updateScrollState();
+    fixture.detectChanges();
+
+    expect(component.canScrollLeft()).toBe(true);
+    expect(component.canScrollRight()).toBe(true);
+
+    const leftArrow = fixture.nativeElement.querySelector('.scroll-arrow-btn.left');
+    expect(leftArrow).toBeTruthy();
+
+    leftArrow.click();
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: -120, behavior: 'smooth' });
+  });
 });

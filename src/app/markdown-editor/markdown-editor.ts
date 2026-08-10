@@ -56,6 +56,9 @@ export interface EditorChip {
   templateUrl: './markdown-editor.html',
   styleUrl: './markdown-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown.escape)': 'onEscape()',
+  },
 })
 export class MarkdownEditor implements AfterViewInit, OnDestroy {
   initialValue = input<string>('');
@@ -67,8 +70,11 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   // list to restrict to a supported subset.
   enabledFeatures = input<MarkdownFeature[] | null>(null);
   changed = output<string>();
-  menuOpen = signal<boolean>(false);
+  menuOpen = signal<boolean>(true);
+  isFullscreen = signal<boolean>(false);
   showDescriptions = signal<boolean>(false);
+  canScrollLeft = signal<boolean>(false);
+  canScrollRight = signal<boolean>(false);
   
   linkPopupOpen = signal<boolean>(false);
   linkPopupPos = signal<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -101,10 +107,76 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   @ViewChild('editorRef') editorRef!: ElementRef;
   @ViewChild('contentWrapper') contentWrapperRef!: ElementRef;
   @ViewChild('editorContainer') containerRef!: ElementRef;
+  @ViewChild('menuRef') menuRef?: ElementRef<HTMLElement>;
+  private menuResizeObserver?: ResizeObserver;
   private editor?: Editor;
   private isFirstLoad = true;
   private lastTap = 0;
   private tapCount = 0;
+
+  toggleMenu() {
+    const nextState = !this.menuOpen();
+    this.menuOpen.set(nextState);
+    if (nextState) {
+      setTimeout(() => {
+        this.updateScrollState();
+        this.setupMenuResizeObserver();
+      }, 0);
+    } else {
+      this.menuResizeObserver?.disconnect();
+    }
+  }
+
+  toggleFullscreen() {
+    const next = !this.isFullscreen();
+    this.isFullscreen.set(next);
+    setTimeout(() => {
+      this.updateScrollState();
+    }, 50);
+  }
+
+  onEscape() {
+    if (this.isFullscreen()) {
+      this.isFullscreen.set(false);
+      setTimeout(() => {
+        this.updateScrollState();
+      }, 50);
+    }
+  }
+
+  toggleDescriptions() {
+    this.showDescriptions.set(!this.showDescriptions());
+    setTimeout(() => this.updateScrollState(), 0);
+  }
+
+  updateScrollState() {
+    const el = this.menuRef?.nativeElement;
+    if (!el) {
+      this.canScrollLeft.set(false);
+      this.canScrollRight.set(false);
+      return;
+    }
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    this.canScrollLeft.set(scrollLeft > 1);
+    this.canScrollRight.set(scrollLeft + clientWidth < scrollWidth - 1);
+  }
+
+  scrollToolbar(direction: 'left' | 'right') {
+    const el = this.menuRef?.nativeElement;
+    if (!el) return;
+    const delta = direction === 'left' ? -120 : 120;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  }
+
+  private setupMenuResizeObserver() {
+    this.menuResizeObserver?.disconnect();
+    const el = this.menuRef?.nativeElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    this.menuResizeObserver = new ResizeObserver(() => {
+      this.updateScrollState();
+    });
+    this.menuResizeObserver.observe(el);
+  }
 
   constructor() {
     effect(() => {
@@ -121,6 +193,12 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
     this.setupTapHandlers();
     this.setupLinkPreview();
     this.setupClickBelowContent();
+    if (this.menuOpen()) {
+      setTimeout(() => {
+        this.updateScrollState();
+        this.setupMenuResizeObserver();
+      }, 0);
+    }
   }
   
   private setupTapHandlers() {
@@ -199,6 +277,7 @@ export class MarkdownEditor implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.menuResizeObserver?.disconnect();
     this.editor?.destroy();
   }
 

@@ -1,86 +1,129 @@
-<div class="markdown-editor-container" #editorContainer>
-  <!-- Dropdown Menu for Formatting -->
+<div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" #editorContainer>
+  <!-- Floating Action Button for formatting (T button) -->
   <div class="sticky-menu-wrapper">
     <div class="menu-container top-right-menu">
-      <button type="button" (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()" class="icon-only-button" title="Formatting Options">
+      <button type="button" 
+              (click)="toggleMenu(); $event.stopPropagation()" 
+              class="icon-only-button format-btn" 
+              [class.active]="menuOpen()" 
+              title="Formatting Options">
         <app-icon name="format" width="1em" height="1em"></app-icon>
       </button>
-      @if (menuOpen()) {
-        <div class="menu" [class.collapsed]="!showDescriptions()">
+    </div>
+  </div>
+
+  <!-- Formatting Toolbar at the Top of the Editor -->
+  @if (menuOpen()) {
+    <div class="toolbar-wrapper">
+      <div class="toolbar-main">
+        @if (isFullscreen()) {
+          <button type="button" 
+                  class="icon-only-button fullscreen-fixed-btn" 
+                  (click)="toggleFullscreen(); $event.stopPropagation()"
+                  title="Exit Fullscreen">
+            <app-icon name="fullscreen_exit" width="1.2em" height="1.2em"></app-icon>
+          </button>
+        }
+
+        @if (canScrollLeft()) {
+          <button type="button" 
+                  class="icon-only-button scroll-arrow-btn left" 
+                  (click)="scrollToolbar('left'); $event.stopPropagation()"
+                  title="Scroll left">
+            <app-icon name="chevron_left" width="1em" height="1em"></app-icon>
+          </button>
+        }
+
+        <div class="menu" #menuRef (scroll)="updateScrollState()" [class.collapsed]="!showDescriptions()">
           <!-- Menu Header with Info Button -->
           <div class="menu-header">
             @if (showDescriptions()) {
               <span class="menu-title">Actions</span>
             }
-            <button type="button" (click)="showDescriptions.set(!showDescriptions()); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
+            <button type="button" (click)="toggleDescriptions(); $event.stopPropagation()" class="info-btn menu-item" title="Toggle Descriptions">
               <app-icon name="info" class="menu-icon" width="1.2em" height="1.2em"></app-icon>
             </button>
           </div>
           
-          <div class="menu-item" (click)="undo()">
+          <div class="menu-item" (click)="undo()" title="Undo">
             <span class="menu-icon undo-icon">⎌</span>
             @if (showDescriptions()) { <span>Undo</span> }
           </div>
-          <div class="menu-item" (click)="redo()">
+          <div class="menu-item" (click)="redo()" title="Redo">
             <span class="menu-icon redo-icon">⎌</span>
             @if (showDescriptions()) { <span>Redo</span> }
           </div>
           @if (has('bold')) {
-            <div class="menu-item" (click)="toggleBold()">
+            <div class="menu-item" (click)="toggleBold()" title="Bold">
               <span class="menu-icon">B</span>
               @if (showDescriptions()) { <span>Bold</span> }
             </div>
           }
           @if (has('italic')) {
-            <div class="menu-item" (click)="toggleItalic()">
+            <div class="menu-item" (click)="toggleItalic()" title="Italic">
               <span class="menu-icon">I</span>
               @if (showDescriptions()) { <span>Italic</span> }
             </div>
           }
           @if (has('heading')) {
-            <div class="menu-item" (click)="wrapInHeading(1)">
+            <div class="menu-item" (click)="wrapInHeading(1)" title="Heading 1">
               <span class="menu-icon">H1</span>
               @if (showDescriptions()) { <span>Heading 1</span> }
             </div>
-            <div class="menu-item" (click)="wrapInHeading(2)">
+            <div class="menu-item" (click)="wrapInHeading(2)" title="Heading 2">
               <span class="menu-icon">H2</span>
               @if (showDescriptions()) { <span>Heading 2</span> }
             </div>
-            <div class="menu-item" (click)="wrapInHeading(3)">
+            <div class="menu-item" (click)="wrapInHeading(3)" title="Heading 3">
               <span class="menu-icon">H3</span>
               @if (showDescriptions()) { <span>Heading 3</span> }
             </div>
           }
           @if (has('bulletList')) {
-            <div class="menu-item" (click)="toggleBulletList()">
+            <div class="menu-item" (click)="toggleBulletList()" title="Bullet List">
               <span class="menu-icon"><app-icon name="bullet_list" width="1.2em" height="1.2em"></app-icon></span>
               @if (showDescriptions()) { <span>Bullet List</span> }
             </div>
           }
           @if (has('indent')) {
-            <div class="menu-item" (click)="indent()">
+            <div class="menu-item" (click)="indent()" title="Indent">
               <span class="menu-icon">&rarr;</span>
               @if (showDescriptions()) { <span>Indent</span> }
             </div>
-            <div class="menu-item" (click)="unindent()">
+            <div class="menu-item" (click)="unindent()" title="Unindent">
               <span class="menu-icon">&larr;</span>
               @if (showDescriptions()) { <span>Unindent</span> }
             </div>
           }
           @if (has('link')) {
-            <div class="menu-item" (click)="toggleLink()">
+            <div class="menu-item" (click)="toggleLink()" title="Link">
               <span class="menu-icon"><app-icon name="link" width="1.2em" height="1.2em"></app-icon></span>
               @if (showDescriptions()) { <span>Link</span> }
             </div>
           }
-          <div class="menu-item" (click)="clearFormatting()">
+          <div class="menu-item" (click)="clearFormatting()" title="Clear Formatting">
             <span class="menu-icon clear-format-icon">T&#x2715;</span>
             @if (showDescriptions()) { <span>Clear Formatting</span> }
           </div>
+          @if (!isFullscreen()) {
+            <div class="menu-item fullscreen-menu-item" (click)="toggleFullscreen()" title="Fullscreen">
+              <span class="menu-icon"><app-icon name="fullscreen" width="1.2em" height="1.2em"></app-icon></span>
+              @if (showDescriptions()) { <span>Fullscreen</span> }
+            </div>
+          }
         </div>
-      }
+
+        @if (canScrollRight()) {
+          <button type="button" 
+                  class="icon-only-button scroll-arrow-btn right" 
+                  (click)="scrollToolbar('right'); $event.stopPropagation()"
+                  title="Scroll right">
+            <app-icon name="chevron_right" width="1em" height="1em"></app-icon>
+          </button>
+        }
+      </div>
     </div>
-  </div>
+  }
 
   @if (chips().length > 0) {
     <div class="chip-palette">
