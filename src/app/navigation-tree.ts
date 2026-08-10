@@ -167,7 +167,6 @@ export class NavigationTreeService {
       }
 
       // --- Events. Three parallel subtrees: public, mine, and admin. ---
-      case Views.ProposeEvent:
       case Views.EventView:
         return [this.node(Views.EventsCalendar, 'Events & Workshops')];
       case Views.MyEventView:
@@ -483,7 +482,7 @@ export class NavigationTreeService {
           ? `Edit: ${this.loadedEventTitle()}`
           : 'Edit Event';
       case Views.ProposeEvent:
-        return 'Organise Event';
+        return 'Organise or List an Event';
       case Views.ManageEvents:
         return 'Manage Events';
       case Views.ClassVideoLibrary:

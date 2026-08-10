@@ -12,6 +12,7 @@ describe('ProposeEventComponent', () => {
   let fixture: ComponentFixture<ProposeEventComponent>;
 
   beforeEach(async () => {
+    localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [ProposeEventComponent],
       providers: [
@@ -45,12 +46,17 @@ describe('ProposeEventComponent', () => {
   });
 
   it('should enable submit button when form is valid', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: { docId: 'member-1', name: 'Alice Organiser', memberId: 'FR1', instructorId: 'FR1' },
+    });
     component.eventModel.update(m => ({
       ...m,
       title: 'Test Event',
       start: '2026-04-04',
       end: '2026-04-05',
       leadingInstructorId: 'FR102',
+      ownerDocId: 'member-1',
     }));
     fixture.detectChanges();
     await fixture.whenStable();
@@ -101,7 +107,7 @@ describe('ProposeEventComponent', () => {
     expect(component.ownerContactValid()).toBe(true);
   });
 
-  it('lets an instructor submitter reassign the owner, clearing the mini-profile', async () => {
+  it('lets an instructor submitter reassign the owner', async () => {
     const dataService = TestBed.inject(DataManagerService);
     (dataService.instructors as unknown as SearchableSet<'instructorId', { instructorId: string; docId: string; name: string }>)
       .setEntries([{ docId: 'other-doc', instructorId: 'FR200', name: 'Other Instructor' }]);
@@ -112,16 +118,28 @@ describe('ProposeEventComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    component.eventModel.update((m) => ({
-      ...m, ownerContactName: 'X', ownerContactEmail: 'x@example.com',
-    }));
-    component.updateOwnerDocId('FR200');
+    component.updateOwnerInstructor('FR200');
 
     expect(component.eventModel().ownerDocId).toBe('other-doc');
-    expect(component.eventModel().ownerContactName).toBe('');
-    expect(component.eventModel().ownerContactEmail).toBe('');
-    expect(component.ownerIsSubmitter()).toBe(false);
-    // A non-instructor submitter has no reassign option, so validity ignores contact.
-    expect(component.ownerContactValid()).toBe(true);
+    expect(component.ownerInstructorId()).toBe('FR200');
+    expect(component.ownerValid()).toBe(true);
+  });
+
+  it('shows custom contact info card when instructor ticks provide different primary contact info', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: { docId: 'member-1', name: 'Instructor Submitter', memberId: 'FR1', instructorId: 'FR1' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.showCustomContactCard()).toBe(false);
+
+    component.setHasCustomContactInfo(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.showCustomContactCard()).toBe(true);
+    expect(component.eventModel().ownerContactName).toBe('Instructor Submitter');
   });
 });

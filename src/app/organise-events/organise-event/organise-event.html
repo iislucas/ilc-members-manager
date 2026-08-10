@@ -69,25 +69,53 @@
     </div>
 
     <div class="input-field">
-      <label>Main contact (event owner)</label>
+      <label [class.invalid]="isOwnerInvalid()">Main contact (event owner) *</label>
       <div class="intro-text">
         The owner is the main contact shown publicly for the event. It defaults to
         you.
       </div>
 
-      @if (ownerIsSubmitter()) {
-        <div class="intro-text">
-          @if (submitterIsInstructor()) {
-            You'll be listed as the contact via your instructor profile. Optionally
-            add an event-specific contact below.
-          } @else {
-            You'll be listed as the main contact for this event. Please provide
-            contact details attendees can use.
-          }
+      @if (submitterIsInstructor()) {
+        <div class="owner-selector-row">
+          <app-instructor-selector
+            [placeholder]="'Search for an instructor'"
+            [value]="ownerInstructorId()"
+            (valueChange)="updateOwnerInstructor($event)"
+          ></app-instructor-selector>
         </div>
-        <div class="mini-profile">
+
+        @if (!eventModel().ownerDocId) {
+          <div class="error-message">
+            Please select a valid instructor for the main contact.
+          </div>
+        }
+
+        @if (ownerIsInstructor()) {
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              [checked]="hasCustomContactInfo()"
+              (change)="setHasCustomContactInfo($any($event.target).checked)"
+            />
+            Provide different primary contact information
+          </label>
+        }
+      } @else {
+        @if (submitter(); as me) {
+          <div class="owner-display-row">
+            <span class="selected-name">{{ me.name }} (you)</span>
+            @if (me.memberId) {
+              <span class="identifier-chip">{{ me.memberId }}</span>
+            }
+          </div>
+        }
+      }
+
+      @if (showCustomContactCard()) {
+        <div class="custom-contact-card card">
+          <h4>Custom Contact Details</h4>
           <div class="input-field">
-            <label for="ownerContactName">Contact name *</label>
+            <label for="ownerContactName" [class.invalid]="isContactNameInvalid()">Contact name *</label>
             <input
               id="ownerContactName"
               type="text"
@@ -97,7 +125,7 @@
             />
           </div>
           <div class="input-field">
-            <label for="ownerContactEmail">Contact email *</label>
+            <label for="ownerContactEmail" [class.invalid]="isContactEmailInvalid()">Contact email *</label>
             <input
               id="ownerContactEmail"
               type="email"
@@ -117,30 +145,6 @@
             />
           </div>
         </div>
-
-        @if (submitterIsInstructor()) {
-          <app-public-instructor-selector
-            name="Owner"
-            [placeholder]="'Search for an instructor'"
-            [value]="''"
-            emptyLabel="You (the event submitter)"
-            selectLabel="Hand the main contact to another instructor"
-            (valueChange)="updateOwnerDocId($event)"
-          ></app-public-instructor-selector>
-        }
-      } @else {
-        <div
-          class="manager-row"
-          style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
-        >
-          @if (instructorByDocId(eventModel().ownerDocId); as owner) {
-            <span class="selected-name">{{ owner.name }}</span>
-            <span class="identifier-chip">{{ owner.instructorId }}</span>
-          }
-          <button type="button" class="subtle-button" (click)="resetOwnerToMe()">
-            Make me the contact again
-          </button>
-        </div>
       }
     </div>
 
@@ -153,10 +157,7 @@
       </div>
       <div class="manager-list">
         @if (submitter(); as me) {
-          <div
-            class="manager-row"
-            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
-          >
+          <div class="manager-row">
             <span class="selected-name">{{ me.name }} (you)</span>
             @if (me.memberId) {
               <span class="identifier-chip">{{ me.memberId }}</span>
@@ -168,10 +169,7 @@
           track $index;
           let last = $last
         ) {
-          <div
-            class="manager-row"
-            style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px"
-          >
+          <div class="manager-row">
             <app-public-instructor-selector
               [placeholder]="'Search for a manager'"
               [value]="instructorByDocId(managerDocId)?.instructorId || ''"
@@ -414,7 +412,7 @@
       @if (isSaving()) {
         <app-spinner>Submitting...</app-spinner>
       } @else {
-        <button type="submit" [disabled]="!proposeForm().valid() || !ownerContactValid()">
+        <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid()">
           Submit Proposal
         </button>
       }

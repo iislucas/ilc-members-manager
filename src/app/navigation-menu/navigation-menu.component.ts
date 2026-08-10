@@ -103,7 +103,7 @@ export class NavigationMenuComponent {
       case Views.OrderView:
         const orderId = this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;
-      case Views.ProposeEvent: return 'Organise Event';
+      case Views.ProposeEvent: return 'Organise or List an Event';
       case Views.ManageEvents: return 'Manage Events';
       case Views.EventView:
       case Views.MyEventView:

@@ -10,6 +10,7 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
 import { InstructorPublicData, EventDocument } from '../../../../functions/src/data-model';
 import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
+import { InstructorSelectorComponent } from '../../instructor-selector/instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
@@ -18,7 +19,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })
@@ -98,12 +99,9 @@ export class ProposeEventComponent {
     location: '',
     description: '',
     leadingInstructorId: '',
-    // Member doc ID of the event owner (main contact). Defaults to the submitter
-    // (filled by the effect below). Only an instructor submitter may reassign it
-    // to another instructor; a non-instructor submitter must remain the owner.
+    // Member doc ID of the event owner (main contact). Defaults to the submitter.
     ownerDocId: '',
-    // Inline "mini-profile" contact for a non-instructor owner (the submitter).
-    // ownerContactName also acts as the owner's display name.
+    // Inline custom contact info for the owner.
     ownerContactName: '',
     ownerContactEmail: '',
     ownerContactUrl: '',
@@ -113,19 +111,69 @@ export class ProposeEventComponent {
     // The managers ticked to be listed publicly as contacts for the event. The
     // owner is always a contact on a new proposal (added in onSubmit).
     contactDocIds: [] as string[],
+    // Whether custom contact info is provided for an instructor owner.
+    hasCustomContactInfo: false,
   });
 
   // The submitting member — always pinned as a manager of the event.
   submitter = computed(() => this.firebaseState.user()?.member ?? null);
 
-  // Whether the submitter is an instructor. Instructors may reassign the owner to
-  // another instructor; non-instructors provide an inline mini-profile instead.
+  // Whether the submitter is an instructor.
   submitterIsInstructor = computed(() => !!this.submitter()?.instructorId);
+
+  // Reverse lookup: find an instructor by their member doc ID.
+  instructorByDocId(docId: string): InstructorPublicData | undefined {
+    if (!docId) return undefined;
+    for (const instructor of this.membersService.instructors.entries()) {
+      if (instructor.docId === docId) return instructor;
+    }
+    return undefined;
+  }
+
+  // The instructorId for the selected owner docId.
+  ownerInstructorId = computed(() => {
+    const docId = this.eventModel().ownerDocId;
+    if (!docId) return '';
+    const inst = this.instructorByDocId(docId);
+    if (inst) return inst.instructorId;
+    const me = this.submitter();
+    if (me && me.docId === docId && me.instructorId) {
+      return me.instructorId;
+    }
+    return '';
+  });
+
+  // Whether the current owner resolves to an instructor.
+  ownerIsInstructor = computed(() => !!this.ownerInstructorId());
 
   // Whether the owner is still the submitter (vs. reassigned to another instructor).
   ownerIsSubmitter = computed(() => {
     const me = this.submitter();
     return !!me && this.eventModel().ownerDocId === me.docId;
+  });
+
+  // Whether custom contact info is toggled on.
+  hasCustomContactInfo = computed(() => this.eventModel().hasCustomContactInfo);
+
+  // Whether to show the custom contact card:
+  // Required and always shown for non-instructor owners, or when toggled for instructor owners.
+  showCustomContactCard = computed(() => !this.ownerIsInstructor() || this.hasCustomContactInfo());
+
+  // Field-level invalidity computeds for red text/styling.
+  isContactNameInvalid = computed(() => {
+    return this.showCustomContactCard() && !this.eventModel().ownerContactName.trim();
+  });
+
+  isContactEmailInvalid = computed(() => {
+    return this.showCustomContactCard() && !this.eventModel().ownerContactEmail.trim();
+  });
+
+  isOwnerInvalid = computed(() => {
+    if (!this.eventModel().ownerDocId) return true;
+    if (this.showCustomContactCard()) {
+      return !this.eventModel().ownerContactName.trim() || !this.eventModel().ownerContactEmail.trim();
+    }
+    return false;
   });
 
   proposeForm = form(this.eventModel, (schema) => {
@@ -152,23 +200,29 @@ export class ProposeEventComponent {
         }
       }
     }
+    if (!this.eventModel().ownerDocId) {
+      errors.push('Main contact (event owner) is required.');
+    }
     if (!this.ownerContactValid()) {
       errors.push('Contact name and email for the main contact.');
     }
     return errors;
   });
 
-  // A non-instructor submitter (who must be the owner) needs to provide a
-  // mini-profile contact name and email. Instructors and reassigned owners are fine.
+  // A non-instructor owner (or an instructor with custom contact info) needs name and email.
   ownerContactValid = computed(() => {
-    if (this.submitterIsInstructor() || !this.ownerIsSubmitter()) return true;
+    if (!this.showCustomContactCard()) return true;
     const m = this.eventModel();
     return !!m.ownerContactName.trim() && !!m.ownerContactEmail.trim();
   });
 
+  ownerValid = computed(() => {
+    return !!this.eventModel().ownerDocId && this.ownerContactValid();
+  });
+
   private extractInstructorId(value: string): string {
     const match = value.match(/\[([^\]]+)\]$/);
-    return match ? match[1] : value;
+    return match ? match[1] : value.trim();
   }
 
   updateLeadingInstructorId(value: string) {
@@ -177,21 +231,43 @@ export class ProposeEventComponent {
     this.proposeForm().dirty();
   }
 
-  updateOwnerDocId(value: string) {
+  setHasCustomContactInfo(enabled: boolean) {
+    this.eventModel.update(m => {
+      const updated = { ...m, hasCustomContactInfo: enabled };
+      if (enabled && !updated.ownerContactName && !updated.ownerContactEmail) {
+        const me = this.submitter();
+        const ownerInst = this.instructorByDocId(m.ownerDocId);
+        updated.ownerContactName = ownerInst?.name || me?.name || '';
+        updated.ownerContactEmail = me?.publicEmail || me?.emails?.[0] || '';
+      }
+      return updated;
+    });
+    this.proposeForm().dirty();
+  }
+
+  updateOwnerInstructor(value: string) {
     const instructorId = this.extractInstructorId(value);
     const instructor = this.membersService.instructors.get(instructorId);
     if (instructor) {
-      // Reassigned to another instructor: drop the submitter's mini-profile so the
-      // reassigned instructor's own profile is used as the contact.
       this.eventModel.update(m => ({
         ...m,
         ownerDocId: instructor.docId,
-        ownerContactName: '',
-        ownerContactEmail: '',
-        ownerContactUrl: '',
+        ownerContactName: m.hasCustomContactInfo ? m.ownerContactName : '',
+        ownerContactEmail: m.hasCustomContactInfo ? m.ownerContactEmail : '',
+        ownerContactUrl: m.hasCustomContactInfo ? m.ownerContactUrl : '',
+      }));
+      this.proposeForm().dirty();
+    } else if (!instructorId) {
+      this.eventModel.update(m => ({
+        ...m,
+        ownerDocId: '',
       }));
       this.proposeForm().dirty();
     }
+  }
+
+  updateOwnerDocId(value: string) {
+    this.updateOwnerInstructor(value);
   }
 
   // Return ownership to the submitter (used to undo a reassignment).
@@ -203,6 +279,7 @@ export class ProposeEventComponent {
       ownerDocId: me.docId,
       ownerContactName: me.instructorId ? '' : (me.name || ''),
       ownerContactEmail: me.instructorId ? '' : (me.publicEmail || me.emails?.[0] || ''),
+      hasCustomContactInfo: false,
     }));
     this.proposeForm().dirty();
   }
@@ -263,17 +340,6 @@ export class ProposeEventComponent {
     this.proposeForm().dirty();
   }
 
-  // Reverse lookup: find an instructor by their member doc ID. The public
-  // instructors set is keyed by human-readable instructorId, so a stored
-  // ownerDocId/managerDocId (member doc IDs) needs this scan to display. Called
-  // from the template (default change detection) so it re-runs as the set loads.
-  instructorByDocId(docId: string): InstructorPublicData | undefined {
-    if (!docId) return undefined;
-    for (const instructor of this.membersService.instructors.entries()) {
-      if (instructor.docId === docId) return instructor;
-    }
-    return undefined;
-  }
 
   onDescriptionChanged(val: string) {
     this.eventModel.update(m => ({ ...m, description: val }));
@@ -354,8 +420,12 @@ export class ProposeEventComponent {
       );
 
       const model = this.eventModel();
+      const customContact = this.showCustomContactCard();
       const result = await submitFn({
         ...model,
+        ownerContactName: customContact ? model.ownerContactName.trim() : '',
+        ownerContactEmail: customContact ? model.ownerContactEmail.trim() : '',
+        ownerContactUrl: customContact ? model.ownerContactUrl.trim() : '',
         // The owner is always listed as a contact on a new proposal; any ticked
         // managers are listed alongside them.
         contactDocIds: [model.ownerDocId, ...model.contactDocIds].filter(Boolean),

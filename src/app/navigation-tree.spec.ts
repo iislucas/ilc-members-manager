@@ -217,4 +217,16 @@ describe('NavigationTreeService', () => {
       'Page Not Found',
     ]);
   });
+
+  it('shows Organise or List an Event at the top level of the navigation tree', () => {
+    goTo(Views.ProposeEvent);
+    expect(navTree.currentTitle()).toBe('Organise or List an Event');
+    expect(navTree.ancestors()).toEqual([]);
+    expect(navTree.parent()).toBeNull();
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'I Liq Chuan',
+      'Members Portal App',
+      'Organise or List an Event',
+    ]);
+  });
 });
