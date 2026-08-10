@@ -274,17 +274,7 @@ export class RoutingService<T extends PathPatterns> {
       }
     };
 
-    if (
-      typeof document !== 'undefined' &&
-      'startViewTransition' in document &&
-      typeof (document as any).startViewTransition === 'function'
-    ) {
-      (document as any).startViewTransition(() => {
-        performUpdate();
-      });
-    } else {
-      performUpdate();
-    }
+    performUpdate();
   }
 
   navigateTo(pathAndParams: string, options?: { clearUrlParams?: boolean }) {

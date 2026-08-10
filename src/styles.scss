@@ -12,20 +12,6 @@
 @use "scss_variables" as *;
 @use "sass:color";
 
-:root {
-  view-transition-name: none;
-}
-
-main {
-  view-transition-name: main-content;
-}
-
-::view-transition-old(main-content),
-::view-transition-new(main-content) {
-  animation-duration: 0.25s;
-  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
 body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0px;
@@ -877,7 +863,7 @@ a.selectable-card {
   position: relative;
   z-index: 5;
   transform-origin: top center;
-  animation: headerTabUnfoldDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+  animation: headerTabUnfoldDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
 
   .pill-tabs {
     margin-top: 0;
