@@ -240,36 +240,50 @@ export class RoutingService<T extends PathPatterns> {
     // matchUrl expects the query string appended to the path (it splits on '?').
     const urlPart = `${path}${window.location.search}`;
     const match = matchUrl(urlPart, this.config.validPathPatterns);
-    if (match) {
-      const patternChanged = this.previousPatternId !== match.patternId;
-      if (patternChanged && this.previousPatternId) {
-        const prevSignals = this.signals[this.previousPatternId];
-        if (prevSignals) {
-          for (const key of prevSignals.ephemeralUrlParams ?? []) {
-            prevSignals.urlParams[key]?.set(prevSignals.urlParamDefaults[key] ?? '');
-          }
-          for (const key of Object.keys(prevSignals.pathVars)) {
-            prevSignals.pathVars[key]?.set('');
+    const performUpdate = () => {
+      if (match) {
+        const patternChanged = this.previousPatternId !== match.patternId;
+        if (patternChanged && this.previousPatternId) {
+          const prevSignals = this.signals[this.previousPatternId];
+          if (prevSignals) {
+            for (const key of prevSignals.ephemeralUrlParams ?? []) {
+              prevSignals.urlParams[key]?.set(prevSignals.urlParamDefaults[key] ?? '');
+            }
+            for (const key of Object.keys(prevSignals.pathVars)) {
+              prevSignals.pathVars[key]?.set('');
+            }
           }
         }
+        this.previousPatternId = match.patternId;
+        this.matchedPatternId.set(match.patternId);
+        updateSignalsFromSubsts(
+          match.pathParams,
+          this.signals[match.patternId].pathVars,
+        );
+        updateSignalsFromSubsts(
+          match.urlParams,
+          this.signals[match.patternId].urlParams,
+          this.signals[match.patternId].urlParamDefaults,
+        );
+        if (patternChanged) {
+          window.scrollTo(0, 0);
+        }
+      } else {
+        this.previousPatternId = null;
+        this.matchedPatternId.set(null);
       }
-      this.previousPatternId = match.patternId;
-      this.matchedPatternId.set(match.patternId);
-      updateSignalsFromSubsts(
-        match.pathParams,
-        this.signals[match.patternId].pathVars,
-      );
-      updateSignalsFromSubsts(
-        match.urlParams,
-        this.signals[match.patternId].urlParams,
-        this.signals[match.patternId].urlParamDefaults,
-      );
-      if (patternChanged) {
-        window.scrollTo(0, 0);
-      }
+    };
+
+    if (
+      typeof document !== 'undefined' &&
+      'startViewTransition' in document &&
+      typeof (document as any).startViewTransition === 'function'
+    ) {
+      (document as any).startViewTransition(() => {
+        performUpdate();
+      });
     } else {
-      this.previousPatternId = null;
-      this.matchedPatternId.set(null);
+      performUpdate();
     }
   }
 

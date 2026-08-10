@@ -18,7 +18,6 @@
   <app-spinner>Loading events...</app-spinner>
 } @else if (hasLoaded()) {
   <div class="list-search-header">
-    <app-back-link></app-back-link>
     <div class="search-box">
       <app-icon class="search-icon" name="search"></app-icon>
       <input
@@ -52,6 +51,12 @@
       @if (optionsMenuOpen()) {
         <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false)"></div>
         <div class="options-menu">
+          @if (isLoggedIn()) {
+            <a class="menu-item" [href]="routingService.hrefForView(Views.ProposeEvent)" (click)="optionsMenuOpen.set(false)">
+              <app-icon name="add"></app-icon>
+              <span>Organise or List Event</span>
+            </a>
+          }
           <div class="menu-item" (click)="toggleFromDateFilter()">
             <app-icon [name]="showFromDateFilter() ? 'check_box' : 'check_box_outline_blank'"></app-icon>
             <span>Find events from date</span>
@@ -59,9 +64,6 @@
         </div>
       }
     </div>
-    @if (collectionPath() !== 'events') {
-      <a class="button organise-event-btn" [href]="routingService.hrefForView(Views.ProposeEvent)">Organise or List Event</a>
-    }
   </div>
 
   @if (showFromDateFilter()) {

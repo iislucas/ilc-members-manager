@@ -1,24 +1,5 @@
 @use "../../scss_variables" as v;
 
-.tab-bar-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-
-  .pill-tabs {
-    margin-top: 0;
-    margin-bottom: 0;
-    align-items: center;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
-    border-top: none;
-    padding: 0.25rem 0.4rem 0.35rem 0.4rem;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
-  }
-}
 
 .gradings-summary {
   display: flex;

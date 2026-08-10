@@ -848,3 +848,61 @@ a.selectable-card {
     font-weight: 600;
   }
 }
+
+// ----------------------------------------------------------------------------
+//  Header-Extension Tab Bar (flush with header, unfolds downwards)
+//  Used by home, squarespace-content (members-area / instructors-area),
+//  member-gradings, and any header-connected sub-tab bar.
+// ----------------------------------------------------------------------------
+
+.header-extension-tabs {
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  position: relative;
+  z-index: 5;
+  transform-origin: top center;
+  animation: headerTabUnfoldDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+
+  .pill-tabs {
+    margin-top: 0;
+    margin-bottom: 0;
+    align-items: center;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-top: none;
+    padding: 0.25rem 0.4rem 0.35rem 0.4rem;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@keyframes headerTabUnfoldDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%) scaleY(0.7);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes headerTabFoldUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%) scaleY(0.7);
+  }
+}

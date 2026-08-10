@@ -29,6 +29,7 @@ import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
+import { FirebaseStateService } from '../../firebase-state.service';
 
 
 function quotedFilter(result: CalendarEvent, quoted: string[]): boolean {
@@ -57,16 +58,18 @@ type SearchableCalendarEvent = IlcEvent & { id: string };
 @Component({
   selector: 'app-event-list',
   standalone: true,
-  imports: [FormsModule, EventItemComponent, IconComponent, SpinnerComponent, BackLinkComponent],
+  imports: [FormsModule, EventItemComponent, IconComponent, SpinnerComponent],
   templateUrl: './event-list.html',
   styleUrl: './event-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventListComponent implements OnDestroy {
   protected routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
+  protected firebaseService = inject(FirebaseStateService);
   protected Views = Views;
 
   // --- Component State Signals ---
+  isLoggedIn = computed(() => !!this.firebaseService.user());
   errorMessage = signal<string | null>(null);
   optionsMenuOpen = signal(false);
   showFromDateFilter = signal(false);

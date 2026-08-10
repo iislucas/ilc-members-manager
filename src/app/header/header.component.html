@@ -26,24 +26,28 @@
     }
 
     <div class="title-container">
-      @if (breadcrumbs().length > 1) {
-        <div class="breadcrumb-parents">
-          @for (crumb of breadcrumbs().slice(0, -1); track $index) {
-            <span class="crumb">
-              @let text =
-                abbreviateParents()
-                  ? crumb.shortLabel || crumb.label
-                  : crumb.label;
-              @if (crumb.url) {
-                <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
-              } @else {
-                <span class="crumb-label">{{ text }}</span>
+      <div class="breadcrumbs-accordion" [class.open]="breadcrumbs().length > 1">
+        <div class="breadcrumbs-inner">
+          @if (breadcrumbs().length > 1) {
+            <div class="breadcrumb-parents">
+              @for (crumb of breadcrumbs().slice(0, -1); track $index) {
+                <span class="crumb">
+                  @let text =
+                    abbreviateParents()
+                      ? crumb.shortLabel || crumb.label
+                      : crumb.label;
+                  @if (crumb.url) {
+                    <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
+                  } @else {
+                    <span class="crumb-label">{{ text }}</span>
+                  }
+                  <span class="crumb-separator">&gt;</span>
+                </span>
               }
-              <span class="crumb-separator">&gt;</span>
-            </span>
+            </div>
           }
         </div>
-      }
+      </div>
       @if (breadcrumbs().length > 0) {
         @let lastCrumb = breadcrumbs()[breadcrumbs().length - 1];
         <div class="title current-page-title" [class.doc-id]="lastCrumb.label.includes('doc:')">

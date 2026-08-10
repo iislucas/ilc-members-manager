@@ -8,7 +8,10 @@
   align-items: center;
   margin-bottom: 0.5em;
   flex-grow: 0;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 100;
+  min-height: 48px;
+  box-sizing: border-box;
 
   background-color: $header-bg-color;
   color: $header-text-color;
@@ -24,7 +27,6 @@
     font-size: large;
     font-weight: bold;
     color: $header-text-color;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   &.logged-out {
@@ -51,7 +53,6 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   flex: 1;
 
   .icon-only-button {
@@ -81,6 +82,27 @@
   flex: 1;
 }
 
+.breadcrumbs-accordion {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.25s cubic-bezier(0.2, 0, 0, 1),
+              opacity 0.2s cubic-bezier(0.2, 0, 0, 1),
+              margin-bottom 0.25s cubic-bezier(0.2, 0, 0, 1);
+  margin-bottom: 0;
+
+  &.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-bottom: 0.25em;
+  }
+}
+
+.breadcrumbs-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .breadcrumb-parents {
   $crumb-side-padding: 0.6em;
 
@@ -93,7 +115,6 @@
   font-size: 0.75em; /* Larger chip size */
   font-weight: normal;
   color: #cbd5e1;
-  margin-bottom: 0.4em;
   /* Matches the breadcrumb left/right-padding; enables breadcrumb text to start 
      flush left with title text. */
   margin-left: -$crumb-side-padding; 
