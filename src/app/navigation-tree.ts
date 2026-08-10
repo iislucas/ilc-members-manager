@@ -300,7 +300,7 @@ export class NavigationTreeService {
       case Views.ProposeEvent:
         return [this.node(Views.MyEvents, 'Events')];
       case Views.ManageEventView:
-        return [this.node(Views.ManageEvents, 'Manage Events')];
+        return [this.node(Views.ManageEvents, 'Events')];
       case Views.EventEdit:
       case Views.MyEventEdit:
       case Views.ManageEventEdit: {
@@ -353,7 +353,7 @@ export class NavigationTreeService {
           this.routing.signals[Views.InstructorStudents].pathVars.instructorId(),
         );
       case Views.ManageSchoolEdit:
-        return [this.node(Views.ManageSchools, 'Manage Schools')];
+        return [this.node(Views.ManageSchools, 'Schools')];
       case Views.MySchoolEdit:
         return [this.node(Views.MySchools, 'Schools')];
 
@@ -361,11 +361,11 @@ export class NavigationTreeService {
       case Views.GradingView:
         return this.gradingReturnsToMyGradings()
           ? [this.node(Views.MemberGradings, 'Gradings')]
-          : [this.node(Views.ManageGradings, 'Manage Gradings')];
+          : [this.node(Views.ManageGradings, 'Gradings')];
 
       // --- Orders, articles, settings ---
       case Views.OrderView:
-        return [this.node(Views.ManageOrders, 'Manage Orders')];
+        return [this.node(Views.ManageOrders, 'Orders')];
       case Views.MembersAreaPost:
         return [{ label: 'Members Posts', url: this.routing.hrefWithParams('/members-area') }];
       case Views.InstructorsAreaPost:
@@ -428,7 +428,7 @@ export class NavigationTreeService {
         ),
       ];
     }
-    return [this.node(Views.ManageMembers, 'Manage Members')];
+    return [this.node(Views.ManageMembers, 'Members')];
   }
 
   /**
@@ -445,7 +445,7 @@ export class NavigationTreeService {
       !user?.isAdmin && !!school && (user?.schoolsManaged ?? []).includes(schoolId);
     const listNode = isMine
       ? this.node(Views.MySchools, 'Schools')
-      : this.node(Views.ManageSchools, 'Manage Schools');
+      : this.node(Views.ManageSchools, 'Schools');
     if (!school) return [listNode];
     const editView = isMine ? Views.MySchoolEdit : Views.ManageSchoolEdit;
     return [
@@ -458,7 +458,7 @@ export class NavigationTreeService {
 
   /** The chain above an instructor's student list: their member record. */
   private instructorChain(instructorId: string): NavNode[] {
-    const membersNode = this.node(Views.ManageMembers, 'Manage Members');
+    const membersNode = this.node(Views.ManageMembers, 'Members');
     const instructor = this.dataService.instructors.get(instructorId);
     if (!instructor) return [membersNode];
     return [
@@ -471,7 +471,7 @@ export class NavigationTreeService {
 
   /**
    * Whether a grading detail page belongs to the member-facing "My Gradings"
-   * subtree rather than the admin "Manage Gradings" one: when it was opened
+   * subtree rather than the admin "Gradings" one: when it was opened
    * from there (tagged with `?from=my-gradings`), when it is the viewer's own
    * grading, or when the viewer is not an admin and so has no other list.
    */
@@ -509,13 +509,13 @@ export class NavigationTreeService {
   public titleOf(viewId: Views | null): string {
     switch (viewId) {
       case Views.ManageMembers:
-        return 'Manage Members';
+        return 'Members';
       case Views.FindAnInstructor:
         return 'Instructors';
       case Views.InstructorView:
         return this.loadedInstructorTitle() || 'Instructor';
       case Views.ManageSchools:
-        return 'Manage Schools';
+        return 'Schools';
       case Views.ManageSchoolEdit:
         return this.loadedSchoolTitle()
           ? `Edit: ${this.loadedSchoolTitle()}`
@@ -579,7 +579,7 @@ export class NavigationTreeService {
       case Views.InstructorsAreaCategory:
         return 'Instructors Posts';
       case Views.ManageGradings:
-        return 'Manage Gradings';
+        return 'Gradings';
       case Views.MemberGradings: {
         const member = this.firebaseState.user()?.member;
         if (member) {
@@ -612,11 +612,11 @@ export class NavigationTreeService {
       case Views.ProposeEvent:
         return 'Organise or List an Event';
       case Views.ManageEvents:
-        return 'Manage Events';
+        return 'Events';
       case Views.ClassVideoLibrary:
         return 'Class Video Library';
       case Views.ManageOrders:
-        return 'Manage Orders';
+        return 'Orders';
       case Views.OrderView:
         return this.loadedOrderTitle() || 'Order Details';
       case Views.MembersAreaPost:
@@ -631,7 +631,7 @@ export class NavigationTreeService {
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:
-        return 'Manage Materials';
+        return 'Materials';
       case Views.Login:
         return 'Login';
       case Views.NewMember:

@@ -125,9 +125,9 @@ export class NavigationMenuComponent {
 
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
-      case Views.ManageMembers: return 'Manage Members';
+      case Views.ManageMembers: return 'Members';
       case Views.FindAnInstructor: return 'Instructors';
-      case Views.ManageSchools: return 'Manage Schools';
+      case Views.ManageSchools: return 'Schools';
       case Views.FindSchool: return 'Schools';
       case Views.ClassCalendarView:
         const calId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
@@ -150,18 +150,18 @@ export class NavigationMenuComponent {
       case Views.MySchools: return 'Schools';
       case Views.MembersArea: return 'Members Posts';
       case Views.InstructorsArea: return 'Instructors Posts';
-      case Views.ManageGradings: return 'Manage Gradings';
+      case Views.ManageGradings: return 'Gradings';
       case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
-      case Views.ManageOrders: return 'Manage Orders';
+      case Views.ManageOrders: return 'Orders';
       case Views.Statistics: return 'Statistics';
       case Views.EventsCalendar: return 'Events & Workshops';
       case Views.OrderView:
         const orderId = this.routingService.signals[viewId].pathVars.orderId();
         return `Order ${orderId}`;
       case Views.ProposeEvent: return 'Organise or List an Event';
-      case Views.ManageEvents: return 'Manage Events';
+      case Views.ManageEvents: return 'Events';
       case Views.EventView:
       case Views.MyEventView:
       case Views.ManageEventView:
@@ -171,7 +171,7 @@ export class NavigationMenuComponent {
       case Views.ManageEventEdit:
         return 'Edit Event';
       case Views.MyMaterials: return 'Uploads';
-      case Views.ManageMaterials: return 'Manage Materials';
+      case Views.ManageMaterials: return 'Materials';
       default: return 'Unknown View';
     }
   }

@@ -106,7 +106,7 @@ describe('NavigationTreeService', () => {
   it('keeps each events subtree separate', () => {
     navTree.loadedEventTitle.set('Summer Camp');
     goTo(Views.ManageEventEdit, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Admin', 'Manage Events', 'Summer Camp']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Events', 'Summer Camp']);
     expect(navTree.parent()?.url).toBe('/manage-events/E1');
 
     goTo(Views.MyEventEdit, { eventId: 'E1' });
@@ -132,7 +132,7 @@ describe('NavigationTreeService', () => {
 
   it('builds the school chain for a school member list', () => {
     goTo(Views.SchoolMembers, { schoolId: 'PARIS' });
-    expect(ancestorLabels()).toEqual(['Admin', 'Manage Schools', 'Paris ILC (PARIS)']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Schools', 'Paris ILC (PARIS)']);
     expect(navTree.parent()?.url).toBe('/schools/schoolDoc1/edit');
   });
 
@@ -150,7 +150,7 @@ describe('NavigationTreeService', () => {
 
   it('builds the instructor chain for a student list', () => {
     goTo(Views.InstructorStudents, { instructorId: 'I7' });
-    expect(ancestorLabels()).toEqual(['Admin', 'Manage Members', 'Sifu Chin [I7]']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Members', 'Sifu Chin [I7]']);
     expect(navTree.parent()?.url).toBe('/members/M9');
   });
 
@@ -165,7 +165,7 @@ describe('NavigationTreeService', () => {
     expect(navTree.parent()?.url).toBe('/my-gradings');
   });
 
-  it('sends an admin browsing the global list back to Manage Gradings', () => {
+  it('sends an admin browsing the global list back to Gradings', () => {
     goTo(Views.GradingView, { gradingId: 'G1' });
     expect(navTree.parent()?.url).toBe('/gradings');
   });
