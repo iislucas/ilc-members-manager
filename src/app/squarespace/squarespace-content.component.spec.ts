@@ -17,9 +17,9 @@ describe('SquarespaceContentComponent', () => {
             navigateTo: vi.fn(),
             matchedPatternId: signal(null),
             signals: {
-                [Views.MembersArea]: {},
+                [Views.MembersArea]: { urlParams: { category: signal('') } },
                 [Views.MembersAreaCategory]: { pathVars: { category: signal('') } },
-                [Views.InstructorsArea]: {},
+                [Views.InstructorsArea]: { urlParams: { category: signal('') } },
                 [Views.InstructorsAreaCategory]: { pathVars: { category: signal('') } }
             }
         } as unknown as RoutingService<never>;
@@ -69,5 +69,27 @@ describe('SquarespaceContentComponent', () => {
         const entry = { urlId: 'my-instr-post' } as ProcessedBlogEntry;
         component.navigateToArticle(entry);
         expect(routingServiceMock.navigateTo).toHaveBeenCalledWith('instructors-area/post/my-instr-post');
+    });
+
+    it('maps Learn to Article for tags and pluralizes tab labels', () => {
+        fixture.componentRef.setInput('path', 'instructors-post');
+        fixture.detectChanges();
+
+        (component as any).subscribed.set(true);
+        (component as any).rawPosts.set([
+            { id: '1', title: 'Post 1', categories: ['Learn'], body: '', excerpt: '', urlId: 'p1' },
+            { id: '2', title: 'Post 2', categories: ['Announcements'], body: '', excerpt: '', urlId: 'p2' },
+            { id: '3', title: 'Post 3', categories: ['Videos'], body: '', excerpt: '', urlId: 'p3' },
+        ]);
+
+        const entries = component.blogEntries();
+        expect(entries[0].categories).toEqual(['Article']);
+        expect(entries[1].categories).toEqual(['Announcement']);
+        expect(entries[2].categories).toEqual(['Videos']);
+
+        expect(component.categories()).toEqual(['All', 'Announcement', 'Article', 'Videos']);
+        expect(component.tabLabel('Article')).toBe('Articles');
+        expect(component.tabLabel('Announcement')).toBe('Announcements');
+        expect(component.tabLabel('Videos')).toBe('Videos');
     });
 });

@@ -23,6 +23,19 @@ export interface ProcessedBlogEntry extends CachedBlogPost {
     safeExcerpt: SafeHtml;
 }
 
+export function normalizeCategory(c: string, collectionName?: string): string {
+    if (collectionName === 'instructors-post' && (c === 'Learn' || c === 'Articles')) return 'Article';
+    if (c === 'Articles') return 'Article';
+    if (c === 'Announcements') return 'Announcement';
+    return c;
+}
+
+export function categoryToTabLabel(cat: string): string {
+    if (cat === 'Article') return 'Articles';
+    if (cat === 'Announcement') return 'Announcements';
+    return cat;
+}
+
 @Component({
     selector: 'app-squarespace-content',
     standalone: true,
@@ -42,7 +55,6 @@ export class SquarespaceContentComponent implements OnDestroy {
     // The Firestore collection name, e.g. 'members-post' or 'instructors-post'.
     path = input.required<string>();
 
-    categories = signal<string[]>([]);
     selectedCategory = signal<string>('All');
     fallbackContent = signal<SafeHtml | null>(null);
     error = signal<string | null>(null);
@@ -51,14 +63,35 @@ export class SquarespaceContentComponent implements OnDestroy {
     private rawPosts = signal<CachedBlogPost[]>([]);
     private subscribed = signal(false);
 
+    tabLabel(cat: string): string {
+        return categoryToTabLabel(cat);
+    }
+
     // Process cached posts into template-ready entries with sanitised HTML.
     readonly blogEntries = computed<ProcessedBlogEntry[]>(() => {
         if (!this.subscribed()) return [];
-        return this.rawPosts().map((item) => ({
-            ...item,
-            safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
-            safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
-        }));
+        const coll = this.path();
+        return this.rawPosts().map((item) => {
+            const categories = item.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
+            return {
+                ...item,
+                categories,
+                safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
+                safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
+            };
+        });
+    });
+
+    readonly categories = computed<string[]>(() => {
+        const entries = this.blogEntries();
+        if (entries.length === 0) return [];
+        const allCategories = new Set<string>();
+        entries.forEach(item => {
+            if (item.categories) {
+                item.categories.forEach((c: string) => allCategories.add(c));
+            }
+        });
+        return ['All', ...Array.from(allCategories).sort()];
     });
 
     readonly loading = computed(() => {
@@ -87,20 +120,6 @@ export class SquarespaceContentComponent implements OnDestroy {
             }
         });
 
-        // Build the category list whenever blog entries change.
-        effect(() => {
-            const entries = this.blogEntries();
-            if (entries.length > 0) {
-                const allCategories = new Set<string>();
-                entries.forEach(item => {
-                    if (item.categories) {
-                        item.categories.forEach((c: string) => allCategories.add(c));
-                    }
-                });
-                this.categories.set(['All', ...Array.from(allCategories).sort()]);
-            }
-        });
-
         // Sync the selected category from the URL.
         effect(() => {
             const patternId = this.routingService.matchedPatternId();
@@ -120,6 +139,7 @@ export class SquarespaceContentComponent implements OnDestroy {
                 }
 
                 urlCat = decodeURIComponent(urlCat || 'All');
+                urlCat = normalizeCategory(urlCat, this.path());
 
                 if (urlCat) {
                     if (urlCat !== this.selectedCategory()) {
@@ -141,12 +161,13 @@ export class SquarespaceContentComponent implements OnDestroy {
     selectCategory(cat: string) {
         this.selectedCategory.set(cat);
         const patternId = this.routingService.matchedPatternId();
-        const encodedCat = encodeURIComponent(cat);
+        const urlSlug = cat === 'All' ? 'All' : categoryToTabLabel(cat);
+        const encodedCat = encodeURIComponent(urlSlug);
 
         if (patternId === Views.MembersArea) {
-            this.routingService.signals[Views.MembersArea].urlParams.category.set(cat === 'All' ? '' : cat);
+            this.routingService.signals[Views.MembersArea].urlParams.category.set(cat === 'All' ? '' : urlSlug);
         } else if (patternId === Views.InstructorsArea) {
-            this.routingService.signals[Views.InstructorsArea].urlParams.category.set(cat === 'All' ? '' : cat);
+            this.routingService.signals[Views.InstructorsArea].urlParams.category.set(cat === 'All' ? '' : urlSlug);
         } else if (patternId === Views.MembersAreaCategory) {
             this.routingService.navigateToParts(cat === 'All' ? ['members-area', 'category', 'All'] : ['members-area', 'category', encodedCat]);
         } else if (patternId === Views.InstructorsAreaCategory) {

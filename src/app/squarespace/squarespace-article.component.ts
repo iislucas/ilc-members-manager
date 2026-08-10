@@ -13,7 +13,7 @@ import { FIREBASE_APP } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MembershipType, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model';
-import { ProcessedBlogEntry } from './squarespace-content.component';
+import { ProcessedBlogEntry, normalizeCategory } from './squarespace-content.component';
 import { BackLinkComponent } from '../back-link/back-link';
 
 @Component({
@@ -51,8 +51,12 @@ export class SquarespaceArticleComponent implements OnDestroy {
         const matchingPost = posts.find(p => p.urlId === slug);
         if (!matchingPost) return null;
 
+        const coll = this.collection();
+        const categories = matchingPost.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
+
         return {
             ...matchingPost,
+            categories,
             safeBody: this.sanitizer.bypassSecurityTrustHtml(matchingPost.body),
             safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(matchingPost.excerpt),
         };

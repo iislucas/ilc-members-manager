@@ -21,10 +21,10 @@
             @for (cat of categories(); track cat) {
             <button 
               class="pill-tab"
-              [attr.data-label]="cat"
+              [attr.data-label]="tabLabel(cat)"
               [class.active]="selectedCategory() === cat"
               (click)="selectCategory(cat)">
-              {{ cat }}
+              {{ tabLabel(cat) }}
             </button>
             }
           </div>
