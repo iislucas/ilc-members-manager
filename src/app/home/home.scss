@@ -1,17 +1,26 @@
 @use "../../scss_variables" as *;
 
 .home-container {
-  padding: 0.25rem 1.5rem 1.5rem 1.5rem;
+  padding: 0 1.5rem 1.5rem 1.5rem;
 }
 
 .home-tab-bar {
   display: flex;
   justify-content: center;
+  margin-top: 0;
   margin-bottom: 1.25rem;
 
   .pill-tabs {
+    margin-top: 0;
     margin-bottom: 0;
     align-items: center;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-top: none;
+    padding: 0.25rem 0.4rem 0.35rem 0.4rem;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
   }
 
   .pill-tab {
@@ -25,6 +34,7 @@
       app-icon {
         display: flex;
         align-items: center;
+        justify-content: center;
       }
     }
   }
@@ -130,7 +140,7 @@
 
 @media (max-width: 600px) {
   .home-container {
-    padding: 0.25rem 1rem 1rem 1rem;
+    padding: 0 1rem 1rem 1rem;
   }
 
   .cards-grid {

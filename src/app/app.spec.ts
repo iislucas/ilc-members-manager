@@ -158,7 +158,7 @@ describe('App', () => {
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Instructors']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Practice', 'Instructors']);
   });
 
   it('should correctly parse the members-area post path for a logged-in user', async () => {
@@ -190,7 +190,7 @@ describe('App', () => {
 
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Members Posts', 'Article']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Learn', 'Members Posts', 'Article']);
   });
 
   it('should intercept click on breadcrumb links and navigate client-side', async () => {
@@ -219,11 +219,8 @@ describe('App', () => {
     const navigateSpy = vi.spyOn(app.routingService, 'navigateTo').mockImplementation(() => {});
 
     const compiled = fixture.nativeElement as HTMLElement;
-    // Find the link back to the members list. It carries `jumpTo` so the list
-    // scrolls to the member you came from — the same target the in-page back
-    // link uses, since both come from the navigation tree.
-    const crumbLink = Array.from(compiled.querySelectorAll('.crumb-link'))
-      .find((el) => el.getAttribute('href') === '/members?jumpTo=M1') as HTMLAnchorElement;
+    const crumbLinks = Array.from(compiled.querySelectorAll<HTMLAnchorElement>('.crumb-link'));
+    const crumbLink = crumbLinks.find((el) => el.getAttribute('href')?.includes('members?jumpTo=M1'))!;
     expect(crumbLink).toBeTruthy();
 
     // Click it!
@@ -360,11 +357,11 @@ describe('App', () => {
     compiled = fixture.nativeElement as HTMLElement;
     // Hamburger menu should not be present
     expect(compiled.querySelector('.menu-anchor button')).toBeNull();
-    // Back button should be present and point to '/'
+    // Back button should be present and point to '/?tab=admin'
     const backBtn = compiled.querySelector('.header-back-btn') as HTMLAnchorElement;
     expect(backBtn).toBeTruthy();
-    expect(backBtn.getAttribute('href')).toBe('/');
-    expect(backBtn.getAttribute('title')).toBe('Back to Members Portal');
+    expect(backBtn.getAttribute('href')).toBe('/?tab=admin');
+    expect(backBtn.getAttribute('title')).toBe('Back to Admin');
   });
 });
 

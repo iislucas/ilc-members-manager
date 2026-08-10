@@ -15,6 +15,11 @@
   border-bottom: 2px solid $header-border-color;
   padding: 0.5em 0.5em;
 
+  &.has-top-tabs,
+  &.is-home {
+    margin-bottom: 0;
+  }
+
   .title {
     font-size: large;
     font-weight: bold;

@@ -145,7 +145,113 @@ export class NavigationTreeService {
   // The tree itself.
   // ---------------------------------------------------------------------------
 
+  private areaNode(area: 'learn' | 'practice' | 'me' | 'admin'): NavNode {
+    switch (area) {
+      case 'learn':
+        return { label: 'Learn', url: '/?tab=learn' };
+      case 'practice':
+        return { label: 'Practice', url: '/?tab=practice' };
+      case 'me':
+        return { label: 'Me', url: '/?tab=me' };
+      case 'admin':
+        return { label: 'Admin', url: '/?tab=admin' };
+    }
+  }
+
+  public areaOf(view: Views | null): 'learn' | 'practice' | 'me' | 'admin' | null {
+    if (!view) return null;
+    // Learn
+    if (
+      view === Views.MembersArea ||
+      view === Views.MembersAreaCategory ||
+      view === Views.MembersAreaPost ||
+      view === Views.InstructorsArea ||
+      view === Views.InstructorsAreaCategory ||
+      view === Views.InstructorsAreaPost ||
+      view === Views.ClassVideoLibrary
+    ) {
+      return 'learn';
+    }
+    // Practice
+    if (
+      view === Views.EventsCalendar ||
+      view === Views.EventView ||
+      view === Views.EventEdit ||
+      view === Views.FindSchool ||
+      view === Views.SchoolView ||
+      view === Views.SchoolCalendarView ||
+      view === Views.FindAnInstructor ||
+      view === Views.InstructorView ||
+      view === Views.ClassCalendarView
+    ) {
+      return 'practice';
+    }
+    // Me
+    if (
+      view === Views.MyProfile ||
+      view === Views.MemberGradings ||
+      view === Views.MyEvents ||
+      view === Views.MyEventView ||
+      view === Views.MyEventEdit ||
+      view === Views.ProposeEvent ||
+      view === Views.MyMaterials ||
+      view === Views.MyStudents ||
+      view === Views.MyStudentView ||
+      view === Views.MySchools ||
+      view === Views.MySchoolEdit
+    ) {
+      return 'me';
+    }
+    if (view === Views.GradingView && this.gradingReturnsToMyGradings()) {
+      return 'me';
+    }
+    if (view === Views.SchoolMembers) {
+      const schoolId = this.routing.signals[Views.SchoolMembers].pathVars.schoolId();
+      const school = this.dataService.schools.entries().find((s) => s.schoolId === schoolId);
+      const user = this.firebaseState.user();
+      const isMine = !user?.isAdmin && !!school && (user?.schoolsManaged ?? []).includes(schoolId);
+      if (isMine) return 'me';
+    }
+    // Admin
+    if (
+      view === Views.ManageMembers ||
+      view === Views.ManageMemberView ||
+      view === Views.NewMember ||
+      view === Views.SchoolMembers ||
+      view === Views.SchoolMemberView ||
+      view === Views.InstructorStudents ||
+      view === Views.InstructorStudentView ||
+      view === Views.ManageSchools ||
+      view === Views.ManageSchoolEdit ||
+      view === Views.ManageGradings ||
+      view === Views.GradingView ||
+      view === Views.ManageOrders ||
+      view === Views.OrderView ||
+      view === Views.ManageEvents ||
+      view === Views.ManageEventView ||
+      view === Views.ManageEventEdit ||
+      view === Views.ManageMaterials ||
+      view === Views.Statistics ||
+      view === Views.ImportExport ||
+      view === Views.Settings ||
+      view === Views.NotificationSettings
+    ) {
+      return 'admin';
+    }
+    return null;
+  }
+
   private ancestorsOf(view: Views | null): NavNode[] {
+    if (!view) return [];
+    const area = this.areaOf(view);
+    const subAncestors = this.subAncestorsOf(view);
+    if (area) {
+      return [this.areaNode(area), ...subAncestors];
+    }
+    return subAncestors;
+  }
+
+  private subAncestorsOf(view: Views | null): NavNode[] {
     if (!view) return [];
     switch (view) {
       // --- Public: instructors and schools ---
@@ -190,7 +296,7 @@ export class NavigationTreeService {
         const parentView = EVENT_EDIT_PARENT[view];
         const eventId = this.routing.signals[view].pathVars.eventId();
         return [
-          ...this.ancestorsOf(parentView),
+          ...this.subAncestorsOf(parentView),
           this.node(parentView, this.loadedEventTitle() || 'Event Details', {
             eventId,
           }),

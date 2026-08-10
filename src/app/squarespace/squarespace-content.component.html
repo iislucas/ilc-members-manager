@@ -16,7 +16,8 @@
         } @else if (blogEntries().length > 0) {
         
         @if (categories().length > 1) {
-        <div class="pill-tabs">
+        <div class="tab-bar-container">
+          <div class="pill-tabs">
             @for (cat of categories(); track cat) {
             <button 
               class="pill-tab"
@@ -26,6 +27,7 @@
               {{ cat }}
             </button>
             }
+          </div>
         </div>
         }
 

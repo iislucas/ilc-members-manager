@@ -1,4 +1,4 @@
-<div class="nav-bar" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
+<div class="nav-bar" [class.has-top-tabs]="hasTopTabs() && isLoggedIn()" [class.is-home]="isHome() && isLoggedIn()" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
   <div class="title-and-menu">
     @if (isHome()) {
       @if (isLoggedIn()) {

@@ -110,11 +110,11 @@ export class SquarespaceContentComponent implements OnDestroy {
                 || patternId === Views.InstructorsAreaCategory) {
                 let urlCat = '';
                 if (patternId === Views.MembersArea) {
-                    urlCat = 'All';
+                    urlCat = this.routingService.signals[Views.MembersArea].urlParams.category() || 'All';
                 } else if (patternId === Views.MembersAreaCategory) {
                     urlCat = this.routingService.signals[Views.MembersAreaCategory].pathVars.category();
                 } else if (patternId === Views.InstructorsArea) {
-                    urlCat = 'All';
+                    urlCat = this.routingService.signals[Views.InstructorsArea].urlParams.category() || 'All';
                 } else if (patternId === Views.InstructorsAreaCategory) {
                     urlCat = this.routingService.signals[Views.InstructorsAreaCategory].pathVars.category();
                 }
@@ -143,9 +143,13 @@ export class SquarespaceContentComponent implements OnDestroy {
         const patternId = this.routingService.matchedPatternId();
         const encodedCat = encodeURIComponent(cat);
 
-        if (patternId === Views.MembersArea || patternId === Views.MembersAreaCategory) {
+        if (patternId === Views.MembersArea) {
+            this.routingService.signals[Views.MembersArea].urlParams.category.set(cat === 'All' ? '' : cat);
+        } else if (patternId === Views.InstructorsArea) {
+            this.routingService.signals[Views.InstructorsArea].urlParams.category.set(cat === 'All' ? '' : cat);
+        } else if (patternId === Views.MembersAreaCategory) {
             this.routingService.navigateToParts(cat === 'All' ? ['members-area', 'category', 'All'] : ['members-area', 'category', encodedCat]);
-        } else if (patternId === Views.InstructorsArea || patternId === Views.InstructorsAreaCategory) {
+        } else if (patternId === Views.InstructorsAreaCategory) {
             this.routingService.navigateToParts(cat === 'All' ? ['instructors-area', 'category', 'All'] : ['instructors-area', 'category', encodedCat]);
         }
     }

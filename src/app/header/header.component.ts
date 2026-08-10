@@ -1,4 +1,4 @@
-import { Component, input, model, inject } from '@angular/core';
+import { Component, input, model, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { NavigationMenuComponent } from '../navigation-menu/navigation-menu.component';
@@ -7,6 +7,8 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 
 import { NavigationTreeService } from '../navigation-tree';
+import { FirebaseStateService } from '../firebase-state.service';
+import { Views } from '../app.config';
 
 export interface Breadcrumb {
   label: string;
@@ -31,6 +33,7 @@ export interface Breadcrumb {
 export class HeaderComponent {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   navTree = inject(NavigationTreeService);
+  firebaseService = inject(FirebaseStateService);
 
   breadcrumbs = input<Breadcrumb[]>([]);
   abbreviateParents = input<boolean>(true);
@@ -40,6 +43,17 @@ export class HeaderComponent {
 
   isHome = this.navTree.isHome;
   upNode = this.navTree.upNode;
+
+  hasTopTabs = computed(() => {
+    const view = this.routingService.matchedPatternId();
+    if (view === Views.Home) return true;
+    if (view === Views.MembersArea || view === Views.MembersAreaCategory) return true;
+    if (view === Views.InstructorsArea || view === Views.InstructorsAreaCategory) return true;
+    if (view === Views.MemberGradings) {
+      return !!this.firebaseService.user()?.member?.instructorId;
+    }
+    return false;
+  });
 
   // Encodes the current URL (path + query params, without the leading slash)
   // for use as a returnUrl parameter on the login page.

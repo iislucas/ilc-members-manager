@@ -87,37 +87,37 @@ describe('NavigationTreeService', () => {
     return navTree.ancestors().map((a) => a.label);
   }
 
-  it('gives a top-level page no parent, so it shows no back link', () => {
+  it('gives a top-level page its area node as parent', () => {
     goTo(Views.ManageMembers);
-    expect(navTree.ancestors()).toEqual([]);
-    expect(navTree.parent()).toBeNull();
+    expect(navTree.ancestors()).toEqual([{ label: 'Admin', url: '/?tab=admin' }]);
+    expect(navTree.parent()?.url).toBe('/?tab=admin');
   });
 
   it('puts an event under its list, and the event editor under the event', () => {
     goTo(Views.EventView, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Events & Workshops']);
+    expect(ancestorLabels()).toEqual(['Practice', 'Events & Workshops']);
 
     navTree.loadedEventTitle.set('Summer Camp');
     goTo(Views.EventEdit, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Events & Workshops', 'Summer Camp']);
+    expect(ancestorLabels()).toEqual(['Practice', 'Events & Workshops', 'Summer Camp']);
     expect(navTree.parent()?.url).toBe('/events/E1');
   });
 
   it('keeps each events subtree separate', () => {
     navTree.loadedEventTitle.set('Summer Camp');
     goTo(Views.ManageEventEdit, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Manage Events', 'Summer Camp']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage Events', 'Summer Camp']);
     expect(navTree.parent()?.url).toBe('/manage-events/E1');
 
     goTo(Views.MyEventEdit, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Events', 'Summer Camp']);
+    expect(ancestorLabels()).toEqual(['Me', 'Events', 'Summer Camp']);
     expect(navTree.parent()?.url).toBe('/my-events/E1');
   });
 
   it('puts a class calendar under the instructor whose calendar it is', () => {
     goTo(Views.ClassCalendarView, { instructorId: 'I7' });
     expect(navTree.parent()?.url).toBe('/instructors/I7');
-    expect(ancestorLabels()[0]).toBe('Instructors');
+    expect(ancestorLabels()).toEqual(['Practice', 'Instructors', 'I7']);
   });
 
   it('puts settings sub-pages under Settings', () => {
@@ -132,7 +132,7 @@ describe('NavigationTreeService', () => {
 
   it('builds the school chain for a school member list', () => {
     goTo(Views.SchoolMembers, { schoolId: 'PARIS' });
-    expect(ancestorLabels()).toEqual(['Manage Schools', 'Paris ILC (PARIS)']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage Schools', 'Paris ILC (PARIS)']);
     expect(navTree.parent()?.url).toBe('/schools/schoolDoc1/edit');
   });
 
@@ -144,13 +144,13 @@ describe('NavigationTreeService', () => {
       member: { memberId: 'M1', name: 'Test Member' },
     } as unknown as Partial<UserDetails>);
     goTo(Views.SchoolMembers, { schoolId: 'PARIS' });
-    expect(ancestorLabels()).toEqual(['Schools', 'Paris ILC (PARIS)']);
+    expect(ancestorLabels()).toEqual(['Me', 'Schools', 'Paris ILC (PARIS)']);
     expect(navTree.parent()?.url).toBe('/my-schools/schoolDoc1/edit');
   });
 
   it('builds the instructor chain for a student list', () => {
     goTo(Views.InstructorStudents, { instructorId: 'I7' });
-    expect(ancestorLabels()).toEqual(['Manage Members', 'Sifu Chin [I7]']);
+    expect(ancestorLabels()).toEqual(['Admin', 'Manage Members', 'Sifu Chin [I7]']);
     expect(navTree.parent()?.url).toBe('/members/M9');
   });
 
@@ -190,6 +190,7 @@ describe('NavigationTreeService', () => {
     const crumbs = navTree.breadcrumbs();
     expect(crumbs.map((c) => c.label)).toEqual([
       'Members Portal',
+      'Practice',
       'Events & Workshops',
       'Summer Camp',
       'Edit: Summer Camp',
@@ -213,7 +214,7 @@ describe('NavigationTreeService', () => {
 
     goTo(Views.ManageMembers);
     expect(navTree.isHome()).toBe(false);
-    expect(navTree.upNode()).toEqual({ label: 'Members Portal', url: '/' });
+    expect(navTree.upNode()).toEqual({ label: 'Admin', url: '/?tab=admin' });
 
     navTree.loadedEventTitle.set('Summer Camp');
     goTo(Views.EventEdit, { eventId: 'E1' });
@@ -233,10 +234,11 @@ describe('NavigationTreeService', () => {
   it('puts Organise or List an Event under Events in the navigation tree', () => {
     goTo(Views.ProposeEvent);
     expect(navTree.currentTitle()).toBe('Organise or List an Event');
-    expect(ancestorLabels()).toEqual(['Events']);
+    expect(ancestorLabels()).toEqual(['Me', 'Events']);
     expect(navTree.parent()?.url).toBe('/my-events');
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
       'Members Portal',
+      'Me',
       'Events',
       'Organise or List an Event',
     ]);
