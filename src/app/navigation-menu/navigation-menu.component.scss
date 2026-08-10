@@ -16,6 +16,12 @@
   color: $text-primary;
   padding: 0.5em 1em;
   user-select: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
 }
 
 .top-level-nav {
@@ -27,10 +33,15 @@
   font-weight: 500;
   color: $text-primary;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  user-select: none;
+  transition: background-color 0.15s ease, font-weight 0.15s ease;
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  &.active {
+    font-weight: 600;
   }
 
   .nav-title {
@@ -40,7 +51,31 @@
   .nav-chevron {
     color: $text-muted;
     margin-left: 0.5em;
+    display: inline-flex;
+    transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+
+    &.rotated {
+      transform: rotate(90deg);
+    }
   }
+}
+
+.submenu-accordion {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.25s cubic-bezier(0.2, 0, 0, 1),
+              opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
+
+  &.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.submenu-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .submenu-item {

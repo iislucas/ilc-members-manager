@@ -82,4 +82,81 @@ describe('NavigationMenuComponent', () => {
     component.routingService.signals[Views.Home].urlParams.tab.set('admin');
     expect(component.currentArea()).toBe('admin');
   });
+
+  it('switches expanded area on first click, and navigates to home tab on second click', () => {
+    component.routingService.matchedPatternId.set(Views.ManageMembers);
+    expect(component.currentArea()).toBe('admin');
+    expect(component.selectedArea()).toBe('admin');
+
+    const navigateSpy = vi.spyOn(component.routingService, 'navigateTo');
+    const closeSpy = vi.fn();
+    component.closeMenu.subscribe(closeSpy);
+
+    // 1. First click on 'learn' switches selectedArea without navigating
+    component.onSelectArea('learn');
+    expect(component.selectedArea()).toBe('learn');
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(closeSpy).not.toHaveBeenCalled();
+
+    // 2. Second click on 'learn' navigates and closes menu
+    component.onSelectArea('learn');
+    expect(navigateSpy).toHaveBeenCalledWith('');
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates to specific subpage on select', () => {
+    const closeSpy = vi.fn();
+    component.closeMenu.subscribe(closeSpy);
+
+    component.onSelect(Views.MembersArea);
+    expect(component.currentView()).toBe(Views.MembersArea);
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles DOM interaction: clicking collapsed area expands it, clicking header navigates', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: true,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Admin Member',
+        membershipType: 'Life',
+      },
+      firebaseUser: { email: 'admin@example.com' },
+    });
+
+    component.routingService.matchedPatternId.set(Views.ManageMembers);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const navigateSpy = vi.spyOn(component.routingService, 'navigateTo');
+    const closeSpy = vi.fn();
+    component.closeMenu.subscribe(closeSpy);
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Admin should be currently expanded, Learn should be collapsed
+    const topNavs = Array.from(compiled.querySelectorAll<HTMLElement>('.top-level-nav'));
+    const learnTopNav = topNavs.find((el) => el.textContent?.includes('Learn'));
+    expect(learnTopNav).toBeTruthy();
+
+    const accordions = compiled.querySelectorAll<HTMLElement>('.submenu-accordion');
+    const learnAccordion = accordions[0];
+    expect(learnAccordion.classList.contains('open')).toBe(false);
+
+    // Click Learn section header -> expands Learn accordion
+    learnTopNav!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.selectedArea()).toBe('learn');
+    expect(learnAccordion.classList.contains('open')).toBe(true);
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(closeSpy).not.toHaveBeenCalled();
+
+    // Click Learn header again -> navigates and closes
+    learnTopNav!.click();
+    expect(navigateSpy).toHaveBeenCalledWith('');
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,4 +1,4 @@
-import { Component, computed, inject, output } from '@angular/core';
+import { Component, computed, inject, linkedSignal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
@@ -84,6 +84,8 @@ export class NavigationMenuComponent {
     // Admin views:
     return 'admin';
   });
+
+  public selectedArea = linkedSignal<'learn' | 'practice' | 'me' | 'admin'>(() => this.currentArea());
 
   public membershipStatus = computed(() => {
     const m = this.user()?.member;
@@ -179,6 +181,14 @@ export class NavigationMenuComponent {
   onSelect(view: Views) {
     this.currentView.set(view);
     this.closeMenu.emit();
+  }
+
+  onSelectArea(tab: 'learn' | 'practice' | 'me' | 'admin') {
+    if (this.selectedArea() === tab) {
+      this.onSelectHomeTab(tab);
+    } else {
+      this.selectedArea.set(tab);
+    }
   }
 
   onSelectHomeTab(tab: 'learn' | 'practice' | 'me' | 'admin') {
