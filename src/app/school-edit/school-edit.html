@@ -2,14 +2,6 @@
 @if (!s && !isNewSchool()) {
   <app-spinner>Loading school...</app-spinner>
 } @else {
-    @if (publicListingHref(); as href) {
-      <div class="top-actions">
-        <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
-          <app-icon name="link"></app-icon> <span>View public listing</span>
-        </a>
-      </div>
-    }
-
   <div class="edit-form">
     <div class="school-header">
       <div class="school-header-row">
@@ -63,9 +55,19 @@
 
     <form (submit)="saveSchool($event)">
       <div class="form-section">
-        @if (userIsAdmin() || userIsSchoolManager()) {
-          <a class="subtle-button" href="/school/{{ s.schoolId }}/members">
-            <app-icon name="salut" /> Students</a>
+        @if ((userIsAdmin() || userIsSchoolManager()) || publicListingHref()) {
+          <div class="school-links">
+            @if (userIsAdmin() || userIsSchoolManager()) {
+              <a class="subtle-button" href="/school/{{ s.schoolId }}/members">
+                <app-icon name="salut" /> Students
+              </a>
+            }
+            @if (publicListingHref(); as href) {
+              <a class="subtle-button" [href]="href" target="_blank" rel="noopener noreferrer">
+                <app-icon name="link" /> View Public Listing
+              </a>
+            }
+          </div>
         }
         <h3>School Details</h3>
         <label for="schoolName">School Name</label>

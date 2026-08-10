@@ -167,6 +167,22 @@ export class SchoolEditComponent {
     );
     disabled(schema.schoolLicenseRenewalDate, () => !this.userIsAdmin());
     disabled(schema.schoolLicenseExpires, () => !this.userIsAdmin());
+    disabled(
+      schema.publicProfileImageUrl,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.publicProfileImageThumbUrl,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.publicCoverImageUrl,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
+    disabled(
+      schema.publicBioMarkdown,
+      () => !this.userIsAdmin() && !this.userIsSchoolManager(),
+    );
   });
 
   // Get an editable version of the school for save (it's the same as the model).

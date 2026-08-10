@@ -234,6 +234,46 @@ describe('SchoolEditComponent', () => {
       );
     });
 
+    it('should save public cover image and public profile image correctly', async () => {
+      component.form.publicCoverImageUrl().value.set('https://storage.googleapis.com/test-cover.jpg');
+      component.form.publicCoverImageUrl().markAsDirty();
+      component.form.publicProfileImageUrl().value.set('https://storage.googleapis.com/test-profile.jpg');
+      component.form.publicProfileImageUrl().markAsDirty();
+      component.form.publicProfileImageThumbUrl().value.set('https://storage.googleapis.com/test-profile-thumb.jpg');
+      component.form.publicProfileImageThumbUrl().markAsDirty();
+      component.onBioChanged('### Welcome to our school');
+
+      expect(component.isDirty()).toBe(true);
+
+      const event = { preventDefault: vi.fn() } as unknown as Event;
+      await component.saveSchool(event);
+
+      expect(dataManagerServiceMock.setSchool).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publicCoverImageUrl: 'https://storage.googleapis.com/test-cover.jpg',
+          publicProfileImageUrl: 'https://storage.googleapis.com/test-profile.jpg',
+          publicProfileImageThumbUrl: 'https://storage.googleapis.com/test-profile-thumb.jpg',
+          publicBioMarkdown: '### Welcome to our school',
+        }),
+        undefined,
+      );
+    });
+
+    it('should allow removing cover image and profile image', () => {
+      component.form.publicCoverImageUrl().value.set('https://example.com/cover.jpg');
+      component.form.publicProfileImageUrl().value.set('https://example.com/profile.jpg');
+      component.form.publicProfileImageThumbUrl().value.set('https://example.com/thumb.jpg');
+
+      component.removeCoverImage();
+      expect(component.form.publicCoverImageUrl().value()).toBe('');
+      expect(component.form.publicCoverImageUrl().dirty()).toBe(true);
+
+      component.removeProfileImage();
+      expect(component.form.publicProfileImageUrl().value()).toBe('');
+      expect(component.form.publicProfileImageThumbUrl().value()).toBe('');
+      expect(component.form.publicProfileImageUrl().dirty()).toBe(true);
+    });
+
     it('form should be valid for existing school with required fields', () => {
       expect(component.form().invalid()).toBe(false);
     });
@@ -276,6 +316,25 @@ describe('SchoolEditComponent', () => {
         fixture.nativeElement.querySelector('button[type="submit"]');
       expect(saveButton).toBeTruthy();
       expect(saveButton!.disabled).toBe(true);
+    });
+
+    it('DOM: renders Students and View Public Listing links in school-links container', async () => {
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const schoolLinks = fixture.nativeElement.querySelector('.school-links');
+      expect(schoolLinks).toBeTruthy();
+
+      const links = schoolLinks.querySelectorAll('a.subtle-button');
+      expect(links.length).toBe(2);
+
+      const studentsLink = links[0] as HTMLAnchorElement;
+      expect(studentsLink.textContent).toContain('Students');
+      expect(studentsLink.getAttribute('href')).toBe('/school/S001/members');
+
+      const publicListingLink = links[1] as HTMLAnchorElement;
+      expect(publicListingLink.textContent).toContain('View Public Listing');
+      expect(publicListingLink.getAttribute('href')).toContain('/school-profile/S001');
     });
   });
 

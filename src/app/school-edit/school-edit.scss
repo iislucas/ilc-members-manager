@@ -5,10 +5,14 @@
   display: block;
 }
 
-.top-actions {
-  margin-bottom: 1rem;
+.school-links {
+  grid-column: 1 / -1;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75em;
+  margin-bottom: 0.5em;
 }
 
 .school-header {

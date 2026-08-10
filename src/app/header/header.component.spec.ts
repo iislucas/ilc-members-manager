@@ -122,4 +122,43 @@ describe('HeaderComponent', () => {
     expect(backBtn.getAttribute('href')).toBe('/');
     expect(backBtn.getAttribute('title')).toBe('Back to Members Portal');
   });
+
+  it('renders loading slider when last crumb is loading', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', true);
+    fixture.componentRef.setInput('isPublicPage', false);
+    const crumbs: Breadcrumb[] = [
+      { label: 'Members Portal', url: '/' },
+      { label: 'School', isLoading: true },
+    ];
+    fixture.componentRef.setInput('breadcrumbs', crumbs);
+    isHomeSig.set(false);
+    upNodeSig.set({ label: 'Members Portal', url: '/' });
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.loading-slider')).toBeTruthy();
+  });
+
+  it('renders title text when last crumb is not loading', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', true);
+    fixture.componentRef.setInput('isPublicPage', false);
+    const crumbs: Breadcrumb[] = [
+      { label: 'Members Portal', url: '/' },
+      { label: 'Paris ILC', isLoading: false },
+    ];
+    fixture.componentRef.setInput('breadcrumbs', crumbs);
+    isHomeSig.set(false);
+    upNodeSig.set({ label: 'Members Portal', url: '/' });
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.loading-slider')).toBeNull();
+    expect(compiled.querySelector('.current-page-title')?.textContent?.trim()).toBe('Paris ILC');
+  });
 });

@@ -19,7 +19,7 @@ Ancestor URLs are built with the routing service, so a parent's list state
 */
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { RoutingService } from './routing.service';
-import { AppPathPatterns, Views } from './app.config';
+import { AppPathPatterns, Views, PUBLIC_VIEWS } from './app.config';
 import { DataManagerService } from './data-manager.service';
 import { FirebaseStateService } from './firebase-state.service';
 import { FindInstructorsService } from './find-instructors.service';
@@ -108,11 +108,23 @@ export class NavigationTreeService {
   public currentTitleIsLoading = computed(() => {
     const view = this.currentView();
     if (!view) return false;
+    // If not logged in and not a public page, the page component is not rendered,
+    // so we cannot load dynamic titles yet. Show the fallback title without spinning.
+    const isPublic = PUBLIC_VIEWS.has(view);
+    const isLoggedIn = !!this.firebaseState.user();
+    if (!isPublic && !isLoggedIn) {
+      return false;
+    }
     if (EVENT_VIEWS.has(view)) return !this.loadedEventTitle();
     if (view === Views.OrderView) return !this.loadedOrderTitle();
-    if (view === Views.ManageSchoolEdit || view === Views.MySchoolEdit) {
+    if (
+      view === Views.ManageSchoolEdit ||
+      view === Views.MySchoolEdit ||
+      view === Views.SchoolView
+    ) {
       return !this.loadedSchoolTitle();
     }
+    if (view === Views.InstructorView) return !this.loadedInstructorTitle();
     if (view === Views.GradingView) return !this.loadedGradingTitle();
     return false;
   });

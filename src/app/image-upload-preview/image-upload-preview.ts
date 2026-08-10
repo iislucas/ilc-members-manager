@@ -84,12 +84,18 @@ export class ImageUploadPreviewComponent {
   }
 
   onImageLoad() {
-    const img = this.imgRef.nativeElement;
-    const container = this.containerRef.nativeElement;
+    const img = this.imgRef?.nativeElement;
+    const container = this.containerRef?.nativeElement;
+    if (!img || !container) return;
     
     const rect = container.getBoundingClientRect();
     const containerWidth = rect.width;
     const containerHeight = rect.height;
+    if ((containerWidth === 0 || containerHeight === 0) && img.naturalWidth && img.naturalHeight) {
+      requestAnimationFrame(() => this.onImageLoad());
+      return;
+    }
+    if (!img.naturalWidth || !img.naturalHeight) return;
 
     const scaleX = containerWidth / img.naturalWidth;
     const scaleY = containerHeight / img.naturalHeight;
@@ -110,8 +116,8 @@ export class ImageUploadPreviewComponent {
   }
 
   constrainTranslation(x: number, y: number): {x: number, y: number} {
-    const img = this.imgRef.nativeElement;
-    const container = this.containerRef.nativeElement;
+    const img = this.imgRef?.nativeElement;
+    const container = this.containerRef?.nativeElement;
     if (!img || !container) return {x, y};
     
     const rect = container.getBoundingClientRect();
@@ -147,6 +153,49 @@ export class ImageUploadPreviewComponent {
 
   onMouseUp() {
     this.isDragging = false;
+  }
+
+  private initialPinchDistance = 0;
+  private initialPinchScale = 1;
+
+  onTouchStart(event: TouchEvent) {
+    if (!this.imageUrl() || event.touches.length === 0) return;
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      this.isDragging = true;
+      this.startX = touch.clientX - this.translateX();
+      this.startY = touch.clientY - this.translateY();
+    } else if (event.touches.length === 2) {
+      this.isDragging = false;
+      const t1 = event.touches[0];
+      const t2 = event.touches[1];
+      this.initialPinchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      this.initialPinchScale = this.scale();
+    }
+  }
+
+  onTouchMove(event: TouchEvent) {
+    if (event.touches.length === 1 && this.isDragging) {
+      const touch = event.touches[0];
+      const constrained = this.constrainTranslation(touch.clientX - this.startX, touch.clientY - this.startY);
+      this.translateX.set(constrained.x);
+      this.translateY.set(constrained.y);
+    } else if (event.touches.length === 2 && this.initialPinchDistance > 0) {
+      const t1 = event.touches[0];
+      const t2 = event.touches[1];
+      const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const ratio = currentDist / this.initialPinchDistance;
+      const newScale = Math.max(1, Math.min(5, this.initialPinchScale * ratio));
+      this.scale.set(newScale);
+      const constrained = this.constrainTranslation(this.translateX(), this.translateY());
+      this.translateX.set(constrained.x);
+      this.translateY.set(constrained.y);
+    }
+  }
+
+  onTouchEnd() {
+    this.isDragging = false;
+    this.initialPinchDistance = 0;
   }
 
   onWheel(event: WheelEvent) {

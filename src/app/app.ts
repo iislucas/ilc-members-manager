@@ -7,7 +7,7 @@ import { IconComponent } from './icons/icon.component';
 import { ImportExportComponent } from './import-export/import-export';
 import { SpinnerComponent } from './spinner/spinner.component';
 import { RoutingService } from './routing.service';
-import { AppPathPatterns, Views } from './app.config';
+import { AppPathPatterns, Views, PUBLIC_VIEWS } from './app.config';
 import { FindAnInstructorComponent } from './find-an-instructor/find-an-instructor';
 import { InstructorViewComponent } from './instructor-view/instructor-view';
 import { FindInstructorsService } from './find-instructors.service';
@@ -122,24 +122,9 @@ export class App {
 
   public isNotFound = computed(() => this.currentView() === null);
 
-  // Views that are accessible without login.
-  private static readonly PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
-    Views.FindAnInstructor,
-    Views.InstructorView,
-    Views.FindSchool,
-    Views.SchoolView,
-    Views.EventsCalendar,
-    Views.EventView,
-    Views.ClassCalendarView,
-    Views.SchoolCalendarView,
-    Views.DownloadResource,
-    Views.Products,
-    Views.OrderComplete,
-  ]);
-
   public isPublicPage = computed(() => {
     const view = this.currentView();
-    return !!view && App.PUBLIC_VIEWS.has(view);
+    return !!view && PUBLIC_VIEWS.has(view);
   });
 
   onEventTitleLoaded(title: string) {
@@ -266,7 +251,7 @@ export class App {
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
       const view = this.routingService.matchedPatternId();
 
-      const isOnPublicPage = !!view && App.PUBLIC_VIEWS.has(view);
+      const isOnPublicPage = !!view && PUBLIC_VIEWS.has(view);
       if (isLoggedOut && view === Views.Home) {
         this.routingService.navigateToParts(['login']);
       } else if (isLoggedOut && view === Views.Login) {

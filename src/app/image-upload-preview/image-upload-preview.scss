@@ -1,10 +1,17 @@
 @use "../../scss_variables" as *;
 
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
 .image-uploader-container {
   border-radius: 8px;
   text-align: left;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -23,25 +30,34 @@
 .preview-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
+  align-items: flex-start;
+  gap: 15px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .crop-container {
   width: 100%;
-  max-width: 300px; /* Max width for the crop window */
+  max-width: 400px; /* Max width for the crop window */
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
   border: 1px solid $border-color-light;
   border-radius: 4px;
   background: #000; /* Black background helps see image edges */
   cursor: move;
+  touch-action: none;
 }
 
 .crop-container img {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   max-width: none; /* Allow image to be larger than container */
-  /* We use transform for positioning, so position absolute is not strictly needed if we use transform-origin 0 0 */
+  transform-origin: 0 0;
+  cursor: move;
+  user-select: none;
 }
 
 .crop-frame {
@@ -59,29 +75,43 @@
 .controls {
   width: 100%;
   max-width: 400px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .zoom-control {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+
+  label {
+    font-size: 0.9em;
+    font-weight: 500;
+  }
 
   input[type="range"] {
     flex: 1;
+    min-width: 80px;
   }
 
   span {
-    min-width: 40px;
+    min-width: 35px;
     text-align: right;
     font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  .subtle-button {
+    font-size: 0.85em;
   }
 }
 
 .actions {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 10px;
 }

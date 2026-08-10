@@ -1,22 +1,26 @@
 <div class="image-uploader-container">
   @if (!imageUrl()) {
-    <label for="file-upload" class="upload-prompt">
+    <label class="upload-prompt">
       <span class="outlined-button upload-button">
         <app-icon name="upload_file" /> {{ uploadPromptText() }}
       </span>
-      <input type="file" id="file-upload" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
+      <input type="file" (change)="onFileSelected($event)" accept="image/*" style="display: none;" />
     </label>
   } @else {
     <div class="preview-area">
       <div 
         #container
         class="crop-container" 
-        [style.aspect-ratio]="aspectRatio()"
+        [style.aspectRatio]="aspectRatio()"
         (mousedown)="onMouseDown($event)"
         (mousemove)="onMouseMove($event)"
         (mouseup)="onMouseUp()"
         (mouseleave)="onMouseUp()"
         (wheel)="onWheel($event)"
+        (touchstart)="onTouchStart($event)"
+        (touchmove)="onTouchMove($event)"
+        (touchend)="onTouchEnd()"
+        (touchcancel)="onTouchEnd()"
       >
         <img 
           #previewImg
@@ -31,10 +35,9 @@
 
       <div class="controls">
         <div class="zoom-control">
-          <label for="zoom">Zoom:</label>
+          <label>Zoom:</label>
           <input 
             type="range" 
-            id="zoom" 
             [value]="scale()" 
             min="1" 
             max="5" 

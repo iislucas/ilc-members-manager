@@ -243,4 +243,62 @@ describe('NavigationTreeService', () => {
       'Organise or List an Event',
     ]);
   });
+
+  it('does not set currentTitleIsLoading to true on restricted pages when user is logged out', () => {
+    // User is logged out
+    user.set(null);
+    goTo(Views.MySchoolEdit, { schoolId: 'schoolDoc1' });
+
+    // Before login, restricted page title should not be in loading state
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+    expect(navTree.currentTitle()).toBe('School');
+    const crumbs = navTree.breadcrumbs();
+    const lastCrumb = crumbs[crumbs.length - 1];
+    expect(lastCrumb.label).toBe('School');
+    expect(lastCrumb.isLoading).toBe(false);
+  });
+
+  it('sets currentTitleIsLoading to true on restricted pages only after user logs in, until title arrives', () => {
+    // 1. Logged out: not loading, shows generic title
+    user.set(null);
+    goTo(Views.MySchoolEdit, { schoolId: 'schoolDoc1' });
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+
+    // 2. User logs in: now it enters loading state while school record is being fetched
+    user.set({
+      isAdmin: true,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: { memberId: 'M1', name: 'Test Member' },
+    } as unknown as Partial<UserDetails>);
+    expect(navTree.currentTitleIsLoading()).toBe(true);
+    let crumbs = navTree.breadcrumbs();
+    expect(crumbs[crumbs.length - 1].isLoading).toBe(true);
+
+    // 3. Title arrives: loading state finishes and title is displayed
+    navTree.loadedSchoolTitle.set('Paris ILC');
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+    expect(navTree.currentTitle()).toBe('Paris ILC');
+    crumbs = navTree.breadcrumbs();
+    expect(crumbs[crumbs.length - 1].label).toBe('Paris ILC');
+    expect(crumbs[crumbs.length - 1].isLoading).toBe(false);
+  });
+
+  it('sets currentTitleIsLoading to true on public pages even when logged out', () => {
+    // User is logged out, but page is public (EventView)
+    user.set(null);
+    goTo(Views.EventView, { eventId: 'E1' });
+
+    expect(navTree.currentTitleIsLoading()).toBe(true);
+    let crumbs = navTree.breadcrumbs();
+    expect(crumbs[crumbs.length - 1].isLoading).toBe(true);
+
+    // Title arrives
+    navTree.loadedEventTitle.set('Summer Camp');
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+    expect(navTree.currentTitle()).toBe('Summer Camp');
+    crumbs = navTree.breadcrumbs();
+    expect(crumbs[crumbs.length - 1].label).toBe('Summer Camp');
+    expect(crumbs[crumbs.length - 1].isLoading).toBe(false);
+  });
 });

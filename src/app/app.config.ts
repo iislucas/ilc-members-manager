@@ -73,6 +73,21 @@ export enum Views {
   ManageMaterials = 'manageMaterials',
 }
 
+// Views that are accessible without login.
+export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
+  Views.FindAnInstructor,
+  Views.InstructorView,
+  Views.FindSchool,
+  Views.SchoolView,
+  Views.EventsCalendar,
+  Views.EventView,
+  Views.ClassCalendarView,
+  Views.SchoolCalendarView,
+  Views.DownloadResource,
+  Views.Products,
+  Views.OrderComplete,
+]);
+
 export const memberListPathPatterns = {
   [Views.MyStudents]: addUrlParams(pathPattern`my-students`, [
     { name: 'jumpTo', ephemeral: true }, 'q', 'tag',
