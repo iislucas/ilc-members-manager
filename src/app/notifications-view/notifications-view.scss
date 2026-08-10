@@ -91,21 +91,19 @@
     // Soft background tints based on kind
     background-color: #f1f3f4; // default/fallback: light grey
 
-    &.GradingRequestAccepted {
-      background-color: #e6f4ea; // Soft green
+    &.GradingRequestAccepted,
+    &.GradingPassed,
+    &.PurchaseFulfilled,
+    &.BlogPost,
+    &.NewEventPosted,
+    &.EventProposalSubmitted {
+      background-color: #e8f0fe; // Soft blue
     }
     &.GradingRequestDeclined {
       background-color: #fce8e6; // Soft red
     }
     &.GradingRequestsYouAsInstructor {
       background-color: #fef7e0; // Soft amber
-    }
-    &.BlogPost {
-      background-color: #e6f4ea; // Soft green (matching blog post accent)
-    }
-    &.NewEventPosted,
-    &.EventProposalSubmitted {
-      background-color: #e8f0fe; // Soft blue
     }
     // Admin-only kinds — soft orange tint matching the card background.
     &.PendingEventApproval,
