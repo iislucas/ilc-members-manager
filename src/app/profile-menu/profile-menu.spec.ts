@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core'; // Assuming this
 import { ProfileMenuComponent } from './profile-menu';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { ImageLoaderService } from '../image-loader.service';
+import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
 
 describe('ProfileMenuComponent', () => {
   let component: ProfileMenuComponent;
@@ -14,6 +15,7 @@ describe('ProfileMenuComponent', () => {
       imports: [ProfileMenuComponent],
       providers: [
         provideZonelessChangeDetection(),
+        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
         { provide: ImageLoaderService, useValue: { loadImage: () => Promise.resolve('blob:url') } },
       ],

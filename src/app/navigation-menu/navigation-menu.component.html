@@ -1,128 +1,136 @@
 <div class="menu-overlay" (click)="closeMenu.emit()"></div>
 @if (user(); as u) {
   <div class="menu">
-    <div class="menu-item" (click)="onSelect(Views.Home)">
-      <app-icon name="home" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.Home) }}</span>
-    </div>
-
-    <div class="menu-seperator"></div>
-
-    <!-- Group 1: Access Resources -->
-    <div class="menu-item" (click)="onSelect(Views.MembersArea)">
-      <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.MembersArea) }}</span>
-    </div>
-    @if (instructorStatus().isInstructor) {
-      <div class="menu-item" (click)="onSelect(Views.InstructorsArea)">
-        <app-icon name="meditation" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.InstructorsArea) }}</span>
+    <!-- LEARN SECTION -->
+    @if (currentArea() === 'learn') {
+      <div class="tab-header">Learn</div>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.MembersArea)">
+        <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
+        <span>Members Posts</span>
       </div>
-    }
-    <div class="menu-item" (click)="onSelect(Views.ClassVideoLibrary)">
-      <app-icon name="video_library" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.ClassVideoLibrary) }}</span>
-    </div>
-
-    <div class="menu-seperator"></div>
-
-    <!-- Group 2: Public -->
-    <div class="menu-item" (click)="onSelect(Views.EventsCalendar)">
-      <app-icon name="event" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.EventsCalendar) }}</span>
-    </div>
-
-    <div class="menu-item" (click)="onSelect(Views.FindSchool)">
-      <app-icon name="map" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.FindSchool) }}</span>
-    </div>
-    <div class="menu-item" (click)="onSelect(Views.FindAnInstructor)">
-      <app-icon name="search" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.FindAnInstructor) }}</span>
-    </div>
-
-    <div class="menu-seperator"></div>
-
-    <!-- Group 3: Personal -->
-    <div class="menu-item" (click)="onSelect(Views.MyProfile)">
-      <app-icon name="person" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.MyProfile) }}</span>
-    </div>
-    <div class="menu-item" (click)="onSelect(Views.Notifications)">
-      <app-icon name="bullet_list" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.Notifications) }}</span>
-    </div>
-    <div class="menu-item" (click)="onSelect(Views.MemberGradings)">
-      <app-icon name="mountain" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.MemberGradings) }}</span>
-    </div>
-    <div class="menu-item" (click)="onSelect(Views.MyEvents)">
-      <app-icon name="event" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.MyEvents) }}</span>
-    </div>
-    <div class="menu-item" (click)="onSelect(Views.ProposeEvent)">
-      <app-icon name="add" width="24px" height="24px"></app-icon>
-      <span>{{ viewIdToTitle(Views.ProposeEvent) }}</span>
-    </div>
-    @if (instructorStatus().hasAccess) {
-      <div class="menu-item" (click)="onSelect(Views.MyStudents)">
-        <app-icon name="salut" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.MyStudents) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.MyMaterials)">
+      @if (instructorStatus().isInstructor) {
+        <div class="menu-item submenu-item" (click)="onSelect(Views.InstructorsArea)">
+          <app-icon name="meditation" width="24px" height="24px"></app-icon>
+          <span>Instructors Posts</span>
+        </div>
+      }
+      <div class="menu-item submenu-item" (click)="onSelect(Views.ClassVideoLibrary)">
         <app-icon name="video_library" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.MyMaterials) }}</span>
+        <span>Class Video Library</span>
       </div>
-    }
-    @if (u.schoolsManaged.length > 0) {
-      <div class="menu-item" (click)="onSelect(Views.MySchools)">
-        <app-icon name="map" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.MySchools) }}</span>
+    } @else {
+      <div class="top-level-nav" (click)="onSelectHomeTab('learn')">
+        <span class="nav-title">Learn</span>
+        <app-icon name="chevron_right" width="18px" height="18px" class="nav-chevron"></app-icon>
       </div>
     }
 
-    @if (u.isAdmin) {
-      <div class="menu-seperator"></div>
-      <!-- Group 4: Admin 1 -->
-      <div class="menu-item" (click)="onSelect(Views.ManageMembers)">
-        <app-icon name="admin" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ManageMembers) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.ManageSchools)">
-        <app-icon name="map" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ManageSchools) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.ManageGradings)">
-        <app-icon name="mountain" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ManageGradings) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.ManageOrders)">
-        <app-icon name="link" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ManageOrders) }}</span>
-      </div>
-      <div class="menu-item" (click)="onSelect(Views.ManageEvents)">
+    <!-- PRACTICE SECTION -->
+    @if (currentArea() === 'practice') {
+      <div class="tab-header">Practice</div>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.EventsCalendar)">
         <app-icon name="event" width="24px" height="24px"></app-icon>
-        <span>Manage Events</span>
+        <span>Events & Workshops</span>
       </div>
-      <div class="menu-item" (click)="onSelect(Views.ManageMaterials)">
-        <app-icon name="video_library" width="24px" height="24px"></app-icon>
-        <span>Manage Materials</span>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.FindSchool)">
+        <app-icon name="map" width="24px" height="24px"></app-icon>
+        <span>Schools</span>
       </div>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.FindAnInstructor)">
+        <app-icon name="search" width="24px" height="24px"></app-icon>
+        <span>Instructors</span>
+      </div>
+    } @else {
+      <div class="top-level-nav" (click)="onSelectHomeTab('practice')">
+        <span class="nav-title">Practice</span>
+        <app-icon name="chevron_right" width="18px" height="18px" class="nav-chevron"></app-icon>
+      </div>
+    }
 
-      <div class="menu-seperator"></div>
-      <!-- Group 5: Admin 2 -->
-      <div class="menu-item" (click)="onSelect(Views.Statistics)">
-        <app-icon name="bar_chart" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.Statistics) }}</span>
+    <!-- ME SECTION -->
+    @if (currentArea() === 'me') {
+      <div class="tab-header">Me</div>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.MyProfile)">
+        <app-icon name="person" width="24px" height="24px"></app-icon>
+        <span>Profile</span>
       </div>
-      <div class="menu-item" (click)="onSelect(Views.ImportExport)">
-        <app-icon name="link" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.ImportExport) }}</span>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.MemberGradings)">
+        <app-icon name="mountain" width="24px" height="24px"></app-icon>
+        <span>Gradings</span>
       </div>
-      <div class="menu-item" (click)="onSelect(Views.Settings)">
-        <app-icon name="settings" width="24px" height="24px"></app-icon>
-        <span>{{ viewIdToTitle(Views.Settings) }}</span>
+      <div class="menu-item submenu-item" (click)="onSelect(Views.MyEvents)">
+        <app-icon name="event" width="24px" height="24px"></app-icon>
+        <span>Events</span>
       </div>
+      @if (instructorStatus().hasAccess) {
+        <div class="menu-item submenu-item" (click)="onSelect(Views.MyMaterials)">
+          <app-icon name="video_library" width="24px" height="24px"></app-icon>
+          <span>Uploads</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.MyStudents)">
+          <app-icon name="salut" width="24px" height="24px"></app-icon>
+          <span>Students</span>
+        </div>
+      }
+      @if (u.schoolsManaged.length > 0) {
+        <div class="menu-item submenu-item" (click)="onSelect(Views.MySchools)">
+          <app-icon name="map" width="24px" height="24px"></app-icon>
+          <span>Schools</span>
+        </div>
+      }
+    } @else {
+      <div class="top-level-nav" (click)="onSelectHomeTab('me')">
+        <span class="nav-title">Me</span>
+        <app-icon name="chevron_right" width="18px" height="18px" class="nav-chevron"></app-icon>
+      </div>
+    }
+
+    <!-- ADMIN SECTION -->
+    @if (u.isAdmin) {
+      @if (currentArea() === 'admin') {
+        <div class="tab-header">Admin</div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageMembers)">
+          <app-icon name="admin" width="24px" height="24px"></app-icon>
+          <span>Manage Members</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageSchools)">
+          <app-icon name="map" width="24px" height="24px"></app-icon>
+          <span>Manage Schools</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageGradings)">
+          <app-icon name="mountain" width="24px" height="24px"></app-icon>
+          <span>Manage Gradings</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageOrders)">
+          <app-icon name="link" width="24px" height="24px"></app-icon>
+          <span>Manage Orders</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageEvents)">
+          <app-icon name="event" width="24px" height="24px"></app-icon>
+          <span>Manage Events</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ManageMaterials)">
+          <app-icon name="video_library" width="24px" height="24px"></app-icon>
+          <span>Manage Materials</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.Statistics)">
+          <app-icon name="bar_chart" width="24px" height="24px"></app-icon>
+          <span>Statistics</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.ImportExport)">
+          <app-icon name="link" width="24px" height="24px"></app-icon>
+          <span>Import/Export</span>
+        </div>
+        <div class="menu-item submenu-item" (click)="onSelect(Views.Settings)">
+          <app-icon name="settings" width="24px" height="24px"></app-icon>
+          <span>Settings</span>
+        </div>
+      } @else {
+        <div class="top-level-nav" (click)="onSelectHomeTab('admin')">
+          <span class="nav-title">Admin</span>
+          <app-icon name="chevron_right" width="18px" height="18px" class="nav-chevron"></app-icon>
+        </div>
+      }
     }
   </div>
 }

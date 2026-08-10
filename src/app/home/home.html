@@ -1,359 +1,391 @@
 @if (user(); as u) {
-  <div class="home-container">
+  <div
+    class="home-container"
+    (touchstart)="onTouchStart($event)"
+    (touchend)="onTouchEnd($event)"
+  >
+    <div class="home-tab-bar">
+      <div class="pill-tabs">
+        <button
+          class="pill-tab"
+          data-label="Learn"
+          [class.active]="activeTab() === 'learn'"
+          (click)="setActiveTab('learn')"
+        >
+          Learn
+        </button>
+        <button
+          class="pill-tab"
+          data-label="Practice"
+          [class.active]="activeTab() === 'practice'"
+          (click)="setActiveTab('practice')"
+        >
+          Practice
+        </button>
+        <button
+          class="pill-tab"
+          data-label="Me"
+          [class.active]="activeTab() === 'me'"
+          (click)="setActiveTab('me')"
+        >
+          Me
+        </button>
+        @if (u.isAdmin) {
+          <button
+            class="pill-tab admin-tab"
+            data-label=""
+            title="Admin"
+            aria-label="Admin"
+            [class.active]="activeTab() === 'admin'"
+            (click)="setActiveTab('admin')"
+          >
+            <app-icon name="settings" width="18px" height="18px"></app-icon>
+          </button>
+        }
+      </div>
+    </div>
+
     <app-notifications-list></app-notifications-list>
 
-    <div class="cards-grid">
-      <!-- Members Area -->
-      @let mStatus = membershipStatus();
-      <a
-        class="card"
-        [class.action-prompt]="!mStatus.hasAccess"
-        [href]="
-          mStatus.hasAccess
-            ? routingService.hrefForView(Views.MembersArea)
-            : links.membership
-        "
-        [target]="mStatus.hasAccess ? '_self' : '_blank'"
-      >
-        <div class="icon-container">
-          <app-icon name="hands_lotus" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>
-            {{
+    @switch (activeTab()) {
+      @case ('learn') {
+        <div class="cards-grid">
+          <!-- Members Posts -->
+          @let mStatus = membershipStatus();
+          <a
+            class="card"
+            [class.action-prompt]="!mStatus.hasAccess"
+            [href]="
               mStatus.hasAccess
-                ? "Members Area"
-                : mStatus.expired
-                  ? "Renew Membership"
-                  : "Signup for Membership"
-            }}
-          </h2>
-          <p>Content and resources for active members</p>
-          @if (!mStatus.hasAccess) {
-            <div class="no-access-container">
-              <span class="info-message">
-                @if (mStatus.expired) {
-                  Expired:
-                  {{ mStatus.date || "(unknown last expiration date)" }}
-                } @else {
-                  Requires active membership
-                }
-              </span>
+                ? routingService.hrefForView(Views.MembersArea)
+                : links.membership
+            "
+            [target]="mStatus.hasAccess ? '_self' : '_blank'"
+          >
+            <div class="icon-container">
+              <app-icon name="hands_lotus" width="48px" height="48px"></app-icon>
             </div>
-          }
-        </div>
-      </a>
+            <div class="content">
+              <h2>
+                {{
+                  mStatus.hasAccess
+                    ? "Members Posts"
+                    : mStatus.expired
+                      ? "Renew Membership"
+                      : "Signup for Membership"
+                }}
+              </h2>
+              <p>Content and resources for active members</p>
+              @if (!mStatus.hasAccess) {
+                <div class="no-access-container">
+                  <span class="info-message">
+                    @if (mStatus.expired) {
+                      Expired:
+                      {{ mStatus.date || "(unknown last expiration date)" }}
+                    } @else {
+                      Requires active membership
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          </a>
 
-      <!-- Instructors Area -->
-      @let iStatus = instructorStatus();
-      @if (iStatus.isInstructor) {
-        <a
-          class="card"
-          [class.action-prompt]="!iStatus.hasAccess"
-          [href]="
-            iStatus.hasAccess
-              ? routingService.hrefForView(Views.InstructorsArea)
-              : links.license
-          "
-          [target]="iStatus.hasAccess ? '_self' : '_blank'"
-        >
-          <div class="icon-container">
-            <app-icon name="meditation" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>
-              {{
+          <!-- Instructors Posts -->
+          @let iStatus = instructorStatus();
+          @if (iStatus.isInstructor) {
+            <a
+              class="card"
+              [class.action-prompt]="!iStatus.hasAccess"
+              [href]="
                 iStatus.hasAccess
-                  ? "Instructors Area"
-                  : "Renew Instructor License"
-              }}
-            </h2>
-            <p>Content and resources for active instructors</p>
-            @if (!iStatus.hasAccess) {
-              <div class="no-access-container">
-                <span class="info-message">
-                  @if (iStatus.expired) {
-                    Expired:
-                    {{ iStatus.date || "(unknown last expiration date)" }}
-                  } @else {
-                    Requires active license
-                  }
-                </span>
+                  ? routingService.hrefForView(Views.InstructorsArea)
+                  : links.license
+              "
+              [target]="iStatus.hasAccess ? '_self' : '_blank'"
+            >
+              <div class="icon-container">
+                <app-icon name="meditation" width="48px" height="48px"></app-icon>
               </div>
-            }
-          </div>
-        </a>
+              <div class="content">
+                <h2>
+                  {{
+                    iStatus.hasAccess
+                      ? "Instructors Posts"
+                      : "Renew Instructor License"
+                  }}
+                </h2>
+                <p>Content and resources for active instructors</p>
+                @if (!iStatus.hasAccess) {
+                  <div class="no-access-container">
+                    <span class="info-message">
+                      @if (iStatus.expired) {
+                        Expired:
+                        {{ iStatus.date || "(unknown last expiration date)" }}
+                      } @else {
+                        Requires active license
+                      }
+                    </span>
+                  </div>
+                }
+              </div>
+            </a>
+          }
+
+          <!-- Class Video Library -->
+          @let vStatus = videoStatus();
+          <a
+            class="card"
+            [class.action-prompt]="!vStatus.hasAccess"
+            [href]="
+              vStatus.hasAccess
+                ? routingService.hrefForView(Views.ClassVideoLibrary)
+                : links.videos
+            "
+            [target]="vStatus.hasAccess ? '_self' : '_blank'"
+          >
+            <div class="icon-container">
+              <app-icon name="video_library" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>
+                {{
+                  vStatus.hasAccess
+                    ? "Class Video Library"
+                    : "Subscribe to Class Video Library"
+                }}
+              </h2>
+              <p>Members saturday online class recordings</p>
+              @if (!vStatus.hasAccess) {
+                <div class="no-access-container">
+                  <span class="info-message">
+                    @if (vStatus.expired) {
+                      Expired:
+                      {{ vStatus.date || "(unknown last expiration date)" }}
+                    } @else {
+                      Requires subscription
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          </a>
+        </div>
       }
 
-      <!-- Class Video Library -->
-      @let vStatus = videoStatus();
-      <a
-        class="card"
-        [class.action-prompt]="!vStatus.hasAccess"
-        [href]="
-          vStatus.hasAccess
-            ? routingService.hrefForView(Views.ClassVideoLibrary)
-            : links.videos
-        "
-        [target]="vStatus.hasAccess ? '_self' : '_blank'"
-      >
-        <div class="icon-container">
-          <app-icon name="video_library" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>
-            {{
-              vStatus.hasAccess
-                ? "Class Video Library"
-                : "Subscribe to Class Video Library"
-            }}
-          </h2>
-          <p>Members saturday online class recordings</p>
-          @if (!vStatus.hasAccess) {
-            <div class="no-access-container">
-              <span class="info-message">
-                @if (vStatus.expired) {
-                  Expired:
-                  {{ vStatus.date || "(unknown last expiration date)" }}
-                } @else {
-                  Requires subscription
-                }
-              </span>
+      @case ('practice') {
+        <div class="cards-grid">
+          <!-- Events & Workshops -->
+          <a class="card" [href]="routingService.hrefForView(Views.EventsCalendar)">
+            <div class="icon-container">
+              <app-icon name="event" width="48px" height="48px"></app-icon>
             </div>
+            <div class="content">
+              <h2>Events & Workshops</h2>
+              <p>View forthcoming events and workshops</p>
+            </div>
+          </a>
+
+          <!-- Schools -->
+          <a class="card" [href]="routingService.hrefForView(Views.FindSchool)">
+            <div class="icon-container">
+              <app-icon name="map" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Schools</h2>
+              <p>Search for licensed schools in your area</p>
+            </div>
+          </a>
+
+          <!-- Instructors -->
+          <a
+            class="card"
+            [href]="routingService.hrefForView(Views.FindAnInstructor)"
+          >
+            <div class="icon-container">
+              <app-icon name="search" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Instructors</h2>
+              <p>Search for licensed instructors</p>
+            </div>
+          </a>
+        </div>
+      }
+
+      @case ('me') {
+        <div class="cards-grid">
+          <!-- Profile -->
+          <a class="card" [href]="routingService.hrefForView(Views.MyProfile)">
+            <div class="icon-container">
+              <app-icon name="person" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Profile</h2>
+              <p>View and edit your personal information</p>
+            </div>
+          </a>
+
+          <!-- Gradings -->
+          <a class="card" [href]="routingService.hrefForView(Views.MemberGradings)">
+            <div class="icon-container">
+              <app-icon name="mountain" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Gradings</h2>
+              <p>View your gradings and current level</p>
+            </div>
+          </a>
+
+          <!-- Events -->
+          <a class="card" [href]="routingService.hrefForView(Views.MyEvents)">
+            <div class="icon-container">
+              <app-icon name="event" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Events</h2>
+              <p>View and edit events you proposed</p>
+            </div>
+          </a>
+
+          @if (instructorStatus().hasAccess) {
+            <!-- Uploads -->
+            <a class="card" [href]="routingService.hrefForView(Views.MyMaterials)">
+              <div class="icon-container">
+                <app-icon name="video_library" width="48px" height="48px"></app-icon>
+              </div>
+              <div class="content">
+                <h2>Uploads</h2>
+                <p>Upload and organize your class videos and photos</p>
+              </div>
+            </a>
+
+            <!-- Students -->
+            <a class="card" [href]="routingService.hrefForView(Views.MyStudents)">
+              <div class="icon-container">
+                <app-icon name="salut" width="48px" height="48px"></app-icon>
+              </div>
+              <div class="content">
+                <h2>Students</h2>
+                <p>Manage your students</p>
+              </div>
+            </a>
+          }
+
+          @if (u.schoolsManaged.length > 0) {
+            <!-- Schools -->
+            <a class="card" [href]="routingService.hrefForView(Views.MySchools)">
+              <div class="icon-container">
+                <app-icon name="map" width="48px" height="48px"></app-icon>
+              </div>
+              <div class="content">
+                <h2>Schools</h2>
+                <p>Manage your schools</p>
+              </div>
+            </a>
           }
         </div>
-      </a>
-    </div>
-    <div class="separator"></div>
-    <div class="cards-grid">
-      <!-- Events -->
-      <a class="card" [href]="routingService.hrefForView(Views.EventsCalendar)">
-        <div class="icon-container">
-          <app-icon name="event" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Events & Workshops</h2>
-          <p>View forthcoming events and workshops</p>
-        </div>
-      </a>
-
-      <!-- Find a School -->
-      <a class="card" [href]="routingService.hrefForView(Views.FindSchool)">
-        <div class="icon-container">
-          <app-icon name="map" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Find a School</h2>
-          <p>Search for licensed schools in your area</p>
-        </div>
-      </a>
-
-      <!-- Find an Instructor -->
-      <a
-        class="card"
-        [href]="routingService.hrefForView(Views.FindAnInstructor)"
-      >
-        <div class="icon-container">
-          <app-icon name="search" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Find an Instructor</h2>
-          <p>Search for licensed instructors</p>
-        </div>
-      </a>
-    </div>
-
-    <div class="separator"></div>
-    <div class="cards-grid">
-      <a class="card" [href]="routingService.hrefForView(Views.MyProfile)">
-        <div class="icon-container">
-          <app-icon name="person" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>My Profile</h2>
-          <p>View and edit your personal information</p>
-        </div>
-      </a>
-
-      <a class="card" [href]="routingService.hrefForView(Views.Notifications)">
-        <div class="icon-container">
-          <app-icon name="bullet_list" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Notifications</h2>
-          <p>View all your notifications and updates</p>
-        </div>
-      </a>
-
-      <a class="card" [href]="routingService.hrefForView(Views.MemberGradings)">
-        <div class="icon-container">
-          <app-icon name="mountain" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>My Gradings</h2>
-          <p>View your gradings and current level</p>
-        </div>
-      </a>
-
-      <!-- My Events -->
-      <a class="card" [href]="routingService.hrefForView(Views.MyEvents)">
-        <div class="icon-container">
-          <app-icon name="event" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>My Events</h2>
-          <p>View and edit events you proposed</p>
-        </div>
-      </a>
-
-      <!-- Organise Event -->
-      <a class="card" [href]="routingService.hrefForView(Views.ProposeEvent)">
-        <div class="icon-container">
-          <app-icon name="add" width="48px" height="48px"></app-icon>
-        </div>
-        <div class="content">
-          <h2>Organise Event</h2>
-          <p>Submit a proposal to organise an event</p>
-        </div>
-      </a>
-
-      @if (instructorStatus().hasAccess) {
-        <a class="card" [href]="routingService.hrefForView(Views.MyStudents)">
-          <div class="icon-container">
-            <app-icon name="salut" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>My Students</h2>
-            <p>Manage your students</p>
-          </div>
-        </a>
-
-        <a class="card" [href]="routingService.hrefForView(Views.MyMaterials)">
-          <div class="icon-container">
-            <app-icon name="video_library" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>My Materials</h2>
-            <p>Upload and organize your class videos and photos</p>
-          </div>
-        </a>
       }
 
-      @if (u.schoolsManaged.length > 0) {
-        <a class="card" [href]="routingService.hrefForView(Views.MySchools)">
-          <div class="icon-container">
-            <app-icon name="map" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>My Schools</h2>
-            <p>Manage your schools</p>
-          </div>
-        </a>
+      @case ('admin') {
+        <div class="cards-grid">
+          <a
+            class="card"
+            [href]="routingService.hrefForView(Views.ManageMembers)"
+          >
+            <div class="icon-container">
+              <app-icon name="admin" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Members</h2>
+              <p>Administer member accounts</p>
+            </div>
+          </a>
+          <a
+            class="card"
+            [href]="routingService.hrefForView(Views.ManageSchools)"
+          >
+            <div class="icon-container">
+              <app-icon name="map" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Schools</h2>
+              <p>Administer school details</p>
+            </div>
+          </a>
+          <a
+            class="card"
+            [href]="routingService.hrefForView(Views.ManageGradings)"
+          >
+            <div class="icon-container">
+              <app-icon name="mountain" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Gradings</h2>
+              <p>Administer grading records</p>
+            </div>
+          </a>
+          <a class="card" [href]="routingService.hrefForView(Views.ManageOrders)">
+            <div class="icon-container">
+              <app-icon name="link" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Orders</h2>
+              <p>Administer shop orders</p>
+            </div>
+          </a>
+
+          <!-- Manage Events -->
+          <a class="card" [href]="routingService.hrefForView(Views.ManageEvents)">
+            <div class="icon-container">
+              <app-icon name="event" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Events</h2>
+              <p>Administer events and proposals</p>
+            </div>
+          </a>
+
+          <!-- Manage Materials -->
+          <a class="card" [href]="routingService.hrefForView(Views.ManageMaterials)">
+            <div class="icon-container">
+              <app-icon name="video_library" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Manage Materials</h2>
+              <p>Administer all uploaded instructor and event media</p>
+            </div>
+          </a>
+
+          <a class="card" [href]="routingService.hrefForView(Views.Statistics)">
+            <div class="icon-container">
+              <app-icon name="bar_chart" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Statistics</h2>
+              <p>View membership statistics and trends</p>
+            </div>
+          </a>
+          <a class="card" [href]="routingService.hrefForView(Views.ImportExport)">
+            <div class="icon-container">
+              <app-icon name="link" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Import/Export</h2>
+              <p>Import or export data</p>
+            </div>
+          </a>
+          <a class="card" [href]="routingService.hrefForView(Views.Settings)">
+            <div class="icon-container">
+              <app-icon name="settings" width="48px" height="48px"></app-icon>
+            </div>
+            <div class="content">
+              <h2>Settings</h2>
+              <p>Manage application settings</p>
+            </div>
+          </a>
+        </div>
       }
-    </div>
-
-    @if (u.isAdmin) {
-      <div class="separator"></div>
-
-      <div class="cards-grid">
-        <a
-          class="card"
-          [href]="routingService.hrefForView(Views.ManageMembers)"
-        >
-          <div class="icon-container">
-            <app-icon name="admin" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Members</h2>
-            <p>Administer member accounts</p>
-          </div>
-        </a>
-        <a
-          class="card"
-          [href]="routingService.hrefForView(Views.ManageSchools)"
-        >
-          <div class="icon-container">
-            <app-icon name="map" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Schools</h2>
-            <p>Administer school details</p>
-          </div>
-        </a>
-        <a
-          class="card"
-          [href]="routingService.hrefForView(Views.ManageGradings)"
-        >
-          <div class="icon-container">
-            <app-icon name="mountain" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Gradings</h2>
-            <p>Administer grading records</p>
-          </div>
-        </a>
-        <a class="card" [href]="routingService.hrefForView(Views.ManageOrders)">
-          <div class="icon-container">
-            <app-icon name="link" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Orders</h2>
-            <p>Administer shop orders</p>
-          </div>
-        </a>
-
-        <!-- Manage Events -->
-        <a class="card" [href]="routingService.hrefForView(Views.ManageEvents)">
-          <div class="icon-container">
-            <app-icon name="event" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Events</h2>
-            <p>Administer events and proposals</p>
-          </div>
-        </a>
-
-        <!-- Manage Materials -->
-        <a class="card" [href]="routingService.hrefForView(Views.ManageMaterials)">
-          <div class="icon-container">
-            <app-icon name="video_library" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Manage Materials</h2>
-            <p>Administer all uploaded instructor and event media</p>
-          </div>
-        </a>
-      </div>
-      <div class="separator"></div>
-      <div class="cards-grid">
-        <a class="card" [href]="routingService.hrefForView(Views.Statistics)">
-          <div class="icon-container">
-            <app-icon name="bar_chart" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Statistics</h2>
-            <p>View membership statistics and trends</p>
-          </div>
-        </a>
-        <a class="card" [href]="routingService.hrefForView(Views.ImportExport)">
-          <div class="icon-container">
-            <app-icon name="link" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Import/Export</h2>
-            <p>Import or export data</p>
-          </div>
-        </a>
-        <a class="card" [href]="routingService.hrefForView(Views.Settings)">
-          <div class="icon-container">
-            <app-icon name="settings" width="48px" height="48px"></app-icon>
-          </div>
-          <div class="content">
-            <h2>Settings</h2>
-            <p>Manage application settings</p>
-          </div>
-        </a>
-      </div>
     }
   </div>
 }

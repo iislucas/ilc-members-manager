@@ -40,15 +40,56 @@
             </div>
           </div>
         }
-        <a href="/notifications" class="menu-link" (click)="menuOpen.set(false)">
+
+        <div class="menu-divider"></div>
+
+        <a [href]="routingService.hrefForView(Views.MyProfile)" class="menu-link" (click)="menuOpen.set(false)">
+          <app-icon name="person" width="20px" height="20px"></app-icon>
+          Profile
+        </a>
+
+        <a [href]="routingService.hrefForView(Views.MemberGradings)" class="menu-link" (click)="menuOpen.set(false)">
+          <app-icon name="mountain" width="20px" height="20px"></app-icon>
+          Gradings
+        </a>
+
+        <a [href]="routingService.hrefForView(Views.MyEvents)" class="menu-link" (click)="menuOpen.set(false)">
+          <app-icon name="event" width="20px" height="20px"></app-icon>
+          Events
+        </a>
+
+        @if (instructorStatus().hasAccess) {
+          <a [href]="routingService.hrefForView(Views.MyMaterials)" class="menu-link" (click)="menuOpen.set(false)">
+            <app-icon name="video_library" width="20px" height="20px"></app-icon>
+            Uploads
+          </a>
+
+          <a [href]="routingService.hrefForView(Views.MyStudents)" class="menu-link" (click)="menuOpen.set(false)">
+            <app-icon name="salut" width="20px" height="20px"></app-icon>
+            Students
+          </a>
+        }
+
+        @if (user.schoolsManaged.length > 0) {
+          <a [href]="routingService.hrefForView(Views.MySchools)" class="menu-link" (click)="menuOpen.set(false)">
+            <app-icon name="map" width="20px" height="20px"></app-icon>
+            Schools
+          </a>
+        }
+
+        <div class="menu-divider"></div>
+
+        <a [href]="routingService.hrefForView(Views.Notifications)" class="menu-link" (click)="menuOpen.set(false)">
           <app-icon name="bullet_list" width="20px" height="20px"></app-icon>
           Notifications
         </a>
 
-        <a href="/settings/notifications" class="menu-link" (click)="menuOpen.set(false)">
+        <a [href]="routingService.hrefForView(Views.NotificationSettings)" class="menu-link" (click)="menuOpen.set(false)">
           <app-icon name="info" width="20px" height="20px"></app-icon>
           Notification Settings
         </a>
+
+        <div class="menu-divider"></div>
 
         <button (click)="logout()">
           <app-icon name="logout"></app-icon>

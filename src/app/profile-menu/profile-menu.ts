@@ -1,8 +1,12 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ImageLoaderService } from '../image-loader.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { IconComponent } from '../icons/icon.component';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
+import { ExpiryStatus } from '../../../functions/src/data-model';
+import { getInstructorExpiryStatus } from '../member-tags';
 
 @Component({
   selector: 'app-profile-menu',
@@ -14,8 +18,22 @@ import { IconComponent } from '../icons/icon.component';
 export class ProfileMenuComponent {
   public firebaseService = inject(FirebaseStateService);
   public imageLoader = inject(ImageLoaderService);
+  protected routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  protected Views = Views;
   public user = this.firebaseService.user;
   public menuOpen = signal(false);
+
+  private today = computed(() => new Date().toISOString().split('T')[0]);
+
+  protected instructorStatus = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return { hasAccess: false, isInstructor: false };
+    const status = getInstructorExpiryStatus(m, this.today());
+    return {
+      hasAccess: !!m.instructorId && status === ExpiryStatus.Valid,
+      isInstructor: !!m.instructorId
+    };
+  });
   // TODO: loadedImage should be a linkedSignal, and we can skip the effect in
   // the constructor I think.
   public loadedImage = signal<string | null>(null);

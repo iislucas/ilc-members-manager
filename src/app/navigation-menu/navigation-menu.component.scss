@@ -6,4 +6,43 @@
   position: absolute;
   top: calc(100% + 5px); /* Position below the button with a 5px gap */
   left: 0;
+  min-width: 210px;
+  padding: 0.4em 0;
+}
+
+.tab-header {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: $text-primary;
+  padding: 0.5em 1em;
+  user-select: none;
+}
+
+.top-level-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5em 1em;
+  font-size: 0.95em;
+  font-weight: 500;
+  color: $text-primary;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .nav-title {
+    flex-grow: 1;
+  }
+
+  .nav-chevron {
+    color: $text-muted;
+    margin-left: 0.5em;
+  }
+}
+
+.submenu-item {
+  padding-left: 1.5em;
 }

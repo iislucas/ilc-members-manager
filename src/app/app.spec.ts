@@ -158,7 +158,7 @@ describe('App', () => {
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Find an Instructor']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Instructors']);
   });
 
   it('should correctly parse the members-area post path for a logged-in user', async () => {
@@ -190,7 +190,7 @@ describe('App', () => {
 
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Members Area', 'Article']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Members Posts', 'Article']);
   });
 
   it('should intercept click on breadcrumb links and navigate client-side', async () => {

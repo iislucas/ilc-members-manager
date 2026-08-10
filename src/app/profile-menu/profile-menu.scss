@@ -126,9 +126,11 @@
   }
 }
 
-.menu-section {
-  margin-top: 0.5em;
-  margin-bottom: 1em;
+.menu-divider {
+  width: 100%;
+  height: 1px;
+  background-color: $separator-color;
+  margin: 0.35rem 0;
 }
 
 .menu-link {

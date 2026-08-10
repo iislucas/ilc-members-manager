@@ -28,6 +28,63 @@ export class NavigationMenuComponent {
 
   private today = computed(() => new Date().toISOString().split('T')[0]);
 
+  public currentArea = computed<'learn' | 'practice' | 'me' | 'admin'>(() => {
+    const view = this.currentView();
+    if (view === Views.Home || !view) {
+      const tab = this.routingService.signals[Views.Home].urlParams.tab();
+      if (tab === 'practice') return 'practice';
+      if (tab === 'me') return 'me';
+      if (tab === 'admin') return 'admin';
+      return 'learn';
+    }
+    // Learn views:
+    if (
+      view === Views.MembersArea ||
+      view === Views.MembersAreaCategory ||
+      view === Views.MembersAreaPost ||
+      view === Views.InstructorsArea ||
+      view === Views.InstructorsAreaCategory ||
+      view === Views.InstructorsAreaPost ||
+      view === Views.ClassVideoLibrary
+    ) {
+      return 'learn';
+    }
+    // Practice views:
+    if (
+      view === Views.EventsCalendar ||
+      view === Views.EventView ||
+      view === Views.EventEdit ||
+      view === Views.FindSchool ||
+      view === Views.SchoolView ||
+      view === Views.SchoolCalendarView ||
+      view === Views.FindAnInstructor ||
+      view === Views.InstructorView ||
+      view === Views.ClassCalendarView
+    ) {
+      return 'practice';
+    }
+    // Me views:
+    if (
+      view === Views.MyProfile ||
+      view === Views.MemberGradings ||
+      view === Views.MyEvents ||
+      view === Views.MyEventView ||
+      view === Views.MyEventEdit ||
+      view === Views.ProposeEvent ||
+      view === Views.MyMaterials ||
+      view === Views.MyStudents ||
+      view === Views.MyStudentView ||
+      view === Views.MySchools ||
+      view === Views.MySchoolEdit ||
+      view === Views.Notifications ||
+      view === Views.NotificationSettings
+    ) {
+      return 'me';
+    }
+    // Admin views:
+    return 'admin';
+  });
+
   public membershipStatus = computed(() => {
     const m = this.user()?.member;
     if (!m) return { hasAccess: false, expired: false, date: '' };
@@ -69,9 +126,9 @@ export class NavigationMenuComponent {
   viewIdToTitle(viewId: Views | ''): string {
     switch (viewId) {
       case Views.ManageMembers: return 'Manage Members';
-      case Views.FindAnInstructor: return 'Find an Instructor';
+      case Views.FindAnInstructor: return 'Instructors';
       case Views.ManageSchools: return 'Manage Schools';
-      case Views.FindSchool: return 'Find a School';
+      case Views.FindSchool: return 'Schools';
       case Views.ClassCalendarView:
         const calId = this.routingService.signals[Views.ClassCalendarView].pathVars.instructorId();
         const calInst = calId ? this.findInstructorsService.instructors.get(calId) : undefined;
@@ -86,15 +143,15 @@ export class NavigationMenuComponent {
         return `Instructor ${instructorId}'s Students`;
       case Views.ImportExport: return 'Import/Export';
       case Views.Home: return 'Home';
-      case Views.MyProfile: return 'My Profile';
+      case Views.MyProfile: return 'Profile';
       case Views.Notifications: return 'Notifications';
-      case Views.MyStudents: return 'My Students';
-      case Views.MyEvents: return 'My Events';
-      case Views.MySchools: return 'My Schools';
-      case Views.MembersArea: return 'Members Area';
-      case Views.InstructorsArea: return 'Instructors Area';
+      case Views.MyStudents: return 'Students';
+      case Views.MyEvents: return 'Events';
+      case Views.MySchools: return 'Schools';
+      case Views.MembersArea: return 'Members Posts';
+      case Views.InstructorsArea: return 'Instructors Posts';
       case Views.ManageGradings: return 'Manage Gradings';
-      case Views.MemberGradings: return 'My Gradings';
+      case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
       case Views.ClassVideoLibrary: return 'Class Video Library';
       case Views.ManageOrders: return 'Manage Orders';
@@ -113,7 +170,7 @@ export class NavigationMenuComponent {
       case Views.MyEventEdit:
       case Views.ManageEventEdit:
         return 'Edit Event';
-      case Views.MyMaterials: return 'My Materials';
+      case Views.MyMaterials: return 'Uploads';
       case Views.ManageMaterials: return 'Manage Materials';
       default: return 'Unknown View';
     }
@@ -121,6 +178,15 @@ export class NavigationMenuComponent {
 
   onSelect(view: Views) {
     this.currentView.set(view);
+    this.closeMenu.emit();
+  }
+
+  onSelectHomeTab(tab: 'learn' | 'practice' | 'me' | 'admin') {
+    if (this.routingService.matchedPatternId() === Views.Home) {
+      this.routingService.signals[Views.Home].urlParams.tab.set(tab === 'learn' ? '' : tab);
+    } else {
+      this.routingService.navigateTo(tab === 'learn' ? '' : `?tab=${tab}`);
+    }
     this.closeMenu.emit();
   }
 }

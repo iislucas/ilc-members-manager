@@ -1,0 +1,138 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { HomeComponent } from './home';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
+import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';
+import { NotificationService } from '../notification.service';
+import { signal } from '@angular/core';
+
+describe('HomeComponent', () => {
+  let component: HomeComponent;
+  let fixture: ComponentFixture<HomeComponent>;
+  let firebaseService: FirebaseStateService;
+
+  beforeEach(async () => {
+    firebaseService = createFirebaseStateServiceMock();
+    (firebaseService.user as any).set({
+      isAdmin: false,
+      schoolsManaged: ['PARIS'],
+      memberProfiles: [],
+      member: {
+        name: 'Test Member',
+        membershipType: 'Life',
+        instructorId: 'I-100',
+        currentMembershipExpires: '2099-12-31',
+        instructorLicenseExpires: '2099-12-31',
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2099-12-31',
+      },
+      firebaseUser: { email: 'test@example.com' },
+    });
+
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: ROUTING_CONFIG, useValue: { validPathPatterns: initPathPatterns } },
+        { provide: FirebaseStateService, useValue: firebaseService },
+        {
+          provide: NotificationService,
+          useValue: {
+            notifications: signal([]),
+            activeAlerts: signal([]),
+            markAlertAsDismissed: vi.fn(),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(HomeComponent);
+    component = fixture.componentInstance;
+    await fixture.whenStable();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('defaults to learn tab', () => {
+    expect(component.activeTab()).toBe('learn');
+  });
+
+  it('switches tabs and updates url params', () => {
+    component.setActiveTab('practice');
+    expect(component.activeTab()).toBe('practice');
+
+    component.setActiveTab('me');
+    expect(component.activeTab()).toBe('me');
+
+    component.setActiveTab('learn');
+    expect(component.activeTab()).toBe('learn');
+  });
+
+  it('handles horizontal swipe gestures', () => {
+    // Initial tab: learn
+    expect(component.activeTab()).toBe('learn');
+
+    // Swipe left (next tab -> practice)
+    component.onTouchStart({
+      touches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 100, clientY: 105 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('practice');
+
+    // Swipe left (next tab -> me)
+    component.onTouchStart({
+      touches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('me');
+
+    // Swipe right (prev tab -> practice)
+    component.onTouchStart({
+      touches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('practice');
+  });
+
+  it('supports admin tab for admin users in swipe and tab selection', () => {
+    (firebaseService.user as any).set({
+      isAdmin: true,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Admin Member',
+        membershipType: 'Life',
+      },
+      firebaseUser: { email: 'admin@example.com' },
+    });
+
+    component.setActiveTab('admin');
+    expect(component.activeTab()).toBe('admin');
+
+    // Swipe right from admin -> me
+    component.onTouchStart({
+      touches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('me');
+
+    // Swipe left from me -> admin
+    component.onTouchStart({
+      touches: [{ clientX: 200, clientY: 100 }],
+    } as unknown as TouchEvent);
+    component.onTouchEnd({
+      changedTouches: [{ clientX: 100, clientY: 100 }],
+    } as unknown as TouchEvent);
+    expect(component.activeTab()).toBe('admin');
+  });
+});

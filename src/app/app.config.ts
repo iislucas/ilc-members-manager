@@ -102,7 +102,7 @@ export type MemberListPathPatternsIds = keyof MemberListPathPatterns;
 
 export const initPathPatterns = {
   ...memberListPathPatterns,
-  [Views.Home]: pathPattern``,
+  [Views.Home]: addUrlParams(pathPattern``, ['tab']),
   [Views.Login]: addUrlParams(pathPattern`login`, [{ name: 'returnUrl', ephemeral: true }]),
   [Views.ClassCalendarView]: pathPattern`calendar/instructor/${pv('instructorId')}`,
   [Views.SchoolCalendarView]: pathPattern`calendar/school/${pv('schoolId')}`,
