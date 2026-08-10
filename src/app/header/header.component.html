@@ -1,35 +1,49 @@
 <div class="nav-bar" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
   <div class="title-and-menu">
-    @if (isLoggedIn()) {
-      <div class="menu-anchor">
-        <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())">
-          <app-icon name="menu" width="1.4em" height="1.4em" fill="white"></app-icon>
-        </button>
-        @if (menuOpen()) {
-          <app-navigation-menu
-            (closeMenu)="menuOpen.set(false)"
-          ></app-navigation-menu>
-        }
-      </div>
+    @if (isHome()) {
+      @if (isLoggedIn()) {
+        <div class="menu-anchor">
+          <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())" title="Navigation menu">
+            <app-icon name="menu" width="1.4em" height="1.4em" fill="white"></app-icon>
+          </button>
+          @if (menuOpen()) {
+            <app-navigation-menu
+              (closeMenu)="menuOpen.set(false)"
+            ></app-navigation-menu>
+          }
+        </div>
+      }
+    } @else if (isLoggedIn() || isPublicPage()) {
+      @if (upNode(); as up) {
+        <a
+          class="icon-only-button header-back-btn"
+          [href]="up.url"
+          [title]="'Back to ' + up.label"
+        >
+          <app-icon name="arrow_back" width="1.4em" height="1.4em" fill="white"></app-icon>
+        </a>
+      }
     }
 
     <div class="title-container">
-      <div class="breadcrumb-parents">
-        @for (crumb of breadcrumbs().slice(0, -1); track $index) {
-          <span class="crumb">
-            @let text =
-              abbreviateParents()
-                ? crumb.shortLabel || crumb.label
-                : crumb.label;
-            @if (crumb.url) {
-              <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
-            } @else {
-              <span class="crumb-label">{{ text }}</span>
-            }
-            <span class="crumb-separator">&gt;</span>
-          </span>
-        }
-      </div>
+      @if (breadcrumbs().length > 1) {
+        <div class="breadcrumb-parents">
+          @for (crumb of breadcrumbs().slice(0, -1); track $index) {
+            <span class="crumb">
+              @let text =
+                abbreviateParents()
+                  ? crumb.shortLabel || crumb.label
+                  : crumb.label;
+              @if (crumb.url) {
+                <a [href]="crumb.url" class="crumb-link" [title]="crumb.label">{{ text }}</a>
+              } @else {
+                <span class="crumb-label">{{ text }}</span>
+              }
+              <span class="crumb-separator">&gt;</span>
+            </span>
+          }
+        </div>
+      }
       @if (breadcrumbs().length > 0) {
         @let lastCrumb = breadcrumbs()[breadcrumbs().length - 1];
         <div class="title current-page-title" [class.doc-id]="lastCrumb.label.includes('doc:')">

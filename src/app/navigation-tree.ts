@@ -32,13 +32,6 @@ export interface NavNode {
   url: string;
 }
 
-/** The two fixed crumbs above every page: the main site, then this app. */
-const SITE_ROOT: NavNode & { shortLabel: string } = {
-  label: 'I Liq Chuan',
-  shortLabel: 'ILC',
-  url: 'https://iliqchuan.com',
-};
-
 @Injectable({ providedIn: 'root' })
 export class NavigationTreeService {
   private routing: RoutingService<AppPathPatterns> = inject(RoutingService);
@@ -83,9 +76,9 @@ export class NavigationTreeService {
   public currentTitle = computed(() => this.titleOf(this.currentView()));
 
   /**
-   * The pages above the current one, root-first, excluding the site root and
-   * Home. Empty for a top-level page — those are reached from the menu and have
-   * no "up".
+   * The pages above the current one, root-first, excluding Home. Empty for a
+   * top-level page — those are reached from the menu and have no "up" in the
+   * tree above Home.
    */
   public ancestors = computed<NavNode[]>(() => this.ancestorsOf(this.currentView()));
 
@@ -96,6 +89,19 @@ export class NavigationTreeService {
   public parent = computed<NavNode | null>(() => {
     const chain = this.ancestors();
     return chain.length > 0 ? chain[chain.length - 1] : null;
+  });
+
+  /** Whether the current view is the root page (Home of the Members Portal). */
+  public isHome = computed(() => this.currentView() === Views.Home);
+
+  /**
+   * Target for the back button in the header. Returns null at the root (Home),
+   * the immediate ancestor when one exists in the tree, or the app root for
+   * top-level pages.
+   */
+  public upNode = computed<NavNode | null>(() => {
+    if (this.isHome()) return null;
+    return this.parent() ?? { label: 'Members Portal', url: '/' };
   });
 
   /** True while the current page is still fetching the record it is named after. */
@@ -111,22 +117,24 @@ export class NavigationTreeService {
     return false;
   });
 
-  /** Full breadcrumb trail: site root, app root, ancestors, current page. */
+  /** Full breadcrumb trail: app root, ancestors, current page. */
   public breadcrumbs = computed(() => {
     const view = this.currentView();
-    const appRoot = { label: 'Members Portal App', shortLabel: 'App', url: '/' };
+    const appRoot: NavNode & { shortLabel?: string } = {
+      label: 'Members Portal',
+      shortLabel: 'Members Portal',
+      url: '/',
+    };
     if (view === Views.Home) {
-      return [SITE_ROOT, appRoot];
+      return [appRoot];
     }
     if (!view) {
       return [
-        SITE_ROOT,
         appRoot,
         { label: 'Page Not Found', isLoading: false },
       ];
     }
     return [
-      SITE_ROOT,
       appRoot,
       ...this.ancestors(),
       { label: this.currentTitle(), isLoading: this.currentTitleIsLoading() },

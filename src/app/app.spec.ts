@@ -20,10 +20,10 @@ describe('App', () => {
     firebaseStateServiceMock = createFirebaseStateServiceMock();
     dataManagerServiceMock = {
       loadingState: signal(DataServiceState.Loaded) as any,
-      members: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
-      schools: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
-      instructors: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
-      myStudents: { loaded: signal(true), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      members: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      schools: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      instructors: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      myStudents: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
       getMember: vi.fn(),
     };
 
@@ -74,7 +74,7 @@ describe('App', () => {
     app.routingService.matchedPatternId.set(Views.Home);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.title')?.textContent).toContain('Members Portal App');
+    expect(compiled.querySelector('.title')?.textContent).toContain('Members Portal');
   });
 
   it('should redirect logged-out users on Home to login', async () => {
@@ -158,7 +158,7 @@ describe('App', () => {
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['I Liq Chuan', 'Members Portal App', 'Find an Instructor']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Find an Instructor']);
   });
 
   it('should correctly parse the members-area post path for a logged-in user', async () => {
@@ -190,7 +190,7 @@ describe('App', () => {
 
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['I Liq Chuan', 'Members Portal App', 'Members Area', 'Article']);
+    expect(breadcrumbLabels).toEqual(['Members Portal', 'Members Area', 'Article']);
   });
 
   it('should intercept click on breadcrumb links and navigate client-side', async () => {
@@ -322,6 +322,49 @@ describe('App', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('app-not-found')).toBeTruthy();
+  });
+
+  it('should show hamburger menu on Home when logged in, and back arrow on other pages', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    // Simulate logged in user
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+      schoolsManaged: [],
+    } as unknown as UserDetails);
+
+    // 1. On Home:
+    app.routingService.matchedPatternId.set(Views.Home);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    let compiled = fixture.nativeElement as HTMLElement;
+    // Hamburger menu button should be present
+    expect(compiled.querySelector('.menu-anchor button')).toBeTruthy();
+    // Back button should not be present
+    expect(compiled.querySelector('.header-back-btn')).toBeNull();
+
+    // 2. On Manage Members (top-level page):
+    app.routingService.matchedPatternId.set(Views.ManageMembers);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    compiled = fixture.nativeElement as HTMLElement;
+    // Hamburger menu should not be present
+    expect(compiled.querySelector('.menu-anchor button')).toBeNull();
+    // Back button should be present and point to '/'
+    const backBtn = compiled.querySelector('.header-back-btn') as HTMLAnchorElement;
+    expect(backBtn).toBeTruthy();
+    expect(backBtn.getAttribute('href')).toBe('/');
+    expect(backBtn.getAttribute('title')).toBe('Back to Members Portal');
   });
 });
 

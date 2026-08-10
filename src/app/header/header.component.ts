@@ -6,6 +6,8 @@ import { ProfileMenuComponent } from '../profile-menu/profile-menu';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 
+import { NavigationTreeService } from '../navigation-tree';
+
 export interface Breadcrumb {
   label: string;
   shortLabel?: string;
@@ -28,11 +30,16 @@ export interface Breadcrumb {
 })
 export class HeaderComponent {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  navTree = inject(NavigationTreeService);
+
   breadcrumbs = input<Breadcrumb[]>([]);
   abbreviateParents = input<boolean>(true);
   isLoggedIn = input<boolean>(false);
   isPublicPage = input<boolean>(false);
   menuOpen = model<boolean>(false);
+
+  isHome = this.navTree.isHome;
+  upNode = this.navTree.upNode;
 
   // Encodes the current URL (path + query params, without the leading slash)
   // for use as a returnUrl parameter on the login page.

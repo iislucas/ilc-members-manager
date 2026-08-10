@@ -189,8 +189,7 @@ describe('NavigationTreeService', () => {
     goTo(Views.EventEdit, { eventId: 'E1' });
     const crumbs = navTree.breadcrumbs();
     expect(crumbs.map((c) => c.label)).toEqual([
-      'I Liq Chuan',
-      'Members Portal App',
+      'Members Portal',
       'Events & Workshops',
       'Summer Camp',
       'Edit: Summer Camp',
@@ -200,20 +199,33 @@ describe('NavigationTreeService', () => {
     expect(navTree.parent()!.label).toBe(crumbs[crumbs.length - 2].label);
   });
 
-  it('shows only the two root crumbs on Home', () => {
+  it('shows only the root crumb on Home', () => {
     goTo(Views.Home);
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'I Liq Chuan',
-      'Members Portal App',
+      'Members Portal',
     ]);
+  });
+
+  it('identifies Home view as isHome, and sub-pages as not isHome', () => {
+    goTo(Views.Home);
+    expect(navTree.isHome()).toBe(true);
+    expect(navTree.upNode()).toBeNull();
+
+    goTo(Views.ManageMembers);
+    expect(navTree.isHome()).toBe(false);
+    expect(navTree.upNode()).toEqual({ label: 'Members Portal', url: '/' });
+
+    navTree.loadedEventTitle.set('Summer Camp');
+    goTo(Views.EventEdit, { eventId: 'E1' });
+    expect(navTree.isHome()).toBe(false);
+    expect(navTree.upNode()).toEqual({ label: 'Summer Camp', url: '/events/E1' });
   });
 
   it('shows Page Not Found breadcrumb and title when route does not match any view', () => {
     routing.matchedPatternId.set(null);
     expect(navTree.currentTitle()).toBe('Page Not Found');
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'I Liq Chuan',
-      'Members Portal App',
+      'Members Portal',
       'Page Not Found',
     ]);
   });
@@ -224,8 +236,7 @@ describe('NavigationTreeService', () => {
     expect(navTree.ancestors()).toEqual([]);
     expect(navTree.parent()).toBeNull();
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'I Liq Chuan',
-      'Members Portal App',
+      'Members Portal',
       'Organise or List an Event',
     ]);
   });
