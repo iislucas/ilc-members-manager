@@ -249,7 +249,7 @@ export class ImageUploadPreviewComponent {
     canvas.height = thumb.height;
     ctx.clearRect(0, 0, thumb.width, thumb.height);
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, thumb.width, thumb.height);
-    const thumbBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.9));
+    const thumbBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'));
 
     // Generate Large (configurable, defaults to 600x400).
     const large = this.largeDimensions();
@@ -257,7 +257,7 @@ export class ImageUploadPreviewComponent {
     canvas.height = large.height;
     ctx.clearRect(0, 0, large.width, large.height);
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, large.width, large.height);
-    const largeBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/jpeg', 0.9));
+    const largeBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'));
 
     this.imageCropped.emit({
       thumbBlob,

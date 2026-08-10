@@ -565,11 +565,11 @@ export class MemberDetailsComponent {
     try {
       const storage = getStorage(this.firebaseApp);
       const largeRef = ref(storage, `instructors/${docId}/images/profile_large`);
-      await uploadBytes(largeRef, event.largeBlob, { contentType: 'image/jpeg' });
+      await uploadBytes(largeRef, event.largeBlob, { contentType: event.largeBlob.type || 'image/png' });
       const largeUrl = await getDownloadURL(largeRef);
 
       const thumbRef = ref(storage, `instructors/${docId}/images/profile_thumb`);
-      await uploadBytes(thumbRef, event.thumbBlob, { contentType: 'image/jpeg' });
+      await uploadBytes(thumbRef, event.thumbBlob, { contentType: event.thumbBlob.type || 'image/png' });
       const thumbUrl = await getDownloadURL(thumbRef);
 
       this.form.publicProfileImageUrl().value.set(largeUrl);
@@ -597,7 +597,7 @@ export class MemberDetailsComponent {
     try {
       const storage = getStorage(this.firebaseApp);
       const coverRef = ref(storage, `instructors/${docId}/images/cover_large`);
-      await uploadBytes(coverRef, event.largeBlob, { contentType: 'image/jpeg' });
+      await uploadBytes(coverRef, event.largeBlob, { contentType: event.largeBlob.type || 'image/png' });
       const coverUrl = await getDownloadURL(coverRef);
 
       this.form.publicCoverImageUrl().value.set(coverUrl);

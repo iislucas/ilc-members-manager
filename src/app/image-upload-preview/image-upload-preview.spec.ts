@@ -37,4 +37,31 @@ describe('ImageUploadPreviewComponent', () => {
     expect(cropContainer).toBeTruthy();
     expect(component.aspectRatio()).toBeCloseTo(1200 / 450);
   });
+
+  it('should emit PNG blobs to preserve transparency', async () => {
+    let emittedResult: { thumbBlob: Blob; largeBlob: Blob } | null = null;
+    component.imageCropped.subscribe((result) => {
+      emittedResult = result;
+    });
+
+    component.imageUrl.set('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Mock canvas.getContext and toBlob in JSDOM
+    const canvas = component.canvasRef.nativeElement;
+    canvas.getContext = (() => ({
+      clearRect: vi.fn(),
+      drawImage: vi.fn(),
+    })) as any;
+    canvas.toBlob = (callback: BlobCallback, type?: string) => {
+      callback(new Blob(['test'], { type: type || 'image/png' }));
+    };
+
+    await component.applyCrop();
+
+    expect(emittedResult).toBeTruthy();
+    expect(emittedResult!.largeBlob.type).toBe('image/png');
+    expect(emittedResult!.thumbBlob.type).toBe('image/png');
+  });
 });
