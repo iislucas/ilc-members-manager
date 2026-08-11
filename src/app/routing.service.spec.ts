@@ -71,6 +71,7 @@ describe('RoutingService', () => {
     service.signals[Views.SchoolMembers].pathVars['schoolId'].set('S1');
     await fixture.whenStable();
     expect(currentUrl()).toBe(`/school/S1/members`);
+    expect(service.currentUrl()).toBe(window.location.href);
   });
 
   it('should update the URL when a url param signal changes', async () => {

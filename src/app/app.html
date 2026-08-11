@@ -313,4 +313,15 @@
   </main>
   <app-footer></app-footer>
 </div>
+<a
+  class="share-page-link"
+  [class.copied]="shareCopied()"
+  [href]="currentUrl()"
+  (click)="onSharePage($event)"
+  [title]="shareCopied() ? 'Link copied to clipboard!' : 'Share or copy page link'"
+  aria-label="Share current page"
+>
+  <app-icon [name]="shareCopied() ? 'check' : 'share'"></app-icon>
+  <span>{{ shareCopied() ? 'Copied!' : 'Share' }}</span>
+</a>
 <span class="version-badge" [title]="'Build: ' + appVersion">v{{ appVersion }}</span>

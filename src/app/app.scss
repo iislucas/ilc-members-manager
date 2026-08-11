@@ -81,6 +81,60 @@ main {
   }
 }
 
+.share-page-link {
+  position: fixed;
+  bottom: 0.4em;
+  left: 0.6em;
+  font-size: 0.7em;
+  color: $text-secondary;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid $border-color-light;
+  border-radius: 4px;
+  padding: 0.2em 0.55em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  text-decoration: none;
+  opacity: 0.75;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  z-index: 9999;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    opacity: 1.0;
+    background: #ffffff;
+    color: $text-primary;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active {
+    opacity: 1.0;
+    transform: translateY(1px);
+  }
+
+  &.copied {
+    opacity: 1.0;
+    color: #15803d;
+    background-color: #f0fdf4;
+    border-color: #86efac;
+  }
+
+  app-icon {
+    display: inline-flex;
+    align-items: center;
+    font-size: 1.15em;
+  }
+}
+
 .version-badge {
   position: fixed;
   bottom: 0.4em;
@@ -97,5 +151,12 @@ main {
 
   &:hover {
     opacity: 1.0;
+  }
+}
+
+@media print {
+  .share-page-link,
+  .version-badge {
+    display: none !important;
   }
 }

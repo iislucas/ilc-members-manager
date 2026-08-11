@@ -363,5 +363,78 @@ describe('App', () => {
     expect(backBtn.getAttribute('href')).toBe('/?tab=admin');
     expect(backBtn.getAttribute('title')).toBe('Back to Admin');
   });
+
+  describe('Share page link', () => {
+    it('should render share page link with current URL as href', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+      app.routingService.matchedPatternId.set(Views.FindAnInstructor);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const shareLink = compiled.querySelector<HTMLAnchorElement>('.share-page-link');
+      expect(shareLink).toBeTruthy();
+      expect(shareLink?.getAttribute('href')).toBe(window.location.href);
+      expect(shareLink?.textContent).toContain('Share');
+    });
+
+    it('should call navigator.share when available and clicked', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const shareSpy = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', {
+        ...navigator,
+        share: shareSpy,
+      });
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const shareLink = compiled.querySelector<HTMLAnchorElement>('.share-page-link')!;
+
+      const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      shareLink.dispatchEvent(clickEvent);
+      await fixture.whenStable();
+
+      expect(clickEvent.defaultPrevented).toBe(true);
+      expect(shareSpy).toHaveBeenCalledWith({
+        title: document.title,
+        url: window.location.href,
+      });
+      expect(app.shareCopied()).toBe(true);
+      vi.unstubAllGlobals();
+    });
+
+    it('should copy to clipboard and display Copied! when navigator.share is not available', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', {
+        clipboard: { writeText: writeTextSpy },
+      });
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const shareLink = compiled.querySelector<HTMLAnchorElement>('.share-page-link')!;
+
+      const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      shareLink.dispatchEvent(clickEvent);
+      await fixture.whenStable();
+
+      expect(clickEvent.defaultPrevented).toBe(true);
+      expect(writeTextSpy).toHaveBeenCalledWith(window.location.href);
+      expect(app.shareCopied()).toBe(true);
+
+      fixture.detectChanges();
+      expect(shareLink.textContent).toContain('Copied!');
+      expect(shareLink.classList.contains('copied')).toBe(true);
+
+      vi.unstubAllGlobals();
+    });
+  });
 });
 

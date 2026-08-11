@@ -308,6 +308,86 @@ export class App {
     }
   }
 
+  public currentUrl = computed(() => this.routingService.currentUrl());
+  public shareCopied = signal(false);
+  private shareTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  public async onSharePage(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const url =
+      typeof window !== 'undefined'
+        ? window.location.href
+        : this.currentUrl();
+    const title =
+      typeof document !== 'undefined' && document.title
+        ? document.title
+        : 'I Liq Chuan Members Portal App';
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          url,
+        });
+        this.triggerShareCopied();
+        return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
+    await this.copyUrlToClipboard(url);
+  }
+
+  public async copyUrlToClipboard(url: string) {
+    let copied = false;
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.clipboard &&
+      navigator.clipboard.writeText
+    ) {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (!copied && typeof document !== 'undefined') {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      this.triggerShareCopied();
+    }
+  }
+
+  private triggerShareCopied() {
+    this.shareCopied.set(true);
+    if (this.shareTimeout) {
+      clearTimeout(this.shareTimeout);
+    }
+    this.shareTimeout = setTimeout(() => {
+      this.shareCopied.set(false);
+    }, 2000);
+  }
+
   public dismissMessages() {
     this.logoutError.set(null);
     this.firebaseService.loginError.set(null);

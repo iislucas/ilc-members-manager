@@ -114,6 +114,9 @@ export class RoutingService<T extends PathPatterns> {
   private currentPath: WritableSignal<string>;
   private currentQuery: WritableSignal<string>;
   public matchedPatternId: WritableSignal<keyof T | null> = signal(null);
+  public currentUrl: WritableSignal<string> = signal(
+    typeof window !== 'undefined' ? window.location.href : '',
+  );
   public signals: {
     [pathId in keyof T]: PatternSignals<
       PathVarNames<T[pathId]>,
@@ -177,6 +180,9 @@ export class RoutingService<T extends PathPatterns> {
       const newUrl = `${pathWithSlash}${query}`;
       if (this.currentUrlPart() !== newUrl) {
         window.history.replaceState(null, '', newUrl);
+        if (typeof window !== 'undefined') {
+          this.currentUrl.set(window.location.href);
+        }
       }
     });
   }
@@ -271,6 +277,9 @@ export class RoutingService<T extends PathPatterns> {
       } else {
         this.previousPatternId = null;
         this.matchedPatternId.set(null);
+      }
+      if (typeof window !== 'undefined') {
+        this.currentUrl.set(window.location.href);
       }
     };
 
