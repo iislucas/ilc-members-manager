@@ -9,7 +9,7 @@ This document details the architectural plan for implementing the **Orders & Sub
 ### Goals
 1. **Member Self-Service Portal**: Provide members with a dedicated dashboard on the "Me" tab (`/my-orders` or `/my-subscriptions`) to:
    - View their active subscriptions (Membership, Instructor License, Class Video Library, and future Video-on-Demand).
-   - View renewal statuses and whether each subscription is configured to auto-renew.
+   - View renewal statuses and explicit **next auto-renewal dates** (or clear indicators that auto-renewal is off).
    - Cancel subscription auto-renewals with explicit confirmation, keeping access active until the end of the paid period (`cancel_at_period_end: true`).
    - Resume/reactivate auto-renewals prior to period expiration.
    - Access payment methods and official receipts via Stripe Customer Portal.
@@ -21,7 +21,7 @@ This document details the architectural plan for implementing the **Orders & Sub
    - Class Video Library (Monthly/Annual recurring).
    - Video on Demand (VOD) rentals / purchases (future extensibility).
 3. **Data Model & Firestore Structure**:
-   - **Member Document (`/members/{memberDocId}`)**: Contains high-level subscription summaries, auto-renew flags, expiry dates, and the member's Stripe Customer ID.
+   - **Member Document (`/members/{memberDocId}`)**: Contains high-level subscription summaries, next auto-renewal dates (`membershipNextAutoRenewDate`, `instructorLicenseNextAutoRenewDate`, `classVideoLibraryNextAutoRenewDate`), expiry dates, and the member's Stripe Customer ID.
    - **Member Orders Subcollection (`/members/{memberDocId}/orders/{orderDocId}`)**: Contains a chronological row for every order, checkout, renewal invoice, and cancellation, directly linked to or mirrored from `/orders/{orderDocId}`.
 4. **Backend Automation & Control Functions**:
    - Cloud Functions to manage Stripe subscriptions (`cancelSubscriptionRenewal`, `resumeSubscriptionRenewal`, `createCustomerPortalSession`).
@@ -55,7 +55,7 @@ flowchart TD
     end
 
     subgraph Firestore["Cloud Firestore"]
-        MemberDoc["/members/{memberDocId}\n(Summary & Expiry Dates)"]
+        MemberDoc["/members/{memberDocId}\n(Summary, Expiry & Next Auto-Renew Dates)"]
         MemberOrders["/members/{memberDocId}/orders/{orderDocId}\n(Member Order History Rows)"]
         GlobalOrders["/orders/{orderDocId}\n(Admin Global Order Store)"]
         Gradings["/gradings/{gradingDocId}\n(Auto-created on grading purchase)"]
@@ -77,7 +77,7 @@ flowchart TD
 
     OrderProcessor -->|Upsert global order| GlobalOrders
     OrderProcessor -->|Mirror order row| MemberOrders
-    OrderProcessor -->|Update expiry & auto-renew flags| MemberDoc
+    OrderProcessor -->|Update expiry & next auto-renew dates| MemberDoc
     OrderProcessor -->|Auto-provision grading record| Gradings
 ```
 
@@ -87,7 +87,7 @@ flowchart TD
 
 ### 3.1 Member Document Extensions (`/members/{memberDocId}`)
 
-To allow fast and synchronous rendering across the app (including the "Me" tab, status badges, and route guards), the primary `Member` record in [`functions/src/data-model.ts`](../functions/src/data-model.ts) is extended with Stripe customer references and auto-renew flags:
+To allow fast and synchronous rendering across the app (including the "Me" tab, status badges, and route guards), the primary `Member` record in [`functions/src/data-model.ts`](../functions/src/data-model.ts) is extended with Stripe customer references and **date-based auto-renewal fields**:
 
 ```typescript
 export interface MemberSubscriptionItem {
@@ -100,6 +100,11 @@ export interface MemberSubscriptionItem {
   interval: 'month' | 'year';
   currentPeriodStart: string; // YYYY-MM-DD
   currentPeriodEnd: string; // YYYY-MM-DD (when current access expires)
+  
+  // Date when the next automatic charge will occur.
+  // Set to YYYY-MM-DD when auto-renew is active; set to empty string '' when auto-renew is cancelled.
+  nextAutoRenewDate: string; // YYYY-MM-DD or ''
+  
   cancelAtPeriodEnd: boolean; // true if renewal was cancelled
   canceledAt?: string; // YYYY-MM-DD or ISO string if cancelled
   stripePriceId?: string;
@@ -114,30 +119,33 @@ export type Member = {
   emails: string[];
   
   // Stripe Customer Linkage
-  stripeCustomerId?: string; // e.g. 'cus_...'
+  stripeCustomerId: string; // e.g. 'cus_...' or ''
 
   // Membership & Renewals
   membershipType: MembershipType;
   firstMembershipStarted: string;
   lastRenewalDate: string;
-  currentMembershipExpires: string; // YYYY-MM-DD
-  membershipAutoRenew?: boolean; // Derived from active Stripe subscription cancelAtPeriodEnd == false
-  membershipSubscriptionId?: string; // Active Stripe subscription ID
+  currentMembershipExpires: string; // YYYY-MM-DD (when access ends)
+  
+  // Next automatic renewal charge date (YYYY-MM-DD).
+  // Matches current period end when active; set to '' when renewal is cancelled / off.
+  membershipNextAutoRenewDate: string; // YYYY-MM-DD or ''
+  membershipSubscriptionId: string; // Active Stripe subscription ID or ''
 
   // Instructor License & Renewals
   instructorId: string;
   instructorLicenseType: InstructorLicenseType;
   instructorLicenseRenewalDate: string;
-  instructorLicenseExpires: string; // YYYY-MM-DD
-  instructorLicenseAutoRenew?: boolean;
-  instructorLicenseSubscriptionId?: string;
+  instructorLicenseExpires: string; // YYYY-MM-DD (when license ends)
+  instructorLicenseNextAutoRenewDate: string; // YYYY-MM-DD or ''
+  instructorLicenseSubscriptionId: string; // Active Stripe subscription ID or ''
 
   // Class Video Library
   classVideoLibrarySubscription: boolean;
   classVideoLibraryLastRenewalDate: string;
-  classVideoLibraryExpirationDate: string; // YYYY-MM-DD
-  classVideoLibraryAutoRenew?: boolean;
-  classVideoLibrarySubscriptionId?: string;
+  classVideoLibraryExpirationDate: string; // YYYY-MM-DD (when video access ends)
+  classVideoLibraryNextAutoRenewDate: string; // YYYY-MM-DD or ''
+  classVideoLibrarySubscriptionId: string; // Active Stripe subscription ID or ''
 
   // Structured Active Subscriptions Map (keyed by subscriptionId or product category)
   subscriptions?: Record<string, MemberSubscriptionItem>;
@@ -145,6 +153,17 @@ export type Member = {
   // ...other existing fields (tags, gradings, profile info, etc.)
 };
 ```
+
+#### How Expiry and Next Auto-Renew Dates Interact:
+
+| Scenario | `currentMembershipExpires` | `membershipNextAutoRenewDate` | Display on UI |
+|---|---|---|---|
+| **Active Sub with Auto-Renew** | `2027-05-15` | `2027-05-15` | **"Auto-renews on May 15, 2027"** with `<button>Cancel Auto-Renewal</button>` |
+| **Auto-Renew Cancelled** | `2027-05-15` | `''` (empty) | **"Expires on May 15, 2027"** *(Auto-renewal cancelled; access remains active until this date)* with `<button>Resume Auto-Renewal</button>` |
+| **One-time Purchase / Lapsed** | Past date or empty | `''` (empty) | **"Expired"** with `<button>Renew Membership</button>` |
+| **Lifetime Member** | `9999-12-31` | `''` (empty) | **"Lifetime Access"** (No renewal needed) |
+
+---
 
 ### 3.2 Member Orders Subcollection (`/members/{memberDocId}/orders/{orderDocId}`)
 
@@ -230,14 +249,14 @@ Stripe Products and Prices will map to digital products in ILC:
 
 | Digital Product | Stripe Product ID / SKU | Price Type | Interval | Auto-Fulfillment Action |
 |---|---|---|---|---|
-| **Annual Membership (Adult)** | `prod_membership_annual` | Recurring | 1 Year | Extends `currentMembershipExpires` by +1 year; updates `membershipType = Annual`. |
-| **Annual Membership (Senior/Youth)** | `prod_membership_concession` | Recurring | 1 Year | Extends `currentMembershipExpires` by +1 year. |
-| **Lifetime Membership** | `prod_membership_life` | One-Time | N/A | Sets `membershipType = Life`, `currentMembershipExpires = '9999-12-31'`. |
-| **Group Leader License** | `prod_license_gl` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseType = GroupLeader`. |
-| **Instructor License** | `prod_license_inst` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseType = Instructor`. |
-| **Lead Instructor License** | `prod_license_li` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseType = LeadInstructor`. |
+| **Annual Membership (Adult)** | `prod_membership_annual` | Recurring | 1 Year | Extends `currentMembershipExpires` by +1 year; sets `membershipNextAutoRenewDate = currentMembershipExpires`; updates `membershipType = Annual`. |
+| **Annual Membership (Senior/Youth)** | `prod_membership_concession` | Recurring | 1 Year | Extends `currentMembershipExpires` by +1 year; sets `membershipNextAutoRenewDate = currentMembershipExpires`. |
+| **Lifetime Membership** | `prod_membership_life` | One-Time | N/A | Sets `membershipType = Life`, `currentMembershipExpires = '9999-12-31'`, `membershipNextAutoRenewDate = ''`. |
+| **Group Leader License** | `prod_license_gl` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseNextAutoRenewDate = instructorLicenseExpires`; sets `instructorLicenseType = GroupLeader`. |
+| **Instructor License** | `prod_license_inst` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseNextAutoRenewDate = instructorLicenseExpires`; sets `instructorLicenseType = Instructor`. |
+| **Lead Instructor License** | `prod_license_li` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseNextAutoRenewDate = instructorLicenseExpires`; sets `instructorLicenseType = LeadInstructor`. |
 | **School License (Annual)** | `prod_license_school` | Recurring | 1 Year | Extends school license expiry date in `/schools/{schoolDocId}`. |
-| **Class Video Library** | `prod_video_library` | Recurring | 1 Month / 1 Year | Sets `classVideoLibrarySubscription = true`, extends `classVideoLibraryExpirationDate`. |
+| **Class Video Library** | `prod_video_library` | Recurring | 1 Month / 1 Year | Sets `classVideoLibrarySubscription = true`, extends `classVideoLibraryExpirationDate`, sets `classVideoLibraryNextAutoRenewDate = classVideoLibraryExpirationDate`. |
 | **Grading (Student Levels 1–11)** | `prod_grading_student` | One-Time | N/A | Creates new `/gradings/{gradingDocId}` doc linked to student, updates student's `gradingDocIds`. |
 | **Grading (Application 1–6)** | `prod_grading_app` | One-Time | N/A | Creates new `/gradings/{gradingDocId}` doc linked to student, updates student's `gradingDocIds`. |
 | **Video On Demand (Future)** | `prod_vod_<slug>` | One-Time / Rental | N/A | Adds VOD grant record to member's purchased materials library. |
@@ -269,7 +288,7 @@ File: [`functions/src/stripe-subscriptions.ts`](../functions/src/stripe-subscrip
           cancel_at_period_end: true,
         });
         ```
-     3. Updates the member document in Firestore (`cancelAtPeriodEnd: true`, `*AutoRenew: false`).
+     3. Updates the member document in Firestore (`cancelAtPeriodEnd: true`, `*NextAutoRenewDate: ''`).
      4. Creates an activity log entry / updates the subcollection record.
    - **Response**: `{ success: true, periodEnd: string }`.
 
@@ -280,12 +299,13 @@ File: [`functions/src/stripe-subscriptions.ts`](../functions/src/stripe-subscrip
      1. Verifies ownership.
      2. Calls Stripe API:
         ```typescript
-        await stripe.subscriptions.update(subscriptionId, {
+        const sub = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
         });
         ```
-     3. Updates the member document in Firestore (`cancelAtPeriodEnd: false`, `*AutoRenew: true`).
-   - **Response**: `{ success: true, nextRenewalDate: string }`.
+     3. Derives next auto-renew date from `sub.current_period_end` (YYYY-MM-DD).
+     4. Updates the member document in Firestore (`cancelAtPeriodEnd: false`, `*NextAutoRenewDate: nextDate`).
+   - **Response**: `{ success: true, nextAutoRenewDate: string }`.
 
 3. **`createCustomerPortalSession`**:
    - **Auth**: Requires authenticated user.
@@ -318,14 +338,14 @@ sequenceDiagram
     Webhook->>Firestore: 1. Upsert /orders/{orderDocId}
     Webhook->>Firestore: 2. Match memberDocId (from metadata or customer)
     Webhook->>Firestore: 3. Upsert /members/{memberDocId}/orders/{orderDocId}
-    Webhook->>Firestore: 4. Update /members/{memberDocId} (extend expiry, set auto-renew flag)
+    Webhook->>Firestore: 4. Update /members/{memberDocId} (extend expiry, set nextAutoRenewDate)
     opt Line item is a Grading
         Webhook->>Firestore: 5. Auto-create /gradings/{gradingDocId}
     end
 
     Note over Stripe,Webhook: Member cancels auto-renewal
     Stripe->>Webhook: customer.subscription.updated (cancel_at_period_end: true)
-    Webhook->>Firestore: Update /members/{memberDocId} (set AutoRenew = false, periodEnd preserved)
+    Webhook->>Firestore: Update /members/{memberDocId} (clear nextAutoRenewDate = '', periodEnd preserved)
     Webhook->>Firestore: Update /members/{memberDocId}/orders
 
     Note over Stripe,Webhook: Subscription billing cycle reaches end date
@@ -336,9 +356,9 @@ sequenceDiagram
 ### 5.3 Order Fulfillment Logic (`functions/src/stripe-fulfillment.ts`)
 
 Extracts fulfillment into modular handlers matching Stripe product metadata/SKUs:
-- `fulfillMembership(memberRef, lineItem, periodEnd)`: Calculates new expiration date (`max(currentExpires, today) + 1 year`) and sets renewal dates.
-- `fulfillInstructorLicense(memberRef, lineItem, periodEnd)`: Extends instructor license expiry date.
-- `fulfillVideoLibrary(memberRef, lineItem, periodEnd)`: Activates video library access and updates expiration date.
+- `fulfillMembership(memberRef, lineItem, periodEnd)`: Calculates new expiration date (`max(currentExpires, today) + 1 year`), updates `membershipNextAutoRenewDate = newExpires`, and sets renewal dates.
+- `fulfillInstructorLicense(memberRef, lineItem, periodEnd)`: Extends instructor license expiry date and updates `instructorLicenseNextAutoRenewDate`.
+- `fulfillVideoLibrary(memberRef, lineItem, periodEnd)`: Activates video library access, updates expiration date, and sets `classVideoLibraryNextAutoRenewDate`.
 - `fulfillGrading(memberRef, lineItem, orderId)`: Automatically instantiates a `Grading` document with `status = 'pending'` and adds `gradingDocId` to `member.gradingDocIds`.
 
 ---
@@ -397,11 +417,11 @@ File: `src/app/member-orders/member-orders.ts`, `member-orders.html`, `member-or
    - For each active subscription category (Membership, Instructor License, Class Video Library):
      - **Title & Badge**: Plan Name + Status badge (`Active`, `Set to Cancel`, `Past Due`).
      - **Renewal Details**:
-       - If Auto-Renew ON: *"Auto-renews on **May 15, 2027** for **$85.00/year**"*
-       - If Auto-Renew CANCELLED: *"Expires on **May 15, 2027** (Auto-renewal is turned off. You will retain full access until this date.)"*
+       - If `nextAutoRenewDate` is set: *"Auto-renews on **May 15, 2027** for **$85.00/year**"*
+       - If `nextAutoRenewDate` is empty (`''`): *"Expires on **May 15, 2027** (Auto-renewal is turned off. You will retain full access until this date.)"*
      - **Actions**:
-       - If Auto-Renew ON: `<button class="secondary cancel-btn">Cancel Auto-Renewal</button>` (triggers a modal confirmation dialog).
-       - If Auto-Renew CANCELLED: `<button class="primary resume-btn">Resume Auto-Renewal</button>`.
+       - If `nextAutoRenewDate` is set: `<button class="secondary cancel-btn">Cancel Auto-Renewal</button>` (triggers a modal confirmation dialog).
+       - If `nextAutoRenewDate` is empty: `<button class="primary resume-btn">Resume Auto-Renewal</button>`.
 3. **Section 2: Order & Renewal History (Table / List)**:
    - Chronological table of all orders and renewal receipts from `/members/{memberDocId}/orders/`.
    - **Columns**:
@@ -461,7 +481,7 @@ To ensure existing members see their historical purchases:
 ## 9. Implementation Phases & Verification Plan
 
 ### Phase 1: Data Model & Security Rules
-- [ ] Define `MemberOrder`, `MemberSubscriptionItem`, and extended `Member` fields in `functions/src/data-model.ts`.
+- [ ] Define `MemberOrder`, `MemberSubscriptionItem`, and extended date fields (`membershipNextAutoRenewDate`, `instructorLicenseNextAutoRenewDate`, `classVideoLibraryNextAutoRenewDate`) on `Member` in `functions/src/data-model.ts`.
 - [ ] Update `initMember()` and `firestoreDocToMember()` converters.
 - [ ] Add `/members/{memberDocId}/orders/{orderDocId}` security rules in `firestore.rules`.
 - [ ] Write unit tests for rules in `tests/firestore.rules.spec.ts` (`pnpm test:rules`).
@@ -470,7 +490,7 @@ To ensure existing members see their historical purchases:
 - [ ] Implement `cancelSubscriptionRenewal`, `resumeSubscriptionRenewal`, and `createCustomerPortalSession` in `functions/src/stripe-subscriptions.ts`.
 - [ ] Update `createStripeCheckoutSession` to link authenticated member customer IDs and metadata.
 - [ ] Update `stripeWebhook` to handle `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, and order mirroring to `/members/{memberDocId}/orders/`.
-- [ ] Implement fulfillment router in `functions/src/stripe-fulfillment.ts`.
+- [ ] Implement fulfillment router in `functions/src/stripe-fulfillment.ts` to update expiration and `*NextAutoRenewDate` fields.
 - [ ] Write functions unit tests (`pnpm test:functions`).
 
 ### Phase 3: Angular UI & Client Service
