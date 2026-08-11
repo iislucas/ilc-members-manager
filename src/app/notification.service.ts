@@ -3,6 +3,7 @@ import { SwPush } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
@@ -31,17 +32,25 @@ import {
   MembershipType,
   MemberNotification,
   NotificationBlogPostData,
+  NotificationBlogPostsSummaryData,
   NotificationEventData,
   NotificationGradingData,
   NotificationKind,
   NotificationOrderIssueData,
+  NotificationOrderIssuesSummaryData,
+  NotificationPendingEventsSummaryData,
+  NotificationUnpaidGradingsSummaryData,
+  NotificationUploadData,
+  NotificationUploadsSummaryData,
   Order,
   OrderStatus,
   PushSubscriptionDoc,
+  UploadItem,
   eventStatusLabel,
   firestoreDocToGrading,
   firestoreDocToMemberNotification,
   firestoreDocToOrder,
+  firestoreDocToUploadItem,
   initCachedBlogPost,
   initEvent,
   isGradingPaid,
@@ -85,6 +94,8 @@ export class NotificationService implements OnDestroy {
     pushEnabled: {},
     homeEnabled: {},
   });
+  // Surfaced error message for user-visible error display (e.g. missing indexes, permissions, query failures).
+  public syncError = signal<string | null>(null);
 
   private unsubscripton: Unsubscribe | null = null;
   private allUnsub: Unsubscribe | null = null;
@@ -99,6 +110,9 @@ export class NotificationService implements OnDestroy {
   // The admin member doc ID we have already run order-issue catch-up for this
   // session, so the auth effect re-firing doesn't re-run it.
   private orderIssuesSyncedForMemberDocId: string | null = null;
+  // The admin member doc ID we have already run new-upload catch-up for this
+  // session, so the auth effect re-firing doesn't re-run it.
+  private newUploadsSyncedForMemberDocId: string | null = null;
   // The member doc ID we have already run unpaid-grading catch-up for this
   // session, so the auth effect re-firing doesn't re-run it.
   private unpaidGradingsSyncedForMemberDocId: string | null = null;
@@ -106,19 +120,16 @@ export class NotificationService implements OnDestroy {
   // this session, to avoid redundant re-subscriptions on effect re-fires.
   private pushSubscribedForMemberDocId: string | null = null;
 
-  // Maximum number of catch-up blog notifications to create per blog feed.
-  private static readonly MAX_BLOG_NOTIFICATIONS = 3;
+  // Maximum number of individual notifications created per group / category.
+  // When a sync batch has more than this number, the newest 3 get individual
+  // notifications and the remaining items are grouped into a single summary notification.
+  private static readonly MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP = 3;
 
-  // Maximum number of pending-event approval notifications to create at once,
-  // newest proposals first, so a large backlog can't flood an admin's feed.
-  private static readonly MAX_PENDING_EVENT_NOTIFICATIONS = 20;
-
-  // Maximum number of order-issue notifications to create at once, most recent
-  // orders first, so a large backlog can't flood an admin's feed.
-  private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS = 20;
-
-  // Maximum number of unpaid-grading TODO notifications to create at once.
-  private static readonly MAX_UNPAID_GRADING_NOTIFICATIONS = 20;
+  private static readonly MAX_BLOG_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_PENDING_EVENT_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_ORDER_ISSUE_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_NEW_UPLOAD_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
+  private static readonly MAX_UNPAID_GRADING_NOTIFICATIONS = NotificationService.MAX_INDIVIDUAL_NOTIFICATIONS_PER_GROUP;
 
   // Grading statuses that count as "completed" for the unpaid-grading check.
   private static readonly COMPLETED_GRADING_STATUSES: GradingStatus[] = [
@@ -138,6 +149,17 @@ export class NotificationService implements OnDestroy {
     { collection: 'members-post', label: 'Members', route: 'members-area/post' },
     { collection: 'instructors-post', label: "Instructors'", route: 'instructors-area/post' },
   ];
+
+  public dismissSyncError() {
+    this.syncError.set(null);
+  }
+
+  public setSyncError(prefix: string, err: unknown) {
+    const raw = (err as Error)?.message || String(err);
+    // Convert plain URLs to markdown links for easy one-click resolution (e.g. Firebase index creation links)
+    const formatted = raw.replace(/(https:\/\/[^\s\)]+)/g, '[$1]($1)');
+    this.syncError.set(`${prefix}: ${formatted}`);
+  }
 
   constructor() {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -159,29 +181,37 @@ export class NotificationService implements OnDestroy {
       if (user && user.member && user.member.docId) {
         this.subscribeToNotifications(user.member.docId);
         // Catch the member up on any blog posts published since they were last
-        // notified. Runs once per member per session; failures are logged and
-        // never block notification subscriptions.
-        this.syncBlogPostNotifications(user.member).catch((e) =>
-          console.error('Failed to sync blog post notifications:', e),
-        );
+        // notified. Runs once per member per session.
+        this.syncBlogPostNotifications(user.member).catch((e) => {
+          console.error('Failed to sync blog post notifications:', e);
+          this.setSyncError('Failed to sync blog post notifications', e);
+        });
         // Surface any of the member's (or their students') gradings that are
         // completed but not yet paid as TODO notifications. Runs once per
         // member per session.
-        this.syncUnpaidGradingNotifications(user.member).catch((e) =>
-          console.error('Failed to sync unpaid grading notifications:', e),
-        );
+        this.syncUnpaidGradingNotifications(user.member).catch((e) => {
+          console.error('Failed to sync unpaid grading notifications:', e);
+          this.setSyncError('Failed to sync unpaid grading notifications', e);
+        });
         // For admins, catch them up on any events still waiting for approval so
         // proposed events surface as actionable notifications. Runs once per
-        // admin per session; failures are logged and never block the rest.
+        // admin per session.
         if (user.isAdmin) {
-          this.syncPendingEventNotifications(user.member).catch((e) =>
-            console.error('Failed to sync pending event notifications:', e),
-          );
+          this.syncPendingEventNotifications(user.member).catch((e) => {
+            console.error('Failed to sync pending event notifications:', e);
+            this.setSyncError('Failed to sync pending event notifications', e);
+          });
           // Also surface any orders that failed automatic processing and need a
           // human to resolve them.
-          this.syncOrderIssueNotifications(user.member).catch((e) =>
-            console.error('Failed to sync order issue notifications:', e),
-          );
+          this.syncOrderIssueNotifications(user.member).catch((e) => {
+            console.error('Failed to sync order issue notifications:', e);
+            this.setSyncError('Failed to sync order issue notifications', e);
+          });
+          // Also surface newly uploaded materials across all members/instructors.
+          this.syncNewUploadNotifications(user.member).catch((e) => {
+            console.error('Failed to sync new upload notifications:', e);
+            this.setSyncError('Failed to sync new upload notifications', e);
+          });
         }
         // If the member has already granted notification permission, (re)register
         // this device's web-push subscription so background pushes can reach them.
@@ -191,9 +221,11 @@ export class NotificationService implements OnDestroy {
       } else {
         this.unsubscribe();
         this.notifications.set([]);
+        this.syncError.set(null);
         this.blogSyncedForMemberDocId = null;
         this.pendingEventsSyncedForMemberDocId = null;
         this.orderIssuesSyncedForMemberDocId = null;
+        this.newUploadsSyncedForMemberDocId = null;
         this.unpaidGradingsSyncedForMemberDocId = null;
         this.pushSubscribedForMemberDocId = null;
       }
@@ -384,6 +416,7 @@ export class NotificationService implements OnDestroy {
       },
       (error) => {
         console.error('Error listening to notifications subcollection:', error);
+        this.setSyncError('Error listening to notifications', error);
       }
     );
   }
@@ -391,11 +424,6 @@ export class NotificationService implements OnDestroy {
   // Subscribes to the member's full notification history (read + unread). Used
   // by the dedicated notifications view; call unsubscribeFromAllNotifications()
   // when the view is torn down to stop paying for the listener.
-  // Cap the full notifications view to the most recent N. The feed can grow long,
-  // so we only load this many newest notifications (single-field orderBy on
-  // createdAt — no composite index needed).
-  private static readonly MAX_NOTIFICATIONS_SHOWN = 50;
-
   public subscribeToAllNotifications() {
     this.unsubscribeFromAllNotifications();
     const memberDocId = this.firebaseService.user()?.member?.docId;
@@ -406,18 +434,15 @@ export class NotificationService implements OnDestroy {
 
     const notifCollection = collection(this.db, 'members', memberDocId, 'notifications');
     this.allUnsub = onSnapshot(
-      query(
-        notifCollection,
-        orderBy('createdAt', 'desc'),
-        limit(NotificationService.MAX_NOTIFICATIONS_SHOWN),
-      ),
+      notifCollection,
       (snapshot) => {
-        // Already ordered newest-first by the query; map straight through.
         const list: MemberNotification[] = snapshot.docs.map(firestoreDocToMemberNotification);
+        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         this.allNotifications.set(list);
       },
       (error) => {
         console.error('Error listening to full notifications subcollection:', error);
+        this.setSyncError('Error listening to full notifications', error);
       }
     );
   }
@@ -565,38 +590,46 @@ export class NotificationService implements OnDestroy {
     // notifications (a single-field filter, so no composite index needed) and
     // narrow to this feed client-side.
     const existingSnap = await getDocs(
-      query(notifCollection, where('kind', '==', NotificationKind.BlogPost)),
+      query(
+        notifCollection,
+        where('kind', 'in', [
+          NotificationKind.BlogPost,
+          NotificationKind.BlogPostsSummary,
+        ]),
+      ),
     );
     let cutoffMs = 0;
     const notifiedPostIds = new Set<string>();
     // Existing notifications for this specific feed, used for reconciliation below.
     const feedDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
-      const data = (d.data() as MemberNotification).data as {
-        blogPath?: string;
-        lastSeenDateStr?: string;
-        blogPostId?: string;
-      };
-      if (!data || data.blogPath !== feed.collection) return;
-      feedDocs.push(d);
-      if (data.blogPostId) notifiedPostIds.add(data.blogPostId);
-      const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
-      if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
+      const notif = firestoreDocToMemberNotification(d);
+      if (notif.kind === NotificationKind.BlogPost) {
+        const data = notif.data as NotificationBlogPostData;
+        if (!data || data.blogPath !== feed.collection) return;
+        feedDocs.push(d);
+        if (data.blogPostId) notifiedPostIds.add(data.blogPostId);
+        const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
+        if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
+      } else if (notif.kind === NotificationKind.BlogPostsSummary) {
+        const data = notif.data as NotificationBlogPostsSummaryData;
+        if (!data || data.feedCollection !== feed.collection) return;
+        const ms = data.lastSeenDateStr ? Date.parse(data.lastSeenDateStr) : NaN;
+        if (!isNaN(ms) && ms > cutoffMs) cutoffMs = ms;
+      }
     });
 
     // Query the latest posts: only those newer than the cut-off, or simply the
-    // latest few the first time (no prior cut-off). `publishOn` is ms-epoch.
+    // latest posts the first time. `publishOn` is ms-epoch.
     const postsCollection = collection(this.db, feed.collection);
-    const max = NotificationService.MAX_BLOG_NOTIFICATIONS;
     const postsQuery =
       cutoffMs > 0
         ? query(
           postsCollection,
           where('publishOn', '>', cutoffMs),
           orderBy('publishOn', 'desc'),
-          limit(max),
         )
-        : query(postsCollection, orderBy('publishOn', 'desc'), limit(max));
+        : query(postsCollection, orderBy('publishOn', 'desc'), limit(50));
 
     const postsSnap = await getDocs(postsQuery);
 
@@ -605,25 +638,72 @@ export class NotificationService implements OnDestroy {
     // and we still fall through to reconciliation below.
     const posts = postsSnap.docs
       .map((d) => ({ ...initCachedBlogPost(), ...(d.data() as CachedBlogPost) }))
-      .filter((p) => p.id && !notifiedPostIds.has(p.id));
+      .filter((p) => p.id && !notifiedPostIds.has(p.id))
+      .sort((a, b) => (b.publishOn || 0) - (a.publishOn || 0));
 
     if (posts.length > 0) {
+      const max = NotificationService.MAX_BLOG_NOTIFICATIONS;
       const batch = writeBatch(this.db);
-      for (const post of posts) {
-        const ref = doc(notifCollection); // auto-generated ID
-        const fields = this.blogPostFields(feed, post);
-        const notification: MemberNotification = {
-          docId: ref.id,
-          markdown: fields.markdown,
-          // Stamp the notification with the post's publish date (not "now") so the
-          // date shown on the card reflects when the post was published.
-          createdAt: fields.data.lastSeenDateStr,
+
+      if (posts.length <= max) {
+        for (const post of posts) {
+          const ref = doc(notifCollection); // auto-generated ID
+          const fields = this.blogPostFields(feed, post);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: fields.data.lastSeenDateStr,
+            dismissed: false,
+            kind: NotificationKind.BlogPost,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+      } else {
+        const latestPosts = posts.slice(0, max);
+        const remainingPosts = posts.slice(max);
+
+        for (const post of latestPosts) {
+          const ref = doc(notifCollection);
+          const fields = this.blogPostFields(feed, post);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: fields.data.lastSeenDateStr,
+            dismissed: false,
+            kind: NotificationKind.BlogPost,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+
+        const count = remainingPosts.length;
+        const plural = count === 1 ? 'post' : 'posts';
+        const areaRoute = feed.collection === 'members-post' ? 'members-area' : 'instructors-area';
+        const summaryMarkdown = `📰 **${count}** more ${feed.label} ${plural}: [View in ${feed.label} Area](/${areaRoute})`;
+        const summaryRef = doc(notifCollection);
+        const newestRemaining = remainingPosts[0];
+        const lastSeenDateStr = newestRemaining.publishOn
+          ? new Date(newestRemaining.publishOn).toISOString()
+          : new Date().toISOString();
+
+        const summaryNotification: MemberNotification = {
+          docId: summaryRef.id,
+          markdown: summaryMarkdown,
+          createdAt: lastSeenDateStr,
           dismissed: false,
-          kind: NotificationKind.BlogPost,
-          data: fields.data,
+          kind: NotificationKind.BlogPostsSummary,
+          data: {
+            count,
+            feedLabel: feed.label,
+            feedCollection: feed.collection,
+            areaRoute,
+            lastSeenDateStr,
+          },
         };
-        batch.set(ref, notification);
+        batch.set(summaryRef, summaryNotification);
       }
+
       await batch.commit();
     }
 
@@ -699,27 +779,35 @@ export class NotificationService implements OnDestroy {
 
     const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
 
-    // Which proposed events have we already notified this admin about? Single
-    // field filter (no composite index needed).
+    // Which proposed events have we already notified this admin about?
     const existingSnap = await getDocs(
-      query(notifCollection, where('kind', '==', NotificationKind.PendingEventApproval)),
+      query(
+        notifCollection,
+        where('kind', 'in', [
+          NotificationKind.PendingEventApproval,
+          NotificationKind.PendingEventsSummary,
+        ]),
+      ),
     );
     const notifiedEventIds = new Set<string>();
+    const existingEventDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
-      const data = (d.data() as MemberNotification).data as { eventId?: string };
-      if (data?.eventId) notifiedEventIds.add(data.eventId);
+      const notif = firestoreDocToMemberNotification(d);
+      if (notif.kind === NotificationKind.PendingEventApproval) {
+        existingEventDocs.push(d);
+        const data = notif.data as { eventId?: string };
+        if (data?.eventId) notifiedEventIds.add(data.eventId);
+      }
     });
 
     // The events currently waiting for approval, newest proposals first.
     // Requires a (status, createdAt) composite index on the events collection.
-    // Note: orderBy('createdAt') excludes any proposed event missing a
-    // createdAt field — submitProposedEvent always sets it.
     const eventsSnap = await getDocs(
       query(
         collection(this.db, 'events'),
         where('status', '==', EventStatus.Proposed),
         orderBy('createdAt', 'desc'),
-        limit(NotificationService.MAX_PENDING_EVENT_NOTIFICATIONS),
+        limit(50),
       ),
     );
     // May be empty when no proposals are outstanding — we still fall through to
@@ -729,22 +817,56 @@ export class NotificationService implements OnDestroy {
       .filter((e) => !notifiedEventIds.has(e.docId));
 
     if (events.length > 0) {
+      const max = NotificationService.MAX_PENDING_EVENT_NOTIFICATIONS;
       const batch = writeBatch(this.db);
-      for (const event of events) {
-        const ref = doc(notifCollection); // auto-generated ID
-        const title = event.title || 'Untitled event';
-        const notification: MemberNotification = {
-          docId: ref.id,
-          markdown: this.pendingEventMarkdown(event.docId, title),
-          // Stamp with the proposal's creation time (not "now") so the card date
-          // reflects when the event was proposed.
-          createdAt: event.createdAt || new Date().toISOString(),
+
+      if (events.length <= max) {
+        for (const event of events) {
+          const ref = doc(notifCollection); // auto-generated ID
+          const title = event.title || 'Untitled event';
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: this.pendingEventMarkdown(event.docId, title),
+            createdAt: event.createdAt || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.PendingEventApproval,
+            data: { eventId: event.docId, title },
+          };
+          batch.set(ref, notification);
+        }
+      } else {
+        const latestEvents = events.slice(0, max);
+        const remainingEvents = events.slice(max);
+
+        for (const event of latestEvents) {
+          const ref = doc(notifCollection);
+          const title = event.title || 'Untitled event';
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: this.pendingEventMarkdown(event.docId, title),
+            createdAt: event.createdAt || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.PendingEventApproval,
+            data: { eventId: event.docId, title },
+          };
+          batch.set(ref, notification);
+        }
+
+        const count = remainingEvents.length;
+        const plural = count === 1 ? 'proposed event' : 'proposed events';
+        const summaryMarkdown = `🗓️ **${count}** more ${plural} awaiting approval: [View in Manage Events](/manage-events?status=proposed)`;
+        const summaryRef = doc(notifCollection);
+        const summaryNotification: MemberNotification = {
+          docId: summaryRef.id,
+          markdown: summaryMarkdown,
+          createdAt: remainingEvents[0].createdAt || new Date().toISOString(),
           dismissed: false,
-          kind: NotificationKind.PendingEventApproval,
-          data: { eventId: event.docId, title },
+          kind: NotificationKind.PendingEventsSummary,
+          data: { count },
         };
-        batch.set(ref, notification);
+        batch.set(summaryRef, summaryNotification);
       }
+
       await batch.commit();
     }
 
@@ -753,7 +875,7 @@ export class NotificationService implements OnDestroy {
     // cancelled (or deleted) is rewritten to say so and dismissed. A per-event
     // getDoc also lets us distinguish "no longer proposed" from "beyond the live
     // query's limit", which the create pass's capped query cannot.
-    await this.reconcileNotifications(existingSnap.docs, 'eventId', async (notif) => {
+    await this.reconcileNotifications(existingEventDocs, 'eventId', async (notif) => {
       const data = notif.data as NotificationEventData;
       const snap = await getDoc(doc(this.db, 'events', data.eventId));
       if (!snap.exists()) {
@@ -849,12 +971,23 @@ export class NotificationService implements OnDestroy {
     // Which order-issue notifications have we already created for this admin?
     // Single-field filter (no composite index needed).
     const existingSnap = await getDocs(
-      query(notifCollection, where('kind', '==', NotificationKind.OrderNeedsAttention)),
+      query(
+        notifCollection,
+        where('kind', 'in', [
+          NotificationKind.OrderNeedsAttention,
+          NotificationKind.OrderIssuesSummary,
+        ]),
+      ),
     );
     const notifiedOrderIds = new Set<string>();
+    const existingOrderDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
-      const data = (d.data() as MemberNotification).data as { orderDocId?: string };
-      if (data?.orderDocId) notifiedOrderIds.add(data.orderDocId);
+      const notif = firestoreDocToMemberNotification(d);
+      if (notif.kind === NotificationKind.OrderNeedsAttention) {
+        existingOrderDocs.push(d);
+        const data = notif.data as { orderDocId?: string };
+        if (data?.orderDocId) notifiedOrderIds.add(data.orderDocId);
+      }
     });
 
     // Orders flagged for attention. We filter by status only (an `in` filter on
@@ -870,27 +1003,60 @@ export class NotificationService implements OnDestroy {
     const orders = ordersSnap.docs
       .map((d) => firestoreDocToOrder(d))
       .filter((o) => !notifiedOrderIds.has(o.docId))
-      // Most recently updated first, then cap to avoid flooding the feed.
-      .sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''))
-      .slice(0, NotificationService.MAX_ORDER_ISSUE_NOTIFICATIONS);
+      // Most recently updated first
+      .sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''));
 
     if (orders.length > 0) {
+      const max = NotificationService.MAX_ORDER_ISSUE_NOTIFICATIONS;
       const batch = writeBatch(this.db);
-      for (const order of orders) {
-        const ref = doc(notifCollection); // auto-generated ID
-        const fields = this.orderIssueFields(order);
-        const notification: MemberNotification = {
-          docId: ref.id,
-          markdown: fields.markdown,
-          // Stamp with the order's last-updated time so the card date reflects the
-          // order rather than "now".
-          createdAt: order.lastUpdated || new Date().toISOString(),
+
+      if (orders.length <= max) {
+        for (const order of orders) {
+          const ref = doc(notifCollection); // auto-generated ID
+          const fields = this.orderIssueFields(order);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: order.lastUpdated || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.OrderNeedsAttention,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+      } else {
+        const latestOrders = orders.slice(0, max);
+        const remainingOrders = orders.slice(max);
+
+        for (const order of latestOrders) {
+          const ref = doc(notifCollection);
+          const fields = this.orderIssueFields(order);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: order.lastUpdated || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.OrderNeedsAttention,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+
+        const count = remainingOrders.length;
+        const plural = count === 1 ? 'order' : 'orders';
+        const summaryMarkdown = `📦 **${count}** more ${plural} need attention: [View in Manage Orders](/orders)`;
+        const summaryRef = doc(notifCollection);
+        const summaryNotification: MemberNotification = {
+          docId: summaryRef.id,
+          markdown: summaryMarkdown,
+          createdAt: remainingOrders[0].lastUpdated || new Date().toISOString(),
           dismissed: false,
-          kind: NotificationKind.OrderNeedsAttention,
-          data: fields.data,
+          kind: NotificationKind.OrderIssuesSummary,
+          data: { count },
         };
-        batch.set(ref, notification);
+        batch.set(summaryRef, summaryNotification);
       }
+
       await batch.commit();
     }
 
@@ -898,7 +1064,7 @@ export class NotificationService implements OnDestroy {
     // has its status/issues refreshed; an order that has since been resolved (no
     // longer in an attention status, or deleted) is rewritten to say so and
     // dismissed.
-    await this.reconcileNotifications(existingSnap.docs, 'orderDocId', async (notif) => {
+    await this.reconcileNotifications(existingOrderDocs, 'orderDocId', async (notif) => {
       const data = notif.data as NotificationOrderIssueData;
       const snap = await getDoc(doc(this.db, 'orders', data.orderDocId));
       if (!snap.exists()) {
@@ -947,6 +1113,214 @@ export class NotificationService implements OnDestroy {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Admin new upload notifications
+  // ---------------------------------------------------------------------------
+
+  // Surfaces newly uploaded materials across all members/instructors to admins.
+  // Idempotent: it finds the most recent upload timestamp we've already notified
+  // this admin about and only adds notifications for uploads created since.
+  // Up to MAX_NEW_UPLOAD_NOTIFICATIONS (5) get individual notifications; any
+  // additional uploads beyond that get a single summary notification with date
+  // range links to Manage Materials.
+  private async syncNewUploadNotifications(member: Member): Promise<void> {
+    if (this.newUploadsSyncedForMemberDocId === member.docId) return;
+    this.newUploadsSyncedForMemberDocId = member.docId;
+
+    const notifCollection = collection(this.db, 'members', member.docId, 'notifications');
+
+    // Find previous upload notifications to determine the cutoff timestamp and
+    // the set of upload IDs already notified for this admin.
+    const existingSnap = await getDocs(
+      query(
+        notifCollection,
+        where('kind', 'in', [
+          NotificationKind.NewUpload,
+          NotificationKind.NewUploadsSummary,
+        ]),
+      ),
+    );
+
+    let cutoffIso = '';
+    const notifiedUploadIds = new Set<string>();
+    const existingUploadDocs: QueryDocumentSnapshot[] = [];
+
+    existingSnap.forEach((d) => {
+      const notif = firestoreDocToMemberNotification(d);
+      if (notif.kind === NotificationKind.NewUpload) {
+        existingUploadDocs.push(d);
+        const data = notif.data as NotificationUploadData;
+        if (data?.uploadDocId) notifiedUploadIds.add(data.uploadDocId);
+        const ts = data?.uploadCreatedAt || notif.createdAt || '';
+        if (ts && ts > cutoffIso) cutoffIso = ts;
+      } else if (notif.kind === NotificationKind.NewUploadsSummary) {
+        const data = notif.data as NotificationUploadsSummaryData;
+        const ts = data?.lastSeenDateStr || data?.endDate || notif.createdAt || '';
+        if (ts && ts > cutoffIso) cutoffIso = ts;
+      }
+    });
+
+    const uploadsColGroup = collectionGroup(this.db, 'uploads');
+    const uploadsQuery = cutoffIso
+      ? query(uploadsColGroup, where('createdAt', '>', cutoffIso))
+      : uploadsColGroup;
+
+    const uploadsSnap = await getDocs(uploadsQuery);
+
+    let newUploads = uploadsSnap.docs
+      .map((d) => firestoreDocToUploadItem(d))
+      .filter(
+        (u) =>
+          u.docId &&
+          u.memberDocId !== member.docId &&
+          !notifiedUploadIds.has(u.docId),
+      );
+
+    if (cutoffIso) {
+      newUploads = newUploads.filter((u) => (u.createdAt || '') > cutoffIso);
+    }
+
+    // Sort newest first (descending by createdAt)
+    newUploads.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    if (newUploads.length > 0) {
+      const max = NotificationService.MAX_NEW_UPLOAD_NOTIFICATIONS;
+      const batch = writeBatch(this.db);
+
+      if (newUploads.length <= max) {
+        for (const upload of newUploads) {
+          const ref = doc(notifCollection);
+          const fields = this.uploadNotificationFields(upload);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: upload.createdAt || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.NewUpload,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+      } else {
+        const latestUploads = newUploads.slice(0, max);
+        const remainingUploads = newUploads.slice(max);
+
+        for (const upload of latestUploads) {
+          const ref = doc(notifCollection);
+          const fields = this.uploadNotificationFields(upload);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: fields.markdown,
+            createdAt: upload.createdAt || new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.NewUpload,
+            data: fields.data,
+          };
+          batch.set(ref, notification);
+        }
+
+        // 1 summary notification for the remaining older uploads
+        const oldestRemaining = remainingUploads[remainingUploads.length - 1];
+        const newestRemaining = remainingUploads[0];
+        const timeX = oldestRemaining.createdAt || oldestRemaining.date || '';
+        const timeY = newestRemaining.createdAt || newestRemaining.date || '';
+        const startDateStr = timeX.split('T')[0];
+        const endDateStr = timeY.split('T')[0];
+
+        const count = remainingUploads.length;
+        const plural = count === 1 ? 'upload' : 'uploads';
+        const dateDisplay = this.formatDateRangeDisplay(timeX, timeY);
+        const link = `/manage-materials?startDate=${encodeURIComponent(startDateStr)}&endDate=${encodeURIComponent(endDateStr)}`;
+        const summaryMarkdown = `📁 **${count}** more ${plural} ${dateDisplay}: [View in Materials Manager](${link})`;
+
+        const summaryRef = doc(notifCollection);
+        const summaryNotification: MemberNotification = {
+          docId: summaryRef.id,
+          markdown: summaryMarkdown,
+          createdAt: timeY || new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.NewUploadsSummary,
+          data: {
+            count,
+            startDate: startDateStr,
+            endDate: endDateStr,
+            lastSeenDateStr: timeY,
+          },
+        };
+        batch.set(summaryRef, summaryNotification);
+      }
+
+      await batch.commit();
+    }
+
+    // Reconcile already-surfaced upload notifications: update title/metadata if
+    // changed, or mark as removed + dismissed if deleted (or if uploaded by the user themselves).
+    await this.reconcileNotifications(existingUploadDocs, 'uploadDocId', async (notif) => {
+      const data = notif.data as NotificationUploadData;
+      if (!data?.memberDocId || !data?.uploadDocId) return null;
+      if (data.memberDocId === member.docId) {
+        return {
+          markdown: notif.markdown,
+          data: { ...data },
+          resolved: true,
+        };
+      }
+      try {
+        const snap = await getDoc(
+          doc(this.db, 'members', data.memberDocId, 'uploads', data.uploadDocId),
+        );
+        if (!snap.exists()) {
+          return {
+            markdown: `Upload "${data.uploadName || 'item'}" — removed`,
+            data: { ...data },
+            resolved: true,
+          };
+        }
+        const upload = firestoreDocToUploadItem(snap);
+        return { ...this.uploadNotificationFields(upload), resolved: false };
+      } catch (e) {
+        console.error('Failed to reconcile upload notification:', e);
+        return null;
+      }
+    });
+  }
+
+  // Formats a human-readable date range description, e.g. "on 2026-08-11" or "between 2026-08-01 and 2026-08-05".
+  private formatDateRangeDisplay(timeX: string, timeY: string): string {
+    const dX = timeX.split('T')[0] || timeX;
+    const dY = timeY.split('T')[0] || timeY;
+    if (dX === dY) {
+      return `on ${dX}`;
+    }
+    return `between ${dX} and ${dY}`;
+  }
+
+  // The markdown + data for an upload notification, shared by create and reconcile passes.
+  private uploadNotificationFields(upload: UploadItem): {
+    markdown: string;
+    data: NotificationUploadData;
+  } {
+    const uploader = upload.memberName
+      ? `${upload.memberName}${upload.memberId ? ` (${upload.memberId})` : ''}`
+      : (upload.memberId || 'a member');
+    const eventSuffix = upload.eventTitle ? ` for **${upload.eventTitle}**` : '';
+    const locationSuffix = upload.location ? ` in ${upload.location}` : '';
+    const link = `/manage-materials?q=${encodeURIComponent(upload.name)}`;
+    return {
+      markdown: `New upload from **${uploader}**: [${upload.name}](${link})${eventSuffix}${locationSuffix}`,
+      data: {
+        uploadDocId: upload.docId,
+        memberDocId: upload.memberDocId,
+        uploadName: upload.name,
+        uploaderName: upload.memberName || '',
+        uploaderMemberId: upload.memberId || '',
+        uploadCreatedAt: upload.createdAt,
+        eventDocId: upload.eventDocId || '',
+        eventTitle: upload.eventTitle || '',
+      },
+    };
+  }
+
   // Surfaces gradings that are completed (passed/not-passed) but not yet paid as
   // TODO notifications, for the student themselves and for the instructors
   // responsible for that student's grading. Idempotent and modelled on the
@@ -960,12 +1334,23 @@ export class NotificationService implements OnDestroy {
 
     // Which gradings have we already surfaced as unpaid for this member?
     const existingSnap = await getDocs(
-      query(notifCollection, where('kind', '==', NotificationKind.GradingUnpaid)),
+      query(
+        notifCollection,
+        where('kind', 'in', [
+          NotificationKind.GradingUnpaid,
+          NotificationKind.UnpaidGradingsSummary,
+        ]),
+      ),
     );
     const notifiedGradingIds = new Set<string>();
+    const existingGradingDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
-      const data = (d.data() as MemberNotification).data as { gradingDocId?: string };
-      if (data?.gradingDocId) notifiedGradingIds.add(data.gradingDocId);
+      const notif = firestoreDocToMemberNotification(d);
+      if (notif.kind === NotificationKind.GradingUnpaid) {
+        existingGradingDocs.push(d);
+        const data = notif.data as { gradingDocId?: string };
+        if (data?.gradingDocId) notifiedGradingIds.add(data.gradingDocId);
+      }
     });
 
     // Candidate gradings, de-duplicated by docId: the member's own gradings (as a
@@ -998,31 +1383,72 @@ export class NotificationService implements OnDestroy {
           !isGradingPaid(g) &&
           !notifiedGradingIds.has(g.docId),
       )
-      .slice(0, NotificationService.MAX_UNPAID_GRADING_NOTIFICATIONS);
+      .sort((a, b) =>
+        (b.gradingEventDate || b.lastUpdated || '').localeCompare(
+          a.gradingEventDate || a.lastUpdated || '',
+        ),
+      );
 
     // May be empty when nothing new is outstanding — we still fall through to
     // reconciliation below.
     if (unpaid.length > 0) {
+      const max = NotificationService.MAX_UNPAID_GRADING_NOTIFICATIONS;
       const batch = writeBatch(this.db);
-      for (const g of unpaid) {
-        const ref = doc(notifCollection);
-        const notification: MemberNotification = {
-          docId: ref.id,
-          markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+
+      if (unpaid.length <= max) {
+        for (const g of unpaid) {
+          const ref = doc(notifCollection);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingUnpaid,
+            data: { gradingDocId: g.docId, level: g.level },
+          };
+          batch.set(ref, notification);
+        }
+      } else {
+        const latestUnpaid = unpaid.slice(0, max);
+        const remainingUnpaid = unpaid.slice(max);
+
+        for (const g of latestUnpaid) {
+          const ref = doc(notifCollection);
+          const notification: MemberNotification = {
+            docId: ref.id,
+            markdown: this.unpaidGradingMarkdown(g, g.studentMemberDocId === member.docId),
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            kind: NotificationKind.GradingUnpaid,
+            data: { gradingDocId: g.docId, level: g.level },
+          };
+          batch.set(ref, notification);
+        }
+
+        const count = remainingUnpaid.length;
+        const plural = count === 1 ? 'unpaid grading' : 'unpaid gradings';
+        const isStudent = member.docId === remainingUnpaid[0].studentMemberDocId;
+        const link = member.instructorId ? '/gradings' : '/my-gradings';
+        const summaryMarkdown = `🥋 **${count}** more ${plural}: [View in Gradings](${link})`;
+        const summaryRef = doc(notifCollection);
+        const summaryNotification: MemberNotification = {
+          docId: summaryRef.id,
+          markdown: summaryMarkdown,
           createdAt: new Date().toISOString(),
           dismissed: false,
-          kind: NotificationKind.GradingUnpaid,
-          data: { gradingDocId: g.docId, level: g.level },
+          kind: NotificationKind.UnpaidGradingsSummary,
+          data: { count, isStudent },
         };
-        batch.set(ref, notification);
+        batch.set(summaryRef, summaryNotification);
       }
+
       await batch.commit();
     }
 
     // Reconcile already-surfaced unpaid-grading TODOs: a grading that is now paid
     // (or no longer completed, or deleted) is rewritten to say so and dismissed; an
     // outstanding one has its message refreshed in place.
-    await this.reconcileNotifications(existingSnap.docs, 'gradingDocId', async (notif) => {
+    await this.reconcileNotifications(existingGradingDocs, 'gradingDocId', async (notif) => {
       const data = notif.data as NotificationGradingData;
       const snap = await getDoc(doc(this.db, 'gradings', data.gradingDocId));
       if (!snap.exists()) {

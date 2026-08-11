@@ -49,6 +49,12 @@ export class NotificationsListComponent {
   // reached via the "view all" link to the dedicated notifications page.
   private static readonly HOME_MAX = 3;
 
+  protected syncError = this.notificationService.syncError;
+
+  protected onDismissError() {
+    this.notificationService.dismissSyncError();
+  }
+
   notifications = computed(() => {
     const list = this.notificationService.notifications();
     const settings = this.user()?.member?.notificationSettings;

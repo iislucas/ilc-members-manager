@@ -137,6 +137,33 @@
     &.tag-filter-item {
       min-width: 150px;
     }
+
+    .date-range-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      color: #1e40af;
+      font-size: 0.85rem;
+      font-weight: 500;
+
+      .clear-filter-btn {
+        padding: 0;
+        color: #60a5fa;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+
+        &:hover {
+          color: #1e40af;
+        }
+      }
+    }
   }
 
   .filter-input-wrapper {

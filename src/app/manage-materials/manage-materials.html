@@ -143,6 +143,22 @@
         </div>
       </div>
 
+      @if (selectedStartDate() || selectedEndDate()) {
+        <div class="filter-item date-range-item">
+          <span class="date-range-badge">
+            Range: {{ selectedStartDate() || '…' }} to {{ selectedEndDate() || '…' }}
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="clearDateRange()"
+              title="Clear date range filter"
+            >
+              <app-icon name="close" />
+            </button>
+          </span>
+        </div>
+      }
+
       <!-- Tag filter -->
       <div class="filter-item tag-filter-item">
         <label for="filterAdminTag">Tag:</label>

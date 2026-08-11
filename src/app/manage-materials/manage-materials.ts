@@ -10,6 +10,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -50,6 +51,24 @@ export class ManageMaterialsComponent implements OnInit {
 
   private viewSignals = this.routingService.signals[Views.ManageMaterials];
 
+  constructor() {
+    effect(() => {
+      const startDate = this.selectedStartDate().trim();
+      const endDate = this.selectedEndDate().trim();
+      const date = this.selectedDateFilter().trim();
+      const eventDocId = this.selectedEventFilter().trim();
+      const instructorId = this.selectedInstructorFilter().trim();
+
+      this.loadAllMaterials({
+        startDate,
+        endDate,
+        date,
+        eventDocId,
+        instructorId,
+      });
+    });
+  }
+
   // State signals
   materials = signal<UploadItem[]>([]);
   isLoading = signal(true);
@@ -60,6 +79,8 @@ export class ManageMaterialsComponent implements OnInit {
   searchQuery = computed(() => this.viewSignals.urlParams.q());
   selectedTagFilter = computed(() => this.viewSignals.urlParams.tag());
   selectedDateFilter = computed(() => this.viewSignals.urlParams.date());
+  selectedStartDate = computed(() => this.viewSignals.urlParams.startDate());
+  selectedEndDate = computed(() => this.viewSignals.urlParams.endDate());
   selectedEventFilter = computed(() => this.viewSignals.urlParams.eventId());
   selectedInstructorFilter = computed(
     () => this.viewSignals.urlParams.instructorId() || this.viewSignals.urlParams.memberId(),
@@ -140,6 +161,8 @@ export class ManageMaterialsComponent implements OnInit {
     const instructorFilter = this.selectedInstructorFilter();
     const eventFilter = this.selectedEventFilter();
     const dateFilter = this.selectedDateFilter().trim();
+    const startDateFilter = this.selectedStartDate().trim();
+    const endDateFilter = this.selectedEndDate().trim();
     const tagFilter = this.selectedTagFilter().trim().toLowerCase();
     const mediaType = this.selectedMediaType();
     const sort = this.sortOption();
@@ -178,6 +201,24 @@ export class ManageMaterialsComponent implements OnInit {
         if (dateFilter) {
           const itemDate = m.date || (m.createdAt ? m.createdAt.split('T')[0] : '');
           if (!itemDate.startsWith(dateFilter)) {
+            return false;
+          }
+        }
+
+        // Start date filter (inclusive)
+        if (startDateFilter) {
+          const itemDate = m.createdAt || m.date || '';
+          if (itemDate < startDateFilter) {
+            return false;
+          }
+        }
+
+        // End date filter (inclusive)
+        if (endDateFilter) {
+          const itemDate = m.createdAt || m.date || '';
+          const endBoundary =
+            endDateFilter.length === 10 ? `${endDateFilter}T23:59:59.999Z` : endDateFilter;
+          if (itemDate > endBoundary) {
             return false;
           }
         }
@@ -225,7 +266,6 @@ export class ManageMaterialsComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.loadAllMaterials();
     this.loadEvents();
   }
 
@@ -244,12 +284,18 @@ export class ManageMaterialsComponent implements OnInit {
     return this.eventsSet.get(eventDocId) || this.availableEvents().find((e) => e.docId === eventDocId);
   }
 
-  async loadAllMaterials() {
+  async loadAllMaterials(options?: {
+    startDate?: string;
+    endDate?: string;
+    date?: string;
+    eventDocId?: string;
+    instructorId?: string;
+  }) {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
     try {
-      const items = await this.dataService.getAllUploads();
+      const items = await this.dataService.getAllUploads(options);
       this.materials.set(items);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -270,6 +316,16 @@ export class ManageMaterialsComponent implements OnInit {
 
   setDateFilter(date: string) {
     this.viewSignals.urlParams.date.set(date);
+  }
+
+  setDateRange(startDate: string, endDate: string) {
+    this.viewSignals.urlParams.startDate.set(startDate);
+    this.viewSignals.urlParams.endDate.set(endDate);
+  }
+
+  clearDateRange() {
+    this.viewSignals.urlParams.startDate.set('');
+    this.viewSignals.urlParams.endDate.set('');
   }
 
   setMediaType(type: MediaTypeFilter) {

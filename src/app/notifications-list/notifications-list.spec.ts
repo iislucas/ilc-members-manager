@@ -43,6 +43,8 @@ describe('NotificationsListComponent', () => {
 
     mockNotificationService = {
       notifications: signal([mockNotif]),
+      syncError: signal<string | null>(null),
+      dismissSyncError: vi.fn(),
       dismissNotification: vi.fn().mockResolvedValue(undefined),
       dismissAll: vi.fn().mockResolvedValue(undefined),
     };
@@ -142,5 +144,21 @@ describe('NotificationsListComponent', () => {
 
     expect(fixture.nativeElement.querySelectorAll('.notification-card').length).toBe(2);
     expect(fixture.nativeElement.querySelector('.view-all-link')).toBeFalsy();
+  });
+
+  it('renders sync error banner and calls dismissSyncError when clicked', async () => {
+    mockNotificationService.syncError.set('The query requires an index: https://console.firebase.google.com/...');
+    fixture.detectChanges();
+    await new Promise((r) => setTimeout(r, 20));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const banner = fixture.nativeElement.querySelector('.notification-error-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('The query requires an index');
+
+    const dismissBtn = banner.querySelector('.dismiss-error-btn') as HTMLButtonElement;
+    dismissBtn.click();
+    expect(mockNotificationService.dismissSyncError).toHaveBeenCalled();
   });
 });

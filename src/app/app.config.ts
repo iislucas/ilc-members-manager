@@ -188,7 +188,7 @@ export const initPathPatterns = {
     'q', 'tag', 'date', 'eventId', 'type', 'location',
   ]),
   [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, [
-    'q', 'tag', 'date', 'eventId', 'type', 'instructorId', 'memberId', 'location',
+    'q', 'tag', 'date', 'startDate', 'endDate', 'eventId', 'type', 'instructorId', 'memberId', 'location',
   ]),
 };
 

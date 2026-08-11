@@ -38,6 +38,8 @@ describe('NotificationsViewComponent', () => {
 
     mockNotificationService = {
       allNotifications: signal([unreadNotif, readNotif]),
+      syncError: signal<string | null>(null),
+      dismissSyncError: vi.fn(),
       subscribeToAllNotifications: vi.fn(),
       unsubscribeFromAllNotifications: vi.fn(),
       dismissNotification: vi.fn().mockResolvedValue(undefined),
@@ -131,5 +133,21 @@ describe('NotificationsViewComponent', () => {
   it('should unsubscribe on destroy', () => {
     fixture.destroy();
     expect(mockNotificationService.unsubscribeFromAllNotifications).toHaveBeenCalled();
+  });
+
+  it('renders sync error banner and calls dismissSyncError when clicked', async () => {
+    mockNotificationService.syncError.set('Error querying uploads: index missing');
+    fixture.detectChanges();
+    await new Promise((r) => setTimeout(r, 20));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const banner = fixture.nativeElement.querySelector('.notification-error-banner');
+    expect(banner).toBeTruthy();
+    expect(banner.textContent).toContain('Error querying uploads: index missing');
+
+    const dismissBtn = banner.querySelector('.dismiss-error-btn') as HTMLButtonElement;
+    dismissBtn.click();
+    expect(mockNotificationService.dismissSyncError).toHaveBeenCalled();
   });
 });

@@ -588,6 +588,18 @@ export enum NotificationKind {
   MembershipActivated = 'MembershipActivated',
   InstructorLicensePending = 'InstructorLicensePending',
   InstructorLicenseActivated = 'InstructorLicenseActivated',
+  // Admin-only: a member/instructor uploaded a new material (video/photo/file).
+  NewUpload = 'NewUpload',
+  // Admin-only: summary notification when multiple new uploads arrived in a batch.
+  NewUploadsSummary = 'NewUploadsSummary',
+  // Summary notification when multiple new blog posts arrived in a batch.
+  BlogPostsSummary = 'BlogPostsSummary',
+  // Admin-only: summary notification when multiple proposed events are waiting for approval.
+  PendingEventsSummary = 'PendingEventsSummary',
+  // Admin-only: summary notification when multiple orders need manual attention.
+  OrderIssuesSummary = 'OrderIssuesSummary',
+  // Summary notification when multiple completed gradings are unpaid.
+  UnpaidGradingsSummary = 'UnpaidGradingsSummary',
 }
 
 // Two presentation styles for notifications: an 'action' has an expectation/TODO
@@ -603,8 +615,11 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.GradingManagerAdded,
   NotificationKind.GradingPurchased,
   NotificationKind.GradingUnpaid,
+  NotificationKind.UnpaidGradingsSummary,
   NotificationKind.PendingEventApproval,
+  NotificationKind.PendingEventsSummary,
   NotificationKind.OrderNeedsAttention,
+  NotificationKind.OrderIssuesSummary,
   NotificationKind.InstructorLicenseActivated,
 ]);
 
@@ -712,6 +727,46 @@ export interface NotificationMembershipMarkedInactiveData {
   instructorName: string;
 }
 
+export interface NotificationUploadData {
+  // Firestore doc ID of the upload item in /members/{memberDocId}/uploads/{uploadDocId}
+  uploadDocId: string;
+  memberDocId: string;
+  uploadName: string;
+  uploaderName?: string;
+  uploaderMemberId?: string;
+  uploadCreatedAt?: string;
+  eventDocId?: string;
+  eventTitle?: string;
+}
+
+export interface NotificationUploadsSummaryData {
+  count: number;
+  startDate: string;
+  endDate: string;
+  lastSeenDateStr?: string;
+}
+
+export interface NotificationBlogPostsSummaryData {
+  count: number;
+  feedLabel: string;
+  feedCollection: string;
+  areaRoute: string;
+  lastSeenDateStr?: string;
+}
+
+export interface NotificationPendingEventsSummaryData {
+  count: number;
+}
+
+export interface NotificationOrderIssuesSummaryData {
+  count: number;
+}
+
+export interface NotificationUnpaidGradingsSummaryData {
+  count: number;
+  isStudent?: boolean;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -796,6 +851,30 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.MembershipMarkedInactive;
     data: NotificationMembershipMarkedInactiveData;
+  }
+  | {
+    kind: NotificationKind.NewUpload;
+    data: NotificationUploadData;
+  }
+  | {
+    kind: NotificationKind.NewUploadsSummary;
+    data: NotificationUploadsSummaryData;
+  }
+  | {
+    kind: NotificationKind.BlogPostsSummary;
+    data: NotificationBlogPostsSummaryData;
+  }
+  | {
+    kind: NotificationKind.PendingEventsSummary;
+    data: NotificationPendingEventsSummaryData;
+  }
+  | {
+    kind: NotificationKind.OrderIssuesSummary;
+    data: NotificationOrderIssuesSummaryData;
+  }
+  | {
+    kind: NotificationKind.UnpaidGradingsSummary;
+    data: NotificationUnpaidGradingsSummaryData;
   }
 );
 

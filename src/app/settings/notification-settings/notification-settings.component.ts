@@ -177,6 +177,18 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Removed by Your Primary Instructor';
       case NotificationKind.MembershipMarkedInactive:
         return 'Membership Marked Inactive';
+      case NotificationKind.NewUpload:
+        return 'New Uploaded Material (Admins)';
+      case NotificationKind.NewUploadsSummary:
+        return 'New Uploads Summary (Admins)';
+      case NotificationKind.BlogPostsSummary:
+        return 'New Blog Posts Summary';
+      case NotificationKind.PendingEventsSummary:
+        return 'Pending Events Summary (Admins)';
+      case NotificationKind.OrderIssuesSummary:
+        return 'Order Issues Summary (Admins)';
+      case NotificationKind.UnpaidGradingsSummary:
+        return 'Unpaid Gradings Summary';
       default:
         return kind;
     }

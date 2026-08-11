@@ -52,6 +52,12 @@ export class NotificationsViewComponent implements OnDestroy {
   // Set of notification IDs currently undergoing the delete collapse animation.
   protected deletingIds = signal<Set<string>>(new Set());
 
+  protected syncError = this.notificationService.syncError;
+
+  protected onDismissError() {
+    this.notificationService.dismissSyncError();
+  }
+
   constructor() {
     this.notificationService.subscribeToAllNotifications();
   }

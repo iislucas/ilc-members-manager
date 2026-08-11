@@ -40,6 +40,8 @@ describe('HomeComponent', () => {
           useValue: {
             notifications: signal([]),
             activeAlerts: signal([]),
+            syncError: signal(null),
+            dismissSyncError: vi.fn(),
             markAlertAsDismissed: vi.fn(),
           },
         },

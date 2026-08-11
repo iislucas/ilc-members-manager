@@ -15,8 +15,11 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     ...actual,
     writeBatch: vi.fn(),
     getDocs: vi.fn(),
+    getDoc: vi.fn(),
     query: vi.fn((...a: unknown[]) => a),
     collection: vi.fn((...a: unknown[]) => ({ __collection: a })),
+    collectionGroup: vi.fn((...a: unknown[]) => ({ __collectionGroup: a })),
+    doc: vi.fn((...a: unknown[]) => ({ id: 'mock-doc-id', __doc: a })),
     where: vi.fn((...a: unknown[]) => ({ __where: a })),
     limit: vi.fn((...a: unknown[]) => ({ __limit: a })),
   };
@@ -403,6 +406,368 @@ describe('NotificationService', () => {
       expect(fields(order).markdown).toBe(
         'Order [#cs_9](/order-view/o3) failed with an error',
       );
+    });
+  });
+
+  describe('upload notifications', () => {
+    const uploadFields = (upload: unknown) => (service as any).uploadNotificationFields(upload);
+    const dateRangeDisplay = (x: string, y: string) => (service as any).formatDateRangeDisplay(x, y);
+
+    it('generates markdown with uploader, link, event, and location for uploadNotificationFields', () => {
+      const upload = {
+        docId: 'up1',
+        memberDocId: 'mem1',
+        name: 'Lesson 1.mp4',
+        memberName: 'Master Sam Chin',
+        memberId: '1',
+        eventDocId: 'ev1',
+        eventTitle: 'Autumn Intensive',
+        location: 'San Jose',
+        createdAt: '2026-08-11T12:00:00Z',
+      };
+      const result = uploadFields(upload);
+      expect(result.markdown).toBe(
+        'New upload from **Master Sam Chin (1)**: [Lesson 1.mp4](/manage-materials?q=Lesson%201.mp4) for **Autumn Intensive** in San Jose',
+      );
+      expect(result.data.uploadDocId).toBe('up1');
+      expect(result.data.memberDocId).toBe('mem1');
+    });
+
+    it('formats date range display correctly for same date and different dates', () => {
+      expect(dateRangeDisplay('2026-08-11T10:00:00Z', '2026-08-11T18:00:00Z')).toBe('on 2026-08-11');
+      expect(dateRangeDisplay('2026-08-01T10:00:00Z', '2026-08-05T18:00:00Z')).toBe('between 2026-08-01 and 2026-08-05');
+    });
+
+    it('creates individual notifications when new uploads count <= 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing upload notifications: empty (no prior notifications)
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) collection group query on uploads: returns 3 uploads
+      const uploads = [
+        {
+          docId: 'up3',
+          memberDocId: 'mem1',
+          name: 'Video3.mp4',
+          memberName: 'Alice',
+          createdAt: '2026-08-11T15:00:00Z',
+        },
+        {
+          docId: 'up2',
+          memberDocId: 'mem1',
+          name: 'Video2.mp4',
+          memberName: 'Alice',
+          createdAt: '2026-08-11T14:00:00Z',
+        },
+        {
+          docId: 'up1',
+          memberDocId: 'mem2',
+          name: 'Video1.mp4',
+          memberName: 'Bob',
+          createdAt: '2026-08-11T13:00:00Z',
+        },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: uploads.map((u) => ({ id: u.docId, data: () => u })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const member = { docId: 'admin1', isAdmin: true } as any;
+      await (service as any).syncNewUploadNotifications(member);
+
+      expect(writes).toHaveLength(3);
+      expect(writes[0].notif.kind).toBe(NotificationKind.NewUpload);
+      expect(writes[0].notif.markdown).toContain('Video3.mp4');
+      expect(writes[1].notif.kind).toBe(NotificationKind.NewUpload);
+      expect(writes[2].notif.kind).toBe(NotificationKind.NewUpload);
+    });
+
+    it('creates 3 individual notifications and 1 summary notification when new uploads count > 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing upload notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) collection group query on uploads: returns 7 uploads
+      const uploads = [
+        { docId: 'up7', memberDocId: 'm1', name: 'V7.mp4', memberName: 'User', createdAt: '2026-08-07T12:00:00Z' },
+        { docId: 'up6', memberDocId: 'm1', name: 'V6.mp4', memberName: 'User', createdAt: '2026-08-06T12:00:00Z' },
+        { docId: 'up5', memberDocId: 'm1', name: 'V5.mp4', memberName: 'User', createdAt: '2026-08-05T12:00:00Z' },
+        { docId: 'up4', memberDocId: 'm1', name: 'V4.mp4', memberName: 'User', createdAt: '2026-08-04T12:00:00Z' },
+        { docId: 'up3', memberDocId: 'm1', name: 'V3.mp4', memberName: 'User', createdAt: '2026-08-03T12:00:00Z' },
+        { docId: 'up2', memberDocId: 'm1', name: 'V2.mp4', memberName: 'User', createdAt: '2026-08-02T12:00:00Z' },
+        { docId: 'up1', memberDocId: 'm1', name: 'V1.mp4', memberName: 'User', createdAt: '2026-08-01T12:00:00Z' },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: uploads.map((u) => ({ id: u.docId, data: () => u })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const member = { docId: 'admin2', isAdmin: true } as any;
+      await (service as any).syncNewUploadNotifications(member);
+
+      // 3 individual + 1 summary = 4 notifications
+      expect(writes).toHaveLength(4);
+
+      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.NewUpload);
+      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.NewUploadsSummary);
+
+      expect(individuals).toHaveLength(3);
+      expect(summaries).toHaveLength(1);
+
+      const summary = summaries[0].notif;
+      expect(summary.markdown).toContain('**4** more uploads between 2026-08-01 and 2026-08-04');
+      expect(summary.markdown).toContain('/manage-materials?startDate=2026-08-01&endDate=2026-08-04');
+      expect((summary.data as any).count).toBe(4);
+      expect((summary.data as any).startDate).toBe('2026-08-01');
+      expect((summary.data as any).endDate).toBe('2026-08-04');
+    });
+
+    it('ignores uploads where memberDocId equals the admin member docId', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing upload notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) collection group query on uploads: includes 1 self upload and 1 other upload
+      const uploads = [
+        { docId: 'up-self', memberDocId: 'admin1', name: 'MyVid.mp4', memberName: 'Admin', createdAt: '2026-08-11T12:00:00Z' },
+        { docId: 'up-other', memberDocId: 'other-mem', name: 'OtherVid.mp4', memberName: 'Other', createdAt: '2026-08-11T11:00:00Z' },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: uploads.map((u) => ({ id: u.docId, data: () => u })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const member = { docId: 'admin1', isAdmin: true } as any;
+      await (service as any).syncNewUploadNotifications(member);
+
+      expect(writes).toHaveLength(1);
+      expect(writes[0].notif.data.uploadDocId).toBe('up-other');
+    });
+  });
+
+  describe('blog posts summary notifications', () => {
+    it('creates 3 individual notifications and 1 summary notification when new blog posts count > 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) posts collection query: returns 5 posts
+      const posts = [
+        { id: 'p5', title: 'Post 5', slug: 'post-5', publishOn: 1700005000000 },
+        { id: 'p4', title: 'Post 4', slug: 'post-4', publishOn: 1700004000000 },
+        { id: 'p3', title: 'Post 3', slug: 'post-3', publishOn: 1700003000000 },
+        { id: 'p2', title: 'Post 2', slug: 'post-2', publishOn: 1700002000000 },
+        { id: 'p1', title: 'Post 1', slug: 'post-1', publishOn: 1700001000000 },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: posts.map((p) => ({ id: p.id, data: () => p })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const feed = { collection: 'members-post', label: 'Members', route: 'members-area/post' };
+      await (service as any).syncBlogFeedNotifications('mem1', feed);
+
+      expect(writes).toHaveLength(4);
+      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.BlogPost);
+      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.BlogPostsSummary);
+
+      expect(individuals).toHaveLength(3);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].notif.markdown).toContain('**2** more Members posts: [View in Members Area](/members-area)');
+      expect((summaries[0].notif.data as any).count).toBe(2);
+    });
+  });
+
+  describe('pending events summary notifications', () => {
+    it('creates 3 individual notifications and 1 summary notification when pending events > 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) events query: returns 5 proposed events
+      const events = [
+        { docId: 'e5', title: 'Event 5', status: 'proposed', createdAt: '2026-08-05T12:00:00Z' },
+        { docId: 'e4', title: 'Event 4', status: 'proposed', createdAt: '2026-08-04T12:00:00Z' },
+        { docId: 'e3', title: 'Event 3', status: 'proposed', createdAt: '2026-08-03T12:00:00Z' },
+        { docId: 'e2', title: 'Event 2', status: 'proposed', createdAt: '2026-08-02T12:00:00Z' },
+        { docId: 'e1', title: 'Event 1', status: 'proposed', createdAt: '2026-08-01T12:00:00Z' },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: events.map((e) => ({ id: e.docId, data: () => e })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const member = { docId: 'admin1', isAdmin: true } as any;
+      await (service as any).syncPendingEventNotifications(member);
+
+      expect(writes).toHaveLength(4);
+      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.PendingEventApproval);
+      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.PendingEventsSummary);
+
+      expect(individuals).toHaveLength(3);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].notif.markdown).toContain('**2** more proposed events awaiting approval: [View in Manage Events](/manage-events?status=proposed)');
+      expect((summaries[0].notif.data as any).count).toBe(2);
+    });
+  });
+
+  describe('order issues summary notifications', () => {
+    it('creates 3 individual notifications and 1 summary notification when order issues > 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+
+      // 1) existing notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // 2) orders query: returns 5 order issues
+      const orders = [
+        { docId: 'o5', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-05T12:00:00Z' },
+        { docId: 'o4', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-04T12:00:00Z' },
+        { docId: 'o3', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-03T12:00:00Z' },
+        { docId: 'o2', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-02T12:00:00Z' },
+        { docId: 'o1', ilcAppOrderStatus: 'error', lastUpdated: '2026-08-01T12:00:00Z' },
+      ];
+
+      getDocsMock.mockResolvedValueOnce({
+        docs: orders.map((o) => ({ id: o.docId, data: () => o })),
+      });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const member = { docId: 'admin1', isAdmin: true } as any;
+      await (service as any).syncOrderIssueNotifications(member);
+
+      expect(writes).toHaveLength(4);
+      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.OrderNeedsAttention);
+      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.OrderIssuesSummary);
+
+      expect(individuals).toHaveLength(3);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].notif.markdown).toContain('**2** more orders need attention: [View in Manage Orders](/orders)');
+      expect((summaries[0].notif.data as any).count).toBe(2);
+    });
+  });
+
+  describe('unpaid gradings summary notifications', () => {
+    it('creates 3 individual notifications and 1 summary notification when unpaid gradings > 3', async () => {
+      const getDocsMock = getDocs as unknown as ReturnType<typeof vi.fn>;
+      const getDocMock = (await import('firebase/firestore')).getDoc as unknown as ReturnType<typeof vi.fn>;
+      getDocsMock.mockReset();
+      getDocMock.mockReset();
+
+      // 1) existing notifications: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      // Member with 5 gradings
+      const member = {
+        docId: 'mem_unpaid_1',
+        instructorId: 'US100',
+        gradingDocIds: ['g1', 'g2', 'g3', 'g4', 'g5'],
+      } as any;
+
+      for (let i = 1; i <= 5; i++) {
+        getDocMock.mockResolvedValueOnce({
+          exists: () => true,
+          id: `g${i}`,
+          data: () => ({
+            docId: `g${i}`,
+            level: `Level ${i}`,
+            status: 'passed',
+            paymentStatus: 'not-yet-paid',
+            gradingEventDate: `2026-08-0${i}`,
+          }),
+        });
+      }
+
+      // Instructor mirror query: empty
+      getDocsMock.mockResolvedValueOnce({ docs: [], forEach: vi.fn() });
+
+      const writes: { notif: MemberNotification }[] = [];
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        set: (_ref: unknown, notif: MemberNotification) => writes.push({ notif }),
+        update: vi.fn(),
+        commit: vi.fn().mockResolvedValue(undefined),
+      });
+
+      await (service as any).syncUnpaidGradingNotifications(member);
+
+      expect(writes).toHaveLength(4);
+      const individuals = writes.filter((w) => w.notif.kind === NotificationKind.GradingUnpaid);
+      const summaries = writes.filter((w) => w.notif.kind === NotificationKind.UnpaidGradingsSummary);
+
+      expect(individuals).toHaveLength(3);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].notif.markdown).toContain('**2** more unpaid gradings: [View in Gradings](/gradings)');
+      expect((summaries[0].notif.data as any).count).toBe(2);
+    });
+  });
+
+  describe('syncError', () => {
+    it('sets and formats sync error with clickable markdown links for URLs', () => {
+      service.setSyncError(
+        'Failed to sync uploads',
+        new Error('Missing index: https://console.firebase.google.com/indexes?create=123 for collection'),
+      );
+      expect(service.syncError()).toBe(
+        'Failed to sync uploads: Missing index: [https://console.firebase.google.com/indexes?create=123](https://console.firebase.google.com/indexes?create=123) for collection',
+      );
+    });
+
+    it('clears sync error on dismissSyncError', () => {
+      service.setSyncError('Failed', new Error('Something broke'));
+      expect(service.syncError()).toBeTruthy();
+      service.dismissSyncError();
+      expect(service.syncError()).toBeNull();
     });
   });
 });

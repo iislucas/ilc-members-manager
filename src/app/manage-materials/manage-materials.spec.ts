@@ -300,4 +300,23 @@ describe('ManageMaterialsComponent', () => {
     component.filterByDate(item1.date);
     expect(component.selectedDateFilter()).toBe('2026-05-10');
   });
+
+  it('should filter by startDate and endDate range and clearDateRange', async () => {
+    await component.loadAllMaterials();
+
+    component.setDateRange('2026-01-01', '2026-12-31');
+    expect(component.selectedStartDate()).toBe('2026-01-01');
+    expect(component.selectedEndDate()).toBe('2026-12-31');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].docId).toBe('upload1');
+
+    component.setDateRange('2025-01-01', '2025-12-31');
+    expect(component.filteredMaterials().length).toBe(1);
+    expect(component.filteredMaterials()[0].docId).toBe('upload2');
+
+    component.clearDateRange();
+    expect(component.selectedStartDate()).toBe('');
+    expect(component.selectedEndDate()).toBe('');
+    expect(component.filteredMaterials().length).toBe(2);
+  });
 });

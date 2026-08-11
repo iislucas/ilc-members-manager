@@ -102,5 +102,55 @@ describe('DataManagerService - searchEvents', () => {
     expect(uploads[0].docId).toBe('up2');
     expect(uploads[1].docId).toBe('up1');
   });
+
+  describe('getAllUploads', () => {
+    it('should query all uploads with orderBy createdAt desc when no options are provided', async () => {
+      const mockDocs = [
+        { id: 'up1', data: () => ({ name: 'V1', createdAt: '2026-08-01T00:00:00Z' }) },
+        { id: 'up2', data: () => ({ name: 'V2', createdAt: '2026-08-05T00:00:00Z' }) },
+      ];
+      const getDocsMock = vi.mocked(getDocs);
+      getDocsMock.mockResolvedValueOnce({ docs: mockDocs } as any);
+
+      const items = await service.getAllUploads();
+      expect(items).toHaveLength(2);
+      expect(items[0].docId).toBe('up2');
+      expect(items[1].docId).toBe('up1');
+    });
+
+    it('should build date range query when startDate and endDate are provided', async () => {
+      const mockDocs = [
+        { id: 'up1', data: () => ({ name: 'V1', createdAt: '2026-08-02T00:00:00Z' }) },
+      ];
+      const getDocsMock = vi.mocked(getDocs);
+      getDocsMock.mockResolvedValueOnce({ docs: mockDocs } as any);
+
+      const items = await service.getAllUploads({ startDate: '2026-08-01', endDate: '2026-08-05' });
+      expect(items).toHaveLength(1);
+      expect(items[0].docId).toBe('up1');
+    });
+
+    it('should build single date query when date is provided', async () => {
+      const mockDocs = [
+        { id: 'up1', data: () => ({ name: 'V1', createdAt: '2026-08-03T12:00:00Z' }) },
+      ];
+      const getDocsMock = vi.mocked(getDocs);
+      getDocsMock.mockResolvedValueOnce({ docs: mockDocs } as any);
+
+      const items = await service.getAllUploads({ date: '2026-08-03' });
+      expect(items).toHaveLength(1);
+    });
+
+    it('should query by eventDocId when eventDocId is provided', async () => {
+      const mockDocs = [
+        { id: 'up1', data: () => ({ name: 'V1', eventDocId: 'ev1', createdAt: '2026-08-01T00:00:00Z' }) },
+      ];
+      const getDocsMock = vi.mocked(getDocs);
+      getDocsMock.mockResolvedValueOnce({ docs: mockDocs } as any);
+
+      const items = await service.getAllUploads({ eventDocId: 'ev1' });
+      expect(items).toHaveLength(1);
+    });
+  });
 });
 

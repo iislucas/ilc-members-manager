@@ -19,6 +19,7 @@ import {
   getFirestore,
   onSnapshot,
   query,
+  Query,
   Timestamp,
   serverTimestamp,
   orderBy,
@@ -1653,11 +1654,63 @@ export class DataManagerService {
   }
 
   /**
-   * Admin-only: fetches all uploaded materials across all instructors via collection group.
+   * Admin-only: fetches uploaded materials across all instructors via collection group.
+   * Supports server-side filtering by startDate, endDate, date, eventDocId, or instructorId.
    */
-  async getAllUploads(): Promise<UploadItem[]> {
+  async getAllUploads(options?: {
+    startDate?: string;
+    endDate?: string;
+    date?: string;
+    eventDocId?: string;
+    instructorId?: string;
+    limitCount?: number;
+  }): Promise<UploadItem[]> {
     const colGroup = collectionGroup(this.db, 'uploads');
-    const snap = await getDocs(colGroup);
+    let q: Query = colGroup;
+
+    if (options?.startDate || options?.endDate) {
+      const startIso = options.startDate
+        ? (options.startDate.length === 10 ? `${options.startDate}T00:00:00.000Z` : options.startDate)
+        : '';
+      const endIso = options.endDate
+        ? (options.endDate.length === 10 ? `${options.endDate}T23:59:59.999Z` : options.endDate)
+        : '';
+
+      if (startIso && endIso) {
+        q = query(
+          colGroup,
+          where('createdAt', '>=', startIso),
+          where('createdAt', '<=', endIso),
+          orderBy('createdAt', 'desc'),
+        );
+      } else if (startIso) {
+        q = query(colGroup, where('createdAt', '>=', startIso), orderBy('createdAt', 'desc'));
+      } else if (endIso) {
+        q = query(colGroup, where('createdAt', '<=', endIso), orderBy('createdAt', 'desc'));
+      }
+    } else if (options?.date) {
+      const dateStr = options.date.trim();
+      const startIso = `${dateStr}T00:00:00.000Z`;
+      const endIso = `${dateStr}T23:59:59.999Z`;
+      q = query(
+        colGroup,
+        where('createdAt', '>=', startIso),
+        where('createdAt', '<=', endIso),
+        orderBy('createdAt', 'desc'),
+      );
+    } else if (options?.eventDocId) {
+      q = query(colGroup, where('eventDocId', '==', options.eventDocId));
+    } else if (options?.instructorId) {
+      q = query(colGroup, where('instructorId', '==', options.instructorId));
+    } else {
+      q = query(colGroup, orderBy('createdAt', 'desc'));
+    }
+
+    if (options?.limitCount && options.limitCount > 0) {
+      q = query(q, limit(options.limitCount));
+    }
+
+    const snap = await getDocs(q);
     const items = snap.docs.map((d) => firestoreDocToUploadItem(d));
     items.sort((a, b) => (b.date || b.createdAt).localeCompare(a.date || a.createdAt));
     return items;
