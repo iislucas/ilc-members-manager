@@ -17,7 +17,11 @@ import Stripe from 'stripe';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { allowedOrigins } from './common';
-import { getStripeClient, stripeSecretKey } from './stripe-common';
+import {
+  formatLineItemDescription,
+  getStripeClient,
+  stripeSecretKey,
+} from './stripe-common';
 import {
   CheckoutLineItem,
   CheckoutSessionSummary,
@@ -115,7 +119,7 @@ export const getStripeCheckoutSession = onCall<
   let session: Stripe.Checkout.Session;
   try {
     session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['line_items'],
+      expand: ['line_items.data.price'],
     });
   } catch {
     throw new HttpsError('not-found', 'Unknown checkout session.');
@@ -123,7 +127,10 @@ export const getStripeCheckoutSession = onCall<
 
   const lineItems: CheckoutLineItem[] = (session.line_items?.data ?? []).map(
     (item) => ({
-      description: item.description ?? '',
+      description: formatLineItemDescription(
+        item.description ?? '',
+        item.price?.nickname,
+      ),
       quantity: item.quantity,
       amountTotal: item.amount_total,
       currency: item.currency,

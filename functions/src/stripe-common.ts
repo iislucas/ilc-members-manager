@@ -28,3 +28,30 @@ export function getStripeClient(): Stripe {
     apiVersion: environment.stripe.apiVersion as StripeApiVersion,
   });
 }
+
+/**
+ * Format a line item description to show the specific instance/level/variant.
+ * E.g., for product "GRADING : Student Levels" and nickname "Student Level 8",
+ * returns "GRADING : Student Level 8".
+ */
+export function formatLineItemDescription(
+  productDescription: string,
+  priceNickname: string | null | undefined,
+): string {
+  const desc = productDescription.trim();
+  const nick = (priceNickname ?? '').trim();
+  if (!nick || nick === desc) {
+    return desc;
+  }
+
+  // If the product description has a category prefix like "GRADING : Student Levels"
+  if (desc.includes(' : ')) {
+    const [category] = desc.split(' : ');
+    if (nick.startsWith(category + ' : ')) {
+      return nick;
+    }
+    return `${category} : ${nick}`;
+  }
+
+  return `${desc} (${nick})`;
+}

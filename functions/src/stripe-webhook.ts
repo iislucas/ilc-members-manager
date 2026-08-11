@@ -28,6 +28,7 @@ import {
   StripeOrderLineItem,
 } from './data-model';
 import {
+  formatLineItemDescription,
   getStripeClient,
   stripeSecretKey,
   stripeWebhookSecret,
@@ -68,7 +69,10 @@ function mapSessionLineItems(
     return {
       productId: getObjectId(product) ?? null,
       priceId: price?.id ?? null,
-      description: item.description ?? '',
+      description: formatLineItemDescription(
+        item.description ?? '',
+        price?.nickname,
+      ),
       quantity: item.quantity,
       amountTotal: item.amount_total,
       currency: item.currency,
@@ -80,10 +84,14 @@ function mapInvoiceLineItems(invoice: Stripe.Invoice): StripeOrderLineItem[] {
   const lines = invoice.lines?.data ?? [];
   return lines.map((line) => {
     const priceDetails = line.pricing?.price_details;
+    const price = (line as unknown as { price?: Stripe.Price }).price;
     return {
       productId: priceDetails?.product ?? null,
       priceId: priceDetails?.price ?? null,
-      description: line.description ?? '',
+      description: formatLineItemDescription(
+        line.description ?? '',
+        price?.nickname,
+      ),
       quantity: line.quantity ?? null,
       amountTotal: line.amount,
       currency: line.currency,
@@ -209,6 +217,25 @@ export function subscriptionToCancellationOrder(
   };
 }
 
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        !(value instanceof admin.firestore.Timestamp)
+      ) {
+        result[key] = stripUndefined(value as Record<string, unknown>);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result as Partial<T>;
+}
+
 /**
  * Idempotently writes a StripeOrder: if a doc with the same `stripeObjectId`
  * already exists, it is updated in place; otherwise a new doc is created.
@@ -219,10 +246,11 @@ async function upsertStripeOrder(
   order: StripeOrder,
 ): Promise<void> {
   const { docId, lastUpdated, ...rest } = order;
-  const docData = {
+  const rawData = {
     ...rest,
     lastUpdated: admin.firestore.Timestamp.fromDate(new Date(lastUpdated)),
   };
+  const docData = stripUndefined(rawData);
 
   const existing = await db
     .collection('orders')
@@ -336,10 +364,10 @@ export const stripeWebhook = onRequest(
     } catch (error) {
       // Return 500 so Stripe retries with backoff.
       const message =
-        error instanceof Error ? error.message : 'Unexpected error';
+        error instanceof Error ? error.stack || error.message : String(error);
       logger.error('Stripe webhook handler failed', {
         eventType: event.type,
-        message,
+        error: message,
       });
       res.status(500).send(message);
     }

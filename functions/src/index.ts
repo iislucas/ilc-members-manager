@@ -9,6 +9,7 @@
 import * as admin from 'firebase-admin';
 
 admin.initializeApp();
+admin.firestore().settings({ ignoreUndefinedProperties: true });
 
 export { getCalendarEvents } from './calendar';
 export { getUserDetails } from './get-user-details';

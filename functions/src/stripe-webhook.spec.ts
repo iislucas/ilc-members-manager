@@ -143,6 +143,33 @@ describe('sessionToStripeOrder', () => {
       },
     ]);
   });
+
+  it('formats specific variant instance in line item description', () => {
+    const gradingSession = {
+      ...session,
+      id: 'cs_test_grading',
+      line_items: {
+        object: 'list',
+        data: [
+          {
+            id: 'li_grading',
+            description: 'GRADING : Student Levels',
+            quantity: 1,
+            amount_total: 30000,
+            currency: 'usd',
+            price: {
+              id: 'price_stu8',
+              product: 'prod_grading_student',
+              nickname: 'Student Level 8',
+            },
+          },
+        ],
+      },
+    } as unknown as Stripe.Checkout.Session;
+
+    const order = sessionToStripeOrder(gradingSession);
+    expect(order.lineItems[0].description).toBe('GRADING : Student Level 8');
+  });
 });
 
 describe('invoiceToStripeOrder', () => {
