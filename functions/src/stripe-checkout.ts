@@ -83,6 +83,7 @@ export const createStripeCheckoutSession = onCall<
   const session = await stripe.checkout.sessions.create({
     mode,
     line_items: [{ price: priceId, quantity }],
+    allow_promotion_codes: true,
     success_url: `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/products`,
   });
