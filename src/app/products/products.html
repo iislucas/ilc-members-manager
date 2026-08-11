@@ -23,37 +23,53 @@
       @if (currentState.products.length === 0) {
         <p class="empty">No products are available at the moment.</p>
       } @else {
-        <div class="product-grid">
+        <div class="product-group-list">
           @for (product of currentState.products; track product.id) {
-            @let price = buyablePrice(product);
-            <div class="product-card">
-              @if (product.images.length > 0) {
-                <img class="product-image" [src]="product.images[0]" [alt]="product.name" />
-              }
-              <div class="product-body">
-                <h2 class="product-name">{{ product.name }}</h2>
-                @if (product.description) {
-                  <p class="product-description">{{ product.description }}</p>
+            @let prices = activePrices(product);
+            <section class="product-group">
+              <div class="product-group-header">
+                @if (product.images.length > 0) {
+                  <img class="product-image" [src]="product.images[0]" [alt]="product.name" />
                 }
-                @if (price) {
-                  <p class="product-price">{{ formatPrice(price) }}</p>
+                <div class="product-group-info">
+                  <h2 class="product-name">{{ product.name }}</h2>
+                  @if (product.description) {
+                    <p class="product-description">{{ product.description }}</p>
+                  }
+                </div>
+              </div>
+
+              <div class="price-options-grid">
+                @for (price of prices; track price.id) {
+                  @let optTitle = priceOptionTitle(product, price);
+                  <div class="price-option-card">
+                    <div class="price-option-info">
+                      @if (optTitle) {
+                        <span class="price-option-name">{{ optTitle }}</span>
+                      }
+                      <span class="price-option-amount">{{ formatPrice(price) }}</span>
+                    </div>
+                    <button
+                      class="buy-button"
+                      [disabled]="!!checkoutPriceId()"
+                      (click)="buy(price)"
+                    >
+                      @if (checkoutPriceId() === price.id) {
+                        Redirecting…
+                      } @else if (price.type === 'recurring') {
+                        Subscribe
+                      } @else {
+                        Buy
+                      }
+                    </button>
+                  </div>
                 }
               </div>
-              <button
-                class="buy-button"
-                [disabled]="!!checkoutPriceId()"
-                (click)="buy(product)"
-              >
-                @if (price && checkoutPriceId() === price.id) {
-                  Redirecting…
-                } @else {
-                  Buy
-                }
-              </button>
-            </div>
+            </section>
           }
         </div>
       }
     }
   }
 </div>
+

@@ -38,6 +38,7 @@ function mapPrice(price: Stripe.Price): StripeProductPrice {
     recurringInterval: price.recurring?.interval ?? null,
     recurringIntervalCount: price.recurring?.interval_count ?? null,
     nickname: price.nickname,
+    created: price.created,
   };
 }
 
@@ -57,9 +58,12 @@ export async function fetchStripeProducts(
     stripe.prices.list({ limit: 100 }).autoPagingToArray({ limit: 1000 }),
   ]);
 
+  // Sort prices by creation date ascending so price options appear in natural defined order.
+  const sortedPrices = [...prices].sort((a, b) => a.created - b.created);
+
   // Group prices by their product id for quick lookup.
   const pricesByProduct = new Map<string, StripeProductPrice[]>();
-  for (const price of prices) {
+  for (const price of sortedPrices) {
     const productId =
       typeof price.product === 'string' ? price.product : price.product.id;
     const list = pricesByProduct.get(productId) ?? [];
@@ -67,7 +71,10 @@ export async function fetchStripeProducts(
     pricesByProduct.set(productId, list);
   }
 
-  const mapped: StripeProduct[] = products.map((product) => {
+  // Sort products by creation date ascending so products appear in catalog order.
+  const sortedProducts = [...products].sort((a, b) => a.created - b.created);
+
+  const mapped: StripeProduct[] = sortedProducts.map((product) => {
     // `default_price` is expanded, so it is either a full Price object, a bare
     // id string (if unexpandable), or null.
     const defaultPrice =

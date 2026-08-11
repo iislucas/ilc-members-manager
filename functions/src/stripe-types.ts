@@ -28,6 +28,8 @@ export interface StripeProductPrice {
   /** Number of intervals between charges (e.g. every 3 months), or null. */
   recurringIntervalCount: number | null;
   nickname: string | null;
+  /** Unix timestamp (seconds) when the price was created. */
+  created?: number;
 }
 
 /** A Stripe product with its associated prices. */
