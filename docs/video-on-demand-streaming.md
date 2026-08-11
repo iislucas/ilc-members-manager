@@ -1,21 +1,27 @@
 # Video-on-Demand (VOD) Streaming Playback Architecture Plan
 
-This document defines the end-to-end architecture, backend pipelines, Google Cloud service integrations, data models, security rules, and client-side player implementation for **Video-on-Demand (VOD) Streaming** in the ILC Members Manager platform.
+This document defines the end-to-end architecture, backend pipelines, Google Cloud service integrations, permission models, data models (using TypeScript enums), security rules, and client-side player implementation for **Video-on-Demand (VOD) Streaming** in the ILC Members Manager platform.
 
 ---
 
 ## 1. Executive Summary & Goals
 
 ### Problem Statement
-Instructors upload seminar recordings, technique demos, grading preparation videos, and workshop captures to the platform (stored as raw `.mp4`, `.mov`, or `.m4v` files in Google Cloud Storage). Currently, these are only available as direct file downloads or basic HTML5 video tags without adaptive bitrate streaming. This leads to excessive buffering on mobile/poor connections, high bandwidth egress costs, and lack of controlled access or playback progress tracking.
+Instructors upload seminar recordings, technique demos, grading preparation videos, and workshop captures to the platform (stored as raw `.mp4`, `.mov`, or `.m4v` files in Google Cloud Storage via `/my-materials` or `/events/:id/edit`). Currently, these are only available as raw file downloads or basic HTML5 video elements without adaptive bitrate streaming. This causes high buffering on mobile/poor connections, high bandwidth egress costs, and lacks granular access control, monetization (Stripe purchases/subscriptions), or playback progress tracking.
 
 ### Core Objectives
-1. **Adaptive Bitrate (ABR) Streaming**: Leverage **Google Cloud Transcoder API** to transcode raw uploaded videos into multi-bitrate **HLS (HTTP Live Streaming)** packages (1080p, 720p, 480p, 360p) with optimized AAC audio and thumbnail spritesheets.
-2. **Admin Curation & Publishing**: Allow administrators to review instructor-uploaded materials in `/manage-materials` (or dedicated `/manage-vod`), select specific videos for VOD publication, configure metadata (title, category, level, tags, visibility tier), and trigger asynchronous transcoding jobs.
-3. **High-Performance Global CDN Delivery**: Serve HLS manifests (`.m3u8`) and video segment chunks (`.ts` / `.m4s`) through **Cloud CDN / Media CDN** with global edge caching.
-4. **Modern Angular Client Player**: Provide a responsive, accessible `<app-video-player>` component built with Angular Signals and **Hls.js** featuring custom controls, quality selector, playback speed options, scrubbing previews, Picture-in-Picture, and keyboard shortcuts.
-5. **Playback Resume & Progress Tracking**: Automatically store and sync member watch progress (`/members/{memberDocId}/videoProgress/{vodId}`) to enable seamless "Continue Watching" carousels.
-6. **Tiered Access Control**: Restrict playback based on member status (Public, Active Members, Licensed Instructors, or Level-gated).
+1. **Selective Admin Curation**: Raw uploaded materials are **never** automatically transcoded. Administrators review uploads in `/manage-materials` or `/manage-vod`, curate metadata, set access layers, and explicitly trigger transcoding.
+2. **Adaptive Bitrate (ABR) Streaming**: Leverage **Google Cloud Transcoder API** to transcode selected raw videos into multi-bitrate **HLS (HTTP Live Streaming)** packages (1080p, 720p, 480p, 360p) with AAC audio and thumbnail spritesheets for scrub previews.
+3. **Flexible Access Layers & Monetization**:
+   - **Public**: Free for all visitors & members (promotional clips, introductory material).
+   - **Members Only**: Active ILC membership required.
+   - **Instructors Only**: Licensed instructors only.
+   - **Class Video Subscribers**: Active Class Video Library subscription required (see [`docs/orders-and-subscriptions.md`](./orders-and-subscriptions.md)).
+   - **Direct Video Purchase / Individual Grant**: Specific videos granted to specific individuals (with or without active membership) via Stripe checkout or manual admin grant.
+4. **Public Video Catalog & Browse Page (`/videos`)**: A fast, searchable catalog open for public browsing with tags, category filters, instructor profiles, trailers, and dynamic entitlement badges (*"Watch Now"*, *"Included in Membership"*, *"Subscribe to Class Library"*, *"Unlock for $15"*).
+5. **Secure Playback Gating**: Deliver streaming playback via short-lived **Cloud CDN Signed URLs / Session Tokens** issued by a secure Cloud Function that validates orders, subscriptions, and grants.
+6. **Modern Angular Client Player**: Responsive, accessible `<app-video-player>` component built with Angular Signals and **Hls.js** with custom controls, quality selector, playback speed options, scrubbing thumbnail previews, Picture-in-Picture, and keyboard shortcuts.
+7. **Playback Resume & Progress Tracking**: Automatically store and sync member watch progress (`/members/{memberDocId}/videoProgress/{videoId}`) for seamless "Continue Watching" carousels.
 
 ---
 
@@ -23,33 +29,36 @@ Instructors upload seminar recordings, technique demos, grading preparation vide
 
 ```mermaid
 flowchart TD
-    subgraph Instructors["Instructor & Event Uploads"]
+    subgraph Ingest["1. Instructor Ingest (Raw Storage)"]
         UI_Inst["Instructor Uploads Video\n(/my-materials or /events/:id/edit)"]
         GCS_Raw["GCS Bucket: Raw Ingest\nmembers/{memberDocId}/materials/..."]
         FS_Uploads["Firestore: /members/{memberDocId}/uploads/{id}"]
     end
 
-    subgraph AdminCuration["Admin Curation & Control"]
+    subgraph AdminCuration["2. Admin Curation & Job Trigger"]
         UI_Admin["Admin Video Management\n(/manage-materials & /manage-vod)"]
         CF_Trigger["Cloud Function (Callable):\ntranscodeVideoForVod()"]
     end
 
-    subgraph GCP_Pipeline["Google Cloud Video Pipeline"]
+    subgraph GCP_Pipeline["3. Google Cloud Transcoding Pipeline"]
         GCP_Transcoder["Google Cloud Transcoder API\n(transcoder.googleapis.com)"]
         GCP_PubSub["Cloud Pub/Sub Topic:\nvod-transcode-notifications"]
-        GCS_VOD["GCS Bucket: VOD Output\nvod/{vodId}/master.m3u8 + segments"]
+        GCS_VOD["GCS Bucket: VOD Output\nvod/{videoId}/master.m3u8 + segments + sprites"]
         CF_Webhook["Cloud Function (Pub/Sub Trigger):\nonTranscodeJobFinished"]
     end
 
-    subgraph CDN_Delivery["Edge Delivery & Storage"]
-        CloudCDN["Google Cloud CDN / Media CDN\nhttps://vod.ilcmembers.org/..."]
-        FS_VOD["Firestore: /vod_videos/{vodId}\n(or extended UploadItem metadata)"]
+    subgraph Catalog_Auth["4. Catalog, Security & Session Gating"]
+        FS_Videos["Firestore: /videos/{videoId}\n(Publicly readable catalog metadata)"]
+        FS_Grants["Firestore: /members/{id}/videoGrants/{videoId}\n(Per-user purchases & grants)"]
+        FS_Orders["Firestore: /orders & /members/{id}/orders\n(Stripe subscriptions & purchases)"]
+        CF_Session["Cloud Function (Callable):\ngetVideoPlaybackSession()"]
     end
 
-    subgraph MemberClient["Member Client (Angular 21+)"]
-        VOD_Portal["VOD Portal & Catalog (/vod)"]
-        VOD_Player["VOD Player Component (<app-video-player>)\nHls.js + Signals + Progress Tracking"]
-        FS_Progress["Firestore: /members/{id}/videoProgress/{vodId}"]
+    subgraph CDN_Delivery["5. Edge Delivery & Playback"]
+        CloudCDN["Google Cloud CDN / Media CDN\n(Origin-shielded, Signed URL validation)"]
+        Client_Portal["Public Browse & Search Catalog\n(/videos)"]
+        Client_Player["Angular Video Player (<app-video-player>)\nHls.js + Signals + Scrub Previews"]
+        FS_Progress["Firestore: /members/{id}/videoProgress/{videoId}"]
     end
 
     UI_Inst -->|Upload original file| GCS_Raw
@@ -57,38 +66,98 @@ flowchart TD
     GCS_Raw -.->|Source file| GCP_Transcoder
 
     UI_Admin -->|Selects & publishes video| CF_Trigger
-    CF_Trigger -->|Creates Transcoding Job| GCP_Transcoder
+    CF_Trigger -->|Creates Transcoder Job| GCP_Transcoder
 
     GCP_Transcoder -->|Writes HLS segments & spritesheet| GCS_VOD
     GCP_Transcoder -->|Publishes job completion| GCP_PubSub
 
     GCP_PubSub -->|Triggers| CF_Webhook
-    CF_Webhook -->|Updates VOD status to 'ready'| FS_VOD
+    CF_Webhook -->|Updates status to 'ready'| FS_Videos
+
+    Client_Portal -->|Queries catalog metadata| FS_Videos
+    Client_Portal -->|User requests playback| CF_Session
+
+    CF_Session -->|Checks membership / subscription| FS_Orders
+    CF_Session -->|Checks individual video grants| FS_Grants
+    CF_Session -->|Generates Signed Stream URL| Client_Player
 
     GCS_VOD -->|Origin Storage| CloudCDN
-    CloudCDN -->|Streams HLS (.m3u8 & .ts)| VOD_Player
+    CloudCDN -->|Streams HLS (.m3u8 & .ts)| Client_Player
 
-    VOD_Portal -->|Queries published videos| FS_VOD
-    VOD_Portal -->|Launches| VOD_Player
-    VOD_Player -->|Saves position every 5s| FS_Progress
+    Client_Player -->|Saves position every 5s| FS_Progress
 ```
 
-### Google Cloud Services Utilized
+### Google Cloud Services Matrix
 
 | Service | Role & Responsibility |
 |---|---|
-| **Google Cloud Transcoder API** (`transcoder.googleapis.com`) | Managed video processing engine. Converts raw video files into multi-bitrate HLS / DASH stream ladders and generates timeline thumbnail spritesheets for scrub previews. |
-| **Google Cloud Storage (GCS)** | Ingest storage for raw uploads and high-availability object storage for master playlists, variant playlists, and video chunks. |
-| **Google Cloud CDN / Media CDN** | Caching proxy at Google edge POPs to ensure low-latency, zero-buffer video delivery and minimal egress cost. |
-| **Cloud Pub/Sub** | Asynchronous event broker receiving job status events from the Transcoder API. |
-| **Firebase Cloud Functions v2** | Serverless orchestration for initiating transcoding jobs, verifying admin credentials, processing Pub/Sub webhooks, and updating Firestore records. |
-| **Cloud Firestore** | Real-time database for VOD catalog metadata, access permissions, categorization, and member playback progress. |
+| **Google Cloud Transcoder API** (`transcoder.googleapis.com`) | Managed video processing engine. Converts raw video files into multi-bitrate HLS stream ladders and generates timeline thumbnail spritesheets for scrub previews. |
+| **Google Cloud Storage (GCS)** | Ingest storage for raw uploads and high-availability object storage for master playlists, variant playlists, video chunks, and thumbnail spritesheets. |
+| **Google Cloud CDN / Media CDN** | Caching proxy at Google edge POPs with Signed URL verification to ensure low-latency, zero-buffer video delivery and minimal egress cost. |
+| **Cloud Pub/Sub** | Asynchronous event broker receiving job status events (`SUCCEEDED` / `FAILED`) from the Transcoder API. |
+| **Firebase Cloud Functions v2** | Serverless orchestration for initiating transcoding jobs, processing Stripe webhooks, verifying user entitlements, generating signed playback sessions, and handling Pub/Sub webhooks. |
+| **Cloud Firestore** | Real-time database for the public video catalog (`/videos`), individual user video grants (`/members/{id}/videoGrants`), order history, and playback progress. |
 
 ---
 
-## 3. End-to-End Workflows & Sequence Diagrams
+## 3. Access Layers & Permission Model
 
-### 3.1. Admin Curation & Transcoding Flow
+### 3.1 The 5 Access Layers
+
+Videos in the public catalog (`/videos/{videoId}`) are configured with an access tier:
+
+```mermaid
+graph TD
+    V[Video Item] --> T{Access Tier}
+    T -->|Public| P[Open Access: Anyone can play]
+    T -->|Members Only| M[Requires Active ILC Membership]
+    T -->|Instructors Only| I[Requires Active Instructor License]
+    T -->|Class Video Subscribers| C[Requires Active Class Video Library Sub]
+    T -->|Direct Purchase / Individual Grant| G[Requires Specific Video Grant in /videoGrants]
+    
+    M -.->|Fallback Override| G
+    I -.->|Fallback Override| G
+    C -.->|Fallback Override| G
+```
+
+1. **Public (`VodAccessTier.Public`)**:
+   - Free for all visitors and members (promotional clips, introductory videos, public interviews).
+2. **Members Only (`VodAccessTier.MembersOnly`)**:
+   - Available to any member with an active membership (`member.currentMembershipExpires >= today` or `member.membershipType === MembershipType.Life`).
+3. **Instructors Only (`VodAccessTier.InstructorsOnly`)**:
+   - Available to licensed instructors with an active license (`member.instructorLicenseExpires >= today`).
+4. **Class Video Subscribers (`VodAccessTier.ClassVideoSubscribers`)**:
+   - Available to members with an active Class Video Library subscription (`member.classVideoLibrarySubscription === true` and `member.classVideoLibraryExpirationDate >= today`).
+5. **Direct Video Purchase / Individual Grant (`VodAccessTier.DirectPurchase` or individual grant override)**:
+   - Specific videos can be unlocked individually via Stripe one-off purchase or admin grant.
+   - **Important**: Any gated video (Members Only, Class Subscribers, etc.) can *also* be unlocked for a specific person if an explicit grant exists in `/members/{memberDocId}/videoGrants/{videoId}` or `/video_grants/{grantId}`. This allows non-members or non-subscribers to buy standalone access to individual premium seminar recordings!
+
+### 3.2 Gating Architecture: Secure Playback Session Endpoint
+
+To prevent unauthorized sharing of raw video files and HLS manifest URLs, direct bucket URLs are **never** made public. Instead, playback is authorized through a secure Cloud Function:
+
+```typescript
+// Client invokes callable Cloud Function:
+const session = await getVideoPlaybackSession({ videoId: 'vod_123' });
+```
+
+**Verification Flow in `getVideoPlaybackSession`**:
+1. **Admin Check**: If caller is an admin (`isAdmin`), access is immediately granted.
+2. **Public Tier Check**: If video `accessTier === VodAccessTier.Public`, access is granted.
+3. **Explicit Grant Check**: Checks if `/members/{memberDocId}/videoGrants/{videoId}` exists (or if `/video_grants/` contains a valid grant matching the user's email). If found and active (not expired), access is granted.
+4. **Subscription / Membership Checks**:
+   - If `accessTier === VodAccessTier.MembersOnly`: checks caller's `currentMembershipExpires >= today`.
+   - If `accessTier === VodAccessTier.InstructorsOnly`: checks caller's `instructorLicenseExpires >= today`.
+   - If `accessTier === VodAccessTier.ClassVideoSubscribers`: checks `classVideoLibrarySubscription === true && classVideoLibraryExpirationDate >= today`.
+5. **Outcome**:
+   - **Authorized**: Generates a short-lived (e.g. 6-hour) **Cloud CDN Signed URL** to `master.m3u8` with an HMAC token covering all child `.ts` segments, and returns `{ authorized: true, manifestUrl: signedUrl }`.
+   - **Unauthorized**: Returns `{ authorized: false, reason: 'subscription_required' | 'purchase_required', priceCents: 2500, stripePriceId: 'price_...' }`. The client UI displays the purchase or subscribe call-to-action.
+
+---
+
+## 4. End-to-End Workflows & Sequence Diagrams
+
+### 4.1 Instructor Upload & Admin Selective Transcoding
 
 ```mermaid
 sequenceDiagram
@@ -102,19 +171,21 @@ sequenceDiagram
     participant PubSub as Cloud Pub/Sub
     participant Firestore as Cloud Firestore
 
-    Instructor->>Client: Uploads raw video (.mp4/.mov)
-    Client->>GCS: Upload to raw storage
-    Client->>Firestore: Create UploadItem (vodStatus: 'none')
+    Instructor->>Client: Uploads raw video (.mp4/.mov) in /my-materials
+    Client->>GCS: Upload to raw storage members/{id}/materials/...
+    Client->>Firestore: Create UploadItem (vodStatus: VodStatus.None)
+
+    Note over Admin,Client: Videos remain raw uploads until Admin selects them for VOD
 
     Admin->>Client: Opens /manage-materials or /manage-vod
-    Admin->>Client: Selects video, sets Title, Level, Category & Access Tier
-    Admin->>Client: Clicks "Publish to VOD"
+    Admin->>Client: Selects video, configures Title, Tags, Access Tier & Price
+    Admin->>Client: Clicks "Transcode & Publish to Catalog"
     Client->>CF: Call transcodeVideoForVod({ uploadDocId, memberDocId, vodConfig })
     CF->>CF: Verify request.auth is Admin
-    CF->>Firestore: Update doc: vodStatus = 'queued'
-    CF->>Transcoder: jobs.create({ inputUri: 'gs://...', outputUri: 'gs://.../vod/{id}/', templateId: 'ilc-abr-hls' })
+    CF->>Firestore: Upsert /videos/{videoId} (vodStatus = VodStatus.Queued)
+    CF->>Transcoder: jobs.create({ inputUri: 'gs://...', outputUri: 'gs://.../vod/{id}/' })
     Transcoder-->>CF: Returns jobId
-    CF->>Firestore: Update doc: vodStatus = 'transcoding', vodJobId = jobId
+    CF->>Firestore: Update /videos/{videoId} (vodStatus = VodStatus.Transcoding, vodJobId = jobId)
     CF-->>Client: Success (Job started)
 
     Note over Transcoder,GCS: Transcoder generates 1080p/720p/480p/360p HLS renditions + spritesheet
@@ -122,140 +193,211 @@ sequenceDiagram
     Transcoder->>PubSub: Publish job state (SUCCEEDED / FAILED)
 
     PubSub->>CF: Trigger onTranscodeJobFinished(event)
-    CF->>Firestore: Update doc: vodStatus = 'ready', vodManifestUrl = 'https://cdn.../master.m3u8', vodDuration, vodResolutions
-    Client->>Firestore: Real-time snapshot receives status 'ready'
-    Client-->>Admin: Video shows "Live / Ready in VOD"
+    CF->>Firestore: Update /videos/{videoId} (vodStatus = VodStatus.Ready, isPublished = true, durationSeconds, resolutions)
+    Client->>Firestore: Real-time snapshot receives status VodStatus.Ready
+    Client-->>Admin: Video shows "Live / Ready in Catalog"
 ```
 
-### 3.2. Member Video Playback & Progress Sync Flow
+### 4.2 Stripe Checkout & Direct Video Grant Provisioning
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Member
-    participant App as Angular VOD Client
+    actor Buyer as Member / Visitor
+    participant App as Angular Client (/videos)
+    participant CF as Cloud Functions
+    participant Stripe as Stripe Platform
+    participant Webhook as stripeWebhook
     participant FS as Firestore
+
+    Buyer->>App: Clicks "Unlock Video ($15.00)" on /videos/:id
+    App->>CF: Call createStripeCheckoutSession({ videoId: 'vod_123', successUrl, cancelUrl })
+    CF->>Stripe: stripe.checkout.sessions.create({ line_items: [...], metadata: { videoId: 'vod_123', memberDocId: '...' } })
+    Stripe-->>CF: Return checkoutUrl
+    CF-->>App: Return checkoutUrl
+    App->>Buyer: Redirect to Stripe Hosted Checkout
+
+    Buyer->>Stripe: Completes payment
+    Stripe->>Webhook: Event: checkout.session.completed
+    Webhook->>FS: 1. Create /orders/{orderDocId}
+    Webhook->>FS: 2. Mirror to /members/{memberDocId}/orders/{orderDocId}
+    Webhook->>FS: 3. Create /members/{memberDocId}/videoGrants/{videoId}
+    Webhook->>FS: 4. Create /video_grants/{grantId} (lookup by email for non-members)
+    
+    Buyer->>App: Returns to /videos/:id
+    App->>CF: Call getVideoPlaybackSession({ videoId: 'vod_123' })
+    CF->>FS: Verify grant in /videoGrants
+    CF-->>App: Return { authorized: true, manifestUrl: signedUrl }
+    App->>Buyer: Video begins playing instantly
+```
+
+### 4.3 Catalog Browsing & Playback Session Resolution
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Member / Visitor
+    participant App as Angular Catalog (/videos)
+    participant FS as Firestore
+    participant CF as Cloud Functions
     participant CDN as Google Cloud CDN
     participant Player as Hls.js Video Engine
 
-    Member->>App: Opens VOD Library (/vod)
-    App->>FS: Query /vod_videos where vodStatus == 'ready' & accessTier <= memberTier
-    FS-->>App: Return list of available VODs + last watched progress
-    Member->>App: Clicks video to watch
-    App->>FS: Load /members/{memberDocId}/videoProgress/{vodId}
-    FS-->>App: Return lastPositionSeconds (e.g., 420s)
-    App->>Player: Initialize Hls.js with master.m3u8 CDN URL
-    Player->>CDN: Request master.m3u8
-    CDN-->>Player: Return master manifest with 1080p, 720p, 480p, 360p streams
-    Player->>CDN: Request initial chunks at optimal bitrate (ABR)
-    Player->>Player: Seek to lastPositionSeconds (420s)
-    Player-->>Member: Video plays smoothly from saved position
-
-    loop Every 5-10 Seconds & On Pause
-        App->>FS: Save current timestamp to /members/{memberDocId}/videoProgress/{vodId}
+    User->>App: Opens /videos (Browses & filters by tag, category, instructor)
+    App->>FS: Query /videos where isPublished == true (Public read)
+    FS-->>App: Return video list (titles, thumbnails, tags, access tiers, prices)
+    
+    User->>App: Clicks on video card to watch
+    App->>CF: Call getVideoPlaybackSession({ videoId })
+    CF->>FS: Check user ACL, subscriptions, and /videoGrants
+    
+    alt User is Authorized
+        CF-->>App: { authorized: true, manifestUrl: 'https://vod.ilcmembers.org/vod/123/master.m3u8?token=...' }
+        App->>FS: Load /members/{id}/videoProgress/{videoId}
+        App->>Player: Mount <app-video-player> with signed manifestUrl & initialPosition
+        Player->>CDN: Request master.m3u8 + initial chunks
+        CDN-->>Player: Return ABR streams
+        Player-->>User: Video streams smoothly from saved position
+    else User is NOT Authorized
+        CF-->>App: { authorized: false, reason: 'subscription_required', priceCents: 1500 }
+        App-->>User: Display lock overlay with "Subscribe" or "Buy for $15" actions
     end
 ```
 
 ---
 
-## 4. Firestore Data Models & Types
+## 5. TypeScript Data Models (Using Real Enums)
 
-All domain types will reside in [`functions/src/data-model.ts`](../functions/src/data-model.ts) and be shared across Cloud Functions and Angular components.
+All domain models are defined in [`functions/src/data-model.ts`](../functions/src/data-model.ts) and shared across backend functions and the Angular frontend.
 
-### 4.1. VOD Video Metadata (`VodItem`)
+### 5.1 Enums
 
 ```typescript
-export type VodStatus = 'none' | 'queued' | 'transcoding' | 'ready' | 'failed';
+/** Access tiers determining who can stream the video. */
+export enum VodAccessTier {
+  Public = 'public',
+  MembersOnly = 'members_only',
+  InstructorsOnly = 'instructors_only',
+  ClassVideoSubscribers = 'class_video_subscribers',
+  DirectPurchase = 'direct_purchase',
+  AdminOnly = 'admin_only',
+}
 
-export type VodAccessTier = 
-  | 'public'          // Visible to all visitors (previews, public demos)
-  | 'members'         // Active paying members only
-  | 'instructors'     // Licensed instructors only
-  | 'level_restricted'// Restricted to students at or above a specific ILC Level
-  | 'admin';          // Admin-only preview
+/** Processing state of the video transcoding job. */
+export enum VodStatus {
+  None = 'none',
+  Queued = 'queued',
+  Transcoding = 'transcoding',
+  Ready = 'ready',
+  Failed = 'failed',
+}
 
-export type VodCategory =
-  | 'seminar_recording'
-  | 'technique_breakdown'
-  | 'grading_syllabus'
-  | 'form_demonstration'
-  | 'instructor_training'
-  | 'workshop'
-  | 'historical_archive';
+/** Categories for catalog organization and filtering. */
+export enum VodCategory {
+  SeminarRecording = 'seminar_recording',
+  TechniqueBreakdown = 'technique_breakdown',
+  GradingSyllabus = 'grading_syllabus',
+  FormDemonstration = 'form_demonstration',
+  InstructorTraining = 'instructor_training',
+  Workshop = 'workshop',
+  HistoricalArchive = 'historical_archive',
+  ClassArchive = 'class_archive',
+}
 
-export interface VodItem {
-  docId: string;                     // Matches uploadDocId or unique VOD ID
-  sourceUploadDocId: string;         // Original UploadItem docId
-  sourceMemberDocId: string;         // Member who uploaded the original file
+/** Source origin of an individual video access grant. */
+export enum VideoGrantKind {
+  StripePurchase = 'stripe_purchase',
+  AdminGrant = 'admin_grant',
+  EventAttendance = 'event_attendance',
+  Complimentary = 'complimentary',
+}
+```
+
+### 5.2 Public Video Catalog Document (`/videos/{videoId}`)
+
+```typescript
+export interface VideoItem {
+  docId: string;                     // Matches videoId / source uploadDocId
+  sourceUploadDocId: string;         // Original UploadItem docId in /members/{id}/uploads/
+  sourceMemberDocId: string;         // Member docId who uploaded the original video
   
-  // Display & Content metadata
-  title: string;                     // Curated title for VOD catalog
-  description: string;               // Markdown/text description
+  // Public Catalog & Search Metadata
+  title: string;                     // Curated video title
+  description: string;               // Markdown or plain text description
+  category: VodCategory;             // Enum category
+  tags: string[];                    // Searchable tags (e.g. ['spinning_hands', 'level_3', 'paris_2026'])
+  
+  // Instructor & Event Credits
   instructorDocId: string;           // Featured instructor memberDocId
-  instructorName: string;            // Cached instructor display name (e.g. "Sam Chin [INST-001]")
+  instructorName: string;            // Display name snapshot (e.g. "Sam Chin [INST-001]")
   instructorId: string;              // Cached instructor ID (e.g. "1")
-  eventDocId: string;                // Linked IlcEvent docId (or '' if none)
+  eventDocId: string;                // Linked IlcEvent docId (or '' if standalone)
   eventTitle: string;                // Cached event title
-  category: VodCategory;
-  minLevel?: number;                 // If accessTier == 'level_restricted' (e.g., Level 3+)
-  tags: string[];
   recordedDate: string;              // YYYY-MM-DD
-  location: string;
+  location: string;                  // Venue / City
 
-  // Access & Publishing
-  accessTier: VodAccessTier;
-  isPublished: boolean;
-  featured: boolean;                 // Displayed in top hero carousel
+  // Access & Pricing Configuration
+  accessTier: VodAccessTier;         // Enum access tier
+  minLevel?: number;                 // Optional minimum student level requirement (e.g. Level 3+)
+  priceCents?: number;               // Direct purchase price in cents (e.g. 1500 for $15.00)
+  currency?: string;                 // e.g. 'usd'
+  stripeProductId?: string;          // Stripe prod_... ID if purchasable
+  stripePriceId?: string;            // Stripe price_... ID if purchasable
+  
+  // Publishing & Curation Flags
+  isPublished: boolean;              // Visible in public catalog
+  featured: boolean;                 // Displayed in top hero banner
   publishedAt: string;               // ISO Timestamp
   publishedByMemberDocId: string;    // Admin who approved/published the video
 
-  // Transcoding & Streaming Technical Data
-  vodStatus: VodStatus;
+  // Technical & Transcoding Data
+  vodStatus: VodStatus;              // Enum transcoding status
   vodJobId?: string;                 // GCP Transcoder Job ID
-  vodError?: string;                 // Error message if transcoding fails
+  vodError?: string;                 // Transcoding error log if failed
   
-  // Streaming URLs (Cloud CDN edge endpoints)
-  manifestUrl: string;               // HLS master manifest (e.g. "https://vod.ilcmembers.org/vod/{id}/master.m3u8")
-  dashManifestUrl?: string;          // Optional MPEG-DASH manifest (.mpd)
-  thumbnailUrl: string;              // High-res poster/thumbnail image
+  // Media Endpoints
+  thumbnailUrl: string;              // Public CDN URL for poster image
+  trailerUrl?: string;               // Optional short preview trailer URL
   spriteSheetUrl?: string;           // Scrubber preview sprite sheet (e.g. "spritesheet.jpg")
-  spriteIntervalSeconds?: number;    // e.g. 5 (one thumbnail every 5 seconds)
-  spriteWidth?: number;              // Thumbnail frame width in sprite (e.g. 160px)
-  spriteHeight?: number;             // Thumbnail frame height in sprite (e.g. 90px)
-
-  // Media characteristics
-  durationSeconds: number;           // Total video duration
+  spriteIntervalSeconds: number;     // e.g. 5
+  spriteWidth: number;               // 160 px
+  spriteHeight: number;              // 90 px
+  
+  // Video Metrics
+  durationSeconds: number;           // Total video length in seconds
   resolutions: string[];             // e.g. ['360p', '480p', '720p', '1080p']
-  originalSize: number;              // Raw uploaded size in bytes
+  originalSize: number;              // Raw upload size in bytes
 
   createdAt: string;                 // ISO Date
   lastUpdated: string;               // ISO Date
 }
 
-export function initVodItem(): VodItem {
+export function initVideoItem(): VideoItem {
   return {
     docId: '',
     sourceUploadDocId: '',
     sourceMemberDocId: '',
     title: '',
     description: '',
+    category: VodCategory.SeminarRecording,
+    tags: [],
     instructorDocId: '',
     instructorName: '',
     instructorId: '',
     eventDocId: '',
     eventTitle: '',
-    category: 'seminar_recording',
-    tags: [],
     recordedDate: '',
     location: '',
-    accessTier: 'members',
+    accessTier: VodAccessTier.MembersOnly,
     isPublished: false,
     featured: false,
     publishedAt: '',
     publishedByMemberDocId: '',
-    vodStatus: 'none',
-    manifestUrl: '',
+    vodStatus: VodStatus.None,
     thumbnailUrl: '',
+    spriteIntervalSeconds: 5,
+    spriteWidth: 160,
+    spriteHeight: 90,
     durationSeconds: 0,
     resolutions: [],
     originalSize: 0,
@@ -265,24 +407,52 @@ export function initVodItem(): VodItem {
 }
 ```
 
-### 4.2. Member Video Watch Progress (`VideoProgress`)
+### 5.3 User Video Grant Document (`/members/{memberDocId}/videoGrants/{videoId}`)
 
-Stored in Firestore under subcollection: `/members/{memberDocId}/videoProgress/{vodId}`
+```typescript
+export interface VideoGrant {
+  docId: string;                     // Matches videoId
+  videoId: string;                   // Matches VideoItem docId
+  memberDocId: string;               // Member document ID
+  memberEmail: string;               // Email snapshot
+  grantKind: VideoGrantKind;         // Enum: StripePurchase, AdminGrant, etc.
+  orderDocId?: string;               // Reference to /orders/{orderDocId}
+  stripeSessionId?: string;          // Stripe checkout session ID
+  amountPaidCents?: number;          // In cents
+  grantedByMemberDocId?: string;     // Admin docId if granted manually
+  notes?: string;                    // Reason / reference notes
+  grantedAt: string;                 // ISO Timestamp
+  expiresAt?: string;                // Optional expiration timestamp (for rentals or temporary access)
+}
+
+export function initVideoGrant(videoId: string, memberDocId: string): VideoGrant {
+  return {
+    docId: videoId,
+    videoId,
+    memberDocId,
+    memberEmail: '',
+    grantKind: VideoGrantKind.StripePurchase,
+    grantedAt: new Date().toISOString(),
+  };
+}
+```
+
+### 5.4 Member Watch Progress Document (`/members/{memberDocId}/videoProgress/{videoId}`)
 
 ```typescript
 export interface VideoProgress {
-  vodId: string;                     // Matches VodItem docId
+  videoId: string;                   // Matches VideoItem docId
   memberDocId: string;
-  lastPositionSeconds: number;       // Last playback position (e.g., 420.5)
-  durationSeconds: number;           // Total video duration
-  completed: boolean;                // true if watched >= 90%
+  lastPositionSeconds: number;       // e.g. 420.5
+  durationSeconds: number;           // Total video length
+  completed: boolean;                // true if >= 90% watched
   completedAt?: string;              // ISO Timestamp
   lastWatchedAt: string;             // ISO Timestamp
 }
 
-export function initVideoProgress(vodId: string, memberDocId: string): VideoProgress {
+export function initVideoProgress(videoId: string, memberDocId: string): VideoProgress {
   return {
-    vodId,
+    videoId,
     memberDocId,
     lastPositionSeconds: 0,
     durationSeconds: 0,
@@ -294,270 +464,75 @@ export function initVideoProgress(vodId: string, memberDocId: string): VideoProg
 
 ---
 
-## 5. Google Cloud Transcoder API Specification
+## 6. Google Cloud Transcoder API & Storage Pipeline
 
-### 5.1. Adaptive Bitrate (ABR) Encoding Ladder
+### 6.1 Selective Transcoding Policy
+- Uploading materials in `/my-materials` or `/events/:id/edit` saves raw media directly to GCS (`members/{id}/materials/...`) with `vodStatus: VodStatus.None`.
+- Transcoder API jobs are **only invoked when an Admin explicitly clicks "Publish to VOD"** in `/manage-materials` or `/manage-vod`.
 
-The Transcoder job is configured with standard, high-efficiency H.264 video and AAC audio renditions packaged into HLS:
+### 6.2 Transcoder Job Configuration
 
-| Rendition | Resolution | Video Bitrate | Frame Rate | Audio Bitrate | Target Use Case |
+The Transcoder API creates an Adaptive Bitrate HLS package in `gs://<VOD_BUCKET>/vod/{videoId}/`:
+
+| Rendition | Resolution | Video Bitrate | Frame Rate | Audio Bitrate | Format |
 |---|---|---|---|---|---|
-| **1080p Full HD** | 1920x1080 | 4,500 kbps | 30 fps (or source) | 192 kbps AAC | High-speed desktop / TV |
-| **720p HD** | 1280x720 | 2,500 kbps | 30 fps | 128 kbps AAC | Laptops, tablets, standard broadband |
-| **480p SD** | 854x480 | 1,200 kbps | 30 fps | 96 kbps AAC | 4G/LTE mobile networks |
-| **360p Low** | 640x360 | 600 kbps | 30 fps | 64 kbps AAC | Slow mobile / low-bandwidth connections |
+| **1080p Full HD** | 1920x1080 | 4,500 kbps | 30 fps (or source) | 192 kbps AAC | H.264 / TS |
+| **720p HD** | 1280x720 | 2,500 kbps | 30 fps | 128 kbps AAC | H.264 / TS |
+| **480p SD** | 854x480 | 1,200 kbps | 30 fps | 96 kbps AAC | H.264 / TS |
+| **360p Low** | 640x360 | 600 kbps | 30 fps | 64 kbps AAC | H.264 / TS |
 
-### 5.2. Scrubbing Preview Sprite Sheet
-The Transcoder API creates a periodic thumbnail sprite sheet during transcoding:
-- Interval: 1 thumbnail frame every 5 seconds.
-- Frame size: 160x90 px (16:9).
-- Stored as `spritesheet_0000000000.jpg` alongside `master.m3u8`.
-- The client player uses this image to display instant hover preview thumbnails when the user hovers over the progress scrub bar.
-
-### 5.3. Transcoder Job Configuration Payload (TypeScript / GCP SDK)
-
-```typescript
-import { TranscoderServiceClient } from '@google-cloud/video-transcoder';
-
-export function createVodJobConfig(
-  inputGcsUri: string, 
-  outputGcsFolder: string,
-  pubsubTopicUri: string
-) {
-  return {
-    inputUri: inputGcsUri,
-    outputUri: outputGcsFolder,
-    config: {
-      elementaryStreams: [
-        // Video Streams
-        {
-          key: 'video-1080p',
-          videoStream: {
-            h264: {
-              heightPixels: 1080,
-              widthPixels: 1920,
-              bitrateBps: 4500000,
-              frameRate: 30,
-              pixelFormat: 'yuv420p',
-              rateControlMode: 'vbr',
-            },
-          },
-        },
-        {
-          key: 'video-720p',
-          videoStream: {
-            h264: {
-              heightPixels: 720,
-              widthPixels: 1280,
-              bitrateBps: 2500000,
-              frameRate: 30,
-              pixelFormat: 'yuv420p',
-              rateControlMode: 'vbr',
-            },
-          },
-        },
-        {
-          key: 'video-480p',
-          videoStream: {
-            h264: {
-              heightPixels: 480,
-              widthPixels: 854,
-              bitrateBps: 1200000,
-              frameRate: 30,
-              pixelFormat: 'yuv420p',
-              rateControlMode: 'vbr',
-            },
-          },
-        },
-        {
-          key: 'video-360p',
-          videoStream: {
-            h264: {
-              heightPixels: 360,
-              widthPixels: 640,
-              bitrateBps: 600000,
-              frameRate: 30,
-              pixelFormat: 'yuv420p',
-              rateControlMode: 'vbr',
-            },
-          },
-        },
-        // Audio Stream
-        {
-          key: 'audio-main',
-          audioStream: {
-            codec: 'aac',
-            bitrateBps: 128000,
-            channelCount: 2,
-            sampleRateHertz: 48000,
-          },
-        },
-      ],
-      muxStreams: [
-        {
-          key: 'hls-1080p',
-          fileName: '1080p/stream.m3u8',
-          container: 'ts',
-          elementaryStreams: ['video-1080p', 'audio-main'],
-          segmentSettings: { segmentDuration: { seconds: 4 } },
-        },
-        {
-          key: 'hls-720p',
-          fileName: '720p/stream.m3u8',
-          container: 'ts',
-          elementaryStreams: ['video-720p', 'audio-main'],
-          segmentSettings: { segmentDuration: { seconds: 4 } },
-        },
-        {
-          key: 'hls-480p',
-          fileName: '480p/stream.m3u8',
-          container: 'ts',
-          elementaryStreams: ['video-480p', 'audio-main'],
-          segmentSettings: { segmentDuration: { seconds: 4 } },
-        },
-        {
-          key: 'hls-360p',
-          fileName: '360p/stream.m3u8',
-          container: 'ts',
-          elementaryStreams: ['video-360p', 'audio-main'],
-          segmentSettings: { segmentDuration: { seconds: 4 } },
-        },
-      ],
-      manifests: [
-        {
-          fileName: 'master.m3u8',
-          type: 'HLS',
-          muxStreams: ['hls-1080p', 'hls-720p', 'hls-480p', 'hls-360p'],
-        },
-      ],
-      spriteSheets: [
-        {
-          format: 'jpeg',
-          filePrefix: 'spritesheet',
-          spriteWidthPixels: 160,
-          spriteHeightPixels: 90,
-          columnCount: 10,
-          rowCount: 10,
-          interval: { seconds: 5 },
-          quality: 85,
-        },
-      ],
-      pubsubDestination: {
-        topic: pubsubTopicUri,
-      },
-    },
-  };
-}
-```
+**Generated Assets in Destination Folder**:
+- `master.m3u8` — Top-level HLS manifest referencing variant playlists.
+- `1080p/stream.m3u8`, `720p/stream.m3u8`, `480p/stream.m3u8`, `360p/stream.m3u8` — Rendition playlists.
+- `1080p/segment_000.ts`, etc. — 4-second video transport stream segments.
+- `spritesheet_0000000000.jpg` — 10x10 thumbnail grid (160x90px per frame, 1 frame every 5s) for instant hover preview scrubbing.
 
 ---
 
-## 6. Cloud Functions & Backend API Design
+## 7. Firestore Security Rules
 
-Defined under [`functions/src/`](../functions/src/):
-
-### 6.1. `transcodeVideoForVod` (Callable Cloud Function)
-- **File**: `functions/src/vod/transcode-video.ts`
-- **Permissions**: Requires authenticated user with Admin privileges (`isAdmin(context.auth)`).
-- **Inputs**:
-  - `uploadDocId`: string (ID of the original uploaded item)
-  - `memberDocId`: string (Uploader's member document ID)
-  - `vodConfig`: Object containing `title`, `description`, `category`, `accessTier`, `minLevel`, `tags`, `featured`, `instructorDocId`.
-- **Workflow**:
-  1. Reads original `UploadItem` from Firestore (`/members/{memberDocId}/uploads/{uploadDocId}`).
-  2. Verifies MIME type is a supported video (`video/mp4`, `video/quicktime`, etc.).
-  3. Creates or updates the `/vod_videos/{vodId}` Firestore document with `vodStatus: 'queued'`.
-  4. Invokes Google Cloud Transcoder API client (`TranscoderServiceClient.createJob()`) targeting the output bucket `gs://<VOD_BUCKET>/vod/{vodId}/`.
-  5. Stores the returned `job.name` in Firestore and transitions `vodStatus: 'transcoding'`.
-
-### 6.2. `onTranscodeJobFinished` (Pub/Sub Triggered Function)
-- **File**: `functions/src/vod/on-transcode-finished.ts`
-- **Trigger**: Pub/Sub topic `vod-transcode-notifications` (message published automatically by Google Transcoder on job state change).
-- **Workflow**:
-  1. Decodes Pub/Sub payload containing job name, state (`SUCCEEDED` / `FAILED`), and error details.
-  2. Finds corresponding Firestore doc by `vodJobId`.
-  3. If `SUCCEEDED`:
-     - Sets `vodStatus = 'ready'`.
-     - Sets `manifestUrl = 'https://<CDN_DOMAIN>/vod/{vodId}/master.m3u8'`.
-     - Sets `thumbnailUrl = 'https://<CDN_DOMAIN>/vod/{vodId}/spritesheet_0000000000.jpg'`.
-     - Sets `spriteSheetUrl = 'https://<CDN_DOMAIN>/vod/{vodId}/spritesheet_0000000000.jpg'`.
-     - Populates `durationSeconds` and `resolutions = ['360p', '480p', '720p', '1080p']`.
-     - Sets `isPublished = true` and `publishedAt = new Date().toISOString()`.
-  4. If `FAILED`:
-     - Sets `vodStatus = 'failed'` and logs `vodError` with GCP error message.
-  5. Writes update to Firestore.
-
-### 6.3. `deleteVodVideo` (Callable Cloud Function)
-- **File**: `functions/src/vod/delete-vod.ts`
-- **Permissions**: Admin-only.
-- **Workflow**:
-  1. Recursively deletes all HLS segments, playlists, and sprites from GCS (`gs://<VOD_BUCKET>/vod/{vodId}/*`).
-  2. Removes the `/vod_videos/{vodId}` document from Firestore.
-  3. Cleans up associated `videoProgress` subcollections.
-
----
-
-## 7. Security Rules & Access Control
-
-### 7.1. Cloud Firestore Security Rules ([`firestore.rules`](../firestore.rules))
+Update [`firestore.rules`](../firestore.rules) to protect the catalog, grants, and progress:
 
 ```javascript
-match /vod_videos/{vodId} {
-  // Helper to check member login status and level
-  function isMember() {
-    return request.auth != null && getUserMemberDocIds().size() > 0;
-  }
+// 1. Public Video Catalog: Publicly readable for browsing & search
+match /videos/{videoId} {
+  // Anyone can browse published videos (or admins can view all)
+  allow read: if isAdmin() || resource.data.isPublished == true;
 
-  function isInstructor() {
-    return request.auth != null && getUserInstructorIds().size() > 0;
-  }
-
-  function meetsLevelRequirement() {
-    let minLevel = resource.data.get('minLevel', 0);
-    return minLevel == 0 || (
-      request.auth != null && 
-      get(/databases/$(database)/documents/members/$(getUserMemberDocIds()[0])).data.get('level', 0) >= minLevel
-    );
-  }
-
-  // Reading VOD metadata
-  allow read: if isAdmin() || (
-    resource.data.isPublished == true &&
-    resource.data.vodStatus == 'ready' && (
-      resource.data.accessTier == 'public' ||
-      (resource.data.accessTier == 'members' && isMember()) ||
-      (resource.data.accessTier == 'instructors' && isInstructor()) ||
-      (resource.data.accessTier == 'level_restricted' && isMember() && meetsLevelRequirement())
-    )
-  );
-
-  // Only Admins can create, update, or delete VOD records
+  // Writes restricted exclusively to Admins
   allow write: if isAdmin();
 }
 
-// User watch progress tracking
-match /members/{memberDocId}/videoProgress/{vodId} {
-  allow read, write: if isAdmin() || (
-    request.auth != null && memberDocId in getUserMemberDocIds()
-  );
-}
-```
-
-### 7.2. Cloud Storage Rules ([`storage.rules`](../storage.rules))
-
-```javascript
-// Raw uploads remain private to the uploader and admins
-match /members/{memberDocId}/materials/{allPaths=**} {
-  allow read, write: if isAdmin() || (
-    request.auth != null && memberDocId in getUserMemberDocIds()
-  );
+// 2. Individual Video Grants (Per-member subcollection)
+match /members/{memberDocId}/videoGrants/{videoId} {
+  function isOwner() {
+    return memberDocId in getUserMemberDocIds() ||
+           request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails;
+  }
+  // Members can read their own grants; Admins can read all
+  allow read: if isOwner() || isAdmin();
+  // Writes exclusively performed by Cloud Functions via Admin SDK (Stripe webhook / Admin action)
+  allow write: if isAdmin();
 }
 
-// Transcoded VOD output bucket: Managed via Cloud CDN and origin rules
-match /vod/{vodId}/{allFiles=**} {
-  // Read access governed by Cloud CDN cache policies and origin rules
-  allow read: if true; // Publicly cached at CDN edge; access controlled via metadata query & app routing
-  allow write: if false; // Only Cloud Functions / GCP Transcoder service account writes via Admin SDK
+// 3. Global Video Grants (For looking up grants by email for visitors)
+match /video_grants/{grantId} {
+  allow read: if isAdmin() || (
+    request.auth != null && (
+      request.auth.token.email == resource.data.memberEmail ||
+      resource.data.memberDocId in getUserMemberDocIds()
+    )
+  );
+  allow write: if isAdmin();
+}
+
+// 4. Member Video Watch Progress
+match /members/{memberDocId}/videoProgress/{videoId} {
+  function isOwner() {
+    return memberDocId in getUserMemberDocIds() ||
+           request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails;
+  }
+  allow read, write: if isOwner() || isAdmin();
 }
 ```
 
@@ -565,63 +540,73 @@ match /vod/{vodId}/{allFiles=**} {
 
 ## 8. Admin Selection & VOD Management Interface
 
-Admins can manage VOD videos through two entry points:
-1. **Directly from `/manage-materials`**: Next to any video item, an action button **"Publish to VOD"** / **"VOD Settings"** opens a curation modal.
-2. **Dedicated VOD Hub (`/manage-vod`)**: A dedicated management console to view all queued, transcoding, ready, and failed VOD streams.
+Admins manage VOD curation across two interfaces:
 
-```
-+---------------------------------------------------------------------------------------------------+
-|  Manage Video on Demand (VOD)                                      [ + Transcode New Video ]       |
-+---------------------------------------------------------------------------------------------------+
-|  [ All Categories v ]  [ All Instructors v ]  [ All Tiers v ]  [ Status: All v ]  [ Search... ]   |
-+---------------------------------------------------------------------------------------------------+
-| PREVIEW     TITLE & DETAILS           INSTRUCTOR        TIER       STATUS         ACTIONS         |
-+---------------------------------------------------------------------------------------------------+
-| [Thumbnail] 2026 European Seminar     Sam Chin          Members    [ READY ]      [ Play ] [ Edit ]
-| 1080p HLS   Day 1: Spinning Hands     [INST-001]                   4 Renditions   [ Unpublish ]   |
-| 1h 24m      Category: Seminar Record                                                              |
-+---------------------------------------------------------------------------------------------------+
-| [Thumbnail] Form Section 3 Breakdown  Alex K            Level 3+   [ TRANSCODING] [ View Log ]    |
-| 720p / 1080p Technique Demonstration  [INST-014]                   (68% done)     [ Cancel ]      |
-+---------------------------------------------------------------------------------------------------+
-| [Thumbnail] 2025 Regional Workshop    Joshua Craig      Public     [ FAILED ]     [ Retry ]       |
-| Ingest Raw  Introductory Talk         [INST-008]                   Corrupt moov   [ Delete ]      |
-+---------------------------------------------------------------------------------------------------+
-```
+### 8.1 Entry Point 1: Integrated in `/manage-materials`
+Next to any uploaded video in the materials table/grid, an action button **"Publish to VOD"** / **"VOD Settings"** opens the curation dialog.
 
-### Admin Curation Modal Fields
-- **VOD Title**: Pre-filled from upload filename/notes, editable for clean catalog display.
-- **Description / Outline**: Rich text/markdown notes, timestamps for chapters.
-- **Category**: Seminar Recording, Technique Breakdown, Grading Prep, Form Demo, etc.
-- **Instructor Credit**: Autocomplete dropdown to select or confirm featured instructor.
-- **Access Tier**: Public | Members Only | Instructors Only | Level Restricted (with Level slider).
-- **Featured**: Checkbox to spotlight on the Member Dashboard hero banner.
-- **Transcoding Profile**: Standard ABR Ladder (1080p, 720p, 480p, 360p) + Scrubber Spritesheet.
+### 8.2 Entry Point 2: Dedicated VOD Hub (`/manage-vod`)
+
+A dedicated management console to monitor transcoding pipelines, edit catalog metadata, set pricing/tiers, and feature items.
+
+| Preview & Quality | Title & Details | Instructor & Event | Access Tier & Price | Transcoder Status | Actions |
+|---|---|---|---|---|---|
+| **[Thumbnail]**<br>1080p HLS (1h 24m) | **2026 European Seminar**<br>Day 1: Spinning Hands & Neutral Point | Sam Chin<br>`[INST-001]` | `Members Only`<br>*(Included)* | **Ready**<br>(4 Renditions) | `[ Play ]`<br>`[ Edit ]`<br>`[ Unpublish ]` |
+| **[Thumbnail]**<br>720p / 1080p | **Form Section 3 Breakdown**<br>Footwork Alignment & Flow | Alex K<br>`[INST-014]` | `Class Subscribers`<br>or **$15.00 Buy** | **Transcoding**<br>(68% complete) | `[ View Log ]`<br>`[ Cancel ]` |
+| **[Thumbnail]**<br>Ingest Raw | **2025 Regional Workshop**<br>Introductory Discussion | Joshua Craig<br>`[INST-008]` | `Public`<br>*(Free Preview)* | **Failed**<br>(Corrupt input moov) | `[ Retry ]`<br>`[ Delete ]` |
+
+### 8.3 Admin Curation Modal Fields
+- **VOD Title**: Clean title for the catalog.
+- **Description**: Rich markdown description with chapter outline and prerequisites.
+- **Category**: Select from `VodCategory` enum.
+- **Tags**: Comma-separated or chip-based tags (e.g. `#spinning-hands`, `#level-3`, `#2026`).
+- **Instructor Credit**: Autocomplete selector for instructor profile.
+- **Linked Event**: Optional linked `IlcEvent`.
+- **Access Tier**:
+  - `Public` (Free for all)
+  - `Members Only` (Requires active membership)
+  - `Instructors Only` (Requires instructor license)
+  - `Class Video Subscribers` (Requires class video library subscription)
+  - `Direct Purchase` (Buy-to-watch standalone)
+- **Direct Purchase Price**: Optional price in USD cents (e.g. `1500` for `$15.00`) to allow members/non-members to purchase standalone access.
+- **Featured**: Toggle to spotlight in the hero banner of `/videos`.
 
 ---
 
-## 9. Client-Side Video Player & VOD Portal Architecture
+## 9. Public Video Catalog & Browse Page (`/videos`)
 
-### 9.1. Player Technology Choice: **Hls.js**
+### 9.1 Features & Layout
+1. **Hero Spotlight**: Large video banner showing the featured seminar/technique recording with instant playback or trailer view.
+2. **"Continue Watching" Carousel**: Real-time row for logged-in members showing their in-progress videos with percentage bars and 1-click resume.
+3. **Filter & Search Toolbar**:
+   - **Search Bar**: Instant client-side search indexing title, description, tags, instructor name, and location.
+   - **Category Tabs**: *All*, *Seminars*, *Technique Breakdowns*, *Grading Preparation*, *Form Demonstrations*, *Class Archive*.
+   - **Tag Chips**: Filter by popular tags (`#spinning-hands`, `#sticky-hands`, `#level-3`, `#applications`).
+   - **Access Tier Filter**: *All*, *Free / Public*, *Included in My Plan*, *Class Library*, *Purchasable*.
+   - **Instructor Filter**: Dropdown/autocomplete of featured instructors.
+4. **Video Grid Cards**:
+   - High-res thumbnail with duration badge (`1h 24m`) and resolution badge (`1080p HD`).
+   - Category pill and date/location tags.
+   - Dynamic Call-to-Action / Status Badge:
+     - **"Watch Now"** (Green button with play icon — if user has access).
+     - **"Members Only — Join to Watch"** (Links to membership checkout).
+     - **"Class Video Subscribers — Subscribe"** (Links to Class Library subscription).
+     - **"Unlock for $15.00"** (Launches Stripe one-off checkout).
+5. **Video Detail / Watch Page (`/videos/:id`)**:
+   - Theater mode with `<app-video-player>`.
+   - Chapter timestamps (clicking a timestamp seeks the player directly).
+   - Instructor biography card and related video recommendations.
 
-We select **Hls.js** as the core streaming engine for the following reasons:
-- **Lightweight & Fast**: Compact footprint (~70KB gzipped), no bloated dependencies.
-- **Broad Browser Compatibility**: Uses HTML5 `<video>` and W3C Media Source Extensions (MSE) on Chrome, Firefox, Edge, and Android; falls back seamlessly to native HLS on Apple Safari (iOS / macOS).
-- **Fine-Grained Signal Integration**: Emits discrete events (`MANIFEST_PARSED`, `LEVEL_SWITCHED`, `FRAG_BUFFERED`, `ERROR`) that map directly to Angular Signals.
-- **Automatic & Manual Quality Switching**: Supports seamless ABR (adaptive bitrate) or explicit user quality locking (e.g., forcing 1080p).
+---
 
-### 9.2. Angular Standalone Component: `<app-video-player>`
+## 10. Client-Side Video Player Component (`<app-video-player>`)
 
-#### Component Hierarchy
-```
-src/app/video-player/
-├── video-player.ts          # Angular 21+ Standalone Component with Signals & Hls.js
-├── video-player.html        # Custom accessible controls, timeline, quality menu
-├── video-player.scss        # Responsive 16:9 container, sleek dark theme, animations
-└── video-player.spec.ts     # Vitest component unit tests
-```
+### 10.1 Technology Choice: **Hls.js**
+- Lightweight (~70KB gzipped), no external jQuery or legacy player baggage.
+- Deep integration with HTML5 `<video>` and Angular 21+ Signals.
+- Complete support for adaptive bitrate (ABR) switching, buffering events, manual level selection, and native Safari HLS fallback.
 
-#### TypeScript Implementation (`src/app/video-player/video-player.ts`)
+### 10.2 TypeScript Component (`src/app/video-player/video-player.ts`)
 
 ```typescript
 import {
@@ -633,19 +618,17 @@ import {
   ViewChild,
   signal,
   computed,
-  effect,
-  inject,
   ChangeDetectionStrategy,
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import Hls from 'hls.js';
-import { VodItem } from '../../../functions/src/data-model';
+import { VideoItem } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
 export interface QualityLevel {
-  id: number;      // -1 for Auto, 0..N for explicit levels
+  id: number;      // -1 for Auto, 0..N for discrete levels
   label: string;   // 'Auto', '1080p', '720p', '480p', '360p'
   bitrate: number;
   height: number;
@@ -664,10 +647,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   @ViewChild('playerContainer', { static: true }) containerRef!: ElementRef<HTMLDivElement>;
 
   // Inputs
-  vod = signal<VodItem | null>(null);
-  @Input({ required: true }) set videoData(val: VodItem) {
-    this.vod.set(val);
+  video = signal<VideoItem | null>(null);
+  @Input({ required: true }) set videoData(val: VideoItem) {
+    this.video.set(val);
   }
+  @Input({ required: true }) manifestUrl = '';
   @Input() initialPositionSeconds = 0;
   @Input() autoplay = false;
 
@@ -689,18 +673,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   isFullscreen = signal(false);
   controlsVisible = signal(true);
   
-  // Quality Levels
+  // Quality Selection
   availableQualities = signal<QualityLevel[]>([]);
   currentQualityId = signal<number>(-1); // -1 = Auto
   currentResolutionLabel = signal('Auto');
-
-  // Scrubbing & Thumbnail Preview Signals
-  isScrubbing = signal(false);
-  hoverPositionPercent = signal(0);
-  hoverTime = signal(0);
-  hoverSpriteX = signal(0);
-  hoverSpriteY = signal(0);
-  showHoverThumbnail = signal(false);
 
   // Menus
   showSettingsMenu = signal(false);
@@ -710,14 +686,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   private hideControlsTimeout: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
-    const video = this.videoRef.nativeElement;
-    const vodItem = this.vod();
-    if (!vodItem) return;
+    const videoEl = this.videoRef.nativeElement;
+    if (!this.manifestUrl) return;
 
-    this.setupHls(vodItem.manifestUrl, video);
-    this.setupNativeEvents(video);
+    this.setupHls(this.manifestUrl, videoEl);
+    this.setupNativeEvents(videoEl);
 
-    // Sync progress to server every 5 seconds
+    // Save playback position every 5s
     this.saveIntervalId = setInterval(() => {
       if (this.isPlaying()) {
         this.timeUpdated.emit(this.currentTime());
@@ -725,7 +700,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }, 5000);
   }
 
-  private setupHls(src: string, video: HTMLVideoElement): void {
+  private setupHls(src: string, videoEl: HTMLVideoElement): void {
     if (Hls.isSupported()) {
       this.hls = new Hls({
         capLevelToPlayerSize: true,
@@ -734,7 +709,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       });
 
       this.hls.loadSource(src);
-      this.hls.attachMedia(video);
+      this.hls.attachMedia(videoEl);
 
       this.hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         const levels: QualityLevel[] = [
@@ -749,7 +724,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         this.availableQualities.set(levels);
 
         if (this.autoplay) {
-          video.play().catch(() => this.isPlaying.set(false));
+          videoEl.play().catch(() => this.isPlaying.set(false));
         }
       });
 
@@ -775,49 +750,48 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
           }
         }
       });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Safari HLS
-      video.src = src;
+    } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native Apple Safari HLS
+      videoEl.src = src;
       if (this.initialPositionSeconds > 0) {
-        video.currentTime = this.initialPositionSeconds;
+        videoEl.currentTime = this.initialPositionSeconds;
       }
       if (this.autoplay) {
-        video.play().catch(() => this.isPlaying.set(false));
+        videoEl.play().catch(() => this.isPlaying.set(false));
       }
     }
   }
 
-  private setupNativeEvents(video: HTMLVideoElement): void {
-    video.addEventListener('play', () => this.isPlaying.set(true));
-    video.addEventListener('pause', () => {
+  private setupNativeEvents(videoEl: HTMLVideoElement): void {
+    videoEl.addEventListener('play', () => this.isPlaying.set(true));
+    videoEl.addEventListener('pause', () => {
       this.isPlaying.set(false);
       this.timeUpdated.emit(this.currentTime());
     });
-    video.addEventListener('waiting', () => this.isBuffering.set(true));
-    video.addEventListener('playing', () => this.isBuffering.set(false));
-    video.addEventListener('timeupdate', () => {
-      this.currentTime.set(video.currentTime);
-      if (this.duration() > 0 && (video.currentTime / this.duration()) >= 0.95) {
+    videoEl.addEventListener('waiting', () => this.isBuffering.set(true));
+    videoEl.addEventListener('playing', () => this.isBuffering.set(false));
+    videoEl.addEventListener('timeupdate', () => {
+      this.currentTime.set(videoEl.currentTime);
+      if (this.duration() > 0 && (videoEl.currentTime / this.duration()) >= 0.95) {
         this.videoCompleted.emit();
       }
     });
-    video.addEventListener('durationchange', () => this.duration.set(video.duration));
+    videoEl.addEventListener('durationchange', () => this.duration.set(videoEl.duration));
   }
 
-  // Playback Control Methods
   togglePlay(): void {
-    const video = this.videoRef.nativeElement;
-    if (video.paused) {
-      video.play();
+    const videoEl = this.videoRef.nativeElement;
+    if (videoEl.paused) {
+      videoEl.play();
     } else {
-      video.pause();
+      videoEl.pause();
     }
   }
 
   seek(seconds: number): void {
-    const video = this.videoRef.nativeElement;
-    video.currentTime = Math.max(0, Math.min(seconds, this.duration()));
-    this.currentTime.set(video.currentTime);
+    const videoEl = this.videoRef.nativeElement;
+    videoEl.currentTime = Math.max(0, Math.min(seconds, this.duration()));
+    this.currentTime.set(videoEl.currentTime);
   }
 
   skip(secondsDelta: number): void {
@@ -825,16 +799,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   setVolume(vol: number): void {
-    const video = this.videoRef.nativeElement;
-    video.volume = Math.max(0, Math.min(vol, 1));
-    this.volume.set(video.volume);
-    this.isMuted.set(video.volume === 0);
+    const videoEl = this.videoRef.nativeElement;
+    videoEl.volume = Math.max(0, Math.min(vol, 1));
+    this.volume.set(videoEl.volume);
+    this.isMuted.set(videoEl.volume === 0);
   }
 
   toggleMute(): void {
-    const video = this.videoRef.nativeElement;
-    video.muted = !video.muted;
-    this.isMuted.set(video.muted);
+    const videoEl = this.videoRef.nativeElement;
+    videoEl.muted = !videoEl.muted;
+    this.isMuted.set(videoEl.muted);
   }
 
   setQuality(levelId: number): void {
@@ -852,8 +826,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   setSpeed(rate: number): void {
-    const video = this.videoRef.nativeElement;
-    video.playbackRate = rate;
+    const videoEl = this.videoRef.nativeElement;
+    videoEl.playbackRate = rate;
     this.playbackRate.set(rate);
     this.showSpeedMenu.set(false);
     this.showSettingsMenu.set(false);
@@ -869,15 +843,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   async togglePictureInPicture(): Promise<void> {
-    const video = this.videoRef.nativeElement;
+    const videoEl = this.videoRef.nativeElement;
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
     } else if (document.pictureInPictureEnabled) {
-      await video.requestPictureInPicture();
+      await videoEl.requestPictureInPicture();
     }
   }
 
-  // Keyboard Shortcuts Handler
   onKeyDown(event: KeyboardEvent): void {
     switch (event.key.toLowerCase()) {
       case ' ':
@@ -914,7 +887,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Mouse activity timer for hiding overlay controls
   onMouseMove(): void {
     this.controlsVisible.set(true);
     if (this.hideControlsTimeout) clearTimeout(this.hideControlsTimeout);
@@ -949,228 +921,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 }
 ```
 
-#### HTML Template (`src/app/video-player/video-player.html`)
-
-```html
-<div
-  #playerContainer
-  class="video-player-container"
-  [class.fullscreen]="isFullscreen()"
-  [class.hide-controls]="!controlsVisible() && isPlaying()"
-  (mousemove)="onMouseMove()"
-  (mouseleave)="controlsVisible.set(false)"
-  (keydown)="onKeyDown($event)"
-  tabindex="0"
->
-  <!-- Video Element -->
-  <video
-    #videoElement
-    class="video-element"
-    playsinline
-    (click)="togglePlay()"
-    [poster]="vod()?.thumbnailUrl || ''"
-  ></video>
-
-  <!-- Buffering Spinner -->
-  @if (isBuffering()) {
-    <div class="buffering-overlay">
-      <app-spinner></app-spinner>
-    </div>
-  }
-
-  <!-- Big Center Play Button (when paused) -->
-  @if (!isPlaying() && !isBuffering()) {
-    <button type="button" class="big-play-btn" (click)="togglePlay()" title="Play video">
-      <app-icon name="play_arrow"></app-icon>
-    </button>
-  }
-
-  <!-- Gradient Overlay & Custom Controls -->
-  <div class="player-controls-overlay" [class.visible]="controlsVisible() || !isPlaying()">
-    
-    <!-- Scrubbing Progress Bar with Tooltip & Thumbnail Preview -->
-    <div class="timeline-container">
-      <div
-        class="timeline-track"
-        (click)="seek(($any($event).offsetX / $any($event).currentTarget.clientWidth) * duration())"
-      >
-        <div
-          class="timeline-buffered"
-          [style.width.%]="(currentTime() / (duration() || 1)) * 100"
-        ></div>
-        <div
-          class="timeline-played"
-          [style.width.%]="(currentTime() / (duration() || 1)) * 100"
-        >
-          <div class="timeline-thumb"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom Controls Row -->
-    <div class="controls-row">
-      <!-- Left Controls: Play, Skip, Volume, Time -->
-      <div class="controls-left">
-        <button type="button" class="ctrl-btn" (click)="togglePlay()" [title]="isPlaying() ? 'Pause (k)' : 'Play (k)'">
-          <app-icon [name]="isPlaying() ? 'pause' : 'play_arrow'"></app-icon>
-        </button>
-        
-        <button type="button" class="ctrl-btn" (click)="skip(-10)" title="Rewind 10s (j)">
-          <app-icon name="replay_10"></app-icon>
-        </button>
-
-        <button type="button" class="ctrl-btn" (click)="skip(10)" title="Forward 10s (l)">
-          <app-icon name="forward_10"></app-icon>
-        </button>
-
-        <div class="volume-control-group">
-          <button type="button" class="ctrl-btn" (click)="toggleMute()" title="Mute (m)">
-            <app-icon [name]="isMuted() || volume() === 0 ? 'volume_off' : 'volume_up'"></app-icon>
-          </button>
-          <input
-            type="range"
-            class="volume-slider"
-            min="0"
-            max="1"
-            step="0.05"
-            [value]="isMuted() ? 0 : volume()"
-            (input)="setVolume(+$any($event.target).value)"
-          />
-        </div>
-
-        <div class="time-display">
-          <span class="current-time">{{ formatTime(currentTime()) }}</span>
-          <span class="separator">/</span>
-          <span class="total-duration">{{ formatTime(duration()) }}</span>
-        </div>
-      </div>
-
-      <!-- Right Controls: Speed, Quality, PiP, Fullscreen -->
-      <div class="controls-right">
-        <!-- Settings Toggle -->
-        <div class="settings-menu-wrapper">
-          <button
-            type="button"
-            class="ctrl-btn"
-            (click)="showSettingsMenu.set(!showSettingsMenu())"
-            title="Settings"
-          >
-            <app-icon name="settings"></app-icon>
-          </button>
-
-          <!-- Settings Dropdown -->
-          @if (showSettingsMenu()) {
-            <div class="settings-dropdown">
-              <button type="button" class="menu-item" (click)="showQualityMenu.set(true); showSettingsMenu.set(false)">
-                <span>Quality</span>
-                <span class="menu-val">{{ currentResolutionLabel() }} &rsaquo;</span>
-              </button>
-              <button type="button" class="menu-item" (click)="showSpeedMenu.set(true); showSettingsMenu.set(false)">
-                <span>Speed</span>
-                <span class="menu-val">{{ playbackRate() }}x &rsaquo;</span>
-              </button>
-            </div>
-          }
-
-          <!-- Quality Selection Submenu -->
-          @if (showQualityMenu()) {
-            <div class="settings-dropdown">
-              <div class="dropdown-header">
-                <button type="button" class="back-btn" (click)="showQualityMenu.set(false); showSettingsMenu.set(true)">
-                  &lsaquo; Back
-                </button>
-                <span>Quality</span>
-              </div>
-              @for (q of availableQualities(); track q.id) {
-                <button
-                  type="button"
-                  class="menu-item"
-                  [class.active]="currentQualityId() === q.id"
-                  (click)="setQuality(q.id)"
-                >
-                  <span>{{ q.label }}</span>
-                  @if (currentQualityId() === q.id) {
-                    <app-icon name="check"></app-icon>
-                  }
-                </button>
-              }
-            </div>
-          }
-
-          <!-- Speed Selection Submenu -->
-          @if (showSpeedMenu()) {
-            <div class="settings-dropdown">
-              <div class="dropdown-header">
-                <button type="button" class="back-btn" (click)="showSpeedMenu.set(false); showSettingsMenu.set(true)">
-                  &lsaquo; Back
-                </button>
-                <span>Speed</span>
-              </div>
-              @for (speed of [0.5, 0.75, 1, 1.25, 1.5, 2]; track speed) {
-                <button
-                  type="button"
-                  class="menu-item"
-                  [class.active]="playbackRate() === speed"
-                  (click)="setSpeed(speed)"
-                >
-                  <span>{{ speed === 1 ? 'Normal (1x)' : speed + 'x' }}</span>
-                  @if (playbackRate() === speed) {
-                    <app-icon name="check"></app-icon>
-                  }
-                </button>
-              }
-            </div>
-          }
-        </div>
-
-        <!-- Picture-in-Picture -->
-        <button type="button" class="ctrl-btn" (click)="togglePictureInPicture()" title="Picture in Picture">
-          <app-icon name="picture_in_picture_alt"></app-icon>
-        </button>
-
-        <!-- Fullscreen -->
-        <button type="button" class="ctrl-btn" (click)="toggleFullscreen()" title="Fullscreen (f)">
-          <app-icon [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'"></app-icon>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-```
-
----
-
-## 10. Member VOD Portal & Catalog Page (`/vod`)
-
-### 10.1. Features & Layout
-- **Hero Spotlight**: Large video banner displaying the latest featured seminar recording with immediate "Watch Now" action.
-- **"Continue Watching" Carousel**: Visual carousel showing videos the member previously started, with accurate percentage completion bars and 1-click resume.
-- **Filtering & Search**:
-  - Filter by Category (Seminars, Techniques, Gradings, Workshops).
-  - Filter by Featured Instructor.
-  - Filter by Minimum Level (showing badges for accessible vs locked content).
-  - Instant text search across video title, outline, location, and tags.
-- **Theater Mode / Dedicated Watch Page (`/vod/:id`)**:
-  - Embedded `<app-video-player>` with responsive 16:9 aspect ratio.
-  - Collapsible syllabus/chapter list.
-  - Instructor profile chip and linked Event card.
-
 ---
 
 ## 11. Cost Estimation, Quotas & Performance Optimizations
 
-### 11.1. Google Cloud Transcoder Pricing & Budgeting
-- **Transcoder Pricing**: ~$0.015 per minute of HD video (1080p output).
-- **Example**: Transcoding a 60-minute seminar recording costs ~$0.90 one-time.
-- **Storage**: ~$0.020 per GB/month for transcoded HLS chunks in standard GCS.
-- **Bandwidth / Egress Optimization via Cloud CDN**:
-  - Cloud CDN caches the 4-second `.ts` segments globally.
-  - Cache hit ratio for popular videos typically exceeds 90-95%, dropping egress network costs by up to 80% compared to direct bucket access.
+### 11.1 Google Cloud Transcoder Pricing
+- **Pricing**: ~$0.015 per minute of HD video output (1080p).
+- **Example**: Transcoding a 60-minute seminar recording into a 4-rendition ABR ladder costs ~$0.90 one-time.
+- **Cost Protection**: Because transcoding is gated strictly by Admin selection, costs scale predictably with curated catalog size rather than total user uploads.
 
-### 11.2. Cost Control Measures
-1. **Admin Gated**: Videos are **never** automatically transcoded on upload; only selected and approved videos trigger GCP Transcoder jobs.
-2. **Standard ABR Ladder**: 4 renditions (1080p, 720p, 480p, 360p) balance visual fidelity with storage footprint.
-3. **Segment Duration**: 4.0-second HLS chunks provide the ideal balance between quick startup time, rapid adaptive switching, and reasonable HTTP request overhead.
+### 11.2 Storage & Bandwidth Optimization via Cloud CDN
+- **HLS Chunk Caching**: Cloud CDN caches the 4-second `.ts` segments globally.
+- **Egress Savings**: Typical cache hit ratio for on-demand video ranges from 90% to 96%, reducing outbound storage bandwidth costs by up to 80%.
 
 ---
 
@@ -1178,49 +940,40 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
 ```mermaid
 gantt
-    title VOD Streaming Implementation Plan
+    title VOD Streaming Implementation Roadmap
     dateFormat  YYYY-MM-DD
-    section Phase 1: GCP Setup & Backend
-    Enable GCP Transcoder API & Pub/Sub Topic   :p1_1, 2026-08-15, 2d
-    Define Data Models in data-model.ts          :p1_2, after p1_1, 2d
-    Implement transcodeVideoForVod Cloud Function:p1_3, after p1_2, 3d
-    Implement onTranscodeJobFinished Pub/Sub     :p1_4, after p1_3, 2d
-    Configure Firestore & Storage Security Rules:p1_5, after p1_4, 2d
+    section Phase 1: Models & GCP Setup
+    Define TypeScript Enums & Types in data-model.ts :p1_1, 2026-08-15, 2d
+    Enable GCP Transcoder API & Pub/Sub Topic        :p1_2, after p1_1, 2d
+    Implement transcodeVideoForVod Cloud Function    :p1_3, after p1_2, 3d
+    Implement onTranscodeJobFinished Webhook         :p1_4, after p1_3, 2d
+    Configure Firestore Security Rules & Grants      :p1_5, after p1_4, 2d
 
-    section Phase 2: Admin Curation UI
-    Admin "Publish to VOD" modal on /manage-materials :p2_1, after p1_5, 3d
-    Dedicated /manage-vod dashboard              :p2_2, after p2_1, 3d
-    Real-time Transcoding Status Indicator       :p2_3, after p2_2, 2d
+    section Phase 2: Playback Session & Stripe
+    Implement getVideoPlaybackSession Endpoint       :p2_1, after p1_5, 3d
+    Update Stripe Webhook for Video Grants           :p2_2, after p2_1, 2d
+    Build Admin Curation UI (/manage-vod)            :p2_3, after p2_2, 3d
 
-    section Phase 3: Client Video Player
-    Install & configure Hls.js in Angular        :p3_1, after p2_3, 2d
-    Build Standalone <app-video-player>          :p3_2, after p3_1, 4d
-    Implement Scrubbing Spritesheet Preview      :p3_3, after p3_2, 2d
-    Keyboard Shortcuts & A11y Polish             :p3_4, after p3_3, 2d
-
-    section Phase 4: VOD Catalog & Progress
-    Build /vod Catalog & Search Views            :p4_1, after p3_4, 4d
-    Implement Member VideoProgress Sync & Resume :p4_2, after p4_1, 3d
-    End-to-end Testing & Emulator Verification   :p4_3, after p4_2, 3d
+    section Phase 3: Player & Catalog
+    Install Hls.js & Build <app-video-player>        :p3_1, after p2_3, 4d
+    Build Public Catalog Page (/videos)              :p3_2, after p3_1, 4d
+    Implement Playback Progress Sync & Resume        :p3_3, after p3_2, 2d
+    Unit & Rules Testing (Vitest & Emulator)         :p3_4, after p3_3, 3d
 ```
 
-### Phase 1: Google Cloud Infrastructure & Backend
-1. Enable `transcoder.googleapis.com` in the GCP console and configure the Pub/Sub notification topic `vod-transcode-notifications`.
-2. Add `VodItem`, `VodStatus`, `VodAccessTier`, and `VideoProgress` interfaces to [`functions/src/data-model.ts`](../functions/src/data-model.ts).
-3. Implement `transcodeVideoForVod` callable function and `onTranscodeJobFinished` Pub/Sub webhook trigger.
-4. Update `firestore.rules` and `storage.rules` with strict access control.
+### Phase 1: Data Models & GCP Infrastructure
+1. Add `VodAccessTier`, `VodStatus`, `VodCategory`, and `VideoGrantKind` enums and `VideoItem`, `VideoGrant`, `VideoProgress` interfaces to [`functions/src/data-model.ts`](../functions/src/data-model.ts).
+2. Enable `transcoder.googleapis.com` and set up the Pub/Sub topic `vod-transcode-notifications`.
+3. Implement `transcodeVideoForVod` (callable) and `onTranscodeJobFinished` (Pub/Sub trigger).
+4. Update `firestore.rules` for `/videos`, `/members/{id}/videoGrants`, and `/video_grants`.
 
-### Phase 2: Admin Curation & Management
-1. Enhance `/manage-materials` to allow admins to select instructor videos and click "Publish to VOD".
-2. Add the VOD curation dialog with title, description, category, access tier, and instructor tags.
-3. Build the `/manage-vod` view to monitor running jobs, retry failed jobs, and edit live VOD metadata.
+### Phase 2: Playback Session Security & Stripe Purchasing
+1. Implement `getVideoPlaybackSession` callable function to validate entitlements against membership, Class Video Library subscription, or specific video grants and return signed CDN URLs.
+2. Extend `functions/src/stripe-webhook.ts` and fulfillment handlers to create `/members/{memberDocId}/videoGrants/{videoId}` on video purchase.
+3. Build the Admin curation modal in `/manage-materials` and the `/manage-vod` monitoring dashboard.
 
-### Phase 3: Angular Video Player Component
-1. Add `hls.js` dependency to `package.json`.
-2. Implement `<app-video-player>` with standalone architecture, signals, custom overlay controls, adaptive quality menu, speed controls, and keyboard shortcuts.
-3. Add scrubber preview hovering with Transcoder spritesheets.
-
-### Phase 4: VOD Portal & Playback Progress
-1. Create the Member VOD Library page (`/vod`) with search, category filtering, and hero spotlight.
-2. Integrate real-time progress syncing to `/members/{memberDocId}/videoProgress/{vodId}` and the "Continue Watching" row.
-3. Verify full workflow with Vitest unit tests and Firestore emulator integration tests.
+### Phase 3: Angular Player & Public Video Catalog
+1. Install `hls.js` and build `<app-video-player>` with standalone signals, adaptive ABR switching, speed controls, and keyboard shortcuts.
+2. Build the Public Video Catalog (`/videos`) with instant text search, tag filtering, category navigation, and dynamic call-to-action badges (*"Watch Now"*, *"Included in Membership"*, *"Subscribe"*, *"Unlock for $15"*).
+3. Connect real-time playback position sync to `/members/{id}/videoProgress/{videoId}`.
+4. Verify all flows with Vitest unit tests and Firestore emulator security rule tests.
