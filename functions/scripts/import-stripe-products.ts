@@ -7,26 +7,32 @@
  * Squarespace ids/SKUs/options are mirrored into Stripe `metadata` so records
  * can always be traced back to (and reconciled with) the source store.
  *
+ * The Stripe secret key is read from Google Secret Manager (the same
+ * `STRIPE_SECRET_KEY` secret used by Firebase Functions) via the native
+ * Secret Manager SDK, or can be provided via the `--secret-key` CLI option.
+ *
  * Usage:
- *   STRIPE_SECRET_KEY=sk_test_... pnpm import:stripe-products
- *   STRIPE_SECRET_KEY=sk_test_... pnpm import:stripe-products -- --dry-run
- *   STRIPE_SECRET_KEY=sk_test_... pnpm import:stripe-products -- --csv path/to/export.csv
+ *   pnpm import:stripe-products
+ *   pnpm import:stripe-products -- --dry-run
+ *   pnpm import:stripe-products -- --csv path/to/export.csv
+ *   pnpm import:stripe-products -- --project my-proj
+ *   pnpm import:stripe-products -- --secret-key sk_test_...
  *
  * A live-mode key (sk_live_) is refused unless --live is passed.
  */
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import Papa from 'papaparse';
 import Stripe from 'stripe';
+import { environment } from '../src/environment/environment';
 
-const DEFAULT_CSV = path.join(
+const DEFAULT_CSV = path.resolve(
   __dirname,
-  '..',
-  'mini-tools',
-  'stripe-demo',
-  'products_Jul-05_04-08-37PM.csv',
+  '../../mini-tools/stripe-demo/products_Aug-10_10-35-18PM.csv',
 );
-const DEFAULT_STRIPE_API_VERSION = '2026-04-22.dahlia';
+
+const DEFAULT_STRIPE_API_VERSION = environment.stripe.apiVersion;
 const METADATA_SOURCE = 'squarespace_import';
 
 type Interval = 'day' | 'week' | 'month' | 'year' | 'one_time';
@@ -59,6 +65,8 @@ type CliOptions = {
   currency: string;
   dryRun: boolean;
   live: boolean;
+  project: string;
+  secretKey: string;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -67,6 +75,8 @@ function parseArgs(argv: string[]): CliOptions {
     currency: 'usd',
     dryRun: false,
     live: false,
+    project: '',
+    secretKey: '',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -88,11 +98,89 @@ function parseArgs(argv: string[]): CliOptions {
       case '--live':
         options.live = true;
         break;
+      case '--project':
+        options.project = next ?? '';
+        i += 1;
+        break;
+      case '--secret-key':
+      case '--key':
+        options.secretKey = next ?? '';
+        i += 1;
+        break;
       default:
         throw new Error(`Unknown option ${arg}`);
     }
   }
   return options;
+}
+
+/** Reads the default project from `.firebaserc` at the repo root, if present. */
+function projectFromFirebaseRc(): string | undefined {
+  try {
+    const raw = readFileSync(
+      path.resolve(__dirname, '../../.firebaserc'),
+      'utf8',
+    );
+    const parsed = JSON.parse(raw) as {
+      projects?: { default?: string };
+    };
+    return parsed.projects?.default;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveProject(options: CliOptions): string {
+  const project =
+    options.project ||
+    process.env['GOOGLE_CLOUD_PROJECT'] ||
+    process.env['GCLOUD_PROJECT'] ||
+    projectFromFirebaseRc();
+  if (!project) {
+    throw new Error(
+      'Could not determine the Cloud project. Pass --project <id>, set ' +
+      'GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT, or add a default to .firebaserc.',
+    );
+  }
+  return project;
+}
+
+/**
+ * Reads a secret's latest value from Google Secret Manager via the native SDK.
+ */
+async function secretFromSecretManager(
+  name: string,
+  project: string,
+): Promise<string | undefined> {
+  try {
+    const client = new SecretManagerServiceClient();
+    const secretPath = `projects/${project}/secrets/${name}/versions/latest`;
+    const [version] = await client.accessSecretVersion({ name: secretPath });
+    const data = version.payload?.data;
+    if (!data) return undefined;
+    return typeof data === 'string' ? data : Buffer.from(data).toString('utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolves the Stripe secret key.
+ * Prefers an explicit command line option (--secret-key); otherwise reads
+ * STRIPE_SECRET_KEY from Google Secret Manager via the native SDK.
+ */
+async function resolveStripeSecretKey(options: CliOptions, project: string): Promise<string> {
+  const key =
+    options.secretKey ||
+    (await secretFromSecretManager('STRIPE_SECRET_KEY', project));
+  if (!key) {
+    throw new Error(
+      'Could not obtain STRIPE_SECRET_KEY. Pass --secret-key <key>, or make ' +
+      'sure your Google Cloud credentials have access and the STRIPE_SECRET_KEY secret exists ' +
+      `in project "${project}".`,
+    );
+  }
+  return key;
 }
 
 /** Squarespace stores rich HTML; Stripe wants short plain text. */
@@ -322,7 +410,7 @@ async function ensurePrice(
   }
   console.log(
     `    + create price ${label} ${(variant.unitAmount / 100).toFixed(2)} ${variant.currency}` +
-      ` [${variant.interval}]`,
+    ` [${variant.interval}]`,
   );
   if (dryRun) return null;
   const created = await stripe.prices.create(params);
@@ -349,8 +437,9 @@ async function ensureDefaultPrice(
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
-  const secretKey = process.env['STRIPE_SECRET_KEY'];
-  if (!secretKey) throw new Error('STRIPE_SECRET_KEY is required');
+  const secretKey =
+    options.secretKey ||
+    (await resolveStripeSecretKey(options, resolveProject(options)));
   if (secretKey.startsWith('sk_live_') && !options.live) {
     throw new Error('Refusing to use a live-mode key unless --live is passed');
   }
@@ -366,8 +455,7 @@ async function main(): Promise<void> {
 
   type StripeApiVersion = NonNullable<ConstructorParameters<typeof Stripe>[1]>['apiVersion'];
   const stripe = new Stripe(secretKey, {
-    apiVersion: (process.env['STRIPE_API_VERSION'] ??
-      DEFAULT_STRIPE_API_VERSION) as StripeApiVersion,
+    apiVersion: DEFAULT_STRIPE_API_VERSION as StripeApiVersion,
   });
   // Validate the key / connectivity before doing any writes.
   if (!options.dryRun) await stripe.balance.retrieve();
