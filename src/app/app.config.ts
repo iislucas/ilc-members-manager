@@ -71,6 +71,7 @@ export enum Views {
   OrderComplete = 'orderComplete',
   MyOrders = 'myOrders',
   MyMaterials = 'myMaterials',
+  ManageMaterials = 'manageMaterials',
   Videos = 'videos',
   VideoView = 'videoView',
   ManageVod = 'manageVod',
