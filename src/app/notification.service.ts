@@ -39,6 +39,7 @@ import {
   NotificationOrderIssueData,
   NotificationOrderIssuesSummaryData,
   NotificationPendingEventsSummaryData,
+  NotificationStyle,
   NotificationUnpaidGradingsSummaryData,
   NotificationUploadData,
   NotificationUploadsSummaryData,
@@ -55,6 +56,7 @@ import {
   initCachedBlogPost,
   initEvent,
   isGradingPaid,
+  notificationStyle,
 } from '../../functions/src/data-model';
 import { getInstructorExpiryStatus } from './member-tags';
 import { environment } from '../environments/environment';
@@ -1658,6 +1660,21 @@ export class NotificationService implements OnDestroy {
   public async dismissAll(): Promise<void> {
     const member = this.firebaseService.user()?.member;
     const active = this.notifications();
+    if (!member || active.length === 0) return;
+
+    const batch = writeBatch(this.db);
+    active.forEach((n) => {
+      const ref = doc(this.db, 'members', member.docId, 'notifications', n.docId);
+      batch.update(ref, { dismissed: true });
+    });
+    await batch.commit();
+  }
+
+  public async dismissAllFyi(): Promise<void> {
+    const member = this.firebaseService.user()?.member;
+    const active = this.notifications().filter(
+      (n) => notificationStyle(n.kind) === NotificationStyle.Info,
+    );
     if (!member || active.length === 0) return;
 
     const batch = writeBatch(this.db);

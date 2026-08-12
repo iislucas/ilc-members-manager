@@ -150,7 +150,7 @@ export const initPathPatterns = {
   [Views.MemberGradings]: addUrlParams(pathPattern`my-gradings`, ['tab', 'event', 'groupDate', 'groupInstructor']),
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
   [Views.NotificationSettings]: pathPattern`settings/notifications`,
-  [Views.Notifications]: addUrlParams(pathPattern`notifications`, ['filter']),
+  [Views.Notifications]: addUrlParams(pathPattern`notifications`, ['filter', 'style']),
   [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
   [Views.ManageOrders]: addUrlParams(pathPattern`orders`, [
     'orderId', 'q', 'startDate', 'endDate', 'status', 'kind',

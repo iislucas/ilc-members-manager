@@ -10,6 +10,31 @@
   width: 100%;
   box-sizing: border-box;
   margin-bottom: 1.5rem;
+  transition: margin-bottom 0.25s ease;
+
+  &.is-folded {
+    margin-bottom: 1rem;
+
+    .section-header {
+      margin-bottom: 0;
+      padding: 0.6rem 0.85rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px v.$shadow-color;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    &.has-todos .section-header {
+      background-color: #fff4e5;
+      border: 1px solid #fed7aa;
+      border-left: 4px solid #f5a623;
+    }
+
+    &.has-fyis-only .section-header {
+      background-color: v.$row-highlight-bg;
+      border: 1px solid #bfdbfe;
+      border-left: 4px solid v.$row-highlight-border;
+    }
+  }
 
   .notification-error-banner {
     background-color: #fef2f2;
@@ -85,11 +110,13 @@
     align-items: center;
     margin-bottom: 1rem;
     position: relative;
+    box-sizing: border-box;
 
     .title-container {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      flex-wrap: wrap;
 
       .section-title-link {
         text-decoration: none;
@@ -111,8 +138,6 @@
       }
 
       .badge {
-        background-color: #ef4444;
-        color: white;
         font-size: 0.75rem;
         font-weight: bold;
         padding: 2px 7px;
@@ -120,14 +145,35 @@
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
+        gap: 3px;
         cursor: pointer;
         line-height: 1.2;
-        transition: transform 0.15s ease, background-color 0.15s ease;
+        transition: transform 0.15s ease, opacity 0.15s ease;
 
-        &:hover {
-          background-color: #dc2626;
-          transform: scale(1.08);
+        app-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        &.badge-todo {
+          background-color: #ea580c;
+          color: white;
+
+          &:hover {
+            background-color: #c2410c;
+            transform: scale(1.08);
+          }
+        }
+
+        &.badge-fyi {
+          background-color: #2563eb;
+          color: white;
+
+          &:hover {
+            background-color: #1d4ed8;
+            transform: scale(1.08);
+          }
         }
 
         &:active {

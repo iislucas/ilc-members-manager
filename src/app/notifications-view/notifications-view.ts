@@ -91,10 +91,14 @@ export class NotificationsViewComponent implements OnDestroy {
     return list;
   });
 
-  // Style filter (All / To do / FYI), a local toggle at the top of the list.
-  // Notifications are shown newest-first (already date-ordered by the service);
-  // this only narrows by presentation style rather than grouping into sections.
-  protected styleFilter = signal<'all' | 'action' | 'info'>('all');
+  // Style filter (All / To do / FYI), derived from the `style` URL param.
+  protected styleFilter = computed<'all' | 'action' | 'info'>(() => {
+    const param = this.routingService.signals[Views.Notifications].urlParams.style?.();
+    if (param === 'action' || param === 'info') {
+      return param;
+    }
+    return 'all';
+  });
 
   actionCount = computed(
     () => this.visibleNotifications().filter((n) => this.styleOf(n) === 'action').length,
@@ -111,7 +115,9 @@ export class NotificationsViewComponent implements OnDestroy {
   });
 
   setStyleFilter(style: 'all' | 'action' | 'info') {
-    this.styleFilter.set(style);
+    this.routingService.signals[Views.Notifications].urlParams.style.set(
+      style === 'all' ? '' : style,
+    );
   }
 
   styleOf(n: MemberNotification): NotificationStyle {

@@ -1,5 +1,10 @@
 @if (notifications().length > 0 || syncError()) {
-  <div class="notifications-section">
+  <div
+    class="notifications-section"
+    [class.is-folded]="isFolded()"
+    [class.has-todos]="todoCount() > 0"
+    [class.has-fyis-only]="todoCount() === 0 && fyiCount() > 0"
+  >
     @if (syncError(); as err) {
       <div class="notification-error-banner">
         <app-icon name="error" width="20px" height="20px" fill="#dc2626"></app-icon>
@@ -19,14 +24,28 @@
           <a class="section-title-link" [href]="allNotificationsHref" title="View all notifications">
             <h2>Notifications</h2>
           </a>
-          <a
-            class="badge"
-            [href]="unreadNotificationsHref"
-            title="View unread notifications"
-            aria-label="View unread notifications"
-          >
-            {{ notifications().length }}
-          </a>
+          @if (todoCount() > 0) {
+            <a
+              class="badge badge-todo"
+              [href]="todoNotificationsHref"
+              title="View to-do notifications"
+              aria-label="View to-do notifications"
+            >
+              <app-icon name="check_box" width="13px" height="13px"></app-icon>
+              <span>{{ todoCount() }}</span>
+            </a>
+          }
+          @if (fyiCount() > 0) {
+            <a
+              class="badge badge-fyi"
+              [href]="fyiNotificationsHref"
+              title="View FYI notifications"
+              aria-label="View FYI notifications"
+            >
+              <app-icon name="info" width="13px" height="13px"></app-icon>
+              <span>{{ fyiCount() }}</span>
+            </a>
+          }
           <button
             type="button"
             class="icon-only-button fold-toggle-btn"
@@ -62,6 +81,16 @@
                   <app-icon name="check" width="18px" height="18px"></app-icon>
                   <span>Dismiss all</span>
                 </button>
+                @if (fyiCount() > 0) {
+                  <button
+                    type="button"
+                    class="menu-item dismiss-fyi-btn"
+                    (click)="onDismissAllFyi(); menuOpen.set(false)"
+                  >
+                    <app-icon name="info" width="18px" height="18px"></app-icon>
+                    <span>Dismiss all FYI</span>
+                  </button>
+                }
                 <div class="menu-seperator"></div>
                 <a
                   class="menu-item"

@@ -109,12 +109,33 @@ export class NotificationsListComponent {
   // 3-dots more menu state.
   menuOpen = signal(false);
 
-  // Deep links to the dedicated notifications pages and settings.
+  // Counts by style (Action = TODO, Info = FYI)
+  protected todoCount = computed(
+    () =>
+      this.notifications().filter(
+        (n) => notificationStyle(n.kind) === NotificationStyle.Action,
+      ).length,
+  );
+
+  protected fyiCount = computed(
+    () =>
+      this.notifications().filter(
+        (n) => notificationStyle(n.kind) === NotificationStyle.Info,
+      ).length,
+  );
+
+  // Deep links to the dedicated notifications pages and filtered style sections.
   protected allNotificationsHref = this.routingService.hrefWithParams(
     '/notifications?filter=all',
   );
   protected unreadNotificationsHref = this.routingService.hrefWithParams(
     '/notifications?filter=unread',
+  );
+  protected todoNotificationsHref = this.routingService.hrefWithParams(
+    '/notifications?filter=unread&style=action',
+  );
+  protected fyiNotificationsHref = this.routingService.hrefWithParams(
+    '/notifications?filter=unread&style=info',
   );
   protected notificationSettingsHref = this.routingService.hrefForView(
     Views.NotificationSettings,
@@ -157,6 +178,24 @@ export class NotificationsListComponent {
       await this.notificationService.dismissAll();
     } catch (e) {
       console.error('Failed to dismiss all notifications', e);
+    } finally {
+      this.clearCollapsing(...ids);
+    }
+  }
+
+  async onDismissAllFyi() {
+    const fyiNotifications = this.notifications().filter(
+      (n) => notificationStyle(n.kind) === NotificationStyle.Info,
+    );
+    const ids = fyiNotifications.map((n) => n.docId);
+    if (ids.length === 0) return;
+
+    this.markCollapsing(...ids);
+    await this.wait(NotificationsListComponent.COLLAPSE_MS);
+    try {
+      await this.notificationService.dismissAllFyi();
+    } catch (e) {
+      console.error('Failed to dismiss all FYI notifications', e);
     } finally {
       this.clearCollapsing(...ids);
     }

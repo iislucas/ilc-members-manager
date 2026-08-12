@@ -16,8 +16,21 @@ describe('NotificationsListComponent', () => {
   let mockNotificationService: any;
   let mockRoutingService: any;
 
-  const mockNotif: MemberNotification = {
+  const mockTodoNotif: MemberNotification = {
     docId: 'id1',
+    markdown: 'Grading request awaiting your review',
+    createdAt: '2026-05-14T12:00:00Z',
+    dismissed: false,
+    kind: NotificationKind.GradingRequestsYouAsInstructor,
+    data: {
+      gradingDocId: 'grading-1',
+      studentName: 'Student Name',
+      level: 'Student 1',
+    },
+  };
+
+  const mockFyiNotif: MemberNotification = {
+    docId: 'id2',
     markdown: 'Welcome Student!',
     createdAt: '2026-05-14T12:00:00Z',
     dismissed: false,
@@ -43,11 +56,12 @@ describe('NotificationsListComponent', () => {
     };
 
     mockNotificationService = {
-      notifications: signal([mockNotif]),
+      notifications: signal([mockTodoNotif, mockFyiNotif]),
       syncError: signal<string | null>(null),
       dismissSyncError: vi.fn(),
       dismissNotification: vi.fn().mockResolvedValue(undefined),
       dismissAll: vi.fn().mockResolvedValue(undefined),
+      dismissAllFyi: vi.fn().mockResolvedValue(undefined),
     };
 
     mockRoutingService = {
@@ -83,16 +97,36 @@ describe('NotificationsListComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render Notifications title and badge with correct links', () => {
+  it('should render Notifications title and separate TODO and FYI badges with correct links', () => {
     const titleLink = fixture.nativeElement.querySelector('.section-title-link') as HTMLAnchorElement;
     expect(titleLink).toBeTruthy();
     expect(titleLink.textContent?.trim()).toBe('Notifications');
     expect(titleLink.getAttribute('href')).toBe('#/notifications?filter=all');
 
-    const badgeLink = fixture.nativeElement.querySelector('.badge') as HTMLAnchorElement;
-    expect(badgeLink).toBeTruthy();
-    expect(badgeLink.textContent?.trim()).toBe('1');
-    expect(badgeLink.getAttribute('href')).toBe('#/notifications?filter=unread');
+    const todoBadge = fixture.nativeElement.querySelector('.badge-todo') as HTMLAnchorElement;
+    expect(todoBadge).toBeTruthy();
+    expect(todoBadge.textContent?.trim()).toBe('1');
+    expect(todoBadge.getAttribute('href')).toBe('#/notifications?filter=unread&style=action');
+
+    const fyiBadge = fixture.nativeElement.querySelector('.badge-fyi') as HTMLAnchorElement;
+    expect(fyiBadge).toBeTruthy();
+    expect(fyiBadge.textContent?.trim()).toBe('1');
+    expect(fyiBadge.getAttribute('href')).toBe('#/notifications?filter=unread&style=info');
+  });
+
+  it('should apply has-todos and has-fyis-only classes when folded', () => {
+    const section = fixture.nativeElement.querySelector('.notifications-section') as HTMLElement;
+    component.isFolded.set(true);
+    fixture.detectChanges();
+
+    expect(section.classList.contains('is-folded')).toBe(true);
+    expect(section.classList.contains('has-todos')).toBe(true);
+
+    // When only FYIs exist
+    mockNotificationService.notifications.set([mockFyiNotif]);
+    fixture.detectChanges();
+    expect(section.classList.contains('has-todos')).toBe(false);
+    expect(section.classList.contains('has-fyis-only')).toBe(true);
   });
 
   it('should toggle fold/unfold state and persist to localStorage', () => {
@@ -126,7 +160,7 @@ describe('NotificationsListComponent', () => {
     expect(customComp.isFolded()).toBe(true);
   });
 
-  it('should open 3-dots menu with Dismiss All, All Notifications, Unread Notifications, and Settings links', () => {
+  it('should open 3-dots menu with Dismiss All, Dismiss All FYI, All Notifications, Unread Notifications, and Settings links', () => {
     const moreBtn = fixture.nativeElement.querySelector('.more-btn') as HTMLButtonElement;
     expect(moreBtn).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.notifications-menu')).toBeFalsy();
@@ -141,6 +175,10 @@ describe('NotificationsListComponent', () => {
     expect(dismissAllBtn).toBeTruthy();
     expect(dismissAllBtn.textContent).toContain('Dismiss all');
 
+    const dismissFyiBtn = menu.querySelector('.dismiss-fyi-btn') as HTMLButtonElement;
+    expect(dismissFyiBtn).toBeTruthy();
+    expect(dismissFyiBtn.textContent).toContain('Dismiss all FYI');
+
     const menuLinks = menu.querySelectorAll('a.menu-item');
     expect(menuLinks.length).toBe(3);
     expect(menuLinks[0].textContent).toContain('All notifications');
@@ -151,10 +189,22 @@ describe('NotificationsListComponent', () => {
     expect(menuLinks[2].getAttribute('href')).toBe('#/settings/notifications');
   });
 
+  it('should call dismissAllFyi when Dismiss All FYI in menu is clicked', async () => {
+    component.menuOpen.set(true);
+    fixture.detectChanges();
+
+    const dismissFyiBtn = fixture.nativeElement.querySelector('.dismiss-fyi-btn') as HTMLButtonElement;
+    dismissFyiBtn.click();
+    await waitForCollapse();
+    await fixture.whenStable();
+
+    expect(mockNotificationService.dismissAllFyi).toHaveBeenCalled();
+  });
+
   it('should render notifications successfully', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.notification-card')).toBeTruthy();
-    expect(compiled.querySelector('.notification-card')?.textContent).toContain('Welcome Student!');
+    expect(compiled.querySelector('.notification-card')?.textContent).toContain('Grading request awaiting your review');
   });
 
   // The dismiss handlers wait for the fold-up animation (~280ms) before
@@ -200,7 +250,7 @@ describe('NotificationsListComponent', () => {
   });
 
   it('caps the home feed at 3 cards and shows a view-all link when there are more', async () => {
-    const many = [1, 2, 3, 4].map((i) => ({ ...mockNotif, docId: `id${i}` }));
+    const many = [1, 2, 3, 4].map((i) => ({ ...mockFyiNotif, docId: `id${i}` }));
     mockNotificationService.notifications.set(many);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -216,8 +266,8 @@ describe('NotificationsListComponent', () => {
 
   it('shows no view-all link when there are 3 or fewer notifications', async () => {
     mockNotificationService.notifications.set([
-      { ...mockNotif, docId: 'id1' },
-      { ...mockNotif, docId: 'id2' },
+      { ...mockFyiNotif, docId: 'id1' },
+      { ...mockFyiNotif, docId: 'id2' },
     ]);
     fixture.detectChanges();
     await fixture.whenStable();

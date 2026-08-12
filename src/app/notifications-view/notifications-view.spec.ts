@@ -14,6 +14,7 @@ describe('NotificationsViewComponent', () => {
   let mockNotificationService: any;
   let mockRoutingService: any;
   let filterSignal: any;
+  let styleSignal: any;
 
   const unreadNotif: MemberNotification = {
     docId: 'id1',
@@ -35,6 +36,7 @@ describe('NotificationsViewComponent', () => {
 
   beforeEach(async () => {
     filterSignal = signal<string | undefined>(undefined);
+    styleSignal = signal<string | undefined>(undefined);
 
     mockNotificationService = {
       allNotifications: signal([unreadNotif, readNotif]),
@@ -51,7 +53,12 @@ describe('NotificationsViewComponent', () => {
     mockRoutingService = {
       hrefForView: vi.fn().mockReturnValue('#/gradings/grading-1'),
       signals: {
-        [Views.Notifications]: { urlParams: { filter: filterSignal } },
+        [Views.Notifications]: {
+          urlParams: {
+            filter: filterSignal,
+            style: styleSignal,
+          },
+        },
       },
     };
 

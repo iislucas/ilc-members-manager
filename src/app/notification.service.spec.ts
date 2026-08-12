@@ -770,4 +770,43 @@ describe('NotificationService', () => {
       expect(service.syncError()).toBeNull();
     });
   });
+
+  describe('dismissAllFyi', () => {
+    it('dismisses only informational (FYI) notifications', async () => {
+      const todoNotif: MemberNotification = {
+        docId: 'todo-1',
+        markdown: 'A to-do item',
+        createdAt: '2026-05-14T12:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.GradingRequestsYouAsInstructor,
+        data: { gradingDocId: 'g-1', studentName: 'S', level: '1' },
+      };
+      const fyiNotif: MemberNotification = {
+        docId: 'fyi-1',
+        markdown: 'An info item',
+        createdAt: '2026-05-14T12:00:00Z',
+        dismissed: false,
+        kind: NotificationKind.GradingRequestAccepted,
+        data: { gradingDocId: 'g-1', level: '1' },
+      };
+
+      service.notifications.set([todoNotif, fyiNotif]);
+      const member = { docId: 'mem1' } as any;
+      vi.spyOn(mockFirebaseService, 'user').mockReturnValue({ member } as any);
+
+      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] = [];
+      const commit = vi.fn().mockResolvedValue(undefined);
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: (ref: { id: string }, patch: Record<string, unknown>) =>
+          updates.push({ ref, patch }),
+        commit,
+      });
+
+      await service.dismissAllFyi();
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].patch).toEqual({ dismissed: true });
+      expect(commit).toHaveBeenCalled();
+    });
+  });
 });
