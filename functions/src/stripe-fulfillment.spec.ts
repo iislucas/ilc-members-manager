@@ -239,4 +239,83 @@ describe('stripe-fulfillment', () => {
       }),
     );
   });
+
+  it('fulfills monthly Class Video Library subscription on member doc', async () => {
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_vid_monthly',
+      subscriptionId: 'sub_vid_monthly_123',
+      mode: StripeCheckoutMode.Subscription,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 2500,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_vid',
+          priceId: 'price_vid_monthly',
+          description: 'Monthly Class Video Library Subscription',
+          quantity: 1,
+          amountTotal: 2500,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_vid_123');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classVideoLibrarySubscription: true,
+        classVideoLibrarySubscriptionId: 'sub_vid_monthly_123',
+        classVideoLibraryLastRenewalDate: expect.any(String),
+        classVideoLibraryExpirationDate: expect.any(String),
+        classVideoLibraryNextAutoRenewDate: expect.any(String),
+      }),
+    );
+  });
+
+  it('fulfills annual Class Video Library subscription on member doc', async () => {
+    const memberWithExistingSub = {
+      ...sampleMember,
+      classVideoLibrarySubscription: true,
+      classVideoLibraryExpirationDate: '2028-06-01',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_vid_annual',
+      subscriptionId: 'sub_vid_annual_456',
+      mode: StripeCheckoutMode.Subscription,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 25000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_vid',
+          priceId: 'price_vid_annual',
+          description: '1-Year Class Video Library Subscription (Annual)',
+          quantity: 1,
+          amountTotal: 25000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithExistingSub, order, 'order_vid_456');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classVideoLibrarySubscription: true,
+        classVideoLibrarySubscriptionId: 'sub_vid_annual_456',
+        classVideoLibraryExpirationDate: '2029-06-01',
+        classVideoLibraryNextAutoRenewDate: '2029-06-01',
+      }),
+    );
+  });
 });
