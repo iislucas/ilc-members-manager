@@ -72,6 +72,9 @@ export enum Views {
   MyOrders = 'myOrders',
   MyMaterials = 'myMaterials',
   ManageMaterials = 'manageMaterials',
+  Videos = 'videos',
+  VideoView = 'videoView',
+  ManageVod = 'manageVod',
 }
 
 // Views that are accessible without login.
@@ -87,6 +90,8 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.DownloadResource,
   Views.Products,
   Views.OrderComplete,
+  Views.Videos,
+  Views.VideoView,
 ]);
 
 export const memberListPathPatterns = {
@@ -191,6 +196,13 @@ export const initPathPatterns = {
   ]),
   [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, [
     'q', 'tag', 'date', 'startDate', 'endDate', 'eventId', 'type', 'instructorId', 'memberId', 'location',
+  ]),
+  [Views.Videos]: addUrlParams(pathPattern`videos`, [
+    'q', 'category', 'tag', 'instructorId', 'tier',
+  ]),
+  [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
+  [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
+    'q', 'status', 'category', 'instructorId',
   ]),
 };
 

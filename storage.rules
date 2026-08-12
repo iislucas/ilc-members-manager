@@ -172,6 +172,12 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Video on Demand (VOD) transcoded streaming chunks and manifests
+    match /vod/{videoId}/{allFiles=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /{allPaths=**} {
       // Deny by default
       allow read, write: if false;

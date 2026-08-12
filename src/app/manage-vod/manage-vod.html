@@ -1,0 +1,320 @@
+<div class="manage-vod-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-titles">
+      <h2>VOD Catalog Management</h2>
+      <p class="subtitle">
+        Curate instructor uploads, monitor video transcoding pipelines, configure pricing, and manage video on demand streaming.
+      </p>
+    </div>
+  </div>
+
+  <!-- Stats Metric Cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-label">Total Videos</span>
+      <span class="stat-val">{{ stats().total }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Published</span>
+      <span class="stat-val">{{ stats().published }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Ready for Streaming</span>
+      <span class="stat-val text-success">{{ stats().ready }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Transcoding / Queued</span>
+      <span class="stat-val text-warn">{{ stats().processing }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Total Content Hours</span>
+      <span class="stat-val">{{ stats().totalHours }}h</span>
+    </div>
+  </div>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="filter-toolbar">
+    <div class="search-box">
+      <app-icon name="search"></app-icon>
+      <input
+        type="text"
+        placeholder="Search videos by title, instructor, tags..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="setSearchQuery($event)"
+      />
+    </div>
+
+    <div class="filter-selectors">
+      <!-- Status Filter -->
+      <select
+        class="filter-select"
+        [ngModel]="selectedStatus()"
+        (ngModelChange)="setStatus($event)"
+      >
+        <option value="all">All Statuses</option>
+        <option value="ready">Ready</option>
+        <option value="transcoding">Transcoding</option>
+        <option value="queued">Queued</option>
+        <option value="failed">Failed</option>
+        <option value="draft">Draft</option>
+      </select>
+
+      <!-- Category Filter -->
+      <select
+        class="filter-select"
+        [ngModel]="selectedCategory()"
+        (ngModelChange)="setCategory($event)"
+      >
+        <option value="all">All Categories</option>
+        @for (c of categories; track c.value) {
+          <option [value]="c.value">{{ c.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <!-- Videos Table List -->
+  <div class="table-card">
+    <table class="vod-table">
+      <thead>
+        <tr>
+          <th>Thumbnail</th>
+          <th>Title & Instructor</th>
+          <th>Category</th>
+          <th>Access Tier</th>
+          <th>Duration</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (video of filteredVideos(); track video.docId) {
+          <tr>
+            <!-- Thumbnail -->
+            <td class="thumb-cell">
+              @if (video.thumbnailUrl) {
+                <img [src]="video.thumbnailUrl" [alt]="video.title" class="thumb-img" />
+              } @else {
+                <div class="thumb-placeholder">
+                  <app-icon name="video_library"></app-icon>
+                </div>
+              }
+            </td>
+
+            <!-- Title & Info -->
+            <td class="title-cell">
+              <div class="video-main-info">
+                <span class="table-video-title">{{ video.title }}</span>
+                @if (video.instructorName) {
+                  <span class="table-video-instructor">{{ video.instructorName }}</span>
+                }
+                @if (video.featured) {
+                  <span class="featured-badge">Featured</span>
+                }
+              </div>
+            </td>
+
+            <!-- Category -->
+            <td>
+              <span class="category-tag">{{ video.category }}</span>
+            </td>
+
+            <!-- Access Tier & Price -->
+            <td>
+              <div class="tier-info">
+                <span class="tier-tag">{{ video.accessTier }}</span>
+                @if (video.priceCents) {
+                  <span class="price-pill">${{ (video.priceCents / 100).toFixed(2) }}</span>
+                }
+              </div>
+            </td>
+
+            <!-- Duration -->
+            <td>
+              <span class="dur-text">{{ formatDuration(video.durationSeconds) }}</span>
+            </td>
+
+            <!-- Status -->
+            <td>
+              <span class="status-badge" [class]="getStatusClass(video.vodStatus)">
+                {{ video.vodStatus }}
+              </span>
+            </td>
+
+            <!-- Actions -->
+            <td class="actions-cell">
+              <div class="action-buttons">
+                <!-- Preview / Watch -->
+                <a
+                  class="icon-button"
+                  [href]="getVideoHref(video)"
+                  title="Watch Video"
+                  target="_blank"
+                >
+                  <app-icon name="visibility"></app-icon>
+                </a>
+
+                <!-- Edit Metadata -->
+                <button
+                  type="button"
+                  class="icon-button"
+                  (click)="openEditModal(video)"
+                  title="Edit Metadata"
+                >
+                  <app-icon name="edit"></app-icon>
+                </button>
+
+                <!-- Retry Transcoding -->
+                @if (video.vodStatus === 'failed' || video.vodStatus === 'none') {
+                  <button
+                    type="button"
+                    class="icon-button warn"
+                    (click)="retryTranscoding(video)"
+                    title="Retry Transcoding"
+                  >
+                    <app-icon name="refresh"></app-icon>
+                  </button>
+                }
+
+                <!-- Delete -->
+                <button
+                  type="button"
+                  class="icon-button delete"
+                  (click)="deleteVideo(video)"
+                  title="Delete Video"
+                >
+                  <app-icon name="delete"></app-icon>
+                </button>
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="empty-row">
+              No videos matching the selected criteria.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Edit Metadata Modal -->
+  @if (editingVideo(); as edit) {
+    <div class="modal-backdrop" (click)="closeEditModal()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Edit VOD Video</h3>
+          <button type="button" class="icon-only-button" (click)="closeEditModal()">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Title -->
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" [(ngModel)]="edit.title" />
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label>Description</label>
+            <textarea rows="3" [(ngModel)]="edit.description"></textarea>
+          </div>
+
+          <div class="form-row">
+            <!-- Category -->
+            <div class="form-group">
+              <label>Category</label>
+              <select [(ngModel)]="edit.category">
+                @for (c of categories; track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Access Tier -->
+            <div class="form-group">
+              <label>Access Tier</label>
+              <select [(ngModel)]="edit.accessTier">
+                @for (t of accessTiers; track t.value) {
+                  <option [value]="t.value">{{ t.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <!-- Price (USD) -->
+            <div class="form-group">
+              <label>Price ($ USD, optional for one-off purchase)</label>
+              <input
+                type="number"
+                step="0.50"
+                min="0"
+                [ngModel]="priceDollars()"
+                (ngModelChange)="priceDollars.set($event)"
+                placeholder="15.00"
+              />
+            </div>
+
+            <!-- Stripe Price ID -->
+            <div class="form-group">
+              <label>Stripe Price ID (optional)</label>
+              <input
+                type="text"
+                [(ngModel)]="edit.stripePriceId"
+                placeholder="price_123..."
+              />
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div class="form-group">
+            <label>Tags (comma-separated)</label>
+            <input
+              type="text"
+              [ngModel]="editTagInput()"
+              (ngModelChange)="editTagInput.set($event)"
+              placeholder="e.g. spinning hands, neutral, basics"
+            />
+          </div>
+
+          <!-- Toggles -->
+          <div class="toggles-row">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="edit.isPublished" />
+              <span>Published in Catalog</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="edit.featured" />
+              <span>Featured in Hero Spotlight</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="subtle-button" (click)="closeEditModal()">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="primary-btn"
+            [disabled]="isSaving()"
+            (click)="saveVideoChanges()"
+          >
+            @if (isSaving()) {
+              <app-spinner></app-spinner>
+              <span>Saving...</span>
+            } @else {
+              <span>Save Changes</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

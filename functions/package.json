@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^5.0.0",
+    "@google-cloud/video-transcoder": "^5.0.0",
     "axios": "^1.9.0",
     "concurrently": "^9.1.2",
     "firebase-admin": "^13.4.0",

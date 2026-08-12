@@ -121,6 +121,25 @@ service cloud.firestore {
         allow read: if isOrderOwner() || isAdmin();
         allow write: if isAdmin();
       }
+
+      // Member video grants (specific purchased/granted VOD access)
+      match /videoGrants/{videoId} {
+        function isGrantOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read: if isGrantOwner() || isAdmin();
+        allow write: if isAdmin();
+      }
+
+      // Member video watch progress
+      match /videoProgress/{videoId} {
+        function isProgressOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read, write: if isProgressOwner() || isAdmin();
+      }
     }
 
     // Collection group query support for /uploads
@@ -314,6 +333,23 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['lastUpdated', 'status', 'gradingInstructorId', 'studentNotes', 'declineNotes',
              'statusChangedByMemberDocId', 'statusChangedByName']);
+    }
+
+    // Public video on demand catalog
+    match /videos/{videoId} {
+      allow read: if isAdmin() || resource.data.get('isPublished', false) == true;
+      allow write: if isAdmin();
+    }
+
+    // Global video access grants
+    match /video_grants/{grantId} {
+      allow read: if isAdmin() || (
+        request.auth != null && (
+          request.auth.token.email == resource.data.memberEmail ||
+          resource.data.memberDocId in getUserMemberDocIds()
+        )
+      );
+      allow write: if isAdmin();
     }
   }
 }

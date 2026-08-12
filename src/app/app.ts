@@ -50,6 +50,9 @@ import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MyMaterialsComponent } from './my-materials/my-materials';
 import { ManageMaterialsComponent } from './manage-materials/manage-materials';
+import { VideosCatalogComponent } from './videos-catalog/videos-catalog';
+import { VideoViewComponent } from './video-view/video-view';
+import { ManageVodComponent } from './manage-vod/manage-vod';
 import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
 import { MembershipType } from '../../functions/src/data-model';
@@ -106,6 +109,9 @@ import { NavigationTreeService } from './navigation-tree';
     OrderCompleteComponent,
     MyMaterialsComponent,
     ManageMaterialsComponent,
+    VideosCatalogComponent,
+    VideoViewComponent,
+    ManageVodComponent,
     NotFoundComponent,
   ],
   templateUrl: './app.html',

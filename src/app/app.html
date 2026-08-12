@@ -75,6 +75,12 @@
         @case (Views.OrderComplete) {
           <app-order-complete></app-order-complete>
         }
+        @case (Views.Videos) {
+          <app-videos-catalog></app-videos-catalog>
+        }
+        @case (Views.VideoView) {
+          <app-video-view></app-video-view>
+        }
       }
     } @else if (!user) {
       <!-- Restricted page, not logged in: show initialisation or login -->
@@ -307,6 +313,9 @@
         }
         @case (Views.ManageMaterials) {
           <app-manage-materials></app-manage-materials>
+        }
+        @case (Views.ManageVod) {
+          <app-manage-vod></app-manage-vod>
         }
         @default {
           <app-not-found></app-not-found>

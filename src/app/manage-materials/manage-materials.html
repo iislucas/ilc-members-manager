@@ -387,6 +387,16 @@
                 >
                   <app-icon name="link" />
                 </a>
+                @if (mat.contentType.startsWith('video/')) {
+                  <button
+                    type="button"
+                    class="icon-only-button vod-action-btn"
+                    (click)="openPublishVodModal(mat)"
+                    title="Publish to Video on Demand (VOD)"
+                  >
+                    <app-icon name="live_tv" />
+                  </button>
+                }
                 <button
                   type="button"
                   class="icon-only-button"
@@ -561,6 +571,16 @@
                   <a [href]="mat.url" target="_blank" rel="noopener" class="icon-only-button" title="Open">
                     <app-icon name="link" />
                   </a>
+                  @if (mat.contentType.startsWith('video/')) {
+                    <button
+                      type="button"
+                      class="icon-only-button vod-action-btn"
+                      (click)="openPublishVodModal(mat)"
+                      title="Publish to Video on Demand (VOD)"
+                    >
+                      <app-icon name="live_tv" />
+                    </button>
+                  }
                   <button type="button" class="icon-only-button" (click)="openEditModal(mat)" title="Edit">
                     <app-icon name="admin" />
                   </button>
@@ -711,6 +731,116 @@
               <app-spinner>Saving...</app-spinner>
             } @else {
               Save Changes
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Publish to VOD Modal -->
+  @if (vodPublishItem(); as vItem) {
+    <div class="modal-backdrop" (click)="closePublishVodModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Publish to Video on Demand (VOD)</h3>
+          <button type="button" class="icon-only-button" (click)="closePublishVodModal()" title="Close">
+            <app-icon name="close" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="modal-note">
+            Transcode this video into adaptive multi-bitrate HLS streaming format and publish it to the Video on Demand catalog.
+          </p>
+
+          <div class="form-group">
+            <label for="vodTitleInput">Catalog Title</label>
+            <input
+              id="vodTitleInput"
+              type="text"
+              [value]="vodTitle()"
+              (input)="vodTitle.set($any($event.target).value)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="vodDescInput">Description</label>
+            <textarea
+              id="vodDescInput"
+              rows="3"
+              [value]="vodDescription()"
+              (input)="vodDescription.set($any($event.target).value)"
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vodCatSelect">Category</label>
+              <select
+                id="vodCatSelect"
+                [value]="vodCategory()"
+                (change)="vodCategory.set($any($event.target).value)"
+              >
+                @for (c of vodCategories; track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="vodTierSelect">Access Tier</label>
+              <select
+                id="vodTierSelect"
+                [value]="vodAccessTier()"
+                (change)="vodAccessTier.set($any($event.target).value)"
+              >
+                @for (t of vodAccessTiers; track t.value) {
+                  <option [value]="t.value">{{ t.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="vodPriceInput">Price ($ USD, optional for one-off purchase)</label>
+            <input
+              id="vodPriceInput"
+              type="number"
+              step="0.50"
+              min="0"
+              placeholder="15.00"
+              [value]="vodPriceDollars() ?? ''"
+              (input)="vodPriceDollars.set($any($event.target).value ? +$any($event.target).value : null)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="vodTagsInput">Tags (comma-separated)</label>
+            <input
+              id="vodTagsInput"
+              type="text"
+              placeholder="e.g. spinning hands, neutral, basics"
+              [value]="vodTags()"
+              (input)="vodTags.set($any($event.target).value)"
+            />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="outlined-button" (click)="closePublishVodModal()" [disabled]="isPublishingVod()">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="button"
+            (click)="submitPublishVod()"
+            [disabled]="isPublishingVod()"
+          >
+            @if (isPublishingVod()) {
+              <app-spinner>Queuing Transcoder...</app-spinner>
+            } @else {
+              Publish to VOD
             }
           </button>
         </div>

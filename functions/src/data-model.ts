@@ -1380,6 +1380,7 @@ export enum OrderItemCategory {
   InstructorLicense = 'instructor_license',
   Grading = 'grading',
   VideoLibrary = 'video_library',
+  Vod = 'vod',
   Event = 'event',
   Other = 'other',
 }
@@ -2354,4 +2355,229 @@ export function firestoreDocToUploadItem(doc: GenericFirestoreDoc): UploadItem {
     lastUpdated,
   };
 }
+
+// ==================================================================
+// # Video on Demand (VOD) Models
+// ==================================================================
+
+/** Access tiers determining who can stream the video. */
+export enum VodAccessTier {
+  Public = 'public',
+  MembersOnly = 'members_only',
+  InstructorsOnly = 'instructors_only',
+  ClassVideoSubscribers = 'class_video_subscribers',
+  DirectPurchase = 'direct_purchase',
+  AdminOnly = 'admin_only',
+}
+
+/** Processing state of the video transcoding job. */
+export enum VodStatus {
+  None = 'none',
+  Queued = 'queued',
+  Transcoding = 'transcoding',
+  Ready = 'ready',
+  Failed = 'failed',
+}
+
+/** Categories for catalog organization and filtering. */
+export enum VodCategory {
+  SeminarRecording = 'seminar_recording',
+  TechniqueBreakdown = 'technique_breakdown',
+  GradingSyllabus = 'grading_syllabus',
+  FormDemonstration = 'form_demonstration',
+  InstructorTraining = 'instructor_training',
+  Workshop = 'workshop',
+  HistoricalArchive = 'historical_archive',
+  ClassArchive = 'class_archive',
+}
+
+/** Source origin of an individual video access grant. */
+export enum VideoGrantKind {
+  StripePurchase = 'stripe_purchase',
+  AdminGrant = 'admin_grant',
+  EventAttendance = 'event_attendance',
+  Complimentary = 'complimentary',
+}
+
+export type VideoItem = {
+  docId: string;                     // Matches videoId / source uploadDocId
+  sourceUploadDocId: string;         // Original UploadItem docId in /members/{id}/uploads/
+  sourceMemberDocId: string;         // Member docId who uploaded the original video
+
+  // Public Catalog & Search Metadata
+  title: string;                     // Curated video title
+  description: string;               // Markdown or plain text description
+  category: VodCategory;             // Enum category
+  tags: string[];                    // Searchable tags (e.g. ['spinning_hands', 'level_3', 'paris_2026'])
+
+  // Instructor & Event Credits
+  instructorDocId: string;           // Featured instructor memberDocId
+  instructorName: string;            // Display name snapshot (e.g. "Sam Chin [INST-001]")
+  instructorId: string;              // Cached instructor ID (e.g. "1")
+  eventDocId: string;                // Linked IlcEvent docId (or '' if standalone)
+  eventTitle: string;                // Cached event title
+  recordedDate: string;              // YYYY-MM-DD
+  location: string;                  // Venue / City
+
+  // Access & Pricing Configuration
+  accessTier: VodAccessTier;         // Enum access tier
+  minLevel?: number;                 // Optional minimum student level requirement (e.g. Level 3+)
+  priceCents?: number;               // Direct purchase price in cents (e.g. 1500 for $15.00)
+  currency?: string;                 // e.g. 'usd'
+  stripeProductId?: string;          // Stripe prod_... ID if purchasable
+  stripePriceId?: string;            // Stripe price_... ID if purchasable
+
+  // Publishing & Curation Flags
+  isPublished: boolean;              // Visible in public catalog
+  featured: boolean;                 // Displayed in top hero banner
+  publishedAt: string;               // ISO Timestamp
+  publishedByMemberDocId: string;    // Admin who approved/published the video
+
+  // Technical & Transcoding Data
+  vodStatus: VodStatus;              // Enum transcoding status
+  vodJobId?: string;                 // GCP Transcoder Job ID
+  vodError?: string;                 // Transcoding error log if failed
+
+  // Media Endpoints
+  manifestUrl: string;               // HLS master manifest (protected/CDN URL)
+  thumbnailUrl: string;              // Public CDN URL for poster image
+  trailerUrl?: string;               // Optional short preview trailer URL
+  spriteSheetUrl?: string;           // Scrubber preview sprite sheet (e.g. "spritesheet.jpg")
+  spriteIntervalSeconds: number;     // e.g. 5
+  spriteWidth: number;               // 160 px
+  spriteHeight: number;              // 90 px
+
+  // Video Metrics
+  durationSeconds: number;           // Total video length in seconds
+  resolutions: string[];             // e.g. ['360p', '480p', '720p', '1080p']
+  originalSize: number;              // Raw upload size in bytes
+  chapters?: { title: string; startSeconds: number }[]; // Optional video chapters / timestamps
+
+  createdAt: string;                 // ISO Date
+  lastUpdated: string;               // ISO Date
+};
+
+export function initVideoItem(): VideoItem {
+  return {
+    docId: '',
+    sourceUploadDocId: '',
+    sourceMemberDocId: '',
+    title: '',
+    description: '',
+    category: VodCategory.SeminarRecording,
+    tags: [],
+    instructorDocId: '',
+    instructorName: '',
+    instructorId: '',
+    eventDocId: '',
+    eventTitle: '',
+    recordedDate: '',
+    location: '',
+    accessTier: VodAccessTier.MembersOnly,
+    isPublished: false,
+    featured: false,
+    publishedAt: '',
+    publishedByMemberDocId: '',
+    vodStatus: VodStatus.None,
+    manifestUrl: '',
+    thumbnailUrl: '',
+    spriteIntervalSeconds: 5,
+    spriteWidth: 160,
+    spriteHeight: 90,
+    durationSeconds: 0,
+    resolutions: [],
+    originalSize: 0,
+    createdAt: '',
+    lastUpdated: '',
+  };
+}
+
+export function firestoreDocToVideoItem(doc: GenericFirestoreDoc): VideoItem {
+  const data = (doc.data() || {}) as Partial<VideoItem>;
+  const createdAt = data.createdAt || new Date().toISOString();
+  const lastUpdated = data.lastUpdated || createdAt;
+  return {
+    ...initVideoItem(),
+    ...data,
+    docId: doc.id,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    resolutions: Array.isArray(data.resolutions) ? data.resolutions : [],
+    category: data.category || VodCategory.SeminarRecording,
+    accessTier: data.accessTier || VodAccessTier.MembersOnly,
+    vodStatus: data.vodStatus || VodStatus.None,
+    createdAt,
+    lastUpdated,
+  };
+}
+
+export type VideoGrant = {
+  docId: string;                     // Matches videoId
+  videoId: string;                   // Matches VideoItem docId
+  memberDocId: string;               // Member document ID
+  memberEmail: string;               // Email snapshot
+  grantKind: VideoGrantKind;         // Enum: StripePurchase, AdminGrant, etc.
+  orderDocId?: string;               // Reference to /orders/{orderDocId}
+  stripeSessionId?: string;          // Stripe checkout session ID
+  amountPaidCents?: number;          // In cents
+  grantedByMemberDocId?: string;     // Admin docId if granted manually
+  notes?: string;                    // Reason / reference notes
+  grantedAt: string;                 // ISO Timestamp
+  expiresAt?: string;                // Optional expiration timestamp (for rentals or temporary access)
+};
+
+export function initVideoGrant(videoId = '', memberDocId = ''): VideoGrant {
+  return {
+    docId: videoId,
+    videoId,
+    memberDocId,
+    memberEmail: '',
+    grantKind: VideoGrantKind.StripePurchase,
+    grantedAt: new Date().toISOString(),
+  };
+}
+
+export function firestoreDocToVideoGrant(doc: GenericFirestoreDoc): VideoGrant {
+  const data = (doc.data() || {}) as Partial<VideoGrant>;
+  return {
+    ...initVideoGrant(doc.id, data.memberDocId || ''),
+    ...data,
+    docId: doc.id,
+    grantKind: data.grantKind || VideoGrantKind.StripePurchase,
+    grantedAt: data.grantedAt || new Date().toISOString(),
+  };
+}
+
+export type VideoProgress = {
+  docId: string;                     // Matches videoId
+  videoId: string;                   // Matches VideoItem docId
+  memberDocId: string;
+  lastPositionSeconds: number;       // e.g. 420.5
+  durationSeconds: number;           // Total video length
+  completed: boolean;                // true if >= 90% watched
+  completedAt?: string;              // ISO Timestamp
+  lastWatchedAt: string;             // ISO Timestamp
+};
+
+export function initVideoProgress(videoId = '', memberDocId = ''): VideoProgress {
+  return {
+    docId: videoId,
+    videoId,
+    memberDocId,
+    lastPositionSeconds: 0,
+    durationSeconds: 0,
+    completed: false,
+    lastWatchedAt: new Date().toISOString(),
+  };
+}
+
+export function firestoreDocToVideoProgress(doc: GenericFirestoreDoc): VideoProgress {
+  const data = (doc.data() || {}) as Partial<VideoProgress>;
+  return {
+    ...initVideoProgress(doc.id, data.memberDocId || ''),
+    ...data,
+    docId: doc.id,
+    lastWatchedAt: data.lastWatchedAt || new Date().toISOString(),
+  };
+}
+
 

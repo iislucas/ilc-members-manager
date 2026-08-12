@@ -1,0 +1,233 @@
+<div
+  #playerContainer
+  class="video-player-container"
+  [class.fullscreen]="isFullscreen()"
+  [class.hide-controls]="!controlsVisible() && isPlaying()"
+  (mousemove)="onMouseMove()"
+  (mouseleave)="controlsVisible.set(false)"
+  (keydown)="onKeyDown($event)"
+  tabindex="0"
+>
+  <!-- Native Video Element -->
+  <video
+    #videoElement
+    class="video-element"
+    playsinline
+    (click)="togglePlay()"
+    [poster]="posterUrl || vod()?.thumbnailUrl || ''"
+  ></video>
+
+  <!-- Buffering Spinner Overlay -->
+  @if (isBuffering()) {
+    <div class="buffering-overlay">
+      <app-spinner></app-spinner>
+    </div>
+  }
+
+  <!-- Big Center Play Button (Shown when paused) -->
+  @if (!isPlaying() && !isBuffering()) {
+    <button
+      type="button"
+      class="big-play-btn"
+      (click)="togglePlay()"
+      title="Play video (k)"
+    >
+      <app-icon name="play_arrow"></app-icon>
+    </button>
+  }
+
+  <!-- Player Controls Overlay -->
+  <div
+    class="player-controls-overlay"
+    [class.visible]="controlsVisible() || !isPlaying()"
+  >
+    <!-- Timeline Scrub Bar -->
+    <div class="timeline-container">
+      <div class="timeline-track" (click)="onTimelineClick($event)">
+        <div class="timeline-buffered" [style.width.%]="playedPercent()"></div>
+        <div class="timeline-played" [style.width.%]="playedPercent()">
+          <div class="timeline-thumb"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="controls-row">
+      <!-- Left Controls: Play, Skips, Volume, Time -->
+      <div class="controls-left">
+        <button
+          type="button"
+          class="ctrl-btn"
+          (click)="togglePlay()"
+          [title]="isPlaying() ? 'Pause (k)' : 'Play (k)'"
+        >
+          <app-icon [name]="isPlaying() ? 'pause' : 'play_arrow'"></app-icon>
+        </button>
+
+        <button
+          type="button"
+          class="ctrl-btn"
+          (click)="skip(-10)"
+          title="Rewind 10s (j)"
+        >
+          <app-icon name="replay_10"></app-icon>
+        </button>
+
+        <button
+          type="button"
+          class="ctrl-btn"
+          (click)="skip(10)"
+          title="Forward 10s (l)"
+        >
+          <app-icon name="forward_10"></app-icon>
+        </button>
+
+        <div class="volume-group">
+          <button
+            type="button"
+            class="ctrl-btn"
+            (click)="toggleMute()"
+            title="Mute (m)"
+          >
+            <app-icon
+              [name]="isMuted() || volume() === 0 ? 'volume_off' : 'volume_up'"
+            ></app-icon>
+          </button>
+          <input
+            type="range"
+            class="volume-slider"
+            min="0"
+            max="1"
+            step="0.05"
+            [value]="isMuted() ? 0 : volume()"
+            (input)="setVolume(+$any($event.target).value)"
+            title="Volume"
+          />
+        </div>
+
+        <div class="time-display">
+          <span class="curr-time">{{ formatTime(currentTime()) }}</span>
+          <span class="sep">/</span>
+          <span class="total-time">{{ formatTime(duration()) }}</span>
+        </div>
+      </div>
+
+      <!-- Right Controls: Settings, PiP, Fullscreen -->
+      <div class="controls-right">
+        <!-- Settings Menu Wrapper -->
+        <div class="settings-wrapper">
+          <button
+            type="button"
+            class="ctrl-btn"
+            (click)="showSettingsMenu.set(!showSettingsMenu())"
+            title="Settings"
+          >
+            <app-icon name="settings"></app-icon>
+          </button>
+
+          <!-- Main Settings Dropdown -->
+          @if (showSettingsMenu()) {
+            <div class="settings-dropdown">
+              <button
+                type="button"
+                class="menu-item"
+                (click)="showQualityMenu.set(true); showSettingsMenu.set(false)"
+              >
+                <span>Quality</span>
+                <span class="menu-val">{{ currentResolutionLabel() }} &rsaquo;</span>
+              </button>
+              <button
+                type="button"
+                class="menu-item"
+                (click)="showSpeedMenu.set(true); showSettingsMenu.set(false)"
+              >
+                <span>Speed</span>
+                <span class="menu-val">{{ playbackRate() }}x &rsaquo;</span>
+              </button>
+            </div>
+          }
+
+          <!-- Quality Submenu -->
+          @if (showQualityMenu()) {
+            <div class="settings-dropdown">
+              <div class="dropdown-header">
+                <button
+                  type="button"
+                  class="back-btn"
+                  (click)="showQualityMenu.set(false); showSettingsMenu.set(true)"
+                >
+                  &lsaquo; Back
+                </button>
+                <span>Quality</span>
+              </div>
+              @for (q of availableQualities(); track q.id) {
+                <button
+                  type="button"
+                  class="menu-item"
+                  [class.active]="currentQualityId() === q.id"
+                  (click)="setQuality(q.id)"
+                >
+                  <span>{{ q.label }}</span>
+                  @if (currentQualityId() === q.id) {
+                    <app-icon name="check"></app-icon>
+                  }
+                </button>
+              }
+            </div>
+          }
+
+          <!-- Speed Submenu -->
+          @if (showSpeedMenu()) {
+            <div class="settings-dropdown">
+              <div class="dropdown-header">
+                <button
+                  type="button"
+                  class="back-btn"
+                  (click)="showSpeedMenu.set(false); showSettingsMenu.set(true)"
+                >
+                  &lsaquo; Back
+                </button>
+                <span>Speed</span>
+              </div>
+              @for (spd of [0.5, 0.75, 1, 1.25, 1.5, 2]; track spd) {
+                <button
+                  type="button"
+                  class="menu-item"
+                  [class.active]="playbackRate() === spd"
+                  (click)="setSpeed(spd)"
+                >
+                  <span>{{ spd === 1 ? 'Normal (1x)' : spd + 'x' }}</span>
+                  @if (playbackRate() === spd) {
+                    <app-icon name="check"></app-icon>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Picture-in-Picture -->
+        <button
+          type="button"
+          class="ctrl-btn"
+          (click)="togglePictureInPicture()"
+          title="Picture in Picture"
+        >
+          <app-icon name="picture_in_picture_alt"></app-icon>
+        </button>
+
+        <!-- Fullscreen -->
+        <button
+          type="button"
+          class="ctrl-btn"
+          (click)="toggleFullscreen()"
+          title="Fullscreen (f)"
+        >
+          <app-icon
+            [name]="isFullscreen() ? 'fullscreen_exit' : 'fullscreen'"
+          ></app-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

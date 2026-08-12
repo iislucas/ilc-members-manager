@@ -1388,4 +1388,147 @@ describe('Firestore Rules', () => {
       await assertSucceeds(orderRef.delete());
     });
   });
+
+  describe('Video on Demand (VOD) and Grants Rules', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+
+        // Setup a published video and an unpublished draft video
+        await db.collection('videos').doc('video-pub').set({
+          title: 'Published Video',
+          isPublished: true,
+          accessTier: 'public',
+        });
+        await db.collection('videos').doc('video-draft').set({
+          title: 'Draft Video',
+          isPublished: false,
+          accessTier: 'members_only',
+        });
+
+        // Setup a video grant for student1
+        await db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('videoGrants')
+          .doc('video-pub')
+          .set({
+            videoId: 'video-pub',
+            memberDocId: 'FirestoreDocID-student1',
+            grantKind: 'stripe_purchase',
+          });
+
+        // Setup global video_grant
+        await db.collection('video_grants').doc('grant-1').set({
+          videoId: 'video-pub',
+          memberDocId: 'FirestoreDocID-student1',
+          memberEmail: 'student1@ilc.com',
+        });
+      });
+    });
+
+    it('should allow anyone to read published videos in /videos', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(unauthDb.collection('videos').doc('video-pub').get());
+
+      const userDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(userDb.collection('videos').doc('video-pub').get());
+    });
+
+    it('should deny non-admins from reading unpublished draft videos', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertFails(unauthDb.collection('videos').doc('video-draft').get());
+
+      const userDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(userDb.collection('videos').doc('video-draft').get());
+    });
+
+    it('should allow admin to read and write all videos', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(adminDb.collection('videos').doc('video-draft').get());
+      await assertSucceeds(
+        adminDb.collection('videos').doc('video-new').set({
+          title: 'New Admin Video',
+          isPublished: true,
+        }),
+      );
+    });
+
+    it('should deny non-admins from writing to /videos', async () => {
+      const userDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        userDb.collection('videos').doc('video-pub').update({ title: 'Hacked' }),
+      );
+      await assertFails(
+        userDb.collection('videos').doc('video-new').set({ title: 'Forbidden' }),
+      );
+    });
+
+    it('should allow member to read own videoGrants and deny others', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      const otherDb = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+
+      const grantRef = ownerDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoGrants')
+        .doc('video-pub');
+
+      await assertSucceeds(grantRef.get());
+
+      const otherRef = otherDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoGrants')
+        .doc('video-pub');
+
+      await assertFails(otherRef.get());
+    });
+
+    it('should allow member to read and write own videoProgress and deny others', async () => {
+      const ownerDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      const otherDb = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+
+      const progressRef = ownerDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoProgress')
+        .doc('video-pub');
+
+      await assertSucceeds(
+        progressRef.set({
+          lastPositionSeconds: 120,
+          durationSeconds: 3600,
+          completed: false,
+        }),
+      );
+      await assertSucceeds(progressRef.get());
+
+      const otherRef = otherDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('videoProgress')
+        .doc('video-pub');
+
+      await assertFails(otherRef.get());
+      await assertFails(otherRef.set({ lastPositionSeconds: 0 }));
+    });
+  });
 });
+

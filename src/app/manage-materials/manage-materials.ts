@@ -19,6 +19,8 @@ import {
   UploadItem,
   IlcEvent,
   InstructorPublicData,
+  VodCategory,
+  VodAccessTier,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -575,5 +577,96 @@ export class ManageMaterialsComponent implements OnInit {
   filterByTag(tag: string) {
     const current = this.selectedTagFilter();
     this.setTagFilter(current === tag ? '' : tag);
+  }
+
+  // Publish to VOD state
+  vodPublishItem = signal<UploadItem | null>(null);
+  isPublishingVod = signal(false);
+  vodTitle = signal('');
+  vodDescription = signal('');
+  vodCategory = signal<VodCategory>(VodCategory.SeminarRecording);
+  vodAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
+  vodPriceDollars = signal<number | null>(null);
+  vodTags = signal('');
+
+  readonly vodCategories = [
+    { value: VodCategory.SeminarRecording, label: 'Seminar Recording' },
+    { value: VodCategory.TechniqueBreakdown, label: 'Technique Breakdown' },
+    { value: VodCategory.GradingSyllabus, label: 'Grading Syllabus' },
+    { value: VodCategory.FormDemonstration, label: 'Form Demonstration' },
+    { value: VodCategory.InstructorTraining, label: 'Instructor Training' },
+    { value: VodCategory.Workshop, label: 'Workshop' },
+    { value: VodCategory.HistoricalArchive, label: 'Historical Archive' },
+  ];
+
+  readonly vodAccessTiers = [
+    { value: VodAccessTier.Public, label: 'Public / Free' },
+    { value: VodAccessTier.MembersOnly, label: 'Members Only' },
+    { value: VodAccessTier.InstructorsOnly, label: 'Instructors Only' },
+    {
+      value: VodAccessTier.ClassVideoSubscribers,
+      label: 'Class Video Subscribers',
+    },
+    { value: VodAccessTier.DirectPurchase, label: 'Direct Purchase' },
+  ];
+
+  openPublishVodModal(mat: UploadItem) {
+    this.vodPublishItem.set(mat);
+    this.vodTitle.set(mat.name || 'Untitled Video');
+    this.vodDescription.set(mat.notes || '');
+    this.vodCategory.set(VodCategory.SeminarRecording);
+    this.vodAccessTier.set(VodAccessTier.MembersOnly);
+    this.vodPriceDollars.set(null);
+    this.vodTags.set((mat.tags || []).join(', '));
+  }
+
+  closePublishVodModal() {
+    this.vodPublishItem.set(null);
+  }
+
+  async submitPublishVod() {
+    const item = this.vodPublishItem();
+    if (!item) return;
+
+    this.isPublishingVod.set(true);
+    try {
+      const tags = this.vodTags()
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => !!t);
+
+      const price = this.vodPriceDollars();
+      const priceCents = price ? Math.round(price * 100) : undefined;
+
+      await this.dataService.transcodeVideoForVod(
+        item.docId,
+        item.memberDocId,
+        {
+          title: this.vodTitle(),
+          description: this.vodDescription(),
+          category: this.vodCategory(),
+          accessTier: this.vodAccessTier(),
+          tags,
+          priceCents,
+          instructorDocId: item.memberDocId,
+          instructorName: item.memberName,
+          instructorId: item.instructorId,
+          eventDocId: item.eventDocId,
+          eventTitle: item.eventTitle,
+          recordedDate: item.date,
+          location: item.location,
+        },
+      );
+
+      this.successMessage.set(
+        `"${this.vodTitle()}" has been queued for VOD transcoding and catalog publication.`,
+      );
+      this.closePublishVodModal();
+    } catch (err: any) {
+      console.error('Error publishing to VOD:', err);
+      alert(err.message || 'Failed to trigger VOD transcoding.');
+    } finally {
+      this.isPublishingVod.set(false);
+    }
   }
 }

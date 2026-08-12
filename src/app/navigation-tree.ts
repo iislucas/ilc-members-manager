@@ -190,7 +190,9 @@ export class NavigationTreeService {
       view === Views.InstructorsArea ||
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
-      view === Views.ClassVideoLibrary
+      view === Views.ClassVideoLibrary ||
+      view === Views.Videos ||
+      view === Views.VideoView
     ) {
       return 'learn';
     }
@@ -254,6 +256,7 @@ export class NavigationTreeService {
       view === Views.ManageEventView ||
       view === Views.ManageEventEdit ||
       view === Views.ManageMaterials ||
+      view === Views.ManageVod ||
       view === Views.Statistics ||
       view === Views.ImportExport ||
       view === Views.Settings ||
@@ -385,6 +388,8 @@ export class NavigationTreeService {
         ];
       case Views.NotificationSettings:
         return [this.node(Views.Settings, 'Settings')];
+      case Views.VideoView:
+        return [this.node(Views.Videos, 'Video on Demand')];
 
       default:
         return [];
@@ -645,6 +650,12 @@ export class NavigationTreeService {
         return 'Uploads';
       case Views.ManageMaterials:
         return 'Materials';
+      case Views.Videos:
+        return 'Video on Demand';
+      case Views.VideoView:
+        return 'Watch Video';
+      case Views.ManageVod:
+        return 'Manage VOD';
       case Views.Login:
         return 'Login';
       case Views.NewMember:

@@ -1,0 +1,215 @@
+<div class="video-view-container">
+  <!-- Back to Catalog Breadcrumb -->
+  <div class="breadcrumb-row">
+    <a class="back-link" [href]="getCatalogHref()">
+      <app-icon name="arrow_back"></app-icon>
+      <span>Back to Catalog</span>
+    </a>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <app-spinner></app-spinner>
+      <span>Loading video session...</span>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="error-banner">
+      <app-icon name="error"></app-icon>
+      <span>{{ errorMessage() }}</span>
+      <a class="subtle-btn" [href]="getCatalogHref()">Browse All Videos</a>
+    </div>
+  } @else if (video(); as v) {
+    <!-- Main Player Area -->
+    <div class="player-theater-wrapper">
+      @if (sessionState()?.authorized && sessionState()?.manifestUrl) {
+        <app-video-player
+          [videoData]="v"
+          [manifestUrl]="sessionState()!.manifestUrl!"
+          [posterUrl]="v.thumbnailUrl"
+          [initialPositionSeconds]="initialPositionSeconds()"
+          [autoplay]="true"
+          (timeUpdated)="onTimeUpdated($event)"
+          (videoCompleted)="onVideoCompleted()"
+        ></app-video-player>
+      } @else {
+        <!-- Locked Video Gating Screen -->
+        <div class="locked-video-screen">
+          @if (v.thumbnailUrl) {
+            <img [src]="v.thumbnailUrl" [alt]="v.title" class="lock-backdrop" />
+          }
+          <div class="lock-overlay">
+            <div class="lock-card">
+              <div class="lock-icon-circle">
+                <app-icon name="lock"></app-icon>
+              </div>
+
+              <h3>Access Restricted</h3>
+
+              @switch (sessionState()?.reason) {
+                @case ('unauthenticated') {
+                  <p>This video requires an account to watch. Please sign in or create an account.</p>
+                  <div class="lock-actions">
+                    <a class="primary-btn" [href]="getLoginHref()">Sign In to Watch</a>
+                  </div>
+                }
+                @case ('subscription_required') {
+                  <p>
+                    This recording is exclusively available to active ILC Members.
+                    Join or renew your annual membership to unlock full access.
+                  </p>
+                  <div class="lock-actions">
+                    <a class="primary-btn" [href]="getMembershipHref()">Join / Renew Membership</a>
+                  </div>
+                }
+                @case ('instructor_required') {
+                  <p>
+                    This video is part of the certified instructor curriculum and requires
+                    an active ILC Instructor License.
+                  </p>
+                  <div class="lock-actions">
+                    <a class="primary-btn" [href]="getMembershipHref()">Manage License</a>
+                  </div>
+                }
+                @case ('class_sub_required') {
+                  <p>
+                    This recording is included in the Class Video Library Subscription.
+                    Subscribe to access weekly classes and training archives.
+                  </p>
+                  <div class="lock-actions">
+                    <a class="primary-btn" [href]="getMembershipHref()">Subscribe to Video Library</a>
+                  </div>
+                }
+                @default {
+                  @if (v.priceCents) {
+                    <p>Unlock on-demand lifetime access to this masterclass recording.</p>
+                    <div class="purchase-box">
+                      <span class="price-tag">${{ (v.priceCents / 100).toFixed(2) }}</span>
+                      <button
+                        type="button"
+                        class="primary-btn purchase-btn"
+                        [disabled]="isPurchasing()"
+                        (click)="startPurchase()"
+                      >
+                        @if (isPurchasing()) {
+                          <app-spinner></app-spinner>
+                          <span>Processing...</span>
+                        } @else {
+                          <app-icon name="shopping_cart"></app-icon>
+                          <span>Buy Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
+                        }
+                      </button>
+                    </div>
+                  } @else {
+                    <p>You do not have access to view this recording.</p>
+                    <div class="lock-actions">
+                      <a class="primary-btn" [href]="getCatalogHref()">Browse Other Videos</a>
+                    </div>
+                  }
+                }
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Video Metadata & Details Layout -->
+    <div class="video-details-layout">
+      <!-- Main Column: Info, Instructor, Description, Chapters -->
+      <div class="main-info-col">
+        <div class="title-header">
+          <div class="badge-row">
+            <span class="category-badge">{{ v.category }}</span>
+            <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>
+            <span class="access-badge">{{ v.accessTier }}</span>
+          </div>
+
+          <h1 class="video-title">{{ v.title }}</h1>
+
+          <div class="meta-row">
+            @if (v.instructorName) {
+              <a class="instructor-link" [href]="getInstructorHref()">
+                <app-icon name="person"></app-icon>
+                <span>{{ v.instructorName }}</span>
+              </a>
+            }
+            @if (v.recordedDate) {
+              <span class="meta-item">
+                <app-icon name="calendar_today"></app-icon>
+                <span>Recorded {{ v.recordedDate }}</span>
+              </span>
+            }
+            @if (v.location) {
+              <span class="meta-item">
+                <app-icon name="location_on"></app-icon>
+                <span>{{ v.location }}</span>
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Description -->
+        @if (v.description) {
+          <div class="description-section">
+            <h3>About this Recording</h3>
+            <p class="description-text">{{ v.description }}</p>
+          </div>
+        }
+
+        <!-- Tags -->
+        @if (v.tags && v.tags.length) {
+          <div class="tags-section">
+            <span class="tags-label">Tags:</span>
+            <div class="tags-list">
+              @for (tag of v.tags; track tag) {
+                <span class="tag-chip">#{{ tag }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Chapters List (if configured) -->
+        @if (v.chapters && v.chapters.length) {
+          <div class="chapters-section">
+            <h3>Chapters</h3>
+            <div class="chapters-list">
+              @for (chap of v.chapters; track chap.startSeconds) {
+                <div class="chapter-item">
+                  <span class="chap-time">{{ formatDuration(chap.startSeconds) }}</span>
+                  <span class="chap-title">{{ chap.title }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Sidebar Column: Related Recordings -->
+      <div class="sidebar-col">
+        <h3>Related Recordings</h3>
+        <div class="related-list">
+          @for (rel of relatedVideos(); track rel.docId) {
+            <a class="related-card" [href]="getVideoHref(rel)">
+              <div class="rel-thumb-wrapper">
+                @if (rel.thumbnailUrl) {
+                  <img [src]="rel.thumbnailUrl" [alt]="rel.title" class="rel-thumb" />
+                } @else {
+                  <div class="rel-placeholder">
+                    <app-icon name="play_arrow"></app-icon>
+                  </div>
+                }
+                <span class="rel-dur">{{ formatDuration(rel.durationSeconds) }}</span>
+              </div>
+              <div class="rel-info">
+                <h4 class="rel-title">{{ rel.title }}</h4>
+                @if (rel.instructorName) {
+                  <span class="rel-inst">{{ rel.instructorName }}</span>
+                }
+              </div>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

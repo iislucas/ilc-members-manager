@@ -62,6 +62,17 @@ import {
   MemberOrder,
   firestoreDocToMemberOrder,
   OrderKind,
+  VideoItem,
+  firestoreDocToVideoItem,
+  initVideoItem,
+  VideoGrant,
+  firestoreDocToVideoGrant,
+  VideoProgress,
+  firestoreDocToVideoProgress,
+  VodStatus,
+  VodAccessTier,
+  VodCategory,
+  VideoGrantKind,
 } from '../../functions/src/data-model';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
@@ -251,6 +262,10 @@ export class DataManagerService {
     ['orderNumber', 'description', 'orderType', 'date', 'currency'],
     'docId',
   );
+  public videos = new SearchableSet<'docId', VideoItem>(
+    ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
+    'docId',
+  );
 
   // Reactive map from memberId to docId for efficient member lookups by
   // human-readable member ID.
@@ -344,6 +359,7 @@ export class DataManagerService {
       this.updateCountryCodesSync();
       this.updateEmailTemplatesSync();
       this.updateMyGradingsAssessedSync(user);
+      this.updateVideosSync();
     });
 
     // Admin "Manage Gradings" subscription, kept separate so it can re-subscribe
@@ -1863,4 +1879,167 @@ export class DataManagerService {
     link.click();
     document.body.removeChild(link);
   }
+
+  /**
+   * Subscribes to the public /videos collection.
+   */
+  async updateVideosSync() {
+    const videosRef = collection(this.db, 'videos');
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(
+        videosRef,
+        (snapshot) => {
+          const items = snapshot.docs.map(firestoreDocToVideoItem);
+          this.videos.setEntries(items);
+        },
+        (error) => {
+          console.error('Error fetching videos:', error);
+          this.videos.setError(error.message);
+        },
+      ),
+    );
+  }
+
+  /**
+   * Look up a video by its docId.
+   */
+  async getVideoById(videoId: string): Promise<VideoItem | null> {
+    const cached = this.videos.get(videoId);
+    if (cached) return cached;
+    const videoRef = doc(this.db, 'videos', videoId);
+    const snap = await getDoc(videoRef);
+    if (!snap.exists()) return null;
+    return firestoreDocToVideoItem(snap);
+  }
+
+  /**
+   * Save or update a VideoItem document in /videos.
+   */
+  async saveVideo(video: VideoItem): Promise<void> {
+    const videoRef = doc(this.db, 'videos', video.docId);
+    const payload = {
+      ...video,
+      lastUpdated: new Date().toISOString(),
+    };
+    await setDoc(videoRef, payload, { merge: true });
+  }
+
+  /**
+   * Deletes a video from the catalog via Cloud Function.
+   */
+  async deleteVideo(videoId: string): Promise<void> {
+    const fn = httpsCallable<{ videoId: string }, { success: boolean }>(
+      getFunctions(this.firebaseService.app),
+      'deleteVideoFromCatalog',
+    );
+    await fn({ videoId });
+    const videoRef = doc(this.db, 'videos', videoId);
+    await deleteDoc(videoRef).catch(() => {});
+  }
+
+  /**
+   * Triggers transcoding of an instructor upload to VOD via Cloud Function.
+   */
+  async transcodeVideoForVod(
+    uploadDocId: string,
+    memberDocId: string,
+    vodConfig: Partial<VideoItem>,
+  ): Promise<{ success: boolean; videoId: string; vodStatus: VodStatus; jobId?: string }> {
+    const fn = httpsCallable<
+      { uploadDocId: string; memberDocId: string; vodConfig: Partial<VideoItem> },
+      { success: boolean; videoId: string; vodStatus: VodStatus; jobId?: string }
+    >(getFunctions(this.firebaseService.app), 'transcodeVideoForVod');
+    const result = await fn({ uploadDocId, memberDocId, vodConfig });
+    return result.data;
+  }
+
+  /**
+   * Requests a secure streaming playback session.
+   */
+  async getVideoPlaybackSession(videoId: string): Promise<{
+    authorized: boolean;
+    manifestUrl?: string;
+    title?: string;
+    durationSeconds?: number;
+    reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
+    priceCents?: number;
+    stripePriceId?: string;
+  }> {
+    const fn = httpsCallable<{ videoId: string }, {
+      authorized: boolean;
+      manifestUrl?: string;
+      title?: string;
+      durationSeconds?: number;
+      reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
+      priceCents?: number;
+      stripePriceId?: string;
+    }>(getFunctions(this.firebaseService.app), 'getVideoPlaybackSession');
+    const result = await fn({ videoId });
+    return result.data;
+  }
+
+  /**
+   * Saves member video watch progress.
+   */
+  async saveVideoProgress(
+    videoId: string,
+    lastPositionSeconds: number,
+    durationSeconds: number,
+    completed = false,
+  ): Promise<void> {
+    const user = this.firebaseService.user();
+    if (!user?.member?.docId) return;
+
+    const progressRef = doc(
+      this.db,
+      'members',
+      user.member.docId,
+      'videoProgress',
+      videoId,
+    );
+    const payload: VideoProgress = {
+      docId: videoId,
+      videoId,
+      memberDocId: user.member.docId,
+      lastPositionSeconds,
+      durationSeconds,
+      completed,
+      lastWatchedAt: new Date().toISOString(),
+      ...(completed ? { completedAt: new Date().toISOString() } : {}),
+    };
+    await setDoc(progressRef, payload, { merge: true });
+  }
+
+  /**
+   * Retrieves playback progress for a specific video.
+   */
+  async getVideoProgress(videoId: string): Promise<VideoProgress | null> {
+    const user = this.firebaseService.user();
+    if (!user?.member?.docId) return null;
+
+    const progressRef = doc(
+      this.db,
+      'members',
+      user.member.docId,
+      'videoProgress',
+      videoId,
+    );
+    const snap = await getDoc(progressRef);
+    if (!snap.exists()) return null;
+    return firestoreDocToVideoProgress(snap);
+  }
+
+  /**
+   * Retrieves list of recently watched videos for the member.
+   */
+  async getMyVideoProgressList(): Promise<VideoProgress[]> {
+    const user = this.firebaseService.user();
+    if (!user?.member?.docId) return [];
+
+    const colRef = collection(this.db, 'members', user.member.docId, 'videoProgress');
+    const q = query(colRef, orderBy('lastWatchedAt', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    return snap.docs.map(firestoreDocToVideoProgress);
+  }
 }
+

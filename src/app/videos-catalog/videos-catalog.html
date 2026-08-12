@@ -1,0 +1,281 @@
+<div class="videos-catalog-container">
+  <!-- Page Header -->
+  <div class="catalog-header">
+    <div class="header-content">
+      <h1>Video on Demand</h1>
+      <p class="subtitle">
+        Watch full seminar recordings, technique breakdowns, form demonstrations,
+        and workshop archives from master instructors worldwide.
+      </p>
+    </div>
+  </div>
+
+  <!-- Hero Featured Spotlight Banner -->
+  @if (featuredVideo(); as feat) {
+    @if (!searchQuery() && selectedCategory() === 'all' && !selectedTag() && !selectedInstructor()) {
+      <div class="featured-hero-banner">
+        <div class="hero-poster-wrapper">
+          @if (feat.thumbnailUrl) {
+            <img [src]="feat.thumbnailUrl" [alt]="feat.title" class="hero-poster" />
+          } @else {
+            <div class="hero-placeholder">
+              <app-icon name="video_library"></app-icon>
+            </div>
+          }
+          <div class="hero-badge">Featured</div>
+        </div>
+
+        <div class="hero-info">
+          <div class="hero-meta-row">
+            <span class="category-pill">{{ getCategoryLabel(feat.category) }}</span>
+            <span class="duration-pill">{{ formatDuration(feat.durationSeconds) }}</span>
+            <span class="access-pill" [class]="getAccessTierBadge(feat.accessTier).cssClass">
+              {{ getAccessTierBadge(feat.accessTier).label }}
+            </span>
+          </div>
+
+          <h2 class="hero-title">{{ feat.title }}</h2>
+
+          @if (feat.instructorName) {
+            <p class="hero-instructor">
+              Instructor: <strong>{{ feat.instructorName }}</strong>
+            </p>
+          }
+
+          <p class="hero-description">{{ feat.description }}</p>
+
+          <div class="hero-actions">
+            <a class="primary-btn hero-watch-btn" [href]="getVideoHref(feat)">
+              <app-icon name="play_arrow"></app-icon>
+              <span>Watch Now</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Search & Filters Toolbar -->
+  <div class="filter-toolbar">
+    <!-- Search Bar -->
+    <div class="search-box">
+      <app-icon name="search"></app-icon>
+      <input
+        type="text"
+        placeholder="Search videos by title, description, instructor, tags..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="setSearchQuery($event)"
+      />
+      @if (searchQuery()) {
+        <button
+          type="button"
+          class="icon-only-button clear-btn"
+          (click)="setSearchQuery('')"
+          title="Clear search"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+      }
+    </div>
+
+    <!-- Category Tabs Navigation -->
+    <div class="category-tabs-scroll">
+      <div class="category-tabs">
+        @for (cat of categories; track cat.value) {
+          <button
+            type="button"
+            class="cat-tab"
+            [class.active]="selectedCategory() === cat.value"
+            (click)="setCategory(cat.value)"
+          >
+            {{ cat.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Secondary Filters Row (Instructor, Tag, Clear) -->
+    <div class="secondary-filters-row">
+      <!-- Instructor Filter Autocomplete -->
+      <div class="filter-item">
+        <label>Instructor:</label>
+        <div class="autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Instructor"
+            [searchableSet]="dataService.instructors"
+            [displayFns]="instructorDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedInstructorDisplay()"
+            placeholder="All Instructors (type to search)..."
+            (itemSelected)="onInstructorSelected($event)"
+            (textUpdated)="onInstructorTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedInstructor()) {
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="clearInstructorFilter()"
+              title="Clear instructor"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Active Filters Reset -->
+      @if (searchQuery() || selectedCategory() !== 'all' || selectedTag() || selectedInstructor() || selectedTier() !== 'all') {
+        <button
+          type="button"
+          class="subtle-btn clear-all-btn"
+          (click)="clearAllFilters()"
+        >
+          <app-icon name="close"></app-icon>
+          <span>Clear All Filters</span>
+        </button>
+      }
+    </div>
+
+    <!-- Tag Cloud Chips -->
+    @if (availableTags().length) {
+      <div class="tag-cloud">
+        <span class="tags-label">Tags:</span>
+        <div class="tags-list">
+          @for (tag of availableTags(); track tag) {
+            <button
+              type="button"
+              class="tag-chip"
+              [class.active]="selectedTag() === tag"
+              (click)="setTag(tag)"
+            >
+              #{{ tag }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Video Grid Catalog -->
+  <div class="catalog-content">
+    <div class="section-title-row">
+      <h3>
+        @if (selectedCategory() !== 'all') {
+          {{ getCategoryLabel(selectedCategory()) }}
+        } @else {
+          All Recordings
+        }
+        <span class="count-badge">({{ filteredVideos().length }})</span>
+      </h3>
+    </div>
+
+    @if (filteredVideos().length > 0) {
+      <div class="videos-grid">
+        @for (video of filteredVideos(); track video.docId) {
+          <a class="video-card" [href]="getVideoHref(video)">
+            <!-- Thumbnail Poster -->
+            <div class="card-thumbnail-wrapper">
+              @if (video.thumbnailUrl) {
+                <img
+                  [src]="video.thumbnailUrl"
+                  [alt]="video.title"
+                  class="card-thumbnail"
+                  loading="lazy"
+                />
+              } @else {
+                <div class="thumb-placeholder">
+                  <app-icon name="video_library"></app-icon>
+                </div>
+              }
+
+              <!-- Duration Badge -->
+              <span class="duration-badge">
+                {{ formatDuration(video.durationSeconds) }}
+              </span>
+
+              <!-- Hover Play Overlay -->
+              <div class="play-hover-overlay">
+                <app-icon name="play_arrow"></app-icon>
+              </div>
+            </div>
+
+            <!-- Card Info -->
+            <div class="card-info">
+              <div class="card-header-row">
+                <span class="card-category">{{ getCategoryLabel(video.category) }}</span>
+                <span
+                  class="access-tier-chip"
+                  [class]="getAccessTierBadge(video.accessTier).cssClass"
+                >
+                  {{ getAccessTierBadge(video.accessTier).label }}
+                </span>
+              </div>
+
+              <h4 class="card-title">{{ video.title }}</h4>
+
+              @if (video.instructorName) {
+                <div class="card-instructor">
+                  <app-icon name="person"></app-icon>
+                  <span>{{ video.instructorName }}</span>
+                </div>
+              }
+
+              @if (video.recordedDate || video.location) {
+                <div class="card-meta">
+                  @if (video.recordedDate) {
+                    <span>{{ video.recordedDate }}</span>
+                  }
+                  @if (video.location) {
+                    <span>&bull; {{ video.location }}</span>
+                  }
+                </div>
+              }
+
+              <!-- Tags -->
+              @if (video.tags && video.tags.length) {
+                <div class="card-tags">
+                  @for (t of video.tags.slice(0, 3); track t) {
+                    <span class="mini-tag">#{{ t }}</span>
+                  }
+                </div>
+              }
+
+              <!-- Dynamic CTA / Access State -->
+              <div class="card-footer">
+                @if (userHasAccess(video)) {
+                  <span class="access-cta watch-now">
+                    <app-icon name="play_arrow"></app-icon>
+                    <span>Watch Now</span>
+                  </span>
+                } @else if (video.accessTier === 'public') {
+                  <span class="access-cta watch-free">
+                    <app-icon name="play_arrow"></app-icon>
+                    <span>Watch Free</span>
+                  </span>
+                } @else if (video.priceCents) {
+                  <span class="access-cta unlock-price">
+                    <span>Unlock for ${{ (video.priceCents / 100).toFixed(2) }}</span>
+                  </span>
+                } @else {
+                  <span class="access-cta locked">
+                    <app-icon name="lock"></app-icon>
+                    <span>{{ getAccessTierBadge(video.accessTier).label }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="video_library"></app-icon>
+        <h4>No videos found</h4>
+        <p>No video recordings match your current filters or search criteria.</p>
+        <button type="button" class="primary-btn" (click)="clearAllFilters()">
+          Clear Filters
+        </button>
+      </div>
+    }
+  </div>
+</div>

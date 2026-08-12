@@ -35,6 +35,10 @@
             <app-icon name="video_library" width="24px" height="24px"></app-icon>
             <span>Class Video Library</span>
           </div>
+          <div class="menu-item submenu-item" (click)="onSelect(Views.Videos)">
+            <app-icon name="live_tv" width="24px" height="24px"></app-icon>
+            <span>Video on Demand</span>
+          </div>
         </div>
       </div>
     </div>
@@ -171,6 +175,10 @@
             <div class="menu-item submenu-item" (click)="onSelect(Views.ManageMaterials)">
               <app-icon name="video_library" width="24px" height="24px"></app-icon>
               <span>Materials</span>
+            </div>
+            <div class="menu-item submenu-item" (click)="onSelect(Views.ManageVod)">
+              <app-icon name="live_tv" width="24px" height="24px"></app-icon>
+              <span>Manage VOD</span>
             </div>
             <div class="menu-item submenu-item" (click)="onSelect(Views.Statistics)">
               <app-icon name="bar_chart" width="24px" height="24px"></app-icon>

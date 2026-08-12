@@ -31,6 +31,8 @@ import {
   SubscriptionItemType,
   SubscriptionStatus,
   SubscriptionInterval,
+  VideoGrant,
+  VideoGrantKind,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
 
@@ -149,10 +151,18 @@ function categorizeLineItem(
   }
   if (
     desc.includes('video library') ||
-    desc.includes('video') ||
-    prod.includes('video')
+    desc.includes('class video') ||
+    prod.includes('video_library')
   ) {
     return OrderItemCategory.VideoLibrary;
+  }
+  if (
+    desc.includes('vod') ||
+    desc.includes('on demand') ||
+    prod.startsWith('vod_') ||
+    prod.startsWith('prod_vod')
+  ) {
+    return OrderItemCategory.Vod;
   }
   if (desc.includes('event') || desc.includes('workshop')) {
     return OrderItemCategory.Event;
@@ -375,6 +385,36 @@ export async function fulfillStripeOrder(
       }
     } else if (category === OrderItemCategory.Grading) {
       await autoCreateGradingForMember(db, member, item, orderDocId);
+    } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId']) {
+      const videoId = (order.metadata?.['videoId'] || item.productId || '').replace(/^prod_/, '');
+      if (videoId) {
+        const grant: VideoGrant = {
+          docId: videoId,
+          videoId,
+          memberDocId: member.docId,
+          memberEmail: member.emails?.[0] || order.customerEmail || '',
+          grantKind: VideoGrantKind.StripePurchase,
+          orderDocId,
+          stripeSessionId: order.checkoutSessionId,
+          amountPaidCents: item.amountTotal || order.amountTotal || 0,
+          grantedAt: new Date().toISOString(),
+        };
+        await db
+          .collection('members')
+          .doc(member.docId)
+          .collection('videoGrants')
+          .doc(videoId)
+          .set(grant);
+        await db
+          .collection('video_grants')
+          .doc(`${member.docId}_${videoId}`)
+          .set(grant);
+        logger.info('Auto-provisioned VideoGrant for member', {
+          memberDocId: member.docId,
+          videoId,
+          orderDocId,
+        });
+      }
     }
   }
 
