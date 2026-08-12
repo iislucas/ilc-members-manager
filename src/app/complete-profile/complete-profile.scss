@@ -1,51 +1,115 @@
+@use "../../scss_variables" as v;
+
 .complete-profile-container {
   display: flex;
   justify-content: center;
+  padding: 1.5em 1em 3em;
 }
 
 .form-card {
-  max-width: 450px;
+  max-width: 480px;
   width: 100%;
   box-sizing: border-box;
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 1.75em 1.5em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
   h2 {
     margin-top: 0;
-    margin-bottom: 0.5em;
-    color: #2c3e50;
+    margin-bottom: 0.35em;
+    color: v.$text-primary;
     font-size: 1.5em;
+    font-weight: 700;
     text-align: center;
   }
 
   .form-hint {
-    color: #7f8c8d;
+    color: v.$text-secondary;
     font-size: 0.95em;
     text-align: center;
-    margin-bottom: 2em;
+    margin-bottom: 1.5em;
     line-height: 1.4;
   }
 
-  .form-group {
+  .signed-in-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: v.$separator-color;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
     margin-bottom: 1.5em;
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9em;
+      color: v.$text-secondary;
+      overflow: hidden;
+
+      .user-email {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        strong {
+          color: v.$text-primary;
+        }
+      }
+    }
+
+    .logout-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      padding: 0.3em 0.6em;
+      font-size: 0.85em;
+      background: #fff;
+      border: 1px solid v.$border-color-light;
+      border-radius: 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+
+      &:hover {
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #ef4444;
+      }
+    }
+  }
+
+  .form-group {
+    margin-bottom: 1.25em;
     display: flex;
     flex-direction: column;
 
     label {
       font-weight: 600;
-      margin-bottom: 0.5em;
-      color: #34495e;
+      margin-bottom: 0.4em;
+      color: v.$text-primary;
       font-size: 0.9em;
+
+      .required {
+        color: #ef4444;
+      }
     }
 
     input {
-      padding: 0.8em;
-      border: 1px solid #ced4da;
+      padding: 0.75em 0.85em;
+      border: 1px solid v.$border-color-light;
       border-radius: 4px;
       font-size: 1em;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
 
       &:focus {
-        border-color: #3498db;
+        border-color: v.$focus-ring-color;
         outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
       }
     }
 
@@ -58,39 +122,90 @@
 
       ::ng-deep input {
         width: 100%;
-        padding: 0.8em;
-        border: 1px solid #ced4da;
+        padding: 0.75em 0.85em;
+        border: 1px solid v.$border-color-light;
         border-radius: 4px;
         font-size: 1em;
         box-sizing: border-box;
-        transition: border-color 0.2s;
-        
+        transition: border-color 0.2s, box-shadow 0.2s;
+
         &:focus {
-          border-color: #3498db;
+          border-color: v.$focus-ring-color;
           outline: none;
+          box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
         }
       }
     }
   }
 
   .form-actions {
-    margin-top: 2em;
+    margin-top: 1.75em;
 
-    button {
+    button.proceed-btn {
       width: 100%;
-      padding: 0.9em;
+      padding: 0.85em;
       font-weight: 600;
-      font-size: 1em;
+      font-size: 1.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 
   .save-error {
     margin-top: 1em;
-    padding: 0.8em;
-    background: #fdecea;
-    color: #c0392b;
+    padding: 0.75em 1em;
+    background: v.$theme-error-bg-color;
+    color: v.$theme-error-text-color;
+    border: 1px solid v.$theme-error-border-color;
     border-radius: 4px;
     font-size: 0.9em;
     text-align: center;
+  }
+
+  .public-links-section {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid v.$separator-color;
+
+    .links-divider {
+      text-align: center;
+      margin-bottom: 0.85rem;
+
+      span {
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: v.$text-muted;
+      }
+    }
+
+    .public-links-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .quick-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.6em 1em;
+        font-size: 0.9em;
+        font-weight: 500;
+        text-decoration: none;
+        background: #fff;
+        border: 1px solid v.$border-color-light;
+        border-radius: 6px;
+        color: v.$text-primary;
+        transition: background 0.15s ease, border-color 0.15s ease;
+
+        &:hover {
+          background: v.$table-row-selected;
+          border-color: v.$primary-color;
+          color: v.$primary-color;
+        }
+      }
+    }
   }
 }

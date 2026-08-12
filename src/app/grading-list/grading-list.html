@@ -8,11 +8,17 @@
 } @else {
   <div class="search-header">
     @if (groupByEvent() && filterEventDocId()) {
-      <button class="subtle-button show-all-events-btn" (click)="clearEventFilter()">
+      <button
+        class="subtle-button show-all-events-btn"
+        (click)="clearEventFilter()"
+      >
         <app-icon name="arrow_back"></app-icon> Show all events
       </button>
     } @else if (groupByEvent() && hasGroupFilter()) {
-      <button class="subtle-button show-all-events-btn" (click)="clearGroupFilter()">
+      <button
+        class="subtle-button show-all-events-btn"
+        (click)="clearGroupFilter()"
+      >
         <app-icon name="arrow_back"></app-icon> Show all gradings
       </button>
     } @else {
@@ -20,6 +26,7 @@
         <app-icon class="search-icon" name="search"></app-icon>
         <input
           type="text"
+          [value]="searchTerm()"
           placeholder="Search gradings by student, instructor, status, or level..."
           (input)="onSearch($event)"
         />
@@ -75,41 +82,42 @@
 
   @if (showAdvancedSearch()) {
     <div class="advanced-search-panel">
-      <div class="filter-row">
-        <label>Date from</label>
-        <input type="date" [ngModel]="filterFromDate()" (ngModelChange)="filterFromDate.set($event); limit.set(50)" />
-        <label>Date to</label>
-        <input type="date" [ngModel]="filterToDate()" (ngModelChange)="filterToDate.set($event); limit.set(50)" />
-      </div>
-      <div class="filter-row">
-        <label>Instructor</label>
-        <app-instructor-selector
-          class="filter-autocomplete"
-          [name]="'Instructor'"
-          [placeholder]="'Search by grading instructor or manager'"
-          [value]="filterInstructorId()"
-          (valueChange)="onInstructorFilterChange($event)"
-        ></app-instructor-selector>
-        <label>Status</label>
-        <select [ngModel]="filterStatus()" (ngModelChange)="filterStatus.set($event); limit.set(50)">
-          <option value="">All statuses</option>
-          @for (status of gradingStatuses; track status) {
-            <option [value]="status">{{ getPrettyGradingStatus(status) }}</option>
-          }
-        </select>
-      </div>
-      <div class="filter-row">
-        <label>Student</label>
+      <app-filter-builder
+        [config]="gradingFilterConfig"
+        [values]="filterValues()"
+        [customTemplates]="{
+          studentMemberId: studentSelectorTpl,
+          instructorId: instructorSelectorTpl,
+          event: eventSelectorTpl
+        }"
+        (filterChange)="onFilterValueChange($event)"
+        (filterRemove)="onFilterRemove($event)"
+        (allCleared)="onAllFiltersCleared()"
+      ></app-filter-builder>
+
+      <ng-template #studentSelectorTpl let-value let-update="update">
         <app-member-selector
           class="filter-autocomplete"
           [name]="'Student'"
           [placeholder]="'Search for a student who is grading'"
-          [value]="filterStudentMemberId()"
-          (valueChange)="onStudentFilterChange($event)"
+          [value]="value || ''"
+          [showNoneSelected]="false"
+          (valueChange)="update($event)"
         ></app-member-selector>
-      </div>
-      <div class="filter-row">
-        <label>Event</label>
+      </ng-template>
+
+      <ng-template #instructorSelectorTpl let-value let-update="update">
+        <app-instructor-selector
+          class="filter-autocomplete"
+          [name]="'Instructor'"
+          [placeholder]="'Search by grading instructor or manager'"
+          [value]="value || ''"
+          [showNoneSelected]="false"
+          (valueChange)="update($event)"
+        ></app-instructor-selector>
+      </ng-template>
+
+      <ng-template #eventSelectorTpl let-value let-update="update">
         <app-autocomplete
           class="filter-autocomplete"
           [name]="'Event'"
@@ -121,23 +129,7 @@
           (itemSelected)="onEventFilterSelected($event)"
           (textUpdated)="onEventFilterText($event)"
         ></app-autocomplete>
-      </div>
-      <div class="filter-row">
-        <label>Payment</label>
-        <label class="unpaid-filter-label">
-          <input
-            type="checkbox"
-            [checked]="filterUnpaidOnly()"
-            (change)="filterUnpaidOnly.set($any($event.target).checked); limit.set(50)"
-          />
-          Unpaid only (not yet paid)
-        </label>
-      </div>
-      @if (hasActiveFilters()) {
-        <button class="subtle-button clear-filters-btn" (click)="clearFilters()">
-          <app-icon name="close"></app-icon> Clear filters
-        </button>
-      }
+      </ng-template>
     </div>
   }
 

@@ -21,6 +21,7 @@ export class MemberSelectorComponent {
   placeholder = input<string>('Search for a member');
   disabled = input<boolean>(false);
   name = input<string>('');
+  showNoneSelected = input<boolean>(true);
 
   memberDisplayFns = {
     toChipId: (m: Member) => m.memberId,

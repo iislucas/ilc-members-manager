@@ -85,7 +85,10 @@ export class ManageMaterialsComponent implements OnInit {
   selectedEndDate = computed(() => this.viewSignals.urlParams.endDate());
   selectedEventFilter = computed(() => this.viewSignals.urlParams.eventId());
   selectedInstructorFilter = computed(
-    () => this.viewSignals.urlParams.instructorId() || this.viewSignals.urlParams.memberId(),
+    () =>
+      this.viewSignals.urlParams.instructorId() ||
+      this.viewSignals.urlParams.memberDocId() ||
+      this.viewSignals.urlParams.memberId(),
   );
   selectedMediaType = computed<MediaTypeFilter>(
     () => (this.viewSignals.urlParams.type() as MediaTypeFilter) || 'all',

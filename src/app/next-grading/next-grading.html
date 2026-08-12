@@ -1,0 +1,284 @@
+<div class="next-grading-container">
+  <div class="page-header">
+    <h1>Purchase Next Grading</h1>
+    <p class="subtitle">
+      Progress through the I Liq Chuan ranking system by purchasing and preparing for your next grading examination.
+    </p>
+  </div>
+
+  <!-- Landing after Stripe checkout return -->
+  @if (sessionId()) {
+    <div class="order-confirmation-card card">
+      @if (returnSessionLoading()) {
+        <app-spinner>Your grading is being set up shortly...</app-spinner>
+      } @else if (returnSessionSummary(); as s) {
+        <div class="confirmation-header">
+          <app-icon name="check" width="32px" height="32px"></app-icon>
+          <div>
+            <h2>Grading Payment Received!</h2>
+            <p>Your grading record is being set up in your account.</p>
+          </div>
+        </div>
+
+        <div class="order-details-box">
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value status-badge paid">{{ s.paymentStatus }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Amount</span>
+            <span class="detail-value">{{ formatPrice(s.amountTotal, s.currency) }}</span>
+          </div>
+          @if (s.lineItems[0]; as item) {
+            <div class="detail-row">
+              <span class="detail-label">Grading Level</span>
+              <span class="detail-value">{{ item.description }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="confirmation-actions">
+          <button
+            type="button"
+            class="button pay-btn"
+            (click)="routingService.navigateToParts(['my-gradings'])"
+          >
+            <app-icon name="salut"></app-icon>
+            <span>View My Gradings</span>
+          </button>
+          <button
+            type="button"
+            class="subtle-button"
+            (click)="routingService.navigateToParts(['myProfile'])"
+          >
+            Go to My Profile
+          </button>
+        </div>
+      } @else if (returnSessionError()) {
+        <div class="error-container">
+          <span class="error-message">{{ returnSessionError() }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Step 1: Sign in / Account -->
+  <div class="form-card card">
+    <div class="step-header-row">
+      <div class="step-header-left">
+        <h2>1. Your Account</h2>
+        @if (isLoggedIn()) {
+          <span class="step-completed-badge" title="Account verified">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
+      </div>
+    </div>
+
+    @if (isLoggedIn()) {
+      <div class="logged-in-box">
+        <div class="user-info">
+          <app-icon name="person" width="28px" height="28px"></app-icon>
+          <div class="user-details-text">
+            <div class="user-email-row">
+              Signed in as
+              <strong>{{
+                user()?.member?.emails?.[0] || user()?.firebaseUser?.email
+              }}</strong>
+            </div>
+            @if (user()?.member?.memberId) {
+              <div class="member-id-hint">
+                Member ID:
+                <span class="identifier-chip">{{
+                  user()?.member?.memberId
+                }}</span>
+              </div>
+            }
+          </div>
+        </div>
+        <button
+          type="button"
+          class="subtle-button logout-btn"
+          (click)="onLogout()"
+          title="Sign out of this account"
+        >
+          <app-icon name="logout"></app-icon>
+          <span>Log Out</span>
+        </button>
+      </div>
+    } @else {
+      <div class="auth-prompt-box">
+        <p>You must be signed in to your ILC account to purchase a grading.</p>
+        <button
+          type="button"
+          class="button auth-action-btn"
+          (click)="routingService.navigateToParts(['login'])"
+        >
+          <app-icon name="person"></app-icon>
+          <span>Sign In to Continue</span>
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- Step 2: Progression & Eligibility -->
+  <div class="form-card card">
+    <div class="step-header-row">
+      <div class="step-header-left">
+        <h2>2. Your Progression &amp; Level Target</h2>
+        @if (isLoggedIn() && isActiveMember()) {
+          <span class="step-completed-badge" title="Eligible for grading">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
+      </div>
+    </div>
+
+    @if (!isLoggedIn()) {
+      <p class="muted-note">Please sign in to view your current level and eligible gradings.</p>
+    } @else if (!isActiveMember()) {
+      <div class="guard-notice-box">
+        <app-icon name="hands_lotus" width="28px" height="28px"></app-icon>
+        <div>
+          <h3>Active Membership Required</h3>
+          <p>
+            Gradings are reserved for active members of the Chin Family I Liq Chuan Association.
+            Please join or renew your membership to continue with your grading.
+          </p>
+          <a
+            class="button auth-action-btn"
+            [href]="routingService.hrefForView(Views.BecomeAMember)"
+          >
+            <app-icon name="link"></app-icon>
+            <span>Become a Member / Renew</span>
+          </a>
+        </div>
+      </div>
+    } @else {
+      <div class="levels-grid">
+        <div class="level-box current">
+          <div class="level-label">Student Level</div>
+          <div class="level-value">{{ currentStudentLevel() }}</div>
+        </div>
+        <div class="level-box current">
+          <div class="level-label">Application Level</div>
+          <div class="level-value">{{ currentApplicationLevel() }}</div>
+        </div>
+        <div class="level-box next">
+          <div class="level-label">Next Target Grading</div>
+          <div class="level-value target">
+            @if (nextLevel()) {
+              {{ nextLevel() }}
+            } @else {
+              Highest Level Achieved!
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Check if already has an open grading for next level -->
+      @if (alreadyHasGrading(); as openGrading) {
+        <div class="open-grading-banner">
+          <app-icon name="info" width="24px" height="24px"></app-icon>
+          <div>
+            <h3>You have an existing grading for {{ openGrading.level }}</h3>
+            <p>
+              Status: <strong>{{ openGrading.status }}</strong>. You can view your progress and submit requirements directly.
+            </p>
+            <a
+              class="subtle-button link-btn"
+              [href]="routingService.hrefForView(Views.GradingView, { gradingId: openGrading.docId })"
+            >
+              View Grading Details
+            </a>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Step 3: Grading Fee & Purchase Action -->
+  @if (isLoggedIn() && isActiveMember() && nextLevel()) {
+    <div class="form-card card">
+      <div class="step-header-row">
+        <div class="step-header-left">
+          <h2>3. Grading Fee</h2>
+        </div>
+      </div>
+
+      <div class="bullet-points-container">
+        <p class="section-lead">The grading fee includes:</p>
+        <ul class="bullet-list">
+          <li>
+            <strong>Official Evaluation &amp; Review:</strong>
+            <span class="option-subtext"> Formal assessment by certified senior instructors.</span>
+          </li>
+          <li>
+            <strong>Curriculum Advancement:</strong>
+            <span class="option-subtext"> Progression recorded in the global I Liq Chuan database.</span>
+          </li>
+          <li>
+            <strong>Official Certificate:</strong>
+            <span class="option-subtext"> Certificate of completion issued upon passing.</span>
+          </li>
+        </ul>
+      </div>
+
+      @if (productsLoading()) {
+        <app-spinner>Looking up grading fee...</app-spinner>
+      } @else if (productsError()) {
+        <div class="error-container">
+          <span class="error-message">{{ productsError() }}</span>
+          <button class="icon-only-button" (click)="loadProducts()">
+            <app-icon name="refresh"></app-icon>
+          </button>
+        </div>
+      } @else if (matchingGradingPrice(); as match) {
+        <div class="membership-options-grid">
+          <div class="option-card selected">
+            <div class="option-title">{{ match.price.nickname || match.product.name }} &bull; Target: {{ nextLevel() }}</div>
+            <div class="rate-price">
+              {{ formatPrice(match.price.unitAmount, match.price.currency) }}
+            </div>
+            <div class="rate-desc">
+              One-time examination fee for {{ nextLevel() }}.
+            </div>
+          </div>
+        </div>
+
+        <div class="checkout-section">
+          @if (checkoutError()) {
+            <div class="error-container">
+              <span class="error-message">{{ checkoutError() }}</span>
+              <button class="icon-only-button" (click)="checkoutError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="checkout-actions">
+            @if (isRedirecting()) {
+              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+            } @else {
+              <button
+                type="button"
+                class="button pay-btn"
+                (click)="onPurchaseNextGrading()"
+              >
+                <span>Purchase {{ nextLevel() }} Grading</span>
+                <app-icon name="arrow_forward"></app-icon>
+              </button>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-notice">
+          <p>
+            Grading fee information for <strong>{{ nextLevel() }}</strong> is currently being updated.
+            Please contact your instructor or headquarters.
+          </p>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -289,6 +289,12 @@
               Try a different email
             </button>
             <button
+              id="become-member-btn"
+              (click)="routingService.navigateToParts(['become-a-member'])"
+            >
+              Become a Member
+            </button>
+            <button
               id="create-guest-account-btn"
               class="secondary-action"
               (click)="loginStep.set(LoginStep.GuestCreateAccount)"

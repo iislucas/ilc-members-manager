@@ -1,12 +1,10 @@
 /* order-complete.ts
  *
- * The "thanks for your order" page. Stripe redirects the buyer here after a
- * successful checkout, with the Checkout Session id in the `session_id` query
- * param. We read the session back (via the getStripeCheckoutSession cloud
- * function) to confirm what was purchased.
- *
- * Reached at /order-complete?session_id=... — a public, standalone page not
- * linked from navigation.
+ * The "thanks for your order" / order confirmation page.
+ * Stripe redirects the buyer here after checkout (or buyers view their receipt).
+ * We read the session back via getStripeCheckoutSession and render tailored
+ * welcome, benefits, and next-steps based on what was purchased (membership,
+ * grading, license, video library, etc.).
  */
 
 import {
@@ -22,7 +20,12 @@ import { IconComponent } from '../icons/icon.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { StripeService } from '../stripe.service';
+import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
+import { Grading } from '../../../functions/src/data-model';
+
+export type OrderKind = 'membership' | 'grading' | 'license' | 'video' | 'general';
 
 type LoadState =
   | { kind: 'idle' }
@@ -40,14 +43,96 @@ type LoadState =
 })
 export class OrderCompleteComponent {
   private stripeService = inject(StripeService);
-  private routingService: RoutingService<AppPathPatterns> =
-    inject(RoutingService);
+  private dataService = inject(DataManagerService);
+  private firebaseStateService = inject(FirebaseStateService);
+  public readonly Views = Views;
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   private sessionId = computed(() =>
     this.routingService.signals[Views.OrderComplete].urlParams.session_id(),
   );
 
   protected state = signal<LoadState>({ kind: 'idle' });
+
+  latestGrading = computed<Grading | null>(() => {
+    const user = this.firebaseStateService.user();
+    if (!user) return null;
+    const gradings = this.dataService.myGradings.entries();
+    if (!gradings || gradings.length === 0) return null;
+
+    const s = this.state();
+    const summaryMeta = s.kind === 'loaded' ? s.summary.metadata : null;
+    const targetLevel = summaryMeta?.['gradingLevel'];
+
+    if (targetLevel) {
+      const match = gradings.find((g) => g.level === targetLevel);
+      if (match) return match;
+    }
+
+    // Sort by date / lastUpdated descending
+    const sorted = [...gradings].sort((a, b) => {
+      const dateA = a.gradingPurchaseDate || a.lastUpdated || '';
+      const dateB = b.gradingPurchaseDate || b.lastUpdated || '';
+      return dateB.localeCompare(dateA);
+    });
+
+    return sorted[0] || null;
+  });
+
+  latestGradingHref = computed<string>(() => {
+    const g = this.latestGrading();
+    if (!g) return this.routingService.hrefForView(Views.MemberGradings);
+    return this.routingService.hrefForView(
+      Views.GradingView,
+      { gradingId: g.docId },
+      { from: 'my-gradings' },
+    );
+  });
+
+  orderKind = computed<OrderKind>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return 'general';
+    const meta = s.summary.metadata || {};
+    if (meta['orderType'] === 'membership' || meta['membershipOption']) {
+      return 'membership';
+    }
+    if (meta['gradingLevel'] || meta['orderType'] === 'grading') {
+      return 'grading';
+    }
+    if (meta['orderType'] === 'license') {
+      return 'license';
+    }
+    if (meta['orderType'] === 'video') {
+      return 'video';
+    }
+
+    const text = s.summary.lineItems
+      .map((i) => i.description.toLowerCase())
+      .join(' ');
+
+    if (
+      text.includes('membership') ||
+      text.includes('annual') ||
+      text.includes('lifetime') ||
+      text.includes('life member')
+    ) {
+      return 'membership';
+    }
+    if (text.includes('grading')) {
+      return 'grading';
+    }
+    if (
+      text.includes('license') ||
+      text.includes('instructor') ||
+      text.includes('school')
+    ) {
+      return 'license';
+    }
+    if (text.includes('video') || text.includes('library')) {
+      return 'video';
+    }
+    return 'general';
+  });
 
   constructor() {
     // Load (or reload) whenever the session_id in the URL changes.

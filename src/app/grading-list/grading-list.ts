@@ -21,6 +21,8 @@ import { DataManagerService, EventSearchCriteriaDateRange } from '../data-manage
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
+import { FilterBuilderComponent, FilterConfigItem } from '../filter-builder/filter-builder';
+
 export enum GradingSortField {
   EventDate = 'eventDate',
   PurchaseDate = 'purchaseDate',
@@ -42,6 +44,32 @@ export const GRADING_SORT_FIELD_LABELS: { value: GradingSortField; label: string
   { value: GradingSortField.Student, label: 'Student' },
   { value: GradingSortField.Level, label: 'Level' },
   { value: GradingSortField.Status, label: 'Status' },
+];
+
+export type GradingFilterKey =
+  | 'studentMemberDocId'
+  | 'studentMemberId'
+  | 'instructorId'
+  | 'orderId'
+  | 'dateRange'
+  | 'status'
+  | 'event'
+  | 'unpaid';
+
+export interface GradingFilterDef {
+  key: GradingFilterKey;
+  label: string;
+}
+
+export const AVAILABLE_GRADING_FILTERS: GradingFilterDef[] = [
+  { key: 'dateRange', label: 'Date Range' },
+  { key: 'studentMemberDocId', label: 'Student Doc ID' },
+  { key: 'studentMemberId', label: 'Student' },
+  { key: 'instructorId', label: 'Instructor' },
+  { key: 'orderId', label: 'Order ID' },
+  { key: 'status', label: 'Status' },
+  { key: 'event', label: 'Event' },
+  { key: 'unpaid', label: 'Payment (Unpaid only)' },
 ];
 
 // A set of gradings that all share the same linked event (same
@@ -88,7 +116,7 @@ function compareGradingsByField(a: Grading, b: Grading, field: GradingSortField,
     case GradingSortField.LastUpdated:
       return mul * (a.lastUpdated || '').localeCompare(b.lastUpdated || '');
     case GradingSortField.Student:
-      return mul * (a.studentMemberId || '').localeCompare(b.studentMemberId || '', undefined, { numeric: true });
+      return mul * (a.studentName || '').localeCompare(b.studentName || '');
     case GradingSortField.Level:
       return mul * (a.level || '').localeCompare(b.level || '');
     case GradingSortField.Status:
@@ -101,7 +129,17 @@ function compareGradingsByField(a: Grading, b: Grading, field: GradingSortField,
 @Component({
   selector: 'app-grading-list',
   standalone: true,
-  imports: [GradingEditComponent, GradingRowHeaderComponent, IconComponent, SpinnerComponent, AutocompleteComponent, MemberSelectorComponent, InstructorSelectorComponent, FormsModule],
+  imports: [
+    GradingEditComponent,
+    GradingRowHeaderComponent,
+    IconComponent,
+    SpinnerComponent,
+    AutocompleteComponent,
+    MemberSelectorComponent,
+    InstructorSelectorComponent,
+    FilterBuilderComponent,
+    FormsModule,
+  ],
   templateUrl: './grading-list.html',
   styleUrl: './grading-list.scss',
 })
@@ -109,6 +147,59 @@ export class GradingListComponent {
   readonly sortFieldOptions = GRADING_SORT_FIELD_LABELS;
   GradingSortField = GradingSortField;
   SortDirection = SortDirection;
+
+  readonly gradingFilterConfig: FilterConfigItem[] = [
+    {
+      id: 'dateRange',
+      label: 'Date Range',
+      type: 'date-range',
+      fromDateKey: 'startDate',
+      toDateKey: 'endDate',
+    },
+    {
+      id: 'studentMemberDocId',
+      label: 'Student Doc ID',
+      type: 'text',
+      placeholder: 'e.g. Doc ID...',
+    },
+    {
+      id: 'studentMemberId',
+      label: 'Student',
+      type: 'custom',
+    },
+    {
+      id: 'instructorId',
+      label: 'Instructor',
+      type: 'custom',
+    },
+    {
+      id: 'orderId',
+      label: 'Order ID',
+      type: 'text',
+      placeholder: 'e.g. Order ID...',
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'select',
+      placeholder: 'All statuses',
+      options: Object.values(GradingStatus).map((s) => ({
+        value: s,
+        label: getPrettyGradingStatus(s),
+      })),
+    },
+    {
+      id: 'event',
+      label: 'Event',
+      type: 'custom',
+    },
+    {
+      id: 'unpaid',
+      label: 'Payment',
+      type: 'checkbox',
+      checkboxLabel: 'Unpaid only (not yet paid)',
+    },
+  ];
   firebaseStateService = inject(FirebaseStateService);
   private dataService = inject(DataManagerService);
   private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
@@ -136,7 +227,17 @@ export class GradingListComponent {
   // entries are also what gets rendered by the row header, which re-derives the
   // display name from those snapshots.
   private searchSet = new SearchableSet<'docId', Grading & { studentSearchText: string; instructorSearchText: string }>(
-    [],
+    [
+      'studentMemberId',
+      'gradingInstructorId',
+      'schoolId',
+      'status',
+      'level',
+      'notes',
+      'gradingEvent',
+      'studentSearchText',
+      'instructorSearchText',
+    ],
     'docId',
   );
 
@@ -174,18 +275,390 @@ export class GradingListComponent {
   getPrettyGradingStatus = getPrettyGradingStatus;
   readonly gradingStatuses = Object.values(GradingStatus);
 
-  private searchTerm = signal('');
+  public searchTerm = signal('');
+  public filterStudentMemberDocId = signal('');
+  public filterStudentMemberId = signal('');
+  public filterInstructorId = signal('');
+  public filterOrderId = signal('');
+  public filterFromDate = signal('');
+  public filterToDate = signal('');
+  public filterStatus = signal('');
+  public filterUnpaidOnly = signal(false);
+  public showAdvancedSearch = signal(false);
+
+  public activeFilterKeys = signal<GradingFilterKey[]>([]);
+  public selectedFilterToAdd = signal<GradingFilterKey | ''>('');
+
+  public unusedFilterOptions = computed(() => {
+    const active = new Set(this.activeFilterKeys());
+    return AVAILABLE_GRADING_FILTERS.filter(f => !active.has(f.key));
+  });
+
+  public termGradings = signal<Grading[] | null>(null);
+  public isLoadingTerm = signal(false);
+  private initialised = false;
+
   isAddingGrading = signal(false);
   newGrading = signal<Grading>(initGrading());
-  showAdvancedSearch = signal(false);
 
-  filterFromDate = signal('');
-  filterToDate = signal('');
-  filterInstructorId = signal('');
-  filterStatus = signal('');
-  filterStudentMemberId = signal('');
-  // Show only gradings that have been accepted/completed but are not yet paid.
-  filterUnpaidOnly = signal(false);
+  private gradingSignals = computed(() => {
+    const match = this.routingService.matchedPatternId();
+    if (match === Views.MemberGradings) {
+      return this.routingService.signals[Views.MemberGradings];
+    }
+    return this.routingService.signals[Views.ManageGradings];
+  });
+
+  constructor() {
+    effect(() => {
+      const signals = this.gradingSignals();
+      const q = signals.urlParams.q?.() || '';
+      const docId = signals.urlParams.studentMemberDocId?.() || '';
+      const memId = signals.urlParams.studentMemberId?.() || '';
+      const instId = signals.urlParams.instructorId?.() || '';
+      const ordId = signals.urlParams.orderId?.() || '';
+      const start = signals.urlParams.startDate?.() || '';
+      const end = signals.urlParams.endDate?.() || '';
+      const status = signals.urlParams.status?.() || '';
+      const unpaid = signals.urlParams.unpaid?.() === 'true';
+
+      if (this.initialised) return;
+      this.initialised = true;
+
+      this.searchTerm.set(q);
+      this.filterStudentMemberDocId.set(docId);
+      this.filterStudentMemberId.set(memId);
+      this.filterInstructorId.set(instId);
+      this.filterOrderId.set(ordId);
+      this.filterFromDate.set(start);
+      this.filterToDate.set(end);
+      this.filterStatus.set(status);
+      this.filterUnpaidOnly.set(unpaid);
+
+      const activeKeys: GradingFilterKey[] = [];
+      if (docId) activeKeys.push('studentMemberDocId');
+      if (memId) activeKeys.push('studentMemberId');
+      if (instId) activeKeys.push('instructorId');
+      if (ordId) activeKeys.push('orderId');
+      if (start || end) activeKeys.push('dateRange');
+      if (status) activeKeys.push('status');
+      if (unpaid) activeKeys.push('unpaid');
+
+      if (activeKeys.length > 0) {
+        this.activeFilterKeys.set(activeKeys);
+        this.showAdvancedSearch.set(true);
+      }
+
+      if (docId || memId || instId || ordId) {
+        this.executeFirestoreTermSearch();
+      } else if (start || end) {
+        this.executeFirestoreDateSearch();
+      }
+    });
+  }
+
+  filterValues = computed(() => ({
+    startDate: this.filterFromDate(),
+    endDate: this.filterToDate(),
+    studentMemberDocId: this.filterStudentMemberDocId(),
+    studentMemberId: this.filterStudentMemberId(),
+    instructorId: this.filterInstructorId(),
+    orderId: this.filterOrderId(),
+    status: this.filterStatus(),
+    event: this.filterEventDocId(),
+    unpaid: this.filterUnpaidOnly(),
+  }));
+
+  onFilterValueChange(evt: { id: string; value: any }) {
+    switch (evt.id) {
+      case 'studentMemberDocId':
+        this.onStudentMemberDocIdChange(evt.value);
+        break;
+      case 'studentMemberId':
+        this.onStudentFilterChange(evt.value);
+        break;
+      case 'instructorId':
+        this.onInstructorFilterChange(evt.value);
+        break;
+      case 'orderId':
+        this.onOrderIdChange(evt.value);
+        break;
+      case 'startDate':
+        this.onDateFromChange(evt.value);
+        break;
+      case 'endDate':
+        this.onDateToChange(evt.value);
+        break;
+      case 'status':
+        this.onStatusFilterChange(evt.value);
+        break;
+      case 'event':
+        this.setFilterEventDocId(evt.value);
+        break;
+      case 'unpaid':
+        this.onUnpaidOnlyChange(!!evt.value);
+        break;
+    }
+  }
+
+  onFilterRemove(id: string) {
+    switch (id) {
+      case 'studentMemberDocId':
+        this.onStudentMemberDocIdChange('');
+        break;
+      case 'studentMemberId':
+        this.onStudentFilterChange('');
+        break;
+      case 'instructorId':
+        this.onInstructorFilterChange('');
+        break;
+      case 'orderId':
+        this.onOrderIdChange('');
+        break;
+      case 'dateRange':
+        this.filterFromDate.set('');
+        this.filterToDate.set('');
+        this.syncUrlParams();
+        this.recalculateSearchResults();
+        break;
+      case 'status':
+        this.onStatusFilterChange('');
+        break;
+      case 'event':
+        this.setFilterEventDocId('');
+        break;
+      case 'unpaid':
+        this.onUnpaidOnlyChange(false);
+        break;
+    }
+  }
+
+  isFilterActive(key: GradingFilterKey): boolean {
+    return this.activeFilterKeys().includes(key);
+  }
+
+  ensureFilterActive(key: GradingFilterKey) {
+    if (!this.activeFilterKeys().includes(key)) {
+      this.activeFilterKeys.update(keys => [...keys, key]);
+    }
+  }
+
+  addFilter(key: GradingFilterKey | '') {
+    if (!key) return;
+    this.ensureFilterActive(key);
+    this.selectedFilterToAdd.set('');
+  }
+
+  removeFilter(key: GradingFilterKey) {
+    this.activeFilterKeys.update(keys => keys.filter(k => k !== key));
+    this.onFilterRemove(key);
+  }
+
+  recalculateSearchResults() {
+    if (
+      this.filterStudentMemberDocId() ||
+      this.filterStudentMemberId() ||
+      this.filterOrderId() ||
+      this.filterInstructorId()
+    ) {
+      this.executeFirestoreTermSearch();
+    } else if (this.filterFromDate() || this.filterToDate()) {
+      this.executeFirestoreDateSearch();
+    } else {
+      this.termGradings.set(null);
+    }
+  }
+
+  public syncUrlParams() {
+    const signals = this.gradingSignals();
+    signals.urlParams.q?.set(this.searchTerm());
+    signals.urlParams.studentMemberDocId?.set(this.filterStudentMemberDocId());
+    signals.urlParams.studentMemberId?.set(this.filterStudentMemberId());
+    signals.urlParams.instructorId?.set(this.filterInstructorId());
+    signals.urlParams.orderId?.set(this.filterOrderId());
+    signals.urlParams.startDate?.set(this.filterFromDate());
+    signals.urlParams.endDate?.set(this.filterToDate());
+    signals.urlParams.status?.set(this.filterStatus());
+    signals.urlParams.unpaid?.set(this.filterUnpaidOnly() ? 'true' : '');
+  }
+
+  async executeFirestoreTermSearch() {
+    const docId = this.filterStudentMemberDocId().trim();
+    const memId = this.filterStudentMemberId().trim();
+    const instId = this.filterInstructorId().trim();
+    const ordId = this.filterOrderId().trim();
+
+    if (!docId && !memId && !instId && !ordId) {
+      this.termGradings.set(null);
+      return;
+    }
+
+    this.isLoadingTerm.set(true);
+    try {
+      let results: Grading[] = [];
+      if (docId) {
+        results = await this.dataService.searchGradings({
+          kind: 'term',
+          searchField: 'studentMemberDocId',
+          term: docId,
+          statusFilter: this.filterStatus(),
+        });
+        // Fallback: if studentMemberDocId returned 0 results, also check studentMemberId if known
+        if (results.length === 0) {
+          const mem = this.dataService.members.get(docId);
+          if (mem && mem.memberId) {
+            results = await this.dataService.searchGradings({
+              kind: 'term',
+              searchField: 'studentMemberId',
+              term: mem.memberId,
+              statusFilter: this.filterStatus(),
+            });
+          }
+        }
+      } else if (memId) {
+        results = await this.dataService.searchGradings({
+          kind: 'term',
+          searchField: 'studentMemberId',
+          term: memId,
+          statusFilter: this.filterStatus(),
+        });
+      } else if (ordId) {
+        results = await this.dataService.searchGradings({
+          kind: 'term',
+          searchField: 'orderId',
+          term: ordId,
+          statusFilter: this.filterStatus(),
+        });
+      } else if (instId) {
+        results = await this.dataService.searchGradings({
+          kind: 'term',
+          searchField: 'gradingInstructorId',
+          term: instId,
+          statusFilter: this.filterStatus(),
+        });
+      }
+      this.termGradings.set(results);
+    } catch (err) {
+      console.error('Failed to search gradings by term:', err);
+      this.termGradings.set([]);
+    } finally {
+      this.isLoadingTerm.set(false);
+    }
+  }
+
+  async executeFirestoreDateSearch() {
+    const start = this.filterFromDate();
+    const end = this.filterToDate();
+    if (!start && !end) {
+      this.termGradings.set(null);
+      return;
+    }
+    this.isLoadingTerm.set(true);
+    try {
+      const results = await this.dataService.searchGradings({
+        kind: 'date',
+        startDate: start,
+        endDate: end,
+        statusFilter: this.filterStatus(),
+      });
+      this.termGradings.set(results);
+    } catch (err) {
+      console.error('Failed to search gradings by date:', err);
+      this.termGradings.set([]);
+    } finally {
+      this.isLoadingTerm.set(false);
+    }
+  }
+
+  onStudentMemberDocIdChange(val: string) {
+    this.filterStudentMemberDocId.set(val);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (val.trim()) {
+      this.ensureFilterActive('studentMemberDocId');
+      this.executeFirestoreTermSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onStudentFilterChange(memberId: string) {
+    this.filterStudentMemberId.set(memberId);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (memberId.trim()) {
+      this.ensureFilterActive('studentMemberId');
+      this.executeFirestoreTermSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onInstructorFilterChange(instructorId: string) {
+    this.filterInstructorId.set(instructorId);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (instructorId.trim()) {
+      this.ensureFilterActive('instructorId');
+      this.executeFirestoreTermSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onOrderIdChange(val: string) {
+    this.filterOrderId.set(val);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (val.trim()) {
+      this.ensureFilterActive('orderId');
+      this.executeFirestoreTermSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onDateFromChange(val: string) {
+    this.filterFromDate.set(val);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (val || this.filterToDate()) {
+      this.ensureFilterActive('dateRange');
+      this.executeFirestoreDateSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onDateToChange(val: string) {
+    this.filterToDate.set(val);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (val || this.filterFromDate()) {
+      this.ensureFilterActive('dateRange');
+      this.executeFirestoreDateSearch();
+    } else {
+      this.recalculateSearchResults();
+    }
+  }
+
+  onStatusFilterChange(val: string) {
+    this.filterStatus.set(val);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (val) {
+      this.ensureFilterActive('status');
+    }
+  }
+
+  onUnpaidOnlyChange(checked: boolean) {
+    this.filterUnpaidOnly.set(checked);
+    this.syncUrlParams();
+    this.limit.set(50);
+    if (checked) {
+      this.ensureFilterActive('unpaid');
+    }
+  }
 
   // The selected event filter lives in the URL `event` param so a filtered view
   // (e.g. all gradings at one event) is shareable. Both grading routes
@@ -264,14 +737,26 @@ export class GradingListComponent {
   hasGroupFilter = computed(() => !!this.filterGroupDate() && !!this.filterGroupInstructor());
 
   hasActiveFilters = computed(() =>
-    !!this.filterFromDate() || !!this.filterToDate() ||
-    !!this.filterInstructorId() || !!this.filterStatus() ||
-    !!this.filterStudentMemberId() || !!this.filterEventDocId() ||
-    this.hasGroupFilter() || this.filterUnpaidOnly()
+    !!this.filterStudentMemberDocId() ||
+    !!this.filterStudentMemberId() ||
+    !!this.filterInstructorId() ||
+    !!this.filterOrderId() ||
+    !!this.filterFromDate() ||
+    !!this.filterToDate() ||
+    !!this.filterStatus() ||
+    !!this.filterEventDocId() ||
+    this.hasGroupFilter() ||
+    this.filterUnpaidOnly()
   );
 
   filteredByTab = computed<Grading[]>(() => {
-    const all = this.searchSet.search(this.searchTerm());
+    let all: Grading[];
+    if (this.termGradings() !== null) {
+      all = this.termGradings()!;
+    } else {
+      all = this.searchSet.search(this.searchTerm());
+    }
+
     if (this.viewMode() !== 'instructor') return all;
 
     const user = this.user();
@@ -290,13 +775,18 @@ export class GradingListComponent {
 
   filteredByAdvanced = computed(() => {
     let results = this.filteredByTab();
+    const docId = this.filterStudentMemberDocId();
     const from = this.filterFromDate();
     const to = this.filterToDate();
     const instructorId = this.filterInstructorId();
     const status = this.filterStatus();
     const studentMemberId = this.filterStudentMemberId();
+    const orderId = this.filterOrderId();
     const eventDocId = this.filterEventDocId();
 
+    if (docId) {
+      results = results.filter(g => g.studentMemberDocId === docId);
+    }
     if (from) {
       results = results.filter(g => g.gradingEventDate >= from);
     }
@@ -316,6 +806,9 @@ export class GradingListComponent {
     }
     if (studentMemberId) {
       results = results.filter(g => g.studentMemberId === studentMemberId);
+    }
+    if (orderId) {
+      results = results.filter(g => g.orderId === orderId);
     }
     if (eventDocId) {
       results = results.filter(g => g.gradingEventDocId === eventDocId);
@@ -493,28 +986,30 @@ export class GradingListComponent {
   }
 
   onSearch(event: Event) {
-    this.searchTerm.set((event.target as HTMLInputElement).value);
+    const val = (event.target as HTMLInputElement).value;
+    this.searchTerm.set(val);
+    this.syncUrlParams();
     this.limit.set(50);
   }
 
   toggleAdvancedSearch() {
-    this.showAdvancedSearch.update(v => !v);
+    if (!this.showAdvancedSearch()) {
+      this.showAdvancedSearch.set(true);
+    }
+  }
+
+  onAllFiltersCleared() {
+    this.showAdvancedSearch.set(false);
+    this.clearFilters();
   }
 
   toggleSortDirection() {
-    this.sortDirection.update(d =>
-      d === SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc,
-    );
-  }
-
-  onInstructorFilterChange(instructorId: string) {
-    this.filterInstructorId.set(instructorId);
-    this.limit.set(50);
-  }
-
-  onStudentFilterChange(memberId: string) {
-    this.filterStudentMemberId.set(memberId);
-    this.limit.set(50);
+    const next =
+      this.sortDirection() === SortDirection.Asc
+        ? SortDirection.Desc
+        : SortDirection.Asc;
+    this.sortDirection.set(next);
+    this.syncUrlParams();
   }
 
   onEventFilterSelected(event: IlcEvent) {
@@ -569,15 +1064,22 @@ export class GradingListComponent {
   }
 
   clearFilters() {
+    this.searchTerm.set('');
+    this.filterStudentMemberDocId.set('');
+    this.filterStudentMemberId.set('');
+    this.filterInstructorId.set('');
+    this.filterOrderId.set('');
     this.filterFromDate.set('');
     this.filterToDate.set('');
-    this.filterInstructorId.set('');
     this.filterStatus.set('');
-    this.filterStudentMemberId.set('');
     this.setFilterEventDocId('');
     this.setGroupFilter('', '');
     this.filterUnpaidOnly.set(false);
+    this.activeFilterKeys.set([]);
+    this.selectedFilterToAdd.set('');
+    this.termGradings.set(null);
     this.limit.set(50);
+    this.syncUrlParams();
   }
 
   onNewGrading() {

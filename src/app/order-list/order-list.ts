@@ -13,10 +13,10 @@ export enum SearchMode {
   Term = 'term',
   Date = 'date',
 }
-type SearchField = 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
+type SearchField = 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName' | 'memberDocId';
 
 const VALID_SEARCH_MODES: SearchMode[] = [SearchMode.Recent, SearchMode.Term, SearchMode.Date];
-const VALID_SEARCH_FIELDS: SearchField[] = ['orderNumber', 'referenceNumber', 'id', 'customerEmail', 'email', 'lastName', 'billingAddress.lastName'];
+const VALID_SEARCH_FIELDS: SearchField[] = ['orderNumber', 'referenceNumber', 'id', 'customerEmail', 'email', 'lastName', 'billingAddress.lastName', 'memberDocId'];
 
 function getOrderRank(order: Order): number {
   if (order.ilcAppOrderStatus === OrderStatus.Error) {

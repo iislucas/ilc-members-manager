@@ -27,6 +27,8 @@ function getCachedLoginInfo() {
   return raw ? JSON.parse(raw) : null;
 }
 
+import { RoutingService } from '../routing.service';
+
 describe('LoginComponent', () => {
   let component: LoginComponent;
   let fixture: ComponentFixture<LoginComponent>;
@@ -41,6 +43,10 @@ describe('LoginComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: FirebaseStateService, useValue: mockService },
+        {
+          provide: RoutingService,
+          useValue: { navigateToParts: vi.fn(), hrefForView: vi.fn() },
+        },
       ],
     }).compileComponents();
 

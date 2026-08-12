@@ -191,6 +191,7 @@ export class NavigationTreeService {
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
       view === Views.ClassVideoLibrary ||
+      view === Views.ClassVideoLibraryPurchase ||
       view === Views.Videos ||
       view === Views.VideoView
     ) {
@@ -215,6 +216,9 @@ export class NavigationTreeService {
       view === Views.MyProfile ||
       view === Views.MyOrders ||
       view === Views.MemberGradings ||
+      view === Views.NextGrading ||
+      view === Views.InstructorLicensePurchase ||
+      view === Views.SchoolLicensePurchase ||
       view === Views.MyEvents ||
       view === Views.MyEventView ||
       view === Views.MyEventEdit ||
@@ -376,6 +380,16 @@ export class NavigationTreeService {
         return this.gradingReturnsToMyGradings()
           ? [this.node(Views.MemberGradings, 'Gradings')]
           : [this.node(Views.ManageGradings, 'Gradings')];
+      case Views.NextGrading:
+        return [this.node(Views.MemberGradings, 'Gradings')];
+
+      // --- Licenses & Subscriptions ---
+      case Views.InstructorLicensePurchase:
+        return [this.node(Views.MyProfile, 'Profile')];
+      case Views.SchoolLicensePurchase:
+        return [this.node(Views.MySchools, 'Schools')];
+      case Views.ClassVideoLibraryPurchase:
+        return [this.node(Views.ClassVideoLibrary, 'Class Video Library')];
 
       // --- Orders, articles, settings ---
       case Views.OrderView:
@@ -646,6 +660,16 @@ export class NavigationTreeService {
         return 'Products';
       case Views.OrderComplete:
         return 'Order Complete';
+      case Views.BecomeAMember:
+        return 'Become a Member';
+      case Views.NextGrading:
+        return 'Purchase Next Grading';
+      case Views.InstructorLicensePurchase:
+        return 'Instructor License';
+      case Views.SchoolLicensePurchase:
+        return 'School License';
+      case Views.ClassVideoLibraryPurchase:
+        return 'Class Video Library Subscription';
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:

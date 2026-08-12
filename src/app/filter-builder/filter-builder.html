@@ -1,0 +1,132 @@
+<div class="filter-builder">
+  @for (filter of activeFilterConfigs(); track filter.id; let last = $last) {
+    <div class="filter-row" [class.filter-row-custom]="filter.type === 'custom'">
+      <label class="filter-label" [for]="'filter-' + filter.id">{{ filter.label }}</label>
+
+      <div class="filter-input-wrap">
+        @switch (filter.type) {
+          @case ('text') {
+            <input
+              type="text"
+              [id]="'filter-' + filter.id"
+              [placeholder]="filter.placeholder || ''"
+              [value]="getValue(filter.id)"
+              (input)="onTextChange(filter.id, $event)"
+            />
+          }
+          @case ('date') {
+            <input
+              type="date"
+              [id]="'filter-' + filter.id"
+              [value]="getValue(filter.id)"
+              (input)="onTextChange(filter.id, $event)"
+            />
+          }
+          @case ('date-range') {
+            <input
+              type="date"
+              title="Date from"
+              placeholder="From"
+              [id]="'filter-' + filter.id + '-from'"
+              [value]="getValue(filter.fromDateKey || (filter.id + 'From'))"
+              (input)="onDateFromChange(filter, $event)"
+            />
+            <span class="date-sep">to</span>
+            <input
+              type="date"
+              title="Date to"
+              placeholder="To"
+              [id]="'filter-' + filter.id + '-to'"
+              [value]="getValue(filter.toDateKey || (filter.id + 'To'))"
+              (input)="onDateToChange(filter, $event)"
+            />
+          }
+          @case ('select') {
+            <select
+              [id]="'filter-' + filter.id"
+              [value]="getValue(filter.id)"
+              (change)="onSelectChange(filter.id, $event)"
+            >
+              <option value="">{{ filter.placeholder || 'All' }}</option>
+              @for (opt of filter.options; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          }
+          @case ('checkbox') {
+            <label class="filter-checkbox-label">
+              <input
+                type="checkbox"
+                [id]="'filter-' + filter.id"
+                [checked]="!!getValue(filter.id)"
+                (change)="onCheckboxChange(filter.id, $event)"
+              />
+              {{ filter.checkboxLabel || filter.label }}
+            </label>
+          }
+          @case ('custom') {
+            @if (customTemplates()[filter.id]; as tpl) {
+              <ng-container
+                [ngTemplateOutlet]="tpl"
+                [ngTemplateOutletContext]="{
+                  $implicit: getValue(filter.id),
+                  value: getValue(filter.id),
+                  update: getUpdateFn(filter.id)
+                }"
+              ></ng-container>
+            }
+          }
+        }
+      </div>
+
+      <div class="filter-actions">
+        <button
+          class="icon-only-button remove-filter-btn"
+          (click)="removeFilter(filter.id)"
+          title="Remove filter"
+          aria-label="Remove filter"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+        @if (last && unusedFilters().length > 0 && !pendingNewFilter()) {
+          <button
+            class="icon-only-button add-filter-btn"
+            (click)="startAddFilter()"
+            title="Add another filter"
+            aria-label="Add another filter"
+          >
+            <app-icon name="add"></app-icon>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  @if (pendingNewFilter()) {
+    <div class="filter-row pending-row">
+      <label class="filter-label">Add filter</label>
+      <div class="filter-input-wrap">
+        <select
+          class="filter-select-type"
+          (change)="onSelectNewFilter($event)"
+          autofocus
+        >
+          <option value="" disabled selected>Choose filter type...</option>
+          @for (opt of unusedFilters(); track opt.id) {
+            <option [value]="opt.id">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button
+          class="icon-only-button remove-filter-btn"
+          (click)="cancelAddFilter()"
+          title="Cancel"
+          aria-label="Cancel adding filter"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    </div>
+  }
+</div>

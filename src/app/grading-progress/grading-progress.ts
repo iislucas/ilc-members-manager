@@ -357,13 +357,9 @@ export class GradingProgressComponent {
   currentPaymentLabel = computed(() => this.paymentStatusLabel(this.grading().paymentStatus));
   isUnpaid = computed(() => !isGradingPaid(this.grading()));
 
-  // Link to the grading product page, shown to a student with an unpaid grading
-  // so they can pay for it (after which the order flips it to "Paid online").
-  gradingProductLink = environment.links.grading;
-
-  // Open the grading product page in a new tab to purchase the grading.
+  // Navigate to the dedicated in-app Next Grading purchase page.
   purchaseGrading() {
-    window.open(this.gradingProductLink, '_blank', 'noopener');
+    this.routingService.navigateToParts(['next-grading']);
   }
 
   // Sync local editing signals from grading input whenever it changes.

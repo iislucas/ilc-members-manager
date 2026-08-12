@@ -295,8 +295,8 @@ async function upsertStripeOrder(
   try {
     const member = await resolveMemberForStripeOrder(db, order);
     if (member) {
-      await mirrorOrderToMemberSubcollection(db, member, order, orderDocId);
       await fulfillStripeOrder(db, member, order, orderDocId);
+      await mirrorOrderToMemberSubcollection(db, member, order, orderDocId);
     } else {
       logger.info('Stripe order could not be mapped to a member yet', {
         orderDocId,

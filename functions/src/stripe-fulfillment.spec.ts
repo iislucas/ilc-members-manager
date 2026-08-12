@@ -64,7 +64,37 @@ describe('stripe-fulfillment', () => {
       add: vi.fn().mockResolvedValue({ id: 'new_grading_doc_id' }),
     };
 
+    const mockCountersGet = vi.fn().mockResolvedValue({
+      exists: true,
+      data: () => ({
+        memberIdCounters: { US: 100, FR: 200 },
+        instructorIdCounter: 100,
+        schoolIdCounter: 100,
+      }),
+    });
+
+    const mockCountersSet = vi.fn().mockResolvedValue({});
+
     mockDb = {
+      runTransaction: vi.fn().mockImplementation(async (fn) => {
+        return fn({
+          get: vi.fn().mockImplementation(async () => mockCountersGet()),
+          set: mockCountersSet,
+        });
+      }),
+      doc: vi.fn().mockImplementation((path: string) => {
+        if (path === 'system/counters') {
+          return {
+            get: mockCountersGet,
+            set: mockCountersSet,
+          };
+        }
+        return {
+          id: path,
+          get: vi.fn().mockResolvedValue({ exists: false }),
+          set: vi.fn().mockResolvedValue({}),
+        };
+      }),
       collection: vi.fn((colName: string) => {
         if (colName === 'members') {
           return {
@@ -238,5 +268,224 @@ describe('stripe-fulfillment', () => {
         level: 'Student 2',
       }),
     );
+  });
+
+  it('fulfills monthly Class Video Library subscription on member doc', async () => {
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_vid_monthly',
+      subscriptionId: 'sub_vid_monthly_123',
+      mode: StripeCheckoutMode.Subscription,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 2500,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_vid',
+          priceId: 'price_vid_monthly',
+          description: 'Monthly Class Video Library Subscription',
+          quantity: 1,
+          amountTotal: 2500,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_vid_123');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classVideoLibrarySubscription: true,
+        classVideoLibrarySubscriptionId: 'sub_vid_monthly_123',
+        classVideoLibraryLastRenewalDate: expect.any(String),
+        classVideoLibraryExpirationDate: expect.any(String),
+        classVideoLibraryNextAutoRenewDate: expect.any(String),
+      }),
+    );
+  });
+
+  it('fulfills annual Class Video Library subscription on member doc', async () => {
+    const memberWithExistingSub = {
+      ...sampleMember,
+      classVideoLibrarySubscription: true,
+      classVideoLibraryExpirationDate: '2028-06-01',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_vid_annual',
+      subscriptionId: 'sub_vid_annual_456',
+      mode: StripeCheckoutMode.Subscription,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 25000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_vid',
+          priceId: 'price_vid_annual',
+          description: '1-Year Class Video Library Subscription (Annual)',
+          quantity: 1,
+          amountTotal: 25000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithExistingSub, order, 'order_vid_456');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classVideoLibrarySubscription: true,
+        classVideoLibrarySubscriptionId: 'sub_vid_annual_456',
+        classVideoLibraryExpirationDate: '2029-06-01',
+        classVideoLibraryNextAutoRenewDate: '2029-06-01',
+      }),
+    );
+  });
+
+  it('auto-assigns a new memberId when a new member without memberId purchases annual membership', async () => {
+    const memberWithoutId = {
+      ...sampleMember,
+      docId: 'mem_new_1',
+      memberId: '',
+      country: 'United States',
+      firstMembershipStarted: '',
+      currentMembershipExpires: '',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_new_annual',
+      mode: StripeCheckoutMode.Payment,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 8500,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_mem',
+          priceId: 'price_mem_annual',
+          description: 'Annual Membership',
+          quantity: 1,
+          amountTotal: 8500,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithoutId, order, 'order_new_annual');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        membershipType: MembershipType.Annual,
+        memberId: 'US101',
+        firstMembershipStarted: expect.any(String),
+        lastRenewalDate: expect.any(String),
+        currentMembershipExpires: expect.any(String),
+      }),
+    );
+    expect(memberWithoutId.memberId).toBe('US101');
+  });
+
+  it('auto-assigns a new memberId using order billingAddress country when member country is empty', async () => {
+    const memberWithoutCountry = {
+      ...sampleMember,
+      docId: 'mem_new_2',
+      memberId: '',
+      country: '',
+      firstMembershipStarted: '',
+      currentMembershipExpires: '',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_new_fr',
+      mode: StripeCheckoutMode.Payment,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 8500,
+      currency: 'usd',
+      billingAddress: {
+        country: 'FR',
+      },
+      lineItems: [
+        {
+          productId: 'prod_mem',
+          priceId: 'price_mem_annual',
+          description: 'Annual Membership',
+          quantity: 1,
+          amountTotal: 8500,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithoutCountry, order, 'order_new_fr');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        membershipType: MembershipType.Annual,
+        memberId: 'FR201',
+        country: 'France',
+      }),
+    );
+    expect(memberWithoutCountry.memberId).toBe('FR201');
+    expect(memberWithoutCountry.country).toBe('France');
+  });
+
+  it('auto-assigns a new memberId when a new member purchases lifetime membership', async () => {
+    const memberWithoutId = {
+      ...sampleMember,
+      docId: 'mem_new_3',
+      memberId: '',
+      country: 'United States',
+      firstMembershipStarted: '',
+      currentMembershipExpires: '',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_new_life',
+      mode: StripeCheckoutMode.Payment,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 150000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_mem_life',
+          priceId: 'price_mem_life',
+          description: 'Lifetime Membership (Individual)',
+          quantity: 1,
+          amountTotal: 150000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithoutId, order, 'order_new_life');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        membershipType: MembershipType.Life,
+        memberId: 'US101',
+        currentMembershipExpires: '9999-12-31',
+        firstMembershipStarted: expect.any(String),
+        lastRenewalDate: expect.any(String),
+      }),
+    );
+    expect(memberWithoutId.memberId).toBe('US101');
   });
 });

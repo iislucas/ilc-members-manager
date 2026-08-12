@@ -140,6 +140,7 @@
       @if (searchMode() === 'term') {
         <select [(ngModel)]="searchField" class="field-select">
           <option value="email">Member Email</option>
+          <option value="memberDocId">Member Doc ID</option>
           <option value="lastName">Member Last Name</option>
           <option value="customerEmail">Billing Email</option>
           <option value="billingAddress.lastName">Billing Last Name</option>

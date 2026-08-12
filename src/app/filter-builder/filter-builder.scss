@@ -1,0 +1,216 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.filter-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  width: fit-content;
+  max-width: 100%;
+
+  @mixin filter-input {
+    padding: 5px 8px;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    font-size: 0.9em;
+    background: #fff;
+    color: v.$text-primary;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      border-color: v.$focus-ring-color;
+      outline: none;
+    }
+  }
+
+  .filter-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5em;
+    width: fit-content;
+    max-width: 100%;
+
+    .filter-label {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: v.$text-secondary;
+      width: 110px;
+      min-width: 90px;
+      flex-shrink: 0;
+      text-align: left;
+    }
+
+    .filter-input-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      flex: 0 1 auto;
+      min-width: 0;
+
+      input[type="date"] {
+        @include filter-input;
+        width: 9em;
+        flex: 0 0 auto;
+      }
+
+      input[type="text"] {
+        @include filter-input;
+        width: 13em;
+        max-width: 100%;
+        flex: 0 1 auto;
+      }
+
+      select {
+        @include filter-input;
+        width: 12em;
+        max-width: 100%;
+        flex: 0 1 auto;
+      }
+
+      .date-sep {
+        font-size: 0.85em;
+        color: v.$text-secondary;
+        flex-shrink: 0;
+      }
+
+      .filter-checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        cursor: pointer;
+        font-size: 0.9em;
+        color: v.$text-primary;
+        white-space: nowrap;
+      }
+
+      ::ng-deep {
+        .selector-container {
+          width: 100%;
+        }
+
+        app-autocomplete {
+          display: block;
+          width: 15em;
+          max-width: 100%;
+        }
+
+        .autocomplete-container {
+          width: 100%;
+        }
+
+        input[type="text"] {
+          @include filter-input;
+          width: 100%;
+        }
+      }
+    }
+
+    .filter-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      margin-left: 2px;
+
+      .remove-filter-btn {
+        padding: 3px;
+        color: v.$text-secondary;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+          color: #d32f2f;
+        }
+      }
+
+      .add-filter-btn {
+        padding: 3px;
+        color: v.$text-secondary;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+          color: v.$focus-ring-color;
+        }
+      }
+    }
+  }
+
+  .pending-row {
+    .filter-select-type {
+      @include filter-input;
+      cursor: pointer;
+      width: 13em;
+    }
+  }
+
+  .no-filters-row {
+    display: flex;
+    align-items: center;
+    padding: 0.2em 0;
+
+    .add-first-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85em;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+  }
+
+  @media (max-width: 600px) {
+    width: 100%;
+
+    .filter-row {
+      width: 100%;
+      gap: 0.35em;
+
+      .filter-label {
+        width: 80px;
+        min-width: 70px;
+        font-size: 0.85em;
+      }
+
+      .filter-input-wrap {
+        flex: 1 1 auto;
+
+        input[type="date"] {
+          width: 7.8em;
+          font-size: 0.82em;
+          padding: 4px;
+        }
+
+        input[type="text"],
+        select {
+          width: 100%;
+          min-width: 6em;
+          font-size: 0.85em;
+          padding: 4px 6px;
+        }
+
+        ::ng-deep {
+          app-autocomplete {
+            width: 100%;
+          }
+        }
+      }
+    }
+
+    .pending-row {
+      .filter-select-type {
+        width: 100%;
+      }
+    }
+  }
+}

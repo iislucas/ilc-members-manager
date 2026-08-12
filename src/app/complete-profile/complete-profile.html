@@ -5,8 +5,27 @@
       Please provide your basic details to get started with the members portal.
     </p>
 
+    <!-- Signed-in Account Info & Logout Button -->
+    @if (userEmail(); as email) {
+      <div class="signed-in-header">
+        <div class="user-info">
+          <app-icon name="person" width="20px" height="20px"></app-icon>
+          <span class="user-email">Signed in as <strong>{{ email }}</strong></span>
+        </div>
+        <button
+          type="button"
+          class="subtle-button logout-btn"
+          (click)="onLogout()"
+          title="Sign out and return to login"
+        >
+          <app-icon name="logout"></app-icon>
+          <span>Log Out</span>
+        </button>
+      </div>
+    }
+
     <div class="form-group">
-      <label for="fill-name">Full Name</label>
+      <label for="fill-name">Full Name <span class="required">*</span></label>
       <input
         id="fill-name"
         type="text"
@@ -17,7 +36,7 @@
     </div>
 
     <div class="form-group">
-      <label for="fill-dob">Date of Birth</label>
+      <label for="fill-dob">Date of Birth <span class="required">*</span></label>
       <input
         id="fill-dob"
         type="date"
@@ -28,7 +47,7 @@
 
     <div class="form-group">
       <label for="fill-country"
-        >Country of Residence
+        >Country of Residence <span class="required">*</span>
         @if (countryWithCode(); as cc) {
           (<span class="identifier-chip">{{ cc.id }}</span
           >)
@@ -53,7 +72,7 @@
 
     <div class="form-actions">
       <button
-        class="button"
+        class="button proceed-btn"
         (click)="submitProfileEnrichment()"
         [disabled]="
           !fillName().trim() ||
@@ -72,5 +91,35 @@
     @if (saveError(); as errorMsg) {
       <div class="error-message save-error">{{ errorMsg }}</div>
     }
+
+    <!-- Quick Navigation Links (Find Instructor, Find School, Events & Workshops) -->
+    <div class="public-links-section">
+      <div class="links-divider">
+        <span>Explore Public Resources</span>
+      </div>
+      <div class="public-links-grid">
+        <a
+          class="subtle-button quick-link"
+          [href]="routingService.hrefForView(Views.FindAnInstructor)"
+        >
+          <app-icon name="person"></app-icon>
+          <span>Find an Instructor</span>
+        </a>
+        <a
+          class="subtle-button quick-link"
+          [href]="routingService.hrefForView(Views.FindSchool)"
+        >
+          <app-icon name="location_on"></app-icon>
+          <span>Find a School</span>
+        </a>
+        <a
+          class="subtle-button quick-link"
+          [href]="routingService.hrefForView(Views.EventsCalendar)"
+        >
+          <app-icon name="event"></app-icon>
+          <span>Events &amp; Workshops</span>
+        </a>
+      </div>
+    </div>
   </div>
 </div>

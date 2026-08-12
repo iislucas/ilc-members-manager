@@ -81,6 +81,21 @@
         @case (Views.VideoView) {
           <app-video-view></app-video-view>
         }
+        @case (Views.BecomeAMember) {
+          <app-become-a-member></app-become-a-member>
+        }
+        @case (Views.NextGrading) {
+          <app-next-grading></app-next-grading>
+        }
+        @case (Views.InstructorLicensePurchase) {
+          <app-instructor-license-purchase></app-instructor-license-purchase>
+        }
+        @case (Views.SchoolLicensePurchase) {
+          <app-school-license-purchase></app-school-license-purchase>
+        }
+        @case (Views.ClassVideoLibraryPurchase) {
+          <app-class-video-library-purchase></app-class-video-library-purchase>
+        }
       }
     } @else if (!user) {
       <!-- Restricted page, not logged in: show initialisation or login -->
@@ -101,15 +116,18 @@
           </div>
 
           <div class="public-options">
+            <button (click)="routingService.navigateToParts(['become-a-member'])">
+              Become a Member
+            </button>
             <button (click)="routingService.navigateToParts(['find-an-instructor'])">
               Find an Instructor
+            </button>
+            <button (click)="routingService.navigateToParts(['find-school'])">
+              Find a School
             </button>
             <button (click)="routingService.navigateToParts(['events'])">
               Events &amp; Workshops
             </button>
-            <!-- <button (click)="routingService.navigateToParts(['find-school'])">
-              Find a School
-            </button> -->
           </div>
         }
 
@@ -316,6 +334,27 @@
         }
         @case (Views.ManageVod) {
           <app-manage-vod></app-manage-vod>
+        }
+        @case (Views.Videos) {
+          <app-videos-catalog></app-videos-catalog>
+        }
+        @case (Views.VideoView) {
+          <app-video-view></app-video-view>
+        }
+        @case (Views.BecomeAMember) {
+          <app-become-a-member></app-become-a-member>
+        }
+        @case (Views.NextGrading) {
+          <app-next-grading></app-next-grading>
+        }
+        @case (Views.InstructorLicensePurchase) {
+          <app-instructor-license-purchase></app-instructor-license-purchase>
+        }
+        @case (Views.SchoolLicensePurchase) {
+          <app-school-license-purchase></app-school-license-purchase>
+        }
+        @case (Views.ClassVideoLibraryPurchase) {
+          <app-class-video-library-purchase></app-class-video-library-purchase>
         }
         @default {
           <app-not-found></app-not-found>

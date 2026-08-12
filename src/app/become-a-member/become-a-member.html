@@ -1,0 +1,517 @@
+<div class="become-a-member-container">
+  <div class="page-header">
+    <h1>Become a Member</h1>
+    <p class="subtitle">
+      Join the Chin Family – Zhong Xin Dao / I Liq Chuan community. Members
+      benefit from training resources, online classes, workshop discounts, and
+      they may take gradings.
+    </p>
+  </div>
+
+  @if (hasActiveSubscription()) {
+    <div class="current-membership-banner card">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>You have an active ILC Membership</h3>
+          <p>
+            Valid through
+            <strong>{{ user()?.member?.currentMembershipExpires }}</strong
+            >.
+            @if (user()?.member?.membershipNextAutoRenewDate) {
+              Auto-renews on
+              <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong
+              >.
+            }
+          </p>
+        </div>
+      </div>
+
+      @if (cancelSuccessMessage()) {
+        <div class="success-message">{{ cancelSuccessMessage() }}</div>
+      }
+      @if (cancelErrorMessage()) {
+        <div class="error-container">
+          <span class="error-message">{{ cancelErrorMessage() }}</span>
+        </div>
+      }
+
+      <div class="subscription-actions">
+        @if (user()?.member?.membershipNextAutoRenewDate) {
+          <button
+            type="button"
+            class="subtle-button"
+            [disabled]="cancelInProgress()"
+            (click)="onCancelAutoRenew()"
+          >
+            <app-icon name="close"></app-icon>
+            {{ cancelInProgress() ? "Cancelling..." : "Cancel Auto-Renewal" }}
+          </button>
+        } @else if (user()?.member?.membershipSubscriptionId) {
+          <button
+            type="button"
+            class="subtle-button"
+            [disabled]="cancelInProgress()"
+            (click)="onResumeAutoRenew()"
+          >
+            <app-icon name="check"></app-icon>
+            {{ cancelInProgress() ? "Resuming..." : "Resume Auto-Renewal" }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Step 1: Sign in / Account -->
+  <div class="form-card card">
+    <div class="step-header-row">
+      <h2>1. Your Account</h2>
+      @if (isLoggedIn()) {
+        <span class="step-completed-badge" title="Account verified">
+          <app-icon name="check"></app-icon>
+        </span>
+      }
+    </div>
+
+    @if (isLoggedIn()) {
+      <div class="logged-in-box">
+        <div class="user-info">
+          <app-icon name="person" width="28px" height="28px"></app-icon>
+          <div class="user-details-text">
+            <div class="user-email-row">
+              Signed in as
+              <strong>{{
+                user()?.member?.emails?.[0] || user()?.firebaseUser?.email
+              }}</strong>
+            </div>
+            @if (user()?.member?.memberId) {
+              <div class="member-id-hint">
+                Member ID:
+                <span class="identifier-chip">{{
+                  user()?.member?.memberId
+                }}</span>
+              </div>
+            }
+          </div>
+        </div>
+        <button
+          type="button"
+          class="subtle-button logout-btn"
+          (click)="onLogout()"
+          title="Sign out of this account"
+        >
+          <app-icon name="logout"></app-icon>
+          <span>Log Out</span>
+        </button>
+      </div>
+
+      @if (!user()?.member?.memberId) {
+        <p class="account-welcome-note">
+          Welcome, you do not have a previous membership, please complete the
+          information below.
+        </p>
+      }
+    } @else {
+      <div class="auth-prompt">
+        <p>Please sign in or create an account to link your new membership.</p>
+        <div class="auth-grid">
+          <div class="field-item">
+            <label for="member-email">Email</label>
+            <input
+              id="member-email"
+              type="email"
+              placeholder="you@example.com"
+              [ngModel]="loginEmail()"
+              (ngModelChange)="loginEmail.set($event)"
+            />
+          </div>
+
+          <div class="field-item">
+            <label for="member-password">Password</label>
+            <div class="password-row">
+              <input
+                id="member-password"
+                [type]="showPassword() ? 'text' : 'password'"
+                placeholder="Password"
+                [ngModel]="loginPassword()"
+                (ngModelChange)="loginPassword.set($event)"
+              />
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="showPassword.set(!showPassword())"
+              >
+                <app-icon
+                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
+                ></app-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        @if (authError()) {
+          <div class="error-container">
+            <span class="error-message">{{ authError() }}</span>
+            <button class="icon-only-button" (click)="authError.set(null)">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
+
+        <div class="auth-buttons">
+          <button
+            type="button"
+            [disabled]="authLoading() || !loginEmail() || !loginPassword()"
+            (click)="onLoginWithEmail()"
+          >
+            {{ authLoading() ? "Signing in..." : "Sign In" }}
+          </button>
+          <button
+            type="button"
+            class="secondary-btn"
+            [disabled]="
+              authLoading() ||
+              !loginEmail() ||
+              !loginPassword() ||
+              loginPassword().length < 6
+            "
+            (click)="onSignupWithEmail()"
+          >
+            Create Account
+          </button>
+          <button
+            type="button"
+            class="google-btn subtle-button"
+            [disabled]="authLoading()"
+            (click)="onLoginWithGoogle()"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Step 2: Personal Information -->
+  <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
+    <div
+      class="step-header-row"
+      [class.clickable]="isExistingActiveMember()"
+      (click)="isExistingActiveMember() ? toggleBasicInfoCollapse() : null"
+    >
+      <div class="step-header-left">
+        <h2>2. Basic Information</h2>
+        @if (hasCompletedBasicInfo()) {
+          <span class="step-completed-badge" title="Basic information complete">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
+      </div>
+      @if (isExistingActiveMember()) {
+        <button
+          type="button"
+          class="icon-only-button fold-toggle-btn"
+          (click)="$event.stopPropagation(); toggleBasicInfoCollapse()"
+          [title]="
+            isBasicInfoCollapsed()
+              ? 'Unfold basic information'
+              : 'Fold basic information'
+          "
+        >
+          <app-icon
+            [name]="isBasicInfoCollapsed() ? 'expand_more' : 'expand_less'"
+          ></app-icon>
+        </button>
+      }
+    </div>
+
+    @if (isBasicInfoCollapsed()) {
+      <div class="collapsed-summary">
+        <span class="summary-text">
+          <strong>{{ name() }}</strong> • {{ dateOfBirth() }} • {{ country() }}
+        </span>
+        <button
+          type="button"
+          class="subtle-button edit-link-btn"
+          (click)="toggleBasicInfoCollapse()"
+        >
+          <app-icon name="edit"></app-icon>
+          <span>Edit</span>
+        </button>
+      </div>
+    } @else {
+      <div class="fields-grid">
+        <div class="field-item full-width">
+          <label for="fullName">Full Name <span class="required">*</span></label>
+          <input
+            id="fullName"
+            type="text"
+            placeholder="e.g. Jane Doe"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="name()"
+            (ngModelChange)="name.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="dob">Date of Birth <span class="required">*</span></label>
+          <input
+            id="dob"
+            type="date"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="dateOfBirth()"
+            (ngModelChange)="dateOfBirth.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="genderInput">Gender</label>
+          <input
+            id="genderInput"
+            type="text"
+            placeholder="Optional"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="gender()"
+            (ngModelChange)="gender.set($event)"
+          />
+        </div>
+
+        <div class="field-item full-width">
+          <label>Country of Residence <span class="required">*</span></label>
+          <app-autocomplete
+            [searchableSet]="dataService.countries"
+            [displayFns]="countryDisplayFns"
+            [inputBoxIsChip]="false"
+            [placeholder]="'Search for a country...'"
+            [initSearchTerm]="country()"
+            (textUpdated)="country.set($event)"
+          ></app-autocomplete>
+          @if (countryWithCode(); as cc) {
+            <span class="identifier-chip country-chip">{{ cc.id }}</span>
+          }
+        </div>
+
+        <div class="field-item">
+          <label for="phoneNum">Phone Number</label>
+          <input
+            id="phoneNum"
+            type="tel"
+            placeholder="+1 555 0199"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="phone()"
+            (ngModelChange)="phone.set($event)"
+          />
+        </div>
+
+        <div class="field-item full-width">
+          <label for="addressInput">Street Address</label>
+          <input
+            id="addressInput"
+            type="text"
+            placeholder="Street address line"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="address()"
+            (ngModelChange)="address.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="cityInput">City</label>
+          <input
+            id="cityInput"
+            type="text"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="city()"
+            (ngModelChange)="city.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="zipInput">Zip / Postal Code</label>
+          <input
+            id="zipInput"
+            type="text"
+            [disabled]="!isLoggedIn()"
+            [ngModel]="zipCode()"
+            (ngModelChange)="zipCode.set($event)"
+          />
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Step 3: Choose Membership Option -->
+  <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
+    <div class="step-header-row">
+      <h2>3. Choose Membership Option</h2>
+      @if (isExistingActiveMember()) {
+        <span class="step-completed-badge" title="Active membership">
+          <app-icon name="check"></app-icon>
+        </span>
+      }
+    </div>
+
+    @if (isLifeMember()) {
+      <div class="membership-status-box life-member">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div class="status-content">
+          <h3>Active Lifetime Membership</h3>
+          <p>
+            You are currently an active <strong>Lifetime Member</strong>. Lifetime memberships never expire and you do not need to purchase another membership.
+          </p>
+        </div>
+      </div>
+    } @else {
+      @if (hasActiveAnnualMembership()) {
+        <div class="membership-status-box annual-member">
+          <app-icon name="check" width="24px" height="24px"></app-icon>
+          <div class="status-content">
+            <h3>Current Membership: Annual</h3>
+            <p>
+              Your membership is active through <strong>{{ user()?.member?.currentMembershipExpires }}</strong>.
+              @if (user()?.member?.membershipNextAutoRenewDate) {
+                Auto-renews on <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong>.
+              }
+            </p>
+          </div>
+        </div>
+      } @else if (hasExpiredMembership()) {
+        <div class="membership-status-box expired-member">
+          <app-icon name="info" width="24px" height="24px"></app-icon>
+          <div class="status-content">
+            <h3>Membership Expired</h3>
+            <p>
+              Your previous membership expired on <strong>{{ user()?.member?.currentMembershipExpires }}</strong>. Select an option below to renew.
+            </p>
+          </div>
+        </div>
+      }
+
+      @if (productsLoading()) {
+        <app-spinner>Loading membership options...</app-spinner>
+      } @else if (productsError()) {
+        <div class="error-container">
+          <span class="error-message">{{ productsError() }}</span>
+          <button class="icon-only-button" (click)="loadStripeProducts()">
+            <app-icon name="refresh"></app-icon>
+          </button>
+        </div>
+      } @else {
+        <!-- Bullet list overview of available options -->
+        <div class="membership-options-overview">
+          <ul class="options-bullet-list">
+            <li>
+              <strong>Annual Membership:</strong>
+              @if (applicableAnnualTier().price; as ap) {
+                {{ formatPrice(ap) }}
+                @if (applicableAnnualTier().badge) {
+                  <span class="age-badge-inline">{{ applicableAnnualTier().badge }}</span>
+                }
+                <span class="option-subtext"> — Auto-renews annually. (Regular rate $85/yr; $55/yr for Senior 65+ or Youth under 21).</span>
+              } @else {
+                $85.00/year (Regular adult rate; $55.00/year for Youth under 21 & Senior 65+)
+              }
+            </li>
+            @if (lifeIndividualOption().price; as lp) {
+              <li>
+                <strong>Lifetime Membership (Individual):</strong>
+                {{ formatPrice(lp) }}
+                <span class="option-subtext"> — One-time payment for individual lifetime access. Never expires.</span>
+              </li>
+            }
+            @if (lifeSpouseOption().price; as lsp) {
+              <li>
+                <strong>Lifetime Membership (with Spouse):</strong>
+                {{ formatPrice(lsp) }}
+                <span class="option-subtext"> — One-time payment covering both you and your spouse. Never expires.</span>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <!-- Standard Pill Tabs Selector -->
+        <div class="pill-tabs">
+          @for (opt of membershipOptions(); track opt.type) {
+            <button
+              type="button"
+              class="pill-tab"
+              [attr.data-label]="opt.pillLabel"
+              [class.active]="selectedOption() === opt.type"
+              (click)="selectedOption.set(opt.type)"
+            >
+              {{ opt.pillLabel }}
+            </button>
+          }
+        </div>
+
+        <!-- Selected option details card -->
+        <div class="selected-rate-container">
+          @if (selectedOptionDetails(); as opt) {
+            <div class="rate-card selected">
+              <div class="rate-info">
+                <div class="rate-header-row">
+                  <div class="rate-title">{{ opt.title }}</div>
+                  @if (opt.badge) {
+                    <span class="age-badge">{{ opt.badge }}</span>
+                  }
+                </div>
+                @if (opt.price) {
+                  <div class="rate-price">{{ formatPrice(opt.price) }}</div>
+                }
+                <div class="rate-desc">{{ opt.note }}</div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    @if (isExistingActiveMember()) {
+      <div class="portal-homepage-action">
+        <a
+          [href]="routingService.hrefForView(Views.Home)"
+          class="subtle-button homepage-link-btn"
+        >
+          <span class="btn-content">
+            <app-icon name="home"></app-icon>
+            <span>Go to Member's Portal Homepage</span>
+          </span>
+        </a>
+      </div>
+    }
+  </div>
+
+  <!-- Step 4: Checkout Action -->
+  @if (!isLifeMember()) {
+    @if (checkoutError()) {
+      <div class="error-container">
+        <span class="error-message">{{ checkoutError() }}</span>
+        <button class="icon-only-button" (click)="checkoutError.set(null)">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
+
+    <div class="checkout-actions">
+      @if (isRedirecting()) {
+        <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+      } @else {
+        <button
+          type="button"
+          class="pay-btn"
+          [disabled]="
+            !isLoggedIn() ||
+            !selectedPriceId() ||
+            !name() ||
+            !dateOfBirth() ||
+            !country()
+          "
+          (click)="onProceedToPayment()"
+        >
+          <app-icon name="link"></app-icon>
+          <span>Proceed to Secure Payment</span>
+        </button>
+      }
+    </div>
+  }
+</div>

@@ -42,10 +42,12 @@ describe('GradingListComponent', () => {
 
     const mockDataManagerService = {
       instructors: new SearchableSet(['name'], 'instructorId'),
+      members: new SearchableSet(['name'], 'docId'),
       memberDisplayName: (_docId: string, memberId: string) => memberId,
       instructorDisplayName: (instructorId: string) => instructorId,
       loadMoreGradings: vi.fn(),
       searchGradingsByDateAndInstructor: vi.fn().mockResolvedValue([]),
+      searchGradings: vi.fn().mockResolvedValue([]),
     } as never as DataManagerService;
 
     await TestBed.configureTestingModule({
@@ -283,5 +285,99 @@ describe('GradingListComponent', () => {
     fixture.detectChanges();
     expect(component.groupByEvent()).toBe(false);
     expect(component.listItems()).toEqual([]);
+  });
+
+  it('syncs search query with URL param q', () => {
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const qSignal = routing.signals[Views.ManageGradings].urlParams.q;
+
+    const uniqueGrading = initGrading();
+    uniqueGrading.docId = 'grading-alice';
+    uniqueGrading.studentMemberId = 'alice';
+    component.gradingSet().upsert(uniqueGrading);
+    fixture.detectChanges();
+
+    component.onSearch({ target: { value: 'alice' } } as unknown as Event);
+    expect(qSignal()).toBe('alice');
+    expect(component.sortedGradings().length).toBe(1);
+    expect(component.sortedGradings()[0].studentMemberId).toBe('alice');
+
+    component.clearFilters();
+    expect(qSignal()).toBe('');
+  });
+
+
+  it('unfolds advanced search panel and performs term-based Firestore search when studentMemberDocId is set', async () => {
+    const ds = TestBed.inject(DataManagerService);
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const studentDocIdSignal = routing.signals[Views.ManageGradings].urlParams.studentMemberDocId;
+
+    const foundGrading = initGrading();
+    foundGrading.docId = 'grading-found';
+    foundGrading.studentMemberDocId = 'mem-doc-123';
+    (ds.searchGradings as any).mockResolvedValue([foundGrading]);
+
+    expect(component.showAdvancedSearch()).toBe(false);
+
+    component.onStudentMemberDocIdChange('mem-doc-123');
+    await fixture.whenStable();
+
+    expect(ds.searchGradings).toHaveBeenCalledWith({
+      kind: 'term',
+      searchField: 'studentMemberDocId',
+      term: 'mem-doc-123',
+      statusFilter: '',
+    });
+    expect(component.termGradings()).toEqual([foundGrading]);
+    expect(component.sortedGradings()).toEqual([foundGrading]);
+    expect(studentDocIdSignal()).toBe('mem-doc-123');
+    expect(component.hasActiveFilters()).toBe(true);
+    expect(component.isFilterActive('studentMemberDocId')).toBe(true);
+
+    component.clearFilters();
+    expect(studentDocIdSignal()).toBe('');
+    expect(component.termGradings()).toBeNull();
+    expect(component.hasActiveFilters()).toBe(false);
+    expect(component.isFilterActive('studentMemberDocId')).toBe(false);
+  });
+
+  it('allows dynamically adding and removing filters', async () => {
+    const routing = TestBed.inject(RoutingService) as never as RoutingService<typeof initPathPatterns>;
+    const orderIdSignal = routing.signals[Views.ManageGradings].urlParams.orderId;
+
+    expect(component.isFilterActive('orderId')).toBe(false);
+    expect(component.unusedFilterOptions().some(o => o.key === 'orderId')).toBe(true);
+
+    component.addFilter('orderId');
+    expect(component.isFilterActive('orderId')).toBe(true);
+    expect(component.unusedFilterOptions().some(o => o.key === 'orderId')).toBe(false);
+
+    component.onOrderIdChange('ord-999');
+    expect(orderIdSignal()).toBe('ord-999');
+
+    component.removeFilter('orderId');
+    expect(component.isFilterActive('orderId')).toBe(false);
+    expect(component.filterOrderId()).toBe('');
+    expect(orderIdSignal()).toBe('');
+    expect(component.unusedFilterOptions().some(o => o.key === 'orderId')).toBe(true);
+  });
+
+  it('toggleAdvancedSearch opens the filter panel if closed and does not hide if open', () => {
+    expect(component.showAdvancedSearch()).toBe(false);
+
+    component.toggleAdvancedSearch();
+    expect(component.showAdvancedSearch()).toBe(true);
+
+    component.toggleAdvancedSearch();
+    expect(component.showAdvancedSearch()).toBe(true);
+  });
+
+  it('onAllFiltersCleared closes the advanced search panel and clears filters', () => {
+    component.showAdvancedSearch.set(true);
+    component.filterOrderId.set('ord-123');
+
+    component.onAllFiltersCleared();
+    expect(component.showAdvancedSearch()).toBe(false);
+    expect(component.filterOrderId()).toBe('');
   });
 });

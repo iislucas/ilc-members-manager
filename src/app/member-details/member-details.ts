@@ -91,7 +91,8 @@ export class MemberDetailsComponent {
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
-  membershipLink = environment.links.membership;
+  Views = Views;
+  membershipLink = computed(() => this.routingService.hrefForView(Views.BecomeAMember));
   notificationService = inject(NotificationService);
   NotificationKind = NotificationKind;
   notificationKinds = Object.values(NotificationKind);
@@ -462,6 +463,117 @@ export class MemberDetailsComponent {
   isOwnProfile = computed(() =>
     this.routingService.matchedPatternId() === Views.MyProfile,
   );
+
+  /** Primary email for filtering orders / events. */
+  memberPrimaryEmail = computed(() => {
+    const emails = this.editableMember().emails;
+    return emails && emails.length > 0 ? emails[0] : '';
+  });
+
+  /** Href to Manage Gradings filtered by this member. */
+  memberGradingsLink = computed(() => {
+    const m = this.editableMember();
+    if (m.docId) {
+      return this.routingService.hrefForView(Views.ManageGradings, {
+        studentMemberDocId: m.docId,
+      });
+    }
+    if (m.memberId) {
+      return this.routingService.hrefForView(Views.ManageGradings, {
+        studentMemberId: m.memberId,
+      });
+    }
+    return this.routingService.hrefForView(Views.ManageGradings);
+  });
+
+  /** Href to Manage Orders filtered by this member's primary email. */
+  memberOrdersLink = computed(() => {
+    const email = this.memberPrimaryEmail();
+    if (email) {
+      return this.routingService.hrefForView(Views.ManageOrders, {
+        searchMode: 'term',
+        searchField: 'email',
+        q: email,
+      });
+    }
+    return this.routingService.hrefForView(Views.ManageOrders);
+  });
+
+  /** Href to Manage Events filtered by leading instructor ID or owner docId / email. */
+  memberEventsLink = computed(() => {
+    const m = this.editableMember();
+    if (m.instructorId && m.instructorId.trim() !== '') {
+      return this.routingService.hrefForView(Views.ManageEvents, {
+        searchMode: 'term',
+        searchField: 'leadingInstructorId',
+        q: m.instructorId,
+      });
+    }
+    if (m.docId) {
+      return this.routingService.hrefForView(Views.ManageEvents, {
+        searchMode: 'term',
+        searchField: 'ownerDocId',
+        q: m.docId,
+      });
+    }
+    const email = this.memberPrimaryEmail();
+    if (email) {
+      return this.routingService.hrefForView(Views.ManageEvents, {
+        searchMode: 'term',
+        searchField: 'ownerEmails',
+        q: email,
+      });
+    }
+    return this.routingService.hrefForView(Views.ManageEvents);
+  });
+
+  /** Href to Manage Materials filtered by memberDocId or instructor ID. */
+  memberMaterialsLink = computed(() => {
+    const m = this.editableMember();
+    if (m.instructorId && m.instructorId.trim() !== '') {
+      return this.routingService.hrefForView(Views.ManageMaterials, {
+        instructorId: m.instructorId,
+      });
+    }
+    if (m.docId && m.docId.trim() !== '') {
+      return this.routingService.hrefForView(Views.ManageMaterials, {
+        memberDocId: m.docId,
+      });
+    }
+    return this.routingService.hrefForView(Views.ManageMaterials);
+  });
+
+  /** Href to view students of this instructor. */
+  memberStudentsLink = computed(() => {
+    const m = this.editableMember();
+    if (this.isOwnProfile()) {
+      return this.routingService.hrefForView(Views.MyStudents);
+    }
+    return m.instructorId
+      ? this.routingService.hrefForView(Views.InstructorStudents, {
+          instructorId: m.instructorId,
+        })
+      : '';
+  });
+
+  /** Href to the public instructor profile page. */
+  memberPublicProfileLink = computed(() => {
+    const m = this.editableMember();
+    return m.instructorId
+      ? this.routingService.hrefForView(Views.InstructorView, {
+          instructorId: m.instructorId,
+        })
+      : '';
+  });
+
+  /** Href to view the member's primary school members. */
+  memberSchoolLink = computed(() => {
+    const m = this.editableMember();
+    if (!m.primarySchoolId || m.primarySchoolId.trim() === '') return '';
+    return this.routingService.hrefForView(Views.SchoolMembers, {
+      schoolId: m.primarySchoolId,
+    });
+  });
 
   // Erro handling.
   asyncError = signal<Error | null>(null);

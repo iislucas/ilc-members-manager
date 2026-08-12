@@ -28,6 +28,22 @@ export class HomeComponent {
 
   private today = computed(() => new Date().toISOString().split('T')[0]);
 
+  public sessionId = computed(() => {
+    return this.routingService.signals[Views.Home].urlParams.session_id();
+  });
+
+  public welcomeParam = computed(() => {
+    return this.routingService.signals[Views.Home].urlParams.welcome();
+  });
+
+  public showWelcomeBanner = linkedSignal(() => {
+    return !!(this.welcomeParam() || (this.sessionId() && this.welcomeParam() === 'membership'));
+  });
+
+  public dismissWelcomeBanner(): void {
+    this.showWelcomeBanner.set(false);
+  }
+
   private tabFromUrl = computed<HomeTab>(() => {
     const tab = this.routingService.signals[Views.Home].urlParams.tab();
     if (tab === 'practice' || tab === 'me') {

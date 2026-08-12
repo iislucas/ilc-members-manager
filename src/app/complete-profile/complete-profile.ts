@@ -4,10 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
+import { IconComponent } from '../icons/icon.component';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns, Views } from '../app.config';
 
 @Component({
   selector: 'app-complete-profile',
-  imports: [CommonModule, FormsModule, AutocompleteComponent],
+  imports: [CommonModule, FormsModule, AutocompleteComponent, IconComponent],
   templateUrl: './complete-profile.html',
   styleUrl: './complete-profile.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -15,6 +18,17 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
 export class CompleteProfileComponent {
   public dataService = inject(DataManagerService);
   private firebaseService = inject(FirebaseStateService);
+  public readonly Views = Views;
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+
+  public userEmail = computed(() => {
+    const user = this.firebaseService.user();
+    return user?.firebaseUser?.email || user?.member?.emails?.[0] || '';
+  });
+
+  public async onLogout(): Promise<void> {
+    await this.firebaseService.logout();
+  }
 
   public fillName = linkedSignal({
     source: () => this.firebaseService.user()?.member?.name,

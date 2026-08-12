@@ -77,6 +77,12 @@ export interface CreateCheckoutSessionRequest {
   origin: string;
   /** Optional quantity; defaults to 1. */
   quantity?: number;
+  /** Optional custom success return URL. Must match an allowed origin. */
+  successUrl?: string;
+  /** Optional custom cancel return URL. Must match an allowed origin. */
+  cancelUrl?: string;
+  /** Optional metadata to attach to the Stripe Checkout session. */
+  metadata?: Record<string, string>;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -109,6 +115,7 @@ export interface CheckoutSessionSummary {
   amountTotal: number | null;
   currency: string | null;
   lineItems: CheckoutLineItem[];
+  metadata?: Record<string, string>;
 }
 
 export interface CancelSubscriptionRenewalRequest {

@@ -74,6 +74,7 @@ $menu-sep-color: #e4e4e7;
 $theme-error-text-color: #991b1b;
 $theme-error-bg-color: #fef2f2;
 $theme-error-border-color: #fecaca;
+$danger-color: #d32f2f;
 
 // ============================================================================
 //  Layout Constants
@@ -86,6 +87,8 @@ $card-sep: 0.75em;
 $row-border-color: #e4e4e7;
 $row-highlight-bg: #f4f9ff;
 $row-highlight-border: #4da3ff;
+$table-row-selected: #f4f9ff;
+$primary-color: #007bff;
 
 @mixin row-highlight-base {
   border-left: 4px solid transparent;

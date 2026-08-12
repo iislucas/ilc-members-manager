@@ -1,20 +1,4 @@
 <div class="orders-container">
-  <!-- Page Header -->
-  <div class="page-header">
-    <div class="header-left">
-      <h1>Orders & Subscriptions</h1>
-    </div>
-    <div class="header-actions">
-      <button
-        class="secondary-btn portal-btn"
-        (click)="onOpenCustomerPortal()"
-      >
-        <app-icon name="settings" width="18px" height="18px"></app-icon>
-        <span>Manage Payment Methods & Invoices</span>
-      </button>
-    </div>
-  </div>
-
   <!-- Action Feedback Banners -->
   @if (actionMessage()) {
     <div class="banner success-banner">
@@ -31,10 +15,57 @@
     </div>
   }
 
+  <!-- Section: Purchases & Renewals -->
+  <section class="services-quick-links-section">
+    <div class="section-title">
+      <h2>Purchases &amp; Renewals</h2>
+      <p class="section-subtitle">
+        Direct access to get or renew memberships, licenses, gradings, and subscriptions.
+      </p>
+    </div>
+    <div class="services-links-grid">
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
+        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Membership</div>
+          <div class="service-link-sub">Join as an annual or life member, or renew existing membership.</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.NextGrading)">
+        <app-icon name="mountain" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Next Grading</div>
+          <div class="service-link-sub">Pay student or application level examination fee.</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
+        <app-icon name="meditation" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Instructor License</div>
+          <div class="service-link-sub">Obtain or renew 1-year certified instructor teaching license.</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
+        <app-icon name="location_on" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">School License</div>
+          <div class="service-link-sub">Establish or renew official school affiliation and class listing.</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+        <app-icon name="video_library" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Class Video Library</div>
+          <div class="service-link-sub">Subscribe to recorded Saturday classes and global library archive.</div>
+        </div>
+      </a>
+    </div>
+  </section>
+
   <!-- Section: Active Subscriptions -->
   <section class="subscriptions-section">
     <div class="section-title">
-      <h2>Active Subscriptions & Renewals</h2>
+      <h2>Active Subscriptions</h2>
       <p class="section-subtitle">
         Manage auto-renewal settings for your memberships and digital products.
       </p>
@@ -90,6 +121,7 @@
           <div class="sub-card-actions">
             @if (sub.canCancel) {
               <button
+                type="button"
                 class="sub-btn cancel-btn"
                 [disabled]="actionInProgressSubId() === sub.subscriptionId"
                 (click)="onCancelAutoRenew(sub.subscriptionId)"
@@ -100,6 +132,7 @@
 
             @if (sub.canResume) {
               <button
+                type="button"
                 class="sub-btn resume-btn"
                 [disabled]="actionInProgressSubId() === sub.subscriptionId"
                 (click)="onResumeAutoRenew(sub.subscriptionId)"
@@ -111,7 +144,7 @@
             @if (sub.canSubscribe) {
               <a
                 class="sub-btn renew-link"
-                [href]="routingService.hrefForView(Views.Products)"
+                [href]="sub.subscribeUrl || routingService.hrefForView(Views.Products)"
               >
                 Renew Now
               </a>
@@ -121,9 +154,6 @@
       } @empty {
         <div class="empty-subscriptions">
           <p>No active subscriptions found for this account.</p>
-          <a class="primary-btn" [href]="routingService.hrefForView(Views.Products)">
-            Browse Memberships & Products
-          </a>
         </div>
       }
     </div>
@@ -133,7 +163,7 @@
   <section class="orders-section">
     <div class="orders-section-header">
       <div class="section-title">
-        <h2>Order & Renewal History</h2>
+        <h2>Order &amp; Renewal History</h2>
         <p class="section-subtitle">
           All orders, renewals, and transaction records linked to your account.
         </p>
@@ -154,26 +184,18 @@
       </div>
     </div>
 
-    <!-- Orders Table / List -->
+    <!-- Orders Table / List (Directly displayed without fold/unfold) -->
     <div class="orders-list">
-      @for (order of orders(); track order.docId) {
-        <div
-          class="order-card"
-          [class.expanded]="isOrderExpanded(order.docId)"
-        >
-          <div
-            class="order-summary-row"
-            (click)="toggleOrderExpanded(order.docId)"
-          >
+      @for (order of orders(); track (order.orderDocId || order.docId)) {
+        <div class="order-card">
+          <div class="order-summary-row">
             <div class="col-date">
               <span class="date-text">{{ order.date }}</span>
-              @if (order.orderNumber) {
-                <span class="order-num">#{{ order.orderNumber }}</span>
-              }
+              <span class="order-num">#{{ order.orderDocId || order.docId }}</span>
             </div>
 
             <div class="col-desc">
-              <span class="main-desc">{{ order.description || 'Order ' + order.docId }}</span>
+              <span class="main-desc">{{ order.description || 'Order ' + (order.orderDocId || order.docId) }}</span>
               <div class="badge-group">
                 <span
                   class="badge type-badge"
@@ -197,37 +219,27 @@
                 {{ formatAmount(order.amountTotal, order.currency) }}
               </span>
             </div>
-
-            <div class="col-expand">
-              <app-icon
-                [name]="isOrderExpanded(order.docId) ? 'expand_less' : 'expand_more'"
-                width="24px"
-                height="24px"
-              ></app-icon>
-            </div>
           </div>
 
-          <!-- Expanded Order Details -->
-          @if (isOrderExpanded(order.docId)) {
+          <!-- Order Details & Line Items -->
+          @if (order.lineItems && order.lineItems.length > 0) {
             <div class="order-details-pane">
-              @if (order.lineItems && order.lineItems.length > 0) {
-                <div class="line-items-table">
-                  <div class="line-items-header">
-                    <span>Item</span>
-                    <span>Qty</span>
-                    <span>Total</span>
-                  </div>
-                  @for (item of order.lineItems; track $index) {
-                    <div class="line-item-row">
-                      <span class="item-name">{{ item.description }}</span>
-                      <span class="item-qty">{{ item.quantity || 1 }}</span>
-                      <span class="item-price">
-                        {{ formatAmount(item.amountTotal, item.currency) }}
-                      </span>
-                    </div>
-                  }
+              <div class="line-items-table">
+                <div class="line-items-header">
+                  <span>Item</span>
+                  <span>Qty</span>
+                  <span>Total</span>
                 </div>
-              }
+                @for (item of order.lineItems; track $index) {
+                  <div class="line-item-row">
+                    <span class="item-name">{{ item.description }}</span>
+                    <span class="item-qty">{{ item.quantity || 1 }}</span>
+                    <span class="item-price">
+                      {{ formatAmount(item.amountTotal, item.currency) }}
+                    </span>
+                  </div>
+                }
+              </div>
 
               <div class="details-footer">
                 @if (order.stripeInvoiceId) {
@@ -243,7 +255,7 @@
                     rel="noopener"
                   >
                     <app-icon name="receipt_long" width="16px" height="16px"></app-icon>
-                    View Stripe Receipt
+                    <span>View Stripe Receipt</span>
                   </a>
                 }
               </div>
@@ -262,4 +274,29 @@
       }
     </div>
   </section>
+
+  <!-- Bottom Portal Action Card -->
+  <div class="stripe-portal-card">
+    <div class="portal-info">
+      <div class="portal-title">Manage Billing &amp; Payment Methods</div>
+      <div class="portal-subtext">
+        Stripe is our payment processor. You can view all processed charges, update credit cards, and download official invoices directly on Stripe.
+      </div>
+    </div>
+    <div class="portal-action">
+      <button
+        type="button"
+        class="button portal-btn"
+        [disabled]="portalLoading()"
+        (click)="onOpenCustomerPortal()"
+      >
+        @if (portalLoading()) {
+          <app-spinner>Redirecting to Stripe...</app-spinner>
+        } @else {
+          <app-icon name="link"></app-icon>
+          <span>See your orders on Stripe</span>
+        }
+      </button>
+    </div>
+  </div>
 </div>

@@ -137,7 +137,10 @@ export const cancelSubscriptionRenewal = onCall<
     updates['classVideoLibraryNextAutoRenewDate'] = '';
   }
 
-  if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
+  if (
+    (member.subscriptions && member.subscriptions[subscriptionId]) ||
+    (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId])
+  ) {
     updates[`subscriptions.${subscriptionId}.cancelAtPeriodEnd`] = true;
     updates[`subscriptions.${subscriptionId}.nextAutoRenewDate`] = '';
     updates[`subscriptions.${subscriptionId}.canceledAt`] = today;
@@ -206,7 +209,10 @@ export const resumeSubscriptionRenewal = onCall<
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
   }
 
-  if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
+  if (
+    (member.subscriptions && member.subscriptions[subscriptionId]) ||
+    (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId])
+  ) {
     updates[`subscriptions.${subscriptionId}.cancelAtPeriodEnd`] = false;
     updates[`subscriptions.${subscriptionId}.nextAutoRenewDate`] =
       nextAutoRenewDate;

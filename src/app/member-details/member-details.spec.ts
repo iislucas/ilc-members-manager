@@ -191,7 +191,7 @@ describe('MemberDetailsComponent', () => {
     const idAssignment = compiled.querySelector('app-id-assignment');
     expect(idAssignment).toBeNull();
 
-    const purchaseLink = compiled.querySelector('a[href*="membership"]');
+    const purchaseLink = compiled.querySelector('a[href*="member"]');
     expect(purchaseLink).toBeTruthy();
   });
 
@@ -306,12 +306,17 @@ describe('MemberDetailsComponent', () => {
   });
 
   describe('navigation buttons', () => {
-    it('should show Public Profile link for member with instructorId', async () => {
-      const instructorMember: Member = {
+    it('should show aspect management links for admin viewing an existing member', async () => {
+      const memberWithDetails: Member = {
         ...mockMember,
+        docId: 'm123',
+        memberId: 'US001',
+        name: 'John Doe',
+        emails: ['john@example.com'],
         instructorId: '101',
+        primarySchoolId: 'SCH01',
       };
-      fixture.componentRef.setInput('member', instructorMember);
+      fixture.componentRef.setInput('member', memberWithDetails);
       fixture.detectChanges();
       await fixture.whenStable();
 
@@ -319,9 +324,72 @@ describe('MemberDetailsComponent', () => {
       const navButtons = compiled.querySelector('.nav-buttons');
       expect(navButtons).toBeTruthy();
 
+      const gradingsLink = navButtons?.querySelector('a[href*="gradings"]');
+      expect(gradingsLink).toBeTruthy();
+      expect(gradingsLink?.textContent).toContain('Gradings');
+      expect(gradingsLink?.getAttribute('href')).toContain('studentMemberDocId=m123');
+
+      const ordersLink = navButtons?.querySelector('a[href*="orders"]');
+      expect(ordersLink).toBeTruthy();
+      expect(ordersLink?.textContent).toContain('Orders');
+      expect(ordersLink?.getAttribute('href')).toContain('searchField=email');
+      expect(ordersLink?.getAttribute('href')).toContain('q=john%40example.com');
+
+      const eventsLink = navButtons?.querySelector('a[href*="manage-events"]');
+      expect(eventsLink).toBeTruthy();
+      expect(eventsLink?.textContent).toContain('Events');
+      expect(eventsLink?.getAttribute('href')).toContain('searchField=leadingInstructorId');
+      expect(eventsLink?.getAttribute('href')).toContain('q=101');
+
+      const materialsLink = navButtons?.querySelector('a[href*="manage-materials"]');
+      expect(materialsLink).toBeTruthy();
+      expect(materialsLink?.textContent).toContain('Materials');
+      expect(materialsLink?.getAttribute('href')).toContain('instructorId=101');
+
+      const studentsLink = navButtons?.querySelector('a[href*="students"]');
+      expect(studentsLink).toBeTruthy();
+      expect(studentsLink?.textContent).toContain('Students');
+
       const publicProfileLink = navButtons?.querySelector('a[href="/instructors/101"]');
       expect(publicProfileLink).toBeTruthy();
       expect(publicProfileLink?.textContent).toContain('Public Profile');
+
+      const schoolLink = navButtons?.querySelector('a[href*="school/SCH01/members"]');
+      expect(schoolLink).toBeTruthy();
+      expect(schoolLink?.textContent).toContain('School');
+    });
+
+    it('should not show admin aspect links for non-admin viewing own profile', async () => {
+      firebaseStateServiceMock.user.set({
+        isAdmin: false,
+        member: mockMember,
+        schoolsManaged: [],
+        firebaseUser: { email: 'test@example.com' } as User,
+        memberProfiles: [],
+      } as UserDetails);
+
+      fixture.componentRef.setInput('member', mockMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const navButtons = compiled.querySelector('.nav-buttons');
+      expect(navButtons).toBeNull();
+    });
+
+    it('should not show nav buttons for new member without docId', async () => {
+      const newMember: Member = {
+        ...initMember(),
+        docId: '',
+        name: 'Unsaved Member',
+      };
+      fixture.componentRef.setInput('member', newMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const navButtons = compiled.querySelector('.nav-buttons');
+      expect(navButtons).toBeNull();
     });
   });
 });

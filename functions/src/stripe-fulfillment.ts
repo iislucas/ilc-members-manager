@@ -35,6 +35,8 @@ import {
   VideoGrantKind,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
+import { assignNextMemberId } from './counters';
+import { resolveCountryCode, resolveCountryName } from './country-codes';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -133,25 +135,13 @@ export async function resolveMemberForStripeOrder(
 function categorizeLineItem(
   item: StripeOrderLineItem,
 ): OrderItemCategory {
-  const desc = item.description.toLowerCase();
+  const desc = (item.description || '').toLowerCase();
   const prod = (item.productId ?? '').toLowerCase();
 
-  if (desc.includes('membership') || prod.includes('membership')) {
-    return OrderItemCategory.Membership;
-  }
-  if (
-    desc.includes('license') ||
-    desc.includes('instructor') ||
-    prod.includes('license')
-  ) {
-    return OrderItemCategory.InstructorLicense;
-  }
-  if (desc.includes('grading') || prod.includes('grading')) {
-    return OrderItemCategory.Grading;
-  }
   if (
     desc.includes('video library') ||
     desc.includes('class video') ||
+    desc.includes('vid-library') ||
     prod.includes('video_library')
   ) {
     return OrderItemCategory.VideoLibrary;
@@ -163,6 +153,31 @@ function categorizeLineItem(
     prod.startsWith('prod_vod')
   ) {
     return OrderItemCategory.Vod;
+  }
+  if (
+    desc.includes('grading') ||
+    desc.includes('examination') ||
+    prod.includes('grading')
+  ) {
+    return OrderItemCategory.Grading;
+  }
+  if (desc.includes('school') || prod.includes('school')) {
+    return OrderItemCategory.SchoolLicense;
+  }
+  if (
+    desc.includes('instructor') ||
+    desc.includes('license') ||
+    prod.includes('instructor') ||
+    prod.includes('license')
+  ) {
+    return OrderItemCategory.InstructorLicense;
+  }
+  if (
+    desc.includes('membership') ||
+    desc.includes('member') ||
+    prod.includes('membership')
+  ) {
+    return OrderItemCategory.Membership;
   }
   if (desc.includes('event') || desc.includes('workshop')) {
     return OrderItemCategory.Event;
@@ -176,6 +191,9 @@ function categorizeSubscriptionItem(
   const cat = categorizeLineItem(item);
   if (cat === OrderItemCategory.InstructorLicense) {
     return SubscriptionItemType.InstructorLicense;
+  }
+  if (cat === OrderItemCategory.SchoolLicense) {
+    return SubscriptionItemType.SchoolLicense;
   }
   if (cat === OrderItemCategory.VideoLibrary) {
     return SubscriptionItemType.VideoLibrary;
@@ -208,32 +226,37 @@ export async function mirrorOrderToMemberSubcollection(
     docId: orderDocId,
     orderDocId: orderDocId,
     memberDocId: member.docId,
-    memberId: member.memberId,
+    memberId: member.memberId || '',
     orderKind: MemberOrderKind.Stripe,
-    orderType: order.stripeOrderType as unknown as MemberOrderType,
+    orderType: (order.stripeOrderType as unknown as MemberOrderType) || MemberOrderType.Checkout,
     orderNumber: order.invoiceId || order.stripeObjectId || '',
-    date: order.created.split('T')[0],
-    created: order.created,
+    date: order.created ? order.created.split('T')[0] : new Date().toISOString().split('T')[0],
+    created: order.created || new Date().toISOString(),
     lastUpdated: new Date().toISOString(),
-    amountTotal: order.amountTotal,
-    currency: order.currency,
+    amountTotal: order.amountTotal ?? 0,
+    currency: order.currency || 'usd',
     paymentStatus: (order.paymentStatus as unknown as MemberOrderPaymentStatus) ?? null,
     fulfillmentStatus: MemberOrderFulfillmentStatus.Fulfilled,
     description,
     lineItems: order.lineItems.map((item) => ({
-      productId: item.productId,
-      priceId: item.priceId,
-      description: item.description,
-      quantity: item.quantity,
-      amountTotal: item.amountTotal,
-      currency: item.currency,
+      productId: item.productId || '',
+      priceId: item.priceId || '',
+      description: item.description || '',
+      quantity: item.quantity || 1,
+      amountTotal: item.amountTotal || 0,
+      currency: item.currency || 'usd',
       category: categorizeLineItem(item),
     })),
-    subscriptionId: order.subscriptionId,
-    stripeInvoiceId: order.invoiceId,
+    subscriptionId: order.subscriptionId || '',
+    stripeInvoiceId: order.invoiceId || '',
+    stripeReceiptUrl: order.receiptUrl || '',
   };
 
-  await memberOrderRef.set(memberOrder, { merge: true });
+  const sanitized = Object.fromEntries(
+    Object.entries(memberOrder).filter(([_, v]) => v !== undefined),
+  );
+
+  await memberOrderRef.set(sanitized, { merge: true });
   logger.info('Mirrored order to member subcollection', {
     memberDocId: member.docId,
     orderDocId,
@@ -340,6 +363,7 @@ export async function fulfillStripeOrder(
         memberUpdates['membershipType'] = MembershipType.Life;
         memberUpdates['currentMembershipExpires'] = '9999-12-31';
         memberUpdates['membershipNextAutoRenewDate'] = '';
+        memberUpdates['lastRenewalDate'] = today;
       } else {
         const newExpires = extendDateByYears(
           member.currentMembershipExpires,
@@ -353,6 +377,52 @@ export async function fulfillStripeOrder(
           memberUpdates['membershipSubscriptionId'] = order.subscriptionId;
           memberUpdates['membershipNextAutoRenewDate'] = newExpires;
         }
+      }
+
+      // If the member does not already have a memberId, auto-assign one based on country.
+      if (!member.memberId || member.memberId.trim() === '') {
+        const countryInput = member.country || order.billingAddress?.country || '';
+        const countryCode = resolveCountryCode(countryInput);
+        if (countryCode) {
+          try {
+            const newMemberId = await assignNextMemberId(countryCode, db);
+            memberUpdates['memberId'] = newMemberId;
+            member.memberId = newMemberId;
+            logger.info('Assigned new member ID for Stripe membership purchase', {
+              memberDocId: member.docId,
+              memberId: newMemberId,
+              countryCode,
+              orderDocId,
+            });
+          } catch (e) {
+            logger.error('Failed to assign member ID for Stripe membership purchase', {
+              memberDocId: member.docId,
+              countryCode,
+              orderDocId,
+              error: e,
+            });
+          }
+        } else {
+          logger.warn('Could not resolve country code to assign member ID for Stripe membership purchase', {
+            memberDocId: member.docId,
+            memberCountry: member.country,
+            billingCountry: order.billingAddress?.country,
+            orderDocId,
+          });
+        }
+
+        // If the member record had no country populated, update it from the resolved billing country
+        if (!member.country && countryCode) {
+          const resolvedCountry = resolveCountryName(countryCode);
+          memberUpdates['country'] = resolvedCountry;
+          member.country = resolvedCountry;
+        }
+      }
+
+      // Record first membership start date if not set
+      if (!member.firstMembershipStarted) {
+        memberUpdates['firstMembershipStarted'] = today;
+        member.firstMembershipStarted = today;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
       const newExpires = extendDateByYears(
@@ -382,6 +452,52 @@ export async function fulfillStripeOrder(
         memberUpdates['classVideoLibrarySubscriptionId'] =
           order.subscriptionId;
         memberUpdates['classVideoLibraryNextAutoRenewDate'] = newExpires;
+      }
+    } else if (category === OrderItemCategory.SchoolLicense) {
+      const isYearly = descLower.includes('year') || descLower.includes('annual');
+      const schoolDocId =
+        order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '';
+      const schoolId = order.metadata?.['schoolId'] || '';
+
+      let targetSchoolRef: admin.firestore.DocumentReference | null = null;
+      if (schoolDocId) {
+        targetSchoolRef = db.collection('schools').doc(schoolDocId);
+      } else if (schoolId) {
+        const sQuery = await db
+          .collection('schools')
+          .where('schoolId', '==', schoolId)
+          .limit(1)
+          .get();
+        if (!sQuery.empty) {
+          targetSchoolRef = sQuery.docs[0].ref;
+        }
+      } else if (member.instructorId) {
+        const sQuery = await db
+          .collection('schools')
+          .where('ownerInstructorId', '==', member.instructorId)
+          .limit(1)
+          .get();
+        if (!sQuery.empty) {
+          targetSchoolRef = sQuery.docs[0].ref;
+        }
+      }
+
+      if (targetSchoolRef) {
+        const sDoc = await targetSchoolRef.get();
+        const sData = sDoc.data() || {};
+        const currentExp = (sData['schoolLicenseExpires'] as string) || '';
+        const newExpires = isYearly
+          ? extendDateByYears(currentExp, 1)
+          : extendDateByMonths(currentExp, 1);
+        await targetSchoolRef.update({
+          schoolLicenseRenewalDate: today,
+          schoolLicenseExpires: newExpires,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info('Updated school license for school', {
+          schoolDocId: targetSchoolRef.id,
+          newExpires,
+        });
       }
     } else if (category === OrderItemCategory.Grading) {
       await autoCreateGradingForMember(db, member, item, orderDocId);
@@ -515,7 +631,10 @@ export async function syncSubscriptionStatusToMember(
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
   }
 
-  if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
+  if (
+    (member.subscriptions && member.subscriptions[subscription.id]) ||
+    (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id])
+  ) {
     updates[`subscriptions.${subscription.id}.status`] = status;
     updates[`subscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
     updates[`subscriptions.${subscription.id}.nextAutoRenewDate`] =

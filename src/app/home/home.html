@@ -45,6 +45,42 @@
       </div>
     </div>
 
+    @if (showWelcomeBanner()) {
+      <div class="welcome-membership-banner">
+        <div class="welcome-icon">
+          <app-icon name="check" width="32px" height="32px"></app-icon>
+        </div>
+        <div class="welcome-content">
+          <h3>Welcome to the Chin Family I Liq Chuan Association!</h3>
+          <p>Your membership has been activated. Thank you for joining our community.</p>
+          <div class="welcome-actions">
+            @if (sessionId()) {
+              <a
+                class="button-link"
+                [href]="routingService.hrefWithParams('/order-complete?session_id=' + sessionId())"
+              >
+                View Order Receipt
+              </a>
+            }
+            <a
+              class="button-link subtle"
+              [href]="routingService.hrefForView(Views.MyProfile)"
+            >
+              Go to My Profile
+            </a>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="icon-only-button close-btn"
+          (click)="dismissWelcomeBanner()"
+          title="Dismiss"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
+
     <app-notifications-list></app-notifications-list>
 
     @switch (activeTab()) {
@@ -58,9 +94,8 @@
             [href]="
               mStatus.hasAccess
                 ? routingService.hrefForView(Views.MembersArea)
-                : links.membership
+                : routingService.hrefForView(Views.BecomeAMember)
             "
-            [target]="mStatus.hasAccess ? '_self' : '_blank'"
           >
             <div class="icon-container">
               <app-icon name="hands_lotus" width="48px" height="48px"></app-icon>
@@ -100,9 +135,8 @@
               [href]="
                 iStatus.hasAccess
                   ? routingService.hrefForView(Views.InstructorsArea)
-                  : links.license
+                  : routingService.hrefForView(Views.InstructorLicensePurchase)
               "
-              [target]="iStatus.hasAccess ? '_self' : '_blank'"
             >
               <div class="icon-container">
                 <app-icon name="meditation" width="48px" height="48px"></app-icon>
@@ -140,9 +174,8 @@
             [href]="
               vStatus.hasAccess
                 ? routingService.hrefForView(Views.ClassVideoLibrary)
-                : links.videos
+                : routingService.hrefForView(Views.ClassVideoLibraryPurchase)
             "
-            [target]="vStatus.hasAccess ? '_self' : '_blank'"
           >
             <div class="icon-container">
               <app-icon name="video_library" width="48px" height="48px"></app-icon>
@@ -156,15 +189,11 @@
                 }}
               </h2>
               <p>Members saturday online class recordings</p>
-              @if (!vStatus.hasAccess) {
+              @if (vStatus.expired) {
                 <div class="no-access-container">
                   <span class="info-message">
-                    @if (vStatus.expired) {
-                      Expired:
-                      {{ vStatus.date || "(unknown last expiration date)" }}
-                    } @else {
-                      Requires subscription
-                    }
+                    Expired:
+                    {{ vStatus.date || "(unknown last expiration date)" }}
                   </span>
                 </div>
               }
