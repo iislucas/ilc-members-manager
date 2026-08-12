@@ -107,8 +107,10 @@ describe('MemberOrdersComponent', () => {
     mockFirebaseStateService = {
       user: signal<UserDetails | null>({
         member: { ...sampleMember },
+        memberProfiles: [{ ...sampleMember }],
         isAdmin: false,
         schoolsManaged: [],
+        firebaseUser: { uid: 'mem-123' } as never,
       }),
     };
 

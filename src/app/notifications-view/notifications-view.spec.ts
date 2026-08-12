@@ -22,7 +22,7 @@ describe('NotificationsViewComponent', () => {
     createdAt: '2026-05-14T12:00:00Z',
     dismissed: false,
     kind: NotificationKind.GradingRequestsYouAsInstructor,
-    data: { gradingDocId: 'grading-1', level: 'Student 1' },
+    data: { gradingDocId: 'grading-1', level: 'Student 1', studentName: 'Test Student' },
   };
 
   const readNotif: MemberNotification = {

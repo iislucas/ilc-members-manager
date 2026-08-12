@@ -47,7 +47,7 @@ export class NotificationsViewComponent implements OnDestroy {
   private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   // Id of the notification awaiting delete confirmation (inline two-step).
-  protected confirmingDeleteId = signal<string | null>(null);
+  confirmingDeleteId = signal<string | null>(null);
 
   // Set of notification IDs currently undergoing the delete collapse animation.
   protected deletingIds = signal<Set<string>>(new Set());
@@ -92,7 +92,7 @@ export class NotificationsViewComponent implements OnDestroy {
   });
 
   // Style filter (All / To do / FYI), derived from the `style` URL param.
-  protected styleFilter = computed<'all' | 'action' | 'info'>(() => {
+  styleFilter = computed<'all' | 'action' | 'info'>(() => {
     const param = this.routingService.signals[Views.Notifications].urlParams.style?.();
     if (param === 'action' || param === 'info') {
       return param;

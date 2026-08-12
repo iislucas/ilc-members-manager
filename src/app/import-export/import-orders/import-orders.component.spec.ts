@@ -23,14 +23,14 @@ describe('ImportOrdersComponent', () => {
   ];
 
   const mockOrders: Order[] = [
-    { ...initSheetsImportOrder(), id: 'O1', referenceNumber: 'REF-001', externalId: 'M1', datePaid: '2023-01-01' } as SheetsImportOrder,
+    { ...initSheetsImportOrder(), docId: 'O1', referenceNumber: 'REF-001', externalId: 'M1', datePaid: '2023-01-01' } as SheetsImportOrder,
   ];
 
   beforeEach(async () => {
     mockDataManager = {
       orders: {
         entries: () => mockOrders,
-        entriesMap: signal(new Map(mockOrders.map(o => [o.id, o]))),
+        entriesMap: signal(new Map(mockOrders.map(o => [o.docId, o]))),
         setEntries: vi.fn(),
       },
       members: {

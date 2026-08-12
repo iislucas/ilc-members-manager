@@ -568,7 +568,7 @@ describe('NotificationService', () => {
       await (service as any).syncNewUploadNotifications(member);
 
       expect(writes).toHaveLength(1);
-      expect(writes[0].notif.data.uploadDocId).toBe('up-other');
+      expect((writes[0].notif.data as { uploadDocId?: string })?.uploadDocId).toBe('up-other');
     });
   });
 

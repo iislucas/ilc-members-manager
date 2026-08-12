@@ -24,12 +24,22 @@ import { DataManagerService } from './data-manager.service';
 import { FirebaseStateService } from './firebase-state.service';
 import { FindInstructorsService } from './find-instructors.service';
 
+/** A single item in the breadcrumbs trail. */
+export interface BreadcrumbNode {
+  label: string;
+  url?: string;
+  shortLabel?: string;
+  isLoading?: boolean;
+}
+
 /** One page in the tree, as linked to from a descendant. */
 export interface NavNode {
   /** Shown as a breadcrumb, and after "Back to " in a back link. */
   label: string;
   /** Absolute href, with the target page's own URL params preserved. */
   url: string;
+  shortLabel?: string;
+  isLoading?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -130,7 +140,7 @@ export class NavigationTreeService {
   });
 
   /** Full breadcrumb trail: app root, ancestors, current page. */
-  public breadcrumbs = computed(() => {
+  public breadcrumbs = computed<BreadcrumbNode[]>(() => {
     const view = this.currentView();
     const appRoot: NavNode & { shortLabel?: string } = {
       label: 'Members Portal',

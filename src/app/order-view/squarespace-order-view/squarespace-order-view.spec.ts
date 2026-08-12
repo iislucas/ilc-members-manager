@@ -2,20 +2,25 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { SquarespaceOrderView } from './squarespace-order-view';
 import { DataManagerService } from '../../data-manager.service';
-import { SquareSpaceOrder, Member } from '../../../../functions/src/data-model';
+import { SquareSpaceOrder, Member, OrderKind, SquarespaceFulfillmentStatus, SquareSpaceLineItem, SquareSpaceLineItemType } from '../../../../functions/src/data-model';
 
-function makeOrder(lineItems: SquareSpaceOrder['lineItems']): SquareSpaceOrder {
+function makeOrder(lineItems: (Partial<SquareSpaceLineItem> & { id: string; sku: string })[]): SquareSpaceOrder {
   return {
     docId: 'test-order-doc',
     lastUpdated: '2026-03-01T00:00:00Z',
-    ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+    ilcAppOrderKind: OrderKind.Squarespace,
     id: 'abc',
     orderNumber: '1',
     createdOn: '2026-03-01T00:00:00Z',
     modifiedOn: '2026-03-01T00:00:00Z',
     customerEmail: 'test@example.com',
-    fulfillmentStatus: 'PENDING',
-    lineItems,
+    fulfillmentStatus: SquarespaceFulfillmentStatus.Pending,
+    lineItems: lineItems.map((item) => ({
+      lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+      quantity: '1',
+      unitPricePaid: { value: '0.00' },
+      ...item,
+    })),
   };
 }
 
@@ -183,12 +188,13 @@ describe('SquarespaceOrderView', () => {
   });
 
   it('should call data service and emit orderUpdated when saving inferred member ID', async () => {
-    const lineItem = {
+    const lineItem: SquareSpaceLineItem = {
       id: 'line-5',
       sku: 'MEM-YEAR-IND',
+      lineItemType: SquareSpaceLineItemType.PhysicalProduct,
       productId: 'prod-1',
       productName: 'Membership : Annual (Individual)',
-      quantity: '1' as const,
+      quantity: '1',
       unitPricePaid: { value: '50.00' },
       customizations: [
         { label: 'MemberID', value: 'OLD-ID' },
@@ -256,12 +262,13 @@ describe('SquarespaceOrderView', () => {
   });
 
   it('should call data service when saving country override', async () => {
-    const lineItem = {
+    const lineItem: SquareSpaceLineItem = {
       id: 'line-c1',
       sku: 'MEM-YEAR-IND',
+      lineItemType: SquareSpaceLineItemType.PhysicalProduct,
       productId: 'prod-1',
       productName: 'Membership : Annual (Individual)',
-      quantity: '1' as const,
+      quantity: '1',
       unitPricePaid: { value: '50.00' },
       customizations: [],
     };
