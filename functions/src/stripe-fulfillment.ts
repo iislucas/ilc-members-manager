@@ -31,10 +31,14 @@ import {
   SubscriptionItemType,
   SubscriptionStatus,
   SubscriptionInterval,
+  NotificationKind,
+  OrderStatus,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
+import { createMemberNotification } from './notifications';
+import { environment } from './environment/environment.js';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -394,12 +398,32 @@ export async function fulfillStripeOrder(
             });
           }
         } else {
-          logger.warn('Could not resolve country code to assign member ID for Stripe membership purchase', {
+          const contactEmail = environment.email?.from || 'web-helper-team@iliqchuan.com';
+          const errorMsg = `Could not resolve country "${countryInput}" to a valid country code in countryCodeList to assign member ID for member ${member.docId}. Please contact ${contactEmail}.`;
+          logger.error(errorMsg, {
             memberDocId: member.docId,
             memberCountry: member.country,
             billingCountry: order.billingAddress?.country,
             orderDocId,
+            contactEmail,
           });
+
+          try {
+            await createMemberNotification(db, member.docId, {
+              kind: NotificationKind.OrderNeedsAttention,
+              markdown: `We were unable to verify your country of residence to assign your official ILC Member ID. Please update your country in [your profile](/myProfile) or contact support at [${contactEmail}](mailto:${contactEmail}).`,
+              createdAt: new Date().toISOString(),
+              dismissed: false,
+              data: {
+                orderDocId,
+                orderRef: orderDocId,
+                status: OrderStatus.NeedsManualProcessing,
+                issues: [`Unresolved country "${countryInput}". Member ID could not be auto-assigned.`],
+              },
+            });
+          } catch (notifErr) {
+            logger.error('Failed to create notification for unresolved country', { notifErr, memberDocId: member.docId });
+          }
         }
 
         // If the member record had no country populated, update it from the resolved billing country

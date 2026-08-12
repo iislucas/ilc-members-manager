@@ -45,7 +45,11 @@ describe('stripe-fulfillment', () => {
       update: vi.fn().mockResolvedValue({}),
       collection: vi.fn().mockReturnValue({
         doc: vi.fn().mockReturnValue({
+          id: 'mock_doc_id',
           set: vi.fn().mockResolvedValue({}),
+        }),
+        where: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
         }),
       }),
     };
@@ -487,5 +491,47 @@ describe('stripe-fulfillment', () => {
       }),
     );
     expect(memberWithoutId.memberId).toBe('US101');
+  });
+
+  it('handles unresolved country gracefully without assigning memberId and logs error', async () => {
+    const memberWithInvalidCountry = {
+      ...sampleMember,
+      docId: 'mem_invalid_country',
+      memberId: '',
+      country: 'UnknownLand',
+      firstMembershipStarted: '',
+      currentMembershipExpires: '',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_invalid_country',
+      mode: StripeCheckoutMode.Payment,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 8500,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_mem',
+          priceId: 'price_mem_annual',
+          description: 'Annual Membership',
+          quantity: 1,
+          amountTotal: 8500,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithInvalidCountry, order, 'order_invalid_country');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        membershipType: MembershipType.Annual,
+      }),
+    );
+    expect(memberWithInvalidCountry.memberId).toBe('');
   });
 });
