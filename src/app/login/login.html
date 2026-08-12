@@ -1,6 +1,51 @@
 <div class="login-container">
   @if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
     <app-spinner>Signing in…</app-spinner>
+  } @else if (firebaseService.loginStatus() === LoginStatus.NeedsEmailVerification) {
+    <div class="login-card">
+      <div class="step-header">Verify Your Email Address</div>
+      <p class="step-guidance">
+        We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
+        Please check your inbox and click the link to activate your account.
+      </p>
+
+      @if (resendSuccess(); as message) {
+        <div class="success-message">{{ message }}</div>
+      }
+      @if (firebaseService.verificationError(); as error) {
+        <div class="error-container">
+          <span class="error-message">{{ error }}</span>
+        </div>
+      }
+      @if (verificationError(); as error) {
+        <div class="error-container">
+          <span class="error-message">{{ error }}</span>
+        </div>
+      }
+
+      <div class="step-actions">
+        <button
+          type="button"
+          id="check-verified-btn"
+          (click)="checkEmailVerified()"
+          [disabled]="authLoading()"
+        >
+          I've Verified My Email
+        </button>
+        <button
+          type="button"
+          id="resend-verification-btn"
+          class="secondary-action"
+          (click)="resendVerificationEmail()"
+          [disabled]="authLoading()"
+        >
+          Resend Email
+        </button>
+      </div>
+      <button class="back-link" (click)="logout()">
+        Use a different email
+      </button>
+    </div>
   } @else {
     <div class="login-card">
       @switch (loginStep()) {

@@ -22,6 +22,11 @@ describe('InlineAuthComponent', () => {
     user: typeof userSignal;
     loginStatus: typeof loginStatusSignal;
     loginError: typeof loginErrorSignal;
+    unverifiedUser: ReturnType<typeof signal<any>>;
+    verificationEmailSent: ReturnType<typeof signal<boolean>>;
+    verificationError: ReturnType<typeof signal<string | null>>;
+    resendVerificationEmail: ReturnType<typeof vi.fn>;
+    checkEmailVerification: ReturnType<typeof vi.fn>;
     checkEmailStatus: ReturnType<typeof vi.fn>;
     loginWithGoogle: ReturnType<typeof vi.fn>;
     loginWithEmail: ReturnType<typeof vi.fn>;
@@ -38,8 +43,13 @@ describe('InlineAuthComponent', () => {
 
     mockFirebaseService = {
       user: userSignal,
+      unverifiedUser: signal(null),
+      verificationEmailSent: signal(false),
+      verificationError: signal(null),
       loginStatus: loginStatusSignal,
       loginError: loginErrorSignal,
+      resendVerificationEmail: vi.fn().mockResolvedValue({ success: true }),
+      checkEmailVerification: vi.fn().mockResolvedValue({ verified: true }),
       checkEmailStatus: vi.fn(),
       loginWithGoogle: vi.fn(),
       loginWithEmail: vi.fn(),
@@ -75,6 +85,38 @@ describe('InlineAuthComponent', () => {
     expect(component).toBeTruthy();
     expect(component.isLoggedIn()).toBe(false);
     expect(component.step()).toBe(InlineAuthStep.Email);
+  });
+
+  it('should show verification box when loginStatus is NeedsEmailVerification', async () => {
+    loginStatusSignal.set(LoginStatus.NeedsEmailVerification);
+    mockFirebaseService.unverifiedUser.set({ email: 'unverified@example.com' });
+    await createComponent();
+
+    expect(component.isNeedsVerification()).toBe(true);
+    expect(component.unverifiedEmail()).toBe('unverified@example.com');
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.verification-title')?.textContent).toContain('Verify Your Email Address');
+    expect(compiled.querySelector('.verification-text')?.textContent).toContain('unverified@example.com');
+  });
+
+  it('should call checkEmailVerification on button click', async () => {
+    loginStatusSignal.set(LoginStatus.NeedsEmailVerification);
+    mockFirebaseService.unverifiedUser.set({ email: 'unverified@example.com' });
+    await createComponent();
+
+    await component.checkEmailVerified();
+    expect(mockFirebaseService.checkEmailVerification).toHaveBeenCalled();
+  });
+
+  it('should call resendVerificationEmail on button click', async () => {
+    loginStatusSignal.set(LoginStatus.NeedsEmailVerification);
+    mockFirebaseService.unverifiedUser.set({ email: 'unverified@example.com' });
+    await createComponent();
+
+    await component.resendVerificationEmail();
+    expect(mockFirebaseService.resendVerificationEmail).toHaveBeenCalled();
+    expect(component.resendSuccess()).toContain('verification email has been sent');
   });
 
   it('should show logged in view when user is signed in', async () => {

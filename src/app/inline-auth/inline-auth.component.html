@@ -28,6 +28,58 @@
     </button>
   </div>
   <ng-content></ng-content>
+} @else if (isNeedsVerification()) {
+  <div class="verification-box">
+    <div class="verification-header">
+      <app-icon name="mail" width="28px" height="28px"></app-icon>
+      <span class="verification-title">Verify Your Email Address</span>
+    </div>
+    <p class="verification-text">
+      We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
+      Please check your inbox and click the link to activate your account.
+    </p>
+
+    @if (resendSuccess(); as message) {
+      <div class="success-message">{{ message }}</div>
+    }
+    @if (firebaseService.verificationError(); as error) {
+      <div class="error-container">
+        <span class="error-message">{{ error }}</span>
+      </div>
+    }
+    @if (verificationError(); as error) {
+      <div class="error-container">
+        <span class="error-message">{{ error }}</span>
+      </div>
+    }
+
+    <div class="step-actions">
+      <button
+        type="button"
+        id="check-verified-btn"
+        (click)="checkEmailVerified()"
+        [disabled]="authLoading()"
+      >
+        I've Verified My Email
+      </button>
+      <button
+        type="button"
+        id="resend-verification-btn"
+        class="secondary-action"
+        (click)="resendVerificationEmail()"
+        [disabled]="authLoading()"
+      >
+        Resend Email
+      </button>
+      <button
+        type="button"
+        class="back-link"
+        (click)="logout()"
+      >
+        Use a different email
+      </button>
+    </div>
+  </div>
 } @else {
   <div class="inline-auth-form">
     @if (firebaseService.loginStatus() === LoginStatus.LoggingIn || authLoading()) {

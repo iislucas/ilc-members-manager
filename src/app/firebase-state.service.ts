@@ -14,6 +14,7 @@ import {
   User,
   UserCredential,
   sendPasswordResetEmail,
+  sendEmailVerification,
   AuthErrorCodes,
 } from 'firebase/auth';
 import { environment } from '../environments/environment';
@@ -71,6 +72,7 @@ export type FirebaseAuthError = Error & { code: AuthErrorCodeStr };
 export enum LoginStatus {
   FirebaseLoadingStatus = 'FirebaseLoadingStatus',
   LoggingIn = 'LoggingIn',
+  NeedsEmailVerification = 'NeedsEmailVerification',
   SignedIn = 'SignedIn',
   SignedOut = 'SignedOut',
 }
@@ -98,6 +100,9 @@ export class FirebaseStateService {
   private loggedInResolverFn: (value: UserDetails) => void = () => { };
   public loginError = signal<string | null>(null);
   public user = signal<UserDetails | null>(null);
+  public unverifiedUser = signal<User | null>(null);
+  public verificationEmailSent = signal<boolean>(false);
+  public verificationError = signal<string | null>(null);
   private db: Firestore;
   private unsubscribeFromMember: Unsubscribe | null = null;
 
@@ -132,6 +137,7 @@ export class FirebaseStateService {
         // SignedOut
         console.log('FirebaseStateService: User is null or has no email, setting SignedOut state.');
         this.user.set(null);
+        this.unverifiedUser.set(null);
         this.loginStatus.set(LoginStatus.SignedOut);
         this.loggedIn.set(
           new Promise<UserDetails>((resolve, reject) => {
@@ -140,6 +146,16 @@ export class FirebaseStateService {
         );
         return;
       }
+
+      if (!user.emailVerified) {
+        console.log('FirebaseStateService: User email is not verified:', user.email);
+        this.user.set(null);
+        this.unverifiedUser.set(user);
+        this.loginStatus.set(LoginStatus.NeedsEmailVerification);
+        return;
+      }
+
+      this.unverifiedUser.set(null);
 
       // If the user is already signed in with the same UID, do not trigger the login/fetch flow again!
       // This prevents redundant calls and transient errors during automatic token refreshes or
@@ -155,67 +171,67 @@ export class FirebaseStateService {
         return;
       }
 
-      this.loginStatus.set(LoginStatus.LoggingIn);
-      let userDetailsResult: FetchUserDetailsResult;
-      try {
-        const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
-          this.functions,
-          'getUserDetails',
-        );
-        userDetailsResult = (await getUserDetails()).data;
-      } catch (error: unknown) {
-        console.error('Error in getUserDetails:', error);
-        this.loginStatus.set(LoginStatus.SignedOut);
-        this.loginError.set((error as Error).message);
-        
-        // Only trigger a full Firebase signOut if the error is explicitly authentication
-        // or permission-related. For transient network or internal server errors, we
-        // avoid calling logout() so that the local Firebase Auth session is preserved,
-        // allowing the user to simply refresh or retry once connectivity is restored.
-        const errorCode = (error as any)?.code;
-        if (errorCode === 'unauthenticated' || errorCode === 'permission-denied') {
-          console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
-          this.logout();
-        } else {
-          console.warn('Preserving session: getUserDetails failed with a transient/network error:', error);
-        }
-        return;
-      }
-
-      const profiles = userDetailsResult.userMemberProfiles.map((p) => {
-        // TODO: Remove this hack when we fix the data model.
-        const member = { ...initMember(), ...p } as Member & { id?: string };
-        if (member.id && !member.docId) {
-          member.docId = member.id;
-        }
-        return member;
-      });
-
-      if (!profiles || profiles.length === 0) {
-        console.warn('No profiles found for user', user.email);
-        this.loginStatus.set(LoginStatus.SignedOut);
-        this.loginError.set(`We could not find your profile linked to that email address. ` +
-          `Might you have used a different email address previously? ` +
-          `Please contact ${environment.adminEmail} if you continue to have problems.`);
-        console.warn('Logging out because no member profiles were found.');
-        this.logout();
-        return;
-      }
-
-      const userDetails: UserDetails = {
-        firebaseUser: user,
-        member: profiles[0],
-        memberProfiles: profiles,
-        isAdmin: userDetailsResult.isAdmin,
-        schoolsManaged: userDetailsResult.schoolsManaged,
-      };
-      this.user.set(userDetails);
-      this.loggedInResolverFn(userDetails);
-      this.loginStatus.set(LoginStatus.SignedIn);
-
-      // From now on, listen to changes to the member document.
-      this.setupMemberSnapshotListener();
+      await this.fetchUserDetails(user);
     });
+  }
+
+  public async fetchUserDetails(user: User): Promise<void> {
+    this.loginStatus.set(LoginStatus.LoggingIn);
+    let userDetailsResult: FetchUserDetailsResult;
+    try {
+      const getUserDetails = httpsCallable<void, FetchUserDetailsResult>(
+        this.functions,
+        'getUserDetails',
+      );
+      userDetailsResult = (await getUserDetails()).data;
+    } catch (error: unknown) {
+      console.error('Error in getUserDetails:', error);
+      this.loginStatus.set(LoginStatus.SignedOut);
+      this.loginError.set((error as Error).message);
+      
+      const errorCode = (error as any)?.code;
+      if (errorCode === 'unauthenticated' || errorCode === 'permission-denied') {
+        console.warn('Logging out because getUserDetails failed with auth/permission error:', error);
+        this.logout();
+      } else {
+        console.warn('Preserving session: getUserDetails failed with a transient/network error:', error);
+      }
+      return;
+    }
+
+    const profiles = userDetailsResult.userMemberProfiles.map((p) => {
+      // TODO: Remove this hack when we fix the data model.
+      const member = { ...initMember(), ...p } as Member & { id?: string };
+      if (member.id && !member.docId) {
+        member.docId = member.id;
+      }
+      return member;
+    });
+
+    if (!profiles || profiles.length === 0) {
+      console.warn('No profiles found for user', user.email);
+      this.loginStatus.set(LoginStatus.SignedOut);
+      this.loginError.set(`We could not find your profile linked to that email address. ` +
+        `Might you have used a different email address previously? ` +
+        `Please contact ${environment.adminEmail} if you continue to have problems.`);
+      console.warn('Logging out because no member profiles were found.');
+      this.logout();
+      return;
+    }
+
+    const userDetails: UserDetails = {
+      firebaseUser: user,
+      member: profiles[0],
+      memberProfiles: profiles,
+      isAdmin: userDetailsResult.isAdmin,
+      schoolsManaged: userDetailsResult.schoolsManaged,
+    };
+    this.user.set(userDetails);
+    this.loggedInResolverFn(userDetails);
+    this.loginStatus.set(LoginStatus.SignedIn);
+
+    // From now on, listen to changes to the member document.
+    this.setupMemberSnapshotListener();
   }
 
   public selectProfile(memberDocId: string) {
@@ -345,6 +361,12 @@ export class FirebaseStateService {
         email,
         pass,
       );
+      try {
+        await sendEmailVerification(userCredential.user);
+        this.verificationEmailSent.set(true);
+      } catch (err) {
+        console.warn('sendEmailVerification on signup error:', err);
+      }
       return { success: true, userCredential };
     } catch (exception: unknown) {
       const error = exception as FirebaseAuthError;
@@ -357,6 +379,52 @@ export class FirebaseStateService {
         success: false,
         errorCode: error.code,
       };
+    }
+  }
+
+  public async resendVerificationEmail(): Promise<{ success: boolean; message?: string }> {
+    const u = this.auth.currentUser || this.unverifiedUser();
+    if (!u) {
+      return { success: false, message: 'No user is currently signed in.' };
+    }
+    try {
+      await sendEmailVerification(u);
+      this.verificationEmailSent.set(true);
+      this.verificationError.set(null);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Failed to resend verification email:', error);
+      const msg = error?.message || 'Failed to send verification email. Please try again.';
+      this.verificationError.set(msg);
+      return { success: false, message: msg };
+    }
+  }
+
+  public async checkEmailVerification(): Promise<{ verified: boolean; message?: string }> {
+    const u = this.auth.currentUser || this.unverifiedUser();
+    if (!u) {
+      return { verified: false, message: 'No user is currently signed in.' };
+    }
+    try {
+      await u.reload();
+      if (u.emailVerified) {
+        this.unverifiedUser.set(null);
+        this.verificationError.set(null);
+        await this.fetchUserDetails(u);
+        return { verified: true };
+      } else {
+        const msg = 'Your email address is not yet verified. Please click the link sent to your email inbox, then try again.';
+        this.verificationError.set(msg);
+        return {
+          verified: false,
+          message: msg,
+        };
+      }
+    } catch (error: any) {
+      console.error('Failed to reload user verification status:', error);
+      const msg = error?.message || 'Unable to check verification status. Please try again.';
+      this.verificationError.set(msg);
+      return { verified: false, message: msg };
     }
   }
 
@@ -409,6 +477,9 @@ export class FirebaseStateService {
 export function createFirebaseStateServiceMock(): FirebaseStateService {
   return {
     user: signal(null),
+    unverifiedUser: signal(null),
+    verificationEmailSent: signal(false),
+    verificationError: signal(null),
     loginStatus: signal(LoginStatus.SignedOut),
     loggedIn: signal(Promise.resolve({} as UserDetails)),
     loginError: signal(null),
@@ -427,6 +498,8 @@ export function createFirebaseStateServiceMock(): FirebaseStateService {
         success: true,
         userCredential: {} as UserCredential,
       }),
+    resendVerificationEmail: () => Promise.resolve({ success: true }),
+    checkEmailVerification: () => Promise.resolve({ verified: true }),
     logout: (): Promise<LogoutResult> => Promise.resolve({ success: true }),
     resetPassword: (): Promise<ResetPasswordResult> =>
       Promise.resolve({ success: true }),

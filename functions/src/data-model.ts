@@ -1958,6 +1958,7 @@ export type FetchUserDetailsResult = {
   userMemberProfiles: Member[];
   isAdmin: boolean;
   schoolsManaged: string[];
+  emailVerified?: boolean;
 };
 
 // Result from the pre-auth checkEmailStatus function. Guides the login UI

@@ -536,5 +536,32 @@ describe('LoginComponent', () => {
     expect(component.signupError()).toBeNull();
     expect(component.resetPasswordError()).toBeNull();
     expect(component.resetPasswordSuccess()).toBeNull();
+    expect(component.verificationError()).toBeNull();
+    expect(component.resendSuccess()).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  //  Email Verification
+  // ---------------------------------------------------------------------------
+
+  it('should call checkEmailVerification on checkEmailVerified', async () => {
+    const spy = vi.spyOn(mockService, 'checkEmailVerification').mockResolvedValue({ verified: true });
+    await component.checkEmailVerified();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call resendVerificationEmail on resendVerificationEmail', async () => {
+    const spy = vi.spyOn(mockService, 'resendVerificationEmail').mockResolvedValue({ success: true });
+    await component.resendVerificationEmail();
+    expect(spy).toHaveBeenCalled();
+    expect(component.resendSuccess()).toContain('verification email has been sent');
+  });
+
+  it('should call logout and reset to Email step on logout', async () => {
+    const spy = vi.spyOn(mockService, 'logout').mockResolvedValue({ success: true });
+    component.loginStep.set(LoginStep.PasswordLogin);
+    await component.logout();
+    expect(spy).toHaveBeenCalled();
+    expect(component.loginStep()).toBe(LoginStep.Email);
   });
 });

@@ -78,6 +78,12 @@ export class InlineAuthComponent {
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   public user = this.firebaseService.user;
   public isLoggedIn = computed(() => !!this.user());
+  public unverifiedEmail = computed(
+    () => this.firebaseService.unverifiedUser()?.email || this.email(),
+  );
+  public isNeedsVerification = computed(
+    () => this.firebaseService.loginStatus() === LoginStatus.NeedsEmailVerification,
+  );
 
   showNoMemberOption = input<boolean>(false);
 
@@ -104,6 +110,8 @@ export class InlineAuthComponent {
   signupError = signal<string | null>(null);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
+  verificationError = signal<string | null>(null);
+  resendSuccess = signal<string | null>(null);
 
   constructor() {
     const cached = getCachedLoginInfo();
@@ -280,6 +288,32 @@ export class InlineAuthComponent {
     this.step.set(InlineAuthStep.Email);
   }
 
+  async checkEmailVerified(): Promise<void> {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.checkEmailVerification();
+      if (!res.verified && res.message) {
+        this.verificationError.set(res.message);
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
+  async resendVerificationEmail(): Promise<void> {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.resendVerificationEmail();
+      if (res.success) {
+        this.resendSuccess.set('A new verification email has been sent! Please check your inbox.');
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
   dismissMessages(): void {
     this.checkEmailError.set(null);
     this.loginError.set(null);
@@ -288,6 +322,8 @@ export class InlineAuthComponent {
     this.signupError.set(null);
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
+    this.verificationError.set(null);
+    this.resendSuccess.set(null);
     this.firebaseService.loginError.set(null);
   }
 }

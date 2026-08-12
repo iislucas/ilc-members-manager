@@ -14,7 +14,7 @@
  * returning users can skip the email entry step entirely.
  */
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import { AuthErrorCodes } from 'firebase/auth';
@@ -105,6 +105,13 @@ export class LoginComponent {
   signupError = signal<string | null>(null);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
+  verificationError = signal<string | null>(null);
+  resendSuccess = signal<string | null>(null);
+  authLoading = signal<boolean>(false);
+
+  unverifiedEmail = computed(
+    () => this.firebaseService.unverifiedUser()?.email || this.loginEmail(),
+  );
 
   constructor() {
     // Check for cached login info from a previous session.
@@ -270,6 +277,37 @@ export class LoginComponent {
     clearCachedLoginInfo();
   }
 
+  async checkEmailVerified() {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.checkEmailVerification();
+      if (!res.verified && res.message) {
+        this.verificationError.set(res.message);
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
+  async resendVerificationEmail() {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.resendVerificationEmail();
+      if (res.success) {
+        this.resendSuccess.set('A new verification email has been sent! Please check your inbox.');
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
+  async logout() {
+    await this.firebaseService.logout();
+    this.loginStep.set(LoginStep.Email);
+  }
+
   dismissMessages() {
     this.checkEmailError.set(null);
     this.loginError.set(null);
@@ -278,6 +316,8 @@ export class LoginComponent {
     this.signupError.set(null);
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
+    this.verificationError.set(null);
+    this.resendSuccess.set(null);
     this.firebaseService.loginError.set(null);
   }
 }
