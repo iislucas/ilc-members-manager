@@ -128,9 +128,13 @@
       </div>
     </div>
 
-    <app-inline-auth
-      [promptText]="'Please sign in or create an account to link your video library subscription.'"
-    ></app-inline-auth>
+    @if (!isLoggedIn()) {
+      <p class="step-guidance">
+        Please sign in to your ILC account to purchase or link your video library subscription.
+      </p>
+    }
+
+    <app-inline-auth></app-inline-auth>
   </div>
 
   <!-- Step 2: Choose Subscription Option -->

@@ -1,8 +1,168 @@
-@use "../../scss_variables" as v;
+@use "../../scss_variables" as *;
+@use "../../styles" as *;
 
 :host {
   display: block;
   width: 100%;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1em;
+  padding: 0.5em 0;
+  width: 100%;
+}
+
+.login-card {
+  @extend .card;
+  max-width: 420px;
+  width: 100%;
+  padding: 1em;
+  gap: 0.5em;
+  box-sizing: border-box;
+}
+
+.step-header {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin-bottom: 0.25em;
+}
+
+.email-display {
+  font-family: monospace;
+  color: $text-primary;
+  white-space: nowrap;
+  font-size: 0.92em;
+}
+
+.step-guidance {
+  color: $text-secondary;
+  font-size: 0.92em;
+  line-height: 1.5;
+  margin-bottom: 0.5em;
+
+  strong {
+    font-family: monospace;
+    color: $text-primary;
+    white-space: nowrap;
+  }
+
+  p {
+    margin: 0.4em 0;
+  }
+
+  a {
+    color: #0066cc;
+  }
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+
+  label {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: $text-secondary;
+
+    strong {
+      font-family: monospace;
+      white-space: nowrap;
+    }
+  }
+
+  input {
+    background-color: #fff;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 25ch;
+  }
+}
+
+.password-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+
+  input {
+    flex-grow: 1;
+    min-width: 25ch;
+  }
+}
+
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.5em;
+  justify-content: flex-start;
+
+  .secondary-action {
+    background: transparent;
+    color: $text-secondary;
+    border: 1px solid $border-color-light;
+    box-shadow: none;
+
+    &:hover {
+      background: #f5f5f5;
+      box-shadow: none;
+    }
+
+    &:active {
+      box-shadow: none;
+    }
+  }
+}
+
+.back-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: $text-muted;
+  cursor: pointer;
+  font-size: 0.85em;
+  padding: 0.4em 0.6em;
+
+  &:hover {
+    color: $text-primary;
+    text-decoration: underline;
+    background: none;
+    box-shadow: none;
+  }
+
+  &:active {
+    transform: none;
+    background: none;
+    box-shadow: none;
+  }
+}
+
+.help-text {
+  color: $text-secondary;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.success-message {
+  color: #2e7d32;
+  background-color: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 4px;
+  padding: 0.5em 0.75em;
+  font-size: 0.9em;
+}
+
+.global-error {
+  max-width: 420px;
+  width: 100%;
+}
+
+.login-card .error-container {
+  margin-top: 0.5em;
 }
 
 .logged-in-box {
@@ -11,15 +171,15 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 1.15rem;
-  background: v.$separator-color;
+  background: $separator-color;
   border-radius: 6px;
-  border: 1px solid v.$border-color-light;
+  border: 1px solid $border-color-light;
 
   .user-info {
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    color: v.$text-secondary;
+    color: $text-secondary;
     min-width: 0;
 
     .user-details-text {
@@ -35,7 +195,7 @@
         white-space: nowrap;
 
         strong {
-          color: v.$text-primary;
+          color: $text-primary;
         }
       }
 
@@ -45,7 +205,7 @@
         flex-wrap: wrap;
         gap: 0.4rem;
         font-size: 0.85em;
-        color: v.$text-muted;
+        color: $text-muted;
         line-height: 1.4;
       }
     }
@@ -58,7 +218,7 @@
     padding: 0.35em 0.75em;
     font-size: 0.85em;
     background: #fff;
-    border: 1px solid v.$border-color-light;
+    border: 1px solid $border-color-light;
     border-radius: 4px;
     cursor: pointer;
     flex-shrink: 0;
@@ -67,203 +227,6 @@
       background: #fef2f2;
       border-color: #fecaca;
       color: #ef4444;
-    }
-  }
-}
-
-.account-welcome-note {
-  margin: 0.75em 0 0;
-  font-size: 0.9em;
-  color: v.$text-secondary;
-}
-
-.inline-auth-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: v.$separator-color;
-  padding: 1.25rem 1.5rem;
-  border-radius: 8px;
-  border: 1px solid v.$border-color-light;
-
-  .auth-prompt-text {
-    margin: 0;
-    font-size: 0.95em;
-    color: v.$text-secondary;
-    line-height: 1.4;
-  }
-
-  .auth-step-header {
-    font-size: 1.1em;
-    font-weight: 600;
-    color: v.$text-primary;
-  }
-
-  .email-display {
-    font-family: monospace;
-    color: v.$text-primary;
-    font-size: 0.92em;
-    padding: 0.2em 0.4em;
-    background: #fff;
-    border: 1px solid v.$border-color-light;
-    border-radius: 4px;
-    width: fit-content;
-  }
-
-  .step-guidance {
-    margin: 0;
-    font-size: 0.9em;
-    color: v.$text-secondary;
-    line-height: 1.4;
-
-    strong {
-      color: v.$text-primary;
-      font-family: monospace;
-    }
-  }
-
-  .input-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3em;
-
-    label {
-      font-size: 0.85em;
-      font-weight: 500;
-      color: v.$text-secondary;
-
-      strong {
-        font-family: monospace;
-      }
-    }
-
-    input {
-      background: #fff;
-      border: 1px solid v.$border-color-light;
-      border-radius: 6px;
-      padding: 0.55rem 0.75rem;
-      font-size: 0.95em;
-      outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
-      &:focus {
-        border-color: v.$focus-ring-color;
-        box-shadow: 0 0 0 2px rgba(v.$focus-ring-color, 0.2);
-      }
-    }
-  }
-
-  .input-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-
-    input {
-      flex: 1;
-      min-width: 200px;
-    }
-
-    button {
-      flex-shrink: 0;
-      padding: 0.55rem 1.25rem;
-    }
-  }
-
-  .password-input-row {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-
-    input {
-      flex: 1;
-      min-width: 200px;
-    }
-  }
-
-  .auth-actions-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-
-    button {
-      padding: 0.55rem 1.25rem;
-    }
-
-    .secondary-btn {
-      background: #fff;
-      color: v.$text-primary;
-      border: 1px solid v.$border-color-light;
-
-      &:hover {
-        background: #f8fafc;
-      }
-    }
-
-    .back-link {
-      margin-left: auto;
-      font-size: 0.85em;
-      color: v.$text-muted;
-      background: transparent;
-      border: none;
-      padding: 0.4em 0.6em;
-      cursor: pointer;
-
-      &:hover {
-        color: v.$text-primary;
-        text-decoration: underline;
-        background: transparent;
-      }
-    }
-  }
-
-  .spinner-container {
-    display: flex;
-    justify-content: center;
-    padding: 1.5rem;
-  }
-
-  .error-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: v.$theme-error-bg-color;
-    border: 1px solid v.$theme-error-border-color;
-    border-radius: 4px;
-    color: v.$theme-error-text-color;
-    font-size: 0.85em;
-  }
-
-  .success-message {
-    padding: 0.5rem 0.75rem;
-    background: #e8f5e9;
-    border: 1px solid #a5d6a7;
-    border-radius: 4px;
-    color: #2e7d32;
-    font-size: 0.85em;
-  }
-
-  .help-text {
-    font-size: 0.85em;
-    color: v.$text-secondary;
-    margin: 0.25rem 0 0;
-  }
-
-  .inline-link-button {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #0284c7;
-    font-size: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-
-    &:hover {
-      color: #0369a1;
     }
   }
 }

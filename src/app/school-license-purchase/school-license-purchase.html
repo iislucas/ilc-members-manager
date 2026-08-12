@@ -75,9 +75,13 @@
       </div>
     </div>
 
-    <app-inline-auth
-      [promptText]="'You must be signed in to manage or renew a school license.'"
-    ></app-inline-auth>
+    @if (!isLoggedIn()) {
+      <p class="step-guidance">
+        You must be signed in to manage or renew a school license.
+      </p>
+    }
+
+    <app-inline-auth></app-inline-auth>
   </div>
 
   <!-- Step 2: School Selection & Affiliation -->

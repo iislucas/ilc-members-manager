@@ -8,6 +8,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { InlineAuthComponent, InlineAuthStep } from './inline-auth.component';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
 import { initMember } from '../../../functions/src/data-model';
 
 describe('InlineAuthComponent', () => {
@@ -52,6 +53,13 @@ describe('InlineAuthComponent', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: FirebaseStateService, useValue: mockFirebaseService },
+        {
+          provide: RoutingService,
+          useValue: {
+            navigateToParts: vi.fn(),
+            hrefForView: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
   });

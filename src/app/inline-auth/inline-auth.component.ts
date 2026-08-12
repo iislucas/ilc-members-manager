@@ -1,6 +1,6 @@
 /* inline-auth.component.ts
  *
- * Reusable guided authentication component for dedicated purchase pages
+ * Reusable guided authentication component for login and dedicated purchase pages
  * (e.g. Become a Member, Class Video Library, Next Grading, Licenses).
  *
  * Presents a smart step-based flow:
@@ -19,6 +19,8 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { environment } from '../../environments/environment.local';
 import { CheckEmailStatusResult } from '../../../functions/src/data-model';
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
 
 export enum InlineAuthStep {
   Email = 'email',
@@ -26,6 +28,8 @@ export enum InlineAuthStep {
   GoogleSignin = 'google-signin',
   PasswordLogin = 'password-login',
   CreateAccount = 'create-account',
+  GuestCreateAccount = 'guest-create-account',
+  NoMember = 'no-member',
 }
 
 type CachedLoginInfo = {
@@ -71,11 +75,11 @@ function clearCachedLoginInfo(): void {
 })
 export class InlineAuthComponent {
   public firebaseService = inject(FirebaseStateService);
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   public user = this.firebaseService.user;
   public isLoggedIn = computed(() => !!this.user());
 
-  promptText = input<string>('Please sign in or create an account to proceed.');
-  loggedInNote = input<string>();
+  showNoMemberOption = input<boolean>(false);
 
   InlineAuthStep = InlineAuthStep;
   LoginStatus = LoginStatus;
@@ -134,18 +138,22 @@ export class InlineAuthComponent {
       const result = await this.firebaseService.checkEmailStatus(emailVal);
       this.emailStatus.set(result);
 
-      setCachedLoginInfo({
-        email: emailVal,
-        isGoogleManaged: result.isGoogleManaged,
-        hasAuthAccount: result.hasAuthAccount,
-      });
-
-      if (result.isGoogleManaged) {
-        this.step.set(InlineAuthStep.GoogleSignin);
-      } else if (result.hasAuthAccount) {
-        this.step.set(InlineAuthStep.PasswordLogin);
+      if (!result.hasMemberRecord && this.showNoMemberOption()) {
+        this.step.set(InlineAuthStep.NoMember);
       } else {
-        this.step.set(InlineAuthStep.CreateAccount);
+        setCachedLoginInfo({
+          email: emailVal,
+          isGoogleManaged: result.isGoogleManaged,
+          hasAuthAccount: result.hasAuthAccount,
+        });
+
+        if (result.isGoogleManaged) {
+          this.step.set(InlineAuthStep.GoogleSignin);
+        } else if (result.hasAuthAccount) {
+          this.step.set(InlineAuthStep.PasswordLogin);
+        } else {
+          this.step.set(InlineAuthStep.CreateAccount);
+        }
       }
     } catch (error) {
       console.error('checkEmailStatus failed:', error);

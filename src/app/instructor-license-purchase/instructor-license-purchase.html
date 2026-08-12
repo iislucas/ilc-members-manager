@@ -128,9 +128,13 @@
       </div>
     </div>
 
-    <app-inline-auth
-      [promptText]="'You must be signed in to manage or renew an instructor license.'"
-    ></app-inline-auth>
+    @if (!isLoggedIn()) {
+      <p class="step-guidance">
+        You must be signed in to manage or renew an instructor license.
+      </p>
+    }
+
+    <app-inline-auth></app-inline-auth>
   </div>
 
   <!-- Step 2: Instructor Qualifications & Status -->

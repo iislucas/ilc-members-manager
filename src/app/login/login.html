@@ -295,6 +295,12 @@
               Become a Member
             </button>
             <button
+              id="video-library-btn"
+              (click)="routingService.navigateToParts(['class-video-library-subscription'])"
+            >
+              Class Video Library
+            </button>
+            <button
               id="create-guest-account-btn"
               class="secondary-action"
               (click)="loginStep.set(LoginStep.GuestCreateAccount)"
