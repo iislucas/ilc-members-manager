@@ -1043,6 +1043,7 @@ export type Member = {
   stripeCustomerId: string; // Stripe cus_... ID or empty
 
   // Structured active subscriptions map
+  subscriptions?: Record<string, MemberSubscriptionItem>;
   stripeSubscriptions?: Record<string, MemberSubscriptionItem>;
 
   // Notes only for ILC HQ.
@@ -1338,6 +1339,7 @@ export type StripeOrder = BaseOrder & {
   created: string;
   metadata?: Record<string, string>;
   clientReferenceId?: string | null;
+  receiptUrl?: string;
   lineItems: StripeOrderLineItem[];
 };
 
@@ -1594,6 +1596,7 @@ export function initMember(): Member {
     stripeCustomerId: '',
 
     // Structured active subscriptions map
+    subscriptions: {},
     stripeSubscriptions: {},
 
     // Notes - information only for ILC HQ management.

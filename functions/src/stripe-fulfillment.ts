@@ -131,31 +131,42 @@ export async function resolveMemberForStripeOrder(
 function categorizeLineItem(
   item: StripeOrderLineItem,
 ): OrderItemCategory {
-  const desc = item.description.toLowerCase();
+  const desc = (item.description || '').toLowerCase();
   const prod = (item.productId ?? '').toLowerCase();
 
-  if (desc.includes('membership') || prod.includes('membership')) {
-    return OrderItemCategory.Membership;
+  if (
+    desc.includes('video') ||
+    desc.includes('vid-library') ||
+    desc.includes('vod') ||
+    prod.includes('video') ||
+    prod.includes('vod')
+  ) {
+    return OrderItemCategory.VideoLibrary;
+  }
+  if (
+    desc.includes('grading') ||
+    desc.includes('examination') ||
+    prod.includes('grading')
+  ) {
+    return OrderItemCategory.Grading;
   }
   if (desc.includes('school') || prod.includes('school')) {
     return OrderItemCategory.SchoolLicense;
   }
   if (
-    desc.includes('license') ||
     desc.includes('instructor') ||
+    desc.includes('license') ||
+    prod.includes('instructor') ||
     prod.includes('license')
   ) {
     return OrderItemCategory.InstructorLicense;
   }
-  if (desc.includes('grading') || prod.includes('grading')) {
-    return OrderItemCategory.Grading;
-  }
   if (
-    desc.includes('video library') ||
-    desc.includes('video') ||
-    prod.includes('video')
+    desc.includes('membership') ||
+    desc.includes('member') ||
+    prod.includes('membership')
   ) {
-    return OrderItemCategory.VideoLibrary;
+    return OrderItemCategory.Membership;
   }
   if (desc.includes('event') || desc.includes('workshop')) {
     return OrderItemCategory.Event;
@@ -204,32 +215,37 @@ export async function mirrorOrderToMemberSubcollection(
     docId: orderDocId,
     orderDocId: orderDocId,
     memberDocId: member.docId,
-    memberId: member.memberId,
+    memberId: member.memberId || '',
     orderKind: MemberOrderKind.Stripe,
-    orderType: order.stripeOrderType as unknown as MemberOrderType,
+    orderType: (order.stripeOrderType as unknown as MemberOrderType) || MemberOrderType.Checkout,
     orderNumber: order.invoiceId || order.stripeObjectId || '',
-    date: order.created.split('T')[0],
-    created: order.created,
+    date: order.created ? order.created.split('T')[0] : new Date().toISOString().split('T')[0],
+    created: order.created || new Date().toISOString(),
     lastUpdated: new Date().toISOString(),
-    amountTotal: order.amountTotal,
-    currency: order.currency,
+    amountTotal: order.amountTotal ?? 0,
+    currency: order.currency || 'usd',
     paymentStatus: (order.paymentStatus as unknown as MemberOrderPaymentStatus) ?? null,
     fulfillmentStatus: MemberOrderFulfillmentStatus.Fulfilled,
     description,
     lineItems: order.lineItems.map((item) => ({
-      productId: item.productId,
-      priceId: item.priceId,
-      description: item.description,
-      quantity: item.quantity,
-      amountTotal: item.amountTotal,
-      currency: item.currency,
+      productId: item.productId || '',
+      priceId: item.priceId || '',
+      description: item.description || '',
+      quantity: item.quantity || 1,
+      amountTotal: item.amountTotal || 0,
+      currency: item.currency || 'usd',
       category: categorizeLineItem(item),
     })),
-    subscriptionId: order.subscriptionId,
-    stripeInvoiceId: order.invoiceId,
+    subscriptionId: order.subscriptionId || '',
+    stripeInvoiceId: order.invoiceId || '',
+    stripeReceiptUrl: order.receiptUrl || '',
   };
 
-  await memberOrderRef.set(memberOrder, { merge: true });
+  const sanitized = Object.fromEntries(
+    Object.entries(memberOrder).filter(([_, v]) => v !== undefined),
+  );
+
+  await memberOrderRef.set(sanitized, { merge: true });
   logger.info('Mirrored order to member subcollection', {
     memberDocId: member.docId,
     orderDocId,
@@ -527,7 +543,10 @@ export async function syncSubscriptionStatusToMember(
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
   }
 
-  if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
+  if (
+    (member.subscriptions && member.subscriptions[subscription.id]) ||
+    (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id])
+  ) {
     updates[`subscriptions.${subscription.id}.status`] = status;
     updates[`subscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
     updates[`subscriptions.${subscription.id}.nextAutoRenewDate`] =
