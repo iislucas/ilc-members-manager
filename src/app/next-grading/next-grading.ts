@@ -74,6 +74,10 @@ export class NextGradingComponent {
 
   isLoggedIn = computed(() => !!this.user());
 
+  async onLogout(): Promise<void> {
+    await this.firebaseService.logout();
+  }
+
   isActiveMember = computed(() => {
     const m = this.user()?.member;
     if (!m) return false;

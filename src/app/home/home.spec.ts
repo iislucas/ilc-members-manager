@@ -137,4 +137,65 @@ describe('HomeComponent', () => {
     } as unknown as TouchEvent);
     expect(component.activeTab()).toBe('admin');
   });
+
+  it('renders Class Video Library card when user has active subscription', async () => {
+    component.setActiveTab('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Class Video Library');
+    expect(element.textContent).not.toContain('Requires subscription');
+    expect(element.textContent).not.toContain('Expired:');
+  });
+
+  it('does not display "Requires subscription" grey box when user has no subscription', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: false,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Test Member',
+        membershipType: 'Life',
+        currentMembershipExpires: '2099-12-31',
+        classVideoLibrarySubscription: false,
+        classVideoLibraryExpirationDate: '',
+      },
+      firebaseUser: { email: 'test@example.com' },
+    });
+
+    component.setActiveTab('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Subscribe to Class Video Library');
+    expect(element.textContent).not.toContain('Requires subscription');
+  });
+
+  it('displays expiration date when subscription is expired', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: false,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Test Member',
+        membershipType: 'Life',
+        currentMembershipExpires: '2099-12-31',
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2020-01-01',
+      },
+      firebaseUser: { email: 'test@example.com' },
+    });
+
+    component.setActiveTab('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Subscribe to Class Video Library');
+    expect(element.textContent).toContain('Expired: 2020-01-01');
+    expect(element.textContent).not.toContain('Requires subscription');
+  });
 });
+

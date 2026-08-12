@@ -189,15 +189,11 @@
                 }}
               </h2>
               <p>Members saturday online class recordings</p>
-              @if (!vStatus.hasAccess) {
+              @if (vStatus.expired) {
                 <div class="no-access-container">
                   <span class="info-message">
-                    @if (vStatus.expired) {
-                      Expired:
-                      {{ vStatus.date || "(unknown last expiration date)" }}
-                    } @else {
-                      Requires subscription
-                    }
+                    Expired:
+                    {{ vStatus.date || "(unknown last expiration date)" }}
                   </span>
                 </div>
               }

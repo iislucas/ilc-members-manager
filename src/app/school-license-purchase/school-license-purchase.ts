@@ -60,6 +60,15 @@ export class SchoolLicensePurchaseComponent {
   schoolProducts = signal<StripeProduct[]>([]);
   selectedPriceId = signal<string | null>(null);
 
+  selectedPrice = computed<StripeProductPrice | null>(() => {
+    const id = this.selectedPriceId();
+    for (const prod of this.schoolProducts()) {
+      const p = prod.prices.find((pr) => pr.id === id);
+      if (p) return p;
+    }
+    return null;
+  });
+
   // Mode: renew existing vs new school
   licenseAction = signal<SchoolLicenseAction>('renew');
   selectedSchoolDocId = signal<string | null>(null);
@@ -85,6 +94,10 @@ export class SchoolLicensePurchaseComponent {
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLoggedIn = computed(() => !!this.user());
+
+  async onLogout(): Promise<void> {
+    await this.firebaseService.logout();
+  }
 
   isActiveMember = computed(() => {
     const m = this.user()?.member;

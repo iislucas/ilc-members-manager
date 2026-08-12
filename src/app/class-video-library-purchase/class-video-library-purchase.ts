@@ -73,6 +73,10 @@ export class ClassVideoLibraryPurchaseComponent {
 
   isLoggedIn = computed(() => !!this.user());
 
+  async onLogout(): Promise<void> {
+    await this.firebaseService.logout();
+  }
+
   hasVideoAccess = computed(() => {
     const m = this.user()?.member;
     if (!m) return false;

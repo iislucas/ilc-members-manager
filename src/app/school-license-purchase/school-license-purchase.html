@@ -40,9 +40,10 @@
         <div class="confirmation-actions">
           <button
             type="button"
+            class="button pay-btn"
             (click)="routingService.navigateToParts(['my-schools'])"
           >
-            <app-icon name="map"></app-icon>
+            <app-icon name="location_on"></app-icon>
             <span>View My Schools</span>
           </button>
           <button
@@ -61,131 +62,193 @@
     </div>
   }
 
-  <!-- Prerequisites Check -->
-  @if (!isLoggedIn()) {
-    <div class="guard-card card">
-      <div class="guard-icon">
-        <app-icon name="info" width="32px" height="32px"></app-icon>
+  <!-- Step 1: Sign in / Account -->
+  <div class="form-card card">
+    <div class="step-header-row">
+      <div class="step-header-left">
+        <h2>1. Your Account</h2>
+        @if (isLoggedIn()) {
+          <span class="step-completed-badge" title="Account verified">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
       </div>
-      <h2>Sign In Required</h2>
-      <p>You must be signed in to manage or renew a school license.</p>
-      <button
-        type="button"
-        (click)="routingService.navigateToParts(['login'])"
-      >
-        Sign In
-      </button>
     </div>
-  } @else if (!isActiveMember()) {
-    <div class="guard-card card">
-      <div class="guard-icon">
-        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-      </div>
-      <h2>Active Membership Required</h2>
-      <p>
-        An active I Liq Chuan membership is required to operate an affiliated school.
-      </p>
-      <button
-        type="button"
-        (click)="routingService.navigateToParts(['become-a-member'])"
-      >
-        <app-icon name="link"></app-icon>
-        <span>Become a Member / Renew</span>
-      </button>
-    </div>
-  } @else {
-    <!-- Existing Schools List -->
-    <div class="schools-list-card card">
-      <h2>Your School Licenses</h2>
 
-      @if (mySchools().length > 0) {
-        <div class="schools-grid">
-          @for (s of mySchools(); track s.docId) {
-            <div
-              class="school-item-card"
-              [class.selected]="licenseAction() === 'renew' && selectedSchoolDocId() === s.docId"
-              (click)="selectedSchoolDocId.set(s.docId); licenseAction.set('renew')"
-            >
-              <div class="school-header">
-                <div class="school-name">{{ s.schoolName || s.schoolId }}</div>
-                <div class="school-status">
-                  @if (isSchoolActive(s)) {
-                    <span class="status-badge paid">Active</span>
-                  } @else {
-                    <span class="status-badge unpaid">Expired</span>
-                  }
-                </div>
+    @if (isLoggedIn()) {
+      <div class="logged-in-box">
+        <div class="user-info">
+          <app-icon name="person" width="28px" height="28px"></app-icon>
+          <div class="user-details-text">
+            <div class="user-email-row">
+              Signed in as
+              <strong>{{
+                user()?.member?.emails?.[0] || user()?.firebaseUser?.email
+              }}</strong>
+            </div>
+            @if (user()?.member?.memberId) {
+              <div class="member-id-hint">
+                Member ID:
+                <span class="identifier-chip">{{
+                  user()?.member?.memberId
+                }}</span>
               </div>
+            }
+          </div>
+        </div>
+        <button
+          type="button"
+          class="subtle-button logout-btn"
+          (click)="onLogout()"
+          title="Sign out of this account"
+        >
+          <app-icon name="logout"></app-icon>
+          <span>Log Out</span>
+        </button>
+      </div>
+    } @else {
+      <div class="auth-prompt-box">
+        <p>You must be signed in to manage or renew a school license.</p>
+        <button
+          type="button"
+          class="button auth-action-btn"
+          (click)="routingService.navigateToParts(['login'])"
+        >
+          <app-icon name="person"></app-icon>
+          <span>Sign In to Continue</span>
+        </button>
+      </div>
+    }
+  </div>
 
-              <div class="school-details">
-                <div>School ID: <strong>{{ s.schoolId }}</strong></div>
-                @if (s.schoolCountry) {
-                  <div>Location: <strong>{{ s.schoolCity ? s.schoolCity + ', ' : '' }}{{ s.schoolCountry }}</strong></div>
+  <!-- Step 2: School Selection & Affiliation -->
+  <div class="form-card card">
+    <div class="step-header-row">
+      <div class="step-header-left">
+        <h2>2. School Affiliation Details</h2>
+        @if (isLoggedIn() && isActiveMember()) {
+          <span class="step-completed-badge" title="Member verified">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
+      </div>
+    </div>
+
+    @if (!isLoggedIn()) {
+      <p class="muted-note">Please sign in to view your schools and renewal options.</p>
+    } @else if (!isActiveMember()) {
+      <div class="guard-notice-box">
+        <app-icon name="hands_lotus" width="28px" height="28px"></app-icon>
+        <div>
+          <h3>Active Membership Required</h3>
+          <p>
+            An active I Liq Chuan membership is required to operate an affiliated school.
+          </p>
+          <a
+            class="button auth-action-btn"
+            [href]="routingService.hrefForView(Views.BecomeAMember)"
+          >
+            <app-icon name="link"></app-icon>
+            <span>Become a Member / Renew</span>
+          </a>
+        </div>
+      </div>
+    } @else {
+      @if (mySchools().length > 0) {
+        <div class="school-mode-toggle">
+          <label class="radio-label">
+          <input
+            type="radio"
+            name="licenseAction"
+            value="renew"
+            [checked]="licenseAction() === 'renew'"
+            (change)="licenseAction.set('renew')"
+          />
+          <span>Renew an Existing School</span>
+        </label>
+        <label class="radio-label">
+          <input
+            type="radio"
+            name="licenseAction"
+            value="new"
+            [checked]="licenseAction() === 'new'"
+            (change)="licenseAction.set('new')"
+          />
+          <span>Register a New School</span>
+        </label>
+      </div>
+
+      @if (licenseAction() === 'renew') {
+        <div class="schools-grid">
+          @for (school of mySchools(); track school.docId) {
+            <div
+              class="school-card-choice"
+              [class.selected]="selectedSchoolDocId() === school.docId"
+              (click)="selectedSchoolDocId.set(school.docId)"
+            >
+              <div class="school-choice-header">
+                <span class="school-name">{{ school.schoolName || school.schoolId }}</span>
+                @if (isSchoolActive(school)) {
+                  <span class="status-badge paid">Active</span>
+                } @else {
+                  <span class="status-badge unpaid">Expired</span>
                 }
-                <div>Expires: <strong>{{ s.schoolLicenseExpires || 'No expiration date recorded' }}</strong></div>
-                @if (s.schoolLicenseRenewalDate) {
-                  <div>Last Renewed: <strong>{{ s.schoolLicenseRenewalDate }}</strong></div>
-                }
+              </div>
+              <div class="school-choice-meta">
+                <span>Location: {{ school.schoolCity ? school.schoolCity + ', ' : '' }}{{ school.schoolCountry }}</span>
+                <span>License Expiry: {{ school.schoolLicenseExpires || 'Not set' }}</span>
               </div>
             </div>
           }
         </div>
       } @else {
-        <div class="no-schools-box">
-          <p>You do not currently have any registered schools linked to your account.</p>
+        <div class="new-school-notice">
+          <p>
+            Purchasing this license will provide 1 year of school affiliation.
+            You will be able to complete your new school's name and details upon payment confirmation.
+          </p>
         </div>
       }
-    </div>
+    } @else {
+      <div class="new-school-notice">
+        <p>
+          You are registering a new affiliated school.
+          Purchasing this license will grant 1 full year of official school affiliation.
+        </p>
+      </div>
+    }
+  }
+  </div>
 
-    <!-- Action Selection: Renew Existing vs Start New -->
-    <div class="action-card card">
-      <h2>License Options</h2>
-
-      <div class="action-tabs pill-tabs">
-        @if (mySchools().length > 0) {
-          <button
-            type="button"
-            class="pill-tab"
-            [class.active]="licenseAction() === 'renew'"
-            (click)="licenseAction.set('renew')"
-          >
-            Renew an Existing School
-          </button>
-        }
-        <button
-          type="button"
-          class="pill-tab"
-          [class.active]="licenseAction() === 'new'"
-          (click)="licenseAction.set('new')"
-        >
-          Start / Register a New School
-        </button>
+  <!-- Step 3: School Affiliation Fee & Checkout -->
+  @if (isLoggedIn() && isActiveMember()) {
+    <div class="form-card card">
+      <div class="step-header-row">
+        <div class="step-header-left">
+          <h2>3. School License Fee</h2>
+        </div>
       </div>
 
-      @if (licenseAction() === 'renew' && mySchools().length > 0) {
-        <div class="school-select-row">
-          <label for="schoolSelect">Select School to Renew:</label>
-          <select
-            id="schoolSelect"
-            [ngModel]="selectedSchoolDocId()"
-            (ngModelChange)="selectedSchoolDocId.set($event)"
-          >
-            @for (s of mySchools(); track s.docId) {
-              <option [value]="s.docId">
-                {{ s.schoolName || s.schoolId }} (Expires: {{ s.schoolLicenseExpires || 'N/A' }})
-              </option>
-            }
-          </select>
-        </div>
-      }
-    </div>
-
-    <!-- Pricing Options from Stripe -->
-    <div class="pricing-card card">
-      <h2>Select Billing Plan</h2>
+      <div class="bullet-points-container">
+        <p class="section-lead">An official School Affiliation License provides:</p>
+        <ul class="bullet-list">
+          <li>
+            <strong>Official School Directory Listing:</strong>
+            <span class="option-subtext"> Listed on the international I Liq Chuan school locator map and directory.</span>
+          </li>
+          <li>
+            <strong>Conduct Official Gradings:</strong>
+            <span class="option-subtext"> Authority to host student examinations and submit records to headquarters.</span>
+          </li>
+          <li>
+            <strong>Official Branch Certificate:</strong>
+            <span class="option-subtext"> Annual certificate of branch recognition signed by Grandmaster Sam Chin.</span>
+          </li>
+        </ul>
+      </div>
 
       @if (productsLoading()) {
-        <app-spinner>Loading school license plans...</app-spinner>
+        <app-spinner>Loading school license rates...</app-spinner>
       } @else if (productsError()) {
         <div class="error-container">
           <span class="error-message">{{ productsError() }}</span>
@@ -193,82 +256,69 @@
             <app-icon name="refresh"></app-icon>
           </button>
         </div>
-      } @else {
-        <div class="rates-grid">
-          @for (prod of schoolProducts(); track prod.id) {
-            @for (price of prod.prices; track price.id) {
-              @if (price.active && price.unitAmount !== null) {
-                <div
-                  class="rate-card"
-                  [class.selected]="selectedPriceId() === price.id"
-                  (click)="selectedPriceId.set(price.id)"
-                >
-                  <div class="rate-radio">
-                    <input
-                      type="radio"
-                      name="schoolPrice"
-                      [value]="price.id"
-                      [checked]="selectedPriceId() === price.id"
-                      (change)="selectedPriceId.set(price.id)"
-                    />
-                  </div>
-                  <div class="rate-info">
-                    <div class="rate-title">{{ price.nickname || prod.name }}</div>
-                    <div class="rate-price">{{ formatPrice(price) }}</div>
-                    <div class="rate-desc">
-                      Official school authorization, instructor teaching rights, website directory listing, and certificate issuance.
-                    </div>
-                  </div>
-                </div>
-              }
-            }
-          }
+      } @else if (selectedPrice(); as price) {
+        <div class="membership-options-grid">
+          <div class="option-card selected">
+            <div class="option-title">1-Year School Affiliation License</div>
+            <div class="rate-price">
+              {{ formatPrice(price) }}
+            </div>
+            <div class="rate-desc">
+              Annual school affiliation fee. Valid for 1 full year from current expiration date (or starting today for new schools).
+            </div>
+          </div>
         </div>
 
-        @if (checkoutError()) {
-          <div class="error-container">
-            <span class="error-message">{{ checkoutError() }}</span>
-            <button class="icon-only-button" (click)="checkoutError.set(null)">
-              <app-icon name="close"></app-icon>
-            </button>
-          </div>
-        }
-
-        <div class="checkout-actions">
-          @if (isRedirecting()) {
-            <app-spinner>Redirecting to secure checkout…</app-spinner>
-          } @else {
-            <button
-              type="button"
-              class="pay-btn"
-              [disabled]="!selectedPriceId() || (licenseAction() === 'renew' && !selectedSchoolDocId())"
-              (click)="onPurchaseSchoolLicense()"
-            >
-              <app-icon name="link"></app-icon>
-              <span>
-                {{ licenseAction() === 'renew' ? 'Renew School License' : 'Purchase New School License' }}
-              </span>
-            </button>
+        <div class="checkout-section">
+          @if (checkoutError()) {
+            <div class="error-container">
+              <span class="error-message">{{ checkoutError() }}</span>
+              <button class="icon-only-button" (click)="checkoutError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
           }
+
+          <div class="checkout-actions">
+            @if (isRedirecting()) {
+              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+            } @else {
+              <button
+                type="button"
+                class="button pay-btn"
+                [disabled]="licenseAction() === 'renew' && !selectedSchoolDocId() && mySchools().length > 0"
+                (click)="onPurchaseSchoolLicense()"
+              >
+                <span>
+                  {{ licenseAction() === 'renew' && selectedSchoolDocId() ? 'Renew Selected School License' : 'Get School License' }}
+                </span>
+                <app-icon name="arrow_forward"></app-icon>
+              </button>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-notice">
+          <p>School license rates are currently being configured. Please check back shortly.</p>
         </div>
       }
     </div>
+  }
 
-    <!-- Past Orders if any -->
-    @if (recentSchoolOrders().length > 0) {
-      <div class="past-orders-card card">
-        <h2>Previous School License Orders</h2>
-        <div class="orders-list">
-          @for (o of recentSchoolOrders(); track o.docId) {
-            <div class="order-row">
-              <span class="order-ref">Order: <strong>{{ o.orderDocId }}</strong></span>
-              <span class="order-date">{{ o.created.split('T')[0] }}</span>
-              <span class="order-amount">{{ formatAmount(o.amountTotal, o.currency) }}</span>
-              <span class="status-badge paid">{{ o.paymentStatus }}</span>
-            </div>
-          }
-        </div>
+  <!-- Past Orders if any -->
+  @if (recentSchoolOrders().length > 0) {
+    <div class="past-orders-card card">
+      <h2>Previous School License Orders</h2>
+      <div class="orders-list">
+        @for (o of recentSchoolOrders(); track o.docId) {
+          <div class="order-row">
+            <span class="order-ref">Order: <strong>{{ o.orderDocId }}</strong></span>
+            <span class="order-date">{{ o.created.split('T')[0] }}</span>
+            <span class="order-amount">{{ formatAmount(o.amountTotal, o.currency) }}</span>
+            <span class="status-badge paid">{{ o.paymentStatus }}</span>
+          </div>
+        }
       </div>
-    }
+    </div>
   }
 </div>
