@@ -22,30 +22,52 @@
     </div>
   }
 
-  @if (
-    (userIsAdmin() || isOwnProfile()) &&
-    e.instructorId &&
-    e.instructorId.trim() !== ""
-  ) {
+  @if (userIsAdmin() && e.docId) {
     <div class="nav-buttons">
+      <a class="subtle-button" [href]="memberGradingsLink()">
+        <app-icon name="mountain" /> Gradings
+      </a>
+      <a class="subtle-button" [href]="memberOrdersLink()">
+        <app-icon name="receipt_long" /> Orders
+      </a>
+      <a class="subtle-button" [href]="memberEventsLink()">
+        <app-icon name="event" /> Events
+      </a>
+      <a class="subtle-button" [href]="memberMaterialsLink()">
+        <app-icon name="video_library" /> Materials
+      </a>
+      @if (e.instructorId && e.instructorId.trim() !== "") {
+        <a class="subtle-button" [href]="memberStudentsLink()">
+          <app-icon name="salut" /> Students
+        </a>
+        <a
+          class="subtle-button"
+          [href]="memberPublicProfileLink()"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <app-icon name="person" /> Public Profile
+        </a>
+      }
+      @if (e.primarySchoolId && e.primarySchoolId.trim() !== "") {
+        <a class="subtle-button" [href]="memberSchoolLink()">
+          <app-icon name="map" /> School
+        </a>
+      }
+    </div>
+  } @else if (isOwnProfile() && e.instructorId && e.instructorId.trim() !== "") {
+    <div class="nav-buttons">
+      <a class="subtle-button" [href]="memberStudentsLink()">
+        <app-icon name="salut" /> Students
+      </a>
       <a
         class="subtle-button"
-        [href]="
-          isOwnProfile()
-            ? '/my-students'
-            : '/instructor/' + e.instructorId + '/students'
-        "
-      >
-        <app-icon name="salut" /> Students</a
-      >
-      <a
-        class="subtle-button"
-        [href]="'/instructors/' + e.instructorId"
+        [href]="memberPublicProfileLink()"
         target="_blank"
         rel="noopener noreferrer"
       >
-        <app-icon name="person" /> Public Profile</a
-      >
+        <app-icon name="person" /> Public Profile
+      </a>
     </div>
   }
 

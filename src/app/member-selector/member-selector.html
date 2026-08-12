@@ -21,7 +21,7 @@
     </div>
   } @else if (value() && !disabled()) {
     <div class="selected-note error-message">Not Found</div>
-  } @else if (!value() && !disabled()) {
+  } @else if (!value() && !disabled() && showNoneSelected()) {
     <div class="selected-note error-message">None selected</div>
   }
 </div>

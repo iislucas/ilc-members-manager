@@ -98,7 +98,7 @@ export class ManageEventsComponent implements OnDestroy {
   })();
 
   public searchMode = signal<'recent' | 'term' | 'date'>('date');
-  public searchField = signal<'title' | 'location' | 'ownerEmails' | 'leadingInstructorId'>('title');
+  public searchField = signal<'title' | 'location' | 'ownerEmails' | 'leadingInstructorId' | 'ownerDocId' | 'memberDocId'>('title');
   public searchTerm = signal('');
   public startDate = signal<string>(this.defaultStartDate);
   public endDate = signal<string>('');
@@ -156,7 +156,7 @@ export class ManageEventsComponent implements OnDestroy {
       this.initialised = true;
 
       this.searchMode.set(mode);
-      this.searchField.set((field || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId');
+      this.searchField.set((field || 'title') as 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId' | 'ownerDocId' | 'memberDocId');
       this.searchTerm.set(q);
       this.startDate.set(start || this.defaultStartDate);
       this.endDate.set(end);

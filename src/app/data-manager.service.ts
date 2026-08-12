@@ -106,7 +106,16 @@ export function sortOrdersByDateDesc(orders: Order[]): Order[] {
 
 export type OrderSearchCriteriaTerm = {
   kind: 'term';
-  searchField: 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
+  searchField:
+    | 'orderNumber'
+    | 'referenceNumber'
+    | 'id'
+    | 'customerEmail'
+    | 'email'
+    | 'lastName'
+    | 'billingAddress.lastName'
+    | 'memberDocId'
+    | 'ilcAppMemberDocId';
   term: string;
   statusFilter?: string;
   kindFilter?: string;
@@ -124,7 +133,13 @@ export type OrderSearchCriteria = OrderSearchCriteriaTerm | OrderSearchCriteriaD
 
 export type EventSearchCriteriaTerm = {
   kind: 'term';
-  searchField: 'title' | 'location' | 'ownerEmails' | 'leadingInstructorId';
+  searchField:
+    | 'title'
+    | 'location'
+    | 'ownerEmails'
+    | 'leadingInstructorId'
+    | 'ownerDocId'
+    | 'memberDocId';
   term: string;
   statusFilter?: string;
 };
@@ -137,6 +152,33 @@ export type EventSearchCriteriaDateRange = {
 };
 
 export type EventSearchCriteria = EventSearchCriteriaTerm | EventSearchCriteriaDateRange;
+
+export type GradingSearchCriteriaTerm = {
+  kind: 'term';
+  searchField:
+    | 'studentMemberDocId'
+    | 'memberDocId'
+    | 'studentMemberId'
+    | 'memberId'
+    | 'gradingInstructorId'
+    | 'instructorId'
+    | 'studentName'
+    | 'orderId'
+    | string;
+  term: string;
+  statusFilter?: string;
+};
+
+export type GradingSearchCriteriaDateRange = {
+  kind: 'date';
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  statusFilter?: string;
+};
+
+export type GradingSearchCriteria =
+  | GradingSearchCriteriaTerm
+  | GradingSearchCriteriaDateRange;
 
 @Injectable({
   providedIn: 'root',
@@ -559,23 +601,52 @@ export class DataManagerService {
 
       const results = new Map<string, Order>();
 
-      // Search only the specifically requested field
-      let q = query(this.ordersCollection, where(field, '==', term));
-      
+      if (field === 'email' || field === 'customerEmail') {
+        const qCustomer = query(this.ordersCollection, where('customerEmail', '==', term));
+        const qEmail = query(this.ordersCollection, where('email', '==', term));
+        const [snapC, snapE] = await Promise.all([getDocs(qCustomer), getDocs(qEmail)]);
+        snapC.docs.forEach((docSnap) => {
+          const order = firestoreDocToOrder(docSnap as any);
+          results.set(order.docId, order);
+        });
+        snapE.docs.forEach((docSnap) => {
+          const order = firestoreDocToOrder(docSnap as any);
+          results.set(order.docId, order);
+        });
+      } else if (field === 'memberDocId' || field === 'ilcAppMemberDocId') {
+        const q = query(this.ordersCollection, where('ilcAppMemberDocId', '==', term));
+        const snap = await getDocs(q);
+        snap.docs.forEach((docSnap) => {
+          const order = firestoreDocToOrder(docSnap as any);
+          results.set(order.docId, order);
+        });
+      } else {
+        // Search only the specifically requested field
+        let q = query(this.ordersCollection, where(field, '==', term));
+
+        if (status) {
+          q = query(q, where('ilcAppOrderStatus', '==', status));
+        }
+        if (kindFilter === 'squarespace') {
+          q = query(q, where('ilcAppOrderKind', '==', OrderKind.Squarespace));
+        }
+
+        const snap = await getDocs(q);
+        snap.docs.forEach((docSnap) => {
+          const order = firestoreDocToOrder(docSnap as any);
+          results.set(order.docId, order);
+        });
+      }
+
+      let orderList = Array.from(results.values());
       if (status) {
-        q = query(q, where('ilcAppOrderStatus', '==', status));
+        orderList = orderList.filter((o) => o.ilcAppOrderStatus === status);
       }
       if (kindFilter === 'squarespace') {
-        q = query(q, where('ilcAppOrderKind', '==', OrderKind.Squarespace));
+        orderList = orderList.filter((o) => o.ilcAppOrderKind === OrderKind.Squarespace);
       }
 
-      const snap = await getDocs(q);
-      snap.docs.forEach((docSnap) => {
-        const order = firestoreDocToOrder(docSnap as any);
-        results.set(order.docId, order);
-      });
-
-      return sortOrdersByDateDesc(Array.from(results.values()));
+      return sortOrdersByDateDesc(orderList);
     } else if (criteria.kind === 'date') {
       let qSquareSpace = query(this.ordersCollection);
       let qSheetsImport = query(this.ordersCollection);
@@ -677,6 +748,21 @@ export class DataManagerService {
           merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
         }
         results = Array.from(merged.values());
+      } else if (field === 'ownerDocId' || field === 'memberDocId') {
+        const qOwner = query(this.eventsCollection, where('ownerDocId', '==', term));
+        const qManager = query(this.eventsCollection, where('managerDocIds', 'array-contains', term));
+        const [snapOwner, snapManager] = await Promise.all([
+          getDocs(qOwner),
+          getDocs(qManager),
+        ]);
+        const merged = new Map<string, IlcEvent>();
+        for (const d of snapOwner.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        for (const d of snapManager.docs) {
+          merged.set(d.id, { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent);
+        }
+        results = Array.from(merged.values());
       } else {
         let q = query(this.eventsCollection, where(field, '==', term));
         if (status) {
@@ -686,7 +772,7 @@ export class DataManagerService {
         results = snap.docs.map(d => ({ ...initEvent(), ...d.data(), docId: d.id } as IlcEvent));
       }
 
-      if (field === 'ownerEmails' && status) {
+      if (status && (field === 'ownerEmails' || field === 'ownerDocId' || field === 'memberDocId')) {
         results = results.filter((e) => e.status === status);
       }
       return results;
@@ -1026,6 +1112,85 @@ export class DataManagerService {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(firestoreDocToGrading);
+  }
+
+  async searchGradings(criteria: GradingSearchCriteria): Promise<Grading[]> {
+    const status = criteria.statusFilter;
+
+    if (criteria.kind === 'term') {
+      const term = criteria.term.trim();
+      const field = criteria.searchField;
+      if (!term) return [];
+
+      const results = new Map<string, Grading>();
+
+      if (field === 'studentMemberDocId' || field === 'memberDocId') {
+        let qDoc = query(
+          collection(this.db, 'gradings'),
+          where('studentMemberDocId', '==', term),
+        );
+        const snap = await getDocs(qDoc);
+        snap.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+      } else if (field === 'studentMemberId' || field === 'memberId') {
+        let qId = query(
+          collection(this.db, 'gradings'),
+          where('studentMemberId', '==', term),
+        );
+        const snap = await getDocs(qId);
+        snap.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+      } else if (field === 'gradingInstructorId' || field === 'instructorId') {
+        const qLead = query(
+          collection(this.db, 'gradings'),
+          where('gradingInstructorId', '==', term),
+        );
+        const qMgr = query(
+          collection(this.db, 'gradings'),
+          where('gradingManagerIds', 'array-contains', term),
+        );
+        const [snapLead, snapMgr] = await Promise.all([
+          getDocs(qLead),
+          getDocs(qMgr),
+        ]);
+        snapLead.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+        snapMgr.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+      } else if (field === 'orderId') {
+        const qOrder = query(
+          collection(this.db, 'gradings'),
+          where('orderId', '==', term),
+        );
+        const snap = await getDocs(qOrder);
+        snap.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+      } else {
+        const q = query(
+          collection(this.db, 'gradings'),
+          where(field, '==', term),
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach((d) => results.set(d.id, firestoreDocToGrading(d)));
+      }
+
+      let gradingList = Array.from(results.values());
+      if (status) {
+        gradingList = gradingList.filter((g) => g.status === status);
+      }
+      return gradingList;
+    } else if (criteria.kind === 'date') {
+      let q = query(collection(this.db, 'gradings'));
+      if (criteria.startDate) {
+        q = query(q, where('gradingEventDate', '>=', criteria.startDate));
+      }
+      if (criteria.endDate) {
+        q = query(q, where('gradingEventDate', '<=', criteria.endDate));
+      }
+      q = query(q, orderBy('gradingEventDate', 'desc'), limit(500));
+      const snap = await getDocs(q);
+      let results = snap.docs.map(firestoreDocToGrading);
+      if (status) {
+        results = results.filter((g) => g.status === status);
+      }
+      return results;
+    }
+    return [];
   }
 
   async updateMyGradingsAssessedSync(user: UserDetails) {

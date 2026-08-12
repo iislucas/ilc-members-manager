@@ -33,6 +33,8 @@ import {
   SubscriptionInterval,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
+import { assignNextMemberId } from './counters';
+import { resolveCountryCode, resolveCountryName } from './country-codes';
 
 import { getSubscriptionCurrentPeriodEnd } from './stripe-subscriptions';
 
@@ -352,6 +354,7 @@ export async function fulfillStripeOrder(
         memberUpdates['membershipType'] = MembershipType.Life;
         memberUpdates['currentMembershipExpires'] = '9999-12-31';
         memberUpdates['membershipNextAutoRenewDate'] = '';
+        memberUpdates['lastRenewalDate'] = today;
       } else {
         const newExpires = extendDateByYears(
           member.currentMembershipExpires,
@@ -365,6 +368,52 @@ export async function fulfillStripeOrder(
           memberUpdates['membershipSubscriptionId'] = order.subscriptionId;
           memberUpdates['membershipNextAutoRenewDate'] = newExpires;
         }
+      }
+
+      // If the member does not already have a memberId, auto-assign one based on country.
+      if (!member.memberId || member.memberId.trim() === '') {
+        const countryInput = member.country || order.billingAddress?.country || '';
+        const countryCode = resolveCountryCode(countryInput);
+        if (countryCode) {
+          try {
+            const newMemberId = await assignNextMemberId(countryCode, db);
+            memberUpdates['memberId'] = newMemberId;
+            member.memberId = newMemberId;
+            logger.info('Assigned new member ID for Stripe membership purchase', {
+              memberDocId: member.docId,
+              memberId: newMemberId,
+              countryCode,
+              orderDocId,
+            });
+          } catch (e) {
+            logger.error('Failed to assign member ID for Stripe membership purchase', {
+              memberDocId: member.docId,
+              countryCode,
+              orderDocId,
+              error: e,
+            });
+          }
+        } else {
+          logger.warn('Could not resolve country code to assign member ID for Stripe membership purchase', {
+            memberDocId: member.docId,
+            memberCountry: member.country,
+            billingCountry: order.billingAddress?.country,
+            orderDocId,
+          });
+        }
+
+        // If the member record had no country populated, update it from the resolved billing country
+        if (!member.country && countryCode) {
+          const resolvedCountry = resolveCountryName(countryCode);
+          memberUpdates['country'] = resolvedCountry;
+          member.country = resolvedCountry;
+        }
+      }
+
+      // Record first membership start date if not set
+      if (!member.firstMembershipStarted) {
+        memberUpdates['firstMembershipStarted'] = today;
+        member.firstMembershipStarted = today;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
       const newExpires = extendDateByYears(

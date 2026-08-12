@@ -21,6 +21,7 @@ export class InstructorSelectorComponent {
   placeholder = input<string>('Search for an instructor');
   disabled = input<boolean>(false);
   name = input<string>('');
+  showNoneSelected = input<boolean>(true);
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,
