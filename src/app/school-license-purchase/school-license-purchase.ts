@@ -261,13 +261,14 @@ export class SchoolLicensePurchaseComponent {
 
     try {
       const origin = window.location.origin;
-      const successUrl = `${origin}/school-license?session_id={CHECKOUT_SESSION_ID}`;
+      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/school-license`;
 
       const targetSchool = this.selectedSchool();
       const metadata: Record<string, string> = {
         memberDocId: user.member.docId,
         memberId: user.member.memberId || '',
+        orderType: 'school',
       };
       if (targetSchool) {
         metadata['schoolDocId'] = targetSchool.docId;

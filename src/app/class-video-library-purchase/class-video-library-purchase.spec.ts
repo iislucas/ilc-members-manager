@@ -169,8 +169,13 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
       window.location.origin,
       1,
       expect.objectContaining({
-        successUrl: expect.stringContaining('/class-video-library-subscription?session_id={CHECKOUT_SESSION_ID}'),
+        successUrl: expect.stringContaining('/order-complete?session_id={CHECKOUT_SESSION_ID}'),
         cancelUrl: expect.stringContaining('/class-video-library-subscription'),
+        metadata: {
+          memberDocId: 'mem_vid_1',
+          memberId: '',
+          orderType: 'video',
+        },
       }),
     );
     expect(redirectSpy).toHaveBeenCalledWith(

@@ -174,7 +174,7 @@ describe('InstructorLicensePurchaseComponent', () => {
       window.location.origin,
       1,
       expect.objectContaining({
-        successUrl: expect.stringContaining('/instructor-license?session_id={CHECKOUT_SESSION_ID}'),
+        successUrl: expect.stringContaining('/order-complete?session_id={CHECKOUT_SESSION_ID}'),
         cancelUrl: expect.stringContaining('/instructor-license'),
       }),
     );

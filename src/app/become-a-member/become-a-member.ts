@@ -559,7 +559,7 @@ export class BecomeAMemberComponent {
       );
 
       const origin = window.location.origin;
-      const successUrl = `${origin}/?welcome=membership&session_id={CHECKOUT_SESSION_ID}`;
+      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/become-a-member`;
 
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(
@@ -572,6 +572,7 @@ export class BecomeAMemberComponent {
           metadata: {
             memberDocId: user.member.docId,
             memberId: user.member.memberId || '',
+            orderType: 'membership',
           },
         },
       );

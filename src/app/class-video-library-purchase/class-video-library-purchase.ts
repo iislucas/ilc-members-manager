@@ -201,7 +201,7 @@ export class ClassVideoLibraryPurchaseComponent {
 
     try {
       const origin = window.location.origin;
-      const successUrl = `${origin}/class-video-library-subscription?session_id={CHECKOUT_SESSION_ID}`;
+      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/class-video-library-subscription`;
 
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(
@@ -214,6 +214,7 @@ export class ClassVideoLibraryPurchaseComponent {
           metadata: {
             memberDocId: user.member.docId,
             memberId: user.member.memberId || '',
+            orderType: 'video',
           },
         },
       );

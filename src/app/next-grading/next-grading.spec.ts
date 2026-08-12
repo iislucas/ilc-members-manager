@@ -181,12 +181,13 @@ describe('NextGradingComponent', () => {
       window.location.origin,
       1,
       expect.objectContaining({
-        successUrl: expect.stringContaining('/next-grading?session_id={CHECKOUT_SESSION_ID}'),
+        successUrl: expect.stringContaining('/order-complete?session_id={CHECKOUT_SESSION_ID}'),
         cancelUrl: expect.stringContaining('/next-grading'),
         metadata: {
           memberDocId: 'mem_student_1',
           memberId: '',
           gradingLevel: 'Student 2',
+          orderType: 'grading',
         },
       }),
     );

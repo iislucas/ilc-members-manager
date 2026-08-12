@@ -230,7 +230,7 @@ export class InstructorLicensePurchaseComponent {
 
     try {
       const origin = window.location.origin;
-      const successUrl = `${origin}/instructor-license?session_id={CHECKOUT_SESSION_ID}`;
+      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/instructor-license`;
 
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(
@@ -244,6 +244,7 @@ export class InstructorLicensePurchaseComponent {
             memberDocId: user.member.docId,
             memberId: user.member.memberId || '',
             instructorId: user.member.instructorId || '',
+            orderType: 'license',
           },
         },
       );

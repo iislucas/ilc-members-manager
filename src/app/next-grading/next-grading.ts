@@ -247,7 +247,7 @@ export class NextGradingComponent {
 
     try {
       const origin = window.location.origin;
-      const successUrl = `${origin}/next-grading?session_id={CHECKOUT_SESSION_ID}`;
+      const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/next-grading`;
 
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(
@@ -261,6 +261,7 @@ export class NextGradingComponent {
             memberDocId: user.member.docId,
             memberId: user.member.memberId || '',
             gradingLevel: this.nextLevel() || '',
+            orderType: 'grading',
           },
         },
       );

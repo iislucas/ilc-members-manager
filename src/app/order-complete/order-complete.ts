@@ -20,7 +20,10 @@ import { IconComponent } from '../icons/icon.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { StripeService } from '../stripe.service';
+import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
+import { Grading } from '../../../functions/src/data-model';
 
 export type OrderKind = 'membership' | 'grading' | 'license' | 'video' | 'general';
 
@@ -40,6 +43,8 @@ type LoadState =
 })
 export class OrderCompleteComponent {
   private stripeService = inject(StripeService);
+  private dataService = inject(DataManagerService);
+  private firebaseStateService = inject(FirebaseStateService);
   public readonly Views = Views;
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
@@ -48,6 +53,41 @@ export class OrderCompleteComponent {
   );
 
   protected state = signal<LoadState>({ kind: 'idle' });
+
+  latestGrading = computed<Grading | null>(() => {
+    const user = this.firebaseStateService.user();
+    if (!user) return null;
+    const gradings = this.dataService.myGradings.entries();
+    if (!gradings || gradings.length === 0) return null;
+
+    const s = this.state();
+    const summaryMeta = s.kind === 'loaded' ? s.summary.metadata : null;
+    const targetLevel = summaryMeta?.['gradingLevel'];
+
+    if (targetLevel) {
+      const match = gradings.find((g) => g.level === targetLevel);
+      if (match) return match;
+    }
+
+    // Sort by date / lastUpdated descending
+    const sorted = [...gradings].sort((a, b) => {
+      const dateA = a.gradingPurchaseDate || a.lastUpdated || '';
+      const dateB = b.gradingPurchaseDate || b.lastUpdated || '';
+      return dateB.localeCompare(dateA);
+    });
+
+    return sorted[0] || null;
+  });
+
+  latestGradingHref = computed<string>(() => {
+    const g = this.latestGrading();
+    if (!g) return this.routingService.hrefForView(Views.MemberGradings);
+    return this.routingService.hrefForView(
+      Views.GradingView,
+      { gradingId: g.docId },
+      { from: 'my-gradings' },
+    );
+  });
 
   orderKind = computed<OrderKind>(() => {
     const s = this.state();

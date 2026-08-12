@@ -49,9 +49,9 @@
             </p>
           }
         } @else if (kind === 'grading') {
-          <h1>Grading Registration Confirmed!</h1>
+          <h1>Grading Payment Received!</h1>
           <p class="lead">
-            Your grading registration and payment have been confirmed.
+            Your grading registration and examination fee have been received.
             @if (summary.customerEmail) {
               A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
             }
@@ -190,17 +190,33 @@
         </div>
       } @else if (kind === 'grading') {
         <div class="member-benefits-section">
-          <h2>Your Training Progression</h2>
+          <h2>Your Next Steps</h2>
           <div class="benefits-grid single-col">
+            @if (latestGrading(); as grading) {
+              <div class="benefit-card">
+                <div class="benefit-icon-box">
+                  <app-icon name="salut" width="24px" height="24px"></app-icon>
+                </div>
+                <div class="benefit-body">
+                  <h4>{{ grading.level || 'Grading Assessment' }}</h4>
+                  <p>Your grading entry has been created and is ready. You can now select your examining instructor, submit your request, and track your evaluation.</p>
+                  <a class="benefit-link" [href]="latestGradingHref()">
+                    <span>View New Grading Entry</span>
+                    <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                  </a>
+                </div>
+              </div>
+            }
+
             <div class="benefit-card">
               <div class="benefit-icon-box">
-                <app-icon name="salut" width="24px" height="24px"></app-icon>
+                <app-icon name="mountain" width="24px" height="24px"></app-icon>
               </div>
               <div class="benefit-body">
-                <h4>My Gradings</h4>
-                <p>View your grading history, assigned instructor, and upcoming assessment schedule.</p>
+                <h4>All My Gradings</h4>
+                <p>View your complete grading history, passed certificates, and progress overview.</p>
                 <a class="benefit-link" [href]="routingService.hrefForView(Views.MemberGradings)">
-                  <span>Go to My Gradings</span>
+                  <span>View All Gradings</span>
                   <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
                 </a>
               </div>
@@ -236,12 +252,21 @@
             <span>Go to Members Portal Homepage</span>
           </span>
         </a>
-        <a class="profile-btn" [href]="routingService.hrefForView(Views.MyProfile)">
-          <span class="btn-content">
-            <app-icon name="person"></app-icon>
-            <span>View My Profile</span>
-          </span>
-        </a>
+        @if (kind === 'grading') {
+          <a class="profile-btn" [href]="routingService.hrefForView(Views.MemberGradings)">
+            <span class="btn-content">
+              <app-icon name="mountain"></app-icon>
+              <span>View All Gradings</span>
+            </span>
+          </a>
+        } @else {
+          <a class="profile-btn" [href]="routingService.hrefForView(Views.MyProfile)">
+            <span class="btn-content">
+              <app-icon name="person"></app-icon>
+              <span>View My Profile</span>
+            </span>
+          </a>
+        }
       </div>
     }
   }
