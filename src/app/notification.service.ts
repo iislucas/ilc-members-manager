@@ -47,6 +47,8 @@ import {
   OrderKind,
   OrderStatus,
   PushSubscriptionDoc,
+  SquareSpaceOrder,
+  SquarespaceFulfillmentStatus,
   UploadItem,
   eventStatusLabel,
   firestoreDocToGrading,
@@ -478,7 +480,7 @@ export class NotificationService implements OnDestroy {
     entityIdField: string,
     resolve: (
       notif: MemberNotification,
-    ) => Promise<{ markdown: string; data: object; resolved: boolean } | null>,
+    ) => Promise<{ markdown: string; data: object; resolved: boolean; kind?: NotificationKind } | null>,
   ): Promise<void> {
     const batch = writeBatch(this.db);
     let writes = 0;
@@ -488,7 +490,7 @@ export class NotificationService implements OnDestroy {
       const data = notif.data as unknown as Record<string, unknown> | undefined;
       if (!data || !data[entityIdField]) continue;
 
-      let desired: { markdown: string; data: object; resolved: boolean } | null;
+      let desired: { markdown: string; data: object; resolved: boolean; kind?: NotificationKind } | null;
       try {
         desired = await resolve(notif);
       } catch (e) {
@@ -501,6 +503,9 @@ export class NotificationService implements OnDestroy {
       if (desired.markdown !== notif.markdown) patch['markdown'] = desired.markdown;
       if (this.stableStringify(desired.data) !== this.stableStringify(notif.data)) {
         patch['data'] = desired.data;
+      }
+      if (desired.kind && desired.kind !== notif.kind) {
+        patch['kind'] = desired.kind;
       }
       if (desired.resolved && !notif.dismissed) patch['dismissed'] = true;
 
@@ -978,6 +983,7 @@ export class NotificationService implements OnDestroy {
         notifCollection,
         where('kind', 'in', [
           NotificationKind.OrderNeedsAttention,
+          NotificationKind.ManualOrderFulfilled,
           NotificationKind.OrderIssuesSummary,
         ]),
       ),
@@ -986,7 +992,10 @@ export class NotificationService implements OnDestroy {
     const existingOrderDocs: QueryDocumentSnapshot[] = [];
     existingSnap.forEach((d) => {
       const notif = firestoreDocToMemberNotification(d);
-      if (notif.kind === NotificationKind.OrderNeedsAttention) {
+      if (
+        notif.kind === NotificationKind.OrderNeedsAttention ||
+        notif.kind === NotificationKind.ManualOrderFulfilled
+      ) {
         existingOrderDocs.push(d);
         const data = notif.data as { orderDocId?: string };
         if (data?.orderDocId) notifiedOrderIds.add(data.orderDocId);
@@ -1064,9 +1073,10 @@ export class NotificationService implements OnDestroy {
     }
 
     // Reconcile already-surfaced order-issue notifications: an order still flagged
-    // has its status/issues refreshed; an order that has since been resolved (no
-    // longer in an attention status, or deleted) is rewritten to say so and
-    // dismissed.
+    // has its status/issues refreshed; an order that was manual and is now fulfilled
+    // is rewritten as an FYI ManualOrderFulfilled notification; an order that has since
+    // been resolved (no longer in an attention status, or deleted) is rewritten to say so
+    // and dismissed.
     await this.reconcileNotifications(existingOrderDocs, 'orderDocId', async (notif) => {
       const data = notif.data as NotificationOrderIssueData;
       const snap = await getDoc(doc(this.db, 'orders', data.orderDocId));
@@ -1079,6 +1089,36 @@ export class NotificationService implements OnDestroy {
       }
       const order = firestoreDocToOrder(snap);
       const status = order.ilcAppOrderStatus as OrderStatus;
+
+      const hasErrors =
+        order.ilcAppOrderStatus === OrderStatus.Error ||
+        (order.ilcAppOrderKind === OrderKind.Squarespace &&
+          (order.lineItems || []).some((li) => li.ilcAppProcessingStatus === OrderStatus.Error));
+
+      const wasManual =
+        !hasErrors &&
+        (notif.kind === NotificationKind.ManualOrderFulfilled ||
+          data.status === OrderStatus.NeedsManualProcessing ||
+          notif.markdown.includes('needs manual processing') ||
+          notif.markdown.includes('manual order was fulfilled'));
+
+      const isFulfilled =
+        (order as SquareSpaceOrder).fulfillmentStatus === SquarespaceFulfillmentStatus.Fulfilled ||
+        status === OrderStatus.Processed;
+
+      if (wasManual && isFulfilled && status === OrderStatus.Processed && !hasErrors) {
+        return {
+          markdown: this.manualOrderFulfilledMarkdown(order),
+          data: {
+            ...this.orderIssueFields(order).data,
+            status: OrderStatus.Processed,
+            issues: [],
+          },
+          resolved: false,
+          kind: NotificationKind.ManualOrderFulfilled,
+        };
+      }
+
       if (!NotificationService.ORDER_ATTENTION_STATUSES.includes(status)) {
         return {
           markdown: `Order [#${this.orderRef(order)}](/order-view/${order.docId}) — now resolved (${status})`,
@@ -1086,8 +1126,26 @@ export class NotificationService implements OnDestroy {
           resolved: true,
         };
       }
-      return { ...this.orderIssueFields(order), resolved: false };
+      return {
+        ...this.orderIssueFields(order),
+        resolved: false,
+        kind: NotificationKind.OrderNeedsAttention,
+      };
     });
+  }
+
+  private manualOrderFulfilledMarkdown(order: Order): string {
+    const orderRef = this.orderRef(order);
+    const customer = this.orderCustomer(order);
+    const items = this.orderItemsSummary(order);
+    const details = [
+      customer ? `from ${customer}` : '',
+      items ? `for ${items}` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const detailsSuffix = details ? ` (${details})` : '';
+    return `Order [#${orderRef}](/order-view/${order.docId})${detailsSuffix} — manual order was fulfilled`;
   }
 
   // The markdown + data for an order-issue notification, shared by the create and

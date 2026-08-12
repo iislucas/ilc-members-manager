@@ -53,21 +53,21 @@ describe('validateProposal', () => {
 });
 
 describe('buildManagerDocIds', () => {
-  it('always includes the submitter when no managers are provided', () => {
-    expect(buildManagerDocIds(undefined, 'member-1')).toEqual(['member-1']);
-    expect(buildManagerDocIds([], 'member-1')).toEqual(['member-1']);
+  it('returns empty list when no managers are provided', () => {
+    expect(buildManagerDocIds(undefined, 'member-1')).toEqual([]);
+    expect(buildManagerDocIds([], 'member-1')).toEqual([]);
   });
 
-  it('appends the submitter to the provided managers', () => {
-    expect(buildManagerDocIds(['mgr-a', 'mgr-b'], 'member-1')).toEqual(['mgr-a', 'mgr-b', 'member-1']);
+  it('keeps the provided managers without appending the creator', () => {
+    expect(buildManagerDocIds(['mgr-a', 'mgr-b'], 'member-1')).toEqual(['mgr-a', 'mgr-b']);
   });
 
-  it('does not duplicate the submitter if already listed', () => {
-    expect(buildManagerDocIds(['mgr-a', 'member-1'], 'member-1')).toEqual(['mgr-a', 'member-1']);
+  it('excludes the creator if included in the provided managers', () => {
+    expect(buildManagerDocIds(['mgr-a', 'member-1'], 'member-1')).toEqual(['mgr-a']);
   });
 
   it('removes empty entries and de-duplicates', () => {
-    expect(buildManagerDocIds(['mgr-a', '', 'mgr-a', ''], 'member-1')).toEqual(['mgr-a', 'member-1']);
+    expect(buildManagerDocIds(['mgr-a', '', 'mgr-a', ''], 'member-1')).toEqual(['mgr-a']);
   });
 });
 

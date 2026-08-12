@@ -92,16 +92,16 @@ async function eventOrganiserDocIds(
 
 /**
  * The manager doc IDs to store on a proposed event: the caller-supplied list
- * plus the submitter (who is always a manager), with empty entries removed and
- * duplicates collapsed while preserving order.
+ * with empty entries removed and duplicates collapsed, excluding the creator/owner
+ * (who automatically has full manager access).
  */
 export function buildManagerDocIds(
   providedIds: string[] | undefined,
-  submitterDocId: string,
+  ownerDocId?: string,
 ): string[] {
-  return Array.from(
-    new Set([...(providedIds || []), submitterDocId].filter(Boolean)),
-  );
+  const ids = (providedIds || []).filter(Boolean);
+  const filtered = ownerDocId ? ids.filter((id) => id !== ownerDocId) : ids;
+  return Array.from(new Set(filtered));
 }
 
 /** Loads member documents on demand, caching each doc ID's result. */
@@ -208,11 +208,11 @@ export const submitProposedEvent = onCall(
 
     const data = request.data;
 
-    // Owner defaults to the submitter; the submitter is always included as a
-    // manager (pinned in the form and enforced here). ownerEmails/managerEmails
-    // are resolved from these doc IDs by the onEventCreated trigger.
+    // Owner defaults to the submitter. The creator automatically has manager
+    // access and does not need to be in managerDocIds.
+    // ownerEmails/managerEmails are resolved from these doc IDs by the onEventCreated trigger.
     const ownerDocId = data.ownerDocId || member.docId;
-    const managerDocIds = buildManagerDocIds(data.managerDocIds, member.docId);
+    const managerDocIds = buildManagerDocIds(data.managerDocIds, ownerDocId);
 
     // Cache the owner's identity + optional inline mini-profile so a non-instructor
     // owner displays without depending on an instructorId. The mini-profile contact

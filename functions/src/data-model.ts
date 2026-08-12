@@ -582,6 +582,8 @@ export enum NotificationKind {
   // Admin-only: an order failed automatic processing (ilcAppOrderStatus 'error' or
   // 'needs-manual-processing') and needs an admin to resolve it from the order view.
   OrderNeedsAttention = 'OrderNeedsAttention',
+  // Admin-only: an order that needed manual processing has been fulfilled.
+  ManualOrderFulfilled = 'ManualOrderFulfilled',
   // Sent to a student when their primary instructor removes them from their
   // student list (which clears the student's primaryInstructorId). Informational
   // rather than an action: picking a new primary instructor is entirely optional
@@ -832,6 +834,10 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.OrderNeedsAttention;
+    data: NotificationOrderIssueData;
+  }
+  | {
+    kind: NotificationKind.ManualOrderFulfilled;
     data: NotificationOrderIssueData;
   }
   | {
@@ -1725,7 +1731,7 @@ export type Grading = {
   acceptedByMemberDocId: string; // Firestore doc ID of the accepting member.
   acceptedByName: string; // Display name of the accepting member at the time.
   // Who most recently changed the grading's status via the workflow (accept,
-  // decline, revert, record result). Used to show "Moved back by X" and to tell
+  // decline, revert, record result). Used to show "Declined by X" and to tell
   // co-managers who acted. Distinct from acceptedBy*: this tracks the latest
   // status transition regardless of kind. '' until the first status change.
   statusChangedByMemberDocId: string; // Firestore doc ID of the member who acted.
@@ -2154,8 +2160,9 @@ export function eventOwnerContact(event: {
   const contactUrl = event.ownerContactUrl || '';
   const memberId = event.ownerMemberId || '';
   const fallbackEmail = event.ownerEmails && event.ownerEmails.length > 0 ? event.ownerEmails[0] : '';
+  const hasOwner = memberDocId !== '' || Boolean(event.ownerName) || Boolean(contactEmail) || Boolean(contactUrl);
   return {
-    hasOwner: memberDocId !== '',
+    hasOwner,
     memberDocId,
     name: event.ownerName || memberId || fallbackEmail,
     memberId,

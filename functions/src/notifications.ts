@@ -15,7 +15,7 @@ import { MemberNotification } from './data-model';
 // relates to. When a new notification carries one of these, any existing
 // notifications (read or unread) for the same member + entity are removed
 // first, so a given entity is only ever represented by one notification.
-const DEDUP_FIELDS = ['gradingDocId', 'eventId', 'orderId', 'uploadDocId'] as const;
+const DEDUP_FIELDS = ['gradingDocId', 'eventId', 'orderId', 'uploadDocId', 'orderDocId'] as const;
 
 // Creates a notification document in the member's notifications subcollection.
 // If the notification's data carries a known entity key (see DEDUP_FIELDS),

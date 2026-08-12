@@ -28,12 +28,15 @@ describe('EventEditComponent', () => {
   let fixture: ComponentFixture<EventEditComponent>;
   let mockRoutingService: RoutingService<AppPathPatterns>;
   let mockDataManagerService: DataManagerService;
+  let mockFirebaseState: ReturnType<typeof createFirebaseStateServiceMock>;
 
   beforeEach(async () => {
+    mockFirebaseState = createFirebaseStateServiceMock();
     mockRoutingService = {
       navigateToParts: vi.fn(),
       matchedPatternId: signal(Views.ManageEventEdit),
       hrefWithParams: vi.fn().mockReturnValue('#'),
+      hrefForView: vi.fn().mockImplementation((view, params) => `/${view}/${params?.eventId || ''}`),
     } as unknown as RoutingService<AppPathPatterns>;
 
     mockDataManagerService = {
@@ -51,7 +54,7 @@ describe('EventEditComponent', () => {
         provideNavigationTreeStub(),
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} }, // Mock app object
-        { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
+        { provide: FirebaseStateService, useValue: mockFirebaseState },
         { provide: DataManagerService, useValue: mockDataManagerService },
       ]
     })
@@ -81,6 +84,7 @@ describe('EventEditComponent', () => {
       status: EventStatus.Proposed,
       heroImageUrl: '',
       ownerDocId: 'owner-id',
+      ownerInstructorId: '1',
     } as IlcEvent;
 
     component.event.set(mockEvent);
@@ -95,7 +99,7 @@ describe('EventEditComponent', () => {
       ownerDocId: 'owner-id',
       ownerName: '',
       ownerMemberId: '',
-      ownerInstructorId: '',
+      ownerInstructorId: '1',
       ownerContactEmail: '',
       ownerContactUrl: '',
       managerDocIds: [],
@@ -363,6 +367,7 @@ describe('EventEditComponent', () => {
       docId: 'test-doc-id',
       title: 'Title',
       ownerDocId: 'owner-id',
+      ownerInstructorId: 'I-1',
     } as IlcEvent);
     component.eventFormModel.set({
       ...component.eventFormModel(),
@@ -416,38 +421,32 @@ describe('EventEditComponent', () => {
     await fixture.whenStable();
   }
 
-  const creatorCheckbox = (): HTMLInputElement =>
-    fixture.nativeElement.querySelector('.owner-editor input[type="checkbox"]');
   const managerCheckboxes = (): HTMLInputElement[] =>
     Array.from(fixture.nativeElement.querySelectorAll('.manager-contact-row input[type="checkbox"]'));
 
-  it('gives the creator a single contact checkbox when they are also a manager', async () => {
+  it('always includes the organizer as a contact on save without a separate checkbox', async () => {
     const creator = { docId: 'creator-doc-id', instructorId: '7', memberId: 'MEM-7', name: 'Creator' };
     const other = { docId: 'other-doc-id', instructorId: '9', memberId: 'MEM-9', name: 'Other' };
     (mockDataManagerService.instructors as any).setEntries([creator, other]);
 
-    // Every proposed event starts this way: the submitter is both the creator
-    // and a manager.
     await renderEvent({
       ownerDocId: 'creator-doc-id',
       ownerName: 'Creator',
       ownerMemberId: 'MEM-7',
       ownerInstructorId: '7',
-      managerDocIds: ['creator-doc-id', 'other-doc-id'],
+      managerDocIds: ['other-doc-id'],
       contacts: [],
     });
 
-    // Only the second manager gets a row checkbox; the creator's listing is
-    // controlled once, in the Creator section.
+    // Only the other manager gets a row checkbox; the organizer has no checkbox because they are always a contact.
     expect(managerCheckboxes().length).toBe(1);
 
-    creatorCheckbox().click();
-    fixture.detectChanges();
-    await fixture.whenStable();
+    await component.saveEvent({ preventDefault: vi.fn() } as unknown as Event);
 
-    expect(component.isListedContact('creator-doc-id')).toBe(true);
-    expect(component.isListedContact('other-doc-id')).toBe(false);
-    expect(managerCheckboxes()[0].checked).toBe(false);
+    const saved = (updateDoc as any).mock.calls.at(-1)[1];
+    expect(saved.contacts.length).toBe(1);
+    expect(saved.contacts[0].memberDocId).toBe('creator-doc-id');
+    expect(saved.contacts[0].name).toBe('Creator');
   });
 
   it('keeps each manager contact checkbox independent', async () => {
@@ -540,5 +539,132 @@ describe('EventEditComponent', () => {
     expect(saved.ownerName).toBe('Creator Name');
     expect(saved.ownerMemberId).toBe('MEM-7');
     expect(saved.ownerInstructorId).toBe('7');
+  });
+
+  it('provides a publicListingHref link to the public listing of the event', async () => {
+    await renderEvent({
+      docId: 'test-doc-id',
+      title: 'Public Test Event',
+    });
+
+    expect(component.publicListingHref()).toBe(`/${Views.EventView}/test-doc-id`);
+    const publicLink = fixture.nativeElement.querySelector('.event-top-bar a');
+    expect(publicLink).toBeTruthy();
+    expect(publicLink.textContent).toContain('View Event Page');
+  });
+
+  it('excludes creator from managerDocIds when loading an event', async () => {
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      managerDocIds: ['creator-doc-id', 'other-manager-doc-id'],
+    });
+
+    expect(component.eventFormModel().managerDocIds).toEqual(['other-manager-doc-id']);
+  });
+
+  it('does not render Kind or Doc ID fields at the bottom', async () => {
+    await renderEvent({
+      docId: 'test-doc-id',
+      kind: EventSourceKind.FirebaseSourced,
+    });
+
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('label')).map(
+      (el: any) => el.textContent?.trim(),
+    );
+    expect(labels).not.toContain('Kind');
+    expect(labels).not.toContain('Doc ID');
+  });
+
+  it('shows required contact info fields for a non-instructor organizer', async () => {
+    const member = { docId: 'member-doc-id', instructorId: '', memberId: 'MEM-99', name: 'Member Nine', emails: ['nine@example.com'] };
+    (mockDataManagerService.members as any).setEntries([member]);
+    (mockDataManagerService.instructors as any).setEntries([]);
+
+    await renderEvent({
+      ownerDocId: 'member-doc-id',
+      ownerName: 'Member Nine',
+      ownerMemberId: 'MEM-99',
+      ownerInstructorId: '',
+      ownerContactEmail: 'nine@example.com',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    expect(component.assignMemberAsOwner()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.mini-profile')).toBeTruthy();
+    expect(component.eventFormModel().ownerName).toBe('Member Nine');
+    expect(component.eventFormModel().ownerContactEmail).toBe('nine@example.com');
+  });
+
+  it('shows member name in member selector preview while allowing separate contact name entry', async () => {
+    const member = { docId: 'member-doc-id', instructorId: '', memberId: 'MEM-99', name: 'Member Nine', emails: ['nine@example.com'] };
+    (mockDataManagerService.members as any).setEntries([member]);
+    (mockDataManagerService.instructors as any).setEntries([]);
+
+    await renderEvent({
+      ownerDocId: 'member-doc-id',
+      ownerName: 'Custom Contact Person',
+      ownerMemberId: 'MEM-99',
+      ownerInstructorId: '',
+      ownerContactEmail: 'nine@example.com',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    expect(component.assignMemberAsOwner()).toBe(true);
+    // Member selector preview chip displays the selected member's actual account name
+    expect(component.ownerMemberName()).toBe('Member Nine');
+    const selectedNote = fixture.nativeElement.querySelector('.owner-selector-row .selected-note');
+    expect(selectedNote.textContent).toContain('Member Nine');
+
+    // The contact name field below displays the separate contact name
+    expect(fixture.nativeElement.querySelector('#ownerContactName')).toBeTruthy();
+    expect(component.eventFormModel().ownerName).toBe('Custom Contact Person');
+    expect(component.eventFormModel().ownerContactEmail).toBe('nine@example.com');
+  });
+
+  it('shows contact name input when no member is selected in non-instructor mode', async () => {
+    await renderEvent({
+      ownerDocId: '',
+      ownerName: '',
+      ownerMemberId: '',
+      ownerInstructorId: '',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    component.toggleAssignMemberAsOwner(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('#ownerContactName')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#ownerContactEmail')).toBeTruthy();
+  });
+
+  it('does not display member selector or mode checkbox for non-admins', async () => {
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'user@example.com' } as any,
+      member: { docId: 'user-doc-id', name: 'Regular User', memberId: 'REG-1' } as any,
+      acl: { isAdmin: false } as any,
+    });
+
+    await renderEvent({
+      ownerDocId: '',
+      ownerName: '',
+      ownerMemberId: '',
+      ownerInstructorId: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    expect(component.userIsAdmin()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('Set a non-instructor as the organizer');
+    expect(fixture.nativeElement.querySelector('.member-selector-label')).toBeFalsy();
+    // Should show instructor selector instead
+    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
   });
 });

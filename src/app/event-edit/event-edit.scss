@@ -2,6 +2,15 @@
 @use "../edit-form.scss" as *;
 @use "../../styles" as *;
 
+.event-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  margin-bottom: 0.75em;
+}
+
 .status-chip-container {
   display: flex;
   justify-content: center;

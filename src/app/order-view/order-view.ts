@@ -1,7 +1,7 @@
 import { Component, effect, inject, signal, computed, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
-import { Order, OrderStatus, OrderKind, SquarespaceFulfillmentStatus } from '../../../functions/src/data-model';
+import { Order, OrderStatus, OrderKind, SquarespaceFulfillmentStatus, SquareSpaceOrder } from '../../../functions/src/data-model';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
@@ -154,9 +154,23 @@ export class OrderView {
     if (!o) return;
 
     try {
-      const updatedOrder = { ...o, fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled };
-      await this.dataService.updateOrder(o.docId, updatedOrder);
-      await this.fetchOrder(this.orderId());
+      if (o.ilcAppOrderKind === OrderKind.Squarespace) {
+        const lineItems = (o.lineItems || []).map((li) =>
+          li.ilcAppProcessingStatus === OrderStatus.NeedsManualProcessing
+            ? { ...li, ilcAppProcessingStatus: OrderStatus.Processed, ilcAppProcessingIssue: undefined }
+            : li,
+        );
+        const hasRemainingErrors = lineItems.some((li) => li.ilcAppProcessingStatus === OrderStatus.Error);
+        const updatedOrder: SquareSpaceOrder = {
+          ...o,
+          fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
+          ilcAppOrderStatus: hasRemainingErrors ? OrderStatus.Error : OrderStatus.Processed,
+          ilcAppOrderIssues: hasRemainingErrors ? (o.ilcAppOrderIssues || []) : [],
+          lineItems,
+        };
+        await this.dataService.updateOrder(o.docId, updatedOrder);
+        await this.fetchOrder(this.orderId());
+      }
     } catch (e: unknown) {
       alert(`Error marking as fulfilled: ${(e as Error).message}`);
     }

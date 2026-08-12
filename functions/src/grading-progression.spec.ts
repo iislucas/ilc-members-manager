@@ -121,6 +121,7 @@ describe('grading progression helpers', () => {
       expect(notificationStyle(NotificationKind.GradingNotPassed)).toBe('info');
       expect(notificationStyle(NotificationKind.BlogPost)).toBe('info');
       expect(notificationStyle(NotificationKind.PurchaseFulfilled)).toBe('info');
+      expect(notificationStyle(NotificationKind.ManualOrderFulfilled)).toBe('info');
     });
   });
 

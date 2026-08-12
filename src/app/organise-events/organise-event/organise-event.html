@@ -76,30 +76,30 @@
       </div>
 
       @if (submitterIsInstructor()) {
-        <div class="owner-selector-row">
-          <app-instructor-selector
-            [placeholder]="'Search for an instructor'"
-            [value]="ownerInstructorId()"
-            (valueChange)="updateOwnerInstructor($event)"
-          ></app-instructor-selector>
-        </div>
-
-        @if (!eventModel().ownerDocId) {
-          <div class="error-message">
-            Please select a valid instructor for the main contact.
+        @if (!hasCustomContactInfo()) {
+          <div class="owner-selector-row">
+            <app-instructor-selector
+              [placeholder]="'Search for an instructor'"
+              [value]="ownerInstructorId()"
+              (valueChange)="updateOwnerInstructor($event)"
+            ></app-instructor-selector>
           </div>
+
+          @if (!eventModel().ownerDocId) {
+            <div class="error-message">
+              Please select a valid instructor for the main contact.
+            </div>
+          }
         }
 
-        @if (ownerIsInstructor()) {
-          <label class="checkbox-row">
-            <input
-              type="checkbox"
-              [checked]="hasCustomContactInfo()"
-              (change)="setHasCustomContactInfo($any($event.target).checked)"
-            />
-            Provide different primary contact information
-          </label>
-        }
+        <label class="checkbox-row">
+          <input
+            type="checkbox"
+            [checked]="hasCustomContactInfo()"
+            (change)="setHasCustomContactInfo($any($event.target).checked)"
+          />
+          Provide different primary contact information
+        </label>
       } @else {
         @if (submitter(); as me) {
           <div class="owner-display-row">
@@ -151,19 +151,11 @@
     <div class="input-field">
       <label>Event managers</label>
       <div class="intro-text">
-        Managers can edit this event's details. You are always a manager. Add other
-        instructors who should be able to manage it, and tick any who should also
-        be listed publicly as a contact for the event.
+        Managers can edit this event's details. The event creator automatically has
+        full access. Add any additional instructors who should be able to manage
+        this event, and tick any who should also be listed as an additional event contact.
       </div>
       <div class="manager-list">
-        @if (submitter(); as me) {
-          <div class="manager-row">
-            <span class="selected-name">{{ me.name }} (you)</span>
-            @if (me.memberId) {
-              <span class="identifier-chip">{{ me.memberId }}</span>
-            }
-          </div>
-        }
         @for (
           managerDocId of eventModel().managerDocIds;
           track $index;
@@ -203,7 +195,7 @@
                 [checked]="isListedContact(managerDocId)"
                 (change)="setContactListed(managerDocId, $any($event.target).checked)"
               />
-              List as a public contact
+              List as an additional event contact
             </label>
           }
         }
@@ -235,7 +227,7 @@
       <label>Image</label>
       <div class="intro-text">
         The main banner shown across the top of the event's page, and as the
-        thumbnail in event listings. Landscape photos work best — you can crop it
+        thumbnail in event listings. Landscape photos work best (recommended: 600×400 px or larger, 3:2 ratio) — you can crop it
         after uploading.
       </div>
       <div class="rhs">
