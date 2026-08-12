@@ -7,6 +7,7 @@ import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
+import { SpinnerComponent } from '../spinner/spinner.component';
 import { MemberOrder, MembershipType } from '../../../functions/src/data-model';
 
 export enum SubscriptionCardCategory {
@@ -45,7 +46,7 @@ export interface DisplaySubscriptionCard {
 @Component({
   selector: 'app-member-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
   templateUrl: './member-orders.html',
   styleUrl: './member-orders.scss',
 })
@@ -62,7 +63,7 @@ export class MemberOrdersComponent {
   actionInProgressSubId = signal<string | null>(null);
   actionMessage = signal<string | null>(null);
   actionError = signal<string | null>(null);
-  expandedOrderDocIds = signal<Set<string>>(new Set());
+  portalLoading = signal(false);
 
   today = computed(() => new Date().toISOString().split('T')[0]);
 
@@ -269,30 +270,17 @@ export class MemberOrdersComponent {
     if (!query) return raw;
 
     return raw.filter((o) => {
+      const matchDocId = (o.orderDocId || o.docId || '').toLowerCase().includes(query);
       const matchNum = (o.orderNumber || '').toLowerCase().includes(query);
       const matchDesc = (o.description || '').toLowerCase().includes(query);
       const matchDate = (o.date || '').toLowerCase().includes(query);
       const matchType = (o.orderType || '').toLowerCase().includes(query);
       const matchStatus = (o.paymentStatus || '').toLowerCase().includes(query);
       return (
-        matchNum || matchDesc || matchDate || matchType || matchStatus
+        matchDocId || matchNum || matchDesc || matchDate || matchType || matchStatus
       );
     });
   });
-
-  toggleOrderExpanded(docId: string) {
-    const set = new Set(this.expandedOrderDocIds());
-    if (set.has(docId)) {
-      set.delete(docId);
-    } else {
-      set.add(docId);
-    }
-    this.expandedOrderDocIds.set(set);
-  }
-
-  isOrderExpanded(docId: string): boolean {
-    return this.expandedOrderDocIds().has(docId);
-  }
 
   async onCancelAutoRenew(subscriptionId: string) {
     if (!subscriptionId) return;
@@ -342,6 +330,7 @@ export class MemberOrdersComponent {
 
   async onOpenCustomerPortal() {
     this.actionError.set(null);
+    this.portalLoading.set(true);
 
     try {
       const returnUrl = window.location.href;
@@ -349,8 +338,11 @@ export class MemberOrdersComponent {
         await this.stripeService.createCustomerPortalSession(returnUrl);
       if (result?.url) {
         window.location.href = result.url;
+      } else {
+        this.portalLoading.set(false);
       }
     } catch (err: unknown) {
+      this.portalLoading.set(false);
       const msg = err instanceof Error ? err.message : String(err);
       this.actionError.set(
         `Unable to open billing portal: ${msg}`,

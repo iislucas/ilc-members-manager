@@ -185,14 +185,6 @@ describe('MemberOrdersComponent', () => {
     expect(component.orders().length).toBe(0);
   });
 
-  it('toggles order expansion state', () => {
-    expect(component.isOrderExpanded('order-1')).toBe(false);
-    component.toggleOrderExpanded('order-1');
-    expect(component.isOrderExpanded('order-1')).toBe(true);
-    component.toggleOrderExpanded('order-1');
-    expect(component.isOrderExpanded('order-1')).toBe(false);
-  });
-
   it('cancels auto-renewal on user confirmation and sets banner message', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await component.onCancelAutoRenew('sub_mem_123');
