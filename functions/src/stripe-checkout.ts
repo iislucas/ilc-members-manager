@@ -133,12 +133,43 @@ export const createStripeCheckoutSession = onCall<
     }
   }
 
+  let successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
+  if (typeof request.data?.successUrl === 'string' && request.data.successUrl.trim()) {
+    try {
+      const parsed = new URL(request.data.successUrl, origin);
+      if (allowedOrigins.includes(parsed.origin)) {
+        successUrl = request.data.successUrl;
+      }
+    } catch {
+      // Use default successUrl
+    }
+  }
+
+  let cancelUrl = `${origin}/products`;
+  if (typeof request.data?.cancelUrl === 'string' && request.data.cancelUrl.trim()) {
+    try {
+      const parsed = new URL(request.data.cancelUrl, origin);
+      if (allowedOrigins.includes(parsed.origin)) {
+        cancelUrl = request.data.cancelUrl;
+      }
+    } catch {
+      // Use default cancelUrl
+    }
+  }
+
+  const customMetadata = request.data?.metadata && typeof request.data.metadata === 'object'
+    ? request.data.metadata
+    : {};
+
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: priceId, quantity }],
     allow_promotion_codes: true,
-    success_url: `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/products`,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      ...customMetadata,
+    },
   };
 
   if (customerId) {
@@ -152,17 +183,25 @@ export const createStripeCheckoutSession = onCall<
   if (memberDocId) {
     sessionParams.client_reference_id = memberDocId;
     sessionParams.metadata = {
+      ...sessionParams.metadata,
       memberDocId,
       memberId: memberId || '',
     };
     if (mode === 'subscription') {
       sessionParams.subscription_data = {
         metadata: {
+          ...customMetadata,
           memberDocId,
           memberId: memberId || '',
         },
       };
     }
+  } else if (mode === 'subscription' && Object.keys(customMetadata).length > 0) {
+    sessionParams.subscription_data = {
+      metadata: {
+        ...customMetadata,
+      },
+    };
   }
 
   const session = await stripe.checkout.sessions.create(sessionParams);
@@ -222,5 +261,6 @@ export const getStripeCheckoutSession = onCall<
     amountTotal: session.amount_total,
     currency: session.currency,
     lineItems,
+    metadata: (session.metadata as Record<string, string>) ?? {},
   };
 });

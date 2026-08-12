@@ -47,12 +47,24 @@ export class StripeService {
     priceId: string,
     origin: string,
     quantity = 1,
+    options?: {
+      successUrl?: string;
+      cancelUrl?: string;
+      metadata?: Record<string, string>;
+    },
   ): Promise<CreateCheckoutSessionResult> {
     const fn = httpsCallable<
       CreateCheckoutSessionRequest,
       CreateCheckoutSessionResult
     >(this.functions, 'createStripeCheckoutSession');
-    const result = await fn({ priceId, origin, quantity });
+    const result = await fn({
+      priceId,
+      origin,
+      quantity,
+      successUrl: options?.successUrl,
+      cancelUrl: options?.cancelUrl,
+      metadata: options?.metadata,
+    });
     return result.data;
   }
 

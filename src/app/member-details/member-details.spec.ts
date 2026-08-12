@@ -191,7 +191,7 @@ describe('MemberDetailsComponent', () => {
     const idAssignment = compiled.querySelector('app-id-assignment');
     expect(idAssignment).toBeNull();
 
-    const purchaseLink = compiled.querySelector('a[href*="membership"]');
+    const purchaseLink = compiled.querySelector('a[href*="member"]');
     expect(purchaseLink).toBeTruthy();
   });
 

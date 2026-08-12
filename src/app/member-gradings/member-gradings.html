@@ -52,20 +52,17 @@
                 <app-icon name="arrow_forward" class="link-icon" />
               </a>
             } @else if (canRequestGrading()) {
-              <button
+              <a
+                [href]="nextGradingPurchaseLink()"
                 class="subtle-button purchase-btn"
-                (click)="requestGrading()"
-                [disabled]="isRequesting()"
               >
-                <app-icon name="arrow_forward" /> Request grading
-              </button>
+                <app-icon name="arrow_forward" /> Purchase next grading
+              </a>
             } @else if (!isActiveMember()) {
               <span class="needs-membership">
                 You must be an active member to grade.
                 <a
-                  [href]="membershipLink"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  [href]="membershipLink()"
                   class="subtle-button purchase-btn"
                 >
                   <app-icon name="arrow_forward" /> Membership

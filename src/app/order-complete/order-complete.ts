@@ -1,12 +1,10 @@
 /* order-complete.ts
  *
- * The "thanks for your order" page. Stripe redirects the buyer here after a
- * successful checkout, with the Checkout Session id in the `session_id` query
- * param. We read the session back (via the getStripeCheckoutSession cloud
- * function) to confirm what was purchased.
- *
- * Reached at /order-complete?session_id=... — a public, standalone page not
- * linked from navigation.
+ * The "thanks for your order" / order confirmation page.
+ * Stripe redirects the buyer here after checkout (or buyers view their receipt).
+ * We read the session back via getStripeCheckoutSession and render tailored
+ * welcome, benefits, and next-steps based on what was purchased (membership,
+ * grading, license, video library, etc.).
  */
 
 import {
@@ -24,6 +22,8 @@ import { AppPathPatterns, Views } from '../app.config';
 import { StripeService } from '../stripe.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
 
+export type OrderKind = 'membership' | 'grading' | 'license' | 'video' | 'general';
+
 type LoadState =
   | { kind: 'idle' }
   | { kind: 'loading' }
@@ -40,14 +40,59 @@ type LoadState =
 })
 export class OrderCompleteComponent {
   private stripeService = inject(StripeService);
-  private routingService: RoutingService<AppPathPatterns> =
-    inject(RoutingService);
+  public readonly Views = Views;
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   private sessionId = computed(() =>
     this.routingService.signals[Views.OrderComplete].urlParams.session_id(),
   );
 
   protected state = signal<LoadState>({ kind: 'idle' });
+
+  orderKind = computed<OrderKind>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return 'general';
+    const meta = s.summary.metadata || {};
+    if (meta['orderType'] === 'membership' || meta['membershipOption']) {
+      return 'membership';
+    }
+    if (meta['gradingLevel'] || meta['orderType'] === 'grading') {
+      return 'grading';
+    }
+    if (meta['orderType'] === 'license') {
+      return 'license';
+    }
+    if (meta['orderType'] === 'video') {
+      return 'video';
+    }
+
+    const text = s.summary.lineItems
+      .map((i) => i.description.toLowerCase())
+      .join(' ');
+
+    if (
+      text.includes('membership') ||
+      text.includes('annual') ||
+      text.includes('lifetime') ||
+      text.includes('life member')
+    ) {
+      return 'membership';
+    }
+    if (text.includes('grading')) {
+      return 'grading';
+    }
+    if (
+      text.includes('license') ||
+      text.includes('instructor') ||
+      text.includes('school')
+    ) {
+      return 'license';
+    }
+    if (text.includes('video') || text.includes('library')) {
+      return 'video';
+    }
+    return 'general';
+  });
 
   constructor() {
     // Load (or reload) whenever the session_id in the URL changes.

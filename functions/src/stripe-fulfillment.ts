@@ -137,6 +137,9 @@ function categorizeLineItem(
   if (desc.includes('membership') || prod.includes('membership')) {
     return OrderItemCategory.Membership;
   }
+  if (desc.includes('school') || prod.includes('school')) {
+    return OrderItemCategory.SchoolLicense;
+  }
   if (
     desc.includes('license') ||
     desc.includes('instructor') ||
@@ -166,6 +169,9 @@ function categorizeSubscriptionItem(
   const cat = categorizeLineItem(item);
   if (cat === OrderItemCategory.InstructorLicense) {
     return SubscriptionItemType.InstructorLicense;
+  }
+  if (cat === OrderItemCategory.SchoolLicense) {
+    return SubscriptionItemType.SchoolLicense;
   }
   if (cat === OrderItemCategory.VideoLibrary) {
     return SubscriptionItemType.VideoLibrary;
@@ -372,6 +378,52 @@ export async function fulfillStripeOrder(
         memberUpdates['classVideoLibrarySubscriptionId'] =
           order.subscriptionId;
         memberUpdates['classVideoLibraryNextAutoRenewDate'] = newExpires;
+      }
+    } else if (category === OrderItemCategory.SchoolLicense) {
+      const isYearly = descLower.includes('year') || descLower.includes('annual');
+      const schoolDocId =
+        order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '';
+      const schoolId = order.metadata?.['schoolId'] || '';
+
+      let targetSchoolRef: admin.firestore.DocumentReference | null = null;
+      if (schoolDocId) {
+        targetSchoolRef = db.collection('schools').doc(schoolDocId);
+      } else if (schoolId) {
+        const sQuery = await db
+          .collection('schools')
+          .where('schoolId', '==', schoolId)
+          .limit(1)
+          .get();
+        if (!sQuery.empty) {
+          targetSchoolRef = sQuery.docs[0].ref;
+        }
+      } else if (member.instructorId) {
+        const sQuery = await db
+          .collection('schools')
+          .where('ownerInstructorId', '==', member.instructorId)
+          .limit(1)
+          .get();
+        if (!sQuery.empty) {
+          targetSchoolRef = sQuery.docs[0].ref;
+        }
+      }
+
+      if (targetSchoolRef) {
+        const sDoc = await targetSchoolRef.get();
+        const sData = sDoc.data() || {};
+        const currentExp = (sData['schoolLicenseExpires'] as string) || '';
+        const newExpires = isYearly
+          ? extendDateByYears(currentExp, 1)
+          : extendDateByMonths(currentExp, 1);
+        await targetSchoolRef.update({
+          schoolLicenseRenewalDate: today,
+          schoolLicenseExpires: newExpires,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info('Updated school license for school', {
+          schoolDocId: targetSchoolRef.id,
+          newExpires,
+        });
       }
     } else if (category === OrderItemCategory.Grading) {
       await autoCreateGradingForMember(db, member, item, orderDocId);

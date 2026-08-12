@@ -5,15 +5,15 @@
   flex-direction: column;
   align-items: center;
   flex-grow: 1;
-  padding: 2em 1em;
+  padding: 2.5em 1em 4em;
 }
 
 .order-complete-page {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25em;
-  max-width: 520px;
+  gap: 1.75em;
+  max-width: 720px;
   width: 100%;
   text-align: center;
 }
@@ -22,53 +22,328 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5em;
-  color: v.$heading-accent-color;
+  gap: 0.75em;
+
+  .check-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #16a34a;
+    border: 2px solid #bbf7d0;
+    margin-bottom: 0.25em;
+  }
 
   h1 {
     margin: 0;
-    font-size: 1.5em;
+    font-size: 1.75em;
+    font-weight: 700;
+    color: v.$text-primary;
+  }
+
+  .lead {
+    margin: 0;
+    font-size: 1.05em;
+    color: v.$text-secondary;
+    line-height: 1.5;
+    max-width: 580px;
+
+    strong {
+      color: v.$text-primary;
+    }
   }
 }
 
-.lead {
-  margin: 0;
-  color: v.$text-secondary;
-}
-
-.order-summary {
+.card {
   width: 100%;
-  border: 1px solid v.$theme-border-color;
+  border: 1px solid v.$border-color-light;
   border-radius: 8px;
-  padding: 1em;
+  padding: 1.25em 1.5em;
   background: v.$theme-bg-color;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   text-align: left;
 }
 
-.order-line {
+.order-summary {
+  width: fit-content;
+  min-width: 320px;
+  max-width: 100%;
+  margin: 0 auto;
+  align-self: center;
+  box-sizing: border-box;
+
+  .order-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2.5rem;
+    margin-bottom: 0.85em;
+    padding-bottom: 0.6em;
+    border-bottom: 1px solid v.$separator-color;
+
+    h3 {
+      margin: 0;
+      font-size: 1.1em;
+      color: v.$text-primary;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      font-size: 0.8em;
+      font-weight: 600;
+      padding: 0.25em 0.75em;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #64748b;
+      white-space: nowrap;
+
+      &.paid {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+      }
+    }
+  }
+
+  .order-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 0.45em 0;
+    font-size: 0.95em;
+    color: v.$text-secondary;
+
+    .line-description {
+      color: v.$text-primary;
+    }
+
+    .line-amount {
+      font-weight: 600;
+      color: v.$text-primary;
+      white-space: nowrap;
+    }
+  }
+
+  .line-qty {
+    color: v.$text-muted;
+    margin-left: 0.25em;
+  }
+
+  .order-total {
+    border-top: 1px solid v.$border-color-light;
+    margin-top: 0.5em;
+    padding-top: 0.75em;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: v.$text-primary;
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    min-width: unset;
+
+    .order-summary-header {
+      gap: 1rem;
+    }
+
+    .order-line {
+      gap: 1rem;
+    }
+  }
+}
+
+.member-benefits-section {
+  width: 100%;
+  text-align: left;
+  margin-top: 0.5em;
+
+  h2 {
+    margin: 0 0 0.25em;
+    font-size: 1.35em;
+    font-weight: 700;
+    color: v.$text-primary;
+  }
+
+  .benefits-intro {
+    margin: 0 0 1.25em;
+    font-size: 0.95em;
+    color: v.$text-secondary;
+    line-height: 1.5;
+  }
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  &.single-col {
+    grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.benefit-card {
   display: flex;
-  justify-content: space-between;
-  gap: 1em;
-  padding: 0.4em 0;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: v.$primary-color;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  }
+
+  .benefit-icon-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: v.$separator-color;
+    color: v.$theme-border-color;
+    flex-shrink: 0;
+  }
+
+  .benefit-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    h4 {
+      margin: 0;
+      font-size: 1.05em;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.88em;
+      color: v.$text-secondary;
+      line-height: 1.4;
+    }
+
+    .benefit-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      margin-top: 0.5rem;
+      font-size: 0.88em;
+      font-weight: 600;
+      color: v.$primary-color;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .multi-links {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+  }
 }
 
-.line-qty {
-  color: v.$text-muted;
-  margin-left: 0.25em;
-}
+.action-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  width: 100%;
+  flex-wrap: wrap;
 
-.order-total {
-  border-top: 1px solid v.$theme-border-color;
-  margin-top: 0.4em;
-  padding-top: 0.6em;
-  font-weight: 600;
+  .homepage-btn,
+  .profile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    text-align: center;
+    border-radius: 6px;
+    box-sizing: border-box;
+
+    .btn-content {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+    }
+  }
+
+  .homepage-btn {
+    padding: 0.85em 1.85em;
+    font-size: 1.05em;
+    font-weight: 600;
+    background: v.$primary-color;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+      background: #0056b3;
+      color: #ffffff;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  .profile-btn {
+    padding: 0.8em 1.5em;
+    font-size: 1em;
+    font-weight: 500;
+    border: 1px solid v.$border-color-light;
+    background: #ffffff;
+    color: v.$text-primary;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: v.$table-row-selected;
+      border-color: v.$primary-color;
+      color: v.$primary-color;
+    }
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    width: 100%;
+
+    .homepage-btn,
+    .profile-btn {
+      width: 100%;
+      padding: 0.9em 1.25em;
+
+      .btn-content {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+      }
+    }
+  }
 }
 
 .message-box {
   display: flex;
   align-items: flex-start;
   gap: 0.75em;
-  padding: 1em;
+  padding: 1em 1.25em;
   border-radius: 8px;
   width: 100%;
   text-align: left;
@@ -82,8 +357,4 @@
 .message-title {
   margin: 0 0 0.25em;
   font-weight: 600;
-}
-
-.link-button {
-  text-decoration: none;
 }

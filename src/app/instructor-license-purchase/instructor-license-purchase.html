@@ -1,0 +1,270 @@
+<div class="instructor-license-container">
+  <div class="page-header">
+    <h1>Get or Renew an Instructor License</h1>
+    <p class="subtitle">
+      Maintain your certified teaching credentials, list classes, conduct workshops, and certify students within the Chin Family I Liq Chuan Association.
+    </p>
+  </div>
+
+  <!-- Landing after Stripe checkout return -->
+  @if (sessionId()) {
+    <div class="order-confirmation-card card">
+      @if (returnSessionLoading()) {
+        <app-spinner>Your instructor license is being updated shortly...</app-spinner>
+      } @else if (returnSessionSummary(); as s) {
+        <div class="confirmation-header">
+          <app-icon name="check" width="32px" height="32px"></app-icon>
+          <div>
+            <h2>Instructor License Payment Received!</h2>
+            <p>Your license record is being updated at headquarters.</p>
+          </div>
+        </div>
+
+        <div class="order-details-box">
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value status-badge paid">{{ s.paymentStatus }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Amount</span>
+            <span class="detail-value">{{ formatPrice(s.amountTotal, s.currency) }}</span>
+          </div>
+          @if (s.lineItems[0]; as item) {
+            <div class="detail-row">
+              <span class="detail-label">License Option</span>
+              <span class="detail-value">{{ item.description }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="confirmation-actions">
+          <button
+            type="button"
+            (click)="routingService.navigateToParts(['myProfile'])"
+          >
+            <app-icon name="person"></app-icon>
+            <span>View My Profile</span>
+          </button>
+          <button
+            type="button"
+            class="subtle-button"
+            (click)="routingService.navigateToParts(['my-orders'])"
+          >
+            View My Orders
+          </button>
+        </div>
+      } @else if (returnSessionError()) {
+        <div class="error-container">
+          <span class="error-message">{{ returnSessionError() }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Prerequisites Guards -->
+  @if (!isLoggedIn()) {
+    <div class="guard-card card">
+      <div class="guard-icon">
+        <app-icon name="info" width="32px" height="32px"></app-icon>
+      </div>
+      <h2>Sign In Required</h2>
+      <p>You must be signed in to manage or renew an instructor license.</p>
+      <button
+        type="button"
+        (click)="routingService.navigateToParts(['login'])"
+      >
+        Sign In
+      </button>
+    </div>
+  } @else if (!isActiveMember()) {
+    <div class="guard-card card">
+      <div class="guard-icon">
+        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+      </div>
+      <h2>Active Membership Required</h2>
+      <p>
+        An active I Liq Chuan membership is required to obtain or maintain an instructor license.
+      </p>
+      <button
+        type="button"
+        (click)="routingService.navigateToParts(['become-a-member'])"
+      >
+        <app-icon name="link"></app-icon>
+        <span>Become a Member / Renew</span>
+      </button>
+    </div>
+  } @else if (!hasAppLevel1()) {
+    <div class="guard-card card">
+      <div class="guard-icon">
+        <app-icon name="mountain" width="32px" height="32px"></app-icon>
+      </div>
+      <h2>Application Level 1 Required</h2>
+      <p>
+        To qualify for an instructor license, you must first reach at least <strong>Application Level 1</strong>.
+        Your current application level is <strong>{{ user()?.member?.applicationLevel || 'None' }}</strong>.
+      </p>
+      <button
+        type="button"
+        (click)="routingService.navigateToParts(['next-grading'])"
+      >
+        <app-icon name="mountain"></app-icon>
+        <span>Get Your Next Grading</span>
+      </button>
+    </div>
+  } @else {
+    <!-- Criteria Met: Instructor Status Card -->
+    <div class="license-status-card card">
+      <h2>Instructor Status</h2>
+
+      <div class="status-grid">
+        @if (hasInstructorId()) {
+          <div class="status-box">
+            <div class="status-label">Instructor ID</div>
+            <div class="status-value highlight">{{ instructorId() }}</div>
+          </div>
+          @if (hasLicenseDates()) {
+            <div class="status-box">
+              <div class="status-label">Last Renewed</div>
+              <div class="status-value">{{ licenseRenewalDate() || 'N/A' }}</div>
+            </div>
+            <div class="status-box">
+              <div class="status-label">License Expiry</div>
+              <div class="status-value" [class.expired]="!isLicenseActive()">
+                {{ licenseExpires() }}
+                @if (isLicenseActive()) {
+                  <span class="status-badge paid">Active</span>
+                } @else {
+                  <span class="status-badge unpaid">Expired</span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="status-box full-span">
+              <div class="status-label">License Records</div>
+              <div class="status-value muted">
+                ILC Headquarters doesn't have a record of your last instructor license dates.
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="status-box full-span">
+            <div class="status-label">Certification Status</div>
+            <div class="status-value">
+              You meet the prerequisites (Application Level 1+) to obtain an instructor license!
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Subscription / Auto-Renewal Details -->
+      @if (user()?.member?.instructorLicenseSubscriptionId) {
+        <div class="subscription-section">
+          <h3>Subscription & Auto-Renewal</h3>
+          <p>
+            @if (hasActiveSubscription()) {
+              Auto-renews on <strong>{{ user()?.member?.instructorLicenseNextAutoRenewDate }}</strong>.
+            } @else {
+              Auto-renewal is currently paused. License remains valid through <strong>{{ licenseExpires() }}</strong>.
+            }
+          </p>
+
+          @if (cancelSuccessMessage()) {
+            <div class="success-message">{{ cancelSuccessMessage() }}</div>
+          }
+          @if (cancelErrorMessage()) {
+            <div class="error-container">
+              <span class="error-message">{{ cancelErrorMessage() }}</span>
+            </div>
+          }
+
+          <div class="subscription-actions">
+            @if (hasActiveSubscription()) {
+              <button
+                type="button"
+                class="subtle-button"
+                [disabled]="cancelInProgress()"
+                (click)="onCancelAutoRenew()"
+              >
+                <app-icon name="close"></app-icon>
+                <span>{{ cancelInProgress() ? 'Cancelling...' : 'Cancel Auto-Renewal' }}</span>
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="subtle-button"
+                [disabled]="cancelInProgress()"
+                (click)="onResumeAutoRenew()"
+              >
+                <app-icon name="check"></app-icon>
+                <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Recent Order Details if found -->
+    @if (recentLicenseOrder(); as o) {
+      <div class="past-order-card card">
+        <h3>Previous License Order</h3>
+        <div class="order-summary-row">
+          <span>Order Reference: <strong>{{ o.orderDocId }}</strong></span>
+          <span>Date: <strong>{{ o.created.split('T')[0] }}</strong></span>
+          <span class="status-badge paid">{{ o.paymentStatus }}</span>
+        </div>
+      </div>
+    }
+
+    <!-- Pricing & Purchase Card -->
+    <div class="purchase-card card">
+      <h2>Add 1 Year to Instructor License</h2>
+
+      @if (productsLoading()) {
+        <app-spinner>Loading instructor license rates...</app-spinner>
+      } @else if (productsError()) {
+        <div class="error-container">
+          <span class="error-message">{{ productsError() }}</span>
+          <button class="icon-only-button" (click)="loadProducts()">
+            <app-icon name="refresh"></app-icon>
+          </button>
+        </div>
+      } @else if (selectedPrice(); as price) {
+        <div class="pricing-box">
+          <div class="price-amount">{{ formatPrice(price.unitAmount, price.currency) }} / year</div>
+          <p class="price-desc">
+            Extends your instructor license for 1 full year from your current expiration date (or starting today if new/expired).
+          </p>
+        </div>
+
+        @if (checkoutError()) {
+          <div class="error-container">
+            <span class="error-message">{{ checkoutError() }}</span>
+            <button class="icon-only-button" (click)="checkoutError.set(null)">
+              <app-icon name="close"></app-icon>
+            </button>
+          </div>
+        }
+
+        <div class="purchase-actions">
+          @if (isRedirecting()) {
+            <app-spinner>Redirecting to secure payment…</app-spinner>
+          } @else {
+            <button
+              type="button"
+              class="pay-btn"
+              (click)="onPurchaseInstructorLicense()"
+            >
+              <app-icon name="link"></app-icon>
+              <span>{{ isLicenseActive() ? 'Renew Instructor License (1 Year)' : 'Get Instructor License (1 Year)' }} &mdash; {{ formatPrice(price.unitAmount, price.currency) }}</span>
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="empty-notice">
+          <p>Instructor license rates are currently being configured. Please check back shortly.</p>
+        </div>
+      }
+    </div>
+  }
+</div>

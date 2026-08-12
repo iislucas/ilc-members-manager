@@ -114,6 +114,78 @@
 
 }
 
+.welcome-membership-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  background: $row-highlight-bg;
+  border: 1px solid $row-highlight-border;
+  border-left: 5px solid $row-highlight-border;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  .welcome-icon {
+    color: $row-highlight-border;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+  }
+
+  .welcome-content {
+    flex: 1;
+
+    h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.2rem;
+      color: $text-primary;
+    }
+
+    p {
+      margin: 0 0 0.75rem 0;
+      color: $text-muted;
+      font-size: 0.95rem;
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+
+      .button-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.45rem 1rem;
+        background: $primary-color;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: opacity 0.15s;
+
+        &:hover {
+          opacity: 0.9;
+        }
+
+        &.subtle {
+          background: transparent;
+          color: $text-primary;
+          border: 1px solid $border-color-light;
+
+          &:hover {
+            background: rgba(0, 0, 0, 0.05);
+          }
+        }
+      }
+    }
+  }
+
+  .close-btn {
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .cards-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -129,5 +201,6 @@
     grid-template-columns: 1fr;
   }
 }
+
 
 

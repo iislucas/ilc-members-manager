@@ -216,13 +216,13 @@ export class DownloadResourceComponent {
             ? {
                 title: 'Membership Expired',
                 message: `Your membership expired on ${details.expiryDate}. Please renew it to access this resource.`,
-                renewalUrl: environment.links.membership,
+                renewalUrl: this.routingService.hrefForView(Views.BecomeAMember),
                 renewalLabel: 'Renew Membership',
               }
             : {
                 title: 'Members Only',
                 message: 'This resource is for active members. You do not currently have an active membership.',
-                renewalUrl: environment.links.membership,
+                renewalUrl: this.routingService.hrefForView(Views.BecomeAMember),
                 renewalLabel: 'Get Membership',
               };
 
@@ -231,13 +231,13 @@ export class DownloadResourceComponent {
             ? {
                 title: 'Instructor License Expired',
                 message: `Your instructor license expired on ${details.expiryDate}. Please renew it to access this resource.`,
-                renewalUrl: environment.links.license,
+                renewalUrl: this.routingService.hrefForView(Views.InstructorLicensePurchase),
                 renewalLabel: 'Renew License',
               }
             : {
                 title: 'Instructors Only',
                 message: 'This resource is for licensed instructors. You do not currently have an instructor license.',
-                renewalUrl: environment.links.license,
+                renewalUrl: this.routingService.hrefForView(Views.InstructorLicensePurchase),
                 renewalLabel: 'Get Instructor License',
               };
 
@@ -246,13 +246,13 @@ export class DownloadResourceComponent {
             ? {
                 title: 'School License Expired',
                 message: `Your school license expired on ${details.expiryDate}. Please renew it to access this resource.`,
-                renewalUrl: environment.links.license,
+                renewalUrl: this.routingService.hrefForView(Views.SchoolLicensePurchase),
                 renewalLabel: 'Renew License',
               }
             : {
                 title: 'School Owners Only',
                 message: 'This resource is for school owners and managers. You do not currently have an active school license.',
-                renewalUrl: environment.links.license,
+                renewalUrl: this.routingService.hrefForView(Views.SchoolLicensePurchase),
                 renewalLabel: 'Get School License',
               };
       }

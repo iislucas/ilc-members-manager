@@ -24,12 +24,16 @@ const DEFAULT_TAB: GradingTab = 'mine';
 export class MemberGradingsComponent {
   firebaseStateService = inject(FirebaseStateService);
   dataService = inject(DataManagerService);
-  private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
+  Views = Views;
   user = this.firebaseStateService.user;
 
-  // Link to the membership product page, shown to non-active members.
-  membershipLink = environment.links.membership;
+  // Link to the membership purchase page, shown to non-active members.
+  membershipLink = computed(() => this.routingService.hrefForView(Views.BecomeAMember));
+
+  // Link to the dedicated Next Grading purchase page.
+  nextGradingPurchaseLink = computed(() => this.routingService.hrefForView(Views.NextGrading));
 
   private today = computed(() => new Date().toISOString().split('T')[0]);
 

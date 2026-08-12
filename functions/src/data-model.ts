@@ -916,6 +916,7 @@ export type PushSubscriptionDoc = {
 export enum SubscriptionItemType {
   Membership = 'membership',
   InstructorLicense = 'instructor_license',
+  SchoolLicense = 'school_license',
   VideoLibrary = 'video_library',
   Vod = 'vod',
 }
@@ -1384,6 +1385,7 @@ export enum MemberOrderKind {
 export enum OrderItemCategory {
   Membership = 'membership',
   InstructorLicense = 'instructor_license',
+  SchoolLicense = 'school_license',
   Grading = 'grading',
   VideoLibrary = 'video_library',
   Event = 'event',

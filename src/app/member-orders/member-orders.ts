@@ -124,7 +124,7 @@ export class MemberOrdersComponent {
           !!m.membershipSubscriptionId &&
           !isExpired,
         canSubscribe: isExpired,
-        subscribeUrl: '/products',
+        subscribeUrl: this.routingService.hrefForView(Views.BecomeAMember),
       });
     }
 
@@ -169,7 +169,7 @@ export class MemberOrdersComponent {
           !!m.instructorLicenseSubscriptionId &&
           !isExpired,
         canSubscribe: isExpired,
-        subscribeUrl: '/products',
+        subscribeUrl: this.routingService.hrefForView(Views.InstructorLicensePurchase),
       });
     }
 
@@ -214,7 +214,7 @@ export class MemberOrdersComponent {
           !!m.classVideoLibrarySubscriptionId &&
           !isExpired,
         canSubscribe: isExpired,
-        subscribeUrl: '/products',
+        subscribeUrl: this.routingService.hrefForView(Views.ClassVideoLibraryPurchase),
       });
     }
 

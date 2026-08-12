@@ -69,6 +69,9 @@ function clearCachedLoginInfo(): void {
   }
 }
 
+import { RoutingService } from '../routing.service';
+import { AppPathPatterns } from '../app.config';
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -78,6 +81,7 @@ function clearCachedLoginInfo(): void {
 })
 export class LoginComponent {
   firebaseService = inject(FirebaseStateService);
+  routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   LoginStatus = LoginStatus;
   LoginStep = LoginStep;
   adminEmail = environment.adminEmail;

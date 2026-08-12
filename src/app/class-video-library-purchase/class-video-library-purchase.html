@@ -1,0 +1,226 @@
+<div class="video-library-purchase-container">
+  <div class="page-header">
+    <h1>Class Video Library Subscription</h1>
+    <p class="subtitle">
+      Access our curated collection of weekly online class recordings, guided drills, and special workshop highlights taught by Grandmaster Sam Chin and senior instructors.
+    </p>
+  </div>
+
+  <!-- Landing after Stripe checkout return -->
+  @if (sessionId()) {
+    <div class="order-confirmation-card card">
+      @if (returnSessionLoading()) {
+        <app-spinner>Your video library access is being activated shortly...</app-spinner>
+      } @else if (returnSessionSummary(); as s) {
+        <div class="confirmation-header">
+          <app-icon name="check" width="32px" height="32px"></app-icon>
+          <div>
+            <h2>Subscription Activated!</h2>
+            <p>You now have full access to the Class Video Library.</p>
+          </div>
+        </div>
+
+        <div class="order-details-box">
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value status-badge paid">{{ s.paymentStatus }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Amount</span>
+            <span class="detail-value">{{ formatPrice(s.amountTotal, s.currency) }}</span>
+          </div>
+          @if (s.lineItems[0]; as item) {
+            <div class="detail-row">
+              <span class="detail-label">Plan</span>
+              <span class="detail-value">{{ item.description }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="confirmation-actions">
+          <button
+            type="button"
+            (click)="routingService.navigateToParts(['class-video-library'])"
+          >
+            <app-icon name="video_library"></app-icon>
+            <span>Go to Class Video Library</span>
+          </button>
+          <button
+            type="button"
+            class="subtle-button"
+            (click)="routingService.navigateToParts(['my-orders'])"
+          >
+            View My Orders
+          </button>
+        </div>
+      } @else if (returnSessionError()) {
+        <div class="error-container">
+          <span class="error-message">{{ returnSessionError() }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Status Card (if logged in) -->
+  @if (isLoggedIn()) {
+    <div class="subscription-status-card card">
+      <h2>Your Video Library Access</h2>
+
+      <div class="status-grid">
+        <div class="status-box">
+          <div class="status-label">Access Status</div>
+          <div class="status-value">
+            @if (hasVideoAccess()) {
+              <span class="status-badge paid">Active</span>
+            } @else {
+              <span class="status-badge unpaid">Not Subscribed / Expired</span>
+            }
+          </div>
+        </div>
+
+        @if (expirationDate()) {
+          <div class="status-box">
+            <div class="status-label">Access Expiration Date</div>
+            <div class="status-value">{{ expirationDate() }}</div>
+          </div>
+        }
+
+        @if (hasActiveAutoRenew()) {
+          <div class="status-box">
+            <div class="status-label">Next Auto-Renewal Date</div>
+            <div class="status-value">{{ nextAutoRenewDate() }}</div>
+          </div>
+        }
+      </div>
+
+      <!-- Subscription auto-renewal toggle -->
+      @if (user()?.member?.classVideoLibrarySubscriptionId) {
+        <div class="sub-actions-section">
+          @if (cancelSuccessMessage()) {
+            <div class="success-message">{{ cancelSuccessMessage() }}</div>
+          }
+          @if (cancelErrorMessage()) {
+            <div class="error-container">
+              <span class="error-message">{{ cancelErrorMessage() }}</span>
+            </div>
+          }
+
+          <div class="subscription-actions">
+            @if (hasActiveAutoRenew()) {
+              <button
+                type="button"
+                class="subtle-button"
+                [disabled]="cancelInProgress()"
+                (click)="onCancelAutoRenew()"
+              >
+                <app-icon name="close"></app-icon>
+                <span>{{ cancelInProgress() ? 'Cancelling...' : 'Cancel Auto-Renewal' }}</span>
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="subtle-button"
+                [disabled]="cancelInProgress()"
+                (click)="onResumeAutoRenew()"
+              >
+                <app-icon name="check"></app-icon>
+                <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Past Video Order -->
+    @if (recentVideoOrder(); as o) {
+      <div class="past-order-card card">
+        <h3>Previous Video Library Order</h3>
+        <div class="order-summary-row">
+          <span>Order: <strong>{{ o.orderDocId }}</strong></span>
+          <span>Date: <strong>{{ o.created.split('T')[0] }}</strong></span>
+          <span class="status-badge paid">{{ o.paymentStatus }}</span>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Pricing Card & Subscription Call to Action -->
+  <div class="purchase-card card">
+    <h2>Subscribe to Class Video Library</h2>
+
+    <div class="benefits-list">
+      <div class="benefit-item">
+        <app-icon name="check" width="20px" height="20px"></app-icon>
+        <span>Weekly online Saturday class archives updated regularly</span>
+      </div>
+      <div class="benefit-item">
+        <app-icon name="check" width="20px" height="20px"></app-icon>
+        <span>Exclusive workshop highlights and detailed breakdowns</span>
+      </div>
+      <div class="benefit-item">
+        <app-icon name="check" width="20px" height="20px"></app-icon>
+        <span>Stream anytime on desktop and mobile devices</span>
+      </div>
+      <div class="benefit-item">
+        <app-icon name="check" width="20px" height="20px"></app-icon>
+        <span>Cancel anytime directly from your account</span>
+      </div>
+    </div>
+
+    @if (productsLoading()) {
+      <app-spinner>Loading subscription rates...</app-spinner>
+    } @else if (productsError()) {
+      <div class="error-container">
+        <span class="error-message">{{ productsError() }}</span>
+        <button class="icon-only-button" (click)="loadProducts()">
+          <app-icon name="refresh"></app-icon>
+        </button>
+      </div>
+    } @else if (selectedPrice(); as price) {
+      <div class="price-box">
+        <div class="price-amount">{{ formatPrice(price.unitAmount, price.currency) }} / month</div>
+        <p class="price-desc">Auto-renews monthly. Cancel anytime with one click.</p>
+      </div>
+
+      @if (checkoutError()) {
+        <div class="error-container">
+          <span class="error-message">{{ checkoutError() }}</span>
+          <button class="icon-only-button" (click)="checkoutError.set(null)">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      }
+
+      <div class="purchase-actions">
+        @if (!isLoggedIn()) {
+          <button
+            type="button"
+            class="pay-btn"
+            (click)="routingService.navigateToParts(['login'])"
+          >
+            <app-icon name="info"></app-icon>
+            <span>Sign In to Subscribe</span>
+          </button>
+        } @else if (isRedirecting()) {
+          <app-spinner>Redirecting to secure payment…</app-spinner>
+        } @else {
+          <button
+            type="button"
+            class="pay-btn"
+            (click)="onSubscribeVideoLibrary()"
+          >
+            <app-icon name="link"></app-icon>
+            <span>
+              {{ hasVideoAccess() ? 'Extend / Renew Subscription' : 'Subscribe Now' }} &mdash; {{ formatPrice(price.unitAmount, price.currency) }}/mo
+            </span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="empty-notice">
+        <p>Video library subscription is currently being configured. Please check back shortly.</p>
+      </div>
+    }
+  </div>
+</div>

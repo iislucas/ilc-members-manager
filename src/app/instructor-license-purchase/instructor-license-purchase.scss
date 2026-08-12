@@ -1,0 +1,246 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 1.5em 1em 3em;
+}
+
+.instructor-license-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.5em;
+  max-width: 720px;
+  width: 100%;
+}
+
+.page-header {
+  text-align: center;
+  h1 {
+    margin: 0 0 0.25em;
+    font-size: 1.8em;
+  }
+  .subtitle {
+    margin: 0;
+    color: v.$text-muted;
+    font-size: 1em;
+    line-height: 1.5;
+  }
+}
+
+.card {
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 1.5em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  h2 {
+    margin: 0 0 1em;
+    font-size: 1.25em;
+    font-weight: 600;
+  }
+}
+
+.order-confirmation-card {
+  border-left: 4px solid v.$row-highlight-border;
+  background: v.$row-highlight-bg;
+
+  .confirmation-header {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    margin-bottom: 1.25em;
+    h2 {
+      margin: 0 0 0.2em;
+    }
+    p {
+      margin: 0;
+      color: v.$text-muted;
+    }
+  }
+
+  .order-details-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    background: v.$theme-bg-color;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    padding: 1em;
+    margin-bottom: 1.25em;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .detail-label {
+      color: v.$text-muted;
+      font-size: 0.9em;
+    }
+    .detail-value {
+      font-weight: 600;
+    }
+  }
+
+  .confirmation-actions {
+    display: flex;
+    gap: 0.75em;
+  }
+}
+
+.guard-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75em;
+
+  .guard-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: v.$table-row-selected;
+    color: v.$primary-color;
+    margin-bottom: 0.5em;
+  }
+
+  p {
+    max-width: 480px;
+    margin: 0 0 1em;
+    color: v.$text-muted;
+    line-height: 1.5;
+  }
+}
+
+.license-status-card {
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1em;
+    margin-bottom: 1.25em;
+  }
+
+  .status-box {
+    padding: 1em;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background: v.$theme-bg-color;
+
+    &.full-span {
+      grid-column: 1 / -1;
+    }
+
+    .status-label {
+      font-size: 0.85em;
+      color: v.$text-muted;
+      margin-bottom: 0.25em;
+    }
+
+    .status-value {
+      font-size: 1.1em;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+
+      &.highlight {
+        color: v.$primary-color;
+        font-weight: 700;
+      }
+
+      &.expired {
+        color: v.$danger-color;
+      }
+
+      &.muted {
+        font-size: 0.95em;
+        font-weight: normal;
+        color: v.$text-muted;
+      }
+    }
+  }
+
+  .subscription-section {
+    border-top: 1px solid v.$border-color-light;
+    padding-top: 1em;
+    margin-top: 0.5em;
+
+    h3 {
+      margin: 0 0 0.25em;
+      font-size: 1.05em;
+    }
+    p {
+      margin: 0 0 0.75em;
+      color: v.$text-muted;
+      font-size: 0.95em;
+    }
+    .subscription-actions {
+      display: flex;
+      gap: 0.5em;
+    }
+  }
+}
+
+.past-order-card {
+  h3 {
+    margin: 0 0 0.5em;
+    font-size: 1em;
+  }
+  .order-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+    color: v.$text-muted;
+  }
+}
+
+.pricing-box {
+  padding: 1.25em;
+  border: 1px solid v.$primary-color;
+  border-radius: 6px;
+  background: v.$table-row-selected;
+  margin-bottom: 1.25em;
+
+  .price-amount {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: v.$primary-color;
+    margin-bottom: 0.35em;
+  }
+
+  .price-desc {
+    margin: 0;
+    font-size: 0.9em;
+    color: v.$text-muted;
+    line-height: 1.4;
+  }
+}
+
+.purchase-actions {
+  display: flex;
+  justify-content: center;
+
+  .pay-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.75em 2em;
+    font-size: 1.1em;
+    font-weight: 600;
+  }
+}
+
+.success-message {
+  margin: 0.5em 0;
+  color: v.$primary-color;
+  font-weight: 500;
+}

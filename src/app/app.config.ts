@@ -72,6 +72,11 @@ export enum Views {
   MyOrders = 'myOrders',
   MyMaterials = 'myMaterials',
   ManageMaterials = 'manageMaterials',
+  BecomeAMember = 'becomeAMember',
+  NextGrading = 'nextGrading',
+  InstructorLicensePurchase = 'instructorLicensePurchase',
+  SchoolLicensePurchase = 'schoolLicensePurchase',
+  ClassVideoLibraryPurchase = 'classVideoLibraryPurchase',
 }
 
 // Views that are accessible without login.
@@ -87,6 +92,11 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.DownloadResource,
   Views.Products,
   Views.OrderComplete,
+  Views.BecomeAMember,
+  Views.NextGrading,
+  Views.InstructorLicensePurchase,
+  Views.SchoolLicensePurchase,
+  Views.ClassVideoLibraryPurchase,
 ]);
 
 export const memberListPathPatterns = {
@@ -118,7 +128,11 @@ export type MemberListPathPatternsIds = keyof MemberListPathPatterns;
 
 export const initPathPatterns = {
   ...memberListPathPatterns,
-  [Views.Home]: addUrlParams(pathPattern``, ['tab']),
+  [Views.Home]: addUrlParams(pathPattern``, [
+    'tab',
+    { name: 'session_id', ephemeral: true },
+    { name: 'welcome', ephemeral: true },
+  ]),
   [Views.Login]: addUrlParams(pathPattern`login`, [{ name: 'returnUrl', ephemeral: true }]),
   [Views.ClassCalendarView]: pathPattern`calendar/instructor/${pv('instructorId')}`,
   [Views.SchoolCalendarView]: pathPattern`calendar/school/${pv('schoolId')}`,
@@ -191,6 +205,23 @@ export const initPathPatterns = {
   ]),
   [Views.ManageMaterials]: addUrlParams(pathPattern`manage-materials`, [
     'q', 'tag', 'date', 'startDate', 'endDate', 'eventId', 'type', 'instructorId', 'memberId', 'location',
+  ]),
+  [Views.BecomeAMember]: addUrlParams(pathPattern`become-a-member`, [
+    { name: 'session_id', ephemeral: true },
+    { name: 'step', ephemeral: true },
+  ]),
+  [Views.NextGrading]: addUrlParams(pathPattern`next-grading`, [
+    { name: 'session_id', ephemeral: true },
+  ]),
+  [Views.InstructorLicensePurchase]: addUrlParams(pathPattern`instructor-license`, [
+    { name: 'session_id', ephemeral: true },
+  ]),
+  [Views.SchoolLicensePurchase]: addUrlParams(pathPattern`school-license`, [
+    { name: 'session_id', ephemeral: true },
+    'schoolId',
+  ]),
+  [Views.ClassVideoLibraryPurchase]: addUrlParams(pathPattern`class-video-library-subscription`, [
+    { name: 'session_id', ephemeral: true },
   ]),
 };
 

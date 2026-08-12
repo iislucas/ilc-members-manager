@@ -31,6 +31,53 @@
     </div>
   }
 
+  <!-- Section: Quick Purchase & Renewals -->
+  <section class="services-quick-links-section">
+    <div class="section-title">
+      <h2>Purchases & Renewals</h2>
+      <p class="section-subtitle">
+        Direct access to get or renew memberships, licenses, gradings, and subscriptions.
+      </p>
+    </div>
+    <div class="services-links-grid">
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
+        <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Membership</div>
+          <div class="service-link-sub">Become a member or renew</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.NextGrading)">
+        <app-icon name="mountain" width="24px" height="24px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Next Grading</div>
+          <div class="service-link-sub">Purchase examination fee</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
+        <app-icon name="meditation" width="24px" height="24px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Instructor License</div>
+          <div class="service-link-sub">Get or renew instructor license</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
+        <app-icon name="map" width="24px" height="24px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">School License</div>
+          <div class="service-link-sub">Start or renew a school</div>
+        </div>
+      </a>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+        <app-icon name="video_library" width="24px" height="24px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Video Library</div>
+          <div class="service-link-sub">Class library monthly access</div>
+        </div>
+      </a>
+    </div>
+  </section>
+
   <!-- Section: Active Subscriptions -->
   <section class="subscriptions-section">
     <div class="section-title">
@@ -111,7 +158,7 @@
             @if (sub.canSubscribe) {
               <a
                 class="sub-btn renew-link"
-                [href]="routingService.hrefForView(Views.Products)"
+                [href]="sub.subscribeUrl || routingService.hrefForView(Views.Products)"
               >
                 Renew Now
               </a>
@@ -121,9 +168,6 @@
       } @empty {
         <div class="empty-subscriptions">
           <p>No active subscriptions found for this account.</p>
-          <a class="primary-btn" [href]="routingService.hrefForView(Views.Products)">
-            Browse Memberships & Products
-          </a>
         </div>
       }
     </div>

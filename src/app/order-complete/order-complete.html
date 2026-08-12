@@ -16,44 +16,233 @@
           <p>{{ currentState.message }}</p>
         </div>
       </div>
-      <a class="link-button" href="/products">Back to Products</a>
+      <div class="action-footer">
+        <a class="homepage-btn" [href]="routingService.hrefForView(Views.Home)">
+          <span class="btn-content">
+            <app-icon name="home"></app-icon>
+            <span>Return to Homepage</span>
+          </span>
+        </a>
+      </div>
     }
     @case ('loaded') {
       @let summary = currentState.summary;
+      @let kind = orderKind();
+
       <div class="thanks-header">
-        <app-icon name="check" width="2.5em" height="2.5em"></app-icon>
-        <h1>Thanks for your order!</h1>
+        <div class="check-icon-badge">
+          <app-icon name="check" width="2em" height="2em"></app-icon>
+        </div>
+
+        @if (kind === 'membership') {
+          <h1>Welcome to the I Liq Chuan Family!</h1>
+          @if (isPaid(summary)) {
+            <p class="lead">
+              Your membership payment was successful and your membership is now active.
+              @if (summary.customerEmail) {
+                A confirmation receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+              }
+            </p>
+          } @else {
+            <p class="lead">
+              We've received your membership registration. Payment is being processed.
+            </p>
+          }
+        } @else if (kind === 'grading') {
+          <h1>Grading Registration Confirmed!</h1>
+          <p class="lead">
+            Your grading registration and payment have been confirmed.
+            @if (summary.customerEmail) {
+              A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+            }
+          </p>
+        } @else if (kind === 'license') {
+          <h1>License Order Confirmed!</h1>
+          <p class="lead">
+            Your license purchase has been confirmed.
+            @if (summary.customerEmail) {
+              A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+            }
+          </p>
+        } @else if (kind === 'video') {
+          <h1>Video Library Subscription Active!</h1>
+          <p class="lead">
+            You now have unlimited access to the I Liq Chuan Class Video Library.
+          </p>
+        } @else {
+          <h1>Thanks for your order!</h1>
+          @if (isPaid(summary)) {
+            <p class="lead">
+              Your payment was successful.
+              @if (summary.customerEmail) {
+                A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+              }
+            </p>
+          } @else {
+            <p class="lead">
+              We've received your order. Payment is still being processed.
+            </p>
+          }
+        }
       </div>
 
-      @if (isPaid(summary)) {
-        <p class="lead">Your payment was successful. A receipt has been sent
-          @if (summary.customerEmail) { to {{ summary.customerEmail }} }.</p>
-      } @else {
-        <p class="lead">We've received your order. Payment is still being
-          processed — you'll receive a confirmation by email once it completes.</p>
-      }
-
+      <!-- Order Receipt Summary -->
       @if (summary.lineItems.length > 0) {
-        <div class="order-summary">
-          @for (item of summary.lineItems; track $index) {
-            <div class="order-line">
-              <span class="line-description">
-                {{ item.description }}
-                @if (item.quantity && item.quantity > 1) {
-                  <span class="line-qty">× {{ item.quantity }}</span>
-                }
-              </span>
-              <span class="line-amount">{{ formatMoney(item.amountTotal, item.currency) }}</span>
+        <div class="order-summary card">
+          <div class="order-summary-header">
+            <h3>Order Receipt</h3>
+            <span class="status-pill" [class.paid]="isPaid(summary)">
+              {{ isPaid(summary) ? 'Paid' : 'Processing' }}
+            </span>
+          </div>
+
+          <div class="line-items-list">
+            @for (item of summary.lineItems; track $index) {
+              <div class="order-line">
+                <span class="line-description">
+                  {{ item.description }}
+                  @if (item.quantity && item.quantity > 1) {
+                    <span class="line-qty">× {{ item.quantity }}</span>
+                  }
+                </span>
+                <span class="line-amount">{{ formatMoney(item.amountTotal, item.currency) }}</span>
+              </div>
+            }
+            <div class="order-line order-total">
+              <span>Total Paid</span>
+              <span>{{ formatMoney(summary.amountTotal, summary.currency) }}</span>
             </div>
-          }
-          <div class="order-line order-total">
-            <span>Total</span>
-            <span>{{ formatMoney(summary.amountTotal, summary.currency) }}</span>
           </div>
         </div>
       }
 
-      <a class="link-button" href="/products">Back to Products</a>
+      <!-- Next Steps & Member Benefits Section -->
+      @if (kind === 'membership') {
+        <div class="member-benefits-section">
+          <h2>Get the Most From Your Membership</h2>
+          <p class="benefits-intro">
+            Explore everything included with your membership in the Chin Family I Liq Chuan Association:
+          </p>
+
+          <div class="benefits-grid">
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="meditation" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>Member's Area</h4>
+                <p>Read exclusive curriculum guides, articles, study resources, and announcements.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.MembersArea)">
+                  <span>Explore Member's Area</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="event" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>Events & Member Discounts</h4>
+                <p>Register for workshops, retreats, and international seminars with your member discount.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.EventsCalendar)">
+                  <span>Find an Event</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="location_on" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>Find Schools & Instructors</h4>
+                <p>Connect with certified instructors and train with official study groups and branches.</p>
+                <div class="multi-links">
+                  <a class="benefit-link" [href]="routingService.hrefForView(Views.FindSchool)">
+                    <span>Find School</span>
+                    <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                  </a>
+                  <a class="benefit-link" [href]="routingService.hrefForView(Views.FindAnInstructor)">
+                    <span>Find Instructor</span>
+                    <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="salut" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>Training & Gradings</h4>
+                <p>Track your student level progress, view syllabus requirements, and prepare for gradings.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.MemberGradings)">
+                  <span>View My Gradings</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      } @else if (kind === 'grading') {
+        <div class="member-benefits-section">
+          <h2>Your Training Progression</h2>
+          <div class="benefits-grid single-col">
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="salut" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>My Gradings</h4>
+                <p>View your grading history, assigned instructor, and upcoming assessment schedule.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.MemberGradings)">
+                  <span>Go to My Gradings</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      } @else if (kind === 'video') {
+        <div class="member-benefits-section">
+          <h2>Start Watching Now</h2>
+          <div class="benefits-grid single-col">
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="video_library" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>Class Video Library</h4>
+                <p>Stream recorded classes, detailed form breakdowns, and partner training drills.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.ClassVideoLibrary)">
+                  <span>Open Video Library</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Bottom Action Buttons -->
+      <div class="action-footer">
+        <a class="homepage-btn" [href]="routingService.hrefForView(Views.Home)">
+          <span class="btn-content">
+            <app-icon name="home"></app-icon>
+            <span>Go to Members Portal Homepage</span>
+          </span>
+        </a>
+        <a class="profile-btn" [href]="routingService.hrefForView(Views.MyProfile)">
+          <span class="btn-content">
+            <app-icon name="person"></app-icon>
+            <span>View My Profile</span>
+          </span>
+        </a>
+      </div>
     }
   }
 </div>

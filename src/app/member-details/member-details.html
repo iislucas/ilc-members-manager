@@ -441,6 +441,15 @@
           </select>
         </div>
 
+        @if (isOwnProfile()) {
+          <label></label>
+          <div class="rhs">
+            <a class="subtle-button" [href]="routingService.hrefForView(Views.NextGrading)">
+              <app-icon name="mountain" /> Purchase Next Grading
+            </a>
+          </div>
+        }
+
         @if (userIsAdmin() || e.mastersLevels.length > 0) {
           <label for="masterLevels">Master</label>
           <div class="rhs">
@@ -530,8 +539,8 @@
         </div>
         <label></label>
         <div class="rhs">
-          <a [href]="membershipLink" target="_blank" class="subtle-button">
-            <app-icon name="link" /> Purchase Membership
+          <a [href]="membershipLink()" class="subtle-button">
+            <app-icon name="hands_lotus" /> Purchase Membership
           </a>
         </div>
       }
@@ -651,6 +660,15 @@
               @if (instructorLicenseDateMismatch(); as warning) {
                 <div class="warning-message">⚠ {{ warning }}</div>
               }
+            </div>
+          }
+
+          @if (isOwnProfile()) {
+            <label></label>
+            <div class="rhs">
+              <a class="subtle-button" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
+                <app-icon name="meditation" /> Get / Renew Instructor License
+              </a>
             </div>
           }
 
@@ -863,6 +881,15 @@
           />
           <span class="note">Leave empty if never expires</span>
         </div>
+
+        @if (isOwnProfile()) {
+          <label></label>
+          <div class="rhs">
+            <a class="subtle-button" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+              <app-icon name="video_library" /> Manage Video Subscription
+            </a>
+          </div>
+        }
       }
 
       @if (userIsAdmin()) {

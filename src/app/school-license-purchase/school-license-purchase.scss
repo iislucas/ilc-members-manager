@@ -1,0 +1,286 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 1.5em 1em 3em;
+}
+
+.school-license-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.5em;
+  max-width: 760px;
+  width: 100%;
+}
+
+.page-header {
+  text-align: center;
+  h1 {
+    margin: 0 0 0.25em;
+    font-size: 1.8em;
+  }
+  .subtitle {
+    margin: 0;
+    color: v.$text-muted;
+    font-size: 1em;
+    line-height: 1.5;
+  }
+}
+
+.card {
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 1.5em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  h2 {
+    margin: 0 0 1em;
+    font-size: 1.25em;
+    font-weight: 600;
+  }
+}
+
+.order-confirmation-card {
+  border-left: 4px solid v.$row-highlight-border;
+  background: v.$row-highlight-bg;
+
+  .confirmation-header {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    margin-bottom: 1.25em;
+    h2 {
+      margin: 0 0 0.2em;
+    }
+    p {
+      margin: 0;
+      color: v.$text-muted;
+    }
+  }
+
+  .order-details-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    background: v.$theme-bg-color;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    padding: 1em;
+    margin-bottom: 1.25em;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .detail-label {
+      color: v.$text-muted;
+      font-size: 0.9em;
+    }
+    .detail-value {
+      font-weight: 600;
+    }
+  }
+
+  .confirmation-actions {
+    display: flex;
+    gap: 0.75em;
+  }
+}
+
+.guard-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75em;
+
+  .guard-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: v.$table-row-selected;
+    color: v.$primary-color;
+    margin-bottom: 0.5em;
+  }
+
+  p {
+    max-width: 480px;
+    margin: 0 0 1em;
+    color: v.$text-muted;
+    line-height: 1.5;
+  }
+}
+
+.schools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1em;
+}
+
+.school-item-card {
+  padding: 1em;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  background: v.$theme-bg-color;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: v.$primary-color;
+    background: v.$table-row-selected;
+  }
+
+  &.selected {
+    border-color: v.$primary-color;
+    background: v.$table-row-selected;
+    box-shadow: 0 0 0 1px v.$primary-color;
+  }
+
+  .school-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5em;
+  }
+
+  .school-name {
+    font-weight: 700;
+    font-size: 1.05em;
+  }
+
+  .school-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    font-size: 0.9em;
+    color: v.$text-muted;
+  }
+}
+
+.no-schools-box {
+  color: v.$text-muted;
+  padding: 0.5em 0;
+}
+
+.action-tabs {
+  margin-bottom: 1em;
+}
+
+.school-select-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+
+  label {
+    font-size: 0.9em;
+    font-weight: 500;
+  }
+
+  select {
+    padding: 0.5em;
+    border: 1px solid v.$border-color-light;
+    border-radius: 4px;
+    background: v.$theme-bg-color;
+    color: inherit;
+    font-size: 1em;
+  }
+}
+
+.rates-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  margin-bottom: 1.25em;
+}
+
+.rate-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1em;
+  padding: 1em 1.25em;
+  border: 1px solid v.$border-color-light;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    border-color: v.$primary-color;
+    background: v.$table-row-selected;
+  }
+
+  &.selected {
+    border-color: v.$primary-color;
+    background: v.$table-row-selected;
+    box-shadow: 0 0 0 1px v.$primary-color;
+  }
+
+  .rate-radio {
+    margin-top: 0.25em;
+  }
+
+  .rate-info {
+    flex: 1;
+  }
+
+  .rate-title {
+    font-weight: 600;
+    font-size: 1.05em;
+    margin-bottom: 0.2em;
+  }
+
+  .rate-price {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: v.$primary-color;
+    margin-bottom: 0.25em;
+  }
+
+  .rate-desc {
+    font-size: 0.85em;
+    color: v.$text-muted;
+  }
+}
+
+.checkout-actions {
+  display: flex;
+  justify-content: center;
+
+  .pay-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.75em 2em;
+    font-size: 1.1em;
+    font-weight: 600;
+  }
+}
+
+.past-orders-card {
+  .orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+  }
+
+  .order-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em 0.75em;
+    border-bottom: 1px solid v.$border-color-light;
+    font-size: 0.9em;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}

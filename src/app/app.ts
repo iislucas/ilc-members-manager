@@ -52,6 +52,11 @@ import { MyMaterialsComponent } from './my-materials/my-materials';
 import { ManageMaterialsComponent } from './manage-materials/manage-materials';
 import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
+import { BecomeAMemberComponent } from './become-a-member/become-a-member';
+import { NextGradingComponent } from './next-grading/next-grading';
+import { InstructorLicensePurchaseComponent } from './instructor-license-purchase/instructor-license-purchase';
+import { SchoolLicensePurchaseComponent } from './school-license-purchase/school-license-purchase';
+import { ClassVideoLibraryPurchaseComponent } from './class-video-library-purchase/class-video-library-purchase';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
@@ -107,6 +112,11 @@ import { NavigationTreeService } from './navigation-tree';
     MyMaterialsComponent,
     ManageMaterialsComponent,
     NotFoundComponent,
+    BecomeAMemberComponent,
+    NextGradingComponent,
+    InstructorLicensePurchaseComponent,
+    SchoolLicensePurchaseComponent,
+    ClassVideoLibraryPurchaseComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

@@ -91,7 +91,8 @@ export class MemberDetailsComponent {
   studentLevels = Object.values(StudentLevel);
   applicationLevels = Object.values(ApplicationLevel);
   masterLevels = Object.values(MasterLevel).sort();
-  membershipLink = environment.links.membership;
+  Views = Views;
+  membershipLink = computed(() => this.routingService.hrefForView(Views.BecomeAMember));
   notificationService = inject(NotificationService);
   NotificationKind = NotificationKind;
   notificationKinds = Object.values(NotificationKind);
