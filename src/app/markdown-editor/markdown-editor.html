@@ -1,15 +1,13 @@
 <div class="markdown-editor-container" [class.fullscreen]="isFullscreen()" #editorContainer>
-  <!-- Floating Action Button for formatting (T button) -->
-  <div class="sticky-menu-wrapper">
-    <div class="menu-container top-right-menu">
-      <button type="button" 
-              (click)="toggleMenu(); $event.stopPropagation()" 
-              class="icon-only-button format-btn" 
-              [class.active]="menuOpen()" 
-              title="Formatting Options">
-        <app-icon name="format" width="1em" height="1em"></app-icon>
-      </button>
-    </div>
+  <!-- Toggle Button for formatting toolbar (T button) -->
+  <div class="top-right-menu" [class.toolbar-open]="menuOpen()">
+    <button type="button" 
+            (click)="toggleMenu(); $event.stopPropagation()" 
+            class="icon-only-button format-btn" 
+            [class.active]="menuOpen()" 
+            title="Formatting Options">
+      <app-icon name="format" width="1em" height="1em"></app-icon>
+    </button>
   </div>
 
   <!-- Formatting Toolbar at the Top of the Editor -->
@@ -111,6 +109,20 @@
               @if (showDescriptions()) { <span>Fullscreen</span> }
             </div>
           }
+
+          @if (chips().length > 0) {
+            <div class="toolbar-divider"></div>
+            <div class="chips-section">
+              @if (showDescriptions()) {
+                <span class="menu-title">Insert</span>
+              }
+              @for (chip of chips(); track chip.token) {
+                <button type="button" class="chip-insert" (click)="insertChip(chip); $event.stopPropagation()" [title]="'Insert ' + chip.token">
+                  {{ chip.label || chip.token }}
+                </button>
+              }
+            </div>
+          }
         </div>
 
         @if (canScrollRight()) {
@@ -122,16 +134,6 @@
           </button>
         }
       </div>
-    </div>
-  }
-
-  @if (chips().length > 0) {
-    <div class="chip-palette">
-      @for (chip of chips(); track chip.token) {
-        <button type="button" class="chip-insert" (click)="insertChip(chip)" [title]="'Insert ' + chip.token">
-          {{ chip.label || chip.token }}
-        </button>
-      }
     </div>
   }
 

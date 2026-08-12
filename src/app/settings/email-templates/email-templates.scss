@@ -1,3 +1,5 @@
+@use "../../../scss_variables" as *;
+
 .settings-card {
   background: var(--card-bg, #ffffff);
   border: 1px solid var(--border-color, #e0e0e0);
@@ -48,12 +50,12 @@
     font-weight: 500;
   }
   .placeholder-chip {
-    background: var(--bg-hover, #f0f0f0);
-    color: var(--text-primary, #333);
+    background: $theme-chip-bg-color;
+    color: $text-primary;
     padding: 2px 8px;
     border-radius: 12px;
     font-family: monospace;
-    border: 1px solid var(--border-color, #e0e0e0);
+    border: 1px solid $theme-chip-border-color;
   }
 }
 
