@@ -7,6 +7,7 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { IconComponent } from '../icons/icon.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-complete-profile',
@@ -20,6 +21,7 @@ export class CompleteProfileComponent {
   private firebaseService = inject(FirebaseStateService);
   public readonly Views = Views;
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+  public readonly environment = environment;
 
   public userEmail = computed(() => {
     const user = this.firebaseService.user();
@@ -70,11 +72,16 @@ export class CompleteProfileComponent {
   }
 
   countryWithCode = computed(() => {
-    const countryName = this.fillCountry();
+    const countryName = this.fillCountry().trim();
+    if (!countryName) return null;
     return (
       this.dataService.countries
         .entries()
-        .find((c) => c.name === countryName) || null
+        .find(
+          (c) =>
+            c.name.toLowerCase() === countryName.toLowerCase() ||
+            c.id.toLowerCase() === countryName.toLowerCase(),
+        ) || null
     );
   });
 
@@ -83,18 +90,29 @@ export class CompleteProfileComponent {
     if (!user) return;
     const name = this.fillName().trim();
     const dob = this.fillDOB().trim();
-    const country = this.fillCountry().trim();
-    if (!name || !dob || !country) return;
+    const resolvedCountry = this.countryWithCode();
+    if (!name || !dob || !resolvedCountry) {
+      if (!resolvedCountry && this.fillCountry().trim()) {
+        const errorMsg = `Unrecognized country "${this.fillCountry()}". Please select a valid country from the list. If your country is missing, please contact ${environment.adminEmail}.`;
+        console.error(errorMsg);
+        this.saveError.set(errorMsg);
+      }
+      return;
+    }
 
     this.fillingProfile.set(true);
     this.saveError.set(null);
     try {
-      await this.dataService.updateMember(user.member.docId, {
-        ...user.member,
-        name,
-        dateOfBirth: dob,
-        country,
-      }, user.member);
+      await this.dataService.updateMember(
+        user.member.docId,
+        {
+          ...user.member,
+          name,
+          dateOfBirth: dob,
+          country: resolvedCountry.name,
+        },
+        user.member,
+      );
     } catch (error: unknown) {
       console.error('Failed to update profile enrichment:', error);
       this.saveError.set(

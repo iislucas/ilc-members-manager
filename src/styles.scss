@@ -518,12 +518,16 @@ a.selectable-card {
 }
 
 .identifier-chip {
+  display: inline-block;
+  vertical-align: middle;
   background-color: $theme-chip-bg-color;
-  border-radius: 5px;
-  font-size: small;
+  border-radius: 4px;
+  font-size: 0.85em;
   font-family: monospace;
   border: 1px solid $theme-chip-border-color;
-  padding: 0.2em;
+  padding: 1px 6px;
+  line-height: 1.3;
+  box-sizing: border-box;
 
   &.expired-recent {
     background-color: #fff3cd;

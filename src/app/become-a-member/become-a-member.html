@@ -285,9 +285,15 @@
             [placeholder]="'Search for a country...'"
             [initSearchTerm]="country()"
             (textUpdated)="country.set($event)"
+            (itemSelected)="country.set($event.name)"
           ></app-autocomplete>
           @if (countryWithCode(); as cc) {
             <span class="identifier-chip country-chip">{{ cc.id }}</span>
+          } @else if (country().trim()) {
+            <div class="error-message">
+              Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
+              <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+            </div>
           }
         </div>
 
