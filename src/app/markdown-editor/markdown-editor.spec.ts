@@ -196,12 +196,18 @@ describe('MarkdownEditor', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     fixture.detectChanges();
 
+    // Verify chips-section renders inside the toolbar
+    const chipBtn = fixture.nativeElement.querySelector('.chips-section .chip-insert');
+    expect(chipBtn).toBeTruthy();
+    expect(chipBtn.textContent.trim()).toBe('{name}');
+
     component['editor']?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       view.coordsAtPos = () => ({ top: 0, bottom: 0, left: 0, right: 0 });
     });
 
-    component.insertChip({ token: '{name}' });
+    // Click chip button in toolbar
+    chipBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 200));
     fixture.detectChanges();
 
