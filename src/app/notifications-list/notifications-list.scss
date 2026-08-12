@@ -1,6 +1,14 @@
 @use "../../scss_variables.scss" as v;
+@use "../../styles.scss" as *;
+
+:host {
+  display: block;
+  width: 100%;
+}
 
 .notifications-section {
+  width: 100%;
+  box-sizing: border-box;
   margin-bottom: 1.5rem;
 
   .notification-error-banner {
@@ -76,17 +84,30 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
+    position: relative;
 
     .title-container {
       display: flex;
       align-items: center;
       gap: 0.5rem;
 
-      h2 {
-        margin: 0;
-        font-size: 1.25rem;
-        color: v.$text-primary;
-        font-weight: 600;
+      .section-title-link {
+        text-decoration: none;
+        color: inherit;
+        display: inline-flex;
+        align-items: center;
+
+        h2 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: v.$text-primary;
+          font-weight: 600;
+          transition: color 0.2s ease;
+        }
+
+        &:hover h2 {
+          color: v.$heading-accent-color;
+        }
       }
 
       .badge {
@@ -94,36 +115,110 @@
         color: white;
         font-size: 0.75rem;
         font-weight: bold;
-        padding: 2px 6px;
+        padding: 2px 7px;
         border-radius: 12px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        line-height: 1.2;
+        transition: transform 0.15s ease, background-color 0.15s ease;
+
+        &:hover {
+          background-color: #dc2626;
+          transform: scale(1.08);
+        }
+
+        &:active {
+          transform: scale(0.95);
+        }
+      }
+
+      .fold-toggle-btn {
+        color: v.$text-secondary;
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        &:hover {
+          background-color: rgba(0, 0, 0, 0.06);
+          color: v.$text-primary;
+        }
       }
     }
 
-    .dismiss-all-btn {
-      background: none;
-      border: 1px solid v.$separator-color;
-      border-radius: 4px;
-      padding: 4px 10px;
-      font-size: 0.85rem;
-      color: v.$text-muted;
-      cursor: pointer;
-      transition: background-color 0.2s, color 0.2s;
+    .header-actions {
+      display: flex;
+      align-items: center;
 
-      &:hover {
-        background-color: #f5f5f5;
-        color: v.$text-primary;
-      }
+      .menu-container {
+        position: relative;
+        display: inline-block;
 
-      &:focus-visible {
-        outline: 2px solid v.$focus-ring-color;
-        outline-offset: 1px;
+        .more-btn {
+          color: v.$text-secondary;
+          width: 32px;
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          transition: background-color 0.2s ease, color 0.2s ease;
+
+          &:hover {
+            background-color: rgba(0, 0, 0, 0.06);
+            color: v.$text-primary;
+          }
+        }
+
+        .notifications-menu {
+          @extend .menu-style;
+          position: absolute;
+          top: calc(100% + 4px);
+          right: 0;
+          min-width: 200px;
+          z-index: 100;
+        }
       }
+    }
+  }
+
+  .notifications-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+
+    &.folded {
+      grid-template-rows: 0fr;
+      opacity: 0;
+
+      .notifications-body-content {
+        visibility: hidden;
+      }
+    }
+
+    .notifications-body-content {
+      min-height: 0;
+      overflow: hidden;
     }
   }
 
   .notifications-list {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   // Wrapper that drives both the entry (unfold + slide-up + fade-in) and the
@@ -133,6 +228,8 @@
   // the two motions don't fight. Timing here is kept in sync with COLLAPSE_MS in
   // notifications-list.ts (the delay before a dismissed row is removed).
   .notification-row {
+    width: 100%;
+    box-sizing: border-box;
     display: grid;
     grid-template-rows: 1fr;
     margin-bottom: 0.75rem;
@@ -218,28 +315,37 @@
         transform: none;
       }
     }
+
+    .notifications-body {
+      transition: none;
+    }
   }
 
   .notification-card {
+    width: 100%;
+    box-sizing: border-box;
     background: white;
     border: 1px solid v.$separator-color;
-    border-radius: 6px;
-    padding: 1rem;
+    border-radius: 8px; // Matches .card border-radius
+    padding: 1rem 1.25rem;
     display: flex;
     gap: 1rem;
     position: relative;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     @include v.row-highlight-base;
     @include v.row-highlight-active; // Active highlights unread by default
+    border-left-width: 4px;
 
-    // Admin-only notification kinds get a distinct light-orange background so
-    // they stand out from a member's own notifications. Higher specificity than
-    // the row-highlight mixin above, so it wins for these kinds.
+    &.style-info {
+      background-color: v.$row-highlight-bg;
+      border-left: 4px solid v.$row-highlight-border;
+    }
+
     // Action items (a TODO for the member) get a light-orange background and a
     // stronger left accent so every TODO looks the same regardless of kind.
     &.style-action {
       background-color: #fff4e5; // Light orange
-      border-left: 3px solid #f5a623; // Orange accent
+      border-left: 4px solid #f5a623; // Orange accent (matching 4px width)
     }
 
     .notification-icon {
@@ -250,32 +356,23 @@
       height: 40px;
       border-radius: 50%;
       flex-shrink: 0;
-      // Soft background tints based on kind
-      background-color: #f1f3f4; // default/fallback: light grey
+      background-color: #dbeafe; // default/info: soft blue darker than card bg (#f4f9ff)
+      transition: background-color 0.2s ease, opacity 0.2s ease;
+    }
 
-      &.GradingRequestAccepted,
-      &.GradingPassed,
-      &.PurchaseFulfilled,
-      &.BlogPost,
-      &.NewEventPosted,
-      &.EventProposalSubmitted {
-        background-color: #e8f0fe; // Soft blue
-      }
-      &.GradingRequestDeclined {
-        background-color: #fce8e6; // Soft red
-      }
-      &.GradingRequestsYouAsInstructor {
-        background-color: #fef7e0; // Soft amber
-      }
-      // Admin-only kinds — soft orange tint matching the card background.
-      &.PendingEventApproval,
-      &.OrderNeedsAttention {
-        background-color: #fee9cc; // Soft orange
-      }
+    &.style-info .notification-icon {
+      background-color: #dbeafe; // Soft blue darker than #f4f9ff
+    }
+
+    &.style-action .notification-icon {
+      background-color: #fee0b6; // Soft orange darker than #fff4e5
     }
 
     .notification-content {
       flex: 1;
+      min-width: 0; // Essential for preventing horizontal overflow
+      word-break: break-word;
+      overflow-wrap: anywhere;
 
       .meta {
         display: flex;
@@ -306,12 +403,15 @@
         display: block;
         height: auto;
         overflow: visible;
+        min-width: 0;
       }
 
       ::ng-deep .markdown-viewer {
         font-size: 0.95rem;
         line-height: 1.45;
         color: v.$text-primary;
+        word-break: break-word;
+        overflow-wrap: anywhere;
 
         p {
           margin: 0;
@@ -354,4 +454,12 @@
       }
     }
   }
+
+  @media (max-width: 600px) {
+    .notification-card {
+      padding: 0.875rem 1rem;
+      gap: 0.75rem;
+    }
+  }
 }
+

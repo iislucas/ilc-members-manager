@@ -2,29 +2,33 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../data-manager.service';
-import { Order, SquareSpaceOrder } from '../../../functions/src/data-model';
+import { Order, SquareSpaceOrder, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../../../functions/src/data-model';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
-type SearchMode = 'recent' | 'term' | 'date';
+export enum SearchMode {
+  Recent = 'recent',
+  Term = 'term',
+  Date = 'date',
+}
 type SearchField = 'orderNumber' | 'referenceNumber' | 'id' | 'customerEmail' | 'email' | 'lastName' | 'billingAddress.lastName';
 
-const VALID_SEARCH_MODES: SearchMode[] = ['recent', 'term', 'date'];
+const VALID_SEARCH_MODES: SearchMode[] = [SearchMode.Recent, SearchMode.Term, SearchMode.Date];
 const VALID_SEARCH_FIELDS: SearchField[] = ['orderNumber', 'referenceNumber', 'id', 'customerEmail', 'email', 'lastName', 'billingAddress.lastName'];
 
 function getOrderRank(order: Order): number {
-  if (order.ilcAppOrderStatus === 'error') {
+  if (order.ilcAppOrderStatus === OrderStatus.Error) {
     return 1;
   }
-  if (order.ilcAppOrderStatus === 'needs-manual-processing' || ('fulfillmentStatus' in order && order.fulfillmentStatus === 'PENDING')) {
+  if (order.ilcAppOrderStatus === OrderStatus.NeedsManualProcessing || ('fulfillmentStatus' in order && order.fulfillmentStatus === SquarespaceFulfillmentStatus.Pending)) {
     return 2;
   }
-  if (order.ilcAppOrderStatus === 'processed') {
+  if (order.ilcAppOrderStatus === OrderStatus.Processed) {
     return 3;
   }
-  if (order.ilcAppOrderStatus === 'ignore') {
+  if (order.ilcAppOrderStatus === OrderStatus.Ignore) {
     return 4;
   }
   return 5;
@@ -47,11 +51,15 @@ function compareOrdersByDefault(a: Order, b: Order): number {
   styleUrl: './order-list.scss',
 })
 export class OrderList {
+  protected readonly OrderKind = OrderKind;
+  protected readonly OrderStatus = OrderStatus;
+  protected readonly SquarespaceFulfillmentStatus = SquarespaceFulfillmentStatus;
+  protected readonly SearchMode = SearchMode;
   private dataService = inject(DataManagerService);
   private routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   private orderSignals = this.routingService.signals[Views.ManageOrders];
 
-  public searchMode = signal<SearchMode>('recent');
+  public searchMode = signal<SearchMode>(SearchMode.Recent);
   public searchField = signal<SearchField>('email');
   public searchTerm = signal('');
   public startDate = signal<string>('');
@@ -79,7 +87,7 @@ export class OrderList {
       filtered = filtered.filter(
         (o) =>
           o.ilcAppOrderKind ===
-          'https://api.squarespace.com/1.0/commerce/orders'
+          OrderKind.Squarespace
       );
     }
 
@@ -127,7 +135,7 @@ export class OrderList {
       if (this.initialised) return;
       this.initialised = true;
 
-      const mode: SearchMode = VALID_SEARCH_MODES.includes(urlMode) ? urlMode : 'recent';
+      const mode: SearchMode = VALID_SEARCH_MODES.includes(urlMode as SearchMode) ? (urlMode as SearchMode) : SearchMode.Recent;
       const field: SearchField = VALID_SEARCH_FIELDS.includes(urlField) ? urlField : 'email';
 
       this.searchMode.set(mode);
@@ -140,9 +148,9 @@ export class OrderList {
       this.statusFilter.set(urlStatus || '');
       this.kindFilter.set(urlKind || '');
 
-      if (mode === 'term' && urlQ) {
+      if (mode === SearchMode.Term && urlQ) {
         this.search();
-      } else if (mode === 'date' && (urlStart || urlEnd)) {
+      } else if (mode === SearchMode.Date && (urlStart || urlEnd)) {
         this.search();
       } else {
         this.loadRecentOrders();
@@ -194,8 +202,8 @@ export class OrderList {
   async markAsFulfilled(order: Order, event: Event) {
     event.stopPropagation();
     this.openMenuId.set(null);
-    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
-      const updatedOrder = { ...order, fulfillmentStatus: 'FULFILLED' as const };
+    if (order.ilcAppOrderKind === OrderKind.Squarespace) {
+      const updatedOrder = { ...order, fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled };
       await this.dataService.updateOrder(order.docId, updatedOrder);
       this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
     }
@@ -204,7 +212,7 @@ export class OrderList {
   async markAsProcessed(order: Order, event: Event) {
     event.stopPropagation();
     this.openMenuId.set(null);
-    const updatedOrder = { ...order, ilcAppOrderStatus: 'processed' as const, ilcAppOrderIssues: [] };
+    const updatedOrder = { ...order, ilcAppOrderStatus: OrderStatus.Processed, ilcAppOrderIssues: [] };
     await this.dataService.updateOrder(order.docId, updatedOrder);
     this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
   }
@@ -212,7 +220,7 @@ export class OrderList {
   async markAsIgnored(order: Order, event: Event) {
     event.stopPropagation();
     this.openMenuId.set(null);
-    const updatedOrder = { ...order, ilcAppOrderStatus: 'ignore' as const, ilcAppOrderIssues: [] };
+    const updatedOrder = { ...order, ilcAppOrderStatus: OrderStatus.Ignore, ilcAppOrderIssues: [] };
     await this.dataService.updateOrder(order.docId, updatedOrder);
     this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
   }
@@ -220,21 +228,21 @@ export class OrderList {
   async markAsTodo(order: Order, event: Event) {
     event.stopPropagation();
     this.openMenuId.set(null);
-    const updatedOrder = { ...order, ilcAppOrderStatus: 'needs-manual-processing' as const };
+    const updatedOrder = { ...order, ilcAppOrderStatus: OrderStatus.NeedsManualProcessing };
     await this.dataService.updateOrder(order.docId, updatedOrder);
     this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
   }
 
   async setSearchMode(mode: SearchMode) {
     this.searchMode.set(mode);
-    if (mode === 'recent') {
+    if (mode === SearchMode.Recent) {
       this.searchTerm.set('');
       this.startDate.set('');
       this.endDate.set('');
       this.searched.set(false);
       this.syncUrlParams();
       await this.loadRecentOrders();
-    } else if (mode === 'date') {
+    } else if (mode === SearchMode.Date) {
       this.syncUrlParams();
       await this.search();
     } else {

@@ -18,6 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   UploadItem,
+  UploadItemSource,
   IlcEvent,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
@@ -375,7 +376,7 @@ export class MyMaterialsComponent implements OnInit {
           eventTitle,
           notes: '',
           tags: uploadTags,
-          source: 'direct',
+          source: UploadItemSource.Direct,
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString(),
         };

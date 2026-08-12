@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseSchoolLicenseInfo, processSchoolLicense, SchoolLicenseInfo } from './school-license';
 import { computeRenewalAndExpiration } from './common';
-import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
 import * as admin from 'firebase-admin';
 
 // Helper to build a mock Firestore that returns a school document.
@@ -69,15 +69,15 @@ const realLineItem: SquareSpaceLineItem = {
 const realOrder: SquareSpaceOrder = {
   docId: 'h1DsVIATxDEeSZbO9Yjv',
   lastUpdated: '2026-03-01T16:19:19.698Z',
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
-  ilcAppOrderStatus: 'processed',
+  ilcAppOrderKind: OrderKind.Squarespace,
+  ilcAppOrderStatus: OrderStatus.Processed,
   ilcAppOrderIssues: [],
   id: '69a46708ac554b426366e788',
   orderNumber: '61813',
   createdOn: '2026-03-01T16:19:19.698Z',
   modifiedOn: '2026-03-01T16:19:20.081Z',
   customerEmail: 'member@example.com',
-  fulfillmentStatus: 'PENDING',
+  fulfillmentStatus: SquarespaceFulfillmentStatus.Pending,
   billingAddress: {
     lastName: 'Dixon',
     firstName: 'Lucas',
@@ -112,15 +112,15 @@ const monthlyLineItem: SquareSpaceLineItem = {
 const monthlyOrder: SquareSpaceOrder = {
   docId: 'lU2evNWdFALq1XqBp8k2',
   lastUpdated: '2026-03-01T05:30:18.579Z',
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
-  ilcAppOrderStatus: 'processed',
+  ilcAppOrderKind: OrderKind.Squarespace,
+  ilcAppOrderStatus: OrderStatus.Processed,
   ilcAppOrderIssues: [],
   id: '69a3ceeaac554b426366db11',
   orderNumber: '61808',
   createdOn: '2026-03-01T05:30:18.579Z',
   modifiedOn: '2026-03-01T22:48:58.056Z',
   customerEmail: 'yen@example.com',
-  fulfillmentStatus: 'FULFILLED',
+  fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
   billingAddress: {
     lastName: 'Chin',
     firstName: 'Yen',

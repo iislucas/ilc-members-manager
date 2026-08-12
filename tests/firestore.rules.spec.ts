@@ -1293,4 +1293,99 @@ describe('Firestore Rules', () => {
       await assertSucceeds(adminDb.collectionGroup('uploads').get());
     });
   });
+
+  describe('Member Orders & Subscriptions Subcollection', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        await adminContext
+          .firestore()
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('orders')
+          .doc('order-1')
+          .set({
+            docId: 'order-1',
+            orderDocId: 'order-1',
+            memberDocId: 'FirestoreDocID-student1',
+            memberId: 'US001',
+            orderKind: 'stripe',
+            orderType: 'renewal',
+            date: '2026-05-15',
+            amountTotal: 8500,
+            currency: 'usd',
+            paymentStatus: 'paid',
+            fulfillmentStatus: 'fulfilled',
+            description: 'Annual Membership Renewal',
+            lineItems: [],
+          });
+      });
+    });
+
+    it('should allow member to read their own order subcollection docs', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+
+      const orderRef = db
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('orders')
+        .doc('order-1');
+
+      await assertSucceeds(orderRef.get());
+    });
+
+    it('should deny a different member from reading someone elses orders', async () => {
+      const otherDb = testEnv
+        .authenticatedContext('student2', { email: 'student2@ilc.com' })
+        .firestore();
+
+      const orderRef = otherDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('orders')
+        .doc('order-1');
+
+      await assertFails(orderRef.get());
+    });
+
+    it('should deny members from directly writing or modifying orders', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+
+      const orderRef = db
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('orders')
+        .doc('order-1');
+
+      await assertFails(orderRef.update({ amountTotal: 0 }));
+      await assertFails(orderRef.delete());
+      await assertFails(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('orders')
+          .doc('order-2')
+          .set({ amountTotal: 100 }),
+      );
+    });
+
+    it('should allow admin to read and write member orders', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+
+      const orderRef = adminDb
+        .collection('members')
+        .doc('FirestoreDocID-student1')
+        .collection('orders')
+        .doc('order-1');
+
+      await assertSucceeds(orderRef.get());
+      await assertSucceeds(orderRef.update({ paymentStatus: 'refunded' }));
+      await assertSucceeds(orderRef.delete());
+    });
+  });
 });

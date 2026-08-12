@@ -24,8 +24,12 @@ import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import {
+  OrderKind,
+  StripeCheckoutMode,
   StripeOrder,
   StripeOrderLineItem,
+  StripeOrderType,
+  StripePaymentStatus,
 } from './data-model';
 import {
   formatLineItemDescription,
@@ -33,6 +37,12 @@ import {
   stripeSecretKey,
   stripeWebhookSecret,
 } from './stripe-common';
+import {
+  fulfillStripeOrder,
+  mirrorOrderToMemberSubcollection,
+  resolveMemberForStripeOrder,
+  syncSubscriptionStatusToMember,
+} from './stripe-fulfillment';
 
 function unixSecondsToIso(seconds: number | null | undefined): string {
   return new Date((seconds ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
@@ -124,16 +134,16 @@ export function sessionToStripeOrder(
   return {
     docId: '',
     lastUpdated: created,
-    ilcAppOrderKind: 'stripe',
-    stripeOrderType: 'checkout',
+    ilcAppOrderKind: OrderKind.Stripe,
+    stripeOrderType: StripeOrderType.Checkout,
     stripeObjectId: session.id,
     checkoutSessionId: session.id,
     paymentIntentId: getObjectId(session.payment_intent),
     subscriptionId: getObjectId(session.subscription),
     stripeCustomerId: getObjectId(session.customer),
-    mode: session.mode === 'subscription' ? 'subscription' : 'payment',
+    mode: session.mode === 'subscription' ? StripeCheckoutMode.Subscription : StripeCheckoutMode.Payment,
     status: session.status ?? undefined,
-    paymentStatus: session.payment_status ?? null,
+    paymentStatus: (session.payment_status as StripePaymentStatus) ?? null,
     customerEmail: session.customer_details?.email ?? undefined,
     customerName: session.customer_details?.name ?? undefined,
     billingAddress: address
@@ -164,8 +174,8 @@ export function invoiceToStripeOrder(invoice: Stripe.Invoice): StripeOrder {
   return {
     docId: '',
     lastUpdated: created,
-    ilcAppOrderKind: 'stripe',
-    stripeOrderType: 'renewal',
+    ilcAppOrderKind: OrderKind.Stripe,
+    stripeOrderType: StripeOrderType.Renewal,
     stripeObjectId: invoice.id ?? '',
     invoiceId: invoice.id ?? undefined,
     paymentIntentId: getObjectId(
@@ -174,9 +184,9 @@ export function invoiceToStripeOrder(invoice: Stripe.Invoice): StripeOrder {
     ),
     subscriptionId,
     stripeCustomerId: getObjectId(invoice.customer),
-    mode: 'subscription',
+    mode: StripeCheckoutMode.Subscription,
     status: invoice.status ?? undefined,
-    paymentStatus: invoice.status === 'paid' ? 'paid' : 'unpaid',
+    paymentStatus: invoice.status === 'paid' ? StripePaymentStatus.Paid : StripePaymentStatus.Unpaid,
     customerEmail: invoice.customer_email ?? undefined,
     customerName: invoice.customer_name ?? undefined,
     amountTotal: invoice.amount_paid,
@@ -200,12 +210,12 @@ export function subscriptionToCancellationOrder(
   return {
     docId: '',
     lastUpdated: canceledAt,
-    ilcAppOrderKind: 'stripe',
-    stripeOrderType: 'cancellation',
+    ilcAppOrderKind: OrderKind.Stripe,
+    stripeOrderType: StripeOrderType.Cancellation,
     stripeObjectId: subscription.id,
     subscriptionId: subscription.id,
     stripeCustomerId: getObjectId(subscription.customer),
-    mode: 'subscription',
+    mode: StripeCheckoutMode.Subscription,
     status: subscription.status,
     paymentStatus: null,
     amountTotal: null,
@@ -239,18 +249,20 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 /**
  * Idempotently writes a StripeOrder: if a doc with the same `stripeObjectId`
  * already exists, it is updated in place; otherwise a new doc is created.
- * Any admin-set processing fields on an existing doc are preserved.
+ * Also mirrors to the member's subcollection and fulfills products.
  */
 async function upsertStripeOrder(
   db: admin.firestore.Firestore,
   order: StripeOrder,
-): Promise<void> {
+): Promise<string> {
   const { docId, lastUpdated, ...rest } = order;
   const rawData = {
     ...rest,
     lastUpdated: admin.firestore.Timestamp.fromDate(new Date(lastUpdated)),
   };
   const docData = stripUndefined(rawData);
+
+  let orderDocId: string;
 
   const existing = await db
     .collection('orders')
@@ -259,22 +271,47 @@ async function upsertStripeOrder(
     .get();
 
   if (!existing.empty) {
+    orderDocId = existing.docs[0].id;
     await existing.docs[0].ref.set(docData, { merge: true });
     logger.info('Stripe webhook updated existing order', {
+      orderDocId,
       stripeObjectId: order.stripeObjectId,
       stripeOrderType: order.stripeOrderType,
     });
-    return;
+  } else {
+    const createdRef = await db.collection('orders').add({
+      ...docData,
+      ilcAppOrderStatus: 'processed',
+    });
+    orderDocId = createdRef.id;
+    logger.info('Stripe webhook created new order', {
+      orderDocId,
+      stripeObjectId: order.stripeObjectId,
+      stripeOrderType: order.stripeOrderType,
+    });
   }
 
-  await db.collection('orders').add({
-    ...docData,
-    ilcAppOrderStatus: 'needs-manual-processing',
-  });
-  logger.info('Stripe webhook created new order', {
-    stripeObjectId: order.stripeObjectId,
-    stripeOrderType: order.stripeOrderType,
-  });
+  // Mirror to member subcollection and fulfill products
+  try {
+    const member = await resolveMemberForStripeOrder(db, order);
+    if (member) {
+      await mirrorOrderToMemberSubcollection(db, member, order, orderDocId);
+      await fulfillStripeOrder(db, member, order, orderDocId);
+    } else {
+      logger.info('Stripe order could not be mapped to a member yet', {
+        orderDocId,
+        customerEmail: order.customerEmail,
+        stripeCustomerId: order.stripeCustomerId,
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to mirror or fulfill Stripe order for member', {
+      orderDocId,
+      error: error instanceof Error ? error.stack || error.message : String(error),
+    });
+  }
+
+  return orderDocId;
 }
 
 async function handleCheckoutSession(
@@ -348,14 +385,18 @@ export const stripeWebhook = onRequest(
         case 'invoice.paid':
           await handleInvoicePaid(event.data.object as Stripe.Invoice, db);
           break;
-        case 'customer.subscription.deleted':
-          await upsertStripeOrder(
+        case 'customer.subscription.updated':
+          await syncSubscriptionStatusToMember(
             db,
-            subscriptionToCancellationOrder(
-              event.data.object as Stripe.Subscription,
-            ),
+            event.data.object as Stripe.Subscription,
           );
           break;
+        case 'customer.subscription.deleted': {
+          const sub = event.data.object as Stripe.Subscription;
+          await upsertStripeOrder(db, subscriptionToCancellationOrder(sub));
+          await syncSubscriptionStatusToMember(db, sub);
+          break;
+        }
         default:
           // Acknowledge unhandled events so Stripe stops retrying them.
           break;

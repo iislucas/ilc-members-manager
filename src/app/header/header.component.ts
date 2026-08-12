@@ -76,6 +76,7 @@ export class HeaderComponent {
     if (view === Views.MemberGradings) {
       return !!this.firebaseService.user()?.member?.instructorId;
     }
+    if (view === Views.Notifications) return true;
     return false;
   });
 

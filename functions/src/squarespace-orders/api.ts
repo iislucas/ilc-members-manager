@@ -27,7 +27,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, NotificationKind, Member, MembershipType } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, SquarespaceFulfillmentStatus, NotificationKind, Member, MembershipType, OrderKind } from '../data-model';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
@@ -152,7 +152,7 @@ export async function fetchAndSyncOrders(
       const orderToSave = {
         ...orderData,
         lastUpdated: admin.firestore.Timestamp.fromDate(new Date(orderData.createdOn || orderData.modifiedOn || new Date())),
-        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders'
+        ilcAppOrderKind: OrderKind.Squarespace
       };
 
       if (dryRun) {
@@ -290,7 +290,7 @@ export const processSquarespaceOrder = onDocumentWritten(
     // kind (writing a Stripe order must not run Squarespace-specific logic).
     if (
       orderData.ilcAppOrderKind !==
-      'https://api.squarespace.com/1.0/commerce/orders'
+      OrderKind.Squarespace
     ) {
       return;
     }
@@ -533,28 +533,28 @@ export async function executeOrderDownstreamLogic(
   let shouldUpdateFulfillmentStatus = false;
 
   const lineItems: SquareSpaceLineItem[] = orderData.lineItems || [];
-  let orderStatus: OrderStatus = 'processed';
+  let orderStatus: OrderStatus = OrderStatus.Processed;
   const ilcAppOrderIssues: string[] = [];
 
   let allItemsFulfilled = true;
 
   for (const lineItem of lineItems) {
-    if (lineItem.ilcAppProcessingStatus === 'processed') {
+    if (lineItem.ilcAppProcessingStatus === OrderStatus.Processed) {
       continue;
     }
 
-    if (lineItem.ilcAppProcessingStatus === 'error') {
+    if (lineItem.ilcAppProcessingStatus === OrderStatus.Error) {
       allItemsFulfilled = false;
-      orderStatus = 'error';
+      orderStatus = OrderStatus.Error;
       continue;
     }
 
     if (lineItem.lineItemType === SquareSpaceLineItemType.PhysicalProduct) {
-      if (orderData.fulfillmentStatus === 'FULFILLED') {
-        lineItem.ilcAppProcessingStatus = 'processed';
+      if (orderData.fulfillmentStatus === SquarespaceFulfillmentStatus.Fulfilled) {
+        lineItem.ilcAppProcessingStatus = OrderStatus.Processed;
       } else {
-        lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
-        orderStatus = 'needs-manual-processing';
+        lineItem.ilcAppProcessingStatus = OrderStatus.NeedsManualProcessing;
+        orderStatus = OrderStatus.NeedsManualProcessing;
         allItemsFulfilled = false;
       }
       continue;
@@ -579,12 +579,12 @@ export async function executeOrderDownstreamLogic(
     if (subscriptionResult) {
       if (subscriptionResult.kind === 'error') {
         ilcAppOrderIssues.push(subscriptionResult.message);
-        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingStatus = OrderStatus.Error;
         lineItem.ilcAppProcessingIssue = subscriptionResult.message;
-        orderStatus = 'error';
+        orderStatus = OrderStatus.Error;
         allItemsFulfilled = false;
       } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
+        lineItem.ilcAppProcessingStatus = OrderStatus.Processed;
         lineItem.ilcAppNewLastRenewalDate = subscriptionResult.renewalDate;
         lineItem.ilcAppNewExpiryDate = subscriptionResult.expirationDate;
       }
@@ -596,35 +596,35 @@ export async function executeOrderDownstreamLogic(
       const gradingResult = await processGradingOrder(orderData, orderId, lineItem, db);
       if (gradingResult.kind === 'error') {
         ilcAppOrderIssues.push(gradingResult.message);
-        lineItem.ilcAppProcessingStatus = 'error';
+        lineItem.ilcAppProcessingStatus = OrderStatus.Error;
         lineItem.ilcAppProcessingIssue = gradingResult.message;
-        orderStatus = 'error';
+        orderStatus = OrderStatus.Error;
         allItemsFulfilled = false;
       } else {
-        lineItem.ilcAppProcessingStatus = 'processed';
+        lineItem.ilcAppProcessingStatus = OrderStatus.Processed;
       }
       continue;
     }
 
     // --- Unknown SKU ---
-    if (orderData.fulfillmentStatus === 'FULFILLED') {
-      lineItem.ilcAppProcessingStatus = 'processed';
+    if (orderData.fulfillmentStatus === SquarespaceFulfillmentStatus.Fulfilled) {
+      lineItem.ilcAppProcessingStatus = OrderStatus.Processed;
     } else {
       allItemsFulfilled = false;
-      lineItem.ilcAppProcessingStatus = 'needs-manual-processing';
-      orderStatus = 'needs-manual-processing';
+      lineItem.ilcAppProcessingStatus = OrderStatus.NeedsManualProcessing;
+      orderStatus = OrderStatus.NeedsManualProcessing;
     }
   }
 
   if (allItemsFulfilled) {
     if (options.skipFulfillment) {
       logger.info(`Order ${orderId}: skipFulfillment is set. Skipping Squarespace fulfillment API call.`);
-    } else if (orderData.fulfillmentStatus === 'FULFILLED') {
+    } else if (orderData.fulfillmentStatus === SquarespaceFulfillmentStatus.Fulfilled) {
       // Order is already fulfilled on Squarespace (e.g. from a previous processing run).
       // No need to call the fulfillments API again.
       logger.info(`Order ${orderId} is already fulfilled on Squarespace. Skipping fulfillment API call.`);
     } else if (!squarespaceId) {
-      orderStatus = 'error';
+      orderStatus = OrderStatus.Error;
       ilcAppOrderIssues.push(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field). The order may need to be re-synced.`);
       logger.error(`Cannot auto-fulfill order ${orderId}: missing Squarespace UUID (id field).`);
     } else {
@@ -643,7 +643,7 @@ export async function executeOrderDownstreamLogic(
         logger.info(`Auto-fulfilled order ${orderId} on Squarespace.`);
         shouldUpdateFulfillmentStatus = true;
       } catch (error) {
-        orderStatus = 'error';
+        orderStatus = OrderStatus.Error;
         ilcAppOrderIssues.push(`Failed to auto-fulfill order ${orderId} on Squarespace: ${error}`);
         logger.error(`Failed to auto-fulfill order ${orderId} on Squarespace:`, error);
         if (axios.isAxiosError(error) && error.response) {
@@ -656,7 +656,7 @@ export async function executeOrderDownstreamLogic(
   // Once every line item has been processed successfully, let the purchasing
   // member know their order is fulfilled. De-duplication on orderId (in the
   // shared helper) keeps reprocessing from producing duplicate notifications.
-  if (allItemsFulfilled && orderStatus === 'processed') {
+  if (allItemsFulfilled && orderStatus === OrderStatus.Processed) {
     try {
       await notifyPurchaseFulfilled(orderData, orderId, db);
     } catch (error) {
@@ -666,7 +666,7 @@ export async function executeOrderDownstreamLogic(
 
   if (!allItemsFulfilled) {
     for (const lineItem of lineItems) {
-      if (lineItem.ilcAppProcessingStatus === 'error' || lineItem.ilcAppProcessingStatus === 'needs-manual-processing') {
+      if (lineItem.ilcAppProcessingStatus === OrderStatus.Error || lineItem.ilcAppProcessingStatus === OrderStatus.NeedsManualProcessing) {
         try {
           await createPendingNotificationIfNeeded(orderData, orderId, lineItem, db);
         } catch (error) {
@@ -684,7 +684,7 @@ export async function executeOrderDownstreamLogic(
   };
 
   if (shouldUpdateFulfillmentStatus) {
-    (updateData as SquareSpaceOrder).fulfillmentStatus = 'FULFILLED';
+    (updateData as SquareSpaceOrder).fulfillmentStatus = SquarespaceFulfillmentStatus.Fulfilled;
   }
 
   await db.collection('orders').doc(docId).update(updateData);

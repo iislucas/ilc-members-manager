@@ -20,7 +20,7 @@ describe('NotificationsViewComponent', () => {
     markdown: 'Welcome Student!',
     createdAt: '2026-05-14T12:00:00Z',
     dismissed: false,
-    kind: NotificationKind.GradingRequestAccepted,
+    kind: NotificationKind.GradingRequestsYouAsInstructor,
     data: { gradingDocId: 'grading-1', level: 'Student 1' },
   };
 
@@ -72,6 +72,43 @@ describe('NotificationsViewComponent', () => {
   it('should create and subscribe to all notifications', () => {
     expect(component).toBeTruthy();
     expect(mockNotificationService.subscribeToAllNotifications).toHaveBeenCalled();
+  });
+
+  it('should render header-extension-tabs with All and Unread pill-tabs', () => {
+    const headerTabs = fixture.nativeElement.querySelector('.header-extension-tabs');
+    expect(headerTabs).toBeTruthy();
+    const tabs = headerTabs.querySelectorAll('.pill-tab');
+    expect(tabs.length).toBe(2);
+    expect(tabs[0].textContent).toContain('All (2)');
+    expect(tabs[1].textContent).toContain('Unread (1)');
+  });
+
+  it('should render style filter pill-tabs with All, To do, and FYI options', () => {
+    const controls = fixture.nativeElement.querySelector('.view-controls');
+    expect(controls).toBeTruthy();
+    const styleTabs = controls.querySelectorAll('.pill-tabs .pill-tab');
+    expect(styleTabs.length).toBe(3);
+    expect(styleTabs[0].textContent).toContain('All (2)');
+    expect(styleTabs[1].textContent).toContain('To do');
+    expect(styleTabs[2].textContent).toContain('FYI');
+
+    // Clicking 'action' style tab filters notifications
+    styleTabs[1].click();
+    fixture.detectChanges();
+    expect(component.styleFilter()).toBe('action');
+
+    // id1 is GradingRequestAccepted (action style)
+    expect(component.filteredNotifications().length).toBe(1);
+    expect(component.filteredNotifications()[0].docId).toBe('id1');
+
+    // Clicking 'info' style tab
+    styleTabs[2].click();
+    fixture.detectChanges();
+    expect(component.styleFilter()).toBe('info');
+
+    // id2 is BlogPost (info style)
+    expect(component.filteredNotifications().length).toBe(1);
+    expect(component.filteredNotifications()[0].docId).toBe('id2');
   });
 
   it('should render both read and unread notifications under the "all" filter', () => {

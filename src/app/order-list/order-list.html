@@ -1,9 +1,9 @@
 <div class="order-list-container">
     <div class="input-group">
       <div class="search-mode-toggle">
-        <button [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
-        <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
-        <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Order Date</button>
+        <button [class.active]="searchMode() === SearchMode.Recent" (click)="setSearchMode(SearchMode.Recent)">Recently Updated</button>
+        <button [class.active]="searchMode() === SearchMode.Term" (click)="setSearchMode(SearchMode.Term)">Term</button>
+        <button [class.active]="searchMode() === SearchMode.Date" (click)="setSearchMode(SearchMode.Date)">Order Date</button>
       </div>
 
       <div class="sort-controls">
@@ -206,9 +206,9 @@
           @for (order of orders(); track order.docId) {
             <tr [class.ignored]="order.ilcAppOrderStatus === 'ignore'" class="clickable-row" (click)="viewOrder(order)">
               <td>
-                @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders") {
+                @if (order.ilcAppOrderKind === OrderKind.Squarespace) {
                   {{ order.createdOn | date: "yyyy-MM-dd" }}
-                } @else if (order.ilcAppOrderKind === "stripe") {
+                } @else if (order.ilcAppOrderKind === OrderKind.Stripe) {
                   {{ order.created | date: "yyyy-MM-dd" }}
                 } @else {
                   {{ order.datePaid | date: "yyyy-MM-dd" }}
@@ -217,21 +217,21 @@
               <td>
                 @if (
                   order.ilcAppOrderKind ===
-                  "https://api.squarespace.com/1.0/commerce/orders"
+                  OrderKind.Squarespace
                 ) {
                   <div>{{ order.orderNumber }}</div>
-                } @else if (order.ilcAppOrderKind === "stripe") {
+                } @else if (order.ilcAppOrderKind === OrderKind.Stripe) {
                   <div>{{ order.stripeOrderType }}</div>
                 } @else {
                   <div>{{ order.referenceNumber }}</div>
                 }
                 <span
                   class="kind-badge"
-                  [class.ss]="order.ilcAppOrderKind.includes('squarespace')"
+                  [class.ss]="order.ilcAppOrderKind === OrderKind.Squarespace"
                 >
                   @switch (order.ilcAppOrderKind) {
-                    @case ("https://api.squarespace.com/1.0/commerce/orders") { squarespace }
-                    @case ("stripe") { stripe }
+                    @case (OrderKind.Squarespace) { squarespace }
+                    @case (OrderKind.Stripe) { stripe }
                     @default { sheets }
                   }
                 </span>
@@ -239,11 +239,11 @@
               <td>
                 @if (
                   order.ilcAppOrderKind ===
-                  "https://api.squarespace.com/1.0/commerce/orders"
+                  OrderKind.Squarespace
                 ) {
                   <div>{{ order.billingAddress?.firstName }} {{ order.billingAddress?.lastName }}</div>
                   <div class="small-text">{{ order.customerEmail }}</div>
-                } @else if (order.ilcAppOrderKind === "stripe") {
+                } @else if (order.ilcAppOrderKind === OrderKind.Stripe) {
                   <div>{{ order.customerName }}</div>
                   <div class="small-text">{{ order.customerEmail }}</div>
                 } @else {
@@ -254,12 +254,12 @@
               <td>
                 @if (
                   order.ilcAppOrderKind ===
-                  "https://api.squarespace.com/1.0/commerce/orders"
+                  OrderKind.Squarespace
                 ) {
                   @for (item of order.lineItems; track item.id) {
                     <div class="small-text">&bull; {{ item.quantity }}x {{ item.productName || item.sku }}</div>
                   }
-                } @else if (order.ilcAppOrderKind === "stripe") {
+                } @else if (order.ilcAppOrderKind === OrderKind.Stripe) {
                   @for (item of order.lineItems; track $index) {
                     <div class="small-text">&bull; {{ item.quantity ?? 1 }}x {{ item.description || item.priceId }}</div>
                   }
@@ -276,9 +276,9 @@
                 <div class="badges">
                   @if (
                     order.ilcAppOrderKind ===
-                    "https://api.squarespace.com/1.0/commerce/orders"
+                    OrderKind.Squarespace
                   ) {
-                    <span class="status-badge" [class.fulfilled]="order['fulfillmentStatus'] === 'FULFILLED'">
+                    <span class="status-badge" [class.fulfilled]="order['fulfillmentStatus'] === SquarespaceFulfillmentStatus.Fulfilled">
                       {{ order['fulfillmentStatus'] || 'PENDING' }}
                     </span>
                   } @else {
@@ -287,14 +287,14 @@
                   
                   @if (order.ilcAppOrderStatus) {
                     <span class="status-badge app-status"
-                      [class.error]="order.ilcAppOrderStatus === 'error'"
-                      [class.processed]="order.ilcAppOrderStatus === 'processed'"
-                      [class.needs-manual]="order.ilcAppOrderStatus === 'needs-manual-processing'"
-                      [class.ignore]="order.ilcAppOrderStatus === 'ignore'"
+                      [class.error]="order.ilcAppOrderStatus === OrderStatus.Error"
+                      [class.processed]="order.ilcAppOrderStatus === OrderStatus.Processed"
+                      [class.needs-manual]="order.ilcAppOrderStatus === OrderStatus.NeedsManualProcessing"
+                      [class.ignore]="order.ilcAppOrderStatus === OrderStatus.Ignore"
                     >
                       @switch (order.ilcAppOrderStatus) {
-                        @case ('needs-manual-processing') { TODO }
-                        @case ('ignore') { IGNORE }
+                        @case (OrderStatus.NeedsManualProcessing) { TODO }
+                        @case (OrderStatus.Ignore) { IGNORE }
                         @default { {{ order.ilcAppOrderStatus | uppercase }} }
                       }
                     </span>
@@ -322,7 +322,7 @@
                       <div class="menu-item" (click)="viewOrder(order)">
                         <app-icon name="visibility"></app-icon> <span>View details</span>
                       </div>
-                      @if (order.ilcAppOrderKind === "https://api.squarespace.com/1.0/commerce/orders" && order['fulfillmentStatus'] !== 'FULFILLED') {
+                      @if (order.ilcAppOrderKind === OrderKind.Squarespace && order['fulfillmentStatus'] !== SquarespaceFulfillmentStatus.Fulfilled) {
                         <div class="menu-item" (click)="markAsFulfilled(order, $event)">
                           <app-icon name="check"></app-icon> <span>Mark as fulfilled</span>
                         </div>

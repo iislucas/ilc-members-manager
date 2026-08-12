@@ -17,9 +17,31 @@ import {
 import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
-import { Views } from '../app.config';
+import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
+
+export const NOTIFICATIONS_FOLDED_KEY = 'ilc_home_notifications_folded';
+
+function loadInitialFoldedState(): boolean {
+  try {
+    const saved = localStorage.getItem(NOTIFICATIONS_FOLDED_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    // localStorage may be unavailable or blocked
+  }
+  return false; // default to unfolded
+}
+
+function saveFoldedState(isFolded: boolean): void {
+  try {
+    localStorage.setItem(NOTIFICATIONS_FOLDED_KEY, String(isFolded));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 @Component({
   selector: 'app-notifications-list',
@@ -32,7 +54,7 @@ import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 export class NotificationsListComponent {
   private firebaseService = inject(FirebaseStateService);
   private notificationService = inject(NotificationService);
-  private routingService = inject(RoutingService);
+  private routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
   protected user = this.firebaseService.user;
 
@@ -73,13 +95,31 @@ export class NotificationsListComponent {
     () => this.notifications().length > NotificationsListComponent.HOME_MAX,
   );
 
-  // Deep link to the dedicated notifications page, opening on the "unread" filter
-  // (the home feed shows unread items, so "view all" should land on the same set
-  // with the rest of the history one click away). The explicit query param is
-  // preserved by resolveUrlWithParams.
-  protected notificationsHref = this.routingService.hrefWithParams(
+  // Fold/unfold state for the notifications section (persisted in localStorage, defaults to unfolded).
+  isFolded = signal(loadInitialFoldedState());
+
+  toggleFold() {
+    this.isFolded.update((v) => {
+      const next = !v;
+      saveFoldedState(next);
+      return next;
+    });
+  }
+
+  // 3-dots more menu state.
+  menuOpen = signal(false);
+
+  // Deep links to the dedicated notifications pages and settings.
+  protected allNotificationsHref = this.routingService.hrefWithParams(
+    '/notifications?filter=all',
+  );
+  protected unreadNotificationsHref = this.routingService.hrefWithParams(
     '/notifications?filter=unread',
   );
+  protected notificationSettingsHref = this.routingService.hrefForView(
+    Views.NotificationSettings,
+  );
+  protected notificationsHref = this.unreadNotificationsHref;
 
   private markCollapsing(...ids: string[]) {
     this.collapsingIds.update((s) => new Set([...s, ...ids]));

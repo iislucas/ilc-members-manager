@@ -18,6 +18,8 @@ import {
   ApplicationLevel,
   InstructorLicenseType,
   MasterLevel,
+  OrderKind,
+  SquarespaceFulfillmentStatus,
 } from './data-model';
 
 function makeMember(overrides: Partial<Member>): Member {
@@ -325,13 +327,13 @@ function makeOrder(createdOn: string, lineItems: Partial<SquareSpaceLineItem>[])
   return {
     docId: '',
     lastUpdated: '',
-    ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+    ilcAppOrderKind: OrderKind.Squarespace,
     id: '',
     orderNumber: '',
     createdOn,
     modifiedOn: '',
     customerEmail: '',
-    fulfillmentStatus: 'PENDING',
+    fulfillmentStatus: SquarespaceFulfillmentStatus.Pending,
     lineItems: lineItems.map((li, i) => ({
       id: `li-${i}`,
       sku: li.sku || '',

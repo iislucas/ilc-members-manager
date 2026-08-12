@@ -43,6 +43,7 @@ import {
   NotificationUploadData,
   NotificationUploadsSummaryData,
   Order,
+  OrderKind,
   OrderStatus,
   PushSubscriptionDoc,
   UploadItem,
@@ -139,8 +140,8 @@ export class NotificationService implements OnDestroy {
 
   // The order processing statuses that require admin attention.
   private static readonly ORDER_ATTENTION_STATUSES: OrderStatus[] = [
-    'error',
-    'needs-manual-processing',
+    OrderStatus.Error,
+    OrderStatus.NeedsManualProcessing,
   ];
 
   // The blog feeds we surface notifications for. `route` is the hash-router
@@ -916,10 +917,10 @@ export class NotificationService implements OnDestroy {
   // Human-readable reference for an order: the Squarespace order number, or the
   // Sheets-import reference number, falling back to the doc ID.
   private orderRef(order: Order): string {
-    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+    if (order.ilcAppOrderKind === OrderKind.Squarespace) {
       return order.orderNumber || order.docId;
     }
-    if (order.ilcAppOrderKind === 'stripe') {
+    if (order.ilcAppOrderKind === OrderKind.Stripe) {
       return order.stripeObjectId || order.docId;
     }
     return order.referenceNumber || order.docId;
@@ -928,14 +929,14 @@ export class NotificationService implements OnDestroy {
   // Who placed the order: a name where available, falling back to the email.
   // Empty string when neither is known.
   private orderCustomer(order: Order): string {
-    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+    if (order.ilcAppOrderKind === OrderKind.Squarespace) {
       const name = [order.billingAddress?.firstName, order.billingAddress?.lastName]
         .filter(Boolean)
         .join(' ')
         .trim();
       return name || order.customerEmail || '';
     }
-    if (order.ilcAppOrderKind === 'stripe') {
+    if (order.ilcAppOrderKind === OrderKind.Stripe) {
       return (order.customerName || order.customerEmail || '').trim();
     }
     const name = [order.firstName, order.lastName].filter(Boolean).join(' ').trim();
@@ -946,9 +947,9 @@ export class NotificationService implements OnDestroy {
   // or descriptions). Empty string when the order carries no itemised lines.
   private orderItemsSummary(order: Order): string {
     let names: string[] = [];
-    if (order.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+    if (order.ilcAppOrderKind === OrderKind.Squarespace) {
       names = (order.lineItems || []).map((li) => (li.productName || li.sku || '').trim());
-    } else if (order.ilcAppOrderKind === 'stripe') {
+    } else if (order.ilcAppOrderKind === OrderKind.Stripe) {
       names = (order.lineItems || []).map((li) => (li.description || '').trim());
     } else {
       names = [order.paidFor, order.orderType].map((s) => (s || '').trim());

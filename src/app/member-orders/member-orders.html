@@ -1,0 +1,265 @@
+<div class="orders-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>Orders & Subscriptions</h1>
+    </div>
+    <div class="header-actions">
+      <button
+        class="secondary-btn portal-btn"
+        (click)="onOpenCustomerPortal()"
+      >
+        <app-icon name="settings" width="18px" height="18px"></app-icon>
+        <span>Manage Payment Methods & Invoices</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Action Feedback Banners -->
+  @if (actionMessage()) {
+    <div class="banner success-banner">
+      <app-icon name="check" width="20px" height="20px"></app-icon>
+      <span>{{ actionMessage() }}</span>
+      <button class="banner-close" (click)="actionMessage.set(null)">✕</button>
+    </div>
+  }
+  @if (actionError()) {
+    <div class="banner error-banner">
+      <app-icon name="error" width="20px" height="20px"></app-icon>
+      <span>{{ actionError() }}</span>
+      <button class="banner-close" (click)="actionError.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Section: Active Subscriptions -->
+  <section class="subscriptions-section">
+    <div class="section-title">
+      <h2>Active Subscriptions & Renewals</h2>
+      <p class="section-subtitle">
+        Manage auto-renewal settings for your memberships and digital products.
+      </p>
+    </div>
+
+    <div class="subscriptions-grid">
+      @for (sub of subscriptions(); track sub.id) {
+        <div class="sub-card" [ngClass]="sub.category">
+          <div class="sub-card-header">
+            <div class="sub-title-area">
+              <h3>{{ sub.title }}</h3>
+              <span class="status-badge" [ngClass]="sub.statusClass">
+                {{ sub.statusLabel }}
+              </span>
+            </div>
+          </div>
+
+          <div class="sub-card-body">
+            <div class="info-row">
+              <span class="info-label">Access Status:</span>
+              <span class="info-val highlight">
+                @if (sub.status === 'lifetime') {
+                  Lifetime Access
+                } @else if (sub.status === 'expired') {
+                  Expired on {{ sub.expirationDate }}
+                } @else {
+                  Valid through {{ sub.expirationDate }}
+                }
+              </span>
+            </div>
+
+            <div class="info-row">
+              <span class="info-label">Auto-Renewal:</span>
+              <span class="info-val">
+                @if (sub.isAutoRenewing) {
+                  <strong class="renew-date">Renews on {{ sub.nextAutoRenewDate }}</strong>
+                } @else if (sub.status === 'lifetime') {
+                  Not applicable
+                } @else {
+                  <span class="off-text">Off (Will not renew automatically)</span>
+                }
+              </span>
+            </div>
+
+            @if (sub.amountText) {
+              <div class="info-row">
+                <span class="info-label">Amount:</span>
+                <span class="info-val">{{ sub.amountText }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="sub-card-actions">
+            @if (sub.canCancel) {
+              <button
+                class="sub-btn cancel-btn"
+                [disabled]="actionInProgressSubId() === sub.subscriptionId"
+                (click)="onCancelAutoRenew(sub.subscriptionId)"
+              >
+                {{ actionInProgressSubId() === sub.subscriptionId ? 'Cancelling...' : 'Cancel Auto-Renewal' }}
+              </button>
+            }
+
+            @if (sub.canResume) {
+              <button
+                class="sub-btn resume-btn"
+                [disabled]="actionInProgressSubId() === sub.subscriptionId"
+                (click)="onResumeAutoRenew(sub.subscriptionId)"
+              >
+                {{ actionInProgressSubId() === sub.subscriptionId ? 'Resuming...' : 'Resume Auto-Renewal' }}
+              </button>
+            }
+
+            @if (sub.canSubscribe) {
+              <a
+                class="sub-btn renew-link"
+                [href]="routingService.hrefForView(Views.Products)"
+              >
+                Renew Now
+              </a>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-subscriptions">
+          <p>No active subscriptions found for this account.</p>
+          <a class="primary-btn" [href]="routingService.hrefForView(Views.Products)">
+            Browse Memberships & Products
+          </a>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Section: Order & Renewal History -->
+  <section class="orders-section">
+    <div class="orders-section-header">
+      <div class="section-title">
+        <h2>Order & Renewal History</h2>
+        <p class="section-subtitle">
+          All orders, renewals, and transaction records linked to your account.
+        </p>
+      </div>
+
+      <!-- Search Filter -->
+      <div class="search-bar">
+        <app-icon name="search" width="18px" height="18px"></app-icon>
+        <input
+          type="text"
+          placeholder="Filter orders by description, order #, or date..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+        @if (searchQuery()) {
+          <button class="clear-search" (click)="searchQuery.set('')">✕</button>
+        }
+      </div>
+    </div>
+
+    <!-- Orders Table / List -->
+    <div class="orders-list">
+      @for (order of orders(); track order.docId) {
+        <div
+          class="order-card"
+          [class.expanded]="isOrderExpanded(order.docId)"
+        >
+          <div
+            class="order-summary-row"
+            (click)="toggleOrderExpanded(order.docId)"
+          >
+            <div class="col-date">
+              <span class="date-text">{{ order.date }}</span>
+              @if (order.orderNumber) {
+                <span class="order-num">#{{ order.orderNumber }}</span>
+              }
+            </div>
+
+            <div class="col-desc">
+              <span class="main-desc">{{ order.description || 'Order ' + order.docId }}</span>
+              <div class="badge-group">
+                <span
+                  class="badge type-badge"
+                  [ngClass]="getOrderTypeBadgeClass(order.orderType)"
+                >
+                  {{ order.orderType }}
+                </span>
+                @if (order.paymentStatus) {
+                  <span
+                    class="badge status-badge"
+                    [ngClass]="getPaymentStatusBadgeClass(order.paymentStatus)"
+                  >
+                    {{ order.paymentStatus }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            <div class="col-amount">
+              <span class="amount-val">
+                {{ formatAmount(order.amountTotal, order.currency) }}
+              </span>
+            </div>
+
+            <div class="col-expand">
+              <app-icon
+                [name]="isOrderExpanded(order.docId) ? 'expand_less' : 'expand_more'"
+                width="24px"
+                height="24px"
+              ></app-icon>
+            </div>
+          </div>
+
+          <!-- Expanded Order Details -->
+          @if (isOrderExpanded(order.docId)) {
+            <div class="order-details-pane">
+              @if (order.lineItems && order.lineItems.length > 0) {
+                <div class="line-items-table">
+                  <div class="line-items-header">
+                    <span>Item</span>
+                    <span>Qty</span>
+                    <span>Total</span>
+                  </div>
+                  @for (item of order.lineItems; track $index) {
+                    <div class="line-item-row">
+                      <span class="item-name">{{ item.description }}</span>
+                      <span class="item-qty">{{ item.quantity || 1 }}</span>
+                      <span class="item-price">
+                        {{ formatAmount(item.amountTotal, item.currency) }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+
+              <div class="details-footer">
+                @if (order.stripeInvoiceId) {
+                  <span class="invoice-ref">
+                    Stripe Invoice: <code>{{ order.stripeInvoiceId }}</code>
+                  </span>
+                }
+                @if (order.stripeReceiptUrl) {
+                  <a
+                    class="receipt-link"
+                    [href]="order.stripeReceiptUrl"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <app-icon name="receipt_long" width="16px" height="16px"></app-icon>
+                    View Stripe Receipt
+                  </a>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="empty-orders">
+          @if (searchQuery()) {
+            <p>No orders matched your search query "{{ searchQuery() }}".</p>
+            <button class="secondary-btn" (click)="searchQuery.set('')">Clear Search</button>
+          } @else {
+            <p>No orders or transactions recorded yet.</p>
+          }
+        </div>
+      }
+    </div>
+  </section>
+</div>

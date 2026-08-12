@@ -28,6 +28,8 @@ import {
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResult,
   GetCheckoutSessionRequest,
+  StripeCheckoutStatus,
+  StripeCheckoutPaymentStatus,
 } from './stripe-types';
 
 // Re-export the shared DTOs so existing importers of this module keep working.
@@ -37,6 +39,8 @@ export {
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResult,
   GetCheckoutSessionRequest,
+  StripeCheckoutStatus,
+  StripeCheckoutPaymentStatus,
 } from './stripe-types';
 
 function requireAllowedOrigin(origin: unknown): string {
@@ -48,6 +52,9 @@ function requireAllowedOrigin(origin: unknown): string {
   }
   return origin;
 }
+
+import * as admin from 'firebase-admin';
+import { getMemberByEmail } from './common';
 
 export const createStripeCheckoutSession = onCall<
   CreateCheckoutSessionRequest,
@@ -84,13 +91,81 @@ export const createStripeCheckoutSession = onCall<
   const mode: Stripe.Checkout.SessionCreateParams.Mode =
     price.type === 'recurring' ? 'subscription' : 'payment';
 
-  const session = await stripe.checkout.sessions.create({
+  const db = admin.firestore();
+  let customerId: string | undefined;
+  let memberDocId: string | undefined;
+  let memberId: string | undefined;
+
+  const callerEmail = request.auth?.token?.email;
+  if (callerEmail) {
+    try {
+      const member = await getMemberByEmail(callerEmail, db);
+      memberDocId = member.docId;
+      memberId = member.memberId;
+
+      if (member.stripeCustomerId) {
+        customerId = member.stripeCustomerId;
+      } else {
+        const existing = await stripe.customers.list({
+          email: callerEmail,
+          limit: 1,
+        });
+        if (existing.data.length > 0) {
+          customerId = existing.data[0].id;
+        } else {
+          const created = await stripe.customers.create({
+            email: callerEmail,
+            name: member.name || undefined,
+            metadata: {
+              memberDocId: member.docId,
+              memberId: member.memberId,
+            },
+          });
+          customerId = created.id;
+        }
+        await db.collection('members').doc(member.docId).update({
+          stripeCustomerId: customerId,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    } catch {
+      // If member lookup fails, continue as guest checkout
+    }
+  }
+
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: priceId, quantity }],
     allow_promotion_codes: true,
     success_url: `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/products`,
-  });
+  };
+
+  if (customerId) {
+    sessionParams.customer = customerId;
+    sessionParams.customer_update = {
+      address: 'auto',
+      name: 'auto',
+    };
+  }
+
+  if (memberDocId) {
+    sessionParams.client_reference_id = memberDocId;
+    sessionParams.metadata = {
+      memberDocId,
+      memberId: memberId || '',
+    };
+    if (mode === 'subscription') {
+      sessionParams.subscription_data = {
+        metadata: {
+          memberDocId,
+          memberId: memberId || '',
+        },
+      };
+    }
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   if (!session.url) {
     throw new HttpsError('internal', 'Stripe did not return a checkout URL.');
@@ -100,6 +175,8 @@ export const createStripeCheckoutSession = onCall<
     sessionId: session.id,
     priceId,
     mode,
+    customerId,
+    memberDocId,
   });
 
   return { checkoutUrl: session.url, sessionId: session.id };
@@ -139,8 +216,8 @@ export const getStripeCheckoutSession = onCall<
 
   return {
     id: session.id,
-    status: session.status,
-    paymentStatus: session.payment_status,
+    status: (session.status as StripeCheckoutStatus) ?? null,
+    paymentStatus: session.payment_status as StripeCheckoutPaymentStatus,
     customerEmail: session.customer_details?.email ?? null,
     amountTotal: session.amount_total,
     currency: session.currency,

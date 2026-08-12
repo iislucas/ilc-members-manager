@@ -22,6 +22,7 @@ import {
   MemberStatisticsFirebaseDoc,
   Histogram,
   HistogramMap,
+  OrderKind,
 } from './data-model';
 
 // Returns true if the member has a currently valid (non-expired) membership.
@@ -213,7 +214,7 @@ async function performComputeStatistics(): Promise<string> {
   const twoYearsAgo = new Date();
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
   const ordersSnapshot = await db.collection('orders')
-    .where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders')
+    .where('ilcAppOrderKind', '==', OrderKind.Squarespace)
     .where('createdOn', '>=', twoYearsAgo.toISOString())
     .get();
   const ssOrders: SquareSpaceOrder[] = ordersSnapshot.docs.map((doc) => ({

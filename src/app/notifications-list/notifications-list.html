@@ -16,122 +16,196 @@
     @if (notifications().length > 0) {
       <div class="section-header">
         <div class="title-container">
-          <h2>Updates & Notifications</h2>
-          <span class="badge">{{ notifications().length }}</span>
-        </div>
-        <button class="dismiss-all-btn" (click)="onDismissAll()">
-          Dismiss All
-        </button>
-      </div>
-      <div class="notifications-list">
-      @for (n of visibleNotifications(); track n.docId) {
-        <div class="notification-row" [class.collapsing]="collapsingIds().has(n.docId)">
-        <div
-          class="notification-card"
-          [class]="n.kind"
-          [class.style-action]="styleOf(n) === 'action'"
-          [class.style-info]="styleOf(n) === 'info'"
-        >
-          <div class="notification-icon" [class]="n.kind || 'default'">
-            @switch (n.kind) {
-              @case ('GradingRequestAccepted') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('GradingRequestDeclined') {
-                <app-icon name="salut" width="20px" height="20px" fill="#c5221f"></app-icon>
-              }
-              @case ('GradingRequestsYouAsInstructor') {
-                <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              <!-- Enum values are the legacy 'GradingInstructorAdded/Removed' strings. -->
-              @case ('GradingInstructorAdded') {
-                <app-icon name="person" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('GradingInstructorRemoved') {
-                <app-icon name="person" width="20px" height="20px" fill="#5f6368"></app-icon>
-              }
-              @case ('GradingPurchased') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('GradingPassed') {
-                <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('GradingNotPassed') {
-                <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('GradingUnpaid') {
-                <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('PurchaseFulfilled') {
-                <app-icon name="check_box" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('BlogPost') {
-                <app-icon name="hands_lotus" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('BlogPostsSummary') {
-                <app-icon name="hands_lotus" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('NewEventPosted') {
-                <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('EventProposalSubmitted') {
-                <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('PendingEventApproval') {
-                <app-icon name="event" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('PendingEventsSummary') {
-                <app-icon name="event" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('OrderNeedsAttention') {
-                <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('OrderIssuesSummary') {
-                <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @case ('NewUpload') {
-                <app-icon name="video_library" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('NewUploadsSummary') {
-                <app-icon name="video_library" width="20px" height="20px" fill="#1a73e8"></app-icon>
-              }
-              @case ('UnpaidGradingsSummary') {
-                <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
-              }
-              @default {
-                @if (isGradingNotification(n)) {
-                  <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
-                } @else {
-                  <app-icon name="info" width="20px" height="20px" fill="#5f6368"></app-icon>
-                }
-              }
-            }
-          </div>
-          <div class="notification-content">
-            <div class="meta">
-              <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date:'short' }}</span>
-            </div>
-            <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
-            @if (gradingHref(n); as href) {
-              <a class="subtle-button grading-link" [href]="href">
-                <app-icon name="mountain" width="16px" height="16px"></app-icon>
-                View grading
-              </a>
-            }
-          </div>
-          <button class="icon-only-button dismiss-btn" (click)="onDismiss(n.docId)" aria-label="Dismiss">
-            <app-icon name="close" width="20px" height="20px"></app-icon>
+          <a class="section-title-link" [href]="allNotificationsHref" title="View all notifications">
+            <h2>Notifications</h2>
+          </a>
+          <a
+            class="badge"
+            [href]="unreadNotificationsHref"
+            title="View unread notifications"
+            aria-label="View unread notifications"
+          >
+            {{ notifications().length }}
+          </a>
+          <button
+            type="button"
+            class="icon-only-button fold-toggle-btn"
+            (click)="toggleFold()"
+            [attr.aria-expanded]="!isFolded()"
+            [attr.aria-label]="isFolded() ? 'Unfold notifications' : 'Fold notifications'"
+            [title]="isFolded() ? 'Unfold notifications' : 'Fold notifications'"
+          >
+            <app-icon [name]="isFolded() ? 'expand_more' : 'expand_less'" width="20px" height="20px"></app-icon>
           </button>
         </div>
+        <div class="header-actions">
+          <div class="menu-container">
+            <button
+              type="button"
+              class="icon-only-button more-btn"
+              (click)="menuOpen.set(!menuOpen())"
+              [attr.aria-expanded]="menuOpen()"
+              aria-haspopup="true"
+              aria-label="Notification options"
+              title="Notification options"
+            >
+              <app-icon name="more_vert" width="20px" height="20px"></app-icon>
+            </button>
+            @if (menuOpen()) {
+              <div class="menu-overlay transparent" (click)="menuOpen.set(false)"></div>
+              <div class="notifications-menu">
+                <button
+                  type="button"
+                  class="menu-item dismiss-all-btn"
+                  (click)="onDismissAll(); menuOpen.set(false)"
+                >
+                  <app-icon name="check" width="18px" height="18px"></app-icon>
+                  <span>Dismiss all</span>
+                </button>
+                <div class="menu-seperator"></div>
+                <a
+                  class="menu-item"
+                  [href]="allNotificationsHref"
+                  (click)="menuOpen.set(false)"
+                >
+                  <app-icon name="bullet_list" width="18px" height="18px"></app-icon>
+                  <span>All notifications</span>
+                </a>
+                <a
+                  class="menu-item"
+                  [href]="unreadNotificationsHref"
+                  (click)="menuOpen.set(false)"
+                >
+                  <app-icon name="visibility" width="18px" height="18px"></app-icon>
+                  <span>Unread notifications</span>
+                </a>
+                <a
+                  class="menu-item"
+                  [href]="notificationSettingsHref"
+                  (click)="menuOpen.set(false)"
+                >
+                  <app-icon name="settings" width="18px" height="18px"></app-icon>
+                  <span>Notification settings</span>
+                </a>
+              </div>
+            }
+          </div>
         </div>
-      }
-    </div>
-      @if (hasMore()) {
-        <a class="subtle-button view-all-link" [href]="notificationsHref">
-          View all {{ notifications().length }} notifications
-          <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
-        </a>
-      }
+      </div>
+
+      <div class="notifications-body" [class.folded]="isFolded()">
+        <div class="notifications-body-content">
+          <div class="notifications-list">
+            @for (n of visibleNotifications(); track n.docId) {
+              <div class="notification-row" [class.collapsing]="collapsingIds().has(n.docId)">
+                <div
+                  class="notification-card"
+                  [class]="n.kind"
+                  [class.style-action]="styleOf(n) === 'action'"
+                  [class.style-info]="styleOf(n) === 'info'"
+                >
+                  <div class="notification-icon" [class]="n.kind || 'default'">
+                    @switch (n.kind) {
+                      @case ('GradingRequestAccepted') {
+                        <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('GradingRequestDeclined') {
+                        <app-icon name="salut" width="20px" height="20px" fill="#c5221f"></app-icon>
+                      }
+                      @case ('GradingRequestsYouAsInstructor') {
+                        <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      <!-- Enum values are the legacy 'GradingInstructorAdded/Removed' strings. -->
+                      @case ('GradingInstructorAdded') {
+                        <app-icon name="person" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('GradingInstructorRemoved') {
+                        <app-icon name="person" width="20px" height="20px" fill="#5f6368"></app-icon>
+                      }
+                      @case ('GradingPurchased') {
+                        <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('GradingPassed') {
+                        <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('GradingNotPassed') {
+                        <app-icon name="salut" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('GradingUnpaid') {
+                        <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('PurchaseFulfilled') {
+                        <app-icon name="check_box" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('BlogPost') {
+                        <app-icon name="hands_lotus" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('BlogPostsSummary') {
+                        <app-icon name="hands_lotus" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('NewEventPosted') {
+                        <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('EventProposalSubmitted') {
+                        <app-icon name="event" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('PendingEventApproval') {
+                        <app-icon name="event" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('PendingEventsSummary') {
+                        <app-icon name="event" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('OrderNeedsAttention') {
+                        <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('OrderIssuesSummary') {
+                        <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @case ('NewUpload') {
+                        <app-icon name="video_library" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('NewUploadsSummary') {
+                        <app-icon name="video_library" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                      }
+                      @case ('UnpaidGradingsSummary') {
+                        <app-icon name="error" width="20px" height="20px" fill="#b06000"></app-icon>
+                      }
+                      @default {
+                        @if (isGradingNotification(n)) {
+                          <app-icon name="mountain" width="20px" height="20px" fill="#1a73e8"></app-icon>
+                        } @else {
+                          <app-icon name="info" width="20px" height="20px" fill="#5f6368"></app-icon>
+                        }
+                      }
+                    }
+                  </div>
+                  <div class="notification-content">
+                    <div class="meta">
+                      <span class="date">{{ n.kind === 'BlogPost' ? 'Posted: ' : '' }}{{ n.createdAt | date:'short' }}</span>
+                    </div>
+                    <app-markdown-viewer [markdown]="n.markdown"></app-markdown-viewer>
+                    @if (gradingHref(n); as href) {
+                      <a class="subtle-button grading-link" [href]="href">
+                        <app-icon name="mountain" width="16px" height="16px"></app-icon>
+                        View grading
+                      </a>
+                    }
+                  </div>
+                  <button class="icon-only-button dismiss-btn" (click)="onDismiss(n.docId)" aria-label="Dismiss">
+                    <app-icon name="close" width="20px" height="20px"></app-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+          @if (hasMore()) {
+            <a class="subtle-button view-all-link" [href]="unreadNotificationsHref">
+              View all {{ notifications().length }} notifications
+              <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+            </a>
+          }
+        </div>
+      </div>
     }
   </div>
 }

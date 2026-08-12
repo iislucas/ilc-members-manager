@@ -69,6 +69,7 @@ export enum Views {
   Notifications = 'notifications',
   Products = 'products',
   OrderComplete = 'orderComplete',
+  MyOrders = 'myOrders',
   MyMaterials = 'myMaterials',
   ManageMaterials = 'manageMaterials',
 }
@@ -184,6 +185,7 @@ export const initPathPatterns = {
   // page or navigation — reachable directly via its URL.
   [Views.Products]: pathPattern`products`,
   [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, [{ name: 'session_id', ephemeral: true }]),
+  [Views.MyOrders]: addUrlParams(pathPattern`my-orders`, ['tab']),
   [Views.MyMaterials]: addUrlParams(pathPattern`my-materials`, [
     'q', 'tag', 'date', 'eventId', 'type', 'location',
   ]),

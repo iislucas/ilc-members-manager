@@ -59,6 +59,9 @@ import {
   UploadItem,
   firestoreDocToUploadItem,
   initUploadItem,
+  MemberOrder,
+  firestoreDocToMemberOrder,
+  OrderKind,
 } from '../../functions/src/data-model';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
@@ -86,9 +89,9 @@ export enum DataServiceState {
 
 function orderSortDate(order: Order): string {
   switch (order.ilcAppOrderKind) {
-    case 'https://api.squarespace.com/1.0/commerce/orders':
+    case OrderKind.Squarespace:
       return order.createdOn;
-    case 'stripe':
+    case OrderKind.Stripe:
       return order.created;
     default:
       return order.datePaid;
@@ -244,6 +247,10 @@ export class DataManagerService {
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
   );
+  public myOrders = new SearchableSet<'docId', MemberOrder>(
+    ['orderNumber', 'description', 'orderType', 'date', 'currency'],
+    'docId',
+  );
 
   // Reactive map from memberId to docId for efficient member lookups by
   // human-readable member ID.
@@ -372,10 +379,58 @@ export class DataManagerService {
         this.mySchools.setEntries([]);
       }
     });
+
+    // Reactive effect for My Orders & Subscriptions
+    effect(() => {
+      const user = this.firebaseService.user();
+      if (user?.member?.docId) {
+        this.listenToMemberOrders(user.member.docId);
+      } else {
+        this.listenToMemberOrders('');
+      }
+    });
+  }
+
+  private myOrdersUnsubscribe: (() => void) | null = null;
+
+  public listenToMemberOrders(memberDocId: string) {
+    if (this.myOrdersUnsubscribe) {
+      this.myOrdersUnsubscribe();
+      this.myOrdersUnsubscribe = null;
+    }
+
+    if (!memberDocId) {
+      this.myOrders.setEntries([]);
+      return;
+    }
+
+    const ordersSubcollection = collection(
+      this.db,
+      'members',
+      memberDocId,
+      'orders',
+    );
+    const q = query(ordersSubcollection, orderBy('date', 'desc'));
+
+    this.myOrdersUnsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const orders = snapshot.docs.map(firestoreDocToMemberOrder);
+        this.myOrders.setEntries(orders);
+      },
+      (error) => {
+        console.error('Error listening to member orders:', error);
+        this.myOrders.setError(error.message);
+      },
+    );
   }
 
   unsubscribeSnapshots() {
     this.snapshotsToUnsubscribe.forEach((unsubscribe) => unsubscribe());
+    if (this.myOrdersUnsubscribe) {
+      this.myOrdersUnsubscribe();
+      this.myOrdersUnsubscribe = null;
+    }
   }
 
   async updateMembersSync(user: UserDetails) {
@@ -482,7 +537,7 @@ export class DataManagerService {
         q = query(q, where('ilcAppOrderStatus', '==', status));
       }
       if (kindFilter === 'squarespace') {
-        q = query(q, where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders'));
+        q = query(q, where('ilcAppOrderKind', '==', OrderKind.Squarespace));
       }
       
       const snapshot = await getDocs(q);
@@ -511,7 +566,7 @@ export class DataManagerService {
         q = query(q, where('ilcAppOrderStatus', '==', status));
       }
       if (kindFilter === 'squarespace') {
-        q = query(q, where('ilcAppOrderKind', '==', 'https://api.squarespace.com/1.0/commerce/orders'));
+        q = query(q, where('ilcAppOrderKind', '==', OrderKind.Squarespace));
       }
 
       const snap = await getDocs(q);

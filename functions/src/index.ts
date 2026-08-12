@@ -59,5 +59,12 @@ export { listStripeProducts } from './stripe-products';
 
 export { createStripeCheckoutSession, getStripeCheckoutSession } from './stripe-checkout';
 
+export {
+  cancelSubscriptionRenewal,
+  resumeSubscriptionRenewal,
+  createCustomerPortalSession,
+} from './stripe-subscriptions';
+
 export { stripeWebhook } from './stripe-webhook';
+
 

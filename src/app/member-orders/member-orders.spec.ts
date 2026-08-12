@@ -1,0 +1,213 @@
+/* member-orders.spec.ts
+ *
+ * Unit tests for MemberOrdersComponent.
+ */
+
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemberOrdersComponent } from './member-orders';
+import { StripeService } from '../stripe.service';
+import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService, UserDetails } from '../firebase-state.service';
+import { RoutingService } from '../routing.service';
+import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType } from '../../../functions/src/data-model';
+
+describe('MemberOrdersComponent', () => {
+  let fixture: ComponentFixture<MemberOrdersComponent>;
+  let component: MemberOrdersComponent;
+
+  let mockFirebaseStateService: {
+    user: ReturnType<typeof signal<UserDetails | null>>;
+  };
+
+  let mockDataManagerService: {
+    myOrders: {
+      entries: ReturnType<typeof signal<MemberOrder[]>>;
+    };
+  };
+
+  let mockStripeService: {
+    cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
+    resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
+    createCustomerPortalSession: ReturnType<typeof vi.fn>;
+  };
+
+  let mockRoutingService: {
+    hrefForView: ReturnType<typeof vi.fn>;
+    view: ReturnType<typeof vi.fn>;
+  };
+
+  const sampleMember: Member = {
+    ...initMember(),
+    docId: 'mem-123',
+    memberId: 'US123',
+    name: 'Bruce Lee',
+    emails: ['bruce@example.com'],
+    currentMembershipExpires: '2027-05-15',
+    membershipSubscriptionId: 'sub_mem_123',
+    membershipNextAutoRenewDate: '2027-05-15',
+    instructorId: 'INS-01',
+    instructorLicenseExpires: '2027-05-15',
+    instructorLicenseSubscriptionId: 'sub_ins_123',
+    instructorLicenseNextAutoRenewDate: '',
+    classVideoLibrarySubscription: true,
+    classVideoLibraryExpirationDate: '2027-06-01',
+    classVideoLibrarySubscriptionId: 'sub_vid_123',
+    classVideoLibraryNextAutoRenewDate: '2027-06-01',
+  };
+
+  const sampleOrders: MemberOrder[] = [
+    {
+      ...initMemberOrder(),
+      docId: 'order-1',
+      orderDocId: 'order-1',
+      memberDocId: 'mem-123',
+      memberId: 'US123',
+      orderKind: MemberOrderKind.Stripe,
+      orderType: MemberOrderType.Checkout,
+      orderNumber: 'in_1001',
+      date: '2026-05-15',
+      amountTotal: 8500,
+      currency: 'usd',
+      paymentStatus: MemberOrderPaymentStatus.Paid,
+      fulfillmentStatus: MemberOrderFulfillmentStatus.Fulfilled,
+      description: 'Annual Membership',
+      lineItems: [
+        {
+          productId: 'prod_1',
+          priceId: 'price_1',
+          description: 'Annual Membership',
+          quantity: 1,
+          amountTotal: 8500,
+          currency: 'usd',
+        },
+      ],
+    },
+    {
+      ...initMemberOrder(),
+      docId: 'order-2',
+      orderDocId: 'order-2',
+      memberDocId: 'mem-123',
+      memberId: 'US123',
+      orderKind: MemberOrderKind.Stripe,
+      orderType: MemberOrderType.Renewal,
+      orderNumber: 'in_1002',
+      date: '2026-06-01',
+      amountTotal: 1500,
+      currency: 'usd',
+      paymentStatus: MemberOrderPaymentStatus.Paid,
+      fulfillmentStatus: MemberOrderFulfillmentStatus.Fulfilled,
+      description: 'Class Video Library',
+      lineItems: [],
+    },
+  ];
+
+  beforeEach(() => {
+    mockFirebaseStateService = {
+      user: signal<UserDetails | null>({
+        member: { ...sampleMember },
+        isAdmin: false,
+        schoolsManaged: [],
+      }),
+    };
+
+    mockDataManagerService = {
+      myOrders: {
+        entries: signal<MemberOrder[]>(sampleOrders),
+      },
+    };
+
+    mockStripeService = {
+      cancelSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, periodEnd: '2027-05-15' }),
+      resumeSubscriptionRenewal: vi.fn().mockResolvedValue({ success: true, nextAutoRenewDate: '2027-05-15' }),
+      createCustomerPortalSession: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/p/session/test' }),
+    };
+
+    mockRoutingService = {
+      hrefForView: vi.fn().mockReturnValue('/mock-path'),
+      view: vi.fn(),
+    };
+
+    TestBed.configureTestingModule({
+      imports: [MemberOrdersComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: FirebaseStateService, useValue: mockFirebaseStateService },
+        { provide: DataManagerService, useValue: mockDataManagerService },
+        { provide: StripeService, useValue: mockStripeService },
+        { provide: RoutingService, useValue: mockRoutingService },
+      ],
+    });
+
+    fixture = TestBed.createComponent(MemberOrdersComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('creates component and derives subscription cards correctly', () => {
+    expect(component).toBeTruthy();
+    const subs = component.subscriptions();
+    expect(subs.length).toBe(3);
+
+    // Membership
+    const mem = subs.find((s) => s.category === 'membership');
+    expect(mem).toBeDefined();
+    expect(mem?.isAutoRenewing).toBe(true);
+    expect(mem?.nextAutoRenewDate).toBe('2027-05-15');
+    expect(mem?.canCancel).toBe(true);
+
+    // Instructor License
+    const ins = subs.find((s) => s.category === 'instructor_license');
+    expect(ins).toBeDefined();
+    expect(ins?.isAutoRenewing).toBe(false);
+    expect(ins?.canResume).toBe(true);
+
+    // Video Library
+    const vid = subs.find((s) => s.category === 'video_library');
+    expect(vid).toBeDefined();
+    expect(vid?.isAutoRenewing).toBe(true);
+  });
+
+  it('filters orders by search query correctly', () => {
+    expect(component.orders().length).toBe(2);
+
+    component.searchQuery.set('Annual');
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].description).toBe('Annual Membership');
+
+    component.searchQuery.set('Video');
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].description).toBe('Class Video Library');
+
+    component.searchQuery.set('non-existent');
+    expect(component.orders().length).toBe(0);
+  });
+
+  it('toggles order expansion state', () => {
+    expect(component.isOrderExpanded('order-1')).toBe(false);
+    component.toggleOrderExpanded('order-1');
+    expect(component.isOrderExpanded('order-1')).toBe(true);
+    component.toggleOrderExpanded('order-1');
+    expect(component.isOrderExpanded('order-1')).toBe(false);
+  });
+
+  it('cancels auto-renewal on user confirmation and sets banner message', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.onCancelAutoRenew('sub_mem_123');
+
+    expect(mockStripeService.cancelSubscriptionRenewal).toHaveBeenCalledWith('sub_mem_123');
+    expect(component.actionMessage()).toContain('Auto-renewal has been cancelled');
+  });
+
+  it('resumes auto-renewal and sets banner message', async () => {
+    await component.onResumeAutoRenew('sub_ins_123');
+
+    expect(mockStripeService.resumeSubscriptionRenewal).toHaveBeenCalledWith('sub_ins_123');
+    expect(component.actionMessage()).toContain('Auto-renewal has been resumed');
+  });
+
+  it('opens customer portal session', async () => {
+    await component.onOpenCustomerPortal();
+    expect(mockStripeService.createCustomerPortalSession).toHaveBeenCalled();
+  });
+});

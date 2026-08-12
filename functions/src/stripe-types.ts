@@ -6,13 +6,29 @@
  * server can assign Stripe values to them without casting.
  */
 
-export type StripePriceType = 'one_time' | 'recurring';
-export type StripeRecurringInterval = 'day' | 'week' | 'month' | 'year';
-export type StripeCheckoutStatus = 'open' | 'complete' | 'expired';
-export type StripeCheckoutPaymentStatus =
-  | 'no_payment_required'
-  | 'paid'
-  | 'unpaid';
+export enum StripePriceType {
+  OneTime = 'one_time',
+  Recurring = 'recurring',
+}
+
+export enum StripeRecurringInterval {
+  Day = 'day',
+  Week = 'week',
+  Month = 'month',
+  Year = 'year',
+}
+
+export enum StripeCheckoutStatus {
+  Open = 'open',
+  Complete = 'complete',
+  Expired = 'expired',
+}
+
+export enum StripeCheckoutPaymentStatus {
+  NoPaymentRequired = 'no_payment_required',
+  Paid = 'paid',
+  Unpaid = 'unpaid',
+}
 
 /** A single billing option (price) attached to a product. */
 export interface StripeProductPrice {
@@ -94,3 +110,30 @@ export interface CheckoutSessionSummary {
   currency: string | null;
   lineItems: CheckoutLineItem[];
 }
+
+export interface CancelSubscriptionRenewalRequest {
+  subscriptionId: string;
+}
+
+export interface CancelSubscriptionRenewalResult {
+  success: boolean;
+  periodEnd: string; // YYYY-MM-DD
+}
+
+export interface ResumeSubscriptionRenewalRequest {
+  subscriptionId: string;
+}
+
+export interface ResumeSubscriptionRenewalResult {
+  success: boolean;
+  nextAutoRenewDate: string; // YYYY-MM-DD
+}
+
+export interface CreateCustomerPortalSessionRequest {
+  returnUrl: string;
+}
+
+export interface CreateCustomerPortalSessionResult {
+  url: string;
+}
+

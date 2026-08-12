@@ -17,15 +17,19 @@ import { allowedOrigins } from './common';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
   ListStripeProductsResult,
+  StripePriceType,
   StripeProduct,
   StripeProductPrice,
+  StripeRecurringInterval,
 } from './stripe-types';
 
 // Re-export the shared DTOs so existing importers of this module keep working.
 export {
   ListStripeProductsResult,
+  StripePriceType,
   StripeProduct,
   StripeProductPrice,
+  StripeRecurringInterval,
 } from './stripe-types';
 
 function mapPrice(price: Stripe.Price): StripeProductPrice {
@@ -34,8 +38,8 @@ function mapPrice(price: Stripe.Price): StripeProductPrice {
     active: price.active,
     currency: price.currency,
     unitAmount: price.unit_amount,
-    type: price.type,
-    recurringInterval: price.recurring?.interval ?? null,
+    type: price.type as StripePriceType,
+    recurringInterval: (price.recurring?.interval as StripeRecurringInterval) ?? null,
     recurringIntervalCount: price.recurring?.interval_count ?? null,
     nickname: price.nickname,
     created: price.created,

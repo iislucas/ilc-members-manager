@@ -256,15 +256,20 @@ export const levelToCanAssessGrading: Record<string, string> = {
   "Application 6": "Student 8",
 }
 
+export enum LevelTrack {
+  Student = 'Student',
+  Application = 'Application',
+}
+
 // True when `levelValue` is at or below `currentValue` within one track. E.g.
-// isAtOrBelow('Student', '3', '6') → true. "Entry" is always the lowest student
+// isAtOrBelow(LevelTrack.Student, '3', '6') → true. "Entry" is always the lowest student
 // level. Non-numeric/unset values that aren't "Entry" compare as not-achieved.
 function isLevelAtOrBelow(
-  track: 'Student' | 'Application',
+  track: LevelTrack,
   levelValue: string,
   currentValue: string,
 ): boolean {
-  if (track === 'Student') {
+  if (track === LevelTrack.Student) {
     if (levelValue === 'Entry') return true;
     if (currentValue === 'Entry') return levelValue === 'Entry';
   }
@@ -284,12 +289,12 @@ export function achievedGradingLevels(
   for (const level of gradingProgression) {
     if (level.startsWith('Student ')) {
       const value = level.substring('Student '.length);
-      if (studentLevel && isLevelAtOrBelow('Student', value, studentLevel)) {
+      if (studentLevel && isLevelAtOrBelow(LevelTrack.Student, value, studentLevel)) {
         achieved.add(level);
       }
     } else if (level.startsWith('Application ')) {
       const value = level.substring('Application '.length);
-      if (applicationLevel && isLevelAtOrBelow('Application', value, applicationLevel)) {
+      if (applicationLevel && isLevelAtOrBelow(LevelTrack.Application, value, applicationLevel)) {
         achieved.add(level);
       }
     }
@@ -421,6 +426,7 @@ export enum GradingStatus {
 export enum PaymentStatus {
   NotYetPaid = 'not-yet-paid',
   PaidBySquarespace = 'paid-by-squarespace',
+  PaidByStripe = 'paid-by-stripe',
   PaidByCash = 'paid-by-cash',
   PaidOther = 'paid-other',
 }
@@ -431,7 +437,8 @@ export const PAYMENT_STATUSES = Object.values(PaymentStatus);
 /** Human-readable labels for each payment status. */
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   [PaymentStatus.NotYetPaid]: 'Not yet paid',
-  [PaymentStatus.PaidBySquarespace]: 'Paid online',
+  [PaymentStatus.PaidBySquarespace]: 'Paid online (Squarespace)',
+  [PaymentStatus.PaidByStripe]: 'Paid online (Stripe)',
   [PaymentStatus.PaidByCash]: 'Paid (cash)',
   [PaymentStatus.PaidOther]: 'Paid (other)',
 };
@@ -604,7 +611,10 @@ export enum NotificationKind {
 
 // Two presentation styles for notifications: an 'action' has an expectation/TODO
 // for the recipient; an 'info' is something for them to know.
-export type NotificationStyle = 'action' | 'info';
+export enum NotificationStyle {
+  Action = 'action',
+  Info = 'info',
+}
 
 // The kinds that carry a TODO/expectation for the recipient. Everything not
 // listed here is informational. Derived from the kind so it applies retroactively
@@ -624,7 +634,7 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
 ]);
 
 export function notificationStyle(kind: NotificationKind): NotificationStyle {
-  return ACTION_NOTIFICATION_KINDS.has(kind) ? 'action' : 'info';
+  return ACTION_NOTIFICATION_KINDS.has(kind) ? NotificationStyle.Action : NotificationStyle.Info;
 }
 
 export interface MemberNotificationCommon {
@@ -897,6 +907,44 @@ export type PushSubscriptionDoc = {
   userAgent?: string;
 };
 
+export enum SubscriptionItemType {
+  Membership = 'membership',
+  InstructorLicense = 'instructor_license',
+  VideoLibrary = 'video_library',
+  Vod = 'vod',
+}
+
+export enum SubscriptionStatus {
+  Active = 'active',
+  Trialing = 'trialing',
+  PastDue = 'past_due',
+  Canceled = 'canceled',
+  Unpaid = 'unpaid',
+  Incomplete = 'incomplete',
+}
+
+export enum SubscriptionInterval {
+  Month = 'month',
+  Year = 'year',
+}
+
+export interface MemberSubscriptionItem {
+  subscriptionId: string; // Stripe sub_... ID
+  type: SubscriptionItemType;
+  status: SubscriptionStatus;
+  planName: string; // e.g. "Annual Membership", "Class Video Library"
+  amount: number; // in currency minor units (cents)
+  currency: string; // e.g. 'usd'
+  interval: SubscriptionInterval;
+  currentPeriodStart: string; // YYYY-MM-DD
+  currentPeriodEnd: string; // YYYY-MM-DD (when current access expires)
+  nextAutoRenewDate: string; // YYYY-MM-DD or '' if cancelled
+  cancelAtPeriodEnd: boolean; // true if renewal was cancelled
+  canceledAt?: string; // YYYY-MM-DD or ISO string if cancelled
+  stripePriceId?: string;
+  stripeProductId?: string;
+}
+
 // Members are in firestore path /member/{email} (they use email as the doc id).
 export type Member = {
   // Note this is needed by SearchableSet.
@@ -921,6 +969,8 @@ export type Member = {
   firstMembershipStarted: string; // YYYY-MM-DD, or empty if unknown.
   lastRenewalDate: string; // YYYY-MM-DD, or empty if none.
   currentMembershipExpires: string; // Date membership expires
+  membershipNextAutoRenewDate: string; // YYYY-MM-DD, or empty if not auto-renewing
+  membershipSubscriptionId: string; // Active Stripe subscription ID or empty
 
   // Personal & Contact information
   name: string; // Full name
@@ -966,6 +1016,8 @@ export type Member = {
   instructorLicenseExpires: string; // YYYY-MM-DD, or empty if none.
   instructorLicenseType: InstructorLicenseType;
   instructorLicenseRenewalDate: string; // YYYY-MM-DD, or empty if none.
+  instructorLicenseNextAutoRenewDate: string; // YYYY-MM-DD, or empty if not auto-renewing
+  instructorLicenseSubscriptionId: string; // Active Stripe subscription ID or empty
 
   // A list of tags for the member.
   tags: string[];
@@ -977,6 +1029,14 @@ export type Member = {
   classVideoLibrarySubscription: boolean;
   classVideoLibraryLastRenewalDate: string; // YYYY-MM-DD
   classVideoLibraryExpirationDate: string; // YYYY-MM-DD or empty if never expires
+  classVideoLibraryNextAutoRenewDate: string; // YYYY-MM-DD, or empty if not auto-renewing
+  classVideoLibrarySubscriptionId: string; // Active Stripe subscription ID or empty
+
+  // Stripe customer identity
+  stripeCustomerId: string; // Stripe cus_... ID or empty
+
+  // Structured active subscriptions map
+  stripeSubscriptions?: Record<string, MemberSubscriptionItem>;
 
   // Notes only for ILC HQ.
   notes: string;
@@ -1071,12 +1131,18 @@ export function firestoreDocToInstructorPublicData(
 // # Orders
 // ==================================================================
 
-export type OrderStatus = 'processed' | 'needs-manual-processing' | 'error' | 'ignore';
+export enum OrderStatus {
+  Processed = 'processed',
+  NeedsManualProcessing = 'needs-manual-processing',
+  Error = 'error',
+  Ignore = 'ignore',
+}
 
-export type OrderKind =
-  | 'https://api.squarespace.com/1.0/commerce/orders'
-  | 'ilc-2005-sheets-db-import'
-  | 'stripe';
+export enum OrderKind {
+  Squarespace = 'https://api.squarespace.com/1.0/commerce/orders',
+  SheetsImport = 'ilc-2005-sheets-db-import',
+  Stripe = 'stripe',
+}
 
 export type BaseOrder = {
   docId: string; // Firestore ID
@@ -1092,7 +1158,7 @@ export type BaseOrder = {
 
 // Firestore path: /orders/{doc-id}
 export type SheetsImportOrder = BaseOrder & {
-  ilcAppOrderKind: 'ilc-2005-sheets-db-import';
+  ilcAppOrderKind: OrderKind.SheetsImport;
   orderType: string; // From CSV (column 'order')
   referenceNumber: string; // From CSV
   externalId: string; // From CSV (matches memberId)
@@ -1125,6 +1191,12 @@ export interface SquareSpaceVariantOption {
 export enum SquareSpaceLineItemType {
   PhysicalProduct = 'PHYSICAL_PRODUCT',
   Service = 'SERVICE',
+}
+
+export enum SquarespaceFulfillmentStatus {
+  Fulfilled = 'FULFILLED',
+  Pending = 'PENDING',
+  Canceled = 'CANCELED',
 }
 
 export interface SquareSpaceLineItem {
@@ -1162,7 +1234,7 @@ export interface SquareSpaceLineItem {
 }
 
 export type SquareSpaceOrder = BaseOrder & {
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders';
+  ilcAppOrderKind: OrderKind.Squarespace;
   id: string; // Squarespace UUID — used in API endpoint URLs (e.g. /orders/{id}/fulfillments)
   orderNumber: string;
   createdOn: string;
@@ -1181,8 +1253,8 @@ export type SquareSpaceOrder = BaseOrder & {
     country?: string;
     countryCode?: string;
   };
-  // This is the squarespace fullfillment status.
-  fulfillmentStatus: 'FULFILLED' | 'PENDING' | 'CANCELED';
+  // This is the squarespace fulfillment status.
+  fulfillmentStatus: SquarespaceFulfillmentStatus;
   lineItems?: SquareSpaceLineItem[];
 }
 
@@ -1190,7 +1262,22 @@ export type SquareSpaceOrder = BaseOrder & {
 // payment arrives as a `checkout` order; each subsequent renewal invoice as a
 // `renewal` order; and ending the subscription as a `cancellation` order. This
 // mirrors how Squarespace renewals each become their own order record.
-export type StripeOrderType = 'checkout' | 'renewal' | 'cancellation';
+export enum StripeOrderType {
+  Checkout = 'checkout',
+  Renewal = 'renewal',
+  Cancellation = 'cancellation',
+}
+
+export enum StripeCheckoutMode {
+  Payment = 'payment',
+  Subscription = 'subscription',
+}
+
+export enum StripePaymentStatus {
+  NoPaymentRequired = 'no_payment_required',
+  Paid = 'paid',
+  Unpaid = 'unpaid',
+}
 
 // A single purchased line, mapped from a Checkout Session line item or an
 // invoice line. Product/price ids are retained so future downstream logic can
@@ -1207,7 +1294,7 @@ export interface StripeOrderLineItem {
 
 // Firestore path: /orders/{doc-id}
 export type StripeOrder = BaseOrder & {
-  ilcAppOrderKind: 'stripe';
+  ilcAppOrderKind: OrderKind.Stripe;
   stripeOrderType: StripeOrderType;
   // Idempotency identity: the id of the primary Stripe object this record was
   // built from (checkout session `cs_...`, invoice `in_...`, or subscription
@@ -1221,11 +1308,11 @@ export type StripeOrder = BaseOrder & {
   paymentIntentId?: string;
   subscriptionId?: string;
   stripeCustomerId?: string;
-  mode?: 'payment' | 'subscription';
+  mode?: StripeCheckoutMode;
   // Session or subscription status, verbatim from Stripe (e.g. 'complete',
   // 'active', 'canceled').
   status?: string;
-  paymentStatus?: 'no_payment_required' | 'paid' | 'unpaid' | null;
+  paymentStatus?: StripePaymentStatus | null;
   customerEmail?: string;
   customerName?: string;
   billingAddress?: {
@@ -1272,10 +1359,135 @@ export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
     ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
     : new Date().toISOString();
 
-  if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === 'ilc-2005-sheets-db-import') {
-    return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: 'ilc-2005-sheets-db-import', lastUpdated, docId: doc.id } as SheetsImportOrder;
+  if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === OrderKind.SheetsImport) {
+    return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: OrderKind.SheetsImport, lastUpdated, docId: doc.id } as SheetsImportOrder;
   }
   return { ...docData, lastUpdated, docId: doc.id } as Order;
+}
+
+// ==================================================================
+// # Member Orders Subcollection: /members/{memberDocId}/orders/{orderDocId}
+// ==================================================================
+
+export enum MemberOrderKind {
+  Stripe = 'stripe',
+  Squarespace = 'squarespace',
+  SheetsImport = 'sheets-import',
+}
+
+export enum OrderItemCategory {
+  Membership = 'membership',
+  InstructorLicense = 'instructor_license',
+  Grading = 'grading',
+  VideoLibrary = 'video_library',
+  Event = 'event',
+  Other = 'other',
+}
+
+export interface MemberOrderLineItem {
+  productId: string | null;
+  priceId: string | null;
+  description: string;
+  quantity: number | null;
+  amountTotal: number;
+  currency: string;
+  category?: OrderItemCategory;
+}
+
+export enum MemberOrderType {
+  Checkout = 'checkout',
+  Renewal = 'renewal',
+  Cancellation = 'cancellation',
+  OneTime = 'one_time',
+}
+
+export enum MemberOrderPaymentStatus {
+  Paid = 'paid',
+  Unpaid = 'unpaid',
+  NoPaymentRequired = 'no_payment_required',
+  Refunded = 'refunded',
+}
+
+export enum MemberOrderFulfillmentStatus {
+  Fulfilled = 'fulfilled',
+  Pending = 'pending',
+  Cancelled = 'cancelled',
+}
+
+export type MemberOrder = {
+  docId: string; // Same as /orders/{docId} for 1:1 mirroring
+  orderDocId: string; // Global order reference ID
+  memberDocId: string;
+  memberId: string;
+
+  // Source information
+  orderKind: MemberOrderKind;
+  orderType: MemberOrderType;
+  orderNumber?: string; // Human-readable (e.g. Stripe invoice #, Squarespace order #)
+
+  // Dates
+  date: string; // YYYY-MM-DD (transaction date)
+  created: string; // ISO timestamp
+  lastUpdated: string; // ISO timestamp
+
+  // Financials & Status
+  amountTotal: number | null; // Cents or null for cancellations
+  currency: string | null;
+  paymentStatus: MemberOrderPaymentStatus | null;
+  fulfillmentStatus: MemberOrderFulfillmentStatus;
+
+  // Line items
+  description: string; // Main summary description for row header
+  lineItems: MemberOrderLineItem[];
+
+  // Stripe references & Receipt Links
+  subscriptionId?: string;
+  stripeInvoiceId?: string;
+  stripeReceiptUrl?: string; // Hosted invoice or receipt URL from Stripe
+
+  // Linked entity references
+  gradingDocId?: string; // If this order purchased a grading
+};
+
+export type MemberOrderFirestoreDoc = Omit<MemberOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: Timestamp;
+};
+
+export function initMemberOrder(): MemberOrder {
+  return {
+    docId: '',
+    orderDocId: '',
+    memberDocId: '',
+    memberId: '',
+    orderKind: MemberOrderKind.Stripe,
+    orderType: MemberOrderType.Checkout,
+    orderNumber: '',
+    date: new Date().toISOString().split('T')[0],
+    created: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+    amountTotal: 0,
+    currency: 'usd',
+    paymentStatus: MemberOrderPaymentStatus.Paid,
+    fulfillmentStatus: MemberOrderFulfillmentStatus.Fulfilled,
+    description: '',
+    lineItems: [],
+  };
+}
+
+export function firestoreDocToMemberOrder(doc: GenericFirestoreDoc): MemberOrder {
+  const docData = doc.data() as MemberOrderFirestoreDoc;
+  const lastUpdated = docData?.lastUpdated
+    ? typeof docData.lastUpdated.toDate === 'function'
+      ? docData.lastUpdated.toDate().toISOString()
+      : new Date(docData.lastUpdated as unknown as string).toISOString()
+    : new Date().toISOString();
+
+  return {
+    ...initMemberOrder(),
+    ...docData,
+    lastUpdated,
+    docId: doc.id,
+  };
 }
 
 export function initMemberNotification(): MemberNotification {
@@ -1341,6 +1553,8 @@ export function initMember(): Member {
     firstMembershipStarted: '', // YYYY-MM-DD, or empty if unknown.
     lastRenewalDate: '', // YYYY-MM-DD, or empty if none.
     currentMembershipExpires: '', // YYYY-MM-DD, or empty if none.
+    membershipNextAutoRenewDate: '', // YYYY-MM-DD, or empty if not auto-renewing
+    membershipSubscriptionId: '', // Active Stripe subscription ID or empty
 
     // Instructor details
     instructorId: '', // must not be empty is isInstructor is true.
@@ -1350,6 +1564,8 @@ export function initMember(): Member {
     instructorLicenseExpires: '', // YYYY-MM-DD, or empty if none.
     instructorLicenseType: InstructorLicenseType.None,
     instructorLicenseRenewalDate: '', // YYYY-MM-DD, or empty if none.
+    instructorLicenseNextAutoRenewDate: '', // YYYY-MM-DD, or empty if not auto-renewing
+    instructorLicenseSubscriptionId: '', // Active Stripe subscription ID or empty
 
     // Level information
     // empty string indicates none graded yet.
@@ -1363,6 +1579,14 @@ export function initMember(): Member {
     classVideoLibrarySubscription: false,
     classVideoLibraryLastRenewalDate: '',
     classVideoLibraryExpirationDate: '',
+    classVideoLibraryNextAutoRenewDate: '',
+    classVideoLibrarySubscriptionId: '',
+
+    // Stripe customer identity
+    stripeCustomerId: '',
+
+    // Structured active subscriptions map
+    stripeSubscriptions: {},
 
     // Notes - information only for ILC HQ management.
     notes: '',
@@ -1407,7 +1631,7 @@ export function initSheetsImportOrder(): SheetsImportOrder {
   return {
     docId: '',
     lastUpdated: new Date().toISOString(),
-    ilcAppOrderKind: 'ilc-2005-sheets-db-import',
+    ilcAppOrderKind: OrderKind.SheetsImport,
     orderType: '',
     referenceNumber: '',
     externalId: '',
@@ -1432,8 +1656,8 @@ export function initStripeOrder(): StripeOrder {
   return {
     docId: '',
     lastUpdated: new Date().toISOString(),
-    ilcAppOrderKind: 'stripe',
-    stripeOrderType: 'checkout',
+    ilcAppOrderKind: OrderKind.Stripe,
+    stripeOrderType: StripeOrderType.Checkout,
     stripeObjectId: '',
     amountTotal: null,
     currency: null,
@@ -2058,7 +2282,10 @@ export function initEmailTemplates(): EmailTemplates {
 // Firestore path: /members/{memberDocId}/uploads/{uploadDocId}
 // Stored per-member for private instructor uploads and event materials.
 
-export type UploadItemSource = 'direct' | 'event';
+export enum UploadItemSource {
+  Direct = 'direct',
+  Event = 'event',
+}
 
 export type UploadItem = {
   docId: string;                 // Firestore doc ID (auto-generated)
@@ -2108,7 +2335,7 @@ export function initUploadItem(): UploadItem {
     eventTitle: '',
     notes: '',
     tags: [],
-    source: 'direct',
+    source: UploadItemSource.Direct,
     createdAt: '',
     lastUpdated: '',
   };

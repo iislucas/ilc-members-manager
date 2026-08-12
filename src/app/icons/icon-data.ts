@@ -334,4 +334,11 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  receipt_long: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M280-280h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm-80 480q-33 0-56.5-23.5T120-200v-640l60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60 60 60 60-60v640q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0 0v-560 560Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 };

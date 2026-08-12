@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type Stripe from 'stripe';
+import { OrderKind } from './data-model';
 import {
   sessionToStripeOrder,
   invoiceToStripeOrder,
@@ -115,7 +116,7 @@ const canceledSubscription = {
 describe('sessionToStripeOrder', () => {
   it('maps a completed checkout session to a checkout order', () => {
     const order = sessionToStripeOrder(session);
-    expect(order.ilcAppOrderKind).toBe('stripe');
+    expect(order.ilcAppOrderKind).toBe(OrderKind.Stripe);
     expect(order.stripeOrderType).toBe('checkout');
     // Dedup identity is the session id.
     expect(order.stripeObjectId).toBe('cs_test_123');

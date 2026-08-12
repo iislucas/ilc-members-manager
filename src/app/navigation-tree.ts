@@ -201,6 +201,7 @@ export class NavigationTreeService {
     // Me
     if (
       view === Views.MyProfile ||
+      view === Views.MyOrders ||
       view === Views.MemberGradings ||
       view === Views.MyEvents ||
       view === Views.MyEventView ||
@@ -587,6 +588,8 @@ export class NavigationTreeService {
         }
         return 'Gradings';
       }
+      case Views.MyOrders:
+        return 'Orders';
       case Views.GradingView:
         return this.loadedGradingTitle() || 'Grading Details';
       case Views.Settings:

@@ -26,7 +26,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -1013,7 +1013,7 @@ export class EventEditComponent implements OnInit {
               eventTitle: ev?.title || '',
               notes: '',
               tags: [],
-              source: 'event',
+              source: UploadItemSource.Event,
               createdAt: new Date().toISOString(),
               lastUpdated: new Date().toISOString(),
             });

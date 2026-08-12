@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInstructorLicenseInfo } from './instructor-license';
-import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
 
 // Real example line item from an Instructor license purchase.
 const realLineItem: SquareSpaceLineItem = {
@@ -25,15 +25,15 @@ const realLineItem: SquareSpaceLineItem = {
 const realOrder: SquareSpaceOrder = {
   docId: 'a2S2CJ96y8AGFbY0XzTm',
   lastUpdated: '2026-03-02T10:44:42.835Z',
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
-  ilcAppOrderStatus: 'processed',
+  ilcAppOrderKind: OrderKind.Squarespace,
+  ilcAppOrderStatus: OrderStatus.Processed,
   ilcAppOrderIssues: [],
   id: '69a56a0b0cff766a1a83284e',
   orderNumber: '61815',
   createdOn: '2026-03-02T10:44:26.747Z',
   modifiedOn: '2026-03-02T10:44:27.148Z',
   customerEmail: 'student@example.com',
-  fulfillmentStatus: 'PENDING',
+  fulfillmentStatus: SquarespaceFulfillmentStatus.Pending,
   billingAddress: {
     address2: 'Apt 4',
     city: 'PANTIN',

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseLifeMembershipInfo } from './life-membership';
-import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
 
 // Real example order from a Life + Spouse purchase.
 // Extra Squarespace-specific fields that are not part of our SquareSpaceOrder
@@ -9,15 +9,15 @@ import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
 const realOrder: SquareSpaceOrder = {
   docId: '8EXQGoPO7vBLODlFp0C2',
   lastUpdated: '2026-03-02T07:45:11.869Z',
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
-  ilcAppOrderStatus: 'processed',
+  ilcAppOrderKind: OrderKind.Squarespace,
+  ilcAppOrderStatus: OrderStatus.Processed,
   ilcAppOrderIssues: [],
   id: '69a540089836f119b37dd113',
   orderNumber: '61814',
   createdOn: '2026-03-02T07:45:11.869Z',
   modifiedOn: '2026-03-02T07:47:04.763Z',
   customerEmail: 'student@example.com',
-  fulfillmentStatus: 'FULFILLED',
+  fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
   billingAddress: {
     countryCode: 'FR',
     city: 'PANTIN',

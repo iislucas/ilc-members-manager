@@ -10,11 +10,17 @@ import { inject, Injectable } from '@angular/core';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FirebaseStateService } from './firebase-state.service';
 import {
+  CancelSubscriptionRenewalRequest,
+  CancelSubscriptionRenewalResult,
   CheckoutSessionSummary,
   CreateCheckoutSessionRequest,
   CreateCheckoutSessionResult,
+  CreateCustomerPortalSessionRequest,
+  CreateCustomerPortalSessionResult,
   GetCheckoutSessionRequest,
   ListStripeProductsResult,
+  ResumeSubscriptionRenewalRequest,
+  ResumeSubscriptionRenewalResult,
 } from '../../functions/src/stripe-types';
 
 @Injectable({ providedIn: 'root' })
@@ -59,4 +65,41 @@ export class StripeService {
     const result = await fn({ sessionId });
     return result.data;
   }
+
+  /** Cancel future auto-renewals for a Stripe subscription. */
+  async cancelSubscriptionRenewal(
+    subscriptionId: string,
+  ): Promise<CancelSubscriptionRenewalResult> {
+    const fn = httpsCallable<
+      CancelSubscriptionRenewalRequest,
+      CancelSubscriptionRenewalResult
+    >(this.functions, 'cancelSubscriptionRenewal');
+    const result = await fn({ subscriptionId });
+    return result.data;
+  }
+
+  /** Resume future auto-renewals for a previously cancelled Stripe subscription. */
+  async resumeSubscriptionRenewal(
+    subscriptionId: string,
+  ): Promise<ResumeSubscriptionRenewalResult> {
+    const fn = httpsCallable<
+      ResumeSubscriptionRenewalRequest,
+      ResumeSubscriptionRenewalResult
+    >(this.functions, 'resumeSubscriptionRenewal');
+    const result = await fn({ subscriptionId });
+    return result.data;
+  }
+
+  /** Create a Stripe Billing Customer Portal session to manage payment methods / invoices. */
+  async createCustomerPortalSession(
+    returnUrl: string,
+  ): Promise<CreateCustomerPortalSessionResult> {
+    const fn = httpsCallable<
+      CreateCustomerPortalSessionRequest,
+      CreateCustomerPortalSessionResult
+    >(this.functions, 'createCustomerPortalSession');
+    const result = await fn({ returnUrl });
+    return result.data;
+  }
 }
+

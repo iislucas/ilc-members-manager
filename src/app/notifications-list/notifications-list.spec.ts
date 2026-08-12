@@ -29,6 +29,7 @@ describe('NotificationsListComponent', () => {
   };
 
   beforeEach(async () => {
+    localStorage.removeItem('ilc_home_notifications_folded');
     mockFirebaseService = {
       user: signal({
         email: 'student@example.com',
@@ -51,8 +52,12 @@ describe('NotificationsListComponent', () => {
 
     mockRoutingService = {
       navigateToParts: vi.fn(),
-      hrefForView: vi.fn().mockReturnValue('#/gradings/grading-1'),
-      hrefWithParams: vi.fn().mockReturnValue('#/notifications?filter=unread'),
+      hrefForView: vi.fn().mockImplementation((view: string, vars?: any) => {
+        if (view === 'gradingView') return `#/gradings/${vars?.gradingId}`;
+        if (view === 'notificationSettings') return '#/settings/notifications';
+        return '#/';
+      }),
+      hrefWithParams: vi.fn().mockImplementation((url: string) => `#${url}`),
     };
 
     await TestBed.configureTestingModule({
@@ -70,8 +75,80 @@ describe('NotificationsListComponent', () => {
     await fixture.whenStable();
   });
 
+  afterEach(() => {
+    localStorage.removeItem('ilc_home_notifications_folded');
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should render Notifications title and badge with correct links', () => {
+    const titleLink = fixture.nativeElement.querySelector('.section-title-link') as HTMLAnchorElement;
+    expect(titleLink).toBeTruthy();
+    expect(titleLink.textContent?.trim()).toBe('Notifications');
+    expect(titleLink.getAttribute('href')).toBe('#/notifications?filter=all');
+
+    const badgeLink = fixture.nativeElement.querySelector('.badge') as HTMLAnchorElement;
+    expect(badgeLink).toBeTruthy();
+    expect(badgeLink.textContent?.trim()).toBe('1');
+    expect(badgeLink.getAttribute('href')).toBe('#/notifications?filter=unread');
+  });
+
+  it('should toggle fold/unfold state and persist to localStorage', () => {
+    expect(component.isFolded()).toBe(false);
+    expect(localStorage.getItem('ilc_home_notifications_folded')).toBeNull();
+    const body = fixture.nativeElement.querySelector('.notifications-body') as HTMLElement;
+    expect(body.classList.contains('folded')).toBe(false);
+
+    const foldBtn = fixture.nativeElement.querySelector('.fold-toggle-btn') as HTMLButtonElement;
+    foldBtn.click();
+    fixture.detectChanges();
+
+    expect(component.isFolded()).toBe(true);
+    expect(body.classList.contains('folded')).toBe(true);
+    expect(localStorage.getItem('ilc_home_notifications_folded')).toBe('true');
+
+    foldBtn.click();
+    fixture.detectChanges();
+
+    expect(component.isFolded()).toBe(false);
+    expect(body.classList.contains('folded')).toBe(false);
+    expect(localStorage.getItem('ilc_home_notifications_folded')).toBe('false');
+  });
+
+  it('should restore folded state from localStorage on init', async () => {
+    localStorage.setItem('ilc_home_notifications_folded', 'true');
+    const customFixture = TestBed.createComponent(NotificationsListComponent);
+    const customComp = customFixture.componentInstance;
+    await customFixture.whenStable();
+
+    expect(customComp.isFolded()).toBe(true);
+  });
+
+  it('should open 3-dots menu with Dismiss All, All Notifications, Unread Notifications, and Settings links', () => {
+    const moreBtn = fixture.nativeElement.querySelector('.more-btn') as HTMLButtonElement;
+    expect(moreBtn).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.notifications-menu')).toBeFalsy();
+
+    moreBtn.click();
+    fixture.detectChanges();
+
+    const menu = fixture.nativeElement.querySelector('.notifications-menu') as HTMLElement;
+    expect(menu).toBeTruthy();
+
+    const dismissAllBtn = menu.querySelector('.dismiss-all-btn') as HTMLButtonElement;
+    expect(dismissAllBtn).toBeTruthy();
+    expect(dismissAllBtn.textContent).toContain('Dismiss all');
+
+    const menuLinks = menu.querySelectorAll('a.menu-item');
+    expect(menuLinks.length).toBe(3);
+    expect(menuLinks[0].textContent).toContain('All notifications');
+    expect(menuLinks[0].getAttribute('href')).toBe('#/notifications?filter=all');
+    expect(menuLinks[1].textContent).toContain('Unread notifications');
+    expect(menuLinks[1].getAttribute('href')).toBe('#/notifications?filter=unread');
+    expect(menuLinks[2].textContent).toContain('Notification settings');
+    expect(menuLinks[2].getAttribute('href')).toBe('#/settings/notifications');
   });
 
   it('should render notifications successfully', () => {
@@ -93,7 +170,10 @@ describe('NotificationsListComponent', () => {
     expect(mockNotificationService.dismissNotification).toHaveBeenCalledWith('id1');
   });
 
-  it('should call dismissAll when Dismiss All is clicked', async () => {
+  it('should call dismissAll when Dismiss All in menu is clicked', async () => {
+    component.menuOpen.set(true);
+    fixture.detectChanges();
+
     const dismissAllBtn = fixture.nativeElement.querySelector('.dismiss-all-btn') as HTMLButtonElement;
     dismissAllBtn.click();
     await waitForCollapse();

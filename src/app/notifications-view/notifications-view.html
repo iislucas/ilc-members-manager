@@ -1,4 +1,25 @@
 <div class="notifications-view">
+  <div class="header-extension-tabs">
+    <div class="pill-tabs">
+      <button
+        class="pill-tab"
+        [attr.data-label]="'All (' + allNotifications().length + ')'"
+        [class.active]="activeFilter() === 'all'"
+        (click)="setFilter('all')"
+      >
+        All ({{ allNotifications().length }})
+      </button>
+      <button
+        class="pill-tab"
+        [attr.data-label]="'Unread (' + unreadCount() + ')'"
+        [class.active]="activeFilter() === 'unread'"
+        (click)="setFilter('unread')"
+      >
+        Unread ({{ unreadCount() }})
+      </button>
+    </div>
+  </div>
+
   @if (syncError(); as err) {
     <div class="notification-error-banner">
       <app-icon name="error" width="20px" height="20px" fill="#dc2626"></app-icon>
@@ -12,24 +33,38 @@
     </div>
   }
 
-  <div class="view-header">
-    <div class="header-left">
-      <div class="pill-tabs">
-        <button
-          class="pill-tab"
-          [class.active]="activeFilter() === 'all'"
-          (click)="setFilter('all')"
-        >
-          All ({{ allNotifications().length }})
-        </button>
-        <button
-          class="pill-tab"
-          [class.active]="activeFilter() === 'unread'"
-          (click)="setFilter('unread')"
-        >
-          Unread ({{ unreadCount() }})
-        </button>
-      </div>
+  <div class="view-controls">
+    <div class="pill-tabs">
+      <button
+        class="pill-tab"
+        [attr.data-label]="'All (' + visibleNotifications().length + ')'"
+        [class.active]="styleFilter() === 'all'"
+        (click)="setStyleFilter('all')"
+      >
+        All ({{ visibleNotifications().length }})
+      </button>
+      <button
+        class="pill-tab"
+        [attr.data-label]="'To do (' + actionCount() + ')'"
+        [class.active]="styleFilter() === 'action'"
+        (click)="setStyleFilter('action')"
+      >
+        <span class="tab-content">
+          <app-icon name="check_box" width="16px" height="16px"></app-icon>
+          To do ({{ actionCount() }})
+        </span>
+      </button>
+      <button
+        class="pill-tab"
+        [attr.data-label]="'FYI (' + infoCount() + ')'"
+        [class.active]="styleFilter() === 'info'"
+        (click)="setStyleFilter('info')"
+      >
+        <span class="tab-content">
+          <app-icon name="info" width="16px" height="16px"></app-icon>
+          FYI ({{ infoCount() }})
+        </span>
+      </button>
     </div>
     <div class="header-actions">
       @if (unreadCount() > 0) {
@@ -38,37 +73,11 @@
           Mark all read
         </button>
       }
-      <a class="subtle-button" href="/settings/notifications">
+      <a class="subtle-button" [href]="settingsHref">
         <app-icon name="settings" width="18px" height="18px"></app-icon>
         Notification Settings
       </a>
     </div>
-  </div>
-
-  <div class="style-filter">
-    <button
-      class="pill-tab"
-      [class.active]="styleFilter() === 'all'"
-      (click)="setStyleFilter('all')"
-    >
-      All ({{ visibleNotifications().length }})
-    </button>
-    <button
-      class="pill-tab"
-      [class.active]="styleFilter() === 'action'"
-      (click)="setStyleFilter('action')"
-    >
-      <app-icon name="check_box" width="16px" height="16px"></app-icon>
-      To do ({{ actionCount() }})
-    </button>
-    <button
-      class="pill-tab"
-      [class.active]="styleFilter() === 'info'"
-      (click)="setStyleFilter('info')"
-    >
-      <app-icon name="info" width="16px" height="16px"></app-icon>
-      FYI ({{ infoCount() }})
-    </button>
   </div>
 
   @if (filteredNotifications().length > 0) {

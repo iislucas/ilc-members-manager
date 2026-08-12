@@ -1,7 +1,7 @@
 import { Component, effect, inject, signal, computed, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataManagerService } from '../data-manager.service';
-import { Order, OrderStatus } from '../../../functions/src/data-model';
+import { Order, OrderStatus, OrderKind, SquarespaceFulfillmentStatus } from '../../../functions/src/data-model';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
@@ -19,6 +19,8 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './order-view.scss',
 })
 export class OrderView {
+  protected readonly OrderKind = OrderKind;
+  protected readonly OrderStatus = OrderStatus;
   private dataService = inject(DataManagerService);
   public routingService = inject(RoutingService<AppPathPatterns>);
 
@@ -48,16 +50,16 @@ export class OrderView {
   }
 
   computeOrderTitle(o: Order): string {
-    if (o.ilcAppOrderKind === 'https://api.squarespace.com/1.0/commerce/orders') {
+    if (o.ilcAppOrderKind === OrderKind.Squarespace) {
       const name = [o.billingAddress?.firstName, o.billingAddress?.lastName].filter(Boolean).join(' ');
       const date = o.createdOn ? new Date(o.createdOn).toLocaleDateString() : '';
       return `Order #${o.orderNumber} - ${date} - ${name}`;
-    } else if (o.ilcAppOrderKind === 'stripe') {
+    } else if (o.ilcAppOrderKind === OrderKind.Stripe) {
       const date = o.created ? new Date(o.created).toLocaleDateString() : '';
       const name = o.customerName || o.customerEmail || '';
       return `Stripe ${o.stripeOrderType} - ${date} - ${name}`;
     }
-    // (o.ilcAppOrderKind === 'ilc-2005-sheets-db-import')
+    // (o.ilcAppOrderKind === OrderKind.SheetsImport)
     else {
       const name = [o.firstName, o.lastName].filter(Boolean).join(' ');
       return `Order #${o.referenceNumber} - ${o.datePaid} - ${name}`;
@@ -131,13 +133,13 @@ export class OrderView {
     }
   }
 
-  async setOrderStatus(status: string) {
+  async setOrderStatus(status: OrderStatus) {
     const o = this.order();
     if (!o) return;
 
     try {
-      const updatedOrder = { ...o, ilcAppOrderStatus: status as OrderStatus };
-      if (status === 'processed' || status === 'ignore') {
+      const updatedOrder = { ...o, ilcAppOrderStatus: status };
+      if (status === OrderStatus.Processed || status === OrderStatus.Ignore) {
         updatedOrder.ilcAppOrderIssues = [];
       }
       await this.dataService.updateOrder(o.docId, updatedOrder);
@@ -152,7 +154,7 @@ export class OrderView {
     if (!o) return;
 
     try {
-      const updatedOrder = { ...o, fulfillmentStatus: 'FULFILLED' as const };
+      const updatedOrder = { ...o, fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled };
       await this.dataService.updateOrder(o.docId, updatedOrder);
       await this.fetchOrder(this.orderId());
     } catch (e: unknown) {

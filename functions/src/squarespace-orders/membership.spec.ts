@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseMembershipRenewalInfo, processMembershipRenewal } from './membership';
-import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, MembershipType } from '../data-model';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, MembershipType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
 import { resolveCountryCode } from '../country-codes';
 import * as admin from 'firebase-admin';
 
@@ -30,15 +30,15 @@ const realLineItem: SquareSpaceLineItem = {
 const realOrder: SquareSpaceOrder = {
   docId: 'hCOisrVLNt976lvRH5N1',
   lastUpdated: '2026-03-01T16:11:17.601Z',
-  ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
-  ilcAppOrderStatus: 'processed',
+  ilcAppOrderKind: OrderKind.Squarespace,
+  ilcAppOrderStatus: OrderStatus.Processed,
   ilcAppOrderIssues: [],
   id: '69a46525f2556a3a5a087b28',
   orderNumber: '61811',
   createdOn: '2026-03-01T16:11:17.601Z',
   modifiedOn: '2026-03-01T16:12:19.244Z',
   customerEmail: 'member@example.com',
-  fulfillmentStatus: 'FULFILLED',
+  fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
   billingAddress: {
     postalCode: '93500',
     state: undefined,

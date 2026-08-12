@@ -296,6 +296,9 @@
         @case (Views.ManageOrders) {
           <app-order-list></app-order-list>
         }
+        @case (Views.MyOrders) {
+          <app-member-orders></app-member-orders>
+        }
         @case (Views.OrderView) {
           <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
         }

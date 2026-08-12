@@ -50,6 +50,7 @@ import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MyMaterialsComponent } from './my-materials/my-materials';
 import { ManageMaterialsComponent } from './manage-materials/manage-materials';
+import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
@@ -85,6 +86,7 @@ import { NavigationTreeService } from './navigation-tree';
     LoginComponent,
     ClassVideoLibraryComponent,
     MemberGradingsComponent,
+    MemberOrdersComponent,
     OrderList,
     OrderView,
     HeaderComponent,

@@ -109,6 +109,18 @@ service cloud.firestore {
         allow read: if isUploadOwner() || isAdmin() || isLinkedEventManager();
         allow write: if isUploadOwner() || isAdmin();
       }
+
+      // Member orders and renewals subcollection.
+      // Members can read their own order rows; Admins can read all orders.
+      // Direct writes from the client are forbidden (written by Cloud Functions / Admin SDK).
+      match /orders/{orderDocId} {
+        function isOrderOwner() {
+          return (request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                 (memberDocId in getUserMemberDocIds());
+        }
+        allow read: if isOrderOwner() || isAdmin();
+        allow write: if isAdmin();
+      }
     }
 
     // Collection group query support for /uploads
