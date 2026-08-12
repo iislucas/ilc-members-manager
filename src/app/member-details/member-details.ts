@@ -466,19 +466,42 @@ export class MemberDetailsComponent {
 
 
 
+  openEmailMenuIndex = signal<number | null>(null);
+
   @HostBinding('class.is-dirty')
   get isDirtyClass() {
     return this.isDirty();
   }
 
+  toggleEmailMenu(index: number, event?: Event) {
+    event?.stopPropagation();
+    this.openEmailMenuIndex.update((current) =>
+      current === index ? null : index,
+    );
+  }
+
   addEmail() {
     this.form.emails().value.update((emails) => [...emails, '']);
+    this.openEmailMenuIndex.set(null);
+  }
+
+  makePrimaryEmail(index: number) {
+    this.form.emails().value.update((emails) => {
+      if (index <= 0 || index >= emails.length) return emails;
+      const target = emails[index];
+      const others = emails.filter((_, i) => i !== index);
+      return [target, ...others];
+    });
+    this.form.emails().dirty();
+    this.openEmailMenuIndex.set(null);
   }
 
   removeEmail(index: number) {
     this.form
       .emails()
       .value.update((emails) => emails.filter((_, i) => i !== index));
+    this.form.emails().dirty();
+    this.openEmailMenuIndex.set(null);
   }
 
   updateEmail(index: number, event: Event) {

@@ -194,4 +194,134 @@ describe('MemberDetailsComponent', () => {
     const purchaseLink = compiled.querySelector('a[href*="membership"]');
     expect(purchaseLink).toBeTruthy();
   });
+
+  describe('email list and ordering', () => {
+    it('should display note under the first email indicating association with in-app orders and subscriptions', async () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      const note = compiled.querySelector('.email-note');
+      expect(note).toBeTruthy();
+      expect(note?.textContent).toContain(
+        'This email is used for in-app orders and subscriptions.',
+      );
+    });
+
+    it('should toggle email menu on three dots button click', () => {
+      expect(component.openEmailMenuIndex()).toBeNull();
+
+      component.toggleEmailMenu(0);
+      expect(component.openEmailMenuIndex()).toBe(0);
+
+      component.toggleEmailMenu(0);
+      expect(component.openEmailMenuIndex()).toBeNull();
+
+      component.toggleEmailMenu(1);
+      expect(component.openEmailMenuIndex()).toBe(1);
+    });
+
+    it('should not show "Use this email for future orders" in menu for first email', async () => {
+      const multiEmailMember: Member = {
+        ...mockMember,
+        emails: ['first@example.com', 'second@example.com'],
+      };
+      fixture.componentRef.setInput('member', multiEmailMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      component.toggleEmailMenu(0);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const emailMenu = compiled.querySelector('.email-menu');
+      expect(emailMenu).toBeTruthy();
+      expect(emailMenu?.textContent).not.toContain(
+        'Use this email for future orders',
+      );
+      expect(emailMenu?.textContent).toContain('Remove this address');
+    });
+
+    it('should show "Use this email for future orders" in menu for second email', async () => {
+      const multiEmailMember: Member = {
+        ...mockMember,
+        emails: ['first@example.com', 'second@example.com'],
+      };
+      fixture.componentRef.setInput('member', multiEmailMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      component.toggleEmailMenu(1);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const emailMenu = compiled.querySelector('.email-menu');
+      expect(emailMenu).toBeTruthy();
+      expect(emailMenu?.textContent).toContain(
+        'Use this email for future orders',
+      );
+      expect(emailMenu?.textContent).toContain('Remove this address');
+    });
+
+    it('should re-order emails and mark form dirty when makePrimaryEmail is called', async () => {
+      const multiEmailMember: Member = {
+        ...mockMember,
+        emails: ['first@example.com', 'second@example.com', 'third@example.com'],
+      };
+      fixture.componentRef.setInput('member', multiEmailMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.form.emails().value()).toEqual([
+        'first@example.com',
+        'second@example.com',
+        'third@example.com',
+      ]);
+
+      component.makePrimaryEmail(1);
+
+      expect(component.form.emails().value()).toEqual([
+        'second@example.com',
+        'first@example.com',
+        'third@example.com',
+      ]);
+      expect(component.emailsChanged()).toBe(true);
+      expect(component.isDirty()).toBe(true);
+      expect(component.openEmailMenuIndex()).toBeNull();
+    });
+
+    it('should remove email and mark form dirty when removeEmail is called', async () => {
+      const multiEmailMember: Member = {
+        ...mockMember,
+        emails: ['first@example.com', 'second@example.com'],
+      };
+      fixture.componentRef.setInput('member', multiEmailMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      component.removeEmail(0);
+
+      expect(component.form.emails().value()).toEqual(['second@example.com']);
+      expect(component.emailsChanged()).toBe(true);
+      expect(component.isDirty()).toBe(true);
+      expect(component.openEmailMenuIndex()).toBeNull();
+    });
+  });
+
+  describe('navigation buttons', () => {
+    it('should show Public Profile link for member with instructorId', async () => {
+      const instructorMember: Member = {
+        ...mockMember,
+        instructorId: '101',
+      };
+      fixture.componentRef.setInput('member', instructorMember);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const navButtons = compiled.querySelector('.nav-buttons');
+      expect(navButtons).toBeTruthy();
+
+      const publicProfileLink = navButtons?.querySelector('a[href="/instructors/101"]');
+      expect(publicProfileLink).toBeTruthy();
+      expect(publicProfileLink?.textContent).toContain('Public Profile');
+    });
+  });
 });

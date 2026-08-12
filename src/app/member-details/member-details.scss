@@ -1,5 +1,6 @@
 @use "../edit-form.scss" as *;
 @use "../../scss_variables.scss" as v;
+@use "../../styles.scss" as *;
 
 app-member-row-header {
   display: block;
@@ -30,6 +31,29 @@ app-member-row-header {
   button {
     flex-shrink: 0;
   }
+}
+
+.email-menu-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.email-menu {
+  @extend .menu-style;
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 18em;
+  z-index: 100;
+}
+
+.email-note {
+  font-size: small;
+  color: v.$text-secondary;
+  margin-top: -4px;
+  margin-bottom: 2px;
+  width: 100%;
 }
 
 .add-email-btn {

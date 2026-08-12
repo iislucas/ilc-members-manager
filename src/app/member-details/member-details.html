@@ -44,7 +44,7 @@
         target="_blank"
         rel="noopener noreferrer"
       >
-        <app-icon name="person" /> Instructor Profile</a
+        <app-icon name="person" /> Public Profile</a
       >
     </div>
   }
@@ -75,14 +75,45 @@
               (blur)="emailsField.dirty()"
               placeholder="name@example.com"
             />
-            <button
-              type="button"
-              class="icon-only-button"
-              (click)="removeEmail($index)"
-              title="Remove email"
-            >
-              <app-icon name="trash" />
-            </button>
+            <div class="email-menu-container">
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="toggleEmailMenu($index, $event)"
+                [attr.aria-expanded]="openEmailMenuIndex() === $index"
+                aria-haspopup="true"
+                aria-label="Email options"
+                title="Email options"
+              >
+                <app-icon name="more_vert" />
+              </button>
+              @if (openEmailMenuIndex() === $index) {
+                <div
+                  class="menu-overlay transparent"
+                  (click)="openEmailMenuIndex.set(null); $event.stopPropagation()"
+                ></div>
+                <div class="email-menu">
+                  @if ($index > 0) {
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="makePrimaryEmail($index)"
+                    >
+                      <app-icon name="receipt_long" />
+                      <span>Use this email for future orders</span>
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="removeEmail($index)"
+                  >
+                    <app-icon name="trash" />
+                    <span>Remove this address</span>
+                  </button>
+                </div>
+              }
+            </div>
             @if (last) {
               <button
                 type="button"
@@ -94,6 +125,11 @@
               </button>
             }
           </div>
+          @if ($index === 0) {
+            <div class="email-note">
+              This email is used for in-app orders and subscriptions.
+            </div>
+          }
         }
         @if (emailsField.value().length === 0) {
           <div class="add-new-row">

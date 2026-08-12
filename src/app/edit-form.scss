@@ -34,7 +34,7 @@ h3 {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px 20px;
-  align-items: center;
+  align-items: start;
   margin-bottom: 20px;
   margin-top: 0.5em;
   padding-top: 0.5em;
@@ -101,6 +101,9 @@ h3 {
   label {
     padding-left: 0.5em;
     text-align: right;
+    align-self: start;
+    padding-top: 8px;
+    box-sizing: border-box;
     // font-weight: bold;
   }
 
@@ -116,6 +119,7 @@ h3 {
     label {
       text-align: left;
       padding-left: 0;
+      padding-top: 0;
       font-size: 0.9em;
       font-weight: 500;
       color: v.$text-secondary;

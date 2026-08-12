@@ -185,7 +185,7 @@ The shared `edit-form.scss` uses a two-column grid for label/input pairs:
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px 20px;
-  align-items: center;
+  align-items: start;
 
   h3 { grid-column: 1 / -1; }    // Headings span full width
   p  { grid-column: 1 / -1; }    // Paragraphs span full width

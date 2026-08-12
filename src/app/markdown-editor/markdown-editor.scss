@@ -256,9 +256,14 @@
     .info-btn {
       width: 24px;
       height: 24px;
+      min-width: 24px;
+      max-width: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .menu-item {
+      padding: 4px 6px;
     }
   }
 }
@@ -283,27 +288,52 @@
   .info-btn {
     background: none;
     border: none;
+    border-left: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: $text-muted;
     border-radius: 50%;
     box-shadow: none;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    flex-shrink: 0;
 
     &:hover {
       background-color: $separator-color;
+      border-left: none;
+      box-shadow: none;
+      transform: none;
+    }
+
+    &:active {
+      transform: none;
+      box-shadow: none;
     }
   }
 }
 
 .menu-item {
+  width: auto;
+  min-width: unset;
+  max-width: unset;
+  margin: 0;
+  border: none;
+  border-left: none;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  gap: 0.4em;
+  gap: 0.3em;
   padding: 4px 8px;
   cursor: pointer;
   border-radius: 4px;
@@ -312,10 +342,16 @@
 
   &:hover {
     background-color: $separator-color;
+    border-left: none;
+    box-shadow: none;
+    transform: none;
   }
 
   &:active {
     background-color: $button-hover-bg-color;
+    border-left: none;
+    box-shadow: none;
+    transform: none;
   }
 
   .menu-icon {
