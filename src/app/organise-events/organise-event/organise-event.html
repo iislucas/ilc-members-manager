@@ -153,7 +153,7 @@
       <div class="intro-text">
         Managers can edit this event's details. The event creator automatically has
         full access. Add any additional instructors who should be able to manage
-        this event, and tick any who should also be listed publicly as a contact.
+        this event, and tick any who should also be listed as an additional event contact.
       </div>
       <div class="manager-list">
         @for (
@@ -195,7 +195,7 @@
                 [checked]="isListedContact(managerDocId)"
                 (change)="setContactListed(managerDocId, $any($event.target).checked)"
               />
-              List as a public contact
+              List as an additional event contact
             </label>
           }
         }

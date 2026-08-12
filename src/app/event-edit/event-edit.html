@@ -402,67 +402,63 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner" class="align-top">Creator / Contact</label>
+        <label for="event-owner" class="align-top">Organizer</label>
         <div class="rhs owner-editor">
-          <!-- Creator selector: a member search in non-instructor mode (admins only),
+          <!-- Organizer selector: a member search in non-instructor mode (admins only),
                otherwise the shared instructor selector. -->
-          @if (assignMemberAsOwner()) {
-            @if (userIsAdmin()) {
-              <div class="owner-selector-row">
-                <span class="member-selector-label">Member selector:</span>
-                <app-autocomplete
-                  [searchableSet]="dataService.members"
-                  [placeholder]="'Search for a member'"
-                  [displayFns]="memberDisplayFns"
-                  [initSearchTerm]="creatorMemberId()"
-                  [inputBoxIsChip]="true"
-                  (textUpdated)="updateOwnerMember($event)"
-                ></app-autocomplete>
-                @if (eventFormModel().ownerDocId) {
-                  <span class="note selected-note">
-                    <span>{{ creatorName() || creatorMemberId() }}</span>
-                    @if (creatorMemberId()) {
-                      <span class="identifier-chip">{{ creatorMemberId() }}</span>
-                      <a class="icon-only-button" [href]="ownerMemberLink()" title="Go to member">
-                        <app-icon name="visibility"></app-icon>
-                      </a>
-                    }
-                  </span>
-                  <button type="button" class="subtle-button" (click)="clearOwner()">
-                    Clear creator
-                  </button>
-                }
-              </div>
-              <div class="note">
-                The non-instructor creator is a non-instructor contact for the event. You can also provide contact information without selecting a member or instructor as the creator (doing so will set the creator as empty).
-              </div>
-            } @else {
-              <!-- Only admins can reassign a non-instructor creator, but everyone
-                   who can edit the event needs to see who it is. -->
-              <div class="owner-selector-row">
+          @if (userIsAdmin() && assignMemberAsOwner()) {
+            <div class="owner-selector-row">
+              <span class="member-selector-label">Member selector:</span>
+              <app-autocomplete
+                [searchableSet]="dataService.members"
+                [placeholder]="'Search for a member'"
+                [displayFns]="memberDisplayFns"
+                [initSearchTerm]="creatorMemberId()"
+                [inputBoxIsChip]="true"
+                (textUpdated)="updateOwnerMember($event)"
+              ></app-autocomplete>
+              @if (eventFormModel().ownerDocId) {
                 <span class="note selected-note">
-                  <span>{{ creatorName() || creatorMemberId() }}</span>
+                  <span>{{ ownerMemberName() || creatorMemberId() }}</span>
+                  @if (creatorMemberId()) {
+                    <span class="identifier-chip">{{ creatorMemberId() }}</span>
+                    <a class="icon-only-button" [href]="ownerMemberLink()" title="Go to member">
+                      <app-icon name="visibility"></app-icon>
+                    </a>
+                  }
+                </span>
+                <button type="button" class="subtle-button" (click)="clearOwner()">
+                  Clear organizer
+                </button>
+              }
+            </div>
+            <div class="note">
+              The organizer can edit the event page and is always listed as a contact. When the organizer is not an instructor, contact information is required below. You can also provide contact information without selecting a member or instructor as the organizer (doing so will leave the organizer account empty).
+            </div>
+          } @else {
+            <div class="owner-selector-row">
+              @if (!creatorInstructorId() && (ownerMemberName() || creatorName())) {
+                <span class="note selected-note">
+                  <span>{{ ownerMemberName() || creatorName() || creatorMemberId() }}</span>
                   @if (creatorMemberId()) {
                     <span class="identifier-chip">{{ creatorMemberId() }}</span>
                   }
                 </span>
-              </div>
-              <div class="note">
-                The non-instructor creator is a non-instructor contact for this event.
-              </div>
-            }
-          } @else {
-            <div class="owner-selector-row">
-              <app-instructor-selector
-                [placeholder]="'Search for an instructor'"
-                [value]="creatorInstructorId()"
-                (valueChange)="updateOwnerInstructor($event)"
-              ></app-instructor-selector>
+              } @else {
+                <app-instructor-selector
+                  [placeholder]="'Search for an instructor'"
+                  [value]="creatorInstructorId()"
+                  (valueChange)="updateOwnerInstructor($event)"
+                ></app-instructor-selector>
+              }
               @if (eventFormModel().ownerDocId) {
                 <button type="button" class="subtle-button" (click)="clearOwner()">
-                  Clear creator
+                  Clear organizer
                 </button>
               }
+            </div>
+            <div class="note">
+              The organizer can edit the event page and is always listed as a contact.
             </div>
           }
 
@@ -474,61 +470,40 @@
                 [checked]="assignMemberAsOwner()"
                 (change)="toggleAssignMemberAsOwner($any($event.target).checked)"
               />
-              Set a non-instructor as the event contact / creator
+              Set a non-instructor as the organizer
             </label>
           }
 
-          <!-- Ticking this lists the creator publicly as a contact. -->
-          @if (eventFormModel().ownerDocId) {
-            <label class="checkbox-row">
-              <input
-                type="checkbox"
-                [checked]="isListedContact(eventFormModel().ownerDocId)"
-                (change)="setContactListed(eventFormModel().ownerDocId, $any($event.target).checked)"
-              />
-              List the creator as a public contact for this event
-            </label>
-          }
-
-          <!-- Non-instructor or empty creator: checkbox to provide alternative/custom contact details -->
+          <!-- Non-instructor or empty organizer: contact information is required -->
           @if (assignMemberAsOwner() || (!creatorInstructorId() && !eventFormModel().ownerDocId)) {
-            <label class="checkbox-row">
+            <div class="mini-profile">
+              <label for="ownerContactName">Contact name *</label>
               <input
-                type="checkbox"
-                [checked]="hasCustomContactInfo()"
-                (change)="setHasCustomContactInfo($any($event.target).checked)"
+                id="ownerContactName"
+                type="text"
+                [value]="eventFormModel().ownerName"
+                (input)="updateOwnerContactField('ownerName', $event)"
+                placeholder="Contact name"
+                required
               />
-              Provide alternative contact information
-            </label>
-
-            @if (hasCustomContactInfo()) {
-              <div class="mini-profile">
-                <label for="ownerContactName">Contact name</label>
-                <input
-                  id="ownerContactName"
-                  type="text"
-                  [value]="eventFormModel().ownerName"
-                  (input)="updateOwnerContactField('ownerName', $event)"
-                  placeholder="Contact name"
-                />
-                <label for="ownerContactEmail">Contact email</label>
-                <input
-                  id="ownerContactEmail"
-                  type="email"
-                  [value]="eventFormModel().ownerContactEmail"
-                  (input)="updateOwnerContactField('ownerContactEmail', $event)"
-                  placeholder="you@example.com"
-                />
-                <label for="ownerContactUrl">Contact link</label>
-                <input
-                  id="ownerContactUrl"
-                  type="url"
-                  [value]="eventFormModel().ownerContactUrl"
-                  (input)="updateOwnerContactField('ownerContactUrl', $event)"
-                  placeholder="https://…"
-                />
-              </div>
-            }
+              <label for="ownerContactEmail">Contact email *</label>
+              <input
+                id="ownerContactEmail"
+                type="email"
+                [value]="eventFormModel().ownerContactEmail"
+                (input)="updateOwnerContactField('ownerContactEmail', $event)"
+                placeholder="you@example.com"
+                required
+              />
+              <label for="ownerContactUrl">Contact link</label>
+              <input
+                id="ownerContactUrl"
+                type="url"
+                [value]="eventFormModel().ownerContactUrl"
+                (input)="updateOwnerContactField('ownerContactUrl', $event)"
+                placeholder="https://…"
+              />
+            </div>
           }
         </div>
 
@@ -566,7 +541,7 @@
                   [checked]="isListedContact(managerId)"
                   (change)="setContactListed(managerId, $any($event.target).checked)"
                 />
-                List as a public contact
+                List as an additional event contact
               </label>
               <!-- An instructor is contacted through their public profile. -->
               @if (!contactIsInstructor(managerId) && contactFor(managerId); as contact) {
