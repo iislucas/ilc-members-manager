@@ -34,10 +34,12 @@ import {
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+
 @Component({
   selector: 'app-next-grading',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
   templateUrl: './next-grading.html',
   styleUrl: './next-grading.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

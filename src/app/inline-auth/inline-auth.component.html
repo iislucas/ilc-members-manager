@@ -1,0 +1,286 @@
+@if (isLoggedIn()) {
+  <div class="logged-in-box">
+    <div class="user-info">
+      <app-icon name="person" width="28px" height="28px"></app-icon>
+      <div class="user-details-text">
+        <div class="user-email-row">
+          Signed in as
+          <strong>{{
+            user()?.member?.emails?.[0] || user()?.firebaseUser?.email
+          }}</strong>
+        </div>
+        @if (user()?.member?.memberId) {
+          <div class="member-id-hint">
+            Member ID:
+            <span class="identifier-chip">{{ user()?.member?.memberId }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <button
+      type="button"
+      class="subtle-button logout-btn"
+      (click)="logout()"
+      title="Sign out of this account"
+    >
+      <app-icon name="logout"></app-icon>
+      <span>Log Out</span>
+    </button>
+  </div>
+
+  @if (loggedInNote()) {
+    <p class="account-welcome-note">{{ loggedInNote() }}</p>
+  }
+  <ng-content></ng-content>
+} @else {
+  <div class="inline-auth-container">
+    @if (firebaseService.loginStatus() === LoginStatus.LoggingIn || authLoading()) {
+      <div class="spinner-container">
+        <app-spinner>Signing in…</app-spinner>
+      </div>
+    } @else {
+      @switch (step()) {
+        <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
+        @case (InlineAuthStep.Email) {
+          <p class="auth-prompt-text">{{ promptText() }}</p>
+          <div class="input-field">
+            <label for="inline-auth-email">Email</label>
+            <div class="input-row">
+              <input
+                id="inline-auth-email"
+                autocomplete="email"
+                type="email"
+                name="email"
+                [ngModel]="email()"
+                (ngModelChange)="email.set($event)"
+                (keyup.enter)="checkEmail()"
+                placeholder="you@example.com"
+              />
+              <button
+                type="button"
+                id="inline-auth-continue-btn"
+                (click)="checkEmail()"
+                [disabled]="!email().trim()"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+          @if (checkEmailError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+              <button class="icon-only-button" (click)="checkEmailError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+        }
+
+        <!-- ──────────── STEP: CHECKING ──────────── -->
+        @case (InlineAuthStep.Checking) {
+          <div class="spinner-container">
+            <app-spinner>Checking your email…</app-spinner>
+          </div>
+        }
+
+        <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
+        @case (InlineAuthStep.GoogleSignin) {
+          <div class="auth-step-header">
+            @if (isReturningUser()) {
+              <span>Welcome back</span>
+            } @else {
+              <span>Sign in with Google</span>
+            }
+          </div>
+          <div class="email-display">{{ email() }}</div>
+
+          @if (loginWithGoogleError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+              <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="auth-actions-row">
+            <button
+              type="button"
+              id="inline-google-signin-btn"
+              (click)="loginWithGoogle()"
+            >
+              Sign in with Google
+            </button>
+            @if (!isReturningUser()) {
+              <button
+                type="button"
+                id="inline-use-password-btn"
+                class="secondary-btn"
+                (click)="usePasswordInstead()"
+              >
+                Use password instead
+              </button>
+            }
+            <button
+              type="button"
+              class="subtle-button back-link"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
+          </div>
+        }
+
+        <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
+        @case (InlineAuthStep.PasswordLogin) {
+          <div class="auth-step-header">Welcome back</div>
+          <div class="input-field">
+            <label for="inline-password-input">Password for <strong>{{ email() }}</strong></label>
+            <div class="password-input-row">
+              <input
+                id="inline-password-input"
+                autocomplete="current-password"
+                [type]="showPassword() ? 'text' : 'password'"
+                name="password"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+                (keyup.enter)="loginWithEmail()"
+                placeholder="Password"
+              />
+              <button
+                class="icon-only-button"
+                type="button"
+                (click)="showPassword.set(!showPassword())"
+                [title]="showPassword() ? 'Hide password' : 'Show password'"
+              >
+                <app-icon
+                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
+                ></app-icon>
+              </button>
+            </div>
+          </div>
+
+          @if (loginError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+              <button class="icon-only-button" (click)="loginError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+          @if (invalidLoginCredentials()) {
+            <p class="help-text">
+              That password didn't work. Would you like to
+              <button
+                type="button"
+                class="inline-link-button"
+                (click)="resetPassword()"
+              >
+                reset your password</button>?
+            </p>
+          }
+          @if (resetPasswordSuccess(); as message) {
+            <div class="success-message">{{ message }}</div>
+          }
+          @if (resetPasswordError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+            </div>
+          }
+
+          <div class="auth-actions-row">
+            <button
+              type="button"
+              id="inline-login-btn"
+              (click)="loginWithEmail()"
+              [disabled]="!password()"
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              class="subtle-button back-link"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
+          </div>
+        }
+
+        <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
+        @case (InlineAuthStep.CreateAccount) {
+          <div class="auth-step-header">Set up your account</div>
+          <p class="step-guidance">
+            @if (emailStatus()?.hasMemberRecord) {
+              We found your membership record for <strong>{{ email() }}</strong>. Create a password to get started.
+            } @else {
+              Creating an account for <strong>{{ email() }}</strong>. Create a password (minimum 6 characters).
+            }
+          </p>
+
+          <div class="input-field">
+            <label for="inline-new-password-input">Password</label>
+            <div class="password-input-row">
+              <input
+                id="inline-new-password-input"
+                autocomplete="new-password"
+                [type]="showPassword() ? 'text' : 'password'"
+                name="password"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+                (keyup.enter)="signupWithEmail()"
+                placeholder="Create a password (min. 6 characters)"
+              />
+              <button
+                class="icon-only-button"
+                type="button"
+                (click)="showPassword.set(!showPassword())"
+                [title]="showPassword() ? 'Hide password' : 'Show password'"
+              >
+                <app-icon
+                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
+                ></app-icon>
+              </button>
+            </div>
+          </div>
+
+          @if (signupError(); as message) {
+            <div class="error-container">
+              <span class="error-message">{{ message }}</span>
+              <button class="icon-only-button" (click)="signupError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="auth-actions-row">
+            <button
+              type="button"
+              id="inline-create-account-btn"
+              (click)="signupWithEmail()"
+              [disabled]="!password() || password().length < 6"
+            >
+              Create Account
+            </button>
+            <button
+              type="button"
+              class="subtle-button back-link"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
+          </div>
+        }
+      }
+    }
+
+    @if (firebaseService.loginError()) {
+      <div class="error-container global-error">
+        <span class="error-message">{{ firebaseService.loginError() }}</span>
+        <button class="icon-only-button" (click)="firebaseService.loginError.set(null)">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
+  </div>
+}

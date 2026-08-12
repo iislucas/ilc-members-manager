@@ -75,50 +75,9 @@
       </div>
     </div>
 
-    @if (isLoggedIn()) {
-      <div class="logged-in-box">
-        <div class="user-info">
-          <app-icon name="person" width="28px" height="28px"></app-icon>
-          <div class="user-details-text">
-            <div class="user-email-row">
-              Signed in as
-              <strong>{{
-                user()?.member?.emails?.[0] || user()?.firebaseUser?.email
-              }}</strong>
-            </div>
-            @if (user()?.member?.memberId) {
-              <div class="member-id-hint">
-                Member ID:
-                <span class="identifier-chip">{{
-                  user()?.member?.memberId
-                }}</span>
-              </div>
-            }
-          </div>
-        </div>
-        <button
-          type="button"
-          class="subtle-button logout-btn"
-          (click)="onLogout()"
-          title="Sign out of this account"
-        >
-          <app-icon name="logout"></app-icon>
-          <span>Log Out</span>
-        </button>
-      </div>
-    } @else {
-      <div class="auth-prompt-box">
-        <p>You must be signed in to manage or renew a school license.</p>
-        <button
-          type="button"
-          class="button auth-action-btn"
-          (click)="routingService.navigateToParts(['login'])"
-        >
-          <app-icon name="person"></app-icon>
-          <span>Sign In to Continue</span>
-        </button>
-      </div>
-    }
+    <app-inline-auth
+      [promptText]="'You must be signed in to manage or renew a school license.'"
+    ></app-inline-auth>
   </div>
 
   <!-- Step 2: School Selection & Affiliation -->

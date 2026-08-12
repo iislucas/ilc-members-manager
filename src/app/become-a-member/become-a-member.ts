@@ -33,6 +33,8 @@ import {
 } from '../../../functions/src/stripe-types';
 import { environment } from '../../environments/environment';
 
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+
 export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
 
 @Component({
@@ -44,6 +46,7 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
+    InlineAuthComponent,
   ],
   templateUrl: './become-a-member.html',
   styleUrl: './become-a-member.scss',
