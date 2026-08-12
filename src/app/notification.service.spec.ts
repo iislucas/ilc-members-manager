@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { writeBatch, getDocs, where } from 'firebase/firestore';
+import { writeBatch, getDocs, getDoc, where } from 'firebase/firestore';
 import { NotificationService } from './notification.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
-import { MemberNotification, NotificationKind } from '../../functions/src/data-model';
+import { MemberNotification, NotificationKind, OrderKind, OrderStatus } from '../../functions/src/data-model';
 
 // Partial-mock firebase/firestore so reconciliation's writes/reads can be
 // captured. getFirestore (used in the service constructor) keeps its real
@@ -187,6 +187,67 @@ describe('NotificationService', () => {
       // no entity id / null resolve: skipped.
       expect(byId('no-entity')).toBeUndefined();
 
+      expect(commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('patches kind to ManualOrderFulfilled and updates markdown when a manual order is fulfilled', async () => {
+      const updates: { ref: { id: string }; patch: Record<string, unknown> }[] = [];
+      const commit = vi.fn().mockResolvedValue(undefined);
+      (writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        update: (ref: { id: string }, patch: Record<string, unknown>) =>
+          updates.push({ ref, patch }),
+        commit,
+      });
+
+      const manualOrderNotif = notif({
+        docId: 'notif1',
+        kind: NotificationKind.OrderNeedsAttention,
+        markdown: 'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) needs manual processing',
+        data: {
+          orderDocId: 'o1',
+          orderRef: '1234',
+          status: 'needs-manual-processing',
+          issues: [],
+        } as any,
+      });
+
+      const order = {
+        docId: 'o1',
+        ilcAppOrderKind: OrderKind.Squarespace,
+        orderNumber: '1234',
+        ilcAppOrderStatus: 'processed',
+        fulfillmentStatus: 'FULFILLED',
+        billingAddress: { firstName: 'Jane', lastName: 'Doe' },
+        lineItems: [{ productName: 'Annual Membership' }],
+      };
+
+      await (service as any).reconcileNotifications(
+        [manualOrderNotif].map(makeDoc),
+        'orderDocId',
+        async (_n: MemberNotification) => ({
+          markdown: (service as any).manualOrderFulfilledMarkdown(order),
+          data: {
+            ...(service as any).orderIssueFields(order).data,
+            status: 'processed',
+            issues: [],
+          },
+          resolved: false,
+          kind: NotificationKind.ManualOrderFulfilled,
+        }),
+      );
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0].patch).toEqual({
+        kind: NotificationKind.ManualOrderFulfilled,
+        markdown: 'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership) — manual order was fulfilled',
+        data: {
+          orderDocId: 'o1',
+          orderRef: '1234',
+          status: 'processed',
+          issues: [],
+        },
+      });
+      expect(updates[0].patch['dismissed']).toBeUndefined();
       expect(commit).toHaveBeenCalledTimes(1);
     });
 
@@ -405,6 +466,39 @@ describe('NotificationService', () => {
       };
       expect(fields(order).markdown).toBe(
         'Order [#cs_9](/order-view/o3) failed with an error',
+      );
+    });
+  });
+
+  describe('manualOrderFulfilledMarkdown', () => {
+    const md = (order: unknown) => (service as any).manualOrderFulfilledMarkdown(order);
+
+    it('includes who placed a Squarespace order and what it was for with fulfilled phrasing', () => {
+      const order = {
+        docId: 'o1',
+        ilcAppOrderKind: 'https://api.squarespace.com/1.0/commerce/orders',
+        ilcAppOrderStatus: 'processed',
+        fulfillmentStatus: 'FULFILLED',
+        orderNumber: '1234',
+        customerEmail: 'jane@example.com',
+        billingAddress: { firstName: 'Jane', lastName: 'Doe' },
+        lineItems: [{ productName: 'Annual Membership' }, { productName: 'Video Library' }],
+      };
+      expect(md(order)).toBe(
+        'Order [#1234](/order-view/o1) (from Jane Doe for Annual Membership, Video Library) — manual order was fulfilled',
+      );
+    });
+
+    it('falls back to order doc ID when no details known', () => {
+      const order = {
+        docId: 'o3',
+        ilcAppOrderKind: 'stripe',
+        ilcAppOrderStatus: 'processed',
+        stripeObjectId: 'cs_9',
+        lineItems: [],
+      };
+      expect(md(order)).toBe(
+        'Order [#cs_9](/order-view/o3) — manual order was fulfilled',
       );
     });
   });

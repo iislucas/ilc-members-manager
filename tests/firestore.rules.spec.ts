@@ -1044,7 +1044,7 @@ describe('Firestore Rules', () => {
       );
     });
 
-    it('should deny member from updating immutable notification fields (kind/createdAt)', async () => {
+    it('should deny member from updating immutable notification fields (createdAt)', async () => {
       const db = testEnv
         .authenticatedContext('student1', { email: 'student1@ilc.com' })
         .firestore();
@@ -1055,7 +1055,23 @@ describe('Firestore Rules', () => {
           .collection('notifications')
           .doc('notif-1')
           .update({
-            kind: 'OrderNeedsAttention',
+            createdAt: new Date().toISOString(),
+          }),
+      );
+    });
+
+    it('should allow member to update kind during reconciliation', async () => {
+      const db = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        db
+          .collection('members')
+          .doc('FirestoreDocID-student1')
+          .collection('notifications')
+          .doc('notif-1')
+          .update({
+            kind: 'ManualOrderFulfilled',
           }),
       );
     });

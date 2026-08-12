@@ -34,6 +34,7 @@ describe('EventEditComponent', () => {
       navigateToParts: vi.fn(),
       matchedPatternId: signal(Views.ManageEventEdit),
       hrefWithParams: vi.fn().mockReturnValue('#'),
+      hrefForView: vi.fn().mockImplementation((view, params) => `/${view}/${params?.eventId || ''}`),
     } as unknown as RoutingService<AppPathPatterns>;
 
     mockDataManagerService = {
@@ -363,6 +364,7 @@ describe('EventEditComponent', () => {
       docId: 'test-doc-id',
       title: 'Title',
       ownerDocId: 'owner-id',
+      ownerInstructorId: 'I-1',
     } as IlcEvent);
     component.eventFormModel.set({
       ...component.eventFormModel(),
@@ -540,5 +542,134 @@ describe('EventEditComponent', () => {
     expect(saved.ownerName).toBe('Creator Name');
     expect(saved.ownerMemberId).toBe('MEM-7');
     expect(saved.ownerInstructorId).toBe('7');
+  });
+
+  it('provides a publicListingHref link to the public listing of the event', async () => {
+    await renderEvent({
+      docId: 'test-doc-id',
+      title: 'Public Test Event',
+    });
+
+    expect(component.publicListingHref()).toBe(`/${Views.EventView}/test-doc-id`);
+    const publicLink = fixture.nativeElement.querySelector('.event-top-bar a');
+    expect(publicLink).toBeTruthy();
+    expect(publicLink.textContent).toContain('View Event Page');
+  });
+
+  it('excludes creator from managerDocIds when loading an event', async () => {
+    await renderEvent({
+      ownerDocId: 'creator-doc-id',
+      managerDocIds: ['creator-doc-id', 'other-manager-doc-id'],
+    });
+
+    expect(component.eventFormModel().managerDocIds).toEqual(['other-manager-doc-id']);
+  });
+
+  it('does not render Kind or Doc ID fields at the bottom', async () => {
+    await renderEvent({
+      docId: 'test-doc-id',
+      kind: EventSourceKind.FirebaseSourced,
+    });
+
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('label')).map(
+      (el: any) => el.textContent?.trim(),
+    );
+    expect(labels).not.toContain('Kind');
+    expect(labels).not.toContain('Doc ID');
+  });
+
+  it('shows provide alternative contact information checkbox for non-instructor and toggles fields', async () => {
+    const member = { docId: 'member-doc-id', instructorId: '', memberId: 'MEM-99', name: 'Member Nine', emails: ['nine@example.com'] };
+    (mockDataManagerService.members as any).setEntries([member]);
+    (mockDataManagerService.instructors as any).setEntries([]);
+
+    await renderEvent({
+      ownerDocId: 'member-doc-id',
+      ownerName: 'Member Nine',
+      ownerMemberId: 'MEM-99',
+      ownerInstructorId: '',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    expect(component.assignMemberAsOwner()).toBe(true);
+    expect(component.hasCustomContactInfo()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.mini-profile')).toBeFalsy();
+
+    // Toggle custom contact info on
+    component.setHasCustomContactInfo(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasCustomContactInfo()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.mini-profile')).toBeTruthy();
+    expect(component.eventFormModel().ownerName).toBe('Member Nine');
+    expect(component.eventFormModel().ownerContactEmail).toBe('nine@example.com');
+  });
+
+  it('allows providing contact information with an empty creator and saves successfully', async () => {
+    await renderEvent({
+      ownerDocId: '',
+      ownerName: '',
+      ownerMemberId: '',
+      ownerInstructorId: '',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    // Admin switches to non-instructor mode
+    component.toggleAssignMemberAsOwner(true);
+    component.setHasCustomContactInfo(true);
+    component.eventFormModel.update((m) => ({
+      ...m,
+      ownerName: 'Custom Contact Person',
+      ownerContactEmail: 'custom@example.com',
+      ownerContactUrl: 'https://example.com/contact',
+    }));
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await component.saveEvent({ preventDefault: vi.fn() } as unknown as Event);
+
+    expect(component.errorMessage()).toBe(null);
+    const saved = (updateDoc as any).mock.calls.at(-1)[1];
+    expect(saved.ownerDocId).toBe('');
+    expect(saved.ownerName).toBe('Custom Contact Person');
+    expect(saved.ownerContactEmail).toBe('custom@example.com');
+    expect(saved.ownerContactUrl).toBe('https://example.com/contact');
+  });
+
+  it('automatically selects provide alternative contact info when selecting non-instructor creator mode', async () => {
+    const instructor = { docId: 'instr-doc-id', instructorId: 'FR1', memberId: 'MEM-1', name: 'Instructor One', emails: ['instr@example.com'] };
+    (mockDataManagerService.instructors as any).setEntries([instructor]);
+    (mockDataManagerService.members as any).setEntries([instructor]);
+
+    await renderEvent({
+      ownerDocId: 'instr-doc-id',
+      ownerName: 'Instructor One',
+      ownerMemberId: 'MEM-1',
+      ownerInstructorId: 'FR1',
+      ownerContactEmail: '',
+      ownerContactUrl: '',
+      managerDocIds: [],
+      contacts: [],
+    });
+
+    expect(component.assignMemberAsOwner()).toBe(false);
+    expect(component.hasCustomContactInfo()).toBe(false);
+
+    // Admin selects "Set a non-instructor as the event contact / creator"
+    component.toggleAssignMemberAsOwner(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.assignMemberAsOwner()).toBe(true);
+    expect(component.hasCustomContactInfo()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.mini-profile')).toBeTruthy();
   });
 });

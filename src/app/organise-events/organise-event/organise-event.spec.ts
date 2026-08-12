@@ -71,7 +71,7 @@ describe('ProposeEventComponent', () => {
     expect(component.missingFields()).toContain('Instructor required.');
   });
 
-  it('defaults the owner to the signed-in submitter and pins them as a manager', async () => {
+  it('defaults the owner to the signed-in submitter without pinning them in managers', async () => {
     const firebaseState = TestBed.inject(FirebaseStateService);
     (firebaseState.user as WritableSignal<unknown>).set({
       member: { docId: 'member-1', name: 'Alice Organiser', memberId: 'FR1' },
@@ -81,8 +81,8 @@ describe('ProposeEventComponent', () => {
 
     // Owner (main contact) defaults to the submitter's member doc.
     expect(component.eventModel().ownerDocId).toBe('member-1');
-    // The submitter is shown as a pinned manager row.
-    expect(fixture.nativeElement.textContent).toContain('Alice Organiser (you)');
+    // Managers list defaults to empty (creator is not forced into managers).
+    expect(component.eventModel().managerDocIds).toEqual([]);
   });
 
   it('requires a contact name and email for a non-instructor owner', async () => {
@@ -125,7 +125,7 @@ describe('ProposeEventComponent', () => {
     expect(component.ownerValid()).toBe(true);
   });
 
-  it('shows custom contact info card when instructor ticks provide different primary contact info', async () => {
+  it('shows custom contact info card and hides autocomplete when instructor ticks provide different primary contact info', async () => {
     const firebaseState = TestBed.inject(FirebaseStateService);
     (firebaseState.user as WritableSignal<unknown>).set({
       member: { docId: 'member-1', name: 'Instructor Submitter', memberId: 'FR1', instructorId: 'FR1' },
@@ -134,6 +134,7 @@ describe('ProposeEventComponent', () => {
     await fixture.whenStable();
 
     expect(component.showCustomContactCard()).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
 
     component.setHasCustomContactInfo(true);
     fixture.detectChanges();
@@ -141,5 +142,13 @@ describe('ProposeEventComponent', () => {
 
     expect(component.showCustomContactCard()).toBe(true);
     expect(component.eventModel().ownerContactName).toBe('Instructor Submitter');
+    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeFalsy();
+
+    component.setHasCustomContactInfo(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.showCustomContactCard()).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
   });
 });

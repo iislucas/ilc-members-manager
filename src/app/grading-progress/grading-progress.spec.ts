@@ -12,7 +12,7 @@ import { GradingEventInputComponent } from '../grading-event-input/grading-event
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initGrading, GradingStatus, initMember, Grading } from '../../../functions/src/data-model';
+import { initGrading, GradingStatus, initMember, Grading, PaymentStatus } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 
 @Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
@@ -41,7 +41,7 @@ describe('GradingProgressComponent', () => {
       getMemberByMemberId: () => undefined,
       getMyStudent: () => undefined,
       memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',
-      instructorDisplayName: (instructorId: string) => instructorId,
+      instructorDisplayName: (instructorId: string, cachedName?: string) => cachedName || instructorId || '',
     };
 
     mockFirebaseState = createFirebaseStateServiceMock();
@@ -588,6 +588,176 @@ describe('GradingProgressComponent', () => {
       component.removeManagerInEditor(0);
       expect(component['isEditingManagers']()).toBe(true);
       expect(component['editGradingManagerIds']()).toEqual([]);
+    });
+  });
+
+  describe('unpaid grading warning visibility', () => {
+    it('shows the payment prompt to the student across all grading workflow statuses', () => {
+      const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+      mockFirebaseState.user.set({
+        member: studentMember,
+        memberProfiles: [studentMember],
+        isAdmin: false,
+        schoolsManaged: [],
+        firebaseUser: {} as never,
+      });
+
+      const statuses = [
+        GradingStatus.AwaitingRequest,
+        GradingStatus.AwaitingAcceptance,
+        GradingStatus.Declined,
+        GradingStatus.AwaitingGrading,
+        GradingStatus.Passed,
+        GradingStatus.NotPassed,
+      ];
+
+      for (const status of statuses) {
+        componentRef.setInput('grading', {
+          ...initGrading(),
+          docId: 'g1',
+          studentMemberDocId: 'doc-student-1',
+          status,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        });
+        fixture.detectChanges();
+        expect(component.isUnpaid()).toBe(true);
+        expect(component.userIsStudent()).toBe(true);
+        const el = fixture.nativeElement as HTMLElement;
+        const prompt = el.querySelector('.payment-prompt');
+        expect(prompt, `Expected payment-prompt to be visible for status ${status}`).not.toBeNull();
+      }
+    });
+
+    it('shows unpaid warning to instructor in AwaitingGrading and Passed states', () => {
+      const instrMember = { ...initMember(), docId: 'doc-instr-1', instructorId: 'instr-1' };
+      mockFirebaseState.user.set({
+        member: instrMember,
+        memberProfiles: [instrMember],
+        isAdmin: false,
+        schoolsManaged: [],
+        firebaseUser: {} as never,
+      });
+
+      // In AwaitingGrading
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        gradingInstructorId: 'instr-1',
+        status: GradingStatus.AwaitingGrading,
+        paymentStatus: PaymentStatus.NotYetPaid,
+      });
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain('Even if you mark this grading as Passed, the student\'s level will not be updated until they pay');
+
+      // In Passed
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        gradingInstructorId: 'instr-1',
+        status: GradingStatus.Passed,
+        paymentStatus: PaymentStatus.NotYetPaid,
+      });
+      fixture.detectChanges();
+      expect(el.textContent).toContain('This grading is marked as Passed, but the student\'s level will not be updated until it is paid');
+    });
+  });
+
+  describe('result confirmation flow', () => {
+    beforeEach(() => {
+      const instr = { ...initMember(), docId: 'doc-instr', instructorId: '222' };
+      mockFirebaseState.user.set({
+        member: instr,
+        memberProfiles: [instr],
+        isAdmin: false,
+        schoolsManaged: [],
+        firebaseUser: {} as never,
+      });
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        status: GradingStatus.AwaitingGrading,
+        gradingInstructorId: '222',
+        gradingEventDate: '2026-08-15',
+        paymentStatus: PaymentStatus.NotYetPaid,
+      });
+      fixture.detectChanges();
+    });
+
+    it('requires confirmation before recording a Passed result', () => {
+      expect(component['confirmingResult']()).toBeNull();
+      component.initiateMarkResult(GradingStatus.Passed);
+      expect(component['confirmingResult']()).toBe(GradingStatus.Passed);
+
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.result-confirm-box')).not.toBeNull();
+      expect(el.textContent).toContain('Mark this grading as Passed?');
+      expect(el.textContent).toContain('notify HQ');
+      expect(el.textContent).toContain('Because this grading has not been paid yet');
+
+      // Cancel dismisses the confirmation without emitting
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.cancelMarkResult();
+      expect(component['confirmingResult']()).toBeNull();
+      expect(emitted.length).toBe(0);
+
+      // Confirm executes the save
+      component.initiateMarkResult(GradingStatus.Passed);
+      component.confirmMarkResult();
+      expect(component['confirmingResult']()).toBeNull();
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].status).toBe(GradingStatus.Passed);
+    });
+
+    it('requires confirmation before recording a Not Passed result', () => {
+      component.initiateMarkResult(GradingStatus.NotPassed);
+      expect(component['confirmingResult']()).toBe(GradingStatus.NotPassed);
+
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain('Mark this grading as Not Passed?');
+
+      const emitted: Partial<Grading>[] = [];
+      component.gradingUpdated.subscribe((u) => emitted.push(u));
+      component.confirmMarkResult();
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].status).toBe(GradingStatus.NotPassed);
+    });
+  });
+
+  describe('accepted summary layout in Step 2', () => {
+    it('shows Accepted by line first and Your grading instructor line below without tick', () => {
+      const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+      mockFirebaseState.user.set({
+        member: studentMember,
+        memberProfiles: [studentMember],
+        isAdmin: false,
+        schoolsManaged: [],
+        firebaseUser: {} as never,
+      });
+
+      componentRef.setInput('grading', {
+        ...initGrading(),
+        docId: 'g1',
+        studentMemberDocId: 'doc-student-1',
+        gradingInstructorId: 'instr-1',
+        gradingInstructorName: 'Master Sam Chin',
+        acceptedByName: 'Master Sam Chin',
+        status: GradingStatus.AwaitingGrading,
+      });
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const acceptedLines = el.querySelectorAll('.accepted-summary .accepted-line');
+      expect(acceptedLines.length).toBeGreaterThanOrEqual(2);
+      expect(acceptedLines[0].textContent).toContain('Accepted by Master Sam Chin');
+      expect(acceptedLines[1].textContent).toContain('Your grading instructor:');
+      expect(acceptedLines[1].textContent).toContain('Master Sam Chin');
     });
   });
 });

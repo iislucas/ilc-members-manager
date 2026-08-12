@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orders & Subscriptions — Architecture & System Design</title>
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --border-focus: #3b82f6;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0284c7;
+      --accent-light: #f0f9ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --purple: #7c3aed;
+      --purple-light: #f5f3ff;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 16px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #2563eb, #0284c7);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-group {
+      margin-bottom: 24px;
+    }
+
+    .nav-heading {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      padding-left: 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .nav-link.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      max-width: 1100px;
+      padding: 40px 48px 80px;
+      overflow-x: hidden;
+    }
+
+    .hero-header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .hero-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .hero-lead {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* Section Styling */
+    section {
+      margin-bottom: 56px;
+      scroll-margin-top: 40px;
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* Cards & Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* Diagram Containers */
+    .diagram-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .diagram-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-primary { background: var(--primary-light); color: var(--primary); }
+    .badge-success { background: var(--success-light); color: var(--success); }
+    .badge-warning { background: var(--warning-light); color: var(--warning); }
+    .badge-danger { background: var(--danger-light); color: var(--danger); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      margin: 20px 0;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(241, 245, 249, 0.4);
+    }
+
+    /* Code & Syntax Highlighting simulation */
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--bg-subtle);
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin: 16px 0;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border: none;
+    }
+
+    .code-keyword { color: #f472b6; }
+    .code-type { color: #38bdf8; }
+    .code-string { color: #a3e635; }
+    .code-comment { color: #64748b; font-style: italic; }
+    .code-prop { color: #cbd5e1; }
+
+    /* Interactive Journey Steps */
+    .journey-step {
+      position: relative;
+      padding-left: 36px;
+      margin-bottom: 24px;
+    }
+
+    .journey-step::before {
+      content: "";
+      position: absolute;
+      left: 11px;
+      top: 24px;
+      bottom: -16px;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .journey-step:last-child::before {
+      display: none;
+    }
+
+    .journey-marker {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .journey-content {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    /* Tabs Component */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* SVG Diagram Styles */
+    svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .svg-node-box {
+      fill: #ffffff;
+      stroke: #cbd5e1;
+      stroke-width: 1.5;
+      rx: 8;
+      ry: 8;
+    }
+
+    .svg-node-box.primary {
+      fill: #eff6ff;
+      stroke: #3b82f6;
+      stroke-width: 2;
+    }
+
+    .svg-node-box.success {
+      fill: #f0fdf4;
+      stroke: #22c55e;
+      stroke-width: 2;
+    }
+
+    .svg-node-box.purple {
+      fill: #f5f3ff;
+      stroke: #8b5cf6;
+      stroke-width: 2;
+    }
+
+    .svg-node-box.accent {
+      fill: #f0f9ff;
+      stroke: #0ea5e9;
+      stroke-width: 2;
+    }
+
+    .svg-text-title {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 13px;
+      fill: #0f172a;
+    }
+
+    .svg-text-sub {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 11px;
+      fill: #64748b;
+    }
+
+    .svg-link {
+      fill: none;
+      stroke: #94a3b8;
+      stroke-width: 1.75;
+      marker-end: url(#arrowhead);
+    }
+
+    .svg-link-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 600;
+      fill: #475569;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        padding: 24px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">ILC</div>
+        <div>
+          <div class="brand-title">Members Manager</div>
+          <div class="brand-subtitle">Architecture Docs</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">Overview</div>
+        <a href="#overview" class="nav-link active">1. System Overview</a>
+        <a href="#architecture" class="nav-link">2. System Architecture</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">Data & Storage</div>
+        <a href="#data-model" class="nav-link">3. Core Data Types & Enums</a>
+        <a href="#auto-renew-semantics" class="nav-link">4. Expiry & Auto-Renew Semantics</a>
+        <a href="#firestore-hierarchy" class="nav-link">5. Firestore Hierarchy</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">Information Flow</div>
+        <a href="#webhook-engine" class="nav-link">6. Webhook & Fulfillment Engine</a>
+        <a href="#subscription-lifecycle" class="nav-link">7. Subscription Lifecycle</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">User Journeys</div>
+        <a href="#journey-dashboard" class="nav-link">8. Member Self-Service Dashboard</a>
+        <a href="#journey-cancellation" class="nav-link">9. Auto-Renewal Cancellation</a>
+        <a href="#journey-resumption" class="nav-link">10. Auto-Renewal Resumption</a>
+        <a href="#journey-portal" class="nav-link">11. Stripe Customer Portal</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">Security & Reference</div>
+        <a href="#security-rules" class="nav-link">12. Security & Authorization</a>
+        <a href="#code-map" class="nav-link">13. Source Code Reference Map</a>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Hero Header -->
+      <header class="hero-header">
+        <div class="hero-badge">Architecture & System Design</div>
+        <h1 class="hero-title">Orders & Subscriptions</h1>
+        <p class="hero-lead">
+          Comprehensive documentation of the ILC Members Manager self-service orders and subscriptions system,
+          Stripe billing integration, Firestore data mirroring, and automated webhook fulfillment engine.
+        </p>
+      </header>
+
+      <!-- Section 1: Overview -->
+      <section id="overview">
+        <h2>1. System Overview</h2>
+        <p>
+          The Orders and Subscriptions subsystem empowers I Liq Chuan members to manage their memberships, instructor licenses,
+          and digital video subscriptions directly through the <strong>Me</strong> tab (<code>/my-orders</code>).
+          The architecture transitions manual and third-party renewals into an automated, self-service Stripe ecosystem
+          while maintaining complete historical compatibility with legacy Squarespace orders and Google Sheets imports.
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">
+              <span>Member Self-Service</span>
+              <span class="badge badge-primary">Client</span>
+            </div>
+            <div class="card-subtitle">Dedicated <code>/my-orders</code> View</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Real-time subscription cards with clear renewal dates, one-click cancellation/resumption, and instant receipt access.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Stripe Automation</span>
+              <span class="badge badge-purple">Backend</span>
+            </div>
+            <div class="card-subtitle">Cloud Functions & Webhooks</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Idempotent webhook engine handling checkout fulfillment, automated annual/monthly renewals, and Customer Portal sessions.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Data Mirroring</span>
+              <span class="badge badge-success">Firestore</span>
+            </div>
+            <div class="card-subtitle">Subcollections & Fast Summaries</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Dual-layer storage: member document summary for synchronous client routing, plus private subcollection for granular order history.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Architecture Diagram -->
+      <section id="architecture">
+        <h2>2. System Architecture</h2>
+        <p>
+          The system spans four primary tiers: the <strong>Angular Client App</strong>, <strong>Firebase Cloud Functions</strong>,
+          <strong>Stripe Platform</strong>, and <strong>Cloud Firestore</strong>.
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <div class="diagram-title">System Architecture & Interaction Graph</div>
+            <span class="badge badge-primary">D3 / SVG Flow</span>
+          </div>
+
+          <!-- Pure SVG Standalone Diagram -->
+          <svg viewBox="0 0 950 480" width="100%" height="480">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+              </marker>
+              <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#2563eb" />
+              </marker>
+              <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#16a34a" />
+              </marker>
+            </defs>
+
+            <!-- Tier 1: Client App -->
+            <rect x="20" y="20" width="230" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
+            <text x="35" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">ANGULAR 21 CLIENT APP</text>
+
+            <rect x="35" y="65" width="200" height="60" class="svg-node-box primary" />
+            <text x="50" y="90" class="svg-text-title">Me Tab (Home)</text>
+            <text x="50" y="108" class="svg-text-sub">Entry point: /?tab=me</text>
+
+            <rect x="35" y="145" width="200" height="75" class="svg-node-box primary" />
+            <text x="50" y="170" class="svg-text-title">Member Orders View</text>
+            <text x="50" y="188" class="svg-text-sub">/my-orders component</text>
+            <text x="50" y="204" class="svg-text-sub">Cards & Order History</text>
+
+            <rect x="35" y="240" width="200" height="60" class="svg-node-box" />
+            <text x="50" y="265" class="svg-text-title">Stripe Service</text>
+            <text x="50" y="283" class="svg-text-sub">Callable Functions Wrapper</text>
+
+            <rect x="35" y="320" width="200" height="60" class="svg-node-box" />
+            <text x="50" y="345" class="svg-text-title">Data Manager Service</text>
+            <text x="50" y="363" class="svg-text-sub">Real-time signal stores</text>
+
+            <!-- Tier 2: Cloud Functions -->
+            <rect x="280" y="20" width="220" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
+            <text x="295" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">FIREBASE CLOUD FUNCTIONS</text>
+
+            <rect x="295" y="65" width="190" height="50" class="svg-node-box purple" />
+            <text x="310" y="90" class="svg-text-title">cancelSubscriptionRenewal</text>
+            <text x="310" y="105" class="svg-text-sub">Callable (Ownership Guard)</text>
+
+            <rect x="295" y="125" width="190" height="50" class="svg-node-box purple" />
+            <text x="310" y="150" class="svg-text-title">resumeSubscriptionRenewal</text>
+            <text x="310" y="165" class="svg-text-sub">Callable (Ownership Guard)</text>
+
+            <rect x="295" y="185" width="190" height="50" class="svg-node-box purple" />
+            <text x="310" y="210" class="svg-text-title">createCustomerPortalSession</text>
+            <text x="310" y="225" class="svg-text-sub">Generates single-use URL</text>
+
+            <rect x="295" y="255" width="190" height="80" class="svg-node-box purple" />
+            <text x="310" y="280" class="svg-text-title">stripeWebhook</text>
+            <text x="310" y="296" class="svg-text-sub">HTTP onRequest Handler</text>
+            <text x="310" y="312" class="svg-text-sub">Idempotent Signature Check</text>
+
+            <rect x="295" y="350" width="190" height="55" class="svg-node-box purple" />
+            <text x="310" y="373" class="svg-text-title">stripe-fulfillment.ts</text>
+            <text x="310" y="390" class="svg-text-sub">Modular Business Handlers</text>
+
+            <!-- Tier 3: Stripe Platform -->
+            <rect x="530" y="20" width="180" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
+            <text x="545" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">STRIPE PLATFORM</text>
+
+            <rect x="545" y="65" width="150" height="60" class="svg-node-box accent" />
+            <text x="560" y="90" class="svg-text-title">Subscriptions API</text>
+            <text x="560" y="108" class="svg-text-sub">cancel_at_period_end</text>
+
+            <rect x="545" y="145" width="150" height="60" class="svg-node-box accent" />
+            <text x="560" y="170" class="svg-text-title">Billing Portal</text>
+            <text x="560" y="188" class="svg-text-sub">Cards & Invoices UI</text>
+
+            <rect x="545" y="255" width="150" height="80" class="svg-node-box accent" />
+            <text x="560" y="280" class="svg-text-title">Webhook Events</text>
+            <text x="560" y="296" class="svg-text-sub">invoice.paid</text>
+            <text x="560" y="312" class="svg-text-sub">sub.updated / deleted</text>
+
+            <!-- Tier 4: Firestore Database -->
+            <rect x="740" y="20" width="190" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
+            <text x="755" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">CLOUD FIRESTORE</text>
+
+            <rect x="755" y="65" width="160" height="65" class="svg-node-box success" />
+            <text x="770" y="90" class="svg-text-title">/members/{docId}</text>
+            <text x="770" y="106" class="svg-text-sub">Expiry Dates</text>
+            <text x="770" y="120" class="svg-text-sub">*NextAutoRenewDate</text>
+
+            <rect x="755" y="150" width="160" height="70" class="svg-node-box success" />
+            <text x="770" y="175" class="svg-text-title">.../orders/{orderId}</text>
+            <text x="770" y="191" class="svg-text-sub">Member Order Rows</text>
+            <text x="770" y="205" class="svg-text-sub">Private Subcollection</text>
+
+            <rect x="755" y="240" width="160" height="60" class="svg-node-box success" />
+            <text x="770" y="265" class="svg-text-title">/orders/{orderId}</text>
+            <text x="770" y="283" class="svg-text-sub">Global Admin Store</text>
+
+            <rect x="755" y="320" width="160" height="60" class="svg-node-box success" />
+            <text x="770" y="345" class="svg-text-title">/gradings/{docId}</text>
+            <text x="770" y="363" class="svg-text-sub">Auto-created records</text>
+
+            <!-- Connections -->
+            <!-- Client -> Functions -->
+            <path d="M 235 255 L 295 90" class="svg-link" />
+            <path d="M 235 270 L 295 150" class="svg-link" />
+            <path d="M 235 285 L 295 210" class="svg-link" />
+
+            <!-- Functions -> Stripe -->
+            <path d="M 485 90 L 545 90" class="svg-link" />
+            <path d="M 485 150 L 545 90" class="svg-link" />
+            <path d="M 485 210 L 545 170" class="svg-link" />
+
+            <!-- Stripe Webhooks -> Functions -->
+            <path d="M 545 295 L 485 295" class="svg-link" />
+            <path d="M 390 335 L 390 350" class="svg-link" />
+
+            <!-- Fulfillment -> Firestore -->
+            <path d="M 485 365 L 755 100" class="svg-link" stroke="#16a34a" />
+            <path d="M 485 375 L 755 185" class="svg-link" stroke="#16a34a" />
+            <path d="M 485 385 L 755 270" class="svg-link" stroke="#16a34a" />
+            <path d="M 485 395 L 755 350" class="svg-link" stroke="#16a34a" />
+
+            <!-- Client reads from Firestore -->
+            <path d="M 755 100 Q 200 10 235 160" class="svg-link" stroke="#2563eb" stroke-dasharray="3" />
+            <path d="M 755 185 Q 230 185 235 185" class="svg-link" stroke="#2563eb" stroke-dasharray="3" />
+          </svg>
+        </div>
+      </section>
+
+      <!-- Section 3: Core Data Types & Enums -->
+      <section id="data-model">
+        <h2>3. Core Data Types & TypeScript Enums</h2>
+        <p>
+          All string union types across <code>functions/src/data-model.ts</code> and <code>functions/src/stripe-types.ts</code>
+          have been converted into TypeScript enums. This prevents typo vulnerabilities, ensures strict compile-time type safety,
+          and facilitates safe refactoring across frontend and backend.
+        </p>
+
+        <!-- Tab Bar for Data Types -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(event, 'tab-enums')">TypeScript Enums</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-member')">Member Document</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-order')">MemberOrder Document</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-sub-item')">MemberSubscriptionItem</button>
+        </div>
+
+        <!-- Tab 1: Enums -->
+        <div id="tab-enums" class="tab-pane active">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">
+                <span>Order Categories & Statuses</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export enum</span> <span class="code-type">OrderItemCategory</span> {
+  Membership = <span class="code-string">'membership'</span>,
+  InstructorLicense = <span class="code-string">'instructor_license'</span>,
+  Grading = <span class="code-string">'grading'</span>,
+  VideoLibrary = <span class="code-string">'video_library'</span>,
+  Event = <span class="code-string">'event'</span>,
+  Other = <span class="code-string">'other'</span>,
+}
+
+<span class="code-keyword">export enum</span> <span class="code-type">MemberOrderKind</span> {
+  Stripe = <span class="code-string">'stripe'</span>,
+  Squarespace = <span class="code-string">'squarespace'</span>,
+  SheetsImport = <span class="code-string">'sheets-import'</span>,
+}
+
+<span class="code-keyword">export enum</span> <span class="code-type">MemberOrderType</span> {
+  Checkout = <span class="code-string">'checkout'</span>,
+  Renewal = <span class="code-string">'renewal'</span>,
+  Cancellation = <span class="code-string">'cancellation'</span>,
+  OneTime = <span class="code-string">'one_time'</span>,
+}</code></pre>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>Payment & Fulfillment Enums</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export enum</span> <span class="code-type">MemberOrderPaymentStatus</span> {
+  Paid = <span class="code-string">'paid'</span>,
+  Unpaid = <span class="code-string">'unpaid'</span>,
+  NoPaymentRequired = <span class="code-string">'no_payment_required'</span>,
+  Refunded = <span class="code-string">'refunded'</span>,
+}
+
+<span class="code-keyword">export enum</span> <span class="code-type">MemberOrderFulfillmentStatus</span> {
+  Fulfilled = <span class="code-string">'fulfilled'</span>,
+  Pending = <span class="code-string">'pending'</span>,
+  Cancelled = <span class="code-string">'cancelled'</span>,
+}
+
+<span class="code-keyword">export enum</span> <span class="code-type">SubscriptionStatus</span> {
+  Active = <span class="code-string">'active'</span>,
+  Trialing = <span class="code-string">'trialing'</span>,
+  PastDue = <span class="code-string">'past_due'</span>,
+  Canceled = <span class="code-string">'canceled'</span>,
+  Unpaid = <span class="code-string">'unpaid'</span>,
+  Incomplete = <span class="code-string">'incomplete'</span>,
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Member Document -->
+        <div id="tab-member" class="tab-pane">
+          <pre><code><span class="code-keyword">export type</span> <span class="code-type">Member</span> = {
+  docId: <span class="code-type">string</span>;
+  memberId: <span class="code-type">string</span>;
+  name: <span class="code-type">string</span>;
+  emails: <span class="code-type">string</span>[];
+
+  <span class="code-comment">// Stripe Integration</span>
+  stripeCustomerId: <span class="code-type">string</span>; <span class="code-comment">// e.g. 'cus_...'</span>
+
+  <span class="code-comment">// Membership & Renewals</span>
+  membershipType: <span class="code-type">MembershipType</span>;
+  currentMembershipExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (access expiration)</span>
+  membershipNextAutoRenewDate: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD or '' (empty if cancelled/off)</span>
+  membershipSubscriptionId: <span class="code-type">string</span>;      <span class="code-comment">// Active Stripe sub_... ID or ''</span>
+
+  <span class="code-comment">// Instructor License & Renewals</span>
+  instructorId: <span class="code-type">string</span>;
+  instructorLicenseType: <span class="code-type">InstructorLicenseType</span>;
+  instructorLicenseExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (license expiration)</span>
+  instructorLicenseNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
+  instructorLicenseSubscriptionId: <span class="code-type">string</span>;  <span class="code-comment">// Active Stripe sub_... ID or ''</span>
+
+  <span class="code-comment">// Class Video Library</span>
+  classVideoLibrarySubscription: <span class="code-type">boolean</span>;
+  classVideoLibraryExpirationDate: <span class="code-type">string</span>;  <span class="code-comment">// YYYY-MM-DD (video access expiration)</span>
+  classVideoLibraryNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
+  classVideoLibrarySubscriptionId: <span class="code-type">string</span>;  <span class="code-comment">// Active Stripe sub_... ID or ''</span>
+
+  <span class="code-comment">// Full Subscriptions Map (keyed by subscriptionId)</span>
+  stripeSubscriptions?: <span class="code-type">Record</span>&lt;<span class="code-type">string</span>, <span class="code-type">MemberSubscriptionItem</span>&gt;;
+};</code></pre>
+        </div>
+
+        <!-- Tab 3: MemberOrder -->
+        <div id="tab-order" class="tab-pane">
+          <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberOrder</span> {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Mirrored from /orders/{docId}</span>
+  orderDocId: <span class="code-type">string</span>;           <span class="code-comment">// Canonical global order reference</span>
+  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Owning member Firestore ID</span>
+  memberId: <span class="code-type">string</span>;             <span class="code-comment">// ILC Member ID (e.g. US1024)</span>
+
+  orderKind: <span class="code-type">MemberOrderKind</span>;   <span class="code-comment">// Stripe, Squarespace, SheetsImport</span>
+  orderType: <span class="code-type">MemberOrderType</span>;   <span class="code-comment">// Checkout, Renewal, Cancellation, OneTime</span>
+  orderNumber?: <span class="code-type">string</span>;         <span class="code-comment">// Invoice number or external reference</span>
+
+  date: <span class="code-type">string</span>;                 <span class="code-comment">// YYYY-MM-DD</span>
+  created: <span class="code-type">string</span>;              <span class="code-comment">// ISO timestamp</span>
+  lastUpdated: <span class="code-type">string</span>;          <span class="code-comment">// ISO timestamp</span>
+
+  amountTotal: <span class="code-type">number</span> | <span class="code-type">null</span>;   <span class="code-comment">// Cents (e.g. 8500 = $85.00)</span>
+  currency: <span class="code-type">string</span> | <span class="code-type">null</span>;      <span class="code-comment">// e.g. 'usd'</span>
+  paymentStatus: <span class="code-type">MemberOrderPaymentStatus</span> | <span class="code-type">null</span>;
+  fulfillmentStatus: <span class="code-type">MemberOrderFulfillmentStatus</span>;
+
+  description: <span class="code-type">string</span>;          <span class="code-comment">// Primary display summary</span>
+  lineItems: <span class="code-type">MemberOrderLineItem</span>[];
+
+  subscriptionId?: <span class="code-type">string</span>;
+  stripeInvoiceId?: <span class="code-type">string</span>;
+  stripeReceiptUrl?: <span class="code-type">string</span>;    <span class="code-comment">// Link to Stripe hosted receipt</span>
+  gradingDocId?: <span class="code-type">string</span>;        <span class="code-comment">// Linked grading if applicable</span>
+}</code></pre>
+        </div>
+
+        <!-- Tab 4: MemberSubscriptionItem -->
+        <div id="tab-sub-item" class="tab-pane">
+          <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberSubscriptionItem</span> {
+  subscriptionId: <span class="code-type">string</span>;       <span class="code-comment">// Stripe sub_...</span>
+  type: <span class="code-type">SubscriptionItemType</span>;   <span class="code-comment">// Membership, InstructorLicense, VideoLibrary, Vod</span>
+  status: <span class="code-type">SubscriptionStatus</span>;   <span class="code-comment">// Active, PastDue, Canceled, etc.</span>
+  planName: <span class="code-type">string</span>;             <span class="code-comment">// e.g. "Annual Membership"</span>
+  amount: <span class="code-type">number</span>;               <span class="code-comment">// in minor units (cents)</span>
+  currency: <span class="code-type">string</span>;             <span class="code-comment">// e.g. 'usd'</span>
+  interval: <span class="code-type">SubscriptionInterval</span>; <span class="code-comment">// Month, Year</span>
+
+  currentPeriodStart: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD</span>
+  currentPeriodEnd: <span class="code-type">string</span>;     <span class="code-comment">// YYYY-MM-DD (access expiration)</span>
+  nextAutoRenewDate: <span class="code-type">string</span>;    <span class="code-comment">// YYYY-MM-DD or '' (when auto-renew cancelled)</span>
+
+  cancelAtPeriodEnd: <span class="code-type">boolean</span>;   <span class="code-comment">// true if auto-renew turned off</span>
+  canceledAt?: <span class="code-type">string</span>;          <span class="code-comment">// ISO string</span>
+  stripePriceId?: <span class="code-type">string</span>;
+  stripeProductId?: <span class="code-type">string</span>;
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 4: Auto-Renew Semantics -->
+      <section id="auto-renew-semantics">
+        <h2>4. Expiry &amp; Auto-Renew Semantics</h2>
+        <p>
+          Rather than storing a fragile boolean flag, auto-renewal status is represented by the <strong>explicit next renewal date</strong>.
+          An empty string (<code>''</code>) indicates that auto-renewal is off, while the access expiration date remains intact.
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Subscription State</th>
+                <th><code>currentMembershipExpires</code></th>
+                <th><code>membershipNextAutoRenewDate</code></th>
+                <th>UI Badge &amp; Status Label</th>
+                <th>Available User Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Active Auto-Renewing</strong></td>
+                <td><code>2027-05-15</code></td>
+                <td><code>2027-05-15</code></td>
+                <td><span class="badge badge-success">Active (Auto-Renewing)</span><br><small>Renews on May 15, 2027</small></td>
+                <td><code>Cancel Auto-Renewal</code></td>
+              </tr>
+              <tr>
+                <td><strong>Renewal Cancelled (In Grace)</strong></td>
+                <td><code>2027-05-15</code></td>
+                <td><code>''</code> (empty)</td>
+                <td><span class="badge badge-primary">Active (Expires on date)</span><br><small>Valid through May 15, 2027 (Auto-renew off)</small></td>
+                <td><code>Resume Auto-Renewal</code></td>
+              </tr>
+              <tr>
+                <td><strong>Expired / Lapsed</strong></td>
+                <td><code>2025-05-15</code> (Past)</td>
+                <td><code>''</code> (empty)</td>
+                <td><span class="badge badge-danger">Expired</span><br><small>Expired on May 15, 2025</small></td>
+                <td><code>Renew Membership</code> (Links to /products)</td>
+              </tr>
+              <tr>
+                <td><strong>Lifetime Member</strong></td>
+                <td><code>9999-12-31</code></td>
+                <td><code>''</code> (empty)</td>
+                <td><span class="badge badge-purple">Lifetime Access</span><br><small>Never expires</small></td>
+                <td><em>None needed (Lifetime)</em></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 5: Firestore Hierarchy -->
+      <section id="firestore-hierarchy">
+        <h2>5. Firestore Hierarchy &amp; Indexing</h2>
+        <p>
+          Data is structured to allow instantaneous real-time rendering for members while keeping the global order database secure and queryable by administrators.
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <div class="diagram-title">Firestore Document Hierarchy</div>
+            <span class="badge badge-success">Collection Tree</span>
+          </div>
+
+          <pre><code>/databases/(default)/documents
+│
+├── /members/{memberDocId}                     <span class="code-comment">&lt;-- Fast synchronous read by client &amp; route guards</span>
+│   │   ├── name: "Bruce Lee"
+│   │   ├── emails: ["bruce@example.com"]
+│   │   ├── stripeCustomerId: "cus_Q12345"
+│   │   ├── currentMembershipExpires: "2027-05-15"
+│   │   ├── membershipNextAutoRenewDate: "2027-05-15"
+│   │   ├── membershipSubscriptionId: "sub_1001"
+│   │   └── stripeSubscriptions: { "sub_1001": { ... } }
+│   │
+│   └── /orders/{orderDocId}                   <span class="code-comment">&lt;-- Subcollection: Private to memberDocId</span>
+│           ├── docId: "order_stripe_in_101"
+│           ├── orderDocId: "order_stripe_in_101"
+│           ├── orderKind: "stripe"
+│           ├── orderType: "renewal"
+│           ├── amountTotal: 8500
+│           ├── date: "2026-05-15"
+│           └── lineItems: [...]
+│
+├── /orders/{orderDocId}                       <span class="code-comment">&lt;-- Global Orders Store (Admin only)</span>
+│       ├── docId: "order_stripe_in_101"
+│       ├── memberDocId: "mem_abc123"
+│       ├── ilcAppOrderStatus: "processed"
+│       └── ...
+│
+└── /gradings/{gradingDocId}                   <span class="code-comment">&lt;-- Auto-created on Grading checkout</span>
+        ├── memberDocId: "mem_abc123"
+        ├── status: "pending"
+        └── ...</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 6: Webhook & Fulfillment Engine -->
+      <section id="webhook-engine">
+        <h2>6. Webhook &amp; Fulfillment Engine</h2>
+        <p>
+          The Cloud Function <code>stripeWebhook</code> listens for Stripe events, verifies signatures cryptographically,
+          and delegates processing to modular handlers in <code>functions/src/stripe-fulfillment.ts</code>.
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Stripe Webhook Event</th>
+                <th>Trigger Scenario</th>
+                <th>Automated System Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>checkout.session.completed</code></td>
+                <td>Initial product purchase or first-time subscription</td>
+                <td>
+                  1. Upserts <code>/orders/{orderDocId}</code> and mirrors to <code>/members/{memberDocId}/orders/{orderDocId}</code>.<br>
+                  2. Invokes appropriate product fulfillment handler.<br>
+                  3. If grading purchased: creates <code>/gradings/{docId}</code> and links to member.
+                </td>
+              </tr>
+              <tr>
+                <td><code>invoice.paid</code></td>
+                <td>Scheduled recurring subscription billing cycle succeeded</td>
+                <td>
+                  1. Creates renewal order record in global orders and member subcollection.<br>
+                  2. Extends <code>*Expires</code> date by +1 period (month or year).<br>
+                  3. Sets <code>*NextAutoRenewDate</code> equal to new expiration date.
+                </td>
+              </tr>
+              <tr>
+                <td><code>customer.subscription.updated</code></td>
+                <td>Auto-renewal cancelled, resumed, or payment status changed</td>
+                <td>
+                  1. If <code>cancel_at_period_end == true</code>: clears <code>*NextAutoRenewDate = ''</code> while keeping access active.<br>
+                  2. If <code>cancel_at_period_end == false</code>: restores <code>*NextAutoRenewDate = periodEnd</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>customer.subscription.deleted</code></td>
+                <td>Subscription cancelled immediately or billing period ended after cancellation</td>
+                <td>
+                  1. Records cancellation order row.<br>
+                  2. Clears active subscription IDs from member record.<br>
+                  3. Updates subscription map status to <code>canceled</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 7: Subscription Lifecycle -->
+      <section id="subscription-lifecycle">
+        <h2>7. Subscription State Machine</h2>
+        <p>
+          A subscription transitions through explicit deterministic states governed by Stripe events and member actions.
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <div class="diagram-title">Subscription State Lifecycle</div>
+            <span class="badge badge-purple">State Machine</span>
+          </div>
+
+          <svg viewBox="0 0 880 260" width="100%" height="260">
+            <!-- State 1: Inactive -->
+            <rect x="20" y="90" width="160" height="70" class="svg-node-box" />
+            <text x="40" y="120" class="svg-text-title">Inactive / Expired</text>
+            <text x="40" y="140" class="svg-text-sub">No recurring charge</text>
+
+            <!-- State 2: Active (Auto-Renewing) -->
+            <rect x="260" y="90" width="200" height="70" class="svg-node-box success" />
+            <text x="275" y="120" class="svg-text-title">Active (Auto-Renewing)</text>
+            <text x="275" y="140" class="svg-text-sub">NextAutoRenewDate == PeriodEnd</text>
+
+            <!-- State 3: Active (Cancelled Renewal) -->
+            <rect x="540" y="90" width="220" height="70" class="svg-node-box primary" />
+            <text x="555" y="120" class="svg-text-title">Active (Expires on Date)</text>
+            <text x="555" y="140" class="svg-text-sub">NextAutoRenewDate == ''</text>
+
+            <!-- Transitions -->
+            <!-- Inactive -> Active -->
+            <path d="M 180 125 L 260 125" class="svg-link" />
+            <text x="188" y="115" class="svg-link-label">Checkout</text>
+
+            <!-- Active -> Active (Cancel) -->
+            <path d="M 460 115 L 540 115" class="svg-link" />
+            <text x="470" y="105" class="svg-link-label">Cancel Auto-Renew</text>
+
+            <!-- Active (Cancel) -> Active (Resume) -->
+            <path d="M 540 145 L 460 145" class="svg-link" />
+            <text x="470" y="160" class="svg-link-label">Resume Auto-Renew</text>
+
+            <!-- Active -> Active (Annual Invoice Paid) -->
+            <path d="M 360 90 C 360 40 400 40 400 90" class="svg-link" />
+            <text x="345" y="35" class="svg-link-label">invoice.paid (+1 Year)</text>
+
+            <!-- Active (Cancel) -> Inactive (Period Ends) -->
+            <path d="M 650 160 C 650 230 100 230 100 160" class="svg-link" />
+            <text x="350" y="240" class="svg-link-label">sub.deleted (Grace Period Ended)</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Section 8: Key User Journeys -->
+      <section id="journey-dashboard">
+        <h2>8. Member Self-Service Dashboard Journey</h2>
+        <p>
+          Members navigate seamlessly from their home portal to their subscription control center.
+        </p>
+
+        <div class="journey-step">
+          <div class="journey-marker">1</div>
+          <div class="journey-content">
+            <strong>Accessing the Portal</strong>
+            <p>
+              Member clicks the <strong>Orders</strong> card on the <strong>Me</strong> tab (<code>/?tab=me</code>).
+              The router transitions to <code>/my-orders</code> with instant parent breadcrumb navigation.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">2</div>
+          <div class="journey-content">
+            <strong>Viewing Active Subscriptions &amp; Renewal Status</strong>
+            <p>
+              The top section renders structured cards for Membership, Instructor License, Class Video Library, and custom Stripe plans.
+              Each card clearly highlights whether auto-renewal is active, the exact renewal date, and the currency amount.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">3</div>
+          <div class="journey-content">
+            <strong>Browsing Historical Order Rows</strong>
+            <p>
+              The lower section displays a search-filtered chronological table of every order and invoice receipt across all platforms
+              (Stripe, Squarespace, and Sheets). Clicking an order row expands line items and direct links to hosted receipts.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 9: Auto-Renewal Cancellation Journey -->
+      <section id="journey-cancellation">
+        <h2>9. Auto-Renewal Cancellation Journey</h2>
+        <p>
+          Members can turn off automatic recurring charges without losing access to their current paid term.
+        </p>
+
+        <div class="journey-step">
+          <div class="journey-marker">1</div>
+          <div class="journey-content">
+            <strong>Clicking "Cancel Auto-Renewal"</strong>
+            <p>
+              The member clicks the cancel button on an active subscription card. A confirmation dialog explains:
+              <em>"You will continue to have full access until your current expiration date (e.g. May 15, 2027)."</em>
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">2</div>
+          <div class="journey-content">
+            <strong>Callable Cloud Function Execution</strong>
+            <p>
+              <code>cancelSubscriptionRenewal({ subscriptionId })</code> executes on Firebase Cloud Functions.
+              It verifies ownership, updates Stripe with <code>cancel_at_period_end: true</code>, clears <code>*NextAutoRenewDate = ''</code>,
+              and returns the final expiration date.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">3</div>
+          <div class="journey-content">
+            <strong>Instant UI Feedback</strong>
+            <p>
+              The subscription card immediately transitions to <strong>"Active (Expires on date)"</strong> and the action button changes
+              to <strong>"Resume Auto-Renewal"</strong>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 10: Auto-Renewal Resumption Journey -->
+      <section id="journey-resumption">
+        <h2>10. Auto-Renewal Resumption Journey</h2>
+        <p>
+          If a member previously cancelled auto-renewal, they can reactivate automatic renewals at any time prior to the period expiration.
+        </p>
+
+        <div class="journey-step">
+          <div class="journey-marker">1</div>
+          <div class="journey-content">
+            <strong>Clicking "Resume Auto-Renewal"</strong>
+            <p>
+              On a cancelled but currently active subscription card, the member clicks <strong>Resume Auto-Renewal</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">2</div>
+          <div class="journey-content">
+            <strong>Stripe Reactivation</strong>
+            <p>
+              <code>resumeSubscriptionRenewal({ subscriptionId })</code> calls Stripe with <code>cancel_at_period_end: false</code>,
+              restores <code>*NextAutoRenewDate</code> to the period end date, and persists the update in Firestore.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 11: Customer Portal Journey -->
+      <section id="journey-portal">
+        <h2>11. Stripe Hosted Customer Portal Journey</h2>
+        <p>
+          Allows members to securely update credit cards, change default payment methods, and download official PDF tax invoices.
+        </p>
+
+        <div class="journey-step">
+          <div class="journey-marker">1</div>
+          <div class="journey-content">
+            <strong>Manage Payment Methods &amp; Invoices</strong>
+            <p>
+              Member clicks <strong>"Manage Payment Methods &amp; Invoices"</strong> in the page header.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">2</div>
+          <div class="journey-content">
+            <strong>Single-Use Session Generation</strong>
+            <p>
+              <code>createCustomerPortalSession({ returnUrl })</code> creates an authenticated, short-lived Stripe Billing Portal session
+              keyed to the member's <code>stripeCustomerId</code> with a return redirect back to <code>/my-orders</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">3</div>
+          <div class="journey-content">
+            <strong>Stripe Hosted Management</strong>
+            <p>
+              The browser redirects to Stripe's secure portal. Upon completion or clicking "Return", the user is seamlessly routed back to the ILC portal.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 12: Security & Rules -->
+      <section id="security-rules">
+        <h2>12. Security &amp; Authorization Architecture</h2>
+        <p>
+          The system implements defense-in-depth across Firestore Security Rules and Cloud Function authorization layers.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>Firestore Security Rules</span>
+              <span class="badge badge-success">firestore.rules</span>
+            </div>
+            <pre><code><span class="code-comment">// Private member subcollection</span>
+<span class="code-keyword">match</span> /members/{memberDocId}/orders/{orderDocId} {
+  <span class="code-keyword">function</span> isOrderOwner() {
+    <span class="code-keyword">return</span> (request.auth.token.email <span class="code-keyword">in</span> 
+            get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+           (memberDocId <span class="code-keyword">in</span> getUserMemberDocIds());
+  }
+
+  <span class="code-comment">// Members read their own; Admins read all</span>
+  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isOrderOwner() || isAdmin();
+
+  <span class="code-comment">// Direct client writes prohibited</span>
+  <span class="code-keyword">allow write</span>: <span class="code-keyword">if</span> isAdmin();
+}</code></pre>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Callable Function Ownership Guards</span>
+              <span class="badge badge-purple">stripe-subscriptions.ts</span>
+            </div>
+            <pre><code><span class="code-comment">// Verification in Cloud Functions</span>
+<span class="code-keyword">const</span> callerEmail = request.auth?.token.email;
+<span class="code-keyword">const</span> memberDoc = <span class="code-keyword">await</span> getMemberByEmail(callerEmail);
+
+<span class="code-keyword">if</span> (!memberDoc || memberDoc.stripeCustomerId !== sub.customer) {
+  <span class="code-keyword">if</span> (!isAdmin(callerEmail)) {
+    <span class="code-keyword">throw new</span> HttpsError(
+      <span class="code-string">'permission-denied'</span>,
+      <span class="code-string">'You do not own this subscription.'</span>
+    );
+  }
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 13: Source Code Map -->
+      <section id="code-map">
+        <h2>13. Source Code Reference Map</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>File / Module Path</th>
+                <th>Layer</th>
+                <th>Core Purpose &amp; Responsibilities</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>functions/src/data-model.ts</code></td>
+                <td>Data Model</td>
+                <td>Definitions for <code>Member</code>, <code>MemberOrder</code>, <code>MemberSubscriptionItem</code>, and all TypeScript enums.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-subscriptions.ts</code></td>
+                <td>Functions</td>
+                <td>Callable functions: <code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>createCustomerPortalSession</code>.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-webhook.ts</code></td>
+                <td>Functions</td>
+                <td>Stripe webhook receiver handling <code>checkout.session.completed</code>, <code>invoice.paid</code>, <code>customer.subscription.*</code>.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-fulfillment.ts</code></td>
+                <td>Functions</td>
+                <td>Business fulfillment logic for memberships, instructor licenses, class video libraries, and gradings.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/member-orders/member-orders.ts</code></td>
+                <td>Angular UI</td>
+                <td>Component managing active subscription cards, cancellation modals, and the order history table.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/stripe.service.ts</code></td>
+                <td>Angular Service</td>
+                <td>Client SDK wrapper calling Firebase subscription management functions.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/app.config.ts</code></td>
+                <td>Routing</td>
+                <td>Route definitions mapping <code>Views.MyOrders</code> to URL <code>/my-orders</code>.</td>
+              </tr>
+              <tr>
+                <td><code>firestore.rules</code></td>
+                <td>Security</td>
+                <td>Granular read/write rules protecting <code>/members/{memberDocId}/orders/{orderDocId}</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function switchTab(event, tabId) {
+      const parent = event.target.closest('section');
+      parent.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      parent.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // Scroll spy for active sidebar links
+    window.addEventListener('DOMContentLoaded', () => {
+      const links = document.querySelectorAll('.nav-link');
+      const sections = Array.from(links).map(link => {
+        const id = link.getAttribute('href').substring(1);
+        return document.getElementById(id);
+      }).filter(Boolean);
+
+      window.addEventListener('scroll', () => {
+        let currentSection = sections[0];
+        const scrollY = window.scrollY + 100;
+
+        for (const section of sections) {
+          if (section.offsetTop <= scrollY) {
+            currentSection = section;
+          }
+        }
+
+        if (currentSection) {
+          links.forEach(link => {
+            if (link.getAttribute('href') === '#' + currentSection.id) {
+              link.classList.add('active');
+            } else {
+              link.classList.remove('active');
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

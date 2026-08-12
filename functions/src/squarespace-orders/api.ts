@@ -27,7 +27,7 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import axios from 'axios';
-import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, SquarespaceFulfillmentStatus, NotificationKind, Member, MembershipType, OrderKind } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus, SquareSpaceLineItemType, SquarespaceFulfillmentStatus, NotificationKind, Member, MembershipType, OrderKind, MemberNotification } from '../data-model';
 import { assertAdmin, allowedOrigins, getMemberByEmail } from '../common';
 import { createMemberNotification } from '../notifications';
 import { SubscriptionResult } from './common';
@@ -376,11 +376,80 @@ export const fulfillOrder = onCall(
       });
       logger.info(`Manually fulfilled order ${orderId} on Squarespace.`);
       
-      await db.collection('orders').doc(docId).update({
-        fulfillmentStatus: 'FULFILLED',
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      const lineItems = (orderData.lineItems || []).map((li) => {
+        if (li.ilcAppProcessingStatus === OrderStatus.NeedsManualProcessing) {
+          const updated = { ...li, ilcAppProcessingStatus: OrderStatus.Processed };
+          delete updated.ilcAppProcessingIssue;
+          return updated;
+        }
+        return li;
       });
-      
+
+      const hasRemainingErrors = lineItems.some((li) => li.ilcAppProcessingStatus === OrderStatus.Error);
+      const newOrderStatus = hasRemainingErrors ? OrderStatus.Error : OrderStatus.Processed;
+      const newIssues = hasRemainingErrors ? (orderData.ilcAppOrderIssues || []) : [];
+
+      const updateData: Partial<SquareSpaceOrder | { lastUpdated: admin.firestore.FieldValue }> = {
+        fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
+        ilcAppOrderStatus: newOrderStatus,
+        ilcAppOrderIssues: newIssues,
+        lineItems,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await db.collection('orders').doc(docId).update(updateData);
+
+      // Update any admin TODO notifications for this order to be an FYI notification if resolved.
+      try {
+        const notifsSnap = await db
+          .collectionGroup('notifications')
+          .where('data.orderDocId', '==', docId)
+          .get();
+
+        if (!notifsSnap.empty && newOrderStatus === OrderStatus.Processed) {
+          const notifBatch = db.batch();
+          const itemsSummary = buildPurchaseSummary(lineItems);
+          const customer =
+            [orderData.billingAddress?.firstName, orderData.billingAddress?.lastName]
+              .filter(Boolean)
+              .join(' ') || orderData.customerEmail || '';
+          const details = [
+            customer ? `from ${customer}` : '',
+            itemsSummary ? `for ${itemsSummary}` : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          const detailsSuffix = details ? ` (${details})` : '';
+          const markdown = `Order [#${orderId}](/order-view/${docId})${detailsSuffix} — manual order was fulfilled`;
+
+          for (const notifDoc of notifsSnap.docs) {
+            const notifData = notifDoc.data() as MemberNotification;
+            if (notifData.kind === NotificationKind.OrderNeedsAttention) {
+              notifBatch.update(notifDoc.ref, {
+                kind: NotificationKind.ManualOrderFulfilled,
+                markdown,
+                'data.status': OrderStatus.Processed,
+                'data.issues': [],
+              });
+            }
+          }
+          await notifBatch.commit();
+        }
+      } catch (err) {
+        logger.warn(`Order ${orderId}: failed to update admin notifications on fulfillment:`, err);
+      }
+
+      // Notify the purchasing member that their order has been fulfilled.
+      try {
+        await notifyPurchaseFulfilled(
+          { ...orderData, fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled, lineItems },
+          orderId,
+          db,
+        );
+      } catch (err) {
+        logger.warn(`Order ${orderId}: failed to notify purchase fulfilled:`, err);
+      }
+
       return { success: true };
     } catch (error) {
       logger.error(`Failed to manually fulfill order ${orderId} on Squarespace:`, error);

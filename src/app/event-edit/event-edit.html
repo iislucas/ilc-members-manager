@@ -12,35 +12,43 @@
 
   <div class="edit-form">
     <form (submit)="saveEvent($event)">
-      @if (canChangeStatus()) {
-        <div class="status-chip-container">
-          <button type="button" [class]="statusClass()" class="status-chip-btn" (click)="statusMenuOpen.update(v => !v)">
-            {{ statusLabel() }}
-            <app-icon name="expand_more" />
-          </button>
-          @if (statusMenuOpen()) {
-            <div class="menu-overlay transparent" (click)="statusMenuOpen.set(false)"></div>
-            <div class="status-dropdown">
-              @if (isAdmin()) {
-                @for (status of eventStatuses; track status) {
-                  <div class="menu-item" [class.active]="event()?.status === status" (click)="changeStatus(status)">
-                    <span class="event-status-chip" [class]="'event-status-chip status-' + status">{{ eventStatusLabelFn(status) }}</span>
+      <div class="event-top-bar">
+        @if (publicListingHref(); as href) {
+          <a class="subtle-button" [href]="href">
+            <app-icon name="link" /> View Event Page
+          </a>
+        }
+        <div class="flex-spacer"></div>
+        @if (canChangeStatus()) {
+          <div class="status-chip-container">
+            <button type="button" [class]="statusClass()" class="status-chip-btn" (click)="statusMenuOpen.update(v => !v)">
+              {{ statusLabel() }}
+              <app-icon name="expand_more" />
+            </button>
+            @if (statusMenuOpen()) {
+              <div class="menu-overlay transparent" (click)="statusMenuOpen.set(false)"></div>
+              <div class="status-dropdown">
+                @if (isAdmin()) {
+                  @for (status of eventStatuses; track status) {
+                    <div class="menu-item" [class.active]="event()?.status === status" (click)="changeStatus(status)">
+                      <span class="event-status-chip" [class]="'event-status-chip status-' + status">{{ eventStatusLabelFn(status) }}</span>
+                    </div>
+                  }
+                } @else {
+                  <div class="menu-item" (click)="changeStatus(EventStatus.Cancelled)">
+                    <app-icon name="close" />
+                    <span>Cancel Event</span>
                   </div>
                 }
-              } @else {
-                <div class="menu-item" (click)="changeStatus(EventStatus.Cancelled)">
-                  <app-icon name="close" />
-                  <span>Cancel Event</span>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      } @else if (statusLabel()) {
-        <div class="status-chip-container">
-          <span [class]="statusClass()">{{ statusLabel() }}</span>
-        </div>
-      }
+              </div>
+            }
+          </div>
+        } @else if (statusLabel()) {
+          <div class="status-chip-container">
+            <span [class]="statusClass()">{{ statusLabel() }}</span>
+          </div>
+        }
+      </div>
 
       <div class="form-section">
         <h3>Event Details</h3>
@@ -108,6 +116,9 @@
 
         <label for="event-hero-image">Image</label>
         <div class="rhs">
+          <p class="note" style="margin-top: 0; margin-bottom: 10px;">
+            The main banner shown across the top of the event's page, and as the thumbnail in event listings. Landscape photos work best (recommended: 600×400 px or larger, 3:2 ratio) — you can crop it after uploading.
+          </p>
           @if (eventFormModel().heroImageUrl && !isEditingCrop()) {
             <div
               class="hero-image-preview"
@@ -391,7 +402,7 @@
         <h3>Status & Metadata</h3>
 
         @if (ev) {
-        <label for="event-owner" class="align-top">Creator</label>
+        <label for="event-owner" class="align-top">Creator / Contact</label>
         <div class="rhs owner-editor">
           <!-- Creator selector: a member search in non-instructor mode (admins only),
                otherwise the shared instructor selector. -->
@@ -422,12 +433,9 @@
                   </button>
                 }
               </div>
-              @if (!eventFormModel().ownerDocId) {
-                <div class="note">
-                  No creator — with no contacts listed, the leading instructor is
-                  shown as the contact.
-                </div>
-              }
+              <div class="note">
+                The non-instructor creator is a non-instructor contact for the event. You can also provide contact information without selecting a member or instructor as the creator (doing so will set the creator as empty).
+              </div>
             } @else {
               <!-- Only admins can reassign a non-instructor creator, but everyone
                    who can edit the event needs to see who it is. -->
@@ -438,6 +446,9 @@
                     <span class="identifier-chip">{{ creatorMemberId() }}</span>
                   }
                 </span>
+              </div>
+              <div class="note">
+                The non-instructor creator is a non-instructor contact for this event.
               </div>
             }
           } @else {
@@ -455,20 +466,19 @@
             </div>
           }
 
-          <!-- The mode toggle sits under the selector. -->
+          <!-- The mode toggle sits under the selector (admins only). -->
           @if (userIsAdmin()) {
             <label class="checkbox-row">
               <input
                 type="checkbox"
                 [checked]="assignMemberAsOwner()"
-                (change)="assignMemberAsOwner.set($any($event.target).checked)"
+                (change)="toggleAssignMemberAsOwner($any($event.target).checked)"
               />
-              Set a non-instructor to be the event creator
+              Set a non-instructor as the event contact / creator
             </label>
           }
 
-          <!-- Ticking this lists the creator publicly as a contact; the
-               mini-profile below is their optional public email/link. -->
+          <!-- Ticking this lists the creator publicly as a contact. -->
           @if (eventFormModel().ownerDocId) {
             <label class="checkbox-row">
               <input
@@ -480,35 +490,45 @@
             </label>
           }
 
-          <!-- An instructor creator is contacted through their public profile,
-               so only a non-instructor needs these details filled in. -->
-          @if (isListedContact(eventFormModel().ownerDocId) && !creatorInstructorId()) {
-            <div class="mini-profile">
-              <label for="ownerContactName">Contact name</label>
+          <!-- Non-instructor or empty creator: checkbox to provide alternative/custom contact details -->
+          @if (assignMemberAsOwner() || (!creatorInstructorId() && !eventFormModel().ownerDocId)) {
+            <label class="checkbox-row">
               <input
-                id="ownerContactName"
-                type="text"
-                [value]="eventFormModel().ownerName"
-                (input)="updateOwnerContactField('ownerName', $event)"
-                placeholder="Contact name"
+                type="checkbox"
+                [checked]="hasCustomContactInfo()"
+                (change)="setHasCustomContactInfo($any($event.target).checked)"
               />
-              <label for="ownerContactEmail">Contact email</label>
-              <input
-                id="ownerContactEmail"
-                type="email"
-                [value]="eventFormModel().ownerContactEmail"
-                (input)="updateOwnerContactField('ownerContactEmail', $event)"
-                placeholder="you@example.com"
-              />
-              <label for="ownerContactUrl">Contact link</label>
-              <input
-                id="ownerContactUrl"
-                type="url"
-                [value]="eventFormModel().ownerContactUrl"
-                (input)="updateOwnerContactField('ownerContactUrl', $event)"
-                placeholder="https://…"
-              />
-            </div>
+              Provide alternative contact information
+            </label>
+
+            @if (hasCustomContactInfo()) {
+              <div class="mini-profile">
+                <label for="ownerContactName">Contact name</label>
+                <input
+                  id="ownerContactName"
+                  type="text"
+                  [value]="eventFormModel().ownerName"
+                  (input)="updateOwnerContactField('ownerName', $event)"
+                  placeholder="Contact name"
+                />
+                <label for="ownerContactEmail">Contact email</label>
+                <input
+                  id="ownerContactEmail"
+                  type="email"
+                  [value]="eventFormModel().ownerContactEmail"
+                  (input)="updateOwnerContactField('ownerContactEmail', $event)"
+                  placeholder="you@example.com"
+                />
+                <label for="ownerContactUrl">Contact link</label>
+                <input
+                  id="ownerContactUrl"
+                  type="url"
+                  [value]="eventFormModel().ownerContactUrl"
+                  (input)="updateOwnerContactField('ownerContactUrl', $event)"
+                  placeholder="https://…"
+                />
+              </div>
+            }
           }
         </div>
 
@@ -605,20 +625,6 @@
             <label>Source ID</label>
             <div class="rhs">
               <span class="readonly-value timestamp">{{ ev.sourceId }}</span>
-            </div>
-          }
-
-          @if (ev.kind) {
-            <label>Kind</label>
-            <div class="rhs">
-              <span class="readonly-value">{{ ev.kind }}</span>
-            </div>
-          }
-
-          @if (ev.docId) {
-            <label>Doc ID</label>
-            <div class="rhs">
-              <span class="readonly-value timestamp">{{ ev.docId }}</span>
             </div>
           }
         }

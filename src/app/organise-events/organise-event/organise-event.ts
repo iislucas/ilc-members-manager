@@ -105,8 +105,8 @@ export class ProposeEventComponent {
     ownerContactName: '',
     ownerContactEmail: '',
     ownerContactUrl: '',
-    // Member doc IDs of the *additional* managers. The submitter is always a
-    // manager too (shown as a pinned row) and is added server-side.
+    // Member doc IDs of the additional managers. The creator automatically
+    // has full access and does not need to be in this list.
     managerDocIds: [] as string[],
     // The managers ticked to be listed publicly as contacts for the event. The
     // owner is always a contact on a new proposal (added in onSubmit).
@@ -233,12 +233,17 @@ export class ProposeEventComponent {
 
   setHasCustomContactInfo(enabled: boolean) {
     this.eventModel.update(m => {
+      const me = this.submitter();
       const updated = { ...m, hasCustomContactInfo: enabled };
-      if (enabled && !updated.ownerContactName && !updated.ownerContactEmail) {
-        const me = this.submitter();
-        const ownerInst = this.instructorByDocId(m.ownerDocId);
-        updated.ownerContactName = ownerInst?.name || me?.name || '';
-        updated.ownerContactEmail = me?.publicEmail || me?.emails?.[0] || '';
+      if (enabled) {
+        if (me && (!updated.ownerDocId || updated.ownerDocId !== me.docId)) {
+          updated.ownerDocId = me.docId;
+        }
+        if (!updated.ownerContactName && !updated.ownerContactEmail) {
+          const ownerInst = this.instructorByDocId(m.ownerDocId);
+          updated.ownerContactName = ownerInst?.name || me?.name || '';
+          updated.ownerContactEmail = me?.publicEmail || me?.emails?.[0] || '';
+        }
       }
       return updated;
     });
@@ -421,8 +426,10 @@ export class ProposeEventComponent {
 
       const model = this.eventModel();
       const customContact = this.showCustomContactCard();
+      const managerDocIds = (model.managerDocIds || []).filter(id => id && id !== model.ownerDocId);
       const result = await submitFn({
         ...model,
+        managerDocIds,
         ownerContactName: customContact ? model.ownerContactName.trim() : '',
         ownerContactEmail: customContact ? model.ownerContactEmail.trim() : '',
         ownerContactUrl: customContact ? model.ownerContactUrl.trim() : '',

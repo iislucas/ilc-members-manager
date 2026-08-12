@@ -228,7 +228,7 @@ export class GradingProgressComponent {
   // Name of whoever accepted the grading, for the "Accepted by X" display.
   acceptedByName = computed(() => this.grading().acceptedByName);
 
-  // Name of whoever last changed the status, for the "Moved back by X" display.
+  // Name of whoever last changed the status, for the "Declined by X" display.
   statusActorName = computed(() => this.grading().statusChangedByName);
 
   // A grading is "accepted" once a grading manager has accepted the request
@@ -335,6 +335,9 @@ export class GradingProgressComponent {
   protected showDeclineForm = signal(false);
   protected isEditingRequest = signal(false);
   protected isSaving = signal(false);
+
+  // Result confirmation state (two-step confirmation before marking Passed or Not Passed)
+  protected confirmingResult = signal<GradingStatus.Passed | GradingStatus.NotPassed | null>(null);
 
   // Inline edit toggles for detail fields (admin / grading instructor / managers).
   protected isEditingEvent = signal(false);
@@ -452,6 +455,7 @@ export class GradingProgressComponent {
       ...this.managerIdsUpdate(),
     });
     this.saveStatus.set('saved');
+    this.confirmingResult.set(null);
     setTimeout(() => {
       if (this.saveStatus() === 'saved') this.saveStatus.set('');
     }, 3000);
@@ -470,6 +474,8 @@ export class GradingProgressComponent {
     this.editPaymentStatus.set(g.paymentStatus);
     this.editPaymentNote.set(g.paymentNote || '');
     this.saveStatus.set('');
+    this.confirmingResult.set(null);
+    this.showDeclineForm.set(false);
   }
 
   // --- Step 1 dirty check: has the student changed anything? ---
@@ -658,7 +664,7 @@ export class GradingProgressComponent {
   }
 
   // The "who last changed the status" fields, stamped with the current user on
-  // every workflow status transition so the UI can show "Moved back by X" and
+  // every workflow status transition so the UI can show "Declined by X" and
   // co-managers can be told who acted.
   private statusActorFields(): Partial<Grading> {
     const actor = this.currentActor();
@@ -693,6 +699,23 @@ export class GradingProgressComponent {
 
 
   // Step 3: Mark result
+  initiateMarkResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
+    if (this.eventBlocksSave() || this.gradingDateMissing()) return;
+    this.showDeclineForm.set(false);
+    this.confirmingResult.set(status);
+  }
+
+  cancelMarkResult() {
+    this.confirmingResult.set(null);
+  }
+
+  confirmMarkResult() {
+    const status = this.confirmingResult();
+    if (!status) return;
+    this.confirmingResult.set(null);
+    this.markResult(status);
+  }
+
   markResult(status: GradingStatus.Passed | GradingStatus.NotPassed) {
     // A grading date is mandatory (guarded here as well as in the template).
     if (this.eventBlocksSave() || this.gradingDateMissing()) return;

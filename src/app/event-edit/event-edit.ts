@@ -140,7 +140,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     ownerInstructorId: event.ownerInstructorId || '',
     ownerContactEmail: event.ownerContactEmail || '',
     ownerContactUrl: event.ownerContactUrl || '',
-    managerDocIds: event.managerDocIds || [],
+    managerDocIds: (event.managerDocIds || []).filter((id) => Boolean(id) && id !== (event.ownerDocId || '')),
     contacts: (event.contacts || []).map((c) => ({ ...initEventContact(), ...c })),
     leadingInstructorId: event.leadingInstructorId || '',
     schoolId: event.schoolId || '',
@@ -214,18 +214,23 @@ export class EventEditComponent implements OnInit {
   // The creator's identity for display. Events written before these fields were
   // cached on the document hold only an ownerDocId, so fall back to the caches —
   // otherwise the whole Creator section renders blank.
-  creatorInstructorId = computed(() =>
-    this.eventFormModel().ownerInstructorId ||
-    this.instructorIdForMember(this.eventFormModel().ownerDocId));
+  creatorInstructorId = computed(() => {
+    if (this.assignMemberAsOwner()) return '';
+    const m = this.eventFormModel();
+    return m.ownerInstructorId || this.instructorIdForMember(m.ownerDocId);
+  });
 
   creatorName = computed(() => {
     const m = this.eventFormModel();
-    return m.ownerName || this.memberFieldFor(m.ownerDocId, 'name');
+    if (this.hasCustomContactInfo() && m.ownerName) {
+      return m.ownerName;
+    }
+    return this.memberFieldFor(m.ownerDocId, 'name') || m.ownerName;
   });
 
   creatorMemberId = computed(() => {
     const m = this.eventFormModel();
-    return m.ownerMemberId || this.memberFieldFor(m.ownerDocId, 'memberId');
+    return this.memberFieldFor(m.ownerDocId, 'memberId') || m.ownerMemberId;
   });
 
   private memberFieldFor(memberDocId: string, field: 'name' | 'memberId'): string {
@@ -239,12 +244,25 @@ export class EventEditComponent implements OnInit {
 
   // UI-only: when an admin ticks this, the creator picker switches from the
   // instructor autocomplete to a member autocomplete so any member (not just
-  // instructors) can be assigned as the event creator/contact. Derived from the
-  // resolved creator so it settles on the right mode once the instructor cache
-  // arrives, while still honouring an admin's manual toggle.
-  assignMemberAsOwner = linkedSignal(() => {
-    const m = this.eventFormModel();
-    return !!m.ownerDocId && !this.creatorInstructorId();
+  // instructors) can be assigned as the event creator/contact, or custom contact
+  // info can be provided directly without a member.
+  assignMemberAsOwner = linkedSignal({
+    source: () => this.event(),
+    computation: (ev) => {
+      if (!ev) return false;
+      const hasInstructor = !!ev.ownerInstructorId || (!!ev.ownerDocId && !!this.instructorIdForMember(ev.ownerDocId));
+      return !hasInstructor && (!!ev.ownerDocId || !!ev.ownerContactEmail || !!ev.ownerContactUrl || (!ev.ownerDocId && !!ev.ownerName));
+    },
+  });
+
+  // UI-only: whether custom alternative contact info (name, email, URL) is provided
+  // for the non-instructor creator/contact.
+  hasCustomContactInfo = linkedSignal({
+    source: () => this.event(),
+    computation: (ev) => {
+      if (!ev) return false;
+      return !!ev.ownerContactEmail || !!ev.ownerContactUrl || (!ev.ownerDocId && !!ev.ownerName);
+    },
   });
 
   form: FieldTree<EventFormModel> = form(this.eventFormModel, (schema) => {
@@ -335,6 +353,14 @@ export class EventEditComponent implements OnInit {
     if (view === Views.ManageEventEdit) return 'manage-events';
     return 'events';
   });
+
+  // Link to the public listing of this event.
+  publicListingHref = computed(() => {
+    const id = this.eventId() || this.event()?.docId;
+    if (!id) return '';
+    return this.routingService.hrefForView(Views.EventView, { eventId: id });
+  });
+
   // Change the event status via the chip dropdown. For non-admins only
   // 'cancelled' is allowed, with a confirmation warning.
   async changeStatus(newStatus: EventStatus) {
@@ -561,22 +587,29 @@ export class EventEditComponent implements OnInit {
       ownerContactEmail: '',
       ownerContactUrl: '',
     }));
+    this.assignMemberAsOwner.set(false);
+    this.hasCustomContactInfo.set(false);
   }
 
   // Assign the creator from the member autocomplete (admin-only). Caches the
-  // member's identity; instructorId may be '' for a non-instructor.
+  // member's identity; instructorId is kept empty for non-instructor creator mode.
   updateOwnerMember(value: string) {
     const memberId = this.extractMemberId(value);
     const member = this.dataService.getMemberByMemberId(memberId);
     if (!member) return;
-    this.eventFormModel.update((m) => this.applyCreatorChange(m, {
-      ownerDocId: member.docId,
-      ownerName: member.name,
-      ownerMemberId: member.memberId,
-      ownerInstructorId: member.instructorId || '',
-      ownerContactEmail: m.ownerContactEmail,
-      ownerContactUrl: m.ownerContactUrl,
-    }));
+    this.eventFormModel.update((m) => {
+      const customContact = this.hasCustomContactInfo();
+      return this.applyCreatorChange(m, {
+        ownerDocId: member.docId,
+        ownerName: customContact && m.ownerName ? m.ownerName : member.name,
+        ownerMemberId: member.memberId,
+        ownerInstructorId: '',
+        ownerContactEmail: customContact && m.ownerContactEmail
+          ? m.ownerContactEmail
+          : (member.publicEmail || member.emails?.[0] || ''),
+        ownerContactUrl: m.ownerContactUrl,
+      });
+    });
   }
 
   // Link to the owner's member page (admin member view), for the "jump to member"
@@ -587,15 +620,56 @@ export class EventEditComponent implements OnInit {
     return this.routingService.hrefForView(Views.ManageMemberView, { memberId: docId });
   });
 
+  toggleAssignMemberAsOwner(enabled: boolean) {
+    this.assignMemberAsOwner.set(enabled);
+    if (enabled) {
+      this.eventFormModel.update(m => ({
+        ...m,
+        ownerInstructorId: '',
+      }));
+      this.setHasCustomContactInfo(true);
+    } else {
+      if (!this.creatorInstructorId()) {
+        this.clearOwner();
+      }
+      this.setHasCustomContactInfo(false);
+    }
+  }
+
+  setHasCustomContactInfo(enabled: boolean) {
+    this.hasCustomContactInfo.set(enabled);
+    this.eventFormModel.update(m => {
+      if (enabled) {
+        const member = m.ownerDocId ? this.dataService.members.get(m.ownerDocId) : null;
+        return {
+          ...m,
+          ownerName: m.ownerName || member?.name || '',
+          ownerContactEmail: m.ownerContactEmail || member?.publicEmail || member?.emails?.[0] || '',
+        };
+      } else {
+        const defaultName = m.ownerDocId ? this.memberFieldFor(m.ownerDocId, 'name') : '';
+        return {
+          ...m,
+          ownerName: defaultName,
+          ownerContactEmail: '',
+          ownerContactUrl: '',
+        };
+      }
+    });
+  }
+
   clearOwner() {
-    this.eventFormModel.update((m) => this.applyCreatorChange(m, {
-      ownerDocId: '',
-      ownerName: '',
-      ownerMemberId: '',
-      ownerInstructorId: '',
-      ownerContactEmail: '',
-      ownerContactUrl: '',
-    }));
+    this.eventFormModel.update((m) => {
+      const customContact = this.hasCustomContactInfo();
+      return this.applyCreatorChange(m, {
+        ownerDocId: '',
+        ownerName: customContact ? m.ownerName : '',
+        ownerMemberId: '',
+        ownerInstructorId: '',
+        ownerContactEmail: customContact ? m.ownerContactEmail : '',
+        ownerContactUrl: customContact ? m.ownerContactUrl : '',
+      });
+    });
   }
 
   updateOwnerContactField(
@@ -758,7 +832,8 @@ export class EventEditComponent implements OnInit {
   ): EventFormModel {
     const wasListed = isContactIn(m, m.ownerDocId);
     const previousWasManager = m.managerDocIds.includes(m.ownerDocId);
-    let next: EventFormModel = { ...m, ...creator };
+    const managerDocIds = m.managerDocIds.filter((id) => id !== creator.ownerDocId);
+    let next: EventFormModel = { ...m, ...creator, managerDocIds };
     if (m.ownerDocId && !previousWasManager) {
       next = this.withoutContact(next, m.ownerDocId);
     }
@@ -1130,15 +1205,16 @@ export class EventEditComponent implements OnInit {
     try {
       const docRef = doc(this.db, 'events', eventData.docId);
       // A creator the event only stored as a doc ID gets their identity cached
-      // on save, so their public contact entry resolves to an instructor
-      // profile instead of showing up as a bare name.
+      const model = this.editableEvent();
       const formData = {
-        ...this.editableEvent(),
-        ownerName: this.creatorName(),
-        ownerMemberId: this.creatorMemberId(),
-        ownerInstructorId: this.creatorInstructorId(),
+        ...model,
+        ownerName: model.ownerName || this.creatorName(),
+        ownerMemberId: this.creatorMemberId() || model.ownerMemberId,
+        ownerInstructorId: this.assignMemberAsOwner() ? '' : (model.ownerInstructorId || this.creatorInstructorId()),
+        ownerContactEmail: model.ownerContactEmail,
+        ownerContactUrl: model.ownerContactUrl,
       };
-      const managerDocIds = formData.managerDocIds.filter(Boolean);
+      const managerDocIds = formData.managerDocIds.filter((id) => Boolean(id) && id !== formData.ownerDocId);
       const contacts = contactsToSave({ ...formData, managerDocIds });
       await updateDoc(docRef, {
         title: formData.title,

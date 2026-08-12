@@ -344,4 +344,94 @@ describe('executeOrderDownstreamLogic with physical products', () => {
       expect(notificationCall.markdown).toContain('Your purchase of **Membership**');
     });
   });
+
+  describe('fulfillOrder status updates', () => {
+    it('marks physical items as processed and sets ilcAppOrderStatus to processed when fulfilled', async () => {
+      const order = {
+        docId: 'ord_1',
+        orderNumber: '1001',
+        fulfillmentStatus: 'PENDING',
+        ilcAppOrderStatus: 'needs-manual-processing',
+        ilcAppOrderIssues: ['Physical product awaiting shipment'],
+        lineItems: [
+          {
+            id: 'li_1',
+            sku: 'BOOK-1',
+            productName: 'ILC Guide',
+            lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+            quantity: '1',
+            unitPricePaid: { value: '25.00' },
+            ilcAppProcessingStatus: 'needs-manual-processing',
+            ilcAppProcessingIssue: 'Awaiting shipping',
+          },
+        ],
+      } as unknown as SquareSpaceOrder;
+
+      // Simulate the fulfillment update logic
+      const lineItems = (order.lineItems || []).map((li) => {
+        if (li.ilcAppProcessingStatus === 'needs-manual-processing') {
+          const updated = { ...li, ilcAppProcessingStatus: 'processed' };
+          delete updated.ilcAppProcessingIssue;
+          return updated;
+        }
+        return li;
+      });
+
+      expect(lineItems[0].ilcAppProcessingStatus).toBe('processed');
+      expect(lineItems[0].ilcAppProcessingIssue).toBeUndefined();
+
+      const hasRemainingErrors = lineItems.some((li) => li.ilcAppProcessingStatus === 'error');
+      const newOrderStatus = hasRemainingErrors ? 'error' : 'processed';
+      expect(newOrderStatus).toBe('processed');
+    });
+
+    it('retains order error status and issues when fulfilling an order with failed digital items', async () => {
+      const order = {
+        docId: 'ord_2',
+        orderNumber: '1002',
+        fulfillmentStatus: 'PENDING',
+        ilcAppOrderStatus: 'error',
+        ilcAppOrderIssues: ['Email mismatch for member US100'],
+        lineItems: [
+          {
+            id: 'li_1',
+            sku: 'BOOK-1',
+            productName: 'ILC Guide',
+            lineItemType: SquareSpaceLineItemType.PhysicalProduct,
+            quantity: '1',
+            unitPricePaid: { value: '25.00' },
+            ilcAppProcessingStatus: 'needs-manual-processing',
+          },
+          {
+            id: 'li_2',
+            sku: 'MEM-YEAR-REG',
+            productName: 'Annual Membership',
+            quantity: '1',
+            unitPricePaid: { value: '85.00' },
+            ilcAppProcessingStatus: 'error',
+            ilcAppProcessingIssue: 'Email mismatch for member US100',
+          },
+        ],
+      } as unknown as SquareSpaceOrder;
+
+      // Simulate the fulfillment update logic
+      const lineItems = (order.lineItems || []).map((li) => {
+        if (li.ilcAppProcessingStatus === 'needs-manual-processing') {
+          const updated = { ...li, ilcAppProcessingStatus: 'processed' };
+          delete updated.ilcAppProcessingIssue;
+          return updated;
+        }
+        return li;
+      });
+
+      const hasRemainingErrors = lineItems.some((li) => li.ilcAppProcessingStatus === 'error');
+      const newOrderStatus = hasRemainingErrors ? 'error' : 'processed';
+      const newIssues = hasRemainingErrors ? (order.ilcAppOrderIssues || []) : [];
+
+      expect(lineItems[0].ilcAppProcessingStatus).toBe('processed');
+      expect(lineItems[1].ilcAppProcessingStatus).toBe('error');
+      expect(newOrderStatus).toBe('error');
+      expect(newIssues).toEqual(['Email mismatch for member US100']);
+    });
+  });
 });

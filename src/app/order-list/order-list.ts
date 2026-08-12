@@ -203,7 +203,19 @@ export class OrderList {
     event.stopPropagation();
     this.openMenuId.set(null);
     if (order.ilcAppOrderKind === OrderKind.Squarespace) {
-      const updatedOrder = { ...order, fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled };
+      const lineItems = (order.lineItems || []).map((li) =>
+        li.ilcAppProcessingStatus === OrderStatus.NeedsManualProcessing
+          ? { ...li, ilcAppProcessingStatus: OrderStatus.Processed, ilcAppProcessingIssue: undefined }
+          : li,
+      );
+      const hasRemainingErrors = lineItems.some((li) => li.ilcAppProcessingStatus === OrderStatus.Error);
+      const updatedOrder: SquareSpaceOrder = {
+        ...order,
+        fulfillmentStatus: SquarespaceFulfillmentStatus.Fulfilled,
+        ilcAppOrderStatus: hasRemainingErrors ? OrderStatus.Error : OrderStatus.Processed,
+        ilcAppOrderIssues: hasRemainingErrors ? (order.ilcAppOrderIssues || []) : [],
+        lineItems,
+      };
       await this.dataService.updateOrder(order.docId, updatedOrder);
       this.rawOrders.update(orders => orders.map(o => o.docId === updatedOrder.docId ? updatedOrder : o));
     }
