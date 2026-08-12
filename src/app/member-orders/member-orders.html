@@ -1,29 +1,4 @@
 <div class="orders-container">
-  <!-- Top Portal Action Card -->
-  <div class="stripe-portal-card">
-    <div class="portal-info">
-      <div class="portal-title">Manage Billing &amp; Payment Methods</div>
-      <div class="portal-subtext">
-        Stripe is our payment processor. You can view all processed charges, update credit cards, and download official invoices directly on Stripe.
-      </div>
-    </div>
-    <div class="portal-action">
-      <button
-        type="button"
-        class="button portal-btn"
-        [disabled]="portalLoading()"
-        (click)="onOpenCustomerPortal()"
-      >
-        @if (portalLoading()) {
-          <app-spinner>Redirecting to Stripe...</app-spinner>
-        } @else {
-          <app-icon name="link"></app-icon>
-          <span>See your orders on Stripe</span>
-        }
-      </button>
-    </div>
-  </div>
-
   <!-- Action Feedback Banners -->
   @if (actionMessage()) {
     <div class="banner success-banner">
@@ -299,4 +274,29 @@
       }
     </div>
   </section>
+
+  <!-- Bottom Portal Action Card -->
+  <div class="stripe-portal-card">
+    <div class="portal-info">
+      <div class="portal-title">Manage Billing &amp; Payment Methods</div>
+      <div class="portal-subtext">
+        Stripe is our payment processor. You can view all processed charges, update credit cards, and download official invoices directly on Stripe.
+      </div>
+    </div>
+    <div class="portal-action">
+      <button
+        type="button"
+        class="button portal-btn"
+        [disabled]="portalLoading()"
+        (click)="onOpenCustomerPortal()"
+      >
+        @if (portalLoading()) {
+          <app-spinner>Redirecting to Stripe...</app-spinner>
+        } @else {
+          <app-icon name="link"></app-icon>
+          <span>See your orders on Stripe</span>
+        }
+      </button>
+    </div>
+  </div>
 </div>

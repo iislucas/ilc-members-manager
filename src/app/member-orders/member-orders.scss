@@ -7,7 +7,7 @@
 }
 
 // ==========================================
-// Top Stripe Portal Action Card
+// Bottom Stripe Portal Action Card
 // ==========================================
 .stripe-portal-card {
   display: flex;
@@ -20,7 +20,8 @@
   border-left: 4px solid v.$row-highlight-border;
   border-radius: 8px;
   padding: 18px 20px;
-  margin-bottom: 32px;
+  margin-top: 36px;
+  margin-bottom: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
   .portal-info {
