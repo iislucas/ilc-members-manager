@@ -3,12 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Terms of Service</title>
+    <title>Terms of Service - I Liq Chuan Members Portal</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+    <meta name="theme-color" content="#64748b" />
     <style>
       body {
         font-family: Arial, Helvetica, sans-serif;
         margin: 0px;
         padding: 0px;
+        color: #18181b;
+        background-color: #ffffff;
+        line-height: 1.6;
       }
       .nav-bar {
         display: flex;
@@ -17,21 +23,122 @@
         align-items: center;
         margin-bottom: 1em;
         background-color: #64748b;
+        color: #ffffff;
         border-bottom: 2px solid #18181b;
         padding: 0.5em 1em;
+        box-sizing: border-box;
+      }
+      .title-and-nav {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1em;
+        width: 100%;
+      }
+      .nav-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 0.9em;
+        font-weight: 500;
+        padding: 0.35em 0.8em;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        background-color: transparent;
+        transition: all 0.2s ease-in-out;
+        white-space: nowrap;
+      }
+      .nav-back-link:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: #ffffff;
+        color: #ffffff;
+        text-decoration: none;
+      }
+      .nav-back-link:active {
+        transform: translateY(1px);
+      }
+      .back-icon {
+        display: inline-block;
+        vertical-align: middle;
       }
       .title {
-        font-size: large;
+        font-size: 1.1em;
         font-weight: bold;
+        color: #ffffff;
       }
       main {
-        margin: 1em;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1em 1.5em 3em;
+        box-sizing: border-box;
+      }
+      h1 {
+        font-size: 2em;
+        color: #18181b;
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+      }
+      h2 {
+        font-size: 1.4em;
+        color: #18181b;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+        border-bottom: 1px solid #e4e4e7;
+        padding-bottom: 0.3em;
+      }
+      h3 {
+        font-size: 1.15em;
+        color: #991b1b;
+        margin-top: 1.2em;
+        margin-bottom: 0.4em;
+      }
+      h4 {
+        font-size: 1em;
+        color: #27272a;
+        margin-top: 1em;
+        margin-bottom: 0.3em;
+      }
+      p, li {
+        color: #27272a;
+        font-size: 0.95em;
+      }
+      a {
+        color: #0284c7;
+        text-decoration: underline;
+      }
+      a:hover {
+        color: #0369a1;
+      }
+      @media (max-width: 600px) {
+        .nav-bar {
+          padding: 0.5em;
+        }
+        .title-and-nav {
+          flex-direction: row;
+          gap: 0.5em;
+        }
+        .title {
+          font-size: 0.95em;
+        }
+        main {
+          padding: 0.5em 1em 2em;
+        }
       }
     </style>
   </head>
   <body>
     <div class="nav-bar">
-      <div class="title">I Liq Chuan Members Portal: Terms of Service</div>
+      <div class="title-and-nav">
+        <a class="nav-back-link" href="/" title="Back to I Liq Chuan Members Portal">
+          <svg class="back-icon" viewBox="0 0 24 24" width="1.2em" height="1.2em" fill="currentColor" aria-hidden="true">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+          <span>Back to Portal</span>
+        </a>
+        <div class="title">I Liq Chuan Members Portal: Terms of Service</div>
+      </div>
     </div>
     <main>
       <h1>Terms of Service</h1>
@@ -69,7 +176,7 @@
           </p>
         </li>
         <li>
-          <p><strong>Country</strong> refers to: New York, United States</p>
+          <p><strong>Country</strong> refers to: State of New York, United States</p>
         </li>
         <li>
           <p>
@@ -122,8 +229,10 @@
         Conditions then You may not access the Service.
       </p>
       <p>
-        You represent that you are over the age of 18. The Company does not
-        permit those under 18 to use the Service.
+        You represent that you are over the age of 18, or possess legal parental
+        or guardian consent to use the Service. The Company does not permit
+        children under the age of 13 to use the Service directly without
+        parental or guardian authorization.
       </p>
       <p>
         Your access to and use of the Service is also conditioned on Your
@@ -297,7 +406,7 @@
         contact us:
       </p>
       <ul>
-        <li>By email: admin@iliqchuan.com</li>
+        <li>By email: <a href="mailto:web-helper-team@iliqchuan.com">web-helper-team@iliqchuan.com</a></li>
       </ul>
     </main>
   </body>

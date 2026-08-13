@@ -36,7 +36,7 @@ export const environment: FunctionsEnvironment = {
   },
   // Outbound email address configuration. If `from` is empty, email notifications are disabled.
   email: {
-    from: '', // e.g. 'admin@iliqchuan.com'
+    from: '', // e.g. 'web-helper-team@iliqchuan.com'
   },
   // Stripe integration. The secret key is provided via the STRIPE_SECRET_KEY
   // secret (defineSecret), not stored here. Only non-secret config lives here.
