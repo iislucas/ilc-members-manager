@@ -104,16 +104,14 @@
     </div>
   </div>
 
-  <!-- Grading target: the level being graded for, and the level the student
-       holds just before it (the preceding entry in the progression). -->
+  <!-- Grading target: the level being graded for, and the student's current levels when this is their active next grading -->
   @if (g.level) {
     <div class="grading-target">
-      <span class="grading-target-label">Grading for:</span>
-      @if (previousLevel()) {
-        <span class="grading-target-from">{{ previousLevel() }}</span>
-        <app-icon name="arrow_forward" width="16" height="16"></app-icon>
+      <span class="grading-target-label">Grading</span>
+      <strong class="grading-target-level">{{ g.level }}</strong>
+      @if (isActiveNextGrading() && fromLevelsDisplay()) {
+        <span class="grading-target-from">({{ fromLevelsDisplay() }})</span>
       }
-      <span class="grading-target-level">{{ g.level }}</span>
     </div>
   }
 
@@ -200,12 +198,13 @@
           <div class="out-of-order-notice">
             <app-icon name="info" width="20" height="20" fill="#b06000"></app-icon>
             <div class="out-of-order-content">
-              <p class="out-of-order-title">
-                <strong>Complete Previous Gradings First</strong>
-              </p>
               <p class="out-of-order-text">
-                You need to complete your earlier gradings before submitting a request for <strong>{{ g.level }}</strong>.
-                Your next grading is for <strong>{{ studentNextGradingLevel() }}</strong>.
+                You are not yet eligible to request an instructor evaluate you for this level.
+                Please complete
+                <a class="out-of-order-link" [href]="nextGradingHref()">
+                  your {{ studentNextGradingLevel() }} grading
+                </a>
+                first.
               </p>
               <div class="out-of-order-actions">
                 <a class="subtle-button next-grading-btn" [href]="nextGradingHref()">

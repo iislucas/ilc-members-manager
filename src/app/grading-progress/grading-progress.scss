@@ -12,22 +12,25 @@
 .grading-target {
   display: flex;
   align-items: center;
-  gap: 0.4em;
+  gap: 0.35em;
   margin-top: 0.75em;
   margin-bottom: 1.2em;
   flex-wrap: wrap;
 
   .grading-target-label {
-    font-size: 0.9em;
-    color: v.$text-secondary;
-  }
-
-  .grading-target-from {
+    font-size: 0.95em;
     color: v.$text-secondary;
   }
 
   .grading-target-level {
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 0.95em;
+    color: v.$text-primary;
+  }
+
+  .grading-target-from {
+    font-size: 0.9em;
+    color: v.$text-secondary;
   }
 }
 
@@ -95,6 +98,16 @@
     font-size: 0.93em;
     line-height: 1.45;
     color: #8a5200;
+  }
+
+  .out-of-order-link {
+    font-weight: 600;
+    color: #8a5200;
+    text-decoration: underline;
+
+    &:hover {
+      color: #6d3f00;
+    }
   }
 
   .out-of-order-actions {

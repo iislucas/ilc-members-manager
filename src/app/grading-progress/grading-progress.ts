@@ -137,11 +137,16 @@ export class GradingProgressComponent {
   );
 
   // The student's member record, looked up by docId. Available to admins/school
-  // managers (via `members`) and to the grading instructor for their own
-  // students (via `myStudents`). undefined when not loaded.
+  // The student's member record, looked up by docId. Available to the logged-in
+  // student themselves, to admins/school managers (via `members`), and to the
+  // grading instructor for their own students (via `myStudents`).
   private studentMember = computed<Member | undefined>(() => {
     const docId = this.grading().studentMemberDocId;
     if (!docId) return undefined;
+    const user = this.firebaseState.user();
+    if (user && user.member.docId === docId) {
+      return user.member;
+    }
     return (
       this.dataService.getMemberByDocId(docId) ??
       this.dataService.getMyStudent(docId)
@@ -156,19 +161,53 @@ export class GradingProgressComponent {
   // completed grading isn't flagged "out of order" just because the student has
   // since levelled up. Before acceptance, there's no snapshot, so we fall back to
   // the student's current member levels. undefined when neither is available.
-  private orderBasisLevels = computed<
+  orderBasisLevels = computed<
     { studentLevel: string; applicationLevel: string } | undefined
   >(() => {
     const g = this.grading();
     if (g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance) {
       return {
-        studentLevel: g.studentLevelAtAcceptance,
-        applicationLevel: g.applicationLevelAtAcceptance,
+        studentLevel: g.studentLevelAtAcceptance || '',
+        applicationLevel: g.applicationLevelAtAcceptance || '',
       };
     }
     const m = this.studentMember();
     if (!m) return undefined;
-    return { studentLevel: m.studentLevel, applicationLevel: m.applicationLevel };
+    return {
+      studentLevel: m.studentLevel || '',
+      applicationLevel: m.applicationLevel || '',
+    };
+  });
+
+  // Formatted student level from orderBasisLevels
+  formattedBasisStudentLevel = computed(() => {
+    const basis = this.orderBasisLevels();
+    const sl = basis?.studentLevel;
+    if (!sl || sl.toLowerCase() === 'none' || sl.trim() === '') return 'Student None';
+    if (sl.toLowerCase().startsWith('student') || sl.toLowerCase().startsWith('application')) {
+      return sl;
+    }
+    if (sl.toLowerCase() === 'entry') return 'Student Entry';
+    return `Student ${sl}`;
+  });
+
+  // Formatted application level from orderBasisLevels (empty string if none)
+  formattedBasisApplicationLevel = computed(() => {
+    const basis = this.orderBasisLevels();
+    const al = basis?.applicationLevel;
+    if (!al || al.toLowerCase() === 'none' || al.trim() === '') return '';
+    if (al.toLowerCase().startsWith('application')) return al;
+    return `Application ${al}`;
+  });
+
+  // e.g. "from: Student 1" or "from: Student 5, Application 1"
+  fromLevelsDisplay = computed(() => {
+    const s = this.formattedBasisStudentLevel();
+    const a = this.formattedBasisApplicationLevel();
+    if (a) {
+      return `from: ${s}, ${a}`;
+    }
+    return `from: ${s}`;
   });
 
   // The level the student should grade for next, from the progression. '' when
@@ -185,7 +224,23 @@ export class GradingProgressComponent {
   isNextGrading = computed(() => {
     const next = this.studentNextGradingLevel();
     if (!next) return true;
-    return this.grading().level === next;
+    return (
+      normalizeGradingLevel(this.grading().level) ===
+      normalizeGradingLevel(next)
+    );
+  });
+
+  // True only when this grading is the current active (in-progress/unfinalized)
+  // next grading for the member.
+  isActiveNextGrading = computed(() => {
+    const g = this.grading();
+    if (
+      g.status === GradingStatus.Passed ||
+      g.status === GradingStatus.NotPassed
+    ) {
+      return false;
+    }
+    return this.isNextGrading();
   });
 
   // If the student already has an open/pending grading for their next level,
@@ -193,10 +248,11 @@ export class GradingProgressComponent {
   nextGradingDocId = computed(() => {
     const next = this.studentNextGradingLevel();
     if (!next) return null;
+    const nextNorm = normalizeGradingLevel(next);
     const gradings = this.dataService.myGradings.entries();
     const match = gradings.find(
       (g) =>
-        g.level === next &&
+        normalizeGradingLevel(g.level) === nextNorm &&
         g.status !== GradingStatus.Passed &&
         g.status !== GradingStatus.NotPassed,
     );

@@ -379,7 +379,13 @@ describe('GradingProgressComponent', () => {
   });
 
   it('blocks the student from requesting an out-of-order grading in AwaitingRequest state and links to next grading', () => {
-    const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+    const studentMember = {
+      ...initMember(),
+      docId: 'doc-student-1',
+      instructorId: '',
+      studentLevel: '5',
+      applicationLevel: '2',
+    };
     mockFirebaseState.user.set({
       member: studentMember,
       memberProfiles: [studentMember],
@@ -387,11 +393,6 @@ describe('GradingProgressComponent', () => {
       schoolsManaged: [],
       firebaseUser: {} as never,
     });
-    mockDataService.getMemberByDocId = (() => ({
-      ...initMember(),
-      studentLevel: '5',
-      applicationLevel: '2',
-    })) as never;
 
     // Student has next grading Student 6 in their gradings list
     (mockDataService.myGradings as any).entries = () => [
@@ -419,13 +420,43 @@ describe('GradingProgressComponent', () => {
     expect(component.studentNextGradingLevel()).toBe('Student 6');
 
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Complete Previous Gradings First');
-    expect(el.textContent).toContain('Your next grading is for Student 6');
+    expect(el.textContent).toContain('You are not yet eligible to request an instructor evaluate you for this level');
+    expect(el.textContent).toContain('your Student 6 grading');
     expect(el.querySelector('.next-grading-btn')?.textContent).toContain('Go to Student 6 Grading');
     // Ensure the normal submit form is hidden
     expect(el.querySelector('app-instructor-selector')).toBeNull();
 
-    // Verify saveRequestFields is blocked
+    // Out-of-order grading: isActiveNextGrading is false, so (from: ...) is omitted
+    expect(component.isActiveNextGrading()).toBe(false);
+    expect(el.querySelector('.grading-target')?.textContent).toContain('Grading');
+    expect(el.querySelector('.grading-target')?.textContent).toContain('Student 7');
+    expect(el.querySelector('.grading-target')?.textContent).not.toContain('(from:');
+
+    // Switch to viewing Student 6 (the active next grading)
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g-next-6',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 6',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+
+    expect(component.isNextGrading()).toBe(true);
+    expect(component.isActiveNextGrading()).toBe(true);
+    expect(component.fromLevelsDisplay()).toBe('from: Student 5, Application 2');
+    expect(el.querySelector('.grading-target')?.textContent).toContain('(from: Student 5, Application 2)');
+
+    // Verify saveRequestFields is blocked when out of order
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+
     const emitted: Partial<Grading>[] = [];
     component.gradingUpdated.subscribe((u) => emitted.push(u));
     component.saveRequestFields();
