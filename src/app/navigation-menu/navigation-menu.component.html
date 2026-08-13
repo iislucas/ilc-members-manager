@@ -23,12 +23,12 @@
         <div class="submenu-inner">
           <div class="menu-item submenu-item" (click)="onSelect(Views.MembersArea)">
             <app-icon name="hands_lotus" width="24px" height="24px"></app-icon>
-            <span>Members Posts</span>
+            <span>Members Area</span>
           </div>
           @if (instructorStatus().isInstructor) {
             <div class="menu-item submenu-item" (click)="onSelect(Views.InstructorsArea)">
               <app-icon name="meditation" width="24px" height="24px"></app-icon>
-              <span>Instructors Posts</span>
+              <span>Instructors Area</span>
             </div>
           }
           <div class="menu-item submenu-item" (click)="onSelect(Views.ClassVideoLibrary)">

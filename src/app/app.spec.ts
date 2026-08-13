@@ -279,7 +279,7 @@ describe('App', () => {
     expect(breadcrumbLabels).toEqual([
       'ILC Portal',
       'Learn',
-      'Members Posts',
+      'Members Area',
       'Article',
     ]);
   });
