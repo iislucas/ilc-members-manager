@@ -288,4 +288,52 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     const formCards = compiled.querySelectorAll('.form-card');
     expect(formCards.length).toBe(2);
   });
+
+  it('should deny video access when classVideoLibrarySubscription boolean is false even if expiration date is in future', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: false,
+        classVideoLibraryExpirationDate: '2099-12-31',
+        classVideoLibrarySubscriptionId: '',
+        classVideoLibraryNextAutoRenewDate: '',
+      },
+    });
+
+    await createComponent();
+    expect(component.hasVideoAccess()).toBe(false);
+  });
+
+  it('should deny video access when classVideoLibrarySubscription is true but expiration date has passed', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2020-01-01',
+        classVideoLibrarySubscriptionId: '',
+        classVideoLibraryNextAutoRenewDate: '',
+      },
+    });
+
+    await createComponent();
+    expect(component.hasVideoAccess()).toBe(false);
+  });
+
+  it('should allow video access when classVideoLibrarySubscription is true and expiration date is empty (never expires)', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '',
+        classVideoLibrarySubscriptionId: '',
+        classVideoLibraryNextAutoRenewDate: '',
+      },
+    });
+
+    await createComponent();
+    expect(component.hasVideoAccess()).toBe(true);
+  });
 });
