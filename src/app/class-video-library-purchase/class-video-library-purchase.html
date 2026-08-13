@@ -70,7 +70,11 @@
         <div>
           <h3>You have active Video Library Access</h3>
           <p>
-            Valid through <strong>{{ expirationDate() }}</strong>.
+            @if (expirationDate()) {
+              Valid through <strong>{{ expirationDate() }}</strong>.
+            } @else {
+              <strong>Lifetime / Unlimited Access</strong>.
+            }
             @if (hasActiveAutoRenew()) {
               Auto-renews on <strong>{{ nextAutoRenewDate() }}</strong>.
             }
