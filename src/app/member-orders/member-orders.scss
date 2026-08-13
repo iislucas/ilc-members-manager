@@ -190,6 +190,44 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
   }
+
+  &.disabled {
+    background: #f9fafb;
+    border-color: v.$border-color-light;
+    opacity: 0.8;
+    cursor: default;
+    box-shadow: none;
+
+    app-icon {
+      color: v.$text-muted;
+    }
+
+    .service-link-title {
+      color: v.$text-muted;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .active-badge {
+      display: inline-block;
+      font-size: 0.7em;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      font-weight: 600;
+    }
+
+    &:hover {
+      border-color: v.$border-color-light;
+      background: #f9fafb;
+      transform: none;
+      box-shadow: none;
+    }
+  }
 }
 
 @media (max-width: 900px) {
@@ -252,7 +290,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 16px;
 
     .info-row {
       display: flex;
@@ -286,6 +323,7 @@
   .sub-card-actions {
     display: flex;
     gap: 8px;
+    margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid v.$separator-color;
 

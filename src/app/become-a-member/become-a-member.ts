@@ -75,6 +75,13 @@ export class BecomeAMemberComponent {
   countyOrState = linkedSignal(() => this.user()?.member?.countyOrState || '');
   gender = linkedSignal(() => this.user()?.member?.gender || '');
 
+  // Spouse form fields (for life_spouse option)
+  spouseName = signal('');
+  spouseEmail = signal('');
+  spouseDateOfBirth = signal('');
+
+  isSpouseOptionSelected = computed(() => this.selectedOption() === 'life_spouse');
+
   // Login form state (if not logged in)
   loginEmail = signal('');
   loginPassword = signal('');
@@ -119,9 +126,9 @@ export class BecomeAMemberComponent {
 
   today = computed(() => new Date().toISOString().split('T')[0]);
 
-  // Calculate age from dateOfBirth
-  age = computed<number | null>(() => {
-    const dob = this.dateOfBirth().trim();
+  // Helper to calculate age from a date string YYYY-MM-DD
+  private calculateAgeFromDob(dobString: string): number | null {
+    const dob = dobString.trim();
     if (!dob) return null;
     const birthDate = new Date(dob);
     if (isNaN(birthDate.getTime())) return null;
@@ -132,7 +139,15 @@ export class BecomeAMemberComponent {
       calculatedAge--;
     }
     return calculatedAge >= 0 ? calculatedAge : null;
-  });
+  }
+
+  // Calculate age from dateOfBirth
+  age = computed<number | null>(() => this.calculateAgeFromDob(this.dateOfBirth()));
+
+  // Calculate spouse's age from spouseDateOfBirth
+  spouseAge = computed<number | null>(() =>
+    this.calculateAgeFromDob(this.spouseDateOfBirth()),
+  );
 
   isLifeMember = computed(() => {
     return this.user()?.member?.membershipType === MembershipType.Life;
@@ -324,58 +339,186 @@ export class BecomeAMemberComponent {
 
   lifeIndividualOption = computed<{
     label: string;
+    badge: string;
     note: string;
     price: StripeProductPrice | null;
     product: StripeProduct | null;
   }>(() => {
-    for (const prod of this.lifetimeProducts()) {
-      if (prod.name.toLowerCase().includes('spouse')) continue;
+    const lifeProds = this.lifetimeProducts().filter(
+      (p) => !p.name.toLowerCase().includes('spouse'),
+    );
+    if (!lifeProds.length) {
+      return {
+        label: 'Lifetime Membership (Individual)',
+        badge: '',
+        note: 'One-time payment for lifetime individual membership access. Never expires.',
+        price: null,
+        product: null,
+      };
+    }
+
+    const activePrices: { price: StripeProductPrice; product: StripeProduct }[] = [];
+    for (const prod of lifeProds) {
       for (const pr of prod.prices) {
         if (!pr.active || pr.unitAmount === null) continue;
         const n = (pr.nickname || prod.name).toLowerCase();
         if (!n.includes('spouse')) {
-          return {
-            label: pr.nickname || 'Lifetime Membership (Individual)',
-            note: 'One-time payment for lifetime individual membership access. Never expires.',
-            price: pr,
-            product: prod,
-          };
+          activePrices.push({ price: pr, product: prod });
         }
       }
     }
+
+    if (!activePrices.length) {
+      return {
+        label: 'Lifetime Membership (Individual)',
+        badge: '',
+        note: 'One-time payment for lifetime individual membership access. Never expires.',
+        price: null,
+        product: null,
+      };
+    }
+
+    const age = this.age();
+    let matched: { price: StripeProductPrice; product: StripeProduct } | null = null;
+    let label = 'Lifetime Membership (Individual)';
+    let badge = '';
+    let note = 'One-time payment for lifetime individual membership access. Never expires.';
+
+    if (age !== null && age >= 65) {
+      matched =
+        activePrices.find(({ price }) => {
+          const n = (price.nickname || '').toLowerCase();
+          return n.includes('65') || n.includes('senior');
+        }) || null;
+      if (matched) {
+        label = `Lifetime: 65+ Senior (${matched.price.nickname || 'Senior Rate'})`;
+        badge = 'Senior Rate (65+)';
+        note = `Special senior rate applied based on your date of birth (Age: ${age}). One-time payment for lifetime access. Never expires.`;
+      }
+    }
+
+    if (!matched) {
+      matched =
+        activePrices.find(({ price }) => {
+          const n = (price.nickname || '').toLowerCase();
+          return (
+            n.includes('regular') ||
+            (!n.includes('65') && !n.includes('senior'))
+          );
+        }) ||
+        activePrices[0] ||
+        null;
+      if (matched) {
+        label = matched.price.nickname || 'Lifetime Membership (Individual)';
+        if (age !== null) {
+          badge = 'Standard Rate';
+          note = `Standard lifetime rate for adults (Age: ${age}). One-time payment for lifetime access. Never expires.`;
+        } else {
+          note =
+            'Standard lifetime rate. (Enter date of birth above to check senior eligibility). Never expires.';
+        }
+      }
+    }
+
     return {
-      label: 'Lifetime Membership (Individual)',
-      note: 'One-time payment for lifetime individual membership access. Never expires.',
-      price: null,
-      product: null,
+      label,
+      badge,
+      note,
+      price: matched?.price || null,
+      product: matched?.product || null,
     };
   });
 
   lifeSpouseOption = computed<{
     label: string;
+    badge: string;
     note: string;
     price: StripeProductPrice | null;
     product: StripeProduct | null;
   }>(() => {
+    const activePrices: { price: StripeProductPrice; product: StripeProduct }[] = [];
     for (const prod of this.membershipProducts()) {
       for (const pr of prod.prices) {
         if (!pr.active || pr.unitAmount === null) continue;
         const n = (pr.nickname || prod.name).toLowerCase();
         if (n.includes('spouse')) {
-          return {
-            label: pr.nickname || 'Lifetime Membership (with Spouse)',
-            note: 'One-time payment for lifetime membership covering both you and your spouse. Never expires.',
-            price: pr,
-            product: prod,
-          };
+          activePrices.push({ price: pr, product: prod });
         }
       }
     }
+
+    if (!activePrices.length) {
+      return {
+        label: 'Lifetime Membership (with Spouse)',
+        badge: '',
+        note: 'One-time payment for lifetime membership covering both you and your spouse. Never expires.',
+        price: null,
+        product: null,
+      };
+    }
+
+    const primaryAge = this.age();
+    const spouseAge = this.spouseAge();
+    const isPrimarySenior = primaryAge !== null && primaryAge >= 65;
+    const isSpouseSenior = spouseAge !== null && spouseAge >= 65;
+    const isEitherSenior = isPrimarySenior || isSpouseSenior;
+
+    let matched: { price: StripeProductPrice; product: StripeProduct } | null = null;
+    let label = 'Lifetime Membership (with Spouse)';
+    let badge = '';
+    let note = 'One-time payment for lifetime membership covering both you and your spouse. Never expires.';
+
+    if (isEitherSenior) {
+      matched =
+        activePrices.find(({ price }) => {
+          const n = (price.nickname || '').toLowerCase();
+          return n.includes('65') || n.includes('senior');
+        }) || null;
+      if (matched) {
+        label = `Lifetime + Spouse: 65+ Senior (${matched.price.nickname || 'Senior Rate'})`;
+        badge = 'Senior Rate (65+)';
+        if (isPrimarySenior && isSpouseSenior) {
+          note = `Special senior rate applied based on your date of birth (Age: ${primaryAge}) and spouse’s date of birth (Age: ${spouseAge}). One-time payment covering both you and your spouse. Never expires.`;
+        } else if (isPrimarySenior) {
+          note = `Special senior rate applied based on your date of birth (Age: ${primaryAge}). One-time payment covering both you and your spouse. Never expires.`;
+        } else {
+          note = `Special senior rate applied based on your spouse’s date of birth (Age: ${spouseAge}). One-time payment covering both you and your spouse. Never expires.`;
+        }
+      }
+    }
+
+    if (!matched) {
+      matched =
+        activePrices.find(({ price }) => {
+          const n = (price.nickname || '').toLowerCase();
+          return (
+            n.includes('regular') ||
+            (!n.includes('65') && !n.includes('senior'))
+          );
+        }) ||
+        activePrices[0] ||
+        null;
+      if (matched) {
+        label = matched.price.nickname || 'Lifetime Membership (with Spouse)';
+        if (primaryAge !== null && spouseAge !== null) {
+          badge = 'Standard Rate';
+          note = `Standard lifetime rate for adults (Ages: ${primaryAge} & ${spouseAge}). One-time payment covering both you and your spouse. Never expires.`;
+        } else if (primaryAge !== null) {
+          badge = 'Standard Rate';
+          note = `Standard lifetime rate for adults (Age: ${primaryAge}). One-time payment covering both you and your spouse. Never expires.`;
+        } else {
+          note =
+            'Standard lifetime rate. (Enter dates of birth above to check senior eligibility). Never expires.';
+        }
+      }
+    }
+
     return {
-      label: 'Lifetime Membership (with Spouse)',
-      note: 'One-time payment for lifetime membership covering both you and your spouse. Never expires.',
-      price: null,
-      product: null,
+      label,
+      badge,
+      note,
+      price: matched?.price || null,
+      product: matched?.product || null,
     };
   });
 
@@ -409,6 +552,7 @@ export class BecomeAMemberComponent {
         type: 'life_individual',
         title: lifeInd.label,
         pillLabel: 'Lifetime Individual',
+        badge: lifeInd.badge,
         price: lifeInd.price,
         note: lifeInd.note,
       });
@@ -419,6 +563,7 @@ export class BecomeAMemberComponent {
         type: 'life_spouse',
         title: lifeSp.label,
         pillLabel: 'Lifetime with Spouse',
+        badge: lifeSp.badge,
         price: lifeSp.price,
         note: lifeSp.note,
       });
@@ -552,6 +697,19 @@ export class BecomeAMemberComponent {
       return;
     }
 
+    if (this.isSpouseOptionSelected()) {
+      const spName = this.spouseName().trim();
+      const spEmail = this.spouseEmail().trim();
+      const spDob = this.spouseDateOfBirth().trim();
+
+      if (!spName || !spEmail || !spDob) {
+        this.checkoutError.set(
+          'Please enter your spouse’s full name, email address, and date of birth before proceeding.',
+        );
+        return;
+      }
+    }
+
     this.isRedirecting.set(true);
     this.checkoutError.set(null);
 
@@ -578,6 +736,19 @@ export class BecomeAMemberComponent {
       const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/become-a-member`;
 
+      const metadata: Record<string, string> = {
+        memberDocId: user.member.docId,
+        memberId: user.member.memberId || '',
+        orderType: 'membership',
+      };
+
+      if (this.isSpouseOptionSelected()) {
+        metadata['spouseName'] = this.spouseName().trim();
+        metadata['spouseEmail'] = this.spouseEmail().trim().toLowerCase();
+        metadata['spouseDob'] = this.spouseDateOfBirth().trim();
+        metadata['spouseCountry'] = resolvedCountry.name;
+      }
+
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(
         priceId,
         origin,
@@ -585,11 +756,7 @@ export class BecomeAMemberComponent {
         {
           successUrl,
           cancelUrl,
-          metadata: {
-            memberDocId: user.member.docId,
-            memberId: user.member.memberId || '',
-            orderType: 'membership',
-          },
+          metadata,
         },
       );
 

@@ -104,16 +104,14 @@
     </div>
   </div>
 
-  <!-- Grading target: the level being graded for, and the level the student
-       holds just before it (the preceding entry in the progression). -->
+  <!-- Grading target: the level being graded for, and the student's current levels when this is their active next grading -->
   @if (g.level) {
     <div class="grading-target">
-      <span class="grading-target-label">Grading for:</span>
-      @if (previousLevel()) {
-        <span class="grading-target-from">{{ previousLevel() }}</span>
-        <app-icon name="arrow_forward" width="16" height="16"></app-icon>
+      <span class="grading-target-label">Grading</span>
+      <strong class="grading-target-level">{{ g.level }}</strong>
+      @if (isActiveNextGrading() && fromLevelsDisplay()) {
+        <span class="grading-target-from">({{ fromLevelsDisplay() }})</span>
       }
-      <span class="grading-target-level">{{ g.level }}</span>
     </div>
   }
 
@@ -195,7 +193,34 @@
 
       <!-- Context message -->
       @if (userIsStudent()) {
-        @if (
+        @if (!isNextGrading() && g.status !== GradingStatus.AwaitingAcceptance) {
+          <!-- Blocked: student must complete previous gradings first -->
+          <div class="out-of-order-notice">
+            <app-icon name="info" width="20" height="20" fill="#b06000"></app-icon>
+            <div class="out-of-order-content">
+              <p class="out-of-order-text">
+                You are not yet eligible to request an instructor evaluate you for this level.
+                Please complete
+                <a class="out-of-order-link" [href]="nextGradingHref()">
+                  your {{ studentNextGradingLevel() }} grading
+                </a>
+                first.
+              </p>
+              <div class="out-of-order-actions">
+                <a class="subtle-button next-grading-btn" [href]="nextGradingHref()">
+                  <app-icon name="arrow_forward" width="16" height="16"></app-icon>
+                  <span>
+                    @if (nextGradingDocId()) {
+                      Go to {{ studentNextGradingLevel() }} Grading
+                    } @else {
+                      Purchase {{ studentNextGradingLevel() }} Grading
+                    }
+                  </span>
+                </a>
+              </div>
+            </div>
+          </div>
+        } @else if (
           g.status === GradingStatus.AwaitingAcceptance && !isEditingRequest()
         ) {
           <!-- Read-only summary when request is sent -->
@@ -1057,6 +1082,52 @@
           }
         }
       </p>
+
+      <!-- Free retake option for student on Not-Passed grading -->
+      @if (canRequestRetake()) {
+        <div class="retake-panel">
+          <app-icon name="salut" width="22px" height="22px" fill="#b06000"></app-icon>
+          <div class="retake-content">
+            <p class="retake-title">
+              <strong>Free Retake Available</strong>
+            </p>
+            <p class="retake-desc">
+              You can try again for <strong>{{ g.level }}</strong> without having to repay the headquarters grading registration fee.
+            </p>
+            <div class="retake-actions">
+              @if (isCreatingRetake()) {
+                <app-spinner>Creating your retake grading record...</app-spinner>
+              } @else {
+                <button type="button" class="button retake-btn" (click)="requestRetake()">
+                  <app-icon name="refresh" width="16" height="16"></app-icon>
+                  <span>Start Free Retake for {{ g.level }}</span>
+                </button>
+              }
+              @if (retakeError()) {
+                <p class="field-error">{{ retakeError() }}</p>
+              }
+            </div>
+          </div>
+        </div>
+      } @else if (activeRetakeDocId(); as rId) {
+        <div class="retake-panel info-box">
+          <app-icon name="check" width="20px" height="20px" fill="#155724"></app-icon>
+          <div class="retake-content">
+            <p class="retake-title">
+              <strong>Active Retake in Progress</strong>
+            </p>
+            <p class="retake-desc">
+              You have an active retake grading for <strong>{{ g.level }}</strong>.
+            </p>
+            <div class="retake-actions">
+              <a class="subtle-button next-grading-btn" [href]="routingService.hrefForView(Views.GradingView, { gradingId: rId })">
+                <app-icon name="arrow_forward" width="16" height="16"></app-icon>
+                <span>Go to Active Retake Grading</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      }
 
       @if (!userIsStudent() && isUnpaid() && g.status === GradingStatus.Passed) {
         <div class="warning-box">

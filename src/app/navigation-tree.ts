@@ -410,10 +410,10 @@ export class NavigationTreeService {
       case Views.OrderView:
         return [this.node(Views.ManageOrders, 'Orders')];
       case Views.MembersAreaPost:
-        return [{ label: 'Members Posts', url: this.routing.hrefWithParams('/members-area') }];
+        return [{ label: 'Members Area', url: this.routing.hrefWithParams('/members-area') }];
       case Views.InstructorsAreaPost:
         return [
-          { label: 'Instructors Posts', url: this.routing.hrefWithParams('/instructors-area') },
+          { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
         ];
       case Views.NotificationSettings:
         return [this.node(Views.Settings, 'Settings')];
@@ -619,10 +619,10 @@ export class NavigationTreeService {
         return 'Schools';
       case Views.MembersArea:
       case Views.MembersAreaCategory:
-        return 'Members Posts';
+        return 'Members Area';
       case Views.InstructorsArea:
       case Views.InstructorsAreaCategory:
-        return 'Instructors Posts';
+        return 'Instructors Area';
       case Views.ManageGradings:
         return 'Gradings';
       case Views.MemberGradings: {

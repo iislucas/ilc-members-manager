@@ -337,6 +337,14 @@ export function previousGradingLevel(level: string): string {
   return gradingProgression[idx - 1];
 }
 
+// The grading level immediately after `level` in the canonical progression.
+// Returns '' when `level` is the last entry, not found, or empty.
+export function levelAfter(level: string): string {
+  const idx = gradingProgression.indexOf(normalizeGradingLevel(level));
+  if (idx < 0 || idx >= gradingProgression.length - 1) return '';
+  return gradingProgression[idx + 1];
+}
+
 // Whether an instructor with the given student level is qualified to assess a
 // grading at `gradingLevel`. Only Application gradings have a minimum assessor
 // level (see `levelToCanAssessGrading`); for all other levels any instructor is
@@ -501,6 +509,8 @@ export type School = {
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
   ownerInstructorId: string;
+  // The member docId of the owner of this school.
+  ownerMemberDocId: string;
   // The `instructorId`s (human readable) of people allowed to manage people within this school.
   managerInstructorIds: string[];
 
@@ -534,11 +544,12 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
     : new Date().toISOString();
 
   const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
+  const ownerMemberDocId = docData.ownerMemberDocId || '';
   const managerInstructorIds = docData.managerInstructorIds || docData.managers || [];
   // TODO: legacy: remove once full migration to ownerEmails is complete
   const ownerEmails = docData.ownerEmails && docData.ownerEmails.length > 0 ? docData.ownerEmails : (docData.ownerEmail ? [docData.ownerEmail] : []);
 
-  return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
+  return { ...initSchool(), ...docData, ownerInstructorId, ownerMemberDocId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
 }
 
 export enum NotificationKind {
@@ -1629,6 +1640,7 @@ export function initSchool(): School {
     publicCoverImageUrl: '',
     publicBioMarkdown: '',
     ownerInstructorId: '',
+    ownerMemberDocId: '',
     managerInstructorIds: [],
     ownerEmails: [],
     managerEmails: [],

@@ -1,11 +1,4 @@
 <div class="next-grading-container">
-  <div class="page-header">
-    <h1>Purchase Next Grading</h1>
-    <p class="subtitle">
-      Progress through the I Liq Chuan ranking system by purchasing and preparing for your next grading examination.
-    </p>
-  </div>
-
   <!-- Landing after Stripe checkout return -->
   @if (sessionId()) {
     <div class="order-confirmation-card card">
@@ -88,7 +81,7 @@
   <div class="form-card card">
     <div class="step-header-row">
       <div class="step-header-left">
-        <h2>2. Your Progression &amp; Level Target</h2>
+        <h2>2. Next Grading Level</h2>
         @if (isLoggedIn() && isActiveMember()) {
           <span class="step-completed-badge" title="Eligible for grading">
             <app-icon name="check"></app-icon>
@@ -118,6 +111,73 @@
         </div>
       </div>
     } @else {
+      <!-- Existing pending gradings notice at the top of Step 2 -->
+      @if (pendingGradings().length > 0) {
+        <div class="open-grading-banner">
+          <app-icon name="info" width="24px" height="24px"></app-icon>
+          <div>
+            @if (pendingGradings().length === 1) {
+              <h3>You have an existing grading for {{ pendingGradings()[0].level }}</h3>
+              <p>
+                Status: <strong>{{ pendingGradings()[0].status }}</strong>. You can view your progress and submit requirements directly.
+              </p>
+              @if (activeNextPendingGrading(); as nextPending) {
+                <a
+                  class="subtle-button link-btn"
+                  [href]="routingService.hrefForView(Views.GradingView, { gradingId: nextPending.docId })"
+                >
+                  View {{ nextPending.level }} Grading Details
+                </a>
+              }
+            } @else {
+              <h3>You have existing gradings for {{ pendingLevelsList() }}</h3>
+              <p>
+                Please complete your gradings in sequence. Your next active grading is <strong>{{ activeNextPendingGrading()?.level }}</strong>.
+              </p>
+              @if (activeNextPendingGrading(); as nextPending) {
+                <a
+                  class="subtle-button link-btn"
+                  [href]="routingService.hrefForView(Views.GradingView, { gradingId: nextPending.docId })"
+                >
+                  Go to {{ nextPending.level }} Grading
+                </a>
+              }
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Free retake notice if student previously did not pass -->
+      @if (retakeEligible()) {
+        <div class="retake-notice-card">
+          <app-icon name="salut" width="28px" height="28px" fill="#b06000"></app-icon>
+          <div class="retake-card-content">
+            <h3>Free Retake Available for {{ retakeEligibleLevel() }}</h3>
+            <p>
+              You previously did not pass your <strong>{{ retakeEligibleLevel() }}</strong> grading.
+              You can retake this grading examination without having to repay the headquarters registration fee.
+            </p>
+            @if (retakeError()) {
+              <div class="error-container">
+                <span class="error-message">{{ retakeError() }}</span>
+              </div>
+            }
+            @if (isCreatingRetake()) {
+              <app-spinner>Creating your retake grading record...</app-spinner>
+            } @else {
+              <button
+                type="button"
+                class="button retake-action-btn"
+                (click)="onStartRetake()"
+              >
+                <app-icon name="refresh"></app-icon>
+                <span>Start Free Retake for {{ retakeEligibleLevel() }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
       <div class="levels-grid">
         <div class="level-box current">
           <div class="level-label">Student Level</div>
@@ -128,10 +188,12 @@
           <div class="level-value">{{ currentApplicationLevel() }}</div>
         </div>
         <div class="level-box next">
-          <div class="level-label">Next Target Grading</div>
+          <div class="level-label">Next level to purchase</div>
           <div class="level-value target">
-            @if (nextLevel()) {
-              {{ nextLevel() }}
+            @if (retakeEligible() && !buyingAdvanceLevel()) {
+              {{ retakeEligibleLevel() }} (Free Retake)
+            } @else if (targetLevel()) {
+              {{ targetLevel() }}
             } @else {
               Highest Level Achieved!
             }
@@ -139,108 +201,138 @@
         </div>
       </div>
 
-      <!-- Check if already has an open grading for next level -->
-      @if (alreadyHasGrading(); as openGrading) {
-        <div class="open-grading-banner">
-          <app-icon name="info" width="24px" height="24px"></app-icon>
-          <div>
-            <h3>You have an existing grading for {{ openGrading.level }}</h3>
-            <p>
-              Status: <strong>{{ openGrading.status }}</strong>. You can view your progress and submit requirements directly.
+      @if (retakeEligible() && nextPurchasableLevel()) {
+        <div class="advance-purchase-toggle">
+          @if (!buyingAdvanceLevel()) {
+            <p class="advance-purchase-hint">
+              Planning ahead? You can also
+              <button type="button" class="link-inline-btn" (click)="buyingAdvanceLevel.set(true)">
+                purchase your subsequent {{ nextPurchasableLevel() }} grading in advance.
+              </button>
             </p>
-            <a
-              class="subtle-button link-btn"
-              [href]="routingService.hrefForView(Views.GradingView, { gradingId: openGrading.docId })"
-            >
-              View Grading Details
-            </a>
-          </div>
+          } @else {
+            <p class="advance-purchase-hint">
+              Purchasing <strong>{{ nextPurchasableLevel() }}</strong> in advance.
+              <button type="button" class="link-inline-btn" (click)="buyingAdvanceLevel.set(false)">
+                Switch back to {{ retakeEligibleLevel() }} free retake.
+              </button>
+            </p>
+          }
         </div>
       }
     }
   </div>
 
   <!-- Step 3: Grading Fee & Purchase Action -->
-  @if (isLoggedIn() && isActiveMember() && nextLevel()) {
+  @if (isLoggedIn() && isActiveMember() && targetLevel()) {
     <div class="form-card card">
       <div class="step-header-row">
         <div class="step-header-left">
-          <h2>3. Grading Fee</h2>
+          <h2>3. Zhong Xin Dao / I Liq Chuan HQ Grading Fee</h2>
         </div>
       </div>
 
-      <div class="bullet-points-container">
-        <p class="section-lead">The grading fee includes:</p>
-        <ul class="bullet-list">
-          <li>
-            <strong>Official Evaluation &amp; Review:</strong>
-            <span class="option-subtext"> Formal assessment by certified senior instructors.</span>
-          </li>
-          <li>
-            <strong>Curriculum Advancement:</strong>
-            <span class="option-subtext"> Progression recorded in the global I Liq Chuan database.</span>
-          </li>
-          <li>
-            <strong>Official Certificate:</strong>
-            <span class="option-subtext"> Certificate of completion issued upon passing.</span>
-          </li>
-        </ul>
-      </div>
-
-      @if (productsLoading()) {
-        <app-spinner>Looking up grading fee...</app-spinner>
-      } @else if (productsError()) {
-        <div class="error-container">
-          <span class="error-message">{{ productsError() }}</span>
-          <button class="icon-only-button" (click)="loadProducts()">
-            <app-icon name="refresh"></app-icon>
-          </button>
-        </div>
-      } @else if (matchingGradingPrice(); as match) {
-        <div class="membership-options-grid">
-          <div class="option-card selected">
-            <div class="option-title">{{ match.price.nickname || match.product.name }} &bull; Target: {{ nextLevel() }}</div>
-            <div class="rate-price">
-              {{ formatPrice(match.price.unitAmount, match.price.currency) }}
-            </div>
-            <div class="rate-desc">
-              One-time examination fee for {{ nextLevel() }}.
-            </div>
-          </div>
-        </div>
-
-        <div class="checkout-section">
-          @if (checkoutError()) {
-            <div class="error-container">
-              <span class="error-message">{{ checkoutError() }}</span>
-              <button class="icon-only-button" (click)="checkoutError.set(null)">
-                <app-icon name="close"></app-icon>
-              </button>
-            </div>
-          }
-
-          <div class="checkout-actions">
-            @if (isRedirecting()) {
-              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+      @if (retakeEligible() && !buyingAdvanceLevel()) {
+        <div class="retake-fee-notice">
+          <app-icon name="check" width="24px" height="24px" fill="#155724"></app-icon>
+          <div>
+            <h3>No Headquarters Fee Required</h3>
+            <p>
+              Because you are retaking <strong>{{ retakeEligibleLevel() }}</strong>, no headquarters grading registration fee is required.
+            </p>
+            @if (isCreatingRetake()) {
+              <app-spinner>Creating your retake grading...</app-spinner>
             } @else {
               <button
                 type="button"
                 class="button pay-btn"
-                (click)="onPurchaseNextGrading()"
+                (click)="onStartRetake()"
               >
-                <span>Purchase {{ nextLevel() }} Grading</span>
+                <span>Start Free Retake for {{ retakeEligibleLevel() }}</span>
                 <app-icon name="arrow_forward"></app-icon>
               </button>
             }
           </div>
         </div>
       } @else {
-        <div class="empty-notice">
-          <p>
-            Grading fee information for <strong>{{ nextLevel() }}</strong> is currently being updated.
-            Please contact your instructor or headquarters.
+        <div class="bullet-points-container">
+          <p class="fee-explanation">
+            The HQ Grading Fee reflects the deep lineage, structure, and ongoing stewardship of the Zhong Xin Dao / I Liq Chuan system. Beyond administrative processing, this fee honors the decades of research and refinement by Founder Chin Lik Keong and Grandmaster Sam F.S. Chin, directly supporting Headquarters in preserving the integrity and global standards of the art.
+          </p>
+
+          <p class="section-lead">The HQ Grading Fee covers:</p>
+          <ul class="bullet-list">
+            <li>
+              <strong>Eligibility for official evaluation</strong> of your progress against the grading standards of the 11 Student Levels and 6 Application Levels.
+            </li>
+            <li>
+              <strong>Global Registration:</strong> of your achievement in the official international Zhong Xin Dao / I Liq Chuan record of achievements, connecting your rank to the worldwide community.
+            </li>
+            <li>
+              <strong>One-Time Level Fee:</strong> Paid only once per level. If a re-test is needed for that level, no additional HQ fee is required. This includes the appropriate sash exchange, for level 1 and up.
+            </li>
+          </ul>
+
+          <p class="local-eval-note">
+            <strong>Note on Local Evaluation:</strong> This fee supports Headquarters, the preservation of the art, and your official certification. Local instructors may charge separate fees directly for their time, individual guidance, and evaluation during each grading session, depending on the format of the grading.
           </p>
         </div>
+
+        @if (productsLoading()) {
+          <app-spinner>Looking up grading fee...</app-spinner>
+        } @else if (productsError()) {
+          <div class="error-container">
+            <span class="error-message">{{ productsError() }}</span>
+            <button class="icon-only-button" (click)="loadProducts()">
+              <app-icon name="refresh"></app-icon>
+            </button>
+          </div>
+        } @else if (matchingGradingPrice(); as match) {
+          <div class="membership-options-grid">
+            <div class="option-card selected">
+              <div class="option-title">{{ targetLevel() }}</div>
+              <div class="rate-price">
+                {{ formatPrice(match.price.unitAmount, match.price.currency) }}
+              </div>
+              <div class="rate-desc">
+                One-time examination fee for {{ targetLevel() }}.
+              </div>
+            </div>
+          </div>
+
+          <div class="checkout-section">
+            @if (checkoutError()) {
+              <div class="error-container">
+                <span class="error-message">{{ checkoutError() }}</span>
+                <button class="icon-only-button" (click)="checkoutError.set(null)">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+
+            <div class="checkout-actions">
+              @if (isRedirecting()) {
+                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="button pay-btn"
+                  (click)="onPurchaseNextGrading()"
+                >
+                  <span>Purchase {{ targetLevel() }} Grading</span>
+                  <app-icon name="arrow_forward"></app-icon>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-notice">
+            <p>
+              Grading fee information for <strong>{{ targetLevel() }}</strong> is currently being updated.
+              Please contact your instructor or headquarters.
+            </p>
+          </div>
+        }
       }
     </div>
   }

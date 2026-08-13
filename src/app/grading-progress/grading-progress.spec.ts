@@ -12,7 +12,7 @@ import { GradingEventInputComponent } from '../grading-event-input/grading-event
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initGrading, GradingStatus, initMember, Grading, PaymentStatus } from '../../../functions/src/data-model';
+import { initGrading, GradingStatus, initMember, Grading, PaymentStatus, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 
 @Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
@@ -42,6 +42,7 @@ describe('GradingProgressComponent', () => {
       getMyStudent: () => undefined,
       memberDisplayName: (docId: string, memberId: string) => memberId || docId || '',
       instructorDisplayName: (instructorId: string, cachedName?: string) => cachedName || instructorId || '',
+      requestGradingRetake: vi.fn().mockResolvedValue('retake_g_new') as never,
     };
 
     mockFirebaseState = createFirebaseStateServiceMock();
@@ -377,35 +378,122 @@ describe('GradingProgressComponent', () => {
     expect(component.showGradingOutOfOrderWarning()).toBe(true);
   });
 
-  it('hides the current-level out-of-order warning from unrelated non-accepting viewers', () => {
-    // A logged-in member who is neither the student nor the accepting instructor
-    // should not see the pre-acceptance warning.
-    const otherMember = { ...initMember(), docId: 'doc-other-1', instructorId: '' };
+  it('blocks the student from requesting an out-of-order grading in AwaitingRequest state and links to next grading', () => {
+    const studentMember = {
+      ...initMember(),
+      docId: 'doc-student-1',
+      instructorId: '',
+      studentLevel: StudentLevel.Level5,
+      applicationLevel: ApplicationLevel.Level2,
+    };
     mockFirebaseState.user.set({
-      member: otherMember,
-      memberProfiles: [otherMember],
+      member: studentMember,
+      memberProfiles: [studentMember],
       isAdmin: false,
       schoolsManaged: [],
       firebaseUser: {} as never,
     });
-    mockDataService.getMemberByDocId = (() => ({
-      ...initMember(),
-      studentLevel: '5',
-      applicationLevel: '2',
-    })) as never;
+
+    // Student has next grading Student 6 in their gradings list
+    (mockDataService.myGradings as any).entries = () => [
+      {
+        ...initGrading(),
+        docId: 'g-next-6',
+        level: 'Student 6',
+        status: GradingStatus.AwaitingRequest,
+      },
+    ];
+
+    // Viewing Student 7 (out of order)
     componentRef.setInput('grading', {
       ...initGrading(),
       docId: 'g1',
       studentMemberDocId: 'doc-student-1',
-      gradingInstructorId: 'instr-1',
       level: 'Student 7',
-      status: GradingStatus.AwaitingAcceptance,
+      status: GradingStatus.AwaitingRequest,
     });
     fixture.detectChanges();
+
     expect(component.isNextGrading()).toBe(false);
-    expect(component.canAccept()).toBe(false);
-    expect(component.userIsStudent()).toBe(false);
-    expect(component.showGradingOutOfOrderWarning()).toBe(false);
+    expect(component.userIsStudent()).toBe(true);
+    expect(component.nextGradingDocId()).toBe('g-next-6');
+    expect(component.studentNextGradingLevel()).toBe('Student 6');
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('You are not yet eligible to request an instructor evaluate you for this level');
+    expect(el.textContent).toContain('your Student 6 grading');
+    expect(el.querySelector('.next-grading-btn')?.textContent).toContain('Go to Student 6 Grading');
+    // Ensure the normal submit form is hidden
+    expect(el.querySelector('app-instructor-selector')).toBeNull();
+
+    // Out-of-order grading: isActiveNextGrading is false, so (from: ...) is omitted
+    expect(component.isActiveNextGrading()).toBe(false);
+    expect(el.querySelector('.grading-target')?.textContent).toContain('Grading');
+    expect(el.querySelector('.grading-target')?.textContent).toContain('Student 7');
+    expect(el.querySelector('.grading-target')?.textContent).not.toContain('(from:');
+
+    // Switch to viewing Student 6 (the active next grading)
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g-next-6',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 6',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+
+    expect(component.isNextGrading()).toBe(true);
+    expect(component.isActiveNextGrading()).toBe(true);
+    expect(component.fromLevelsDisplay()).toBe('from: Student 5, Application 2');
+    expect(el.querySelector('.grading-target')?.textContent).toContain('(from: Student 5, Application 2)');
+
+    // Verify saveRequestFields is blocked when out of order
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 7',
+      status: GradingStatus.AwaitingRequest,
+    });
+    fixture.detectChanges();
+
+    const emitted: Partial<Grading>[] = [];
+    component.gradingUpdated.subscribe((u) => emitted.push(u));
+    component.saveRequestFields();
+    expect(emitted.length).toBe(0);
+  });
+
+  it('displays free retake option for student viewing a Not-Passed grading and triggers retake', async () => {
+    const studentMember = { ...initMember(), docId: 'doc-student-1', instructorId: '' };
+    mockFirebaseState.user.set({
+      member: studentMember,
+      memberProfiles: [studentMember],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: {} as never,
+    });
+
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g-failed-1',
+      studentMemberDocId: 'doc-student-1',
+      level: 'Student 2',
+      status: GradingStatus.NotPassed,
+    });
+    fixture.detectChanges();
+
+    expect(component.userIsStudent()).toBe(true);
+    expect(component.canRequestRetake()).toBe(true);
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Free Retake Available');
+    expect(el.textContent).toContain('You can try again for Student 2 without having to repay');
+
+    await component.requestRetake();
+    expect(mockDataService.requestGradingRetake).toHaveBeenCalledWith(
+      'doc-student-1',
+      'Student 2',
+    );
   });
 
   it('flags an instructor not qualified to assess the grading level', () => {

@@ -106,9 +106,9 @@ export class LoginComponent {
   signupError = signal<string | null>(null);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
-  verificationError = signal<string | null>(null);
   resendSuccess = signal<string | null>(null);
   authLoading = signal<boolean>(false);
+  optionsMenuOpen = signal<boolean>(false);
 
   unverifiedEmail = computed(
     () => this.firebaseService.unverifiedUser()?.email || this.loginEmail(),
@@ -318,10 +318,7 @@ export class LoginComponent {
     this.dismissMessages();
     this.authLoading.set(true);
     try {
-      const res = await this.firebaseService.checkEmailVerification();
-      if (!res.verified && res.message) {
-        this.verificationError.set(res.message);
-      }
+      await this.firebaseService.checkEmailVerification();
     } finally {
       this.authLoading.set(false);
     }
@@ -353,8 +350,9 @@ export class LoginComponent {
     this.signupError.set(null);
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
-    this.verificationError.set(null);
     this.resendSuccess.set(null);
+    this.optionsMenuOpen.set(false);
     this.firebaseService.loginError.set(null);
+    this.firebaseService.verificationError.set(null);
   }
 }

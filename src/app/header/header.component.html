@@ -1,6 +1,10 @@
 <div class="nav-bar" [class.has-top-tabs]="hasTopTabs() && isLoggedIn()" [class.is-home]="isHome() && isLoggedIn()" [class.logged-out]="!isLoggedIn() && !isPublicPage()">
   <div class="title-and-menu">
-    @if (isHome()) {
+    @if (!isLoggedIn() && !isPublicPage()) {
+      <div class="header-logo-container">
+        <img src="/ilc.svg" alt="ILC Logo" class="header-logo" />
+      </div>
+    } @else if (isHome()) {
       @if (isLoggedIn()) {
         <div class="menu-anchor">
           <button class="icon-only-button" (click)="menuOpen.set(!menuOpen())" title="Navigation menu">

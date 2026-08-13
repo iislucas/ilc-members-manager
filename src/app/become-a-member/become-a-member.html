@@ -319,14 +319,20 @@
               <li>
                 <strong>Lifetime Membership (Individual):</strong>
                 {{ formatPrice(lp) }}
-                <span class="option-subtext"> — One-time payment for individual lifetime access. Never expires.</span>
+                @if (lifeIndividualOption().badge) {
+                  <span class="age-badge-inline">{{ lifeIndividualOption().badge }}</span>
+                }
+                <span class="option-subtext"> — One-time payment for individual lifetime access. Never expires. (Regular rate $850; $550 for Senior 65+).</span>
               </li>
             }
             @if (lifeSpouseOption().price; as lsp) {
               <li>
                 <strong>Lifetime Membership (with Spouse):</strong>
                 {{ formatPrice(lsp) }}
-                <span class="option-subtext"> — One-time payment covering both you and your spouse. Never expires.</span>
+                @if (lifeSpouseOption().badge) {
+                  <span class="age-badge-inline">{{ lifeSpouseOption().badge }}</span>
+                }
+                <span class="option-subtext"> — One-time payment covering both you and your spouse. Never expires. (Regular rate $900; $600 for Senior 65+).</span>
               </li>
             }
           </ul>
@@ -366,6 +372,53 @@
             </div>
           }
         </div>
+
+        @if (isSpouseOptionSelected()) {
+          <div class="spouse-info-section">
+            <div class="spouse-header-row">
+              <h3>Spouse Information</h3>
+              <p class="section-guidance">
+                Please enter the details of your spouse. Country of residence is assumed to be the same as yours ({{ country() || 'your country' }}).
+              </p>
+            </div>
+            <div class="fields-grid">
+              <div class="field-item full-width">
+                <label for="spouseFullName">Spouse Full Name <span class="required">*</span></label>
+                <input
+                  id="spouseFullName"
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  [disabled]="!isLoggedIn()"
+                  [ngModel]="spouseName()"
+                  (ngModelChange)="spouseName.set($event)"
+                />
+              </div>
+
+              <div class="field-item">
+                <label for="spouseEmailInput">Spouse Email Address <span class="required">*</span></label>
+                <input
+                  id="spouseEmailInput"
+                  type="email"
+                  placeholder="spouse@example.com"
+                  [disabled]="!isLoggedIn()"
+                  [ngModel]="spouseEmail()"
+                  (ngModelChange)="spouseEmail.set($event)"
+                />
+              </div>
+
+              <div class="field-item">
+                <label for="spouseDobInput">Spouse Date of Birth <span class="required">*</span></label>
+                <input
+                  id="spouseDobInput"
+                  type="date"
+                  [disabled]="!isLoggedIn()"
+                  [ngModel]="spouseDateOfBirth()"
+                  (ngModelChange)="spouseDateOfBirth.set($event)"
+                />
+              </div>
+            </div>
+          </div>
+        }
       }
     }
 
@@ -407,7 +460,12 @@
             !selectedPriceId() ||
             !name() ||
             !dateOfBirth() ||
-            !country()
+            !country() ||
+            (isSpouseOptionSelected() && (
+              !spouseName().trim() ||
+              !spouseEmail().trim() ||
+              !spouseDateOfBirth().trim()
+            ))
           "
           (click)="onProceedToPayment()"
         >

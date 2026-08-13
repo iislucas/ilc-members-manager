@@ -135,18 +135,39 @@ export function bestExpiry(values: string[]): string {
 }
 
 // Returns the school document IDs and best school license expiry
-// across all schools the user owns or manages, identified by their instructorIds.
-async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[], expiry: string}> {
-  const validIds = instructorIds.filter(id => !!id);
-  if (validIds.length === 0) return { docIds: [], expiry: '' };
+// across all schools the user owns or manages, identified by their instructorIds
+// and memberDocIds.
+async function getSchoolInfo(
+  instructorIds: string[],
+  memberDocIds: string[] = [],
+): Promise<{ docIds: string[]; expiry: string }> {
+  const validInstructorIds = instructorIds.filter((id) => !!id);
+  const validMemberDocIds = memberDocIds.filter((id) => !!id);
+  if (validInstructorIds.length === 0 && validMemberDocIds.length === 0) {
+    return { docIds: [], expiry: '' };
+  }
 
   const docIdSet = new Set<string>();
   const expiries: string[] = [];
 
-  // Query schools where this user is the owner.
-  for (const instId of validIds) {
-    const ownerSnap = await getDb().collection('schools')
-      .where('ownerInstructorId', '==', instId).get();
+  // Query schools where this user is the owner by instructorId.
+  for (const instId of validInstructorIds) {
+    const ownerSnap = await getDb()
+      .collection('schools')
+      .where('ownerInstructorId', '==', instId)
+      .get();
+    for (const doc of ownerSnap.docs) {
+      docIdSet.add(doc.id);
+      expiries.push(doc.data().schoolLicenseExpires || 'life');
+    }
+  }
+
+  // Query schools where this user is the owner by ownerMemberDocId.
+  for (const mDocId of validMemberDocIds) {
+    const ownerSnap = await getDb()
+      .collection('schools')
+      .where('ownerMemberDocId', '==', mDocId)
+      .get();
     for (const doc of ownerSnap.docs) {
       docIdSet.add(doc.id);
       expiries.push(doc.data().schoolLicenseExpires || 'life');
@@ -154,9 +175,11 @@ async function getSchoolInfo(instructorIds: string[]): Promise<{docIds: string[]
   }
 
   // Query schools where this user is a manager.
-  for (const instId of validIds) {
-    const managerSnap = await getDb().collection('schools')
-      .where('managerInstructorIds', 'array-contains', instId).get();
+  for (const instId of validInstructorIds) {
+    const managerSnap = await getDb()
+      .collection('schools')
+      .where('managerInstructorIds', 'array-contains', instId)
+      .get();
     for (const doc of managerSnap.docs) {
       docIdSet.add(doc.id);
       expiries.push(doc.data().schoolLicenseExpires || 'life');
@@ -212,8 +235,11 @@ export async function refreshACLAdminStatus(email: string) {
     }
   }
 
-  // Look up school info (docIds + license expiry) for all instructor IDs this user has.
-  const schoolInfo = await getSchoolInfo(Array.from(newInstructorIds));
+  // Look up school info (docIds + license expiry) for all instructor IDs and memberDocIds this user has.
+  const schoolInfo = await getSchoolInfo(
+    Array.from(newInstructorIds),
+    data.memberDocIds || [],
+  );
 
   await aclRef.update({
     isAdmin: anyAdmin,

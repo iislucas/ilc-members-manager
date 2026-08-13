@@ -561,6 +561,8 @@ describe('LoginComponent', () => {
     component.resetPasswordError.set('err5');
     component.resetPasswordSuccess.set('success');
 
+    mockService.verificationError.set('err6');
+
     component.dismissMessages();
 
     expect(component.checkEmailError()).toBeNull();
@@ -570,7 +572,7 @@ describe('LoginComponent', () => {
     expect(component.signupError()).toBeNull();
     expect(component.resetPasswordError()).toBeNull();
     expect(component.resetPasswordSuccess()).toBeNull();
-    expect(component.verificationError()).toBeNull();
+    expect(mockService.verificationError()).toBeNull();
     expect(component.resendSuccess()).toBeNull();
   });
 
@@ -584,6 +586,25 @@ describe('LoginComponent', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('should display only one verification error message when email is unverified', async () => {
+    mockService.loginStatus.set(LoginStatus.NeedsEmailVerification);
+    mockService.unverifiedUser.set({ email: 'unverified@example.com' } as any);
+    const msg = 'Your email address is not yet verified. Please click the link sent to your email inbox, then try again.';
+    vi.spyOn(mockService, 'checkEmailVerification').mockImplementation(async () => {
+      mockService.verificationError.set(msg);
+      return { verified: false, message: msg };
+    });
+
+    fixture.detectChanges();
+    await component.checkEmailVerified();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const errorContainers = compiled.querySelectorAll('.error-container');
+    expect(errorContainers.length).toBe(1);
+    expect(errorContainers[0].textContent).toContain(msg);
+  });
+
   it('should call resendVerificationEmail on resendVerificationEmail', async () => {
     const spy = vi.spyOn(mockService, 'resendVerificationEmail').mockResolvedValue({ success: true });
     await component.resendVerificationEmail();
@@ -591,11 +612,29 @@ describe('LoginComponent', () => {
     expect(component.resendSuccess()).toContain('verification email has been sent');
   });
 
-  it('should call logout and reset to Email step on logout', async () => {
-    const spy = vi.spyOn(mockService, 'logout').mockResolvedValue({ success: true });
-    component.loginStep.set(LoginStep.PasswordLogin);
-    await component.logout();
-    expect(spy).toHaveBeenCalled();
-    expect(component.loginStep()).toBe(LoginStep.Email);
+  it('should toggle options menu and execute actions from menu', () => {
+    component.loginStep.set(LoginStep.GoogleSignin);
+    component.emailStatus.set({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+    });
+    fixture.detectChanges();
+
+    expect(component.optionsMenuOpen()).toBe(false);
+    const moreBtn = fixture.nativeElement.querySelector('.more-options-btn') as HTMLButtonElement;
+    expect(moreBtn).toBeTruthy();
+
+    moreBtn.click();
+    fixture.detectChanges();
+    expect(component.optionsMenuOpen()).toBe(true);
+
+    const usePasswordBtn = fixture.nativeElement.querySelector('#use-password-btn') as HTMLButtonElement;
+    expect(usePasswordBtn).toBeTruthy();
+    usePasswordBtn.click();
+    fixture.detectChanges();
+
+    expect(component.loginStep()).toBe(LoginStep.PasswordLogin);
+    expect(component.optionsMenuOpen()).toBe(false);
   });
 });

@@ -457,6 +457,32 @@ app-autocomplete {
   }
 }
 
+.spouse-info-section {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  background: v.$separator-color;
+  border-radius: 6px;
+  border: 1px solid v.$border-color-light;
+
+  .spouse-header-row {
+    margin-bottom: 1rem;
+
+    h3 {
+      margin: 0 0 0.25rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .section-guidance {
+      margin: 0;
+      font-size: 0.9rem;
+      color: v.$text-muted;
+      line-height: 1.4;
+    }
+  }
+}
+
 .portal-homepage-action {
   margin-top: 1.5rem;
   display: flex;

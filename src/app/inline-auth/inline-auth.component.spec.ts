@@ -109,6 +109,32 @@ describe('InlineAuthComponent', () => {
     expect(mockFirebaseService.checkEmailVerification).toHaveBeenCalled();
   });
 
+  it('should display only one verification error message when email is unverified', async () => {
+    loginStatusSignal.set(LoginStatus.NeedsEmailVerification);
+    mockFirebaseService.unverifiedUser.set({ email: 'unverified@example.com' });
+    const msg = 'Your email address is not yet verified. Please click the link sent to your email inbox, then try again.';
+    mockFirebaseService.checkEmailVerification.mockImplementation(async () => {
+      mockFirebaseService.verificationError.set(msg);
+      return { verified: false, message: msg };
+    });
+
+    await createComponent();
+    await component.checkEmailVerified();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const errorContainers = compiled.querySelectorAll('.error-container');
+    expect(errorContainers.length).toBe(1);
+    expect(errorContainers[0].textContent).toContain(msg);
+  });
+
+  it('should clear verificationError in dismissMessages', async () => {
+    await createComponent();
+    mockFirebaseService.verificationError.set('Some verification error');
+    component.dismissMessages();
+    expect(mockFirebaseService.verificationError()).toBeNull();
+  });
+
   it('should call resendVerificationEmail on button click', async () => {
     loginStatusSignal.set(LoginStatus.NeedsEmailVerification);
     mockFirebaseService.unverifiedUser.set({ email: 'unverified@example.com' });
@@ -213,5 +239,32 @@ describe('InlineAuthComponent', () => {
 
     await component.logout();
     expect(mockFirebaseService.logout).toHaveBeenCalled();
+  });
+
+  it('should toggle options menu in GoogleSignin step', async () => {
+    await createComponent();
+    component.step.set(InlineAuthStep.GoogleSignin);
+    component.emailStatus.set({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+    });
+    fixture.detectChanges();
+
+    expect(component.optionsMenuOpen()).toBe(false);
+    const moreBtn = fixture.nativeElement.querySelector('.more-options-btn') as HTMLButtonElement;
+    expect(moreBtn).toBeTruthy();
+
+    moreBtn.click();
+    fixture.detectChanges();
+    expect(component.optionsMenuOpen()).toBe(true);
+
+    const usePasswordBtn = fixture.nativeElement.querySelector('#use-password-btn') as HTMLButtonElement;
+    expect(usePasswordBtn).toBeTruthy();
+    usePasswordBtn.click();
+    fixture.detectChanges();
+
+    expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+    expect(component.optionsMenuOpen()).toBe(false);
   });
 });

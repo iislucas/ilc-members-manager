@@ -150,8 +150,8 @@ export class NavigationMenuComponent {
       case Views.MyStudents: return 'Students';
       case Views.MyEvents: return 'Events';
       case Views.MySchools: return 'Schools';
-      case Views.MembersArea: return 'Members Posts';
-      case Views.InstructorsArea: return 'Instructors Posts';
+      case Views.MembersArea: return 'Members Area';
+      case Views.InstructorsArea: return 'Instructors Area';
       case Views.ManageGradings: return 'Gradings';
       case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';

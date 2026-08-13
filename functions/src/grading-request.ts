@@ -22,6 +22,9 @@ import {
   initGrading,
   isGradingPaid,
   nextGradingLevel,
+  gradingProgression,
+  normalizeGradingLevel,
+  achievedGradingLevels,
 } from './data-model';
 import {
   allowedOrigins,
@@ -115,5 +118,142 @@ export const requestGrading = onCall(
     );
 
     return { gradingDocId: gradingRef.id };
+  },
+);
+
+export const requestGradingRetake = onCall(
+  { cors: allowedOrigins },
+  async (request: CallableRequest<{ memberDocId: string; level?: string }>) => {
+    if (!request.auth || !request.auth.token.email) {
+      throw new HttpsError('unauthenticated', 'Must be authenticated to request a grading retake.');
+    }
+    const email = request.auth.token.email;
+    const memberDocId = request.data?.memberDocId;
+    if (!memberDocId) {
+      throw new HttpsError('invalid-argument', 'memberDocId is required.');
+    }
+
+    const db = admin.firestore();
+
+    // The caller must own (manage) this member profile.
+    const ownedDocIds = await getUserMemberDocIds(email, db);
+    if (!ownedDocIds.includes(memberDocId)) {
+      throw new HttpsError(
+        'permission-denied',
+        'You do not have permission to request a grading retake for this member.',
+      );
+    }
+
+    const memberSnap = await db.collection('members').doc(memberDocId).get();
+    if (!memberSnap.exists) {
+      throw new HttpsError('not-found', 'Member not found.');
+    }
+    const member = { ...memberSnap.data(), docId: memberSnap.id } as Member;
+
+    // Must be an active member to grade.
+    if (!hasActiveMembership(member)) {
+      throw new HttpsError(
+        'permission-denied',
+        'You must be an active member to request a grading.',
+      );
+    }
+
+    // Get all member gradings
+    const gradingsSnap = await db
+      .collection('gradings')
+      .where('studentMemberDocId', '==', memberDocId)
+      .get();
+    const allGradings = gradingsSnap.docs.map(
+      (d) => ({ ...d.data(), docId: d.id } as Grading),
+    );
+
+    // Determine target retake level
+    let targetLevel = request.data?.level ? normalizeGradingLevel(request.data.level) : '';
+
+    if (targetLevel) {
+      const hasNotPassed = allGradings.some(
+        (g) => normalizeGradingLevel(g.level) === targetLevel && g.status === GradingStatus.NotPassed,
+      );
+      if (!hasNotPassed) {
+        throw new HttpsError(
+          'failed-precondition',
+          `No previous Not-Passed grading found for level ${targetLevel}. Free retakes are only available for levels you did not pass.`,
+        );
+      }
+    } else {
+      // Find the first level in progression that has a NotPassed grading and is neither passed nor open
+      const achieved = achievedGradingLevels(member.studentLevel, member.applicationLevel);
+      for (const lvl of gradingProgression) {
+        if (achieved.has(lvl)) continue;
+        const matchingNotPassed = allGradings.some(
+          (g) => normalizeGradingLevel(g.level) === lvl && g.status === GradingStatus.NotPassed,
+        );
+        const hasOpen = allGradings.some(
+          (g) =>
+            normalizeGradingLevel(g.level) === lvl &&
+            g.status !== GradingStatus.Passed &&
+            g.status !== GradingStatus.NotPassed,
+        );
+        if (matchingNotPassed && !hasOpen) {
+          targetLevel = lvl;
+          break;
+        }
+      }
+      if (!targetLevel) {
+        throw new HttpsError(
+          'failed-precondition',
+          'No eligible Not-Passed level found for a free retake.',
+        );
+      }
+    }
+
+    // Check that there is no existing Passed or Open (unfinalized) grading for targetLevel
+    const alreadyPassed = allGradings.some(
+      (g) => normalizeGradingLevel(g.level) === targetLevel && g.status === GradingStatus.Passed,
+    );
+    if (alreadyPassed) {
+      throw new HttpsError(
+        'failed-precondition',
+        `You have already passed ${targetLevel}.`,
+      );
+    }
+
+    const hasOpenGrading = allGradings.some(
+      (g) =>
+        normalizeGradingLevel(g.level) === targetLevel &&
+        g.status !== GradingStatus.Passed &&
+        g.status !== GradingStatus.NotPassed,
+    );
+    if (hasOpenGrading) {
+      throw new HttpsError(
+        'failed-precondition',
+        `You already have an active grading entry for ${targetLevel}.`,
+      );
+    }
+
+    const newGrading: Grading = {
+      ...initGrading(),
+      studentMemberId: member.memberId,
+      studentMemberDocId: memberDocId,
+      level: targetLevel,
+      status: GradingStatus.AwaitingRequest,
+      paymentStatus: PaymentStatus.PaidOther,
+      paymentNote: 'Free retake after Not-Passed grading',
+      orderId: '',
+      gradingPurchaseDate: new Date().toISOString(),
+    };
+
+    const gradingRef = db.collection('gradings').doc();
+    newGrading.docId = gradingRef.id;
+    await gradingRef.set({
+      ...newGrading,
+      lastUpdated: FieldValue.serverTimestamp(),
+    });
+
+    logger.info(
+      `Member ${member.memberId} (${memberDocId}) created free retake grading ${gradingRef.id} for ${targetLevel}.`,
+    );
+
+    return { gradingDocId: gradingRef.id, level: targetLevel };
   },
 );

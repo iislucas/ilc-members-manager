@@ -35,13 +35,21 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 export type SchoolLicenseAction = 'renew' | 'new';
 
 @Component({
   selector: 'app-school-license-purchase',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent, InlineAuthComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    IconComponent,
+    SpinnerComponent,
+    InlineAuthComponent,
+    AutocompleteComponent,
+  ],
   templateUrl: './school-license-purchase.html',
   styleUrl: './school-license-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,6 +82,32 @@ export class SchoolLicensePurchaseComponent {
   // Mode: renew existing vs new school
   licenseAction = signal<SchoolLicenseAction>('renew');
   selectedSchoolDocId = signal<string | null>(null);
+
+  // New school form fields
+  newSchoolName = signal('');
+  newSchoolCountry = signal('');
+  newSchoolCity = signal('');
+  newSchoolCountyOrState = signal('');
+  newSchoolAddress = signal('');
+  newSchoolZipCode = signal('');
+  newSchoolWebsite = signal('');
+
+  countryDisplayFns = {
+    toChipId: (c: { id: string; name: string }) => c.id,
+    toName: (c: { id: string; name: string }) => c.name,
+  };
+
+  countryWithCode = computed(() => {
+    const cName = this.newSchoolCountry().trim();
+    if (!cName) return null;
+    return (
+      this.dataService.countries.entries().find(
+        (c) =>
+          c.name.toLowerCase() === cName.toLowerCase() ||
+          c.id.toLowerCase() === cName.toLowerCase(),
+      ) || null
+    );
+  });
 
   // Checkout redirecting
   isRedirecting = signal(false);
@@ -122,7 +156,7 @@ export class SchoolLicensePurchaseComponent {
       if (s.schoolId && managedIds.has(s.schoolId)) return true;
       if (insId && s.ownerInstructorId === insId) return true;
       if (insId && s.managerInstructorIds?.includes(insId)) return true;
-      if (mDocId && (s as unknown as { memberDocId?: string }).memberDocId === mDocId) return true;
+      if (mDocId && s.ownerMemberDocId === mDocId) return true;
       return false;
     });
   });
@@ -131,14 +165,6 @@ export class SchoolLicensePurchaseComponent {
     const docId = this.selectedSchoolDocId();
     if (!docId) return null;
     return this.mySchools().find((s) => s.docId === docId) || null;
-  });
-
-  // Recent school license orders from member's orders
-  recentSchoolOrders = computed(() => {
-    const orders = this.dataService.myOrders.entries();
-    return orders.filter((o) =>
-      o.lineItems?.some((li) => li.description.toLowerCase().includes('school')),
-    );
   });
 
   constructor() {
@@ -150,6 +176,11 @@ export class SchoolLicensePurchaseComponent {
       this.selectedSchoolDocId.set(firstSchool.docId);
     } else {
       this.licenseAction.set('new');
+    }
+
+    const userCountry = this.user()?.member?.country;
+    if (userCountry) {
+      this.newSchoolCountry.set(userCountry);
     }
 
     const sId = this.sessionId();
@@ -253,9 +284,24 @@ export class SchoolLicensePurchaseComponent {
       return;
     }
 
-    if (this.licenseAction() === 'renew' && !this.selectedSchoolDocId()) {
-      this.checkoutError.set('Please select the school you want to renew.');
-      return;
+    if (this.licenseAction() === 'renew') {
+      if (!this.selectedSchoolDocId()) {
+        this.checkoutError.set('Please select the school you want to renew.');
+        return;
+      }
+    } else {
+      if (!this.newSchoolName().trim()) {
+        this.checkoutError.set('Please enter a name for your new school.');
+        return;
+      }
+      if (!this.newSchoolCountry().trim()) {
+        this.checkoutError.set('Please select or enter the country for your new school.');
+        return;
+      }
+      if (!this.newSchoolCity().trim()) {
+        this.checkoutError.set('Please enter the city for your new school.');
+        return;
+      }
     }
 
     this.isRedirecting.set(true);
@@ -266,15 +312,27 @@ export class SchoolLicensePurchaseComponent {
       const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${origin}/school-license`;
 
-      const targetSchool = this.selectedSchool();
       const metadata: Record<string, string> = {
         memberDocId: user.member.docId,
         memberId: user.member.memberId || '',
         orderType: 'school',
       };
-      if (targetSchool) {
-        metadata['schoolDocId'] = targetSchool.docId;
-        metadata['schoolId'] = targetSchool.schoolId;
+
+      if (this.licenseAction() === 'renew') {
+        const targetSchool = this.selectedSchool();
+        if (targetSchool) {
+          metadata['schoolDocId'] = targetSchool.docId;
+          metadata['schoolId'] = targetSchool.schoolId;
+        }
+      } else {
+        metadata['isNewSchool'] = 'true';
+        metadata['schoolName'] = this.newSchoolName().trim();
+        metadata['schoolCountry'] = this.newSchoolCountry().trim();
+        metadata['schoolCity'] = this.newSchoolCity().trim();
+        metadata['schoolCountyOrState'] = this.newSchoolCountyOrState().trim();
+        metadata['schoolAddress'] = this.newSchoolAddress().trim();
+        metadata['schoolZipCode'] = this.newSchoolZipCode().trim();
+        metadata['schoolWebsite'] = this.newSchoolWebsite().trim();
       }
 
       const { checkoutUrl } = await this.stripeService.createCheckoutSession(

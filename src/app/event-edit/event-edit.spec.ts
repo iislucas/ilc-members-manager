@@ -649,7 +649,9 @@ describe('EventEditComponent', () => {
     mockFirebaseState.user.set({
       firebaseUser: { email: 'user@example.com' } as any,
       member: { docId: 'user-doc-id', name: 'Regular User', memberId: 'REG-1' } as any,
-      acl: { isAdmin: false } as any,
+      isAdmin: false,
+      memberProfiles: [],
+      schoolsManaged: [],
     });
 
     await renderEvent({

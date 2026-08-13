@@ -204,4 +204,40 @@ describe('MemberOrdersComponent', () => {
     await component.onOpenCustomerPortal();
     expect(mockStripeService.createCustomerPortalSession).toHaveBeenCalled();
   });
+
+  it('renders section headers for Purchase, Membership, Licenses, and Subscriptions, and Order History', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const headings = Array.from(element.querySelectorAll('h2')).map((h) => h.textContent?.trim());
+    expect(headings).toContain('Purchase');
+    expect(headings).toContain('My Membership, Licenses, and Subscriptions');
+    expect(headings).toContain('Order History');
+  });
+
+  it('greys out Membership and Instructor License cards in Purchase section when user has lifetime status', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        membershipType: MembershipType.Life,
+        instructorLicenseType: 'Life' as any,
+        instructorLicenseExpires: '9999-12-31',
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    expect(component.isLifeMember()).toBe(true);
+    expect(component.isLifeInstructor()).toBe(true);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const disabledCards = element.querySelectorAll('.service-link-card.disabled');
+    expect(disabledCards.length).toBe(2);
+
+    const cardTexts = Array.from(disabledCards).map((c) => c.textContent);
+    expect(cardTexts[0]).toContain('active Lifetime Membership');
+    expect(cardTexts[1]).toContain('active Lifetime Instructor License');
+  });
 });

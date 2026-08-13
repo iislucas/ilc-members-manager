@@ -24,9 +24,13 @@ import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import {
+  Grading,
   GradingStatus,
   MembershipType,
   nextGradingLevel,
+  gradingProgression,
+  normalizeGradingLevel,
+  achievedGradingLevels,
 } from '../../../functions/src/data-model';
 import {
   CheckoutSessionSummary,
@@ -63,6 +67,13 @@ export class NextGradingComponent {
   isRedirecting = signal(false);
   checkoutError = signal<string | null>(null);
 
+  // Free retake creation state
+  isCreatingRetake = signal(false);
+  retakeError = signal<string | null>(null);
+
+  // Whether user explicitly chose to buy advance subsequent level while retake is available
+  buyingAdvanceLevel = signal(false);
+
   // Return landing state
   sessionId = computed(() => {
     return this.routingService.signals[Views.NextGrading].urlParams.session_id();
@@ -96,21 +107,165 @@ export class NextGradingComponent {
     return this.user()?.member.applicationLevel || 'None';
   });
 
-  nextLevel = computed(() => {
+  // Achieved levels from member record
+  achievedLevels = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return new Set<string>();
+    return achievedGradingLevels(m.studentLevel, m.applicationLevel);
+  });
+
+  // The immediate next unpassed grading level based on student's current recorded member levels
+  immediateNextLevel = computed(() => {
     const m = this.user()?.member;
     if (!m) return null;
     return nextGradingLevel(m.studentLevel, m.applicationLevel);
   });
 
-  // Find matching Stripe product & price for the next grading level
+  // All pending/open (unfinalized) gradings for the current member, sorted in canonical progression order
+  pendingGradings = computed<Grading[]>(() => {
+    const user = this.user();
+    if (!user) return [];
+    const gradings = this.dataService.myGradings.entries();
+    const open = gradings.filter(
+      (g) =>
+        g.status !== GradingStatus.Passed &&
+        g.status !== GradingStatus.NotPassed &&
+        !!g.level,
+    );
+    return [...open].sort((a, b) => {
+      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
+      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      const orderA = idxA === -1 ? 999 : idxA;
+      const orderB = idxB === -1 ? 999 : idxB;
+      return orderA - orderB;
+    });
+  });
+
+  pendingLevelSet = computed(() => {
+    return new Set(
+      this.pendingGradings().map((g) => normalizeGradingLevel(g.level)),
+    );
+  });
+
+  // Formatted list of all pending grading levels in progression order (e.g. "Student 2, Student 3")
+  pendingLevelsList = computed(() => {
+    return this.pendingGradings()
+      .map((g) => g.level)
+      .join(', ');
+  });
+
+  // The earliest pending grading in progression order that the student must complete first
+  activeNextPendingGrading = computed<Grading | null>(() => {
+    const pending = this.pendingGradings();
+    return pending.length > 0 ? pending[0] : null;
+  });
+
+  // Check if member is eligible for a free retake at any level (has a NotPassed grading and no open/passed grading)
+  retakeEligibleLevel = computed(() => {
+    const user = this.user();
+    if (!user) return '';
+    const achieved = this.achievedLevels();
+    const pending = this.pendingLevelSet();
+    const gradings = this.dataService.myGradings.entries();
+
+    for (const lvl of gradingProgression) {
+      if (achieved.has(lvl)) continue;
+      if (pending.has(lvl)) continue;
+
+      const hasNotPassed = gradings.some(
+        (g) =>
+          normalizeGradingLevel(g.level) === lvl &&
+          g.status === GradingStatus.NotPassed,
+      );
+      if (hasNotPassed) {
+        return lvl;
+      }
+    }
+    return '';
+  });
+
+  retakeEligible = computed(() => !!this.retakeEligibleLevel());
+
+  // Next level available for Stripe purchase:
+  // First level along progression that is NOT achieved, NOT pending, and NOT a free retake
+  nextPurchasableLevel = computed(() => {
+    const achieved = this.achievedLevels();
+    const pending = this.pendingLevelSet();
+    const retakeLvl = this.retakeEligibleLevel();
+
+    for (const lvl of gradingProgression) {
+      if (achieved.has(lvl)) continue;
+      if (pending.has(lvl)) continue;
+      if (lvl === retakeLvl) continue;
+      return lvl;
+    }
+    return '';
+  });
+
+  // Selectable grading levels to purchase via Stripe
+  selectableLevels = computed<Array<{ level: string; description: string }>>(() => {
+    const purchasable = this.nextPurchasableLevel();
+    if (!purchasable) return [];
+
+    const retake = this.retakeEligibleLevel();
+    const pending = this.pendingGradings();
+
+    let desc = 'Next target grading level in the curriculum';
+    if (retake) {
+      desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
+    } else if (pending.length > 0) {
+      desc = `Subsequent progression level (after your pending ${pending[0].level} grading)`;
+    }
+
+    return [{ level: purchasable, description: desc }];
+  });
+
+  // Target level for UI display & actions
+  targetLevel = computed(() => {
+    if (this.retakeEligible() && !this.buyingAdvanceLevel()) {
+      return this.retakeEligibleLevel();
+    }
+    return this.nextPurchasableLevel() || this.immediateNextLevel() || null;
+  });
+
+  // Backwards compatibility alias
+  nextLevel = computed(() => this.targetLevel());
+
+  async onStartRetake(): Promise<void> {
+    const user = this.user();
+    const level = this.retakeEligibleLevel();
+    if (!user || !level) return;
+    this.isCreatingRetake.set(true);
+    this.retakeError.set(null);
+    try {
+      const docId = await this.dataService.requestGradingRetake(
+        user.member.docId,
+        level,
+      );
+      this.routingService.navigateToParts(['gradings', docId]);
+    } catch (err) {
+      this.retakeError.set(
+        err instanceof Error ? err.message : 'Failed to create retake grading.',
+      );
+    } finally {
+      this.isCreatingRetake.set(false);
+    }
+  }
+
+  // Find matching Stripe product & price for the target purchasable grading level
   matchingGradingPrice = computed<{
     product: StripeProduct;
     price: StripeProductPrice;
   } | null>(() => {
-    const next = this.nextLevel();
-    if (!next) return null;
+    // If user is doing the free retake and hasn't chosen to purchase advance level, no Stripe price is needed
+    if (this.retakeEligible() && !this.buyingAdvanceLevel()) {
+      return null;
+    }
 
-    const nextLower = next.toLowerCase();
+    const target = this.targetLevel();
+    if (!target) return null;
+
+    const nextLower = target.toLowerCase();
     const products = this.allProducts();
 
     for (const prod of products) {
@@ -169,18 +324,9 @@ export class NextGradingComponent {
     return null;
   });
 
-  // Check if member already has a pending or open grading for this level
+  // Check if member already has a pending or open grading for this target level
   alreadyHasGrading = computed(() => {
-    const next = this.nextLevel();
-    if (!next) return null;
-    const gradings = this.dataService.myGradings.entries();
-    return (
-      gradings.find(
-        (g) =>
-          g.level?.toLowerCase() === next.toLowerCase() &&
-          g.status !== GradingStatus.NotPassed,
-      ) || null
-    );
+    return this.pendingGradings()[0] || null;
   });
 
   constructor() {

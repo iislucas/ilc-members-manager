@@ -14,11 +14,9 @@
       @if (firebaseService.verificationError(); as error) {
         <div class="error-container">
           <span class="error-message">{{ error }}</span>
-        </div>
-      }
-      @if (verificationError(); as error) {
-        <div class="error-container">
-          <span class="error-message">{{ error }}</span>
+          <button class="icon-only-button" (click)="firebaseService.verificationError.set(null)">
+            <app-icon name="close"></app-icon>
+          </button>
         </div>
       }
 
@@ -89,7 +87,9 @@
 
         <!-- ──────────── STEP: CHECKING ──────────── -->
         @case (LoginStep.Checking) {
-          <app-spinner>Checking your email…</app-spinner>
+          <div class="checking-step">
+            <app-spinner>Checking your email…</app-spinner>
+          </div>
         }
 
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
@@ -104,25 +104,40 @@
                 </button>
               </div>
             }
-            <div class="step-actions">
+            <div class="action-row-with-menu">
               <button id="google-signin-btn" (click)="loginWithGoogle()">
                 Sign in with Google
               </button>
-              <button
-                type="button"
-                id="use-password-btn"
-                class="secondary-action"
-                (click)="usePasswordInstead()"
-              >
-                Use password instead
-              </button>
-              <button
-                type="button"
-                class="secondary-action"
-                (click)="goBackToEmail()"
-              >
-                Use a different email
-              </button>
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="icon-only-button more-options-btn"
+                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
+                  title="More options"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (optionsMenuOpen()) {
+                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
+                  <div class="menu right-aligned">
+                    <button
+                      type="button"
+                      id="use-password-btn"
+                      class="menu-item"
+                      (click)="usePasswordInstead(); optionsMenuOpen.set(false)"
+                    >
+                      <span>Use password instead</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
+                    >
+                      <span>Use a different email</span>
+                    </button>
+                  </div>
+                }
+              </div>
             </div>
           </div>
         }
@@ -180,30 +195,47 @@
           }
 
           <div class="step-actions">
-            <button
-              id="login-btn"
-              (click)="loginWithEmail()"
-              [disabled]="!loginPassword()"
-            >
-              Sign in
-            </button>
-            @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
+            <div class="action-row-with-menu">
               <button
-                type="button"
-                id="use-google-btn"
-                class="secondary-action"
-                (click)="useGoogleInstead()"
+                id="login-btn"
+                (click)="loginWithEmail()"
+                [disabled]="!loginPassword()"
               >
-                Sign in with Google instead
+                Sign in
               </button>
-            }
-            <button
-              type="button"
-              class="secondary-action"
-              (click)="goBackToEmail()"
-            >
-              Use a different email
-            </button>
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="icon-only-button more-options-btn"
+                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
+                  title="More options"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (optionsMenuOpen()) {
+                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
+                  <div class="menu right-aligned">
+                    @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
+                      <button
+                        type="button"
+                        id="use-google-btn"
+                        class="menu-item"
+                        (click)="useGoogleInstead(); optionsMenuOpen.set(false)"
+                      >
+                        <span>Sign in with Google instead</span>
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
+                    >
+                      <span>Use a different email</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
           </div>
         }
 
@@ -249,20 +281,37 @@
           }
 
           <div class="step-actions">
-            <button
-              id="create-account-btn"
-              (click)="signupWithEmail()"
-              [disabled]="!loginPassword() || loginPassword().length < 6"
-            >
-              Create account
-            </button>
-            <button
-              type="button"
-              class="secondary-action"
-              (click)="goBackToEmail()"
-            >
-              Use a different email
-            </button>
+            <div class="action-row-with-menu">
+              <button
+                id="create-account-btn"
+                (click)="signupWithEmail()"
+                [disabled]="!loginPassword() || loginPassword().length < 6"
+              >
+                Create account
+              </button>
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="icon-only-button more-options-btn"
+                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
+                  title="More options"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (optionsMenuOpen()) {
+                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
+                  <div class="menu right-aligned">
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
+                    >
+                      <span>Use a different email</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
           </div>
         }
 
@@ -309,20 +358,37 @@
           }
 
           <div class="step-actions">
-            <button
-              id="create-guest-account-submit-btn"
-              (click)="signupWithEmail()"
-              [disabled]="!loginPassword() || loginPassword().length < 6"
-            >
-              Create account
-            </button>
-            <button
-              type="button"
-              class="secondary-action"
-              (click)="goBackToEmail()"
-            >
-              Use a different email
-            </button>
+            <div class="action-row-with-menu">
+              <button
+                id="create-guest-account-submit-btn"
+                (click)="signupWithEmail()"
+                [disabled]="!loginPassword() || loginPassword().length < 6"
+              >
+                Create account
+              </button>
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="icon-only-button more-options-btn"
+                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
+                  title="More options"
+                >
+                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
+                </button>
+                @if (optionsMenuOpen()) {
+                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
+                  <div class="menu right-aligned">
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
+                    >
+                      <span>Use a different email</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
           </div>
         }
 

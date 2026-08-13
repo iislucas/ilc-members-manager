@@ -30,16 +30,36 @@
   }
 
   &.logged-out {
-    padding: 1em 1em;
+    padding: 0.6em 1em;
+    justify-content: center;
 
     .title-and-menu {
-      width: 100%;
+      flex: 0 0 auto;
+      width: fit-content;
+      margin: 0 auto;
       justify-content: center;
+      align-items: center;
+    }
+
+    .title-container {
+      flex: 0 0 auto;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .breadcrumb-parents {
+      justify-content: flex-start;
+      text-align: left;
+      margin-left: -0.6em;
+    }
+
+    .current-page-title {
+      text-align: left;
     }
 
     .title {
-      font-size: 2em;
-      text-align: center;
+      font-size: 1.8em;
+      text-align: left;
       line-height: 1.2;
     }
   }
@@ -234,4 +254,19 @@
   &:active {
     transform: translateY(1px);
   }
+}
+
+.header-logo-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: 0.8em;
+}
+
+.header-logo {
+  height: 70px;
+  width: 70px;
+  border-radius: 50%;
+  object-fit: contain;
+  display: block;
 }

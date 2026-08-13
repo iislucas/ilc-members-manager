@@ -81,48 +81,70 @@ async function nextMemberIdHelper(
   }
 }
 
+/**
+ * Assigns the next instructor ID using an atomic Firestore transaction.
+ * This is the core logic, callable from any server-side code without requiring an HTTP request.
+ */
+export async function assignNextInstructorId(
+  db: admin.firestore.Firestore,
+): Promise<string> {
+  const countersRef = db.doc(COUNTERS_DOC_PATH);
+  const newId = await db.runTransaction(async (transaction) => {
+    const countersDoc = await transaction.get(countersRef);
+    const counters = initDataFromCountersDoc(countersDoc);
+    const nextId = Math.max(
+      (counters.instructorIdCounter || 0) + 1,
+      COUNTERS_MIN_DEFAULT,
+    );
+    counters.instructorIdCounter = nextId;
+    transaction.set(countersRef, counters, { merge: true });
+    return nextId;
+  });
+  return String(newId);
+}
+
 async function nextInstructorIdHelper(request: CallableRequest<unknown>) {
   await assertAdmin(request);
   const db = admin.firestore();
-  const countersRef = db.doc(COUNTERS_DOC_PATH);
 
   try {
-    const newId = await db.runTransaction(async (transaction) => {
-      const countersDoc = await transaction.get(countersRef);
-      const counters = initDataFromCountersDoc(countersDoc);
-      const nextId = Math.max(
-        (counters.instructorIdCounter || 0) + 1,
-        COUNTERS_MIN_DEFAULT,
-      );
-      counters.instructorIdCounter = nextId;
-      transaction.set(countersRef, counters, { merge: true });
-      return nextId;
-    });
-    return { newId };
+    const newIdStr = await assignNextInstructorId(db);
+    return { newId: parseInt(newIdStr, 10) };
   } catch (e) {
     console.error('Transaction failure:', e);
     throw new HttpsError('internal', 'Transaction failure');
   }
 }
 
+/**
+ * Assigns the next school ID using an atomic Firestore transaction.
+ * This is the core logic, callable from any server-side code without requiring an HTTP request.
+ */
+export async function assignNextSchoolId(
+  db: admin.firestore.Firestore,
+): Promise<string> {
+  const countersRef = db.doc(COUNTERS_DOC_PATH);
+  const newId = await db.runTransaction(async (transaction) => {
+    const countersDoc = await transaction.get(countersRef);
+    const counters = initDataFromCountersDoc(countersDoc);
+    const nextId = Math.max(
+      (counters.schoolIdCounter || 0) + 1,
+      COUNTERS_MIN_DEFAULT,
+    );
+    counters.schoolIdCounter = nextId;
+    transaction.set(countersRef, counters, { merge: true });
+    return nextId;
+  });
+  return `SCH-${newId}`;
+}
+
 async function nextSchoolIdHelper(request: CallableRequest<unknown>) {
   await assertAdmin(request);
   const db = admin.firestore();
-  const countersRef = db.doc(COUNTERS_DOC_PATH);
 
   try {
-    const newId = await db.runTransaction(async (transaction) => {
-      const countersDoc = await transaction.get(countersRef);
-      const counters = initDataFromCountersDoc(countersDoc);
-      const nextId = Math.max(
-        (counters.schoolIdCounter || 0) + 1,
-        COUNTERS_MIN_DEFAULT,
-      );
-      counters.schoolIdCounter = nextId;
-      transaction.set(countersRef, counters, { merge: true });
-      return nextId;
-    });
-    return { newId: `SCH-${newId}` };
+    const newId = await assignNextSchoolId(db);
+    return { newId };
   } catch (e) {
     console.error('Transaction failure:', e);
     throw new HttpsError('internal', 'Transaction failure');

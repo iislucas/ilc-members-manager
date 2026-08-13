@@ -86,7 +86,7 @@
     @switch (activeTab()) {
       @case ('learn') {
         <div class="cards-grid">
-          <!-- Members Posts -->
+          <!-- Members Area -->
           @let mStatus = membershipStatus();
           <a
             class="card"
@@ -104,7 +104,7 @@
               <h2>
                 {{
                   mStatus.hasAccess
-                    ? "Members Posts"
+                    ? "Members Area"
                     : mStatus.expired
                       ? "Renew Membership"
                       : "Signup for Membership"
@@ -122,7 +122,7 @@
             </div>
           </a>
 
-          <!-- Instructors Posts -->
+          <!-- Instructors Area -->
           @let iStatus = instructorStatus();
           @if (iStatus.isInstructor) {
             <a
@@ -141,7 +141,7 @@
                 <h2>
                   {{
                     iStatus.hasAccess
-                      ? "Instructors Posts"
+                      ? "Instructors Area"
                       : "Renew Instructor License"
                   }}
                 </h2>

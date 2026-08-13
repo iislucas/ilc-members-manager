@@ -21,6 +21,7 @@ app-grading-row-header {
   @include v.row-highlight-base;
   @include v.row-highlight-active;
   padding: 0.2em;
+  margin-bottom: 2em;
 }
 
 .no-results {

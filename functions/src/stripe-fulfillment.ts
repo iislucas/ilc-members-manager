@@ -25,6 +25,9 @@ import {
   GradingStatus,
   PaymentStatus,
   initGrading,
+  initMember,
+  initSchool,
+  School,
   StripeOrder,
   StripeOrderLineItem,
   StripeCheckoutMode,
@@ -37,7 +40,7 @@ import {
   OrderStatus,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
-import { assignNextMemberId } from './counters';
+import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { environment } from './environment/environment.js';
@@ -55,11 +58,12 @@ function unixSecondsToDateString(seconds: number | null | undefined): string {
  * expiry rather than resetting from today.
  */
 function extendDateByYears(currentDateStr: string, yearsToAdd = 1): string {
+  if (currentDateStr === '9999-12-31') return '9999-12-31';
   const todayStr = new Date().toISOString().split('T')[0];
   const baseDateStr =
     currentDateStr && currentDateStr >= todayStr ? currentDateStr : todayStr;
   const d = new Date(baseDateStr + 'T00:00:00Z');
-  d.setUTCFullYear(d.getUTCFullYear() + yearsToAdd);
+  d.setUTCFullYear(d.getUTCFullYear() + (yearsToAdd || 1));
   return d.toISOString().split('T')[0];
 }
 
@@ -136,9 +140,27 @@ export async function resolveMemberForStripeOrder(
 /**
  * Categorize a line item based on description, product ID, or metadata.
  */
-function categorizeLineItem(
+export function categorizeLineItem(
   item: StripeOrderLineItem,
+  orderMetadata?: Record<string, string>,
 ): OrderItemCategory {
+  const metaType = (orderMetadata?.['orderType'] || '').toLowerCase();
+  if (metaType === 'license' || metaType === 'instructor_license') {
+    return OrderItemCategory.InstructorLicense;
+  }
+  if (metaType === 'grading') {
+    return OrderItemCategory.Grading;
+  }
+  if (metaType === 'membership') {
+    return OrderItemCategory.Membership;
+  }
+  if (metaType === 'video' || metaType === 'video_library') {
+    return OrderItemCategory.VideoLibrary;
+  }
+  if (metaType === 'school_license') {
+    return OrderItemCategory.SchoolLicense;
+  }
+
   const desc = (item.description || '').toLowerCase();
   const prod = (item.productId ?? '').toLowerCase();
 
@@ -189,10 +211,11 @@ function categorizeLineItem(
   return OrderItemCategory.Other;
 }
 
-function categorizeSubscriptionItem(
+export function categorizeSubscriptionItem(
   item: StripeOrderLineItem,
+  orderMetadata?: Record<string, string>,
 ): SubscriptionItemType {
-  const cat = categorizeLineItem(item);
+  const cat = categorizeLineItem(item, orderMetadata);
   if (cat === OrderItemCategory.InstructorLicense) {
     return SubscriptionItemType.InstructorLicense;
   }
@@ -249,7 +272,7 @@ export async function mirrorOrderToMemberSubcollection(
       quantity: item.quantity || 1,
       amountTotal: item.amountTotal || 0,
       currency: item.currency || 'usd',
-      category: categorizeLineItem(item),
+      category: categorizeLineItem(item, order.metadata),
     })),
     subscriptionId: order.subscriptionId || '',
     stripeInvoiceId: order.invoiceId || '',
@@ -339,6 +362,198 @@ async function autoCreateGradingForMember(
 }
 
 /**
+ * Processes spouse lifetime membership when a "Life with Spouse" option is purchased.
+ * Looks up an existing member by email, ACL, or name + DOB.
+ * If found: updates the member's membership to Life (9999-12-31).
+ * If not found: creates a new Member with Life membership and assigns a Member ID.
+ */
+export async function fulfillSpouseLifeMembership(
+  db: admin.firestore.Firestore,
+  order: StripeOrder,
+  orderDocId: string,
+  primaryMember: Member,
+): Promise<string | null> {
+  const spouseEmail = (order.metadata?.['spouseEmail'] || '').trim().toLowerCase();
+  const spouseName = (order.metadata?.['spouseName'] || '').trim();
+  const spouseDob = (order.metadata?.['spouseDob'] || '').trim();
+  const spouseCountry = (
+    order.metadata?.['spouseCountry'] ||
+    primaryMember.country ||
+    order.billingAddress?.country ||
+    ''
+  ).trim();
+
+  // If no spouse information was provided in metadata, nothing to fulfill.
+  if (!spouseName && !spouseEmail) {
+    return null;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1. Try to lookup existing member
+  let existingSpouseDoc: admin.firestore.DocumentSnapshot | null = null;
+
+  // 1a. Lookup by email in ACL
+  if (spouseEmail) {
+    const aclDoc = await db.collection('acl').doc(spouseEmail).get();
+    if (aclDoc.exists) {
+      const memberDocIds = (aclDoc.data()?.memberDocIds as string[]) || [];
+      if (memberDocIds.length > 0) {
+        const doc = await db.collection('members').doc(memberDocIds[0]).get();
+        if (doc.exists) {
+          existingSpouseDoc = doc;
+        }
+      }
+    }
+    // 1b. Lookup by emails array in members
+    if (!existingSpouseDoc) {
+      const emailQuery = await db
+        .collection('members')
+        .where('emails', 'array-contains', spouseEmail)
+        .limit(1)
+        .get();
+      if (!emailQuery.empty) {
+        existingSpouseDoc = emailQuery.docs[0];
+      }
+    }
+  }
+
+  // 1c. Lookup by name and dateOfBirth
+  if (!existingSpouseDoc && spouseName && spouseDob) {
+    const nameDobQuery = await db
+      .collection('members')
+      .where('name', '==', spouseName)
+      .where('dateOfBirth', '==', spouseDob)
+      .limit(1)
+      .get();
+    if (!nameDobQuery.empty) {
+      existingSpouseDoc = nameDobQuery.docs[0];
+    }
+  }
+
+  // 1d. Lookup by name alone if unique (and not matching primary member)
+  if (!existingSpouseDoc && spouseName) {
+    const nameQuery = await db
+      .collection('members')
+      .where('name', '==', spouseName)
+      .limit(2)
+      .get();
+    if (nameQuery.docs.length === 1 && nameQuery.docs[0].id !== primaryMember.docId) {
+      existingSpouseDoc = nameQuery.docs[0];
+    }
+  }
+
+  // 2. If existing member found, update to Life membership
+  if (existingSpouseDoc && existingSpouseDoc.exists) {
+    const spouseData = existingSpouseDoc.data() as Partial<Member>;
+    const spouseMemberDocId = existingSpouseDoc.id;
+    const spouseRef = db.collection('members').doc(spouseMemberDocId);
+
+    const updates: Record<string, unknown> = {
+      membershipType: MembershipType.Life,
+      currentMembershipExpires: '9999-12-31',
+      membershipNextAutoRenewDate: '',
+      lastRenewalDate: today,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!spouseData.firstMembershipStarted) {
+      updates['firstMembershipStarted'] = today;
+    }
+    if (spouseDob && !spouseData.dateOfBirth) {
+      updates['dateOfBirth'] = spouseDob;
+    }
+    if (spouseEmail && !(spouseData.emails || []).map((e) => e.toLowerCase()).includes(spouseEmail)) {
+      updates['emails'] = admin.firestore.FieldValue.arrayUnion(spouseEmail);
+    }
+
+    // Auto-assign member ID if existing member does not have one
+    if (!spouseData.memberId || spouseData.memberId.trim() === '') {
+      const countryInput = spouseData.country || spouseCountry;
+      const countryCode = resolveCountryCode(countryInput);
+      if (countryCode) {
+        try {
+          const newMemberId = await assignNextMemberId(countryCode, db);
+          updates['memberId'] = newMemberId;
+          spouseData.memberId = newMemberId;
+        } catch (e) {
+          logger.error('Failed to assign member ID for existing spouse member', { error: e });
+        }
+      }
+    }
+
+    await spouseRef.update(updates);
+    logger.info('Updated existing member to Life Membership for spouse order', {
+      spouseMemberDocId,
+      spouseName: spouseData.name || spouseName,
+      orderDocId,
+    });
+
+    const updatedSpouseMember: Member = {
+      ...initMember(),
+      ...spouseData,
+      docId: spouseMemberDocId,
+      membershipType: MembershipType.Life,
+      currentMembershipExpires: '9999-12-31',
+    };
+    await mirrorOrderToMemberSubcollection(db, updatedSpouseMember, order, orderDocId);
+    return spouseMemberDocId;
+  }
+
+  // 3. Otherwise, create a new member record for the spouse
+  const countryInput = spouseCountry || primaryMember.country || '';
+  const countryCode = resolveCountryCode(countryInput);
+  const resolvedCountry = countryCode ? resolveCountryName(countryCode) : countryInput;
+  let newMemberId = '';
+
+  if (countryCode) {
+    try {
+      newMemberId = await assignNextMemberId(countryCode, db);
+    } catch (e) {
+      logger.error('Failed to assign member ID for new spouse member', {
+        countryCode,
+        error: e,
+      });
+    }
+  }
+
+  const newSpouseDocRef = db.collection('members').doc();
+  const newSpouseMember: Member = {
+    ...initMember(),
+    docId: newSpouseDocRef.id,
+    memberId: newMemberId,
+    name: spouseName,
+    country: resolvedCountry,
+    emails: spouseEmail ? [spouseEmail] : [],
+    dateOfBirth: spouseDob,
+    membershipType: MembershipType.Life,
+    firstMembershipStarted: today,
+    lastRenewalDate: today,
+    currentMembershipExpires: '9999-12-31',
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const sanitized = Object.fromEntries(
+    Object.entries(newSpouseMember).filter(([_, v]) => v !== undefined),
+  );
+
+  await newSpouseDocRef.set({
+    ...sanitized,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info('Created new Life Membership for spouse', {
+    spouseMemberDocId: newSpouseDocRef.id,
+    memberId: newMemberId,
+    name: spouseName,
+    orderDocId,
+  });
+
+  await mirrorOrderToMemberSubcollection(db, newSpouseMember, order, orderDocId);
+  return newSpouseDocRef.id;
+}
+
+/**
  * Fulfills digital products and synchronizes subscription dates on the Member document.
  */
 export async function fulfillStripeOrder(
@@ -359,7 +574,7 @@ export async function fulfillStripeOrder(
   }
 
   for (const item of order.lineItems) {
-    const category = categorizeLineItem(item);
+    const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
 
     if (category === OrderItemCategory.Membership) {
@@ -368,6 +583,14 @@ export async function fulfillStripeOrder(
         memberUpdates['currentMembershipExpires'] = '9999-12-31';
         memberUpdates['membershipNextAutoRenewDate'] = '';
         memberUpdates['lastRenewalDate'] = today;
+
+        if (
+          descLower.includes('spouse') ||
+          order.metadata?.['spouseName'] ||
+          order.metadata?.['spouseEmail']
+        ) {
+          await fulfillSpouseLifeMembership(db, order, orderDocId, member);
+        }
       } else {
         const newExpires = extendDateByYears(
           member.currentMembershipExpires,
@@ -449,18 +672,58 @@ export async function fulfillStripeOrder(
         member.firstMembershipStarted = today;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
-      const newExpires = extendDateByYears(
-        member.instructorLicenseExpires,
-        1,
-      );
-      memberUpdates['instructorLicenseRenewalDate'] = today;
-      memberUpdates['instructorLicenseExpires'] = newExpires;
-      memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
+      if (member.instructorLicenseType === InstructorLicenseType.Life) {
+        memberUpdates['instructorLicenseRenewalDate'] = today;
+        memberUpdates['instructorLicenseExpires'] = '9999-12-31';
+      } else {
+        const yearsToAdd =
+          item.quantity && item.quantity > 0 ? item.quantity : 1;
+        const newExpires = extendDateByYears(
+          member.instructorLicenseExpires,
+          yearsToAdd,
+        );
+        memberUpdates['instructorLicenseRenewalDate'] = today;
+        memberUpdates['instructorLicenseExpires'] = newExpires;
+        memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
+        member.instructorLicenseExpires = newExpires;
+        member.instructorLicenseType = InstructorLicenseType.Annual;
 
-      if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
-        memberUpdates['instructorLicenseSubscriptionId'] =
-          order.subscriptionId;
-        memberUpdates['instructorLicenseNextAutoRenewDate'] = newExpires;
+        if (
+          order.mode === StripeCheckoutMode.Subscription &&
+          order.subscriptionId
+        ) {
+          memberUpdates['instructorLicenseSubscriptionId'] =
+            order.subscriptionId;
+          memberUpdates['instructorLicenseNextAutoRenewDate'] = newExpires;
+          member.instructorLicenseSubscriptionId = order.subscriptionId;
+          member.instructorLicenseNextAutoRenewDate = newExpires;
+        }
+      }
+
+      // Assign instructor ID if member does not already have one
+      if (!member.instructorId || member.instructorId.trim() === '') {
+        try {
+          const newInstructorId = await assignNextInstructorId(db);
+          memberUpdates['instructorId'] = newInstructorId;
+          member.instructorId = newInstructorId;
+          logger.info(
+            'Assigned new instructor ID for Stripe instructor license purchase',
+            {
+              memberDocId: member.docId,
+              instructorId: newInstructorId,
+              orderDocId,
+            },
+          );
+        } catch (e) {
+          logger.error(
+            'Failed to assign instructor ID for Stripe instructor license purchase',
+            {
+              memberDocId: member.docId,
+              orderDocId,
+              error: e,
+            },
+          );
+        }
       }
     } else if (category === OrderItemCategory.VideoLibrary) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
@@ -479,9 +742,12 @@ export async function fulfillStripeOrder(
       }
     } else if (category === OrderItemCategory.SchoolLicense) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
+      const isNewSchool =
+        order.metadata?.['isNewSchool'] === 'true' ||
+        (!order.metadata?.['schoolDocId'] && !!order.metadata?.['schoolName']);
       const schoolDocId =
-        order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '';
-      const schoolId = order.metadata?.['schoolId'] || '';
+        !isNewSchool ? (order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '') : '';
+      const schoolId = !isNewSchool ? (order.metadata?.['schoolId'] || '') : '';
 
       let targetSchoolRef: admin.firestore.DocumentReference | null = null;
       if (schoolDocId) {
@@ -495,7 +761,7 @@ export async function fulfillStripeOrder(
         if (!sQuery.empty) {
           targetSchoolRef = sQuery.docs[0].ref;
         }
-      } else if (member.instructorId) {
+      } else if (!isNewSchool && member.instructorId) {
         const sQuery = await db
           .collection('schools')
           .where('ownerInstructorId', '==', member.instructorId)
@@ -508,20 +774,82 @@ export async function fulfillStripeOrder(
 
       if (targetSchoolRef) {
         const sDoc = await targetSchoolRef.get();
-        const sData = sDoc.data() || {};
-        const currentExp = (sData['schoolLicenseExpires'] as string) || '';
-        const newExpires = isYearly
-          ? extendDateByYears(currentExp, 1)
-          : extendDateByMonths(currentExp, 1);
-        await targetSchoolRef.update({
-          schoolLicenseRenewalDate: today,
-          schoolLicenseExpires: newExpires,
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        if (sDoc.exists) {
+          const sData = sDoc.data() || {};
+          const currentExp = (sData['schoolLicenseExpires'] as string) || '';
+          const newExpires = isYearly
+            ? extendDateByYears(currentExp, 1)
+            : extendDateByMonths(currentExp, 1);
+          await targetSchoolRef.update({
+            schoolLicenseRenewalDate: today,
+            schoolLicenseExpires: newExpires,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info('Updated school license for existing school', {
+            schoolDocId: targetSchoolRef.id,
+            newExpires,
+          });
+          continue;
+        }
+      }
+
+      // If not renewing an existing school, create a new school entry
+      const newExpires = isYearly
+        ? extendDateByYears(today, 1)
+        : extendDateByMonths(today, 1);
+
+      let newSchoolId = '';
+      try {
+        newSchoolId = await assignNextSchoolId(db);
+      } catch (err) {
+        logger.error('Failed to assign next school ID for new school order', {
+          error: err,
+          orderDocId,
         });
-        logger.info('Updated school license for school', {
-          schoolDocId: targetSchoolRef.id,
-          newExpires,
-        });
+      }
+
+      const newSchoolDocRef = db.collection('schools').doc();
+      const newSchool: School = {
+        ...initSchool(),
+        docId: newSchoolDocRef.id,
+        schoolId: newSchoolId,
+        schoolName: (order.metadata?.['schoolName'] || '').trim() || 'New School',
+        schoolCountry: (order.metadata?.['schoolCountry'] || member.country || '').trim(),
+        schoolCity: (order.metadata?.['schoolCity'] || '').trim(),
+        schoolCountyOrState: (order.metadata?.['schoolCountyOrState'] || '').trim(),
+        schoolAddress: (order.metadata?.['schoolAddress'] || '').trim(),
+        schoolZipCode: (order.metadata?.['schoolZipCode'] || '').trim(),
+        schoolWebsite: (order.metadata?.['schoolWebsite'] || '').trim(),
+        ownerMemberDocId: member.docId,
+        ownerInstructorId: member.instructorId || '',
+        managerInstructorIds: [],
+        ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [],
+        managerEmails: [],
+        schoolLicenseRenewalDate: today,
+        schoolLicenseExpires: newExpires,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      const sanitized = Object.fromEntries(
+        Object.entries(newSchool).filter(([_, v]) => v !== undefined),
+      );
+
+      await newSchoolDocRef.set({
+        ...sanitized,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info('Created new school from Stripe order', {
+        schoolDocId: newSchoolDocRef.id,
+        schoolId: newSchoolId,
+        schoolName: newSchool.schoolName,
+        ownerMemberDocId: member.docId,
+        orderDocId,
+      });
+
+      if (!member.primarySchoolDocId) {
+        memberUpdates['primarySchoolDocId'] = newSchoolDocRef.id;
+        memberUpdates['primarySchoolId'] = newSchoolId;
       }
     } else if (category === OrderItemCategory.Grading) {
       await autoCreateGradingForMember(db, member, item, orderDocId);
@@ -571,7 +899,7 @@ export async function fulfillStripeOrder(
 
     memberUpdates[`stripeSubscriptions.${subKey}`] = {
       subscriptionId: order.subscriptionId,
-      type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }),
+      type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }, order.metadata),
       status: SubscriptionStatus.Active,
       planName: order.lineItems[0]?.description || 'Subscription',
       amount: order.amountTotal || 0,
