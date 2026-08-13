@@ -131,6 +131,9 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
           provide: RoutingService,
           useValue: {
             navigateToParts: vi.fn(),
+            hrefForView: vi.fn().mockImplementation((view) =>
+              view === Views.ClassVideoLibrary ? '/class-video-library' : `/${view}`,
+            ),
             signals: {
               [Views.ClassVideoLibraryPurchase]: {
                 urlParams: {
@@ -192,5 +195,95 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
       'sub_vid_123',
     );
     expect(component.cancelSuccessMessage()).toContain('cancelled');
+  });
+
+  it('should show link to video library and hide subscription form when user has active Stripe subscription', async () => {
+    await createComponent();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Active banner should be present with the link to class-video-library
+    const banner = compiled.querySelector('.current-membership-banner');
+    expect(banner).toBeTruthy();
+    const linkBtn = banner?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
+    expect(linkBtn).toBeTruthy();
+    expect(linkBtn?.getAttribute('href')).toContain('class-video-library');
+    expect(linkBtn?.textContent).toContain('Open Class Video Library');
+
+    // Since sampleUser has classVideoLibrarySubscriptionId: 'sub_vid_123', the form below should be hidden
+    expect(component.hasActiveStripeSubscription()).toBe(true);
+    expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
+    expect(compiled.querySelector('.form-card')).toBeNull();
+  });
+
+  it('should show link to video library and provide fold header when user has active non-Stripe subscription', async () => {
+    // Modify user to have active access without a Stripe subscription ID
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: true,
+        classVideoLibraryExpirationDate: '2027-01-01',
+        classVideoLibrarySubscriptionId: '',
+        classVideoLibraryNextAutoRenewDate: '',
+      },
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Active banner should be present with the link to class-video-library
+    const banner = compiled.querySelector('.current-membership-banner');
+    expect(banner).toBeTruthy();
+    const linkBtn = banner?.querySelector<HTMLAnchorElement>('.video-library-link-btn');
+    expect(linkBtn).toBeTruthy();
+    expect(linkBtn?.getAttribute('href')).toContain('class-video-library');
+
+    // Fold card should be present and closed by default
+    expect(component.hasActiveStripeSubscription()).toBe(false);
+    expect(component.hasVideoAccess()).toBe(true);
+
+    const foldCard = compiled.querySelector('.subscribe-fold-card');
+    expect(foldCard).toBeTruthy();
+    const foldHeader = foldCard?.querySelector('.fold-toggle-header');
+    expect(foldHeader).toBeTruthy();
+    expect(foldHeader?.textContent).toContain('Subscribe via the members portal');
+    expect(foldCard?.querySelector('.fold-body')).toBeNull();
+
+    // Click fold header to unfold
+    foldHeader?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.isSubscribeFoldOpen()).toBe(true);
+    expect(foldCard?.querySelector('.fold-body')).toBeTruthy();
+  });
+
+  it('should show subscription form directly when user has no active video library access', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleUser.member,
+        classVideoLibrarySubscription: false,
+        classVideoLibraryExpirationDate: '2020-01-01',
+        classVideoLibrarySubscriptionId: '',
+        classVideoLibraryNextAutoRenewDate: '',
+      },
+    });
+
+    await createComponent();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Active banner should NOT be present
+    expect(compiled.querySelector('.current-membership-banner')).toBeNull();
+
+    // Fold should NOT be present; form cards should be rendered directly
+    expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
+    const formCards = compiled.querySelectorAll('.form-card');
+    expect(formCards.length).toBe(2);
   });
 });

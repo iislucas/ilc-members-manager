@@ -139,6 +139,11 @@ export class App {
     return !!view && PUBLIC_VIEWS.has(view);
   });
 
+  public isLoginPage = computed(() => {
+    const view = this.currentView();
+    return view === Views.Login || view === Views.Home;
+  });
+
   onEventTitleLoaded(title: string) {
     this.navTree.loadedEventTitle.set(title);
   }

@@ -52,6 +52,59 @@ main {
   }
 }
 
+.restricted-page-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 1.5em;
+  margin-bottom: 0.25em;
+  text-align: center;
+  max-width: 35em;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 1em;
+  color: $text-primary;
+  font-size: 1.15em;
+  font-weight: 500;
+
+  p {
+    margin: 0;
+  }
+}
+
+.login-site-links {
+  margin-top: 1.25em;
+  margin-bottom: 2em;
+  width: 100%;
+  max-width: 900px;
+  box-sizing: border-box;
+}
+
+.other-pages-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2.5em;
+  margin-bottom: 2em;
+  width: 100%;
+  max-width: 900px;
+  box-sizing: border-box;
+
+  .section-title {
+    text-align: center;
+    margin-bottom: 16px;
+
+    h2 {
+      margin: 0;
+      font-size: 1.2em;
+      font-weight: 600;
+      color: $text-primary;
+    }
+  }
+}
+
 .public-options {
   display: flex;
   flex-direction: row;

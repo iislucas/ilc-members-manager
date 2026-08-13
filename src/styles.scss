@@ -974,3 +974,65 @@ button.menu-item {
     transform: translateY(-100%) scaleY(0.7);
   }
 }
+
+// ----------------------------------------------------------------------------
+//  Service Link Cards Grid
+//  Used for navigation tiles with icon, title, and subtitle (e.g. member-orders,
+//  login home page, public section discovery).
+// ----------------------------------------------------------------------------
+
+.services-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.service-link-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid $border-color-light;
+  border-radius: 10px;
+  padding: 18px 18px;
+  text-decoration: none;
+  color: $text-primary;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+
+  app-icon {
+    color: $row-highlight-border;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .service-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+
+    .service-link-title {
+      font-weight: 600;
+      font-size: 1.05em;
+      line-height: 1.25;
+      color: $text-primary;
+    }
+
+    .service-link-sub {
+      font-size: 0.88em;
+      color: $text-secondary;
+      line-height: 1.35;
+    }
+  }
+
+  &:hover {
+    border-color: $primary-color;
+    background: $table-row-selected;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+

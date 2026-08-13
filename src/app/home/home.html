@@ -111,15 +111,11 @@
                 }}
               </h2>
               <p>Content and resources for active members</p>
-              @if (!mStatus.hasAccess) {
+              @if (!mStatus.hasAccess && mStatus.expired) {
                 <div class="no-access-container">
                   <span class="info-message">
-                    @if (mStatus.expired) {
                       Expired:
                       {{ mStatus.date || "(unknown last expiration date)" }}
-                    } @else {
-                      Requires active membership
-                    }
                   </span>
                 </div>
               }
@@ -314,8 +310,7 @@
             </a>
           }
 
-          <!-- Orders & Subscriptions (hidden for now) -->
-          <!--
+          <!-- Orders & Subscriptions -->
           <a class="card" [href]="routingService.hrefForView(Views.MyOrders)">
             <div class="icon-container">
               <app-icon name="receipt_long" width="48px" height="48px"></app-icon>
@@ -325,7 +320,6 @@
               <p>Manage purchases, receipts, and renewals</p>
             </div>
           </a>
-          -->
 
         </div>
       }

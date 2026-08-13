@@ -161,6 +161,72 @@ describe('App', () => {
     expect(breadcrumbLabels).toEqual(['Members Portal', 'Practice', 'Instructors']);
   });
 
+  it('should show restricted page login prompt and other pages section when logged out on a sub-page', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+    app.routingService.matchedPatternId.set(Views.ClassVideoLibrary);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Should show "This page requires you to be logged in." prompt
+    const prompt = compiled.querySelector('.restricted-page-prompt');
+    expect(prompt).toBeTruthy();
+    expect(prompt?.textContent).toContain('This page requires you to be logged in.');
+
+    // Should show login component
+    expect(compiled.querySelector('app-login')).toBeTruthy();
+
+    // Should show "Other pages you might be looking for" section below login
+    const otherPagesSection = compiled.querySelector('.other-pages-section');
+    expect(otherPagesSection).toBeTruthy();
+    expect(otherPagesSection?.querySelector('h2')?.textContent).toContain(
+      'Other pages you might be looking for',
+    );
+    const otherCards = otherPagesSection?.querySelectorAll('.service-link-card');
+    expect(otherCards?.length).toBe(5);
+
+    // Should NOT show the generic login app-info welcome message
+    expect(compiled.querySelector('.app-info')).toBeNull();
+  });
+
+  it('should show generic welcome and options above login on generic login page', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+    app.routingService.matchedPatternId.set(Views.Login);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Should show the generic login app-info welcome message
+    const appInfo = compiled.querySelector('.app-info');
+    expect(appInfo).toBeTruthy();
+    expect(appInfo?.textContent).toContain('Welcome to the ILC App');
+
+    // Should show public service link cards above login
+    const loginSiteLinks = compiled.querySelector('.login-site-links');
+    expect(loginSiteLinks).toBeTruthy();
+    const siteCards = loginSiteLinks?.querySelectorAll('.service-link-card');
+    expect(siteCards?.length).toBe(5);
+
+    // Should show login component
+    expect(compiled.querySelector('app-login')).toBeTruthy();
+
+    // Should NOT show the restricted page prompt
+    expect(compiled.querySelector('.restricted-page-prompt')).toBeNull();
+
+    // Should NOT show the other-pages section below login
+    expect(compiled.querySelector('.other-pages-section')).toBeNull();
+  });
+
   it('should correctly parse the members-area post path for a logged-in user', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;

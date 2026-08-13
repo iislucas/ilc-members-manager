@@ -78,17 +78,16 @@
         </div>
       </div>
 
-      @if (cancelSuccessMessage()) {
-        <div class="success-message">{{ cancelSuccessMessage() }}</div>
-      }
-      @if (cancelErrorMessage()) {
-        <div class="error-container">
-          <span class="error-message">{{ cancelErrorMessage() }}</span>
-        </div>
-      }
+      <div class="banner-actions">
+        <a
+          class="video-library-link-btn"
+          [href]="routingService.hrefForView(Views.ClassVideoLibrary)"
+        >
+          <app-icon name="video_library"></app-icon>
+          <span>Open Class Video Library</span>
+        </a>
 
-      @if (user()?.member?.classVideoLibrarySubscriptionId) {
-        <div class="subscription-actions">
+        @if (user()?.member?.classVideoLibrarySubscriptionId) {
           @if (hasActiveAutoRenew()) {
             <button
               type="button"
@@ -110,126 +109,268 @@
               <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
             </button>
           }
+        }
+      </div>
+
+      @if (cancelSuccessMessage()) {
+        <div class="success-message">{{ cancelSuccessMessage() }}</div>
+      }
+      @if (cancelErrorMessage()) {
+        <div class="error-container">
+          <span class="error-message">{{ cancelErrorMessage() }}</span>
         </div>
       }
     </div>
   }
 
-  <!-- Step 1: Sign in / Account -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>1. Your Account</h2>
-        @if (isLoggedIn()) {
-          <span class="step-completed-badge" title="Account verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
-    </div>
-
-    @if (!isLoggedIn()) {
-      <p class="step-guidance">
-        Please sign in to your ILC account to purchase or link your video library subscription.
-      </p>
-    }
-
-    <app-inline-auth></app-inline-auth>
-  </div>
-
-  <!-- Step 2: Choose Subscription Option -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>2. Subscription Plan</h2>
-      </div>
-    </div>
-
-    <div class="bullet-points-container">
-      <p class="section-lead">
-        The Class Video Library includes:
-      </p>
-      <ul class="bullet-list">
-        <li>
-          <strong>Weekly Class Archives:</strong>
-          <span class="option-subtext"> Stream weekly Saturday classes led by Grandmaster Sam Chin and senior instructors.</span>
-        </li>
-        <li>
-          <strong>Form &amp; Partner Breakdown:</strong>
-          <span class="option-subtext"> Detailed mechanics, spinning hands drills, sticky hands concepts, and applications.</span>
-        </li>
-        <li>
-          <strong>Unlimited On-Demand Access:</strong>
-          <span class="option-subtext"> Watch anytime on desktop, tablet, and mobile devices.</span>
-        </li>
-        <li>
-          <strong>Flexible Monthly Billing:</strong>
-          <span class="option-subtext"> Cancel or pause auto-renewal anytime with one click directly from your account.</span>
-        </li>
-      </ul>
-    </div>
-
-    @if (productsLoading()) {
-      <app-spinner>Loading subscription rates...</app-spinner>
-    } @else if (productsError()) {
-      <div class="error-container">
-        <span class="error-message">{{ productsError() }}</span>
-        <button class="icon-only-button" (click)="loadProducts()">
-          <app-icon name="refresh"></app-icon>
+  @if (!hasActiveStripeSubscription()) {
+    @if (hasVideoAccess()) {
+      <!-- Active non-Stripe subscriber: Show fold -->
+      <div class="subscribe-fold-card card">
+        <button
+          type="button"
+          class="fold-toggle-header"
+          (click)="toggleSubscribeFold()"
+          [attr.aria-expanded]="isSubscribeFoldOpen()"
+        >
+          <span class="fold-title">Subscribe via the members portal</span>
+          <app-icon [name]="isSubscribeFoldOpen() ? 'expand_less' : 'chevron_right'"></app-icon>
         </button>
-      </div>
-    } @else if (selectedPrice(); as price) {
-      <div class="membership-options-grid">
-        <div class="option-card selected">
-          <div class="option-title">Monthly Video Subscription</div>
-          <div class="rate-price">
-            {{ formatPrice(price.unitAmount, price.currency) }} / month
-          </div>
-          <div class="rate-desc">
-            Full streaming access to the entire recorded video library. Auto-renews monthly.
-          </div>
-        </div>
-      </div>
 
-      <!-- Step 3: Checkout Action -->
-      <div class="checkout-section">
-        @if (checkoutError()) {
-          <div class="error-container">
-            <span class="error-message">{{ checkoutError() }}</span>
-            <button class="icon-only-button" (click)="checkoutError.set(null)">
-              <app-icon name="close"></app-icon>
-            </button>
+        @if (isSubscribeFoldOpen()) {
+          <div class="fold-body">
+            <!-- Step 1: Sign in / Account -->
+            <div class="form-step-section">
+              <div class="step-header-row">
+                <div class="step-header-left">
+                  <h2>1. Your Account</h2>
+                  @if (isLoggedIn()) {
+                    <span class="step-completed-badge" title="Account verified">
+                      <app-icon name="check"></app-icon>
+                    </span>
+                  }
+                </div>
+              </div>
+              <app-inline-auth></app-inline-auth>
+            </div>
+
+            <!-- Step 2: Choose Subscription Option -->
+            <div class="form-step-section">
+              <div class="step-header-row">
+                <div class="step-header-left">
+                  <h2>2. Subscription Plan</h2>
+                </div>
+              </div>
+
+              <div class="bullet-points-container">
+                <p class="section-lead">
+                  The Class Video Library includes:
+                </p>
+                <ul class="bullet-list">
+                  <li>
+                    <strong>Weekly Class Archives:</strong>
+                    <span class="option-subtext"> Stream weekly Saturday classes led by Grandmaster Sam Chin and senior instructors.</span>
+                  </li>
+                  <li>
+                    <strong>Form &amp; Partner Breakdown:</strong>
+                    <span class="option-subtext"> Detailed mechanics, spinning hands drills, sticky hands concepts, and applications.</span>
+                  </li>
+                  <li>
+                    <strong>Unlimited On-Demand Access:</strong>
+                    <span class="option-subtext"> Watch anytime on desktop, tablet, and mobile devices.</span>
+                  </li>
+                  <li>
+                    <strong>Flexible Monthly Billing:</strong>
+                    <span class="option-subtext"> Cancel or pause auto-renewal anytime with one click directly from your account.</span>
+                  </li>
+                </ul>
+              </div>
+
+              @if (productsLoading()) {
+                <app-spinner>Loading subscription rates...</app-spinner>
+              } @else if (productsError()) {
+                <div class="error-container">
+                  <span class="error-message">{{ productsError() }}</span>
+                  <button class="icon-only-button" (click)="loadProducts()">
+                    <app-icon name="refresh"></app-icon>
+                  </button>
+                </div>
+              } @else if (selectedPrice(); as price) {
+                <div class="membership-options-grid">
+                  <div class="option-card selected">
+                    <div class="option-title">Monthly Video Subscription</div>
+                    <div class="rate-price">
+                      {{ formatPrice(price.unitAmount, price.currency) }} / month
+                    </div>
+                    <div class="rate-desc">
+                      Full streaming access to the entire recorded video library. Auto-renews monthly.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Checkout Action -->
+                <div class="checkout-section">
+                  @if (checkoutError()) {
+                    <div class="error-container">
+                      <span class="error-message">{{ checkoutError() }}</span>
+                      <button class="icon-only-button" (click)="checkoutError.set(null)">
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                  }
+
+                  <div class="checkout-actions">
+                    @if (!isLoggedIn()) {
+                      <button
+                        type="button"
+                        class="button pay-btn"
+                        (click)="routingService.navigateToParts(['login'])"
+                      >
+                        <app-icon name="person"></app-icon>
+                        <span>Sign In to Subscribe</span>
+                      </button>
+                    } @else if (isRedirecting()) {
+                      <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+                    } @else {
+                      <button
+                        type="button"
+                        class="button pay-btn"
+                        (click)="onSubscribeVideoLibrary()"
+                      >
+                        <span>Subscribe via Members Portal</span>
+                        <app-icon name="arrow_forward"></app-icon>
+                      </button>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="empty-notice">
+                  <p>Video library subscription is currently being configured. Please check back shortly.</p>
+                </div>
+              }
+            </div>
           </div>
         }
-
-        <div class="checkout-actions">
-          @if (!isLoggedIn()) {
-            <button
-              type="button"
-              class="button pay-btn"
-              (click)="routingService.navigateToParts(['login'])"
-            >
-              <app-icon name="person"></app-icon>
-              <span>Sign In to Subscribe</span>
-            </button>
-          } @else if (isRedirecting()) {
-            <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-          } @else {
-            <button
-              type="button"
-              class="button pay-btn"
-              (click)="onSubscribeVideoLibrary()"
-            >
-              <span>{{ hasVideoAccess() ? 'Extend / Renew Subscription' : 'Subscribe Now' }}</span>
-              <app-icon name="arrow_forward"></app-icon>
-            </button>
-          }
-        </div>
       </div>
     } @else {
-      <div class="empty-notice">
-        <p>Video library subscription is currently being configured. Please check back shortly.</p>
+      <!-- No active access: Normal unfolded form -->
+      <!-- Step 1: Sign in / Account -->
+      <div class="form-card card">
+        <div class="step-header-row">
+          <div class="step-header-left">
+            <h2>1. Your Account</h2>
+            @if (isLoggedIn()) {
+              <span class="step-completed-badge" title="Account verified">
+                <app-icon name="check"></app-icon>
+              </span>
+            }
+          </div>
+        </div>
+
+        @if (!isLoggedIn()) {
+          <p class="step-guidance">
+            Please sign in to your ILC account to purchase or link your video library subscription.
+          </p>
+        }
+
+        <app-inline-auth></app-inline-auth>
+      </div>
+
+      <!-- Step 2: Choose Subscription Option -->
+      <div class="form-card card">
+        <div class="step-header-row">
+          <div class="step-header-left">
+            <h2>2. Subscription Plan</h2>
+          </div>
+        </div>
+
+        <div class="bullet-points-container">
+          <p class="section-lead">
+            The Class Video Library includes:
+          </p>
+          <ul class="bullet-list">
+            <li>
+              <strong>Weekly Class Archives:</strong>
+              <span class="option-subtext"> Stream weekly Saturday classes led by Grandmaster Sam Chin and senior instructors.</span>
+            </li>
+            <li>
+              <strong>Form &amp; Partner Breakdown:</strong>
+              <span class="option-subtext"> Detailed mechanics, spinning hands drills, sticky hands concepts, and applications.</span>
+            </li>
+            <li>
+              <strong>Unlimited On-Demand Access:</strong>
+              <span class="option-subtext"> Watch anytime on desktop, tablet, and mobile devices.</span>
+            </li>
+            <li>
+              <strong>Flexible Monthly Billing:</strong>
+              <span class="option-subtext"> Cancel or pause auto-renewal anytime with one click directly from your account.</span>
+            </li>
+          </ul>
+        </div>
+
+        @if (productsLoading()) {
+          <app-spinner>Loading subscription rates...</app-spinner>
+        } @else if (productsError()) {
+          <div class="error-container">
+            <span class="error-message">{{ productsError() }}</span>
+            <button class="icon-only-button" (click)="loadProducts()">
+              <app-icon name="refresh"></app-icon>
+            </button>
+          </div>
+        } @else if (selectedPrice(); as price) {
+          <div class="membership-options-grid">
+            <div class="option-card selected">
+              <div class="option-title">Monthly Video Subscription</div>
+              <div class="rate-price">
+                {{ formatPrice(price.unitAmount, price.currency) }} / month
+              </div>
+              <div class="rate-desc">
+                Full streaming access to the entire recorded video library. Auto-renews monthly.
+              </div>
+            </div>
+          </div>
+
+          <!-- Checkout Action -->
+          <div class="checkout-section">
+            @if (checkoutError()) {
+              <div class="error-container">
+                <span class="error-message">{{ checkoutError() }}</span>
+                <button class="icon-only-button" (click)="checkoutError.set(null)">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+
+            <div class="checkout-actions">
+              @if (!isLoggedIn()) {
+                <button
+                  type="button"
+                  class="button pay-btn"
+                  (click)="routingService.navigateToParts(['login'])"
+                >
+                  <app-icon name="person"></app-icon>
+                  <span>Sign In to Subscribe</span>
+                </button>
+              } @else if (isRedirecting()) {
+                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="button pay-btn"
+                  (click)="onSubscribeVideoLibrary()"
+                >
+                  <span>{{ hasVideoAccess() ? 'Extend / Renew Subscription' : 'Subscribe Now' }}</span>
+                  <app-icon name="arrow_forward"></app-icon>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-notice">
+            <p>Video library subscription is currently being configured. Please check back shortly.</p>
+          </div>
+        }
       </div>
     }
-  </div>
+  }
 </div>

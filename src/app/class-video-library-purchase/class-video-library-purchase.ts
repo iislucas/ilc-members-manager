@@ -101,6 +101,18 @@ export class ClassVideoLibraryPurchaseComponent {
     );
   });
 
+  hasActiveStripeSubscription = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return false;
+    return !!m.classVideoLibrarySubscriptionId && this.hasVideoAccess();
+  });
+
+  isSubscribeFoldOpen = signal(false);
+
+  toggleSubscribeFold(): void {
+    this.isSubscribeFoldOpen.update((open) => !open);
+  }
+
   nextAutoRenewDate = computed(() => {
     return this.user()?.member.classVideoLibraryNextAutoRenewDate || '';
   });
