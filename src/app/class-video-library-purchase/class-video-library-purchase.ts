@@ -82,9 +82,9 @@ export class ClassVideoLibraryPurchaseComponent {
   hasVideoAccess = computed(() => {
     const m = this.user()?.member;
     if (!m) return false;
-    if (m.classVideoLibrarySubscription) return true;
+    const hasSubscription = !!m.classVideoLibrarySubscription;
     const exp = m.classVideoLibraryExpirationDate;
-    return !!exp && exp >= this.today();
+    return hasSubscription && (!exp || exp >= this.today());
   });
 
   expirationDate = computed(() => {
