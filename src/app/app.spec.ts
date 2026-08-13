@@ -68,16 +68,32 @@ describe('App', () => {
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
-    // Stub navigation so the logged-out Home redirect effect is a no-op and the
-    // view stays on Home (navigateTo now applies History changes synchronously).
-    vi.spyOn(app.routingService, 'navigateToParts').mockImplementation(() => {});
     app.routingService.matchedPatternId.set(Views.Home);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.title')?.textContent).toContain('Members Portal');
+    expect(compiled.querySelector('.title')?.textContent).toContain('Welcome');
   });
 
-  it('should redirect logged-out users on Home to login', async () => {
+  it('should render Members Portal title for logged-in user on Home', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+    } as unknown as UserDetails);
+    app.routingService.matchedPatternId.set(Views.Home);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.title')?.textContent).toContain('ILC Portal');
+  });
+
+  it('should not redirect logged-out users on Home to login', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
 
@@ -90,7 +106,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(app.routingService.navigateToParts).toHaveBeenCalledWith(['login']);
+    expect(app.routingService.navigateToParts).not.toHaveBeenCalled();
   });
 
   it('should redirect logged-in users on Login to home when no returnUrl', async () => {
@@ -158,7 +174,11 @@ describe('App', () => {
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Practice', 'Instructors']);
+    expect(breadcrumbLabels).toEqual([
+      'ILC Portal',
+      'Practice',
+      'Instructors',
+    ]);
   });
 
   it('should show restricted page login prompt and other pages section when logged out on a sub-page', async () => {
@@ -256,7 +276,12 @@ describe('App', () => {
 
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Learn', 'Members Posts', 'Article']);
+    expect(breadcrumbLabels).toEqual([
+      'ILC Members Portal',
+      'Learn',
+      'Members Posts',
+      'Article',
+    ]);
   });
 
   it('should intercept click on breadcrumb links and navigate client-side', async () => {

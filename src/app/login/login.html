@@ -3,7 +3,6 @@
     <app-spinner>Signing in…</app-spinner>
   } @else if (firebaseService.loginStatus() === LoginStatus.NeedsEmailVerification) {
     <div class="login-card">
-      <div class="step-header">Verify Your Email Address</div>
       <p class="step-guidance">
         We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
         Please check your inbox and click the link to activate your account.
@@ -41,10 +40,14 @@
         >
           Resend Email
         </button>
+        <button
+          type="button"
+          class="secondary-action"
+          (click)="logout()"
+        >
+          Use a different email
+        </button>
       </div>
-      <button class="back-link" (click)="logout()">
-        Use a different email
-      </button>
     </div>
   } @else {
     <div class="login-card">
@@ -52,9 +55,8 @@
 
         <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
         @case (LoginStep.Email) {
-          <div class="step-header">Sign in</div>
           <div class="input-field">
-            <label for="email-input">Email</label>
+            <label for="email-input">Login with Email:</label>
             <input
               id="email-input"
               autocomplete="email"
@@ -92,40 +94,41 @@
 
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
         @case (LoginStep.GoogleSignin) {
-          @if (isReturningUser()) {
-            <div class="step-header">Welcome back</div>
-          } @else {
-            <div class="step-header">Sign in with Google</div>
-          }
-          <div class="email-display">{{ loginEmail() }}</div>
-          @if (loginWithGoogleError(); as message) {
-            <div class="error-container">
-              <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
-                <app-icon name="close"></app-icon>
+          <div class="google-signin-step">
+            <div class="email-display">{{ loginEmail() }}</div>
+            @if (loginWithGoogleError(); as message) {
+              <div class="error-container">
+                <span class="error-message">{{ message }}</span>
+                <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+            <div class="step-actions">
+              <button id="google-signin-btn" (click)="loginWithGoogle()">
+                Sign in with Google
+              </button>
+              <button
+                type="button"
+                id="use-password-btn"
+                class="secondary-action"
+                (click)="usePasswordInstead()"
+              >
+                Use password instead
+              </button>
+              <button
+                type="button"
+                class="secondary-action"
+                (click)="goBackToEmail()"
+              >
+                Use a different email
               </button>
             </div>
-          }
-          <div class="step-actions">
-            <button id="google-signin-btn" (click)="loginWithGoogle()">
-              Sign in with Google
-            </button>
-            <button
-              id="use-password-btn"
-              class="secondary-action"
-              (click)="usePasswordInstead()"
-            >
-              Use password instead
-            </button>
           </div>
-          <button class="back-link" (click)="goBackToEmail()">
-            Use a different email
-          </button>
         }
 
         <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
         @case (LoginStep.PasswordLogin) {
-          <div class="step-header">Welcome back</div>
           <div class="input-field">
             <label for="password-input">Password for <strong>{{ loginEmail() }}</strong></label>
             <div class="password-input-row">
@@ -194,15 +197,18 @@
                 Sign in with Google instead
               </button>
             }
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
           </div>
-          <button class="back-link" (click)="goBackToEmail()">
-            Use a different email
-          </button>
         }
 
         <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
         @case (LoginStep.CreateAccount) {
-          <div class="step-header">Set up your account</div>
           <p class="step-guidance">
             We found your membership record for
             <strong>{{ loginEmail() }}</strong>.
@@ -243,9 +249,6 @@
           }
 
           <div class="step-actions">
-            <button class="back-link" (click)="goBackToEmail()">
-              Use a different email
-            </button>
             <button
               id="create-account-btn"
               (click)="signupWithEmail()"
@@ -253,12 +256,18 @@
             >
               Create account
             </button>
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
           </div>
         }
 
         <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
         @case (LoginStep.GuestCreateAccount) {
-          <div class="step-header">Create new account</div>
           <div class="step-guidance">
             <p>
               You are creating an account for <strong>{{ loginEmail() }}</strong> without a linked membership.
@@ -300,9 +309,6 @@
           }
 
           <div class="step-actions">
-            <button class="back-link" (click)="goBackToEmail()">
-              Use a different email
-            </button>
             <button
               id="create-guest-account-submit-btn"
               (click)="signupWithEmail()"
@@ -310,12 +316,18 @@
             >
               Create account
             </button>
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
+              Use a different email
+            </button>
           </div>
         }
 
         <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
         @case (LoginStep.NoMember) {
-          <div class="step-header">Email not recognised</div>
           <div class="step-guidance">
             <p>
               We don't have a membership record linked to
@@ -330,17 +342,8 @@
               <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
               for help. To help us verify your membership, please include a picture of your passbook.
             </p>
-            <p class="secondary-info">
-              If you are not yet a member, you can create a new account (without membership) to get access to the video library and read more about I Liq Chuan.
-            </p>
-            <p class="caution-note">
-              <strong>Note:</strong> Please only do this if you are not yet a member.
-            </p>
           </div>
           <div class="step-actions">
-            <button id="try-different-email-btn" (click)="goBackToEmail()">
-              Try a different email
-            </button>
             <button
               id="become-member-btn"
               (click)="routingService.navigateToParts(['become-a-member'])"
@@ -348,17 +351,18 @@
               Become a Member
             </button>
             <button
-              id="video-library-btn"
-              (click)="routingService.navigateToParts(['class-video-library-subscription'])"
-            >
-              Class Video Library
-            </button>
-            <button
               id="create-guest-account-btn"
               class="secondary-action"
               (click)="loginStep.set(LoginStep.GuestCreateAccount)"
             >
               Create account without membership
+            </button>
+            <button
+              id="try-different-email-btn"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
+              Try a different email
             </button>
           </div>
         }

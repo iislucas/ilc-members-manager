@@ -91,7 +91,7 @@
         <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
         @case (InlineAuthStep.Email) {
           <div class="input-field">
-            <label for="email-input">Email</label>
+            <label for="email-input">Login with Email:</label>
             <input
               id="email-input"
               autocomplete="email"
@@ -131,29 +131,35 @@
 
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
         @case (InlineAuthStep.GoogleSignin) {
-          <div class="email-display">{{ email() }}</div>
-          @if (loginWithGoogleError(); as message) {
-            <div class="error-container">
-              <span class="error-message">{{ message }}</span>
-              <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
-                <app-icon name="close"></app-icon>
+          <div class="google-signin-step">
+            <div class="email-display">{{ email() }}</div>
+            @if (loginWithGoogleError(); as message) {
+              <div class="error-container">
+                <span class="error-message">{{ message }}</span>
+                <button class="icon-only-button" (click)="loginWithGoogleError.set(null)">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+            <div class="step-actions">
+              <button id="google-signin-btn" (click)="loginWithGoogle()">
+                Sign in with Google
+              </button>
+              <button
+                id="use-password-btn"
+                class="secondary-action"
+                (click)="usePasswordInstead()"
+              >
+                Use password instead
+              </button>
+              <button
+                type="button"
+                class="secondary-action"
+                (click)="goBackToEmail()"
+              >
+                Use a different email
               </button>
             </div>
-          }
-          <div class="step-actions">
-            <button id="google-signin-btn" (click)="loginWithGoogle()">
-              Sign in with Google
-            </button>
-            <button
-              id="use-password-btn"
-              class="secondary-action"
-              (click)="usePasswordInstead()"
-            >
-              Use password instead
-            </button>
-            <button class="back-link" (click)="goBackToEmail()">
-              Use a different email
-            </button>
           </div>
         }
 
@@ -227,7 +233,11 @@
                 Sign in with Google instead
               </button>
             }
-            <button class="back-link" (click)="goBackToEmail()">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
               Use a different email
             </button>
           </div>
@@ -286,7 +296,11 @@
             >
               Create Account
             </button>
-            <button class="back-link" (click)="goBackToEmail()">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
               Use a different email
             </button>
           </div>
@@ -340,7 +354,11 @@
             >
               Create Account
             </button>
-            <button class="back-link" (click)="goBackToEmail()">
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
               Use a different email
             </button>
           </div>
@@ -362,17 +380,8 @@
               <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
               for help. To help us verify your membership, please include a picture of your passbook.
             </p>
-            <p class="secondary-info">
-              If you are not yet a member, you can create a new account (without membership) to get access to the video library and read more about I Liq Chuan.
-            </p>
-            <p class="caution-note">
-              <strong>Note:</strong> Please only do this if you are not yet a member.
-            </p>
           </div>
           <div class="step-actions">
-            <button id="try-different-email-btn" (click)="goBackToEmail()">
-              Try a different email
-            </button>
             <button
               id="become-member-btn"
               (click)="routingService.navigateToParts(['become-a-member'])"
@@ -380,17 +389,18 @@
               Become a Member
             </button>
             <button
-              id="video-library-btn"
-              (click)="routingService.navigateToParts(['class-video-library-subscription'])"
-            >
-              Class Video Library
-            </button>
-            <button
               id="create-guest-account-btn"
               class="secondary-action"
               (click)="step.set(InlineAuthStep.GuestCreateAccount)"
             >
               Create account without membership
+            </button>
+            <button
+              id="try-different-email-btn"
+              class="secondary-action"
+              (click)="goBackToEmail()"
+            >
+              Try a different email
             </button>
           </div>
         }

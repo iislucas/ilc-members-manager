@@ -44,11 +44,12 @@ main {
 
   .login-box-container {
     flex: 0 0 340px;
-    max-width: 360px;
     width: 100%;
+    max-width: 380px;
 
     .login-container {
       padding: 0;
+      align-items: stretch;
     }
   }
 
@@ -267,4 +268,9 @@ main {
   .version-badge {
     display: none !important;
   }
+}
+
+app-spinner.app-data-loading {
+  display: block;
+  margin-top: 1em;
 }
