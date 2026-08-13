@@ -51,7 +51,7 @@
         } @else if (kind === 'grading') {
           <h1>Grading Payment Received!</h1>
           <p class="lead">
-            Your grading registration and examination fee have been received.
+            Your grading registration fee has been received.
             @if (summary.customerEmail) {
               A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
             }
@@ -85,6 +85,28 @@
           }
         }
       </div>
+
+      <!-- Spouse Membership Notification -->
+      @if (spouseInfo(); as spouse) {
+        <div class="spouse-notice-card">
+          <div class="spouse-notice-icon">
+            <app-icon name="person" width="28px" height="28px"></app-icon>
+          </div>
+          <div class="spouse-notice-text">
+            <h3>Spouse Membership Included</h3>
+            <p>
+              @if (spouse.name && spouse.email) {
+                Your spouse <strong>{{ spouse.name }}</strong> now has a lifetime membership account linked to <strong>{{ spouse.email }}</strong>.
+              } @else if (spouse.email) {
+                Your spouse now has a lifetime membership account linked to <strong>{{ spouse.email }}</strong>.
+              } @else {
+                Your spouse now has an active lifetime membership account.
+              }
+              They can now log in to the members portal using their email address to access their membership and all benefits.
+            </p>
+          </div>
+        </div>
+      }
 
       <!-- Order Receipt Summary -->
       @if (summary.lineItems.length > 0) {

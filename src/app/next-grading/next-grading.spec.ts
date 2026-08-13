@@ -12,7 +12,7 @@ import { FirebaseStateService, UserData } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import { initMember, MembershipType } from '../../../functions/src/data-model';
+import { initMember, MembershipType, GradingStatus } from '../../../functions/src/data-model';
 import {
   StripeProduct,
   StripePriceType,
@@ -120,6 +120,7 @@ describe('NextGradingComponent', () => {
       myGradings: {
         entries: vi.fn().mockReturnValue([]),
       },
+      requestGradingRetake: vi.fn().mockResolvedValue('new_retake_g_id'),
     };
 
     await TestBed.configureTestingModule({
@@ -138,6 +139,7 @@ describe('NextGradingComponent', () => {
           provide: RoutingService,
           useValue: {
             navigateToParts: vi.fn(),
+            hrefForView: vi.fn().mockImplementation((v: string) => `#/${v}`),
             signals: {
               [Views.NextGrading]: {
                 urlParams: {
@@ -162,12 +164,55 @@ describe('NextGradingComponent', () => {
     expect(component.isLoggedIn()).toBe(true);
     expect(component.isActiveMember()).toBe(true);
     expect(component.currentStudentLevel()).toBe('1');
-    expect(component.nextLevel()).toBe('Student 2');
+    expect(component.targetLevel()).toBe('Student 2');
 
     const match = component.matchingGradingPrice();
     expect(match).toBeTruthy();
     expect(match?.price.id).toBe('price_stu_2');
     expect(match?.price.unitAmount).toBe(8000);
+  });
+
+  it('should offer subsequent level when member has an existing pending grading and disallow buying pending level', async () => {
+    mockDataManager.myGradings.entries.mockReturnValue([
+      {
+        docId: 'existing_g1',
+        level: 'Student 2',
+        status: GradingStatus.AwaitingRequest,
+      },
+    ]);
+    await createComponent();
+
+    expect(component.pendingGradings().length).toBe(1);
+    expect(component.nextPurchasableLevel()).toBe('Student 3');
+    expect(component.targetLevel()).toBe('Student 3');
+
+    // Selectable levels only includes unowned, unpending, unachieved levels
+    const options = component.selectableLevels();
+    expect(options.length).toBe(1);
+    expect(options[0].level).toBe('Student 3');
+    expect(options.some((o) => o.level === 'Student 2')).toBe(false);
+  });
+
+  it('should identify free retake eligibility when member only has NotPassed grading and initiate retake', async () => {
+    mockDataManager.myGradings.entries.mockReturnValue([
+      {
+        docId: 'failed_g1',
+        level: 'Student 2',
+        status: GradingStatus.NotPassed,
+      },
+    ]);
+    await createComponent();
+
+    expect(component.retakeEligible()).toBe(true);
+    expect(component.retakeEligibleLevel()).toBe('Student 2');
+    expect(component.targetLevel()).toBe('Student 2');
+    expect(component.matchingGradingPrice()).toBeNull();
+
+    await component.onStartRetake();
+    expect(mockDataManager.requestGradingRetake).toHaveBeenCalledWith(
+      'mem_student_1',
+      'Student 2',
+    );
   });
 
   it('should redirect to Stripe Checkout on purchase click', async () => {

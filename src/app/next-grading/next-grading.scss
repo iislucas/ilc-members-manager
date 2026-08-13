@@ -241,7 +241,7 @@
   display: flex;
   align-items: flex-start;
   gap: 1em;
-  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
   padding: 1rem;
   background: v.$row-highlight-bg;
   border-left: 4px solid v.$primary-color;
@@ -263,6 +263,177 @@
     text-decoration: none;
     padding: 0.4em 0.8em;
     font-size: 0.9em;
+  }
+}
+
+.retake-notice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1.25rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+
+  .retake-card-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.1rem;
+    color: #92400e;
+  }
+
+  p {
+    margin: 0 0 0.85rem;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: #92400e;
+  }
+
+  .retake-action-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.55em 1.3em;
+    font-weight: 600;
+  }
+}
+
+.advance-purchase-toggle {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed v.$border-color-light;
+
+  .advance-purchase-hint {
+    margin: 0;
+    font-size: 0.92rem;
+    color: v.$text-secondary;
+  }
+
+  .link-inline-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    font-weight: 600;
+    color: v.$primary-color;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: v.$primary-color;
+      opacity: 0.85;
+    }
+  }
+}
+
+.retake-fee-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #22c55e;
+  border-radius: 6px;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+  }
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.1rem;
+    color: #166534;
+  }
+
+  p {
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    color: #166534;
+  }
+
+  .pay-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+}
+
+.level-selection-section {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  .level-selection-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+
+  .level-options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .level-option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    background: v.$theme-bg-color;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    input[type='radio'] {
+      margin-top: 0.25rem;
+      cursor: pointer;
+    }
+
+    .level-option-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .level-option-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .level-option-desc {
+      font-size: 0.88rem;
+      color: v.$text-secondary;
+    }
+
+    &.selected {
+      border-color: v.$primary-color;
+      background: v.$table-row-selected;
+    }
+
+    &:hover:not(.selected) {
+      border-color: v.$row-border-color;
+      background: v.$row-highlight-bg;
+    }
   }
 }
 

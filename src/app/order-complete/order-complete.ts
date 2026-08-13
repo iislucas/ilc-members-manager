@@ -134,6 +134,29 @@ export class OrderCompleteComponent {
     return 'general';
   });
 
+  spouseInfo = computed<{ name: string; email: string } | null>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return null;
+    const meta = s.summary.metadata || {};
+    const email = meta['spouseEmail']?.trim() || '';
+    const name = meta['spouseName']?.trim() || '';
+    const isSpouseMembership =
+      meta['membershipOption'] === 'life_spouse' ||
+      !!email ||
+      !!name ||
+      s.summary.lineItems.some((item) =>
+        item.description.toLowerCase().includes('spouse'),
+      );
+
+    if (isSpouseMembership) {
+      return {
+        email,
+        name,
+      };
+    }
+    return null;
+  });
+
   constructor() {
     // Load (or reload) whenever the session_id in the URL changes.
     effect(() => {

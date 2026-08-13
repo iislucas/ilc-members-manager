@@ -32,6 +32,7 @@ import {
   Member,
   nextGradingLevel,
   previousGradingLevel,
+  normalizeGradingLevel,
   instructorCanAssessLevel,
   gradingManagerIdsOf,
   isGradingPaid,
@@ -41,6 +42,7 @@ import {
 } from '../../../functions/src/data-model';
 import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
+import { SpinnerComponent } from '../spinner/spinner.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
@@ -56,14 +58,21 @@ import { environment } from '../../environments/environment';
   selector: 'app-grading-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, IconComponent, InstructorSelectorComponent, GradingEventInputComponent],
+  imports: [
+    NgTemplateOutlet,
+    IconComponent,
+    SpinnerComponent,
+    InstructorSelectorComponent,
+    GradingEventInputComponent,
+  ],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
 })
 export class GradingProgressComponent {
+  Views = Views;
   private firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
+  public routingService = inject(RoutingService<AppPathPatterns>);
   private profileLinks = inject(MemberProfileLinkService);
 
   grading = input.required<Grading>();
@@ -171,24 +180,118 @@ export class GradingProgressComponent {
   });
 
   // Whether this grading is the student's next grading in the progression. A
-  // grading may only be accepted when it is. When the basis levels aren't known
-  // we can't verify, so we don't block (returns true).
+  // grading may only be accepted or requested when it is. When the basis levels
+  // aren't known we can't verify, so we don't block (returns true).
   isNextGrading = computed(() => {
     const next = this.studentNextGradingLevel();
     if (!next) return true;
     return this.grading().level === next;
   });
 
+  // If the student already has an open/pending grading for their next level,
+  // find its docId so we can link directly to it.
+  nextGradingDocId = computed(() => {
+    const next = this.studentNextGradingLevel();
+    if (!next) return null;
+    const gradings = this.dataService.myGradings.entries();
+    const match = gradings.find(
+      (g) =>
+        g.level === next &&
+        g.status !== GradingStatus.Passed &&
+        g.status !== GradingStatus.NotPassed,
+    );
+    return match ? match.docId : null;
+  });
+
+  // Href link to the student's next grading (either their existing grading view
+  // or the purchase next grading page).
+  nextGradingHref = computed(() => {
+    const docId = this.nextGradingDocId();
+    if (docId) {
+      return this.routingService.hrefForView(Views.GradingView, {
+        gradingId: docId,
+      });
+    }
+    return this.routingService.hrefForView(Views.NextGrading, {});
+  });
+
+  // Retake creation state for students on Not-Passed gradings
+  isCreatingRetake = signal(false);
+  retakeError = signal<string | null>(null);
+
+  // Active in-progress retake for this grading level (if already created)
+  activeRetakeDocId = computed(() => {
+    const g = this.grading();
+    if (g.status !== GradingStatus.NotPassed) return null;
+    const gradings = this.dataService.myGradings.entries();
+    const match = gradings.find(
+      (other) =>
+        other.docId !== g.docId &&
+        normalizeGradingLevel(other.level) === normalizeGradingLevel(g.level) &&
+        other.status !== GradingStatus.Passed &&
+        other.status !== GradingStatus.NotPassed,
+    );
+    return match ? match.docId : null;
+  });
+
+  // Whether the student has passed this level in a subsequent attempt
+  hasPassedLevelSince = computed(() => {
+    const g = this.grading();
+    if (g.status !== GradingStatus.NotPassed) return false;
+    const gradings = this.dataService.myGradings.entries();
+    return gradings.some(
+      (other) =>
+        other.docId !== g.docId &&
+        normalizeGradingLevel(other.level) === normalizeGradingLevel(g.level) &&
+        other.status === GradingStatus.Passed,
+    );
+  });
+
+  // Student can initiate a free retake directly from this Not-Passed grading
+  canRequestRetake = computed(() => {
+    const g = this.grading();
+    return (
+      this.userIsStudent() &&
+      g.status === GradingStatus.NotPassed &&
+      !this.activeRetakeDocId() &&
+      !this.hasPassedLevelSince()
+    );
+  });
+
+  async requestRetake(): Promise<void> {
+    const g = this.grading();
+    const mDocId = g.studentMemberDocId;
+    if (!mDocId || !g.level) return;
+    this.isCreatingRetake.set(true);
+    this.retakeError.set(null);
+    try {
+      const newDocId = await this.dataService.requestGradingRetake(
+        mDocId,
+        g.level,
+      );
+      this.routingService.navigateToParts(['gradings', newDocId]);
+    } catch (err) {
+      this.retakeError.set(
+        err instanceof Error ? err.message : 'Failed to create retake grading.',
+      );
+    } finally {
+      this.isCreatingRetake.set(false);
+    }
+  }
+
   // Whether to surface the grading "out of order" warning. The current-level-based
   // check (before acceptance, no snapshot) is only actionable for — and only shown
   // to — the grading instructor/manager who has to accept the request and the
-  // student who requested it. Once accepted, the check is snapshot-based and shown
-  // to anyone who can see the grading.
+  // student when viewing an in-flight request. Once accepted, the check is snapshot-based
+  // and shown to anyone who can see the grading.
   showGradingOutOfOrderWarning = computed(() => {
     if (this.isNextGrading()) return false;
     const g = this.grading();
     const hasSnapshot = !!(g.studentLevelAtAcceptance || g.applicationLevelAtAcceptance);
-    return hasSnapshot || this.canAccept() || this.userIsStudent();
+    if (hasSnapshot) return true;
+    if (this.canAccept()) return true;
+    // For student: show warning banner if not in AwaitingRequest / Declined (which has dedicated blocker in action panel)
+    return this.userIsStudent() && g.status !== GradingStatus.AwaitingRequest && g.status !== GradingStatus.Declined;
   });
 
   // The level the student holds just before this grading (the preceding entry in
@@ -487,6 +590,7 @@ export class GradingProgressComponent {
 
   // Step 1: Save student request fields
   saveRequestFields() {
+    if (!this.isNextGrading()) return;
     const instructorId = this.editInstructorId();
     // Block requesting a grading from an instructor while the student has
     // outstanding unpaid completed gradings (non-admins only; mirrored server-side).

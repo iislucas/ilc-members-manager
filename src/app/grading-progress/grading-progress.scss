@@ -14,6 +14,7 @@
   align-items: center;
   gap: 0.4em;
   margin-top: 0.75em;
+  margin-bottom: 1.2em;
   flex-wrap: wrap;
 
   .grading-target-label {
@@ -59,12 +60,132 @@
   margin-top: 0.75em;
 }
 
+.out-of-order-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75em;
+  padding: 0.85em 1em;
+  background-color: #fff4e5;
+  border: 1px solid #f5a623;
+  border-left-width: 4px;
+  border-radius: 6px;
+  color: #8a5200;
+  margin: 0.5em 0 1em;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+  }
+
+  .out-of-order-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    width: 100%;
+  }
+
+  .out-of-order-title {
+    margin: 0;
+    font-size: 1em;
+    color: #6d3f00;
+  }
+
+  .out-of-order-text {
+    margin: 0;
+    font-size: 0.93em;
+    line-height: 1.45;
+    color: #8a5200;
+  }
+
+  .out-of-order-actions {
+    margin-top: 0.4em;
+    display: flex;
+    gap: 0.5em;
+  }
+
+  .next-grading-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    background: #fff;
+    border: 1px solid #f5a623;
+    color: #8a5200;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.35em 0.8em;
+    border-radius: 4px;
+
+    &:hover {
+      background: #fef8ed;
+      border-color: #d97706;
+      color: #6d3f00;
+    }
+  }
+}
+
+.retake-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85em;
+  margin: 1em 0;
+  padding: 1em 1.2em;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left-width: 4px;
+  border-radius: 6px;
+  color: #92400e;
+
+  &.info-box {
+    background-color: #f0fdf4;
+    border-color: #86efac;
+    border-left-color: #22c55e;
+    color: #166534;
+  }
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+  }
+
+  .retake-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    width: 100%;
+  }
+
+  .retake-title {
+    margin: 0;
+    font-size: 1.02em;
+    color: inherit;
+  }
+
+  .retake-desc {
+    margin: 0;
+    font-size: 0.93em;
+    line-height: 1.45;
+    color: inherit;
+  }
+
+  .retake-actions {
+    margin-top: 0.5em;
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+  }
+
+  .retake-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    font-weight: 600;
+    padding: 0.5em 1.2em;
+  }
+}
+
 .progress-container {
-  border: 1px solid v.$border-color-light;
-  border-radius: 8px;
-  padding: 1.2em 1.5em;
   margin-bottom: 1em;
-  background: #fafbff;
+  background: transparent;
 }
 
 // ── Step indicator track ──
@@ -73,7 +194,7 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  margin-bottom: 1.2em;
+  margin-bottom: 2em;
 }
 
 .step {
@@ -150,7 +271,7 @@
 
 // ── Action panel ──
 .action-panel {
-  padding-top: 0.5em;
+  padding-top: 1em;
   border-top: 1px solid v.$separator-color;
 }
 
@@ -561,10 +682,6 @@
 
 // ── Responsive ──
 @media (max-width: 600px) {
-  .progress-container {
-    padding: 0.8em;
-  }
-
   .step {
     min-width: 3.5em;
   }

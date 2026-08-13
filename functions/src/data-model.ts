@@ -337,6 +337,14 @@ export function previousGradingLevel(level: string): string {
   return gradingProgression[idx - 1];
 }
 
+// The grading level immediately after `level` in the canonical progression.
+// Returns '' when `level` is the last entry, not found, or empty.
+export function levelAfter(level: string): string {
+  const idx = gradingProgression.indexOf(normalizeGradingLevel(level));
+  if (idx < 0 || idx >= gradingProgression.length - 1) return '';
+  return gradingProgression[idx + 1];
+}
+
 // Whether an instructor with the given student level is qualified to assess a
 // grading at `gradingLevel`. Only Application gradings have a minimum assessor
 // level (see `levelToCanAssessGrading`); for all other levels any instructor is

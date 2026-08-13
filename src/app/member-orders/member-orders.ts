@@ -8,7 +8,11 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MemberOrder, MembershipType } from '../../../functions/src/data-model';
+import {
+  InstructorLicenseType,
+  MemberOrder,
+  MembershipType,
+} from '../../../functions/src/data-model';
 
 export enum SubscriptionCardCategory {
   Membership = 'membership',
@@ -66,6 +70,18 @@ export class MemberOrdersComponent {
   portalLoading = signal(false);
 
   today = computed(() => new Date().toISOString().split('T')[0]);
+
+  isLifeMember = computed(() => {
+    return this.user()?.member?.membershipType === MembershipType.Life;
+  });
+
+  isLifeInstructor = computed(() => {
+    const m = this.user()?.member;
+    return (
+      m?.instructorLicenseType === InstructorLicenseType.Life ||
+      m?.instructorLicenseExpires === '9999-12-31'
+    );
+  });
 
   // Active Subscriptions Card List
   subscriptions = computed<DisplaySubscriptionCard[]>(() => {
@@ -133,45 +149,67 @@ export class MemberOrdersComponent {
     if (
       m.instructorId ||
       m.instructorLicenseExpires ||
-      m.instructorLicenseSubscriptionId
+      m.instructorLicenseSubscriptionId ||
+      m.instructorLicenseType === InstructorLicenseType.Life
     ) {
-      const isExpired =
-        !m.instructorLicenseExpires ||
-        m.instructorLicenseExpires < todayStr;
-      const isAutoRenewing = !!(
-        m.instructorLicenseSubscriptionId &&
-        m.instructorLicenseNextAutoRenewDate &&
-        m.instructorLicenseNextAutoRenewDate >= todayStr
-      );
-      const status = isExpired
-        ? SubscriptionCardStatus.Expired
-        : SubscriptionCardStatus.Active;
+      if (
+        m.instructorLicenseType === InstructorLicenseType.Life ||
+        m.instructorLicenseExpires === '9999-12-31'
+      ) {
+        cards.push({
+          id: 'instructor-license-card',
+          subscriptionId: '',
+          title: 'Instructor License',
+          category: SubscriptionCardCategory.InstructorLicense,
+          status: SubscriptionCardStatus.Lifetime,
+          statusLabel: 'Lifetime Access',
+          statusClass: 'status-active',
+          expirationDate: 'Never expires',
+          nextAutoRenewDate: '',
+          isAutoRenewing: false,
+          canCancel: false,
+          canResume: false,
+          canSubscribe: false,
+        });
+      } else {
+        const isExpired =
+          !m.instructorLicenseExpires ||
+          m.instructorLicenseExpires < todayStr;
+        const isAutoRenewing = !!(
+          m.instructorLicenseSubscriptionId &&
+          m.instructorLicenseNextAutoRenewDate &&
+          m.instructorLicenseNextAutoRenewDate >= todayStr
+        );
+        const status = isExpired
+          ? SubscriptionCardStatus.Expired
+          : SubscriptionCardStatus.Active;
 
-      cards.push({
-        id: m.instructorLicenseSubscriptionId || 'instructor-license-card',
-        subscriptionId: m.instructorLicenseSubscriptionId || '',
-        title: 'Instructor License',
-        category: SubscriptionCardCategory.InstructorLicense,
-        status,
-        statusLabel: isExpired
-          ? 'Expired'
-          : isAutoRenewing
-            ? 'Active (Auto-Renewing)'
-            : 'Active (Expires on date)',
-        statusClass: isExpired ? 'status-expired' : 'status-active',
-        expirationDate: m.instructorLicenseExpires || 'Not active',
-        nextAutoRenewDate: isAutoRenewing
-          ? m.instructorLicenseNextAutoRenewDate
-          : '',
-        isAutoRenewing,
-        canCancel: isAutoRenewing && !!m.instructorLicenseSubscriptionId,
-        canResume:
-          !isAutoRenewing &&
-          !!m.instructorLicenseSubscriptionId &&
-          !isExpired,
-        canSubscribe: isExpired,
-        subscribeUrl: this.routingService.hrefForView(Views.InstructorLicensePurchase),
-      });
+        cards.push({
+          id: m.instructorLicenseSubscriptionId || 'instructor-license-card',
+          subscriptionId: m.instructorLicenseSubscriptionId || '',
+          title: 'Instructor License',
+          category: SubscriptionCardCategory.InstructorLicense,
+          status,
+          statusLabel: isExpired
+            ? 'Expired'
+            : isAutoRenewing
+              ? 'Active (Auto-Renewing)'
+              : 'Active (Expires on date)',
+          statusClass: isExpired ? 'status-expired' : 'status-active',
+          expirationDate: m.instructorLicenseExpires || 'Not active',
+          nextAutoRenewDate: isAutoRenewing
+            ? m.instructorLicenseNextAutoRenewDate
+            : '',
+          isAutoRenewing,
+          canCancel: isAutoRenewing && !!m.instructorLicenseSubscriptionId,
+          canResume:
+            !isAutoRenewing &&
+            !!m.instructorLicenseSubscriptionId &&
+            !isExpired,
+          canSubscribe: isExpired,
+          subscribeUrl: this.routingService.hrefForView(Views.InstructorLicensePurchase),
+        });
+      }
     }
 
     // 3. Class Video Library Card

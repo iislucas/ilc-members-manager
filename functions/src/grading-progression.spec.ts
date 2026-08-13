@@ -5,6 +5,7 @@ import {
   instructorCanAssessLevel,
   previousGradingLevel,
   normalizeGradingLevel,
+  levelAfter,
   notificationStyle,
   isGradingPaid,
   NotificationKind,
@@ -74,6 +75,28 @@ describe('grading progression helpers', () => {
     it('normalises legacy bare-number / Entry levels', () => {
       expect(previousGradingLevel('6')).toBe('Student 5');
       expect(previousGradingLevel('1')).toBe('Student Entry');
+    });
+  });
+
+  describe('levelAfter', () => {
+    it('returns the next entry in progression', () => {
+      expect(levelAfter('Student Entry')).toBe('Student 1');
+      expect(levelAfter('Student 1')).toBe('Student 2');
+      expect(levelAfter('Student 3')).toBe('Application 1');
+      expect(levelAfter('Application 1')).toBe('Student 4');
+      expect(levelAfter('Student 6')).toBe('Application 3');
+      expect(levelAfter('Application 3')).toBe('Student 7');
+    });
+
+    it('returns "" for the last entry or an unknown level', () => {
+      expect(levelAfter('Application 6')).toBe('');
+      expect(levelAfter('')).toBe('');
+      expect(levelAfter('Invalid Level')).toBe('');
+    });
+
+    it('normalises legacy bare-number / Entry levels', () => {
+      expect(levelAfter('3')).toBe('Application 1');
+      expect(levelAfter('Entry')).toBe('Student 1');
     });
   });
 

@@ -814,6 +814,7 @@ export const onGradingUpdated = onDocumentUpdated(
             markdown:
               `🙏 Your grading result for **${grading.level}** is in. Not quite this time — ` +
               `but every grading is a step forward, and your instructor's notes will help guide your practice. ` +
+              `You will be able to try again without having to repay the headquarters grading registration fee. ` +
               `[Read your feedback](${gradingHref}) and keep going!`,
             createdAt: new Date().toISOString(),
             dismissed: false,
@@ -835,7 +836,7 @@ export const onGradingUpdated = onDocumentUpdated(
           await createNotification(sifu.sifuMemberDocId, {
             markdown:
               `Your student **${sifu.studentName}**'s grading result for **${grading.level}** is in: ` +
-              `not passed this time. [See the result](${gradingHref}).`,
+              `not passed this time. The student will be able to try again without having to repay the headquarters grading registration fee. [See the result](${gradingHref}).`,
             createdAt: new Date().toISOString(),
             dismissed: false,
             kind: NotificationKind.GradingNotPassed,

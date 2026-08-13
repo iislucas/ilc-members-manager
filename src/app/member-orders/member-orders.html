@@ -15,41 +15,40 @@
     </div>
   }
 
-  <!-- Section: Purchases & Renewals -->
+  <!-- Section: Purchase -->
   <section class="services-quick-links-section">
     <div class="section-title">
-      <h2>Purchases &amp; Renewals</h2>
+      <h2>Purchase</h2>
       <p class="section-subtitle">
         Direct access to get or renew memberships, licenses, gradings, and subscriptions.
       </p>
     </div>
     <div class="services-links-grid">
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
-        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-        <div class="service-link-text">
-          <div class="service-link-title">Membership</div>
-          <div class="service-link-sub">Join as an annual or life member, or renew existing membership.</div>
+      @if (isLifeMember()) {
+        <div class="service-link-card disabled">
+          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+          <div class="service-link-text">
+            <div class="service-link-title">
+              <span>Membership</span>
+              <span class="active-badge">Active</span>
+            </div>
+            <div class="service-link-sub">You have an active Lifetime Membership. Never expires.</div>
+          </div>
         </div>
-      </a>
+      } @else {
+        <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
+          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+          <div class="service-link-text">
+            <div class="service-link-title">Membership</div>
+            <div class="service-link-sub">Join as an annual or life member, or renew existing membership.</div>
+          </div>
+        </a>
+      }
       <a class="service-link-card" [href]="routingService.hrefForView(Views.NextGrading)">
         <app-icon name="mountain" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
           <div class="service-link-title">Next Grading</div>
           <div class="service-link-sub">Pay student or application level examination fee.</div>
-        </div>
-      </a>
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
-        <app-icon name="meditation" width="32px" height="32px"></app-icon>
-        <div class="service-link-text">
-          <div class="service-link-title">Instructor License</div>
-          <div class="service-link-sub">Obtain or renew 1-year certified instructor teaching license.</div>
-        </div>
-      </a>
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
-        <app-icon name="location_on" width="32px" height="32px"></app-icon>
-        <div class="service-link-text">
-          <div class="service-link-title">School License</div>
-          <div class="service-link-sub">Establish or renew official school affiliation and class listing.</div>
         </div>
       </a>
       <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
@@ -59,15 +58,42 @@
           <div class="service-link-sub">Subscribe to recorded Saturday classes and global library archive.</div>
         </div>
       </a>
+      @if (isLifeInstructor()) {
+        <div class="service-link-card disabled">
+          <app-icon name="meditation" width="32px" height="32px"></app-icon>
+          <div class="service-link-text">
+            <div class="service-link-title">
+              <span>Instructor License</span>
+              <span class="active-badge">Active</span>
+            </div>
+            <div class="service-link-sub">You have an active Lifetime Instructor License. Never expires.</div>
+          </div>
+        </div>
+      } @else {
+        <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
+          <app-icon name="meditation" width="32px" height="32px"></app-icon>
+          <div class="service-link-text">
+            <div class="service-link-title">Instructor License</div>
+            <div class="service-link-sub">Obtain or renew 1-year certified instructor teaching license.</div>
+          </div>
+        </a>
+      }
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
+        <app-icon name="location_on" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">School License</div>
+          <div class="service-link-sub">Establish or renew official school affiliation and class listing.</div>
+        </div>
+      </a>
     </div>
   </section>
 
-  <!-- Section: Active Subscriptions -->
+  <!-- Section: Membership, Licenses, and Subscriptions -->
   <section class="subscriptions-section">
     <div class="section-title">
-      <h2>Active Subscriptions</h2>
+      <h2>My Membership, Licenses, and Subscriptions</h2>
       <p class="section-subtitle">
-        Manage auto-renewal settings for your memberships and digital products.
+        Manage access and auto-renewal settings for your memberships, licenses, and subscriptions.
       </p>
     </div>
 
@@ -118,38 +144,40 @@
             }
           </div>
 
-          <div class="sub-card-actions">
-            @if (sub.canCancel) {
-              <button
-                type="button"
-                class="sub-btn cancel-btn"
-                [disabled]="actionInProgressSubId() === sub.subscriptionId"
-                (click)="onCancelAutoRenew(sub.subscriptionId)"
-              >
-                {{ actionInProgressSubId() === sub.subscriptionId ? 'Cancelling...' : 'Cancel Auto-Renewal' }}
-              </button>
-            }
+          @if (sub.canCancel || sub.canResume || sub.canSubscribe) {
+            <div class="sub-card-actions">
+              @if (sub.canCancel) {
+                <button
+                  type="button"
+                  class="sub-btn cancel-btn"
+                  [disabled]="actionInProgressSubId() === sub.subscriptionId"
+                  (click)="onCancelAutoRenew(sub.subscriptionId)"
+                >
+                  {{ actionInProgressSubId() === sub.subscriptionId ? 'Cancelling...' : 'Cancel Auto-Renewal' }}
+                </button>
+              }
 
-            @if (sub.canResume) {
-              <button
-                type="button"
-                class="sub-btn resume-btn"
-                [disabled]="actionInProgressSubId() === sub.subscriptionId"
-                (click)="onResumeAutoRenew(sub.subscriptionId)"
-              >
-                {{ actionInProgressSubId() === sub.subscriptionId ? 'Resuming...' : 'Resume Auto-Renewal' }}
-              </button>
-            }
+              @if (sub.canResume) {
+                <button
+                  type="button"
+                  class="sub-btn resume-btn"
+                  [disabled]="actionInProgressSubId() === sub.subscriptionId"
+                  (click)="onResumeAutoRenew(sub.subscriptionId)"
+                >
+                  {{ actionInProgressSubId() === sub.subscriptionId ? 'Resuming...' : 'Resume Auto-Renewal' }}
+                </button>
+              }
 
-            @if (sub.canSubscribe) {
-              <a
-                class="sub-btn renew-link"
-                [href]="sub.subscribeUrl || routingService.hrefForView(Views.Products)"
-              >
-                Renew Now
-              </a>
-            }
-          </div>
+              @if (sub.canSubscribe) {
+                <a
+                  class="sub-btn renew-link"
+                  [href]="sub.subscribeUrl || routingService.hrefForView(Views.Products)"
+                >
+                  Renew Now
+                </a>
+              }
+            </div>
+          }
         </div>
       } @empty {
         <div class="empty-subscriptions">
@@ -159,11 +187,11 @@
     </div>
   </section>
 
-  <!-- Section: Order & Renewal History -->
+  <!-- Section: Order History -->
   <section class="orders-section">
     <div class="orders-section-header">
       <div class="section-title">
-        <h2>Order &amp; Renewal History</h2>
+        <h2>Order History</h2>
         <p class="section-subtitle">
           All orders, renewals, and transaction records linked to your account.
         </p>

@@ -1652,6 +1652,20 @@ export class DataManagerService {
     return result.data.gradingDocId;
   }
 
+  // Request a free retake grading for a level the student previously did not pass.
+  // Returns the newly created grading doc ID.
+  async requestGradingRetake(
+    memberDocId: string,
+    level?: string,
+  ): Promise<string> {
+    const fn = httpsCallable<
+      { memberDocId: string; level?: string },
+      { gradingDocId: string; level: string }
+    >(this.functions, 'requestGradingRetake');
+    const result = await fn({ memberDocId, level });
+    return result.data.gradingDocId;
+  }
+
   // Remove a student who lists the signed-in instructor as their primary
   // instructor. Guarded by a Cloud Function because instructors have no write
   // access to their students' member documents.

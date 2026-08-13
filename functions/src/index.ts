@@ -31,7 +31,7 @@ export {
   onGradingDeleted,
 } from './on-grading-update';
 
-export { requestGrading } from './grading-request';
+export { requestGrading, requestGradingRetake } from './grading-request';
 
 export { removeStudentFromInstructor, markStudentInactive } from './instructor-students';
 
