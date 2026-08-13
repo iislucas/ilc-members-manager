@@ -111,21 +111,38 @@
         </div>
       </div>
     } @else {
-      <!-- Existing pending grading notice at the top of Step 2 -->
-      @for (openGrading of pendingGradings(); track openGrading.docId) {
+      <!-- Existing pending gradings notice at the top of Step 2 -->
+      @if (pendingGradings().length > 0) {
         <div class="open-grading-banner">
           <app-icon name="info" width="24px" height="24px"></app-icon>
           <div>
-            <h3>You have an existing grading for {{ openGrading.level }}</h3>
-            <p>
-              Status: <strong>{{ openGrading.status }}</strong>. You can view your progress and submit requirements directly.
-            </p>
-            <a
-              class="subtle-button link-btn"
-              [href]="routingService.hrefForView(Views.GradingView, { gradingId: openGrading.docId })"
-            >
-              View Grading Details
-            </a>
+            @if (pendingGradings().length === 1) {
+              <h3>You have an existing grading for {{ pendingGradings()[0].level }}</h3>
+              <p>
+                Status: <strong>{{ pendingGradings()[0].status }}</strong>. You can view your progress and submit requirements directly.
+              </p>
+              @if (activeNextPendingGrading(); as nextPending) {
+                <a
+                  class="subtle-button link-btn"
+                  [href]="routingService.hrefForView(Views.GradingView, { gradingId: nextPending.docId })"
+                >
+                  View {{ nextPending.level }} Grading Details
+                </a>
+              }
+            } @else {
+              <h3>You have existing gradings for {{ pendingLevelsList() }}</h3>
+              <p>
+                Please complete your gradings in sequence. Your next active grading is <strong>{{ activeNextPendingGrading()?.level }}</strong>.
+              </p>
+              @if (activeNextPendingGrading(); as nextPending) {
+                <a
+                  class="subtle-button link-btn"
+                  [href]="routingService.hrefForView(Views.GradingView, { gradingId: nextPending.docId })"
+                >
+                  Go to {{ nextPending.level }} Grading
+                </a>
+              }
+            }
           </div>
         </div>
       }
@@ -171,7 +188,7 @@
           <div class="level-value">{{ currentApplicationLevel() }}</div>
         </div>
         <div class="level-box next">
-          <div class="level-label">Target Grading</div>
+          <div class="level-label">Next level to purchase</div>
           <div class="level-value target">
             @if (retakeEligible() && !buyingAdvanceLevel()) {
               {{ retakeEligibleLevel() }} (Free Retake)
@@ -273,7 +290,7 @@
         } @else if (matchingGradingPrice(); as match) {
           <div class="membership-options-grid">
             <div class="option-card selected">
-              <div class="option-title">{{ match.price.nickname || match.product.name }} &bull; Target: {{ targetLevel() }}</div>
+              <div class="option-title">{{ targetLevel() }}</div>
               <div class="rate-price">
                 {{ formatPrice(match.price.unitAmount, match.price.currency) }}
               </div>

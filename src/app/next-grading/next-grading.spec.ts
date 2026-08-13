@@ -193,6 +193,33 @@ describe('NextGradingComponent', () => {
     expect(options.some((o) => o.level === 'Student 2')).toBe(false);
   });
 
+  it('should consolidate multiple pending gradings into a single note and link only to the active next level', async () => {
+    mockDataManager.myGradings.entries.mockReturnValue([
+      {
+        docId: 'g_stu_3',
+        level: 'Student 3',
+        status: GradingStatus.AwaitingRequest,
+      },
+      {
+        docId: 'g_stu_2',
+        level: 'Student 2',
+        status: GradingStatus.AwaitingRequest,
+      },
+    ]);
+    await createComponent();
+
+    expect(component.pendingGradings().length).toBe(2);
+    expect(component.pendingLevelsList()).toBe('Student 2, Student 3');
+    expect(component.activeNextPendingGrading()?.level).toBe('Student 2');
+    expect(component.activeNextPendingGrading()?.docId).toBe('g_stu_2');
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('You have existing gradings for Student 2, Student 3');
+    expect(el.textContent).toContain('Your next active grading is Student 2');
+    expect(el.querySelector('.open-grading-banner .link-btn')?.textContent).toContain('Go to Student 2 Grading');
+    expect(el.textContent).toContain('Next level to purchase');
+  });
+
   it('should identify free retake eligibility when member only has NotPassed grading and initiate retake', async () => {
     mockDataManager.myGradings.entries.mockReturnValue([
       {

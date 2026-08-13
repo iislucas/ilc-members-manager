@@ -121,23 +121,43 @@ export class NextGradingComponent {
     return nextGradingLevel(m.studentLevel, m.applicationLevel);
   });
 
-  // All pending/open (unfinalized) gradings for the current member
+  // All pending/open (unfinalized) gradings for the current member, sorted in canonical progression order
   pendingGradings = computed<Grading[]>(() => {
     const user = this.user();
     if (!user) return [];
     const gradings = this.dataService.myGradings.entries();
-    return gradings.filter(
+    const open = gradings.filter(
       (g) =>
         g.status !== GradingStatus.Passed &&
         g.status !== GradingStatus.NotPassed &&
         !!g.level,
     );
+    return [...open].sort((a, b) => {
+      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
+      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      const orderA = idxA === -1 ? 999 : idxA;
+      const orderB = idxB === -1 ? 999 : idxB;
+      return orderA - orderB;
+    });
   });
 
   pendingLevelSet = computed(() => {
     return new Set(
       this.pendingGradings().map((g) => normalizeGradingLevel(g.level)),
     );
+  });
+
+  // Formatted list of all pending grading levels in progression order (e.g. "Student 2, Student 3")
+  pendingLevelsList = computed(() => {
+    return this.pendingGradings()
+      .map((g) => g.level)
+      .join(', ');
+  });
+
+  // The earliest pending grading in progression order that the student must complete first
+  activeNextPendingGrading = computed<Grading | null>(() => {
+    const pending = this.pendingGradings();
+    return pending.length > 0 ? pending[0] : null;
   });
 
   // Check if member is eligible for a free retake at any level (has a NotPassed grading and no open/passed grading)
