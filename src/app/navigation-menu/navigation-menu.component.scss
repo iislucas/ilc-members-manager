@@ -80,4 +80,23 @@
 
 .submenu-item {
   padding-left: 1.5em;
+  display: flex;
+  align-items: center;
+}
+
+.in-testing-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  margin-left: auto;
+  margin-right: 0.5em;
+  line-height: 1.2;
 }

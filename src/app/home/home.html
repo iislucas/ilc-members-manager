@@ -196,19 +196,24 @@
             </div>
           </a>
 
-          <!-- Video on Demand (VOD) -->
-          <a
-            class="card"
-            [href]="routingService.hrefForView(Views.Videos)"
-          >
-            <div class="icon-container">
-              <app-icon name="live_tv" width="48px" height="48px"></app-icon>
-            </div>
-            <div class="content">
-              <h2>Video on Demand</h2>
-              <p>Seminar recordings, workshops, and technique breakdowns</p>
-            </div>
-          </a>
+          <!-- Video on Demand (VOD) - Admin testing only -->
+          @if (user()?.isAdmin) {
+            <a
+              class="card"
+              [href]="routingService.hrefForView(Views.Videos)"
+            >
+              <div class="icon-container">
+                <app-icon name="live_tv" width="48px" height="48px"></app-icon>
+              </div>
+              <div class="content">
+                <div class="title-with-tag">
+                  <h2>Video on Demand</h2>
+                  <span class="in-testing-tag">In Testing</span>
+                </div>
+                <p>Seminar recordings, workshops, and technique breakdowns</p>
+              </div>
+            </a>
+          }
         </div>
       }
 
@@ -414,7 +419,10 @@
               <app-icon name="live_tv" width="48px" height="48px"></app-icon>
             </div>
             <div class="content">
-              <h2>Manage VOD</h2>
+              <div class="title-with-tag">
+                <h2>Manage VOD</h2>
+                <span class="in-testing-tag">In Testing</span>
+              </div>
               <p>Administer Video on Demand streaming catalog and transcoding</p>
             </div>
           </a>

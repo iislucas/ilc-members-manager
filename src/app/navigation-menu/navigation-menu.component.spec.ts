@@ -159,4 +159,45 @@ describe('NavigationMenuComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith('');
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('hides Video on Demand menu item for non-admin users', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: false,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Test Member',
+        membershipType: 'Life',
+      },
+      firebaseUser: { email: 'user@example.com' },
+    });
+
+    component.selectedArea.set('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).not.toContain('Video on Demand');
+  });
+
+  it('shows Video on Demand menu item with In Testing tag for admin users', async () => {
+    (firebaseService.user as any).set({
+      isAdmin: true,
+      schoolsManaged: [],
+      memberProfiles: [],
+      member: {
+        name: 'Admin Member',
+        membershipType: 'Life',
+      },
+      firebaseUser: { email: 'admin@example.com' },
+    });
+
+    component.selectedArea.set('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Video on Demand');
+    expect(compiled.textContent).toContain('In Testing');
+  });
 });

@@ -71,6 +71,33 @@
   }
 
   .content {
+    .title-with-tag {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+
+      h2 {
+        margin: 0;
+      }
+    }
+
+    .in-testing-tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      line-height: 1.2;
+    }
+
     h2 {
       margin: 0 0 0.5rem 0;
       font-size: 1.25rem;
