@@ -536,6 +536,104 @@ describe('stripe-fulfillment', () => {
     expect(memberWithInvalidCountry.memberId).toBe('');
   });
 
+  it('fulfills instructor license and assigns new instructor ID if member does not have one', async () => {
+    const memberWithoutInstructorId = {
+      ...sampleMember,
+      docId: 'mem_new_instructor',
+      instructorId: '',
+      instructorLicenseExpires: '',
+      instructorLicenseRenewalDate: '',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_lic_new_inst',
+      mode: StripeCheckoutMode.Payment,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 10000,
+      currency: 'usd',
+      metadata: {
+        orderType: 'license',
+        memberDocId: 'mem_new_instructor',
+      },
+      lineItems: [
+        {
+          productId: 'prod_lic',
+          priceId: 'price_lic_annual',
+          description: '1-Year Certified Instructor License',
+          quantity: 1,
+          amountTotal: 10000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, memberWithoutInstructorId, order, 'order_lic_123');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructorId: '101',
+        instructorLicenseType: 'Annual',
+        instructorLicenseRenewalDate: expect.any(String),
+        instructorLicenseExpires: expect.any(String),
+      }),
+    );
+    expect(memberWithoutInstructorId.instructorId).toBe('101');
+  });
+
+  it('fulfills instructor license for existing instructor and extends expiry by 1 year', async () => {
+    const existingInstructor = {
+      ...sampleMember,
+      docId: 'mem_existing_instructor',
+      instructorId: '55',
+      instructorLicenseExpires: '2028-05-15',
+      instructorLicenseRenewalDate: '2027-05-15',
+    };
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_lic_renew',
+      subscriptionId: 'sub_lic_123',
+      mode: StripeCheckoutMode.Subscription,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 10000,
+      currency: 'usd',
+      metadata: {
+        orderType: 'license',
+        memberDocId: 'mem_existing_instructor',
+      },
+      lineItems: [
+        {
+          productId: 'prod_lic',
+          priceId: 'price_lic_annual',
+          description: 'Certified Instructor License',
+          quantity: 1,
+          amountTotal: 10000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, existingInstructor, order, 'order_lic_456');
+
+    expect(mockMemberRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructorLicenseType: 'Annual',
+        instructorLicenseExpires: '2029-05-15',
+        instructorLicenseSubscriptionId: 'sub_lic_123',
+        instructorLicenseNextAutoRenewDate: '2029-05-15',
+      }),
+    );
+    // Preserves existing instructor ID
+    expect(existingInstructor.instructorId).toBe('55');
+  });
+
   describe('fulfillSpouseLifeMembership', () => {
     it('creates a new Life member when spouse record does not exist', async () => {
       const createdSpouseDocRef = {

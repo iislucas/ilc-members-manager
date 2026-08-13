@@ -11,6 +11,7 @@ import { Member, InstructorLicenseType, SquareSpaceOrder, SquareSpaceLineItem, S
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
+import { assignNextInstructorId } from '../counters';
 
 export interface InstructorLicenseInfo {
   memberId: string;
@@ -131,12 +132,25 @@ export async function processInstructorLicense(
   logger.info(`[License] Updating member ${info.memberId} (doc ${memberDocRef.id}): `
     + `instructorLicenseRenewalDate=${renewalDate}, instructorLicenseExpires=${expirationDate}`);
 
-  await memberDocRef.update({
+  const updates: Record<string, unknown> = {
     instructorLicenseRenewalDate: renewalDate,
     instructorLicenseExpires: expirationDate,
     instructorLicenseType: InstructorLicenseType.Annual,
-    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-  });
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!memberData.instructorId || memberData.instructorId.trim() === '') {
+    try {
+      const newInstructorId = await assignNextInstructorId(db);
+      updates['instructorId'] = newInstructorId;
+      memberData.instructorId = newInstructorId;
+      logger.info(`[License] Assigned new instructor ID ${newInstructorId} for member ${info.memberId}`);
+    } catch (e) {
+      logger.error(`[License] Failed to assign instructor ID for member ${info.memberId}:`, e);
+    }
+  }
+
+  await memberDocRef.update(updates);
 
   return { kind: 'success', renewalDate, expirationDate };
 }

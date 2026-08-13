@@ -36,7 +36,7 @@ import {
   OrderStatus,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
-import { assignNextMemberId } from './counters';
+import { assignNextMemberId, assignNextInstructorId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { environment } from './environment/environment.js';
@@ -54,11 +54,12 @@ function unixSecondsToDateString(seconds: number | null | undefined): string {
  * expiry rather than resetting from today.
  */
 function extendDateByYears(currentDateStr: string, yearsToAdd = 1): string {
+  if (currentDateStr === '9999-12-31') return '9999-12-31';
   const todayStr = new Date().toISOString().split('T')[0];
   const baseDateStr =
     currentDateStr && currentDateStr >= todayStr ? currentDateStr : todayStr;
   const d = new Date(baseDateStr + 'T00:00:00Z');
-  d.setUTCFullYear(d.getUTCFullYear() + yearsToAdd);
+  d.setUTCFullYear(d.getUTCFullYear() + (yearsToAdd || 1));
   return d.toISOString().split('T')[0];
 }
 
@@ -135,9 +136,27 @@ export async function resolveMemberForStripeOrder(
 /**
  * Categorize a line item based on description, product ID, or metadata.
  */
-function categorizeLineItem(
+export function categorizeLineItem(
   item: StripeOrderLineItem,
+  orderMetadata?: Record<string, string>,
 ): OrderItemCategory {
+  const metaType = (orderMetadata?.['orderType'] || '').toLowerCase();
+  if (metaType === 'license' || metaType === 'instructor_license') {
+    return OrderItemCategory.InstructorLicense;
+  }
+  if (metaType === 'grading') {
+    return OrderItemCategory.Grading;
+  }
+  if (metaType === 'membership') {
+    return OrderItemCategory.Membership;
+  }
+  if (metaType === 'video' || metaType === 'video_library') {
+    return OrderItemCategory.VideoLibrary;
+  }
+  if (metaType === 'school_license') {
+    return OrderItemCategory.SchoolLicense;
+  }
+
   const desc = (item.description || '').toLowerCase();
   const prod = (item.productId ?? '').toLowerCase();
 
@@ -181,10 +200,11 @@ function categorizeLineItem(
   return OrderItemCategory.Other;
 }
 
-function categorizeSubscriptionItem(
+export function categorizeSubscriptionItem(
   item: StripeOrderLineItem,
+  orderMetadata?: Record<string, string>,
 ): SubscriptionItemType {
-  const cat = categorizeLineItem(item);
+  const cat = categorizeLineItem(item, orderMetadata);
   if (cat === OrderItemCategory.InstructorLicense) {
     return SubscriptionItemType.InstructorLicense;
   }
@@ -241,7 +261,7 @@ export async function mirrorOrderToMemberSubcollection(
       quantity: item.quantity || 1,
       amountTotal: item.amountTotal || 0,
       currency: item.currency || 'usd',
-      category: categorizeLineItem(item),
+      category: categorizeLineItem(item, order.metadata),
     })),
     subscriptionId: order.subscriptionId || '',
     stripeInvoiceId: order.invoiceId || '',
@@ -543,7 +563,7 @@ export async function fulfillStripeOrder(
   }
 
   for (const item of order.lineItems) {
-    const category = categorizeLineItem(item);
+    const category = categorizeLineItem(item, order.metadata);
     const descLower = item.description.toLowerCase();
 
     if (category === OrderItemCategory.Membership) {
@@ -641,18 +661,58 @@ export async function fulfillStripeOrder(
         member.firstMembershipStarted = today;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
-      const newExpires = extendDateByYears(
-        member.instructorLicenseExpires,
-        1,
-      );
-      memberUpdates['instructorLicenseRenewalDate'] = today;
-      memberUpdates['instructorLicenseExpires'] = newExpires;
-      memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
+      if (member.instructorLicenseType === InstructorLicenseType.Life) {
+        memberUpdates['instructorLicenseRenewalDate'] = today;
+        memberUpdates['instructorLicenseExpires'] = '9999-12-31';
+      } else {
+        const yearsToAdd =
+          item.quantity && item.quantity > 0 ? item.quantity : 1;
+        const newExpires = extendDateByYears(
+          member.instructorLicenseExpires,
+          yearsToAdd,
+        );
+        memberUpdates['instructorLicenseRenewalDate'] = today;
+        memberUpdates['instructorLicenseExpires'] = newExpires;
+        memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
+        member.instructorLicenseExpires = newExpires;
+        member.instructorLicenseType = InstructorLicenseType.Annual;
 
-      if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
-        memberUpdates['instructorLicenseSubscriptionId'] =
-          order.subscriptionId;
-        memberUpdates['instructorLicenseNextAutoRenewDate'] = newExpires;
+        if (
+          order.mode === StripeCheckoutMode.Subscription &&
+          order.subscriptionId
+        ) {
+          memberUpdates['instructorLicenseSubscriptionId'] =
+            order.subscriptionId;
+          memberUpdates['instructorLicenseNextAutoRenewDate'] = newExpires;
+          member.instructorLicenseSubscriptionId = order.subscriptionId;
+          member.instructorLicenseNextAutoRenewDate = newExpires;
+        }
+      }
+
+      // Assign instructor ID if member does not already have one
+      if (!member.instructorId || member.instructorId.trim() === '') {
+        try {
+          const newInstructorId = await assignNextInstructorId(db);
+          memberUpdates['instructorId'] = newInstructorId;
+          member.instructorId = newInstructorId;
+          logger.info(
+            'Assigned new instructor ID for Stripe instructor license purchase',
+            {
+              memberDocId: member.docId,
+              instructorId: newInstructorId,
+              orderDocId,
+            },
+          );
+        } catch (e) {
+          logger.error(
+            'Failed to assign instructor ID for Stripe instructor license purchase',
+            {
+              memberDocId: member.docId,
+              orderDocId,
+              error: e,
+            },
+          );
+        }
       }
     } else if (category === OrderItemCategory.VideoLibrary) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
@@ -733,7 +793,7 @@ export async function fulfillStripeOrder(
 
     memberUpdates[`stripeSubscriptions.${subKey}`] = {
       subscriptionId: order.subscriptionId,
-      type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }),
+      type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }, order.metadata),
       status: SubscriptionStatus.Active,
       planName: order.lineItems[0]?.description || 'Subscription',
       amount: order.amountTotal || 0,
