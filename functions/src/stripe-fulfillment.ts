@@ -25,6 +25,7 @@ import {
   GradingStatus,
   PaymentStatus,
   initGrading,
+  initMember,
   StripeOrder,
   StripeOrderLineItem,
   StripeCheckoutMode,
@@ -330,6 +331,198 @@ async function autoCreateGradingForMember(
 }
 
 /**
+ * Processes spouse lifetime membership when a "Life with Spouse" option is purchased.
+ * Looks up an existing member by email, ACL, or name + DOB.
+ * If found: updates the member's membership to Life (9999-12-31).
+ * If not found: creates a new Member with Life membership and assigns a Member ID.
+ */
+export async function fulfillSpouseLifeMembership(
+  db: admin.firestore.Firestore,
+  order: StripeOrder,
+  orderDocId: string,
+  primaryMember: Member,
+): Promise<string | null> {
+  const spouseEmail = (order.metadata?.['spouseEmail'] || '').trim().toLowerCase();
+  const spouseName = (order.metadata?.['spouseName'] || '').trim();
+  const spouseDob = (order.metadata?.['spouseDob'] || '').trim();
+  const spouseCountry = (
+    order.metadata?.['spouseCountry'] ||
+    primaryMember.country ||
+    order.billingAddress?.country ||
+    ''
+  ).trim();
+
+  // If no spouse information was provided in metadata, nothing to fulfill.
+  if (!spouseName && !spouseEmail) {
+    return null;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1. Try to lookup existing member
+  let existingSpouseDoc: admin.firestore.DocumentSnapshot | null = null;
+
+  // 1a. Lookup by email in ACL
+  if (spouseEmail) {
+    const aclDoc = await db.collection('acl').doc(spouseEmail).get();
+    if (aclDoc.exists) {
+      const memberDocIds = (aclDoc.data()?.memberDocIds as string[]) || [];
+      if (memberDocIds.length > 0) {
+        const doc = await db.collection('members').doc(memberDocIds[0]).get();
+        if (doc.exists) {
+          existingSpouseDoc = doc;
+        }
+      }
+    }
+    // 1b. Lookup by emails array in members
+    if (!existingSpouseDoc) {
+      const emailQuery = await db
+        .collection('members')
+        .where('emails', 'array-contains', spouseEmail)
+        .limit(1)
+        .get();
+      if (!emailQuery.empty) {
+        existingSpouseDoc = emailQuery.docs[0];
+      }
+    }
+  }
+
+  // 1c. Lookup by name and dateOfBirth
+  if (!existingSpouseDoc && spouseName && spouseDob) {
+    const nameDobQuery = await db
+      .collection('members')
+      .where('name', '==', spouseName)
+      .where('dateOfBirth', '==', spouseDob)
+      .limit(1)
+      .get();
+    if (!nameDobQuery.empty) {
+      existingSpouseDoc = nameDobQuery.docs[0];
+    }
+  }
+
+  // 1d. Lookup by name alone if unique (and not matching primary member)
+  if (!existingSpouseDoc && spouseName) {
+    const nameQuery = await db
+      .collection('members')
+      .where('name', '==', spouseName)
+      .limit(2)
+      .get();
+    if (nameQuery.docs.length === 1 && nameQuery.docs[0].id !== primaryMember.docId) {
+      existingSpouseDoc = nameQuery.docs[0];
+    }
+  }
+
+  // 2. If existing member found, update to Life membership
+  if (existingSpouseDoc && existingSpouseDoc.exists) {
+    const spouseData = existingSpouseDoc.data() as Partial<Member>;
+    const spouseMemberDocId = existingSpouseDoc.id;
+    const spouseRef = db.collection('members').doc(spouseMemberDocId);
+
+    const updates: Record<string, unknown> = {
+      membershipType: MembershipType.Life,
+      currentMembershipExpires: '9999-12-31',
+      membershipNextAutoRenewDate: '',
+      lastRenewalDate: today,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!spouseData.firstMembershipStarted) {
+      updates['firstMembershipStarted'] = today;
+    }
+    if (spouseDob && !spouseData.dateOfBirth) {
+      updates['dateOfBirth'] = spouseDob;
+    }
+    if (spouseEmail && !(spouseData.emails || []).map((e) => e.toLowerCase()).includes(spouseEmail)) {
+      updates['emails'] = admin.firestore.FieldValue.arrayUnion(spouseEmail);
+    }
+
+    // Auto-assign member ID if existing member does not have one
+    if (!spouseData.memberId || spouseData.memberId.trim() === '') {
+      const countryInput = spouseData.country || spouseCountry;
+      const countryCode = resolveCountryCode(countryInput);
+      if (countryCode) {
+        try {
+          const newMemberId = await assignNextMemberId(countryCode, db);
+          updates['memberId'] = newMemberId;
+          spouseData.memberId = newMemberId;
+        } catch (e) {
+          logger.error('Failed to assign member ID for existing spouse member', { error: e });
+        }
+      }
+    }
+
+    await spouseRef.update(updates);
+    logger.info('Updated existing member to Life Membership for spouse order', {
+      spouseMemberDocId,
+      spouseName: spouseData.name || spouseName,
+      orderDocId,
+    });
+
+    const updatedSpouseMember: Member = {
+      ...initMember(),
+      ...spouseData,
+      docId: spouseMemberDocId,
+      membershipType: MembershipType.Life,
+      currentMembershipExpires: '9999-12-31',
+    };
+    await mirrorOrderToMemberSubcollection(db, updatedSpouseMember, order, orderDocId);
+    return spouseMemberDocId;
+  }
+
+  // 3. Otherwise, create a new member record for the spouse
+  const countryInput = spouseCountry || primaryMember.country || '';
+  const countryCode = resolveCountryCode(countryInput);
+  const resolvedCountry = countryCode ? resolveCountryName(countryCode) : countryInput;
+  let newMemberId = '';
+
+  if (countryCode) {
+    try {
+      newMemberId = await assignNextMemberId(countryCode, db);
+    } catch (e) {
+      logger.error('Failed to assign member ID for new spouse member', {
+        countryCode,
+        error: e,
+      });
+    }
+  }
+
+  const newSpouseDocRef = db.collection('members').doc();
+  const newSpouseMember: Member = {
+    ...initMember(),
+    docId: newSpouseDocRef.id,
+    memberId: newMemberId,
+    name: spouseName,
+    country: resolvedCountry,
+    emails: spouseEmail ? [spouseEmail] : [],
+    dateOfBirth: spouseDob,
+    membershipType: MembershipType.Life,
+    firstMembershipStarted: today,
+    lastRenewalDate: today,
+    currentMembershipExpires: '9999-12-31',
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const sanitized = Object.fromEntries(
+    Object.entries(newSpouseMember).filter(([_, v]) => v !== undefined),
+  );
+
+  await newSpouseDocRef.set({
+    ...sanitized,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info('Created new Life Membership for spouse', {
+    spouseMemberDocId: newSpouseDocRef.id,
+    memberId: newMemberId,
+    name: spouseName,
+    orderDocId,
+  });
+
+  await mirrorOrderToMemberSubcollection(db, newSpouseMember, order, orderDocId);
+  return newSpouseDocRef.id;
+}
+
+/**
  * Fulfills digital products and synchronizes subscription dates on the Member document.
  */
 export async function fulfillStripeOrder(
@@ -359,6 +552,14 @@ export async function fulfillStripeOrder(
         memberUpdates['currentMembershipExpires'] = '9999-12-31';
         memberUpdates['membershipNextAutoRenewDate'] = '';
         memberUpdates['lastRenewalDate'] = today;
+
+        if (
+          descLower.includes('spouse') ||
+          order.metadata?.['spouseName'] ||
+          order.metadata?.['spouseEmail']
+        ) {
+          await fulfillSpouseLifeMembership(db, order, orderDocId, member);
+        }
       } else {
         const newExpires = extendDateByYears(
           member.currentMembershipExpires,

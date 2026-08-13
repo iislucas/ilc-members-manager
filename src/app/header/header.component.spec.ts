@@ -171,4 +171,19 @@ describe('HeaderComponent', () => {
 
     expect(component.hasTopTabs()).toBe(true);
   });
+
+  it('renders SVG logo directly to the left of the navigation title when logged out on login/welcome page', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    fixture.componentRef.setInput('isLoggedIn', false);
+    fixture.componentRef.setInput('isPublicPage', false);
+    fixture.componentRef.setInput('breadcrumbs', [{ label: 'ILC Portal', url: '/' }, { label: 'Welcome' }]);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const logoImg = compiled.querySelector('.title-and-menu .header-logo') as HTMLImageElement;
+    expect(logoImg).toBeTruthy();
+    expect(logoImg.getAttribute('src')).toBe('/ilc.svg');
+  });
 });

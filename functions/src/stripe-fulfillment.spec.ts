@@ -14,6 +14,7 @@ import {
 } from './data-model';
 import {
   fulfillStripeOrder,
+  fulfillSpouseLifeMembership,
   mirrorOrderToMemberSubcollection,
   resolveMemberForStripeOrder,
 } from './stripe-fulfillment';
@@ -533,5 +534,210 @@ describe('stripe-fulfillment', () => {
       }),
     );
     expect(memberWithInvalidCountry.memberId).toBe('');
+  });
+
+  describe('fulfillSpouseLifeMembership', () => {
+    it('creates a new Life member when spouse record does not exist', async () => {
+      const createdSpouseDocRef = {
+        id: 'new_spouse_doc_123',
+        set: vi.fn().mockResolvedValue({}),
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            id: 'mock_order_doc',
+            set: vi.fn().mockResolvedValue({}),
+          }),
+        }),
+      };
+
+      const customDb = {
+        ...mockDb,
+        collection: vi.fn((colName: string) => {
+          if (colName === 'members') {
+            return {
+              doc: vi.fn((docId?: string) => {
+                if (!docId) return createdSpouseDocRef;
+                return mockMemberRef;
+              }),
+              where: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockReturnValue({
+                    get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+                  }),
+                }),
+                limit: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({ exists: false }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const order: StripeOrder = {
+        docId: '',
+        lastUpdated: '2026-05-15T00:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Checkout,
+        stripeObjectId: 'cs_life_spouse_123',
+        mode: StripeCheckoutMode.Payment,
+        created: '2026-05-15T00:00:00Z',
+        amountTotal: 250000,
+        currency: 'usd',
+        metadata: {
+          spouseName: 'Alex Doe',
+          spouseEmail: 'alex@example.com',
+          spouseDob: '1992-08-20',
+          spouseCountry: 'United States',
+        },
+        lineItems: [
+          {
+            productId: 'prod_life',
+            priceId: 'price_life_spouse',
+            description: 'Life : + Spouse',
+            quantity: 1,
+            amountTotal: 250000,
+            currency: 'usd',
+          },
+        ],
+      };
+
+      const spouseDocId = await fulfillSpouseLifeMembership(
+        customDb,
+        order,
+        'order_life_spouse_123',
+        sampleMember,
+      );
+
+      expect(spouseDocId).toBe('new_spouse_doc_123');
+      expect(createdSpouseDocRef.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Alex Doe',
+          emails: ['alex@example.com'],
+          dateOfBirth: '1992-08-20',
+          country: 'United States',
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '9999-12-31',
+          memberId: 'US101',
+        }),
+      );
+    });
+
+    it('updates existing member to Life membership when spouse already exists', async () => {
+      const existingSpouseMember = {
+        ...initMember(),
+        docId: 'mem_existing_spouse_456',
+        memberId: 'US456',
+        name: 'Alex Doe',
+        emails: ['alex@example.com'],
+        dateOfBirth: '1992-08-20',
+        country: 'United States',
+        membershipType: MembershipType.Annual,
+        currentMembershipExpires: '2027-01-01',
+      };
+
+      const existingSpouseRef = {
+        id: 'mem_existing_spouse_456',
+        get: vi.fn().mockResolvedValue({
+          exists: true,
+          id: 'mem_existing_spouse_456',
+          data: () => ({ ...existingSpouseMember }),
+        }),
+        update: vi.fn().mockResolvedValue({}),
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            id: 'mock_order_doc',
+            set: vi.fn().mockResolvedValue({}),
+          }),
+        }),
+      };
+
+      const customDb = {
+        ...mockDb,
+        collection: vi.fn((colName: string) => {
+          if (colName === 'members') {
+            return {
+              doc: vi.fn().mockReturnValue(existingSpouseRef),
+              where: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  get: vi.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [
+                      {
+                        id: 'mem_existing_spouse_456',
+                        exists: true,
+                        data: () => ({ ...existingSpouseMember }),
+                      },
+                    ],
+                  }),
+                }),
+              }),
+            };
+          }
+          if (colName === 'acl') {
+            return {
+              doc: vi.fn().mockReturnValue({
+                get: vi.fn().mockResolvedValue({
+                  exists: true,
+                  data: () => ({ memberDocIds: ['mem_existing_spouse_456'] }),
+                }),
+              }),
+            };
+          }
+          return mockDb.collection(colName);
+        }),
+      };
+
+      const order: StripeOrder = {
+        docId: '',
+        lastUpdated: '2026-05-15T00:00:00Z',
+        ilcAppOrderKind: OrderKind.Stripe,
+        stripeOrderType: StripeOrderType.Checkout,
+        stripeObjectId: 'cs_life_spouse_existing',
+        mode: StripeCheckoutMode.Payment,
+        created: '2026-05-15T00:00:00Z',
+        amountTotal: 250000,
+        currency: 'usd',
+        metadata: {
+          spouseName: 'Alex Doe',
+          spouseEmail: 'alex@example.com',
+          spouseDob: '1992-08-20',
+          spouseCountry: 'United States',
+        },
+        lineItems: [
+          {
+            productId: 'prod_life',
+            priceId: 'price_life_spouse',
+            description: 'Lifetime Membership (with Spouse)',
+            quantity: 1,
+            amountTotal: 250000,
+            currency: 'usd',
+          },
+        ],
+      };
+
+      const spouseDocId = await fulfillSpouseLifeMembership(
+        customDb,
+        order,
+        'order_life_spouse_existing',
+        sampleMember,
+      );
+
+      expect(spouseDocId).toBe('mem_existing_spouse_456');
+      expect(existingSpouseRef.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          membershipType: MembershipType.Life,
+          currentMembershipExpires: '9999-12-31',
+          membershipNextAutoRenewDate: '',
+        }),
+      );
+    });
   });
 });

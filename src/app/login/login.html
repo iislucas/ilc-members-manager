@@ -14,11 +14,9 @@
       @if (firebaseService.verificationError(); as error) {
         <div class="error-container">
           <span class="error-message">{{ error }}</span>
-        </div>
-      }
-      @if (verificationError(); as error) {
-        <div class="error-container">
-          <span class="error-message">{{ error }}</span>
+          <button class="icon-only-button" (click)="firebaseService.verificationError.set(null)">
+            <app-icon name="close"></app-icon>
+          </button>
         </div>
       }
 
@@ -89,7 +87,9 @@
 
         <!-- ──────────── STEP: CHECKING ──────────── -->
         @case (LoginStep.Checking) {
-          <app-spinner>Checking your email…</app-spinner>
+          <div class="checking-step">
+            <app-spinner>Checking your email…</app-spinner>
+          </div>
         }
 
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
