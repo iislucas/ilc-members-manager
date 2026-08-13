@@ -18,6 +18,8 @@ import {
   MembershipType,
   School,
 } from '../../../functions/src/data-model';
+import { CountryCode } from '../country-codes';
+import { SearchableSet } from '../searchable-set';
 import {
   StripeProduct,
   StripePriceType,
@@ -36,6 +38,7 @@ describe('SchoolLicensePurchaseComponent', () => {
   let mockDataManager: {
     schools: { entries: ReturnType<typeof vi.fn> };
     myOrders: { entries: ReturnType<typeof vi.fn> };
+    countries: SearchableSet<'name', CountryCode>;
   };
 
   const sampleProducts: StripeProduct[] = [
@@ -105,6 +108,7 @@ describe('SchoolLicensePurchaseComponent', () => {
     ...initMember(),
     docId: 'mem_owner_1',
     name: 'Bob Owner',
+    country: 'United States',
     instructorId: 'US-INS-01',
     membershipType: MembershipType.Annual,
     currentMembershipExpires: '2028-01-01',
@@ -145,6 +149,14 @@ describe('SchoolLicensePurchaseComponent', () => {
       myOrders: {
         entries: vi.fn().mockReturnValue([]),
       },
+      countries: new SearchableSet<'name', CountryCode>(
+        ['name', 'id'],
+        'name',
+        [
+          { id: 'US', name: 'United States' },
+          { id: 'FR', name: 'France' },
+        ],
+      ),
     };
 
     await TestBed.configureTestingModule({
@@ -191,7 +203,7 @@ describe('SchoolLicensePurchaseComponent', () => {
     expect(component.licenseAction()).toBe('renew');
   });
 
-  it('should redirect to Stripe Checkout on purchase click with school metadata', async () => {
+  it('should redirect to Stripe Checkout on purchase click with school metadata for renewal', async () => {
     await createComponent();
     const redirectSpy = vi.spyOn(component, 'redirectTo').mockImplementation(() => {});
 
@@ -216,5 +228,77 @@ describe('SchoolLicensePurchaseComponent', () => {
     expect(redirectSpy).toHaveBeenCalledWith(
       'https://checkout.stripe.com/pay/cs_test_school',
     );
+  });
+
+  it('should support registering a new school and submitting new school metadata with memberDocId', async () => {
+    await createComponent();
+    const redirectSpy = vi.spyOn(component, 'redirectTo').mockImplementation(() => {});
+
+    // Switch to new school registration
+    component.licenseAction.set('new');
+    component.newSchoolName.set('ILC Brooklyn Academy');
+    component.newSchoolCountry.set('United States');
+    component.newSchoolCity.set('Brooklyn');
+    component.newSchoolCountyOrState.set('NY');
+    component.newSchoolAddress.set('456 Atlantic Ave');
+    component.newSchoolZipCode.set('11217');
+    component.newSchoolWebsite.set('https://brooklynilc.example.com');
+
+    await component.onPurchaseSchoolLicense();
+
+    expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
+      'price_sch_yearly',
+      window.location.origin,
+      1,
+      expect.objectContaining({
+        metadata: {
+          memberDocId: 'mem_owner_1',
+          memberId: '',
+          orderType: 'school',
+          isNewSchool: 'true',
+          schoolName: 'ILC Brooklyn Academy',
+          schoolCountry: 'United States',
+          schoolCity: 'Brooklyn',
+          schoolCountyOrState: 'NY',
+          schoolAddress: '456 Atlantic Ave',
+          schoolZipCode: '11217',
+          schoolWebsite: 'https://brooklynilc.example.com',
+        },
+      }),
+    );
+    expect(redirectSpy).toHaveBeenCalledWith(
+      'https://checkout.stripe.com/pay/cs_test_school',
+    );
+  });
+
+  it('should validate required fields when registering a new school', async () => {
+    await createComponent();
+    component.licenseAction.set('new');
+    component.newSchoolName.set('');
+
+    await component.onPurchaseSchoolLicense();
+    expect(component.checkoutError()).toContain('name for your new school');
+
+    component.newSchoolName.set('Test School');
+    component.newSchoolCountry.set('');
+    await component.onPurchaseSchoolLicense();
+    expect(component.checkoutError()).toContain('country for your new school');
+
+    component.newSchoolCountry.set('United States');
+    component.newSchoolCity.set('');
+    await component.onPurchaseSchoolLicense();
+    expect(component.checkoutError()).toContain('city for your new school');
+  });
+
+  it('should default to new school action when member has no existing schools', async () => {
+    mockDataManager.schools.entries.mockReturnValue([]);
+    userSignal.set({
+      ...sampleUser,
+      schoolsManaged: [],
+    });
+
+    await createComponent();
+    expect(component.mySchools().length).toBe(0);
+    expect(component.licenseAction()).toBe('new');
   });
 });

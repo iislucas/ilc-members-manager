@@ -509,6 +509,8 @@ export type School = {
   // The `instructorId` (human readable) of the owner of this school; can set the managers, and
   // change anything in the school.
   ownerInstructorId: string;
+  // The member docId of the owner of this school.
+  ownerMemberDocId: string;
   // The `instructorId`s (human readable) of people allowed to manage people within this school.
   managerInstructorIds: string[];
 
@@ -542,11 +544,12 @@ export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
     : new Date().toISOString();
 
   const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
+  const ownerMemberDocId = docData.ownerMemberDocId || '';
   const managerInstructorIds = docData.managerInstructorIds || docData.managers || [];
   // TODO: legacy: remove once full migration to ownerEmails is complete
   const ownerEmails = docData.ownerEmails && docData.ownerEmails.length > 0 ? docData.ownerEmails : (docData.ownerEmail ? [docData.ownerEmail] : []);
 
-  return { ...initSchool(), ...docData, ownerInstructorId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
+  return { ...initSchool(), ...docData, ownerInstructorId, ownerMemberDocId, managerInstructorIds, ownerEmails, lastUpdated, docId: doc.id };
 }
 
 export enum NotificationKind {
@@ -1636,6 +1639,7 @@ export function initSchool(): School {
     publicCoverImageUrl: '',
     publicBioMarkdown: '',
     ownerInstructorId: '',
+    ownerMemberDocId: '',
     managerInstructorIds: [],
     ownerEmails: [],
     managerEmails: [],

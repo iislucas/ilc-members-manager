@@ -26,6 +26,8 @@ import {
   PaymentStatus,
   initGrading,
   initMember,
+  initSchool,
+  School,
   StripeOrder,
   StripeOrderLineItem,
   StripeCheckoutMode,
@@ -36,7 +38,7 @@ import {
   OrderStatus,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
-import { assignNextMemberId, assignNextInstructorId } from './counters';
+import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';
 import { createMemberNotification } from './notifications';
 import { environment } from './environment/environment.js';
@@ -731,9 +733,12 @@ export async function fulfillStripeOrder(
       }
     } else if (category === OrderItemCategory.SchoolLicense) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
+      const isNewSchool =
+        order.metadata?.['isNewSchool'] === 'true' ||
+        (!order.metadata?.['schoolDocId'] && !!order.metadata?.['schoolName']);
       const schoolDocId =
-        order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '';
-      const schoolId = order.metadata?.['schoolId'] || '';
+        !isNewSchool ? (order.metadata?.['schoolDocId'] || member.primarySchoolDocId || '') : '';
+      const schoolId = !isNewSchool ? (order.metadata?.['schoolId'] || '') : '';
 
       let targetSchoolRef: admin.firestore.DocumentReference | null = null;
       if (schoolDocId) {
@@ -747,7 +752,7 @@ export async function fulfillStripeOrder(
         if (!sQuery.empty) {
           targetSchoolRef = sQuery.docs[0].ref;
         }
-      } else if (member.instructorId) {
+      } else if (!isNewSchool && member.instructorId) {
         const sQuery = await db
           .collection('schools')
           .where('ownerInstructorId', '==', member.instructorId)
@@ -760,20 +765,82 @@ export async function fulfillStripeOrder(
 
       if (targetSchoolRef) {
         const sDoc = await targetSchoolRef.get();
-        const sData = sDoc.data() || {};
-        const currentExp = (sData['schoolLicenseExpires'] as string) || '';
-        const newExpires = isYearly
-          ? extendDateByYears(currentExp, 1)
-          : extendDateByMonths(currentExp, 1);
-        await targetSchoolRef.update({
-          schoolLicenseRenewalDate: today,
-          schoolLicenseExpires: newExpires,
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        if (sDoc.exists) {
+          const sData = sDoc.data() || {};
+          const currentExp = (sData['schoolLicenseExpires'] as string) || '';
+          const newExpires = isYearly
+            ? extendDateByYears(currentExp, 1)
+            : extendDateByMonths(currentExp, 1);
+          await targetSchoolRef.update({
+            schoolLicenseRenewalDate: today,
+            schoolLicenseExpires: newExpires,
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          logger.info('Updated school license for existing school', {
+            schoolDocId: targetSchoolRef.id,
+            newExpires,
+          });
+          continue;
+        }
+      }
+
+      // If not renewing an existing school, create a new school entry
+      const newExpires = isYearly
+        ? extendDateByYears(today, 1)
+        : extendDateByMonths(today, 1);
+
+      let newSchoolId = '';
+      try {
+        newSchoolId = await assignNextSchoolId(db);
+      } catch (err) {
+        logger.error('Failed to assign next school ID for new school order', {
+          error: err,
+          orderDocId,
         });
-        logger.info('Updated school license for school', {
-          schoolDocId: targetSchoolRef.id,
-          newExpires,
-        });
+      }
+
+      const newSchoolDocRef = db.collection('schools').doc();
+      const newSchool: School = {
+        ...initSchool(),
+        docId: newSchoolDocRef.id,
+        schoolId: newSchoolId,
+        schoolName: (order.metadata?.['schoolName'] || '').trim() || 'New School',
+        schoolCountry: (order.metadata?.['schoolCountry'] || member.country || '').trim(),
+        schoolCity: (order.metadata?.['schoolCity'] || '').trim(),
+        schoolCountyOrState: (order.metadata?.['schoolCountyOrState'] || '').trim(),
+        schoolAddress: (order.metadata?.['schoolAddress'] || '').trim(),
+        schoolZipCode: (order.metadata?.['schoolZipCode'] || '').trim(),
+        schoolWebsite: (order.metadata?.['schoolWebsite'] || '').trim(),
+        ownerMemberDocId: member.docId,
+        ownerInstructorId: member.instructorId || '',
+        managerInstructorIds: [],
+        ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [],
+        managerEmails: [],
+        schoolLicenseRenewalDate: today,
+        schoolLicenseExpires: newExpires,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      const sanitized = Object.fromEntries(
+        Object.entries(newSchool).filter(([_, v]) => v !== undefined),
+      );
+
+      await newSchoolDocRef.set({
+        ...sanitized,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info('Created new school from Stripe order', {
+        schoolDocId: newSchoolDocRef.id,
+        schoolId: newSchoolId,
+        schoolName: newSchool.schoolName,
+        ownerMemberDocId: member.docId,
+        orderDocId,
+      });
+
+      if (!member.primarySchoolDocId) {
+        memberUpdates['primarySchoolDocId'] = newSchoolDocRef.id;
+        memberUpdates['primarySchoolId'] = newSchoolId;
       }
     } else if (category === OrderItemCategory.Grading) {
       await autoCreateGradingForMember(db, member, item, orderDocId);

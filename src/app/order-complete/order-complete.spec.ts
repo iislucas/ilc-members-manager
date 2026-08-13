@@ -65,6 +65,38 @@ describe('OrderCompleteComponent', () => {
     },
   };
 
+  const sampleSchool = {
+    docId: 'school_doc_1',
+    schoolId: 'SCH-NY-01',
+    schoolName: 'New York ILC Branch',
+    ownerMemberDocId: 'mem_1',
+    schoolLicenseExpires: '2027-01-01',
+    lastUpdated: '2026-08-12',
+  };
+
+  const sampleSchoolLicenseSummary: CheckoutSessionSummary = {
+    id: 'cs_test_sch_123',
+    status: StripeCheckoutStatus.Complete,
+    paymentStatus: StripeCheckoutPaymentStatus.Paid,
+    customerEmail: 'owner@example.com',
+    amountTotal: 60000,
+    currency: 'usd',
+    lineItems: [
+      {
+        description: '1-Year School Affiliation License',
+        quantity: 1,
+        amountTotal: 60000,
+        currency: 'usd',
+      },
+    ],
+    metadata: {
+      orderType: 'school',
+      schoolDocId: 'school_doc_1',
+      schoolId: 'SCH-NY-01',
+      memberDocId: 'mem_1',
+    },
+  };
+
   beforeEach(async () => {
     sessionIdSignal = signal('cs_test_mem_123');
     userSignal = signal({
@@ -101,6 +133,12 @@ describe('OrderCompleteComponent', () => {
           const fromParam = urlParams?.from ? `?from=${urlParams.from}` : '';
           return `/gradings/${pathVars.gradingId}${fromParam}`;
         }
+        if (view === Views.SchoolView && pathVars?.schoolId) {
+          return `/school-profile/${pathVars.schoolId}`;
+        }
+        if (view === Views.MySchoolEdit && pathVars?.schoolId) {
+          return `/my-schools/${pathVars.schoolId}/edit`;
+        }
         return `/${view}`;
       }),
       hrefWithParams: vi.fn((path: string) => path),
@@ -109,6 +147,9 @@ describe('OrderCompleteComponent', () => {
     const mockDataManager = {
       myGradings: {
         entries: myGradingsSignal,
+      },
+      schools: {
+        entries: signal([sampleSchool]),
       },
     };
 
@@ -207,5 +248,51 @@ describe('OrderCompleteComponent', () => {
     expect(spouseCard?.textContent).toContain('Jane Doe');
     expect(spouseCard?.textContent).toContain('jane.doe@example.com');
     expect(spouseCard?.textContent).toContain('They can now log in to the members portal');
+  });
+
+  it('should detect school license order and compute edit and profile links for renewed school', async () => {
+    mockStripeService.getCheckoutSession.mockResolvedValueOnce(sampleSchoolLicenseSummary);
+    sessionIdSignal.set('cs_test_sch_123');
+    await createComponent();
+
+    expect(component.orderKind()).toBe('school_license');
+    expect(component.isNewSchoolOrder()).toBe(false);
+    expect(component.targetSchool()?.schoolId).toBe('SCH-NY-01');
+    expect(component.schoolEditHref()).toBe('/my-schools/SCH-NY-01/edit');
+    expect(component.schoolProfileHref()).toBe('/school-profile/SCH-NY-01');
+
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h1')?.textContent).toContain('School License Renewed!');
+    expect(compiled.textContent).toContain('New York ILC Branch');
+
+    const links = Array.from(compiled.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(links).toContain('/my-schools/SCH-NY-01/edit');
+    expect(links).toContain('/school-profile/SCH-NY-01');
+  });
+
+  it('should detect new school registration order and provide link to the new school', async () => {
+    const newSchoolSummary: CheckoutSessionSummary = {
+      ...sampleSchoolLicenseSummary,
+      metadata: {
+        orderType: 'school',
+        isNewSchool: 'true',
+        schoolName: 'ILC London Branch',
+        memberDocId: 'mem_1',
+      },
+    };
+
+    mockStripeService.getCheckoutSession.mockResolvedValueOnce(newSchoolSummary);
+    sessionIdSignal.set('cs_test_sch_new');
+    await createComponent();
+
+    expect(component.orderKind()).toBe('school_license');
+    expect(component.isNewSchoolOrder()).toBe(true);
+    expect(component.schoolNameFromOrder()).toBe('ILC London Branch');
+
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h1')?.textContent).toContain('New School Registration Confirmed!');
+    expect(compiled.textContent).toContain('ILC London Branch');
   });
 });

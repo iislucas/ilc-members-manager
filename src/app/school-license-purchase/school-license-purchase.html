@@ -120,67 +120,245 @@
       @if (mySchools().length > 0) {
         <div class="school-mode-toggle">
           <label class="radio-label">
-          <input
-            type="radio"
-            name="licenseAction"
-            value="renew"
-            [checked]="licenseAction() === 'renew'"
-            (change)="licenseAction.set('renew')"
-          />
-          <span>Renew an Existing School</span>
-        </label>
-        <label class="radio-label">
-          <input
-            type="radio"
-            name="licenseAction"
-            value="new"
-            [checked]="licenseAction() === 'new'"
-            (change)="licenseAction.set('new')"
-          />
-          <span>Register a New School</span>
-        </label>
-      </div>
+            <input
+              type="radio"
+              name="licenseAction"
+              value="renew"
+              [checked]="licenseAction() === 'renew'"
+              (change)="licenseAction.set('renew')"
+            />
+            <span>Renew an Existing School</span>
+          </label>
+          <label class="radio-label">
+            <input
+              type="radio"
+              name="licenseAction"
+              value="new"
+              [checked]="licenseAction() === 'new'"
+              (change)="licenseAction.set('new')"
+            />
+            <span>Register a New School</span>
+          </label>
+        </div>
 
-      @if (licenseAction() === 'renew') {
-        <div class="schools-grid">
-          @for (school of mySchools(); track school.docId) {
-            <div
-              class="school-card-choice"
-              [class.selected]="selectedSchoolDocId() === school.docId"
-              (click)="selectedSchoolDocId.set(school.docId)"
-            >
-              <div class="school-choice-header">
-                <span class="school-name">{{ school.schoolName || school.schoolId }}</span>
-                @if (isSchoolActive(school)) {
-                  <span class="status-badge paid">Active</span>
-                } @else {
-                  <span class="status-badge unpaid">Expired</span>
+        @if (licenseAction() === 'renew') {
+          <div class="schools-grid">
+            @for (school of mySchools(); track school.docId) {
+              <div
+                class="school-card-choice"
+                [class.selected]="selectedSchoolDocId() === school.docId"
+                (click)="selectedSchoolDocId.set(school.docId)"
+              >
+                <div class="school-choice-header">
+                  <span class="school-name">{{ school.schoolName || school.schoolId }}</span>
+                  @if (isSchoolActive(school)) {
+                    <span class="status-badge paid">Active</span>
+                  } @else {
+                    <span class="status-badge unpaid">Expired</span>
+                  }
+                </div>
+                <div class="school-choice-meta">
+                  <span>Location: {{ school.schoolCity ? school.schoolCity + ', ' : '' }}{{ school.schoolCountry }}</span>
+                  <span>License Expiry: {{ school.schoolLicenseExpires || 'Not set' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="new-school-form">
+            <p class="new-school-lead">
+              Enter the details for your new official I Liq Chuan affiliated school. You will be assigned as the school owner upon payment.
+            </p>
+
+            <div class="fields-grid">
+              <div class="field-item full-width">
+                <label for="newSchoolName">School Name <span class="required">*</span></label>
+                <input
+                  id="newSchoolName"
+                  type="text"
+                  [ngModel]="newSchoolName()"
+                  (ngModelChange)="newSchoolName.set($event)"
+                  placeholder="e.g. I Liq Chuan Brooklyn Branch"
+                  required
+                />
+              </div>
+
+              <div class="field-item">
+                <label>Country <span class="required">*</span></label>
+                <app-autocomplete
+                  [searchableSet]="dataService.countries"
+                  [displayFns]="countryDisplayFns"
+                  [inputBoxIsChip]="false"
+                  [placeholder]="'Search for a country...'"
+                  [initSearchTerm]="newSchoolCountry()"
+                  (textUpdated)="newSchoolCountry.set($event)"
+                  (itemSelected)="newSchoolCountry.set($event.name)"
+                ></app-autocomplete>
+                @if (countryWithCode(); as cc) {
+                  <span class="identifier-chip country-chip">{{ cc.id }}</span>
+                } @else if (newSchoolCountry().trim()) {
+                  <span class="field-warning">
+                    Unrecognized country. Please select a recognized country from the list.
+                  </span>
                 }
               </div>
-              <div class="school-choice-meta">
-                <span>Location: {{ school.schoolCity ? school.schoolCity + ', ' : '' }}{{ school.schoolCountry }}</span>
-                <span>License Expiry: {{ school.schoolLicenseExpires || 'Not set' }}</span>
+
+              <div class="field-item">
+                <label for="newSchoolCity">City <span class="required">*</span></label>
+                <input
+                  id="newSchoolCity"
+                  type="text"
+                  [ngModel]="newSchoolCity()"
+                  (ngModelChange)="newSchoolCity.set($event)"
+                  placeholder="e.g. Brooklyn"
+                  required
+                />
+              </div>
+
+              <div class="field-item">
+                <label for="newSchoolCountyOrState">State / Province / County</label>
+                <input
+                  id="newSchoolCountyOrState"
+                  type="text"
+                  [ngModel]="newSchoolCountyOrState()"
+                  (ngModelChange)="newSchoolCountyOrState.set($event)"
+                  placeholder="e.g. New York / NY"
+                />
+              </div>
+
+              <div class="field-item">
+                <label for="newSchoolZipCode">Postal / Zip Code</label>
+                <input
+                  id="newSchoolZipCode"
+                  type="text"
+                  [ngModel]="newSchoolZipCode()"
+                  (ngModelChange)="newSchoolZipCode.set($event)"
+                  placeholder="e.g. 11201"
+                />
+              </div>
+
+              <div class="field-item full-width">
+                <label for="newSchoolAddress">Street Address</label>
+                <input
+                  id="newSchoolAddress"
+                  type="text"
+                  [ngModel]="newSchoolAddress()"
+                  (ngModelChange)="newSchoolAddress.set($event)"
+                  placeholder="e.g. 123 Main Street, Suite 2B"
+                />
+              </div>
+
+              <div class="field-item full-width">
+                <label for="newSchoolWebsite">School Website (optional)</label>
+                <input
+                  id="newSchoolWebsite"
+                  type="url"
+                  [ngModel]="newSchoolWebsite()"
+                  (ngModelChange)="newSchoolWebsite.set($event)"
+                  placeholder="e.g. https://www.iliqchuanbrooklyn.com"
+                />
               </div>
             </div>
-          }
-        </div>
+          </div>
+        }
       } @else {
-        <div class="new-school-notice">
-          <p>
-            Purchasing this license will provide 1 year of school affiliation.
-            You will be able to complete your new school's name and details upon payment confirmation.
+        <div class="new-school-form">
+          <p class="new-school-lead">
+            You are registering a new official I Liq Chuan affiliated school. Enter your school details below. You will be assigned as the school owner upon payment.
           </p>
+
+          <div class="fields-grid">
+            <div class="field-item full-width">
+              <label for="newSchoolName">School Name <span class="required">*</span></label>
+              <input
+                id="newSchoolName"
+                type="text"
+                [ngModel]="newSchoolName()"
+                (ngModelChange)="newSchoolName.set($event)"
+                placeholder="e.g. I Liq Chuan Brooklyn Branch"
+                required
+              />
+            </div>
+
+            <div class="field-item">
+              <label>Country <span class="required">*</span></label>
+              <app-autocomplete
+                [searchableSet]="dataService.countries"
+                [displayFns]="countryDisplayFns"
+                [inputBoxIsChip]="false"
+                [placeholder]="'Search for a country...'"
+                [initSearchTerm]="newSchoolCountry()"
+                (textUpdated)="newSchoolCountry.set($event)"
+                (itemSelected)="newSchoolCountry.set($event.name)"
+              ></app-autocomplete>
+              @if (countryWithCode(); as cc) {
+                <span class="identifier-chip country-chip">{{ cc.id }}</span>
+              } @else if (newSchoolCountry().trim()) {
+                <span class="field-warning">
+                  Unrecognized country. Please select a recognized country from the list.
+                </span>
+              }
+            </div>
+
+            <div class="field-item">
+              <label for="newSchoolCity">City <span class="required">*</span></label>
+              <input
+                id="newSchoolCity"
+                type="text"
+                [ngModel]="newSchoolCity()"
+                (ngModelChange)="newSchoolCity.set($event)"
+                placeholder="e.g. Brooklyn"
+                required
+              />
+            </div>
+
+            <div class="field-item">
+              <label for="newSchoolCountyOrState">State / Province / County</label>
+              <input
+                id="newSchoolCountyOrState"
+                type="text"
+                [ngModel]="newSchoolCountyOrState()"
+                (ngModelChange)="newSchoolCountyOrState.set($event)"
+                placeholder="e.g. New York / NY"
+              />
+            </div>
+
+            <div class="field-item">
+              <label for="newSchoolZipCode">Postal / Zip Code</label>
+              <input
+                id="newSchoolZipCode"
+                type="text"
+                [ngModel]="newSchoolZipCode()"
+                (ngModelChange)="newSchoolZipCode.set($event)"
+                placeholder="e.g. 11201"
+              />
+            </div>
+
+            <div class="field-item full-width">
+              <label for="newSchoolAddress">Street Address</label>
+              <input
+                id="newSchoolAddress"
+                type="text"
+                [ngModel]="newSchoolAddress()"
+                (ngModelChange)="newSchoolAddress.set($event)"
+                placeholder="e.g. 123 Main Street, Suite 2B"
+              />
+            </div>
+
+            <div class="field-item full-width">
+              <label for="newSchoolWebsite">School Website (optional)</label>
+              <input
+                id="newSchoolWebsite"
+                type="url"
+                [ngModel]="newSchoolWebsite()"
+                (ngModelChange)="newSchoolWebsite.set($event)"
+                placeholder="e.g. https://www.iliqchuanbrooklyn.com"
+              />
+            </div>
+          </div>
         </div>
       }
-    } @else {
-      <div class="new-school-notice">
-        <p>
-          You are registering a new affiliated school.
-          Purchasing this license will grant 1 full year of official school affiliation.
-        </p>
-      </div>
     }
-  }
   </div>
 
   <!-- Step 3: School Affiliation Fee & Checkout -->
@@ -249,11 +427,11 @@
               <button
                 type="button"
                 class="button pay-btn"
-                [disabled]="licenseAction() === 'renew' && !selectedSchoolDocId() && mySchools().length > 0"
+                [disabled]="licenseAction() === 'renew' ? (!selectedSchoolDocId() && mySchools().length > 0) : (!newSchoolName().trim() || !newSchoolCountry().trim() || !newSchoolCity().trim())"
                 (click)="onPurchaseSchoolLicense()"
               >
                 <span>
-                  {{ licenseAction() === 'renew' && selectedSchoolDocId() ? 'Renew Selected School License' : 'Get School License' }}
+                  {{ licenseAction() === 'renew' && selectedSchoolDocId() ? 'Renew Selected School License' : 'Register School & Pay License Fee' }}
                 </span>
                 <app-icon name="arrow_forward"></app-icon>
               </button>
@@ -265,23 +443,6 @@
           <p>School license rates are currently being configured. Please check back shortly.</p>
         </div>
       }
-    </div>
-  }
-
-  <!-- Past Orders if any -->
-  @if (recentSchoolOrders().length > 0) {
-    <div class="past-orders-card card">
-      <h2>Previous School License Orders</h2>
-      <div class="orders-list">
-        @for (o of recentSchoolOrders(); track o.docId) {
-          <div class="order-row">
-            <span class="order-ref">Order: <strong>{{ o.orderDocId }}</strong></span>
-            <span class="order-date">{{ o.created.split('T')[0] }}</span>
-            <span class="order-amount">{{ formatAmount(o.amountTotal, o.currency) }}</span>
-            <span class="status-badge paid">{{ o.paymentStatus }}</span>
-          </div>
-        }
-      </div>
     </div>
   }
 </div>

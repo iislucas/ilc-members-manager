@@ -41,12 +41,27 @@ async function resolveInstructorEmails(instructorIds: string[]): Promise<string[
   return emails;
 }
 
+async function resolveSchoolEmails(school: School): Promise<{ ownerEmails: string[]; managerEmails: string[] }> {
+  const ownerEmails = await resolveInstructorEmails([school.ownerInstructorId]);
+  if (school.ownerMemberDocId) {
+    const mDoc = await db.collection('members').doc(school.ownerMemberDocId).get();
+    if (mDoc.exists && mDoc.data()?.emails) {
+      for (const email of mDoc.data()!.emails) {
+        if (email && !ownerEmails.includes(email)) {
+          ownerEmails.push(email);
+        }
+      }
+    }
+  }
+  const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
+  return { ownerEmails, managerEmails };
+}
+
 // @deprecated — ownerEmails/managerEmails on School documents are being
 // phased out. Security rules now use the ACL's schoolDocIds field instead.
 // This function is kept temporarily for backward compatibility.
 async function updateSchoolEmails(schoolId: string, school: School) {
-  const ownerEmails = await resolveInstructorEmails([school.ownerInstructorId]);
-  const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
+  const { ownerEmails, managerEmails } = await resolveSchoolEmails(school);
 
   logger.info(`Updating school ${schoolId} with ${ownerEmails.length} ownerEmails and ${managerEmails.length} managerEmails.`);
 
@@ -109,8 +124,7 @@ export const onSchoolCreated = onDocumentCreated(
 
     // Refresh ACLs of the new school's owner/managers so they get
     // this school in their schoolDocIds.
-    const ownerEmails = await resolveInstructorEmails([school.ownerInstructorId]);
-    const managerEmails = await resolveInstructorEmails(school.managerInstructorIds || []);
+    const { ownerEmails, managerEmails } = await resolveSchoolEmails(school);
     const affectedEmails = new Set([...ownerEmails, ...managerEmails]);
     for (const email of affectedEmails) {
       if (email) {
@@ -130,6 +144,7 @@ export const onSchoolUpdated = onDocumentUpdated(
 
     const ownershipChanged =
       schoolAfter.ownerInstructorId !== schoolBefore.ownerInstructorId ||
+      schoolAfter.ownerMemberDocId !== schoolBefore.ownerMemberDocId ||
       JSON.stringify(schoolAfter.managerInstructorIds) !== JSON.stringify(schoolBefore.managerInstructorIds);
 
     if (ownershipChanged || !schoolAfter.ownerEmails || !schoolAfter.managerEmails) {
@@ -147,17 +162,16 @@ export const onSchoolUpdated = onDocumentUpdated(
       schoolAfter.schoolLicenseExpires !== schoolBefore.schoolLicenseExpires;
     if (licenseChanged || ownershipChanged) {
       // Find emails that currently reference this school in their ACL,
-      // plus resolve the new owner/manager instructor IDs to emails.
-      const [existingEmails, newOwnerEmails, newManagerEmails] = await Promise.all([
+      // plus resolve the new owner/manager emails.
+      const [existingEmails, resolvedAfter] = await Promise.all([
         findEmailsWithSchoolInACL(snap.after.id),
-        resolveInstructorEmails([schoolAfter.ownerInstructorId]),
-        resolveInstructorEmails(schoolAfter.managerInstructorIds || []),
+        resolveSchoolEmails(schoolAfter),
       ]);
 
       const affectedEmails = new Set([
         ...existingEmails,
-        ...newOwnerEmails,
-        ...newManagerEmails,
+        ...resolvedAfter.ownerEmails,
+        ...resolvedAfter.managerEmails,
       ]);
 
       for (const email of affectedEmails) {

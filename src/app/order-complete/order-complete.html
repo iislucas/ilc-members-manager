@@ -56,6 +56,24 @@
               A receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
             }
           </p>
+        } @else if (kind === 'school_license') {
+          @if (isNewSchoolOrder()) {
+            <h1>New School Registration Confirmed!</h1>
+            <p class="lead">
+              Your new school <strong>{{ schoolNameFromOrder() }}</strong> has been officially registered and affiliated with the Chin Family I Liq Chuan Association.
+              @if (summary.customerEmail) {
+                A confirmation receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+              }
+            </p>
+          } @else {
+            <h1>School License Renewed!</h1>
+            <p class="lead">
+              The affiliation license for <strong>{{ schoolNameFromOrder() }}</strong> has been successfully renewed for 1 full year.
+              @if (summary.customerEmail) {
+                A confirmation receipt has been sent to <strong>{{ summary.customerEmail }}</strong>.
+              }
+            </p>
+          }
         } @else if (kind === 'license') {
           <h1>License Order Confirmed!</h1>
           <p class="lead">
@@ -245,6 +263,69 @@
             </div>
           </div>
         </div>
+      } @else if (kind === 'school_license') {
+        <div class="member-benefits-section">
+          <h2>School Management & Next Steps</h2>
+          <div class="benefits-grid single-col">
+            @if (targetSchool(); as school) {
+              <div class="benefit-card">
+                <div class="benefit-icon-box">
+                  <app-icon name="map" width="24px" height="24px"></app-icon>
+                </div>
+                <div class="benefit-body">
+                  <h4>{{ school.schoolName || school.schoolId }}</h4>
+                  <p>
+                    @if (isNewSchoolOrder()) {
+                      Your official school entry has been created. You can customize its public description, upload logos and cover photos, add location details, and set up your class schedule.
+                    } @else {
+                      Your school license is active until {{ school.schoolLicenseExpires || 'next year' }}. Manage your school profile, schedule, and public listing.
+                    }
+                  </p>
+                  <div class="multi-links">
+                    <a class="benefit-link" [href]="schoolEditHref()">
+                      <span>Edit School Profile</span>
+                      <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                    </a>
+                    @if (school.schoolId) {
+                      <a class="benefit-link" [href]="schoolProfileHref()">
+                        <span>View Public School Page</span>
+                        <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                      </a>
+                    }
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="benefit-card">
+                <div class="benefit-icon-box">
+                  <app-icon name="map" width="24px" height="24px"></app-icon>
+                </div>
+                <div class="benefit-body">
+                  <h4>{{ schoolNameFromOrder() }}</h4>
+                  <p>Your school license has been activated. Manage your schools, update profiles, and coordinate with students.</p>
+                  <a class="benefit-link" [href]="routingService.hrefForView(Views.MySchools)">
+                    <span>Go to My Schools</span>
+                    <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                  </a>
+                </div>
+              </div>
+            }
+
+            <div class="benefit-card">
+              <div class="benefit-icon-box">
+                <app-icon name="location_on" width="24px" height="24px"></app-icon>
+              </div>
+              <div class="benefit-body">
+                <h4>All My Schools</h4>
+                <p>View and manage all official schools and branches you own or coordinate.</p>
+                <a class="benefit-link" [href]="routingService.hrefForView(Views.MySchools)">
+                  <span>View My Schools</span>
+                  <app-icon name="arrow_forward" width="16px" height="16px"></app-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       } @else if (kind === 'video') {
         <div class="member-benefits-section">
           <h2>Start Watching Now</h2>
@@ -281,6 +362,22 @@
               <span>View All Gradings</span>
             </span>
           </a>
+        } @else if (kind === 'school_license') {
+          @if (targetSchool()) {
+            <a class="profile-btn" [href]="schoolEditHref()">
+              <span class="btn-content">
+                <app-icon name="map"></app-icon>
+                <span>Edit School Profile</span>
+              </span>
+            </a>
+          } @else {
+            <a class="profile-btn" [href]="routingService.hrefForView(Views.MySchools)">
+              <span class="btn-content">
+                <app-icon name="map"></app-icon>
+                <span>My Schools</span>
+              </span>
+            </a>
+          }
         } @else {
           <a class="profile-btn" [href]="routingService.hrefForView(Views.MyProfile)">
             <span class="btn-content">

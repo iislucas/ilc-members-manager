@@ -837,5 +837,144 @@ describe('stripe-fulfillment', () => {
         }),
       );
     });
+
+    describe('School license fulfillment', () => {
+      it('should renew an existing school license', async () => {
+        const mockSchoolRef = {
+          get: vi.fn().mockResolvedValue({
+            exists: true,
+            data: () => ({
+              schoolLicenseExpires: '2027-01-01',
+            }),
+          }),
+          update: vi.fn().mockResolvedValue({}),
+        };
+
+        const customDb = {
+          ...mockDb,
+          collection: vi.fn((colName: string) => {
+            if (colName === 'schools') {
+              return {
+                doc: vi.fn().mockReturnValue(mockSchoolRef),
+              };
+            }
+            if (colName === 'members') {
+              return {
+                doc: vi.fn().mockReturnValue(mockMemberRef),
+              };
+            }
+            return mockDb.collection(colName);
+          }),
+        };
+
+        const order: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-05-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_school_renew',
+          mode: StripeCheckoutMode.Payment,
+          created: '2026-05-15T00:00:00Z',
+          amountTotal: 60000,
+          currency: 'usd',
+          metadata: {
+            orderType: 'school',
+            schoolDocId: 'school_123',
+            schoolId: 'SCH-100',
+            memberDocId: sampleMember.docId,
+          },
+          lineItems: [
+            {
+              productId: 'prod_school',
+              priceId: 'price_school_yearly',
+              description: '1-Year School Affiliation License',
+              quantity: 1,
+              amountTotal: 60000,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(customDb, sampleMember, order, 'order_sch_renew');
+
+        expect(mockSchoolRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            schoolLicenseExpires: '2028-01-01',
+          }),
+        );
+      });
+
+      it('should create a new school and assign memberDocId as owner when purchasing for a new school', async () => {
+        const createdSchoolData: any[] = [];
+        const mockNewSchoolDocRef = {
+          id: 'new_school_doc_789',
+          set: vi.fn().mockImplementation(async (data) => {
+            createdSchoolData.push(data);
+          }),
+        };
+
+        const customDb = {
+          ...mockDb,
+          collection: vi.fn((colName: string) => {
+            if (colName === 'schools') {
+              return {
+                doc: vi.fn().mockReturnValue(mockNewSchoolDocRef),
+              };
+            }
+            if (colName === 'members') {
+              return {
+                doc: vi.fn().mockReturnValue(mockMemberRef),
+              };
+            }
+            return mockDb.collection(colName);
+          }),
+        };
+
+        const order: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-05-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_school_new',
+          mode: StripeCheckoutMode.Payment,
+          created: '2026-05-15T00:00:00Z',
+          amountTotal: 60000,
+          currency: 'usd',
+          metadata: {
+            orderType: 'school',
+            isNewSchool: 'true',
+            schoolName: 'ILC London Academy',
+            schoolCountry: 'United Kingdom',
+            schoolCity: 'London',
+            schoolAddress: '10 Downing St',
+            memberDocId: sampleMember.docId,
+          },
+          lineItems: [
+            {
+              productId: 'prod_school',
+              priceId: 'price_school_yearly',
+              description: '1-Year School Affiliation License',
+              quantity: 1,
+              amountTotal: 60000,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(customDb, sampleMember, order, 'order_sch_new');
+
+        expect(mockNewSchoolDocRef.set).toHaveBeenCalledTimes(1);
+        expect(createdSchoolData[0]).toEqual(
+          expect.objectContaining({
+            schoolName: 'ILC London Academy',
+            schoolCountry: 'United Kingdom',
+            schoolCity: 'London',
+            schoolAddress: '10 Downing St',
+            ownerMemberDocId: sampleMember.docId,
+            schoolId: 'SCH-101',
+          }),
+        );
+      });
+    });
   });
 });

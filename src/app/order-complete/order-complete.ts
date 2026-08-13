@@ -23,9 +23,15 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
-import { Grading } from '../../../functions/src/data-model';
+import { Grading, School } from '../../../functions/src/data-model';
 
-export type OrderKind = 'membership' | 'grading' | 'license' | 'video' | 'general';
+export type OrderKind =
+  | 'membership'
+  | 'grading'
+  | 'license'
+  | 'school_license'
+  | 'video'
+  | 'general';
 
 type LoadState =
   | { kind: 'idle' }
@@ -89,6 +95,98 @@ export class OrderCompleteComponent {
     );
   });
 
+  isNewSchoolOrder = computed<boolean>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return false;
+    const meta = s.summary.metadata || {};
+    return meta['isNewSchool'] === 'true';
+  });
+
+  targetSchool = computed<School | null>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return null;
+    const meta = s.summary.metadata || {};
+    const isSchool =
+      meta['orderType'] === 'school' ||
+      meta['isNewSchool'] === 'true' ||
+      !!meta['schoolDocId'] ||
+      !!meta['schoolId'] ||
+      s.summary.lineItems.some((item) =>
+        item.description.toLowerCase().includes('school'),
+      );
+
+    if (!isSchool) return null;
+
+    const allSchools = this.dataService.schools.entries();
+    if (!allSchools || allSchools.length === 0) return null;
+
+    const schoolDocId = meta['schoolDocId'];
+    if (schoolDocId) {
+      const found = allSchools.find((sch) => sch.docId === schoolDocId);
+      if (found) return found;
+    }
+
+    const schoolId = meta['schoolId'];
+    if (schoolId) {
+      const found = allSchools.find((sch) => sch.schoolId === schoolId);
+      if (found) return found;
+    }
+
+    const schoolName = meta['schoolName']?.trim();
+    const user = this.firebaseStateService.user();
+    const memberDocId = meta['memberDocId'] || user?.member?.docId;
+
+    if (schoolName) {
+      const found = allSchools.find(
+        (sch) => sch.schoolName?.toLowerCase() === schoolName.toLowerCase(),
+      );
+      if (found) return found;
+    }
+
+    const isNew = meta['isNewSchool'] === 'true';
+    if (memberDocId && !isNew) {
+      const owned = allSchools.filter(
+        (sch) => sch.ownerMemberDocId === memberDocId,
+      );
+      if (owned.length > 0) {
+        const sorted = [...owned].sort((a, b) =>
+          (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
+        );
+        return sorted[0];
+      }
+    }
+
+    return null;
+  });
+
+  schoolNameFromOrder = computed<string>(() => {
+    const s = this.state();
+    if (s.kind !== 'loaded') return '';
+    const meta = s.summary.metadata || {};
+    return (
+      meta['schoolName'] ||
+      this.targetSchool()?.schoolName ||
+      this.targetSchool()?.schoolId ||
+      'Affiliated School'
+    );
+  });
+
+  schoolProfileHref = computed<string>(() => {
+    const school = this.targetSchool();
+    if (!school) return this.routingService.hrefForView(Views.MySchools);
+    return this.routingService.hrefForView(Views.SchoolView, {
+      schoolId: school.schoolId || school.docId,
+    });
+  });
+
+  schoolEditHref = computed<string>(() => {
+    const school = this.targetSchool();
+    if (!school) return this.routingService.hrefForView(Views.MySchools);
+    return this.routingService.hrefForView(Views.MySchoolEdit, {
+      schoolId: school.schoolId || school.docId,
+    });
+  });
+
   orderKind = computed<OrderKind>(() => {
     const s = this.state();
     if (s.kind !== 'loaded') return 'general';
@@ -98,6 +196,14 @@ export class OrderCompleteComponent {
     }
     if (meta['gradingLevel'] || meta['orderType'] === 'grading') {
       return 'grading';
+    }
+    if (
+      meta['orderType'] === 'school' ||
+      meta['isNewSchool'] === 'true' ||
+      !!meta['schoolDocId'] ||
+      !!meta['schoolId']
+    ) {
+      return 'school_license';
     }
     if (meta['orderType'] === 'license') {
       return 'license';
@@ -121,11 +227,10 @@ export class OrderCompleteComponent {
     if (text.includes('grading')) {
       return 'grading';
     }
-    if (
-      text.includes('license') ||
-      text.includes('instructor') ||
-      text.includes('school')
-    ) {
+    if (text.includes('school')) {
+      return 'school_license';
+    }
+    if (text.includes('license') || text.includes('instructor')) {
       return 'license';
     }
     if (text.includes('video') || text.includes('library')) {
