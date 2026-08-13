@@ -1969,6 +1969,10 @@ export type CheckEmailStatusResult = {
   // Whether the email appears to be Google-managed (gmail.com / googlemail.com
   // domain, or the existing auth account has a google.com provider).
   isGoogleManaged: boolean;
+  // Whether the existing auth account has a password provider configured.
+  hasPasswordProvider?: boolean;
+  // Whether the existing auth account has a google.com provider configured.
+  hasGoogleProvider?: boolean;
 };
 
 // ==================================================================

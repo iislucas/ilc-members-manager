@@ -139,11 +139,13 @@ describe('InlineAuthComponent', () => {
     expect(compiled.querySelector('.identifier-chip')?.textContent).toContain('US123');
   });
 
-  it('should route to GoogleSignin step when email is Google-managed', async () => {
+  it('should route to GoogleSignin step when email is Google-managed without password provider', async () => {
     mockFirebaseService.checkEmailStatus.mockResolvedValueOnce({
       hasMemberRecord: true,
       hasAuthAccount: true,
       isGoogleManaged: true,
+      hasPasswordProvider: false,
+      hasGoogleProvider: true,
     });
 
     await createComponent();

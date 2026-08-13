@@ -298,11 +298,13 @@
       }
 
       &.renew-link {
-        background: #18181b;
-        color: #ffffff;
-        border: 1px solid #18181b;
+        background: #f0f9ff;
+        color: #0284c7;
+        border: 1px solid #bae6fd;
         &:hover {
-          background: #27272a;
+          background: #e0f2fe;
+          border-color: #7dd3fc;
+          color: #0369a1;
         }
       }
 

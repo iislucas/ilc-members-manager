@@ -144,15 +144,13 @@
             <button id="google-signin-btn" (click)="loginWithGoogle()">
               Sign in with Google
             </button>
-            @if (!isReturningUser()) {
-              <button
-                id="use-password-btn"
-                class="secondary-action"
-                (click)="usePasswordInstead()"
-              >
-                Use password instead
-              </button>
-            }
+            <button
+              id="use-password-btn"
+              class="secondary-action"
+              (click)="usePasswordInstead()"
+            >
+              Use password instead
+            </button>
             <button class="back-link" (click)="goBackToEmail()">
               Use a different email
             </button>
@@ -219,6 +217,16 @@
             >
               Sign In
             </button>
+            @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
+              <button
+                type="button"
+                id="use-google-btn"
+                class="secondary-action"
+                (click)="useGoogleInstead()"
+              >
+                Sign in with Google instead
+              </button>
+            }
             <button class="back-link" (click)="goBackToEmail()">
               Use a different email
             </button>

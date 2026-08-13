@@ -30,6 +30,61 @@ main {
   }
 }
 
+.login-page-top-section {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 900px;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+
+  .login-box-container {
+    flex: 0 0 340px;
+    max-width: 360px;
+    width: 100%;
+
+    .login-container {
+      padding: 0;
+    }
+  }
+
+  .app-info {
+    flex: 1;
+    min-width: 260px;
+    margin: 0;
+    padding: 0.5rem 0 0 0;
+    text-align: left;
+    font-size: 1.05em;
+    line-height: 1.6;
+    color: $text-primary;
+    max-width: none;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+
+    .login-box-container {
+      flex: 0 0 auto;
+      max-width: 100%;
+    }
+
+    .app-info {
+      text-align: center;
+      padding: 0 1rem;
+    }
+  }
+}
+
 .app-info {
   display: flex;
   flex-direction: column;

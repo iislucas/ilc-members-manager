@@ -110,15 +110,13 @@
             <button id="google-signin-btn" (click)="loginWithGoogle()">
               Sign in with Google
             </button>
-            @if (!isReturningUser()) {
-              <button
-                id="use-password-btn"
-                class="secondary-action"
-                (click)="usePasswordInstead()"
-              >
-                Use password instead
-              </button>
-            }
+            <button
+              id="use-password-btn"
+              class="secondary-action"
+              (click)="usePasswordInstead()"
+            >
+              Use password instead
+            </button>
           </div>
           <button class="back-link" (click)="goBackToEmail()">
             Use a different email
@@ -179,9 +177,6 @@
           }
 
           <div class="step-actions">
-            <button class="back-link" (click)="goBackToEmail()">
-              Use a different email
-            </button>
             <button
               id="login-btn"
               (click)="loginWithEmail()"
@@ -189,7 +184,20 @@
             >
               Sign in
             </button>
+            @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
+              <button
+                type="button"
+                id="use-google-btn"
+                class="secondary-action"
+                (click)="useGoogleInstead()"
+              >
+                Sign in with Google instead
+              </button>
+            }
           </div>
+          <button class="back-link" (click)="goBackToEmail()">
+            Use a different email
+          </button>
         }
 
         <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->

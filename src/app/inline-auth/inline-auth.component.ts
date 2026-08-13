@@ -34,8 +34,9 @@ export enum InlineAuthStep {
 
 type CachedLoginInfo = {
   email: string;
-  isGoogleManaged: boolean;
-  hasAuthAccount: boolean;
+  isGoogleManaged?: boolean;
+  hasAuthAccount?: boolean;
+  preferredMethod?: 'password' | 'google';
 };
 
 const CACHED_LOGIN_KEY = 'ilc-login-info';
@@ -119,12 +120,16 @@ export class InlineAuthComponent {
       this.email.set(cached.email);
       this.emailStatus.set({
         hasMemberRecord: true,
-        hasAuthAccount: cached.hasAuthAccount,
-        isGoogleManaged: cached.isGoogleManaged,
+        hasAuthAccount: cached.hasAuthAccount ?? true,
+        isGoogleManaged: cached.isGoogleManaged ?? false,
       });
       this.isReturningUser.set(true);
 
-      if (cached.isGoogleManaged) {
+      if (cached.preferredMethod === 'password') {
+        this.step.set(InlineAuthStep.PasswordLogin);
+      } else if (cached.preferredMethod === 'google') {
+        this.step.set(InlineAuthStep.GoogleSignin);
+      } else if (cached.isGoogleManaged) {
         this.step.set(InlineAuthStep.GoogleSignin);
       } else if (cached.hasAuthAccount) {
         this.step.set(InlineAuthStep.PasswordLogin);
@@ -146,22 +151,36 @@ export class InlineAuthComponent {
       const result = await this.firebaseService.checkEmailStatus(emailVal);
       this.emailStatus.set(result);
 
-      if (!result.hasMemberRecord && this.showNoMemberOption()) {
+      if (!result.hasMemberRecord && !result.hasAuthAccount && this.showNoMemberOption()) {
         this.step.set(InlineAuthStep.NoMember);
       } else {
+        let defaultStep: InlineAuthStep;
+        let preferredMethod: 'password' | 'google' = 'password';
+
+        if (result.hasAuthAccount) {
+          if (result.hasPasswordProvider) {
+            defaultStep = InlineAuthStep.PasswordLogin;
+            preferredMethod = 'password';
+          } else if (result.hasGoogleProvider) {
+            defaultStep = InlineAuthStep.GoogleSignin;
+            preferredMethod = 'google';
+          } else {
+            defaultStep = result.isGoogleManaged ? InlineAuthStep.GoogleSignin : InlineAuthStep.PasswordLogin;
+            preferredMethod = result.isGoogleManaged ? 'google' : 'password';
+          }
+        } else {
+          defaultStep = result.isGoogleManaged ? InlineAuthStep.GoogleSignin : InlineAuthStep.CreateAccount;
+          preferredMethod = result.isGoogleManaged ? 'google' : 'password';
+        }
+
         setCachedLoginInfo({
           email: emailVal,
           isGoogleManaged: result.isGoogleManaged,
           hasAuthAccount: result.hasAuthAccount,
+          preferredMethod,
         });
 
-        if (result.isGoogleManaged) {
-          this.step.set(InlineAuthStep.GoogleSignin);
-        } else if (result.hasAuthAccount) {
-          this.step.set(InlineAuthStep.PasswordLogin);
-        } else {
-          this.step.set(InlineAuthStep.CreateAccount);
-        }
+        this.step.set(defaultStep);
       }
     } catch (error) {
       console.error('checkEmailStatus failed:', error);
@@ -178,9 +197,14 @@ export class InlineAuthComponent {
     try {
       const result = await this.firebaseService.loginWithGoogle();
       if (result.success) {
-        const emailVal = this.email().trim();
+        const emailVal = this.email().trim() || this.firebaseService.user()?.firebaseUser?.email || '';
         if (emailVal) {
-          setCachedLoginInfo({ email: emailVal, isGoogleManaged: true, hasAuthAccount: true });
+          setCachedLoginInfo({
+            email: emailVal,
+            isGoogleManaged: true,
+            hasAuthAccount: true,
+            preferredMethod: 'google',
+          });
         }
       } else {
         if (result.errorCode !== 'auth/cancelled-popup-request') {
@@ -206,6 +230,7 @@ export class InlineAuthComponent {
           email: emailVal,
           isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
           hasAuthAccount: true,
+          preferredMethod: 'password',
         });
       } else {
         if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
@@ -223,7 +248,7 @@ export class InlineAuthComponent {
     this.dismissMessages();
     const emailVal = this.email().trim();
     const passVal = this.password();
-    if (!emailVal || !passVal || passVal.length < 6) return;
+    if (!emailVal || !passVal) return;
 
     this.authLoading.set(true);
     try {
@@ -233,15 +258,15 @@ export class InlineAuthComponent {
           email: emailVal,
           isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
           hasAuthAccount: true,
+          preferredMethod: 'password',
         });
       } else {
-        if (result.errorCode === AuthErrorCodes.EMAIL_EXISTS) {
-          this.step.set(InlineAuthStep.PasswordLogin);
-          this.loginError.set(
+        if (result.errorCode === 'auth/email-already-in-use') {
+          this.signupError.set(
             'An account already exists for this email. Please sign in with your password, or reset it below.',
           );
         } else {
-          this.signupError.set(`${result.errorCode}: unable to create account.`);
+          this.signupError.set(result.errorCode);
         }
       }
     } finally {
@@ -267,12 +292,18 @@ export class InlineAuthComponent {
   }
 
   usePasswordInstead(): void {
+    this.dismissMessages();
     const status = this.emailStatus();
     if (status?.hasAuthAccount) {
       this.step.set(InlineAuthStep.PasswordLogin);
     } else {
       this.step.set(InlineAuthStep.CreateAccount);
     }
+  }
+
+  useGoogleInstead(): void {
+    this.dismissMessages();
+    this.step.set(InlineAuthStep.GoogleSignin);
   }
 
   goBackToEmail(): void {
