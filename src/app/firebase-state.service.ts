@@ -364,8 +364,10 @@ export class FirebaseStateService {
       try {
         await sendEmailVerification(userCredential.user);
         this.verificationEmailSent.set(true);
-      } catch (err) {
+        this.verificationError.set(null);
+      } catch (err: any) {
         console.warn('sendEmailVerification on signup error:', err);
+        this.verificationError.set(err?.message || 'Failed to send verification email. Please try clicking "Resend Email".');
       }
       return { success: true, userCredential };
     } catch (exception: unknown) {

@@ -137,13 +137,10 @@ export const cancelSubscriptionRenewal = onCall<
     updates['classVideoLibraryNextAutoRenewDate'] = '';
   }
 
-  if (
-    (member.subscriptions && member.subscriptions[subscriptionId]) ||
-    (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId])
-  ) {
-    updates[`subscriptions.${subscriptionId}.cancelAtPeriodEnd`] = true;
-    updates[`subscriptions.${subscriptionId}.nextAutoRenewDate`] = '';
-    updates[`subscriptions.${subscriptionId}.canceledAt`] = today;
+  if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
+    updates[`stripeSubscriptions.${subscriptionId}.cancelAtPeriodEnd`] = true;
+    updates[`stripeSubscriptions.${subscriptionId}.nextAutoRenewDate`] = '';
+    updates[`stripeSubscriptions.${subscriptionId}.canceledAt`] = today;
   }
 
   await memberRef.update(updates);
@@ -209,14 +206,11 @@ export const resumeSubscriptionRenewal = onCall<
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
   }
 
-  if (
-    (member.subscriptions && member.subscriptions[subscriptionId]) ||
-    (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId])
-  ) {
-    updates[`subscriptions.${subscriptionId}.cancelAtPeriodEnd`] = false;
-    updates[`subscriptions.${subscriptionId}.nextAutoRenewDate`] =
+  if (member.stripeSubscriptions && member.stripeSubscriptions[subscriptionId]) {
+    updates[`stripeSubscriptions.${subscriptionId}.cancelAtPeriodEnd`] = false;
+    updates[`stripeSubscriptions.${subscriptionId}.nextAutoRenewDate`] =
       nextAutoRenewDate;
-    updates[`subscriptions.${subscriptionId}.canceledAt`] = '';
+    updates[`stripeSubscriptions.${subscriptionId}.canceledAt`] = '';
   }
 
   await memberRef.update(updates);

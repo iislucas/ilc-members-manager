@@ -530,7 +530,7 @@ export async function fulfillStripeOrder(
       ? extendDateByYears(today, 1)
       : extendDateByMonths(today, 1);
 
-    memberUpdates[`subscriptions.${subKey}`] = {
+    memberUpdates[`stripeSubscriptions.${subKey}`] = {
       subscriptionId: order.subscriptionId,
       type: categorizeSubscriptionItem(order.lineItems[0] || { description: '', productId: null, priceId: null, quantity: null, amountTotal: 0, currency: 'usd' }),
       status: SubscriptionStatus.Active,
@@ -616,15 +616,12 @@ export async function syncSubscriptionStatusToMember(
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
   }
 
-  if (
-    (member.subscriptions && member.subscriptions[subscription.id]) ||
-    (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id])
-  ) {
-    updates[`subscriptions.${subscription.id}.status`] = status;
-    updates[`subscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
-    updates[`subscriptions.${subscription.id}.nextAutoRenewDate`] =
+  if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
+    updates[`stripeSubscriptions.${subscription.id}.status`] = status;
+    updates[`stripeSubscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
+    updates[`stripeSubscriptions.${subscription.id}.nextAutoRenewDate`] =
       nextAutoRenewDate;
-    updates[`subscriptions.${subscription.id}.cancelAtPeriodEnd`] =
+    updates[`stripeSubscriptions.${subscription.id}.cancelAtPeriodEnd`] =
       cancelAtPeriodEnd;
   }
 
