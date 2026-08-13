@@ -8,7 +8,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassVideoLibraryPurchaseComponent } from './class-video-library-purchase';
 import { StripeService } from '../stripe.service';
-import { FirebaseStateService, UserData } from '../firebase-state.service';
+import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
@@ -29,7 +29,7 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
-  let userSignal: ReturnType<typeof signal<UserData | null>>;
+  let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let mockDataManager: {
     myOrders: { entries: ReturnType<typeof vi.fn> };
   };
@@ -61,22 +61,24 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     },
   ];
 
-  const sampleUser: UserData = {
-    email: 'user@example.com',
-    member: {
-      ...initMember(),
-      docId: 'mem_vid_1',
-      name: 'Charlie Member',
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: '2028-01-01',
-      classVideoLibrarySubscription: true,
-      classVideoLibraryExpirationDate: '2027-01-01',
-      classVideoLibrarySubscriptionId: 'sub_vid_123',
-      classVideoLibraryNextAutoRenewDate: '2027-01-01',
-    },
-    memberDocIds: ['mem_vid_1'],
+  const sampleMember = {
+    ...initMember(),
+    docId: 'mem_vid_1',
+    name: 'Charlie Member',
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: '2028-01-01',
+    classVideoLibrarySubscription: true,
+    classVideoLibraryExpirationDate: '2027-01-01',
+    classVideoLibrarySubscriptionId: 'sub_vid_123',
+    classVideoLibraryNextAutoRenewDate: '2027-01-01',
+  };
+
+  const sampleUser: UserDetails = {
+    member: sampleMember,
+    memberProfiles: [sampleMember],
     schoolsManaged: [],
     isAdmin: false,
+    firebaseUser: { email: 'user@example.com', uid: 'uid_vid_1' } as never,
   };
 
   beforeEach(async () => {
@@ -107,7 +109,7 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
       }),
     };
 
-    userSignal = signal<UserData | null>(sampleUser);
+    userSignal = signal<UserDetails | null>(sampleUser);
 
     mockDataManager = {
       myOrders: {

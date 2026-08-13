@@ -8,7 +8,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SchoolLicensePurchaseComponent } from './school-license-purchase';
 import { StripeService } from '../stripe.service';
-import { FirebaseStateService, UserData } from '../firebase-state.service';
+import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
@@ -32,7 +32,7 @@ describe('SchoolLicensePurchaseComponent', () => {
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
   };
-  let userSignal: ReturnType<typeof signal<UserData | null>>;
+  let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let mockDataManager: {
     schools: { entries: ReturnType<typeof vi.fn> };
     myOrders: { entries: ReturnType<typeof vi.fn> };
@@ -97,23 +97,25 @@ describe('SchoolLicensePurchaseComponent', () => {
     ownerInstructorId: 'US-INS-01',
     schoolLicenseExpires: '2027-01-01',
     schoolLicenseRenewalDate: '2026-01-01',
-    country: 'United States',
-    city: 'New York',
+    schoolCountry: 'United States',
+    schoolCity: 'New York',
   };
 
-  const sampleUser: UserData = {
-    email: 'owner@example.com',
-    member: {
-      ...initMember(),
-      docId: 'mem_owner_1',
-      name: 'Bob Owner',
-      instructorId: 'US-INS-01',
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: '2028-01-01',
-    },
-    memberDocIds: ['mem_owner_1'],
+  const sampleMember = {
+    ...initMember(),
+    docId: 'mem_owner_1',
+    name: 'Bob Owner',
+    instructorId: 'US-INS-01',
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: '2028-01-01',
+  };
+
+  const sampleUser: UserDetails = {
+    member: sampleMember,
+    memberProfiles: [sampleMember],
     schoolsManaged: ['SCH-NY-01'],
     isAdmin: false,
+    firebaseUser: { email: 'owner@example.com', uid: 'uid_owner_1' } as never,
   };
 
   beforeEach(async () => {
@@ -134,7 +136,7 @@ describe('SchoolLicensePurchaseComponent', () => {
       }),
     };
 
-    userSignal = signal<UserData | null>(sampleUser);
+    userSignal = signal<UserDetails | null>(sampleUser);
 
     mockDataManager = {
       schools: {

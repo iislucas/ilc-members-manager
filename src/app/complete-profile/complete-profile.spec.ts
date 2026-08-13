@@ -11,7 +11,8 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { SearchableSet } from '../searchable-set';
-import { CountryCode, Member } from '../../../functions/src/data-model';
+import { CountryCode } from '../country-codes';
+import { initMember, Member, MembershipType } from '../../../functions/src/data-model';
 
 describe('CompleteProfileComponent', () => {
   let fixture: ComponentFixture<CompleteProfileComponent>;
@@ -27,16 +28,16 @@ describe('CompleteProfileComponent', () => {
   let userSignal: ReturnType<typeof signal>;
 
   const sampleMember: Member = {
+    ...initMember(),
     docId: 'mem_123',
     memberId: 'US101',
     name: 'Jane Doe',
     emails: ['jane@example.com'],
     currentMembershipExpires: '2026-12-31',
-    membershipType: 'Annual',
+    membershipType: MembershipType.Annual,
     dateOfBirth: '1990-01-01',
     country: 'United States',
     lastUpdated: '2026-01-01',
-    lastPaymentDate: '2026-01-01',
   };
 
   beforeEach(async () => {

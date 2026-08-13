@@ -12,7 +12,7 @@ import { GradingEventInputComponent } from '../grading-event-input/grading-event
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initGrading, GradingStatus, initMember, Grading, PaymentStatus } from '../../../functions/src/data-model';
+import { initGrading, GradingStatus, initMember, Grading, PaymentStatus, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 
 @Component({ selector: 'app-grading-event-input', standalone: true, template: '' })
@@ -383,8 +383,8 @@ describe('GradingProgressComponent', () => {
       ...initMember(),
       docId: 'doc-student-1',
       instructorId: '',
-      studentLevel: '5',
-      applicationLevel: '2',
+      studentLevel: StudentLevel.Level5,
+      applicationLevel: ApplicationLevel.Level2,
     };
     mockFirebaseState.user.set({
       member: studentMember,

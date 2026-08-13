@@ -8,7 +8,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BecomeAMemberComponent } from './become-a-member';
 import { StripeService } from '../stripe.service';
-import { FirebaseStateService, UserData } from '../firebase-state.service';
+import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { initMember, MembershipType } from '../../../functions/src/data-model';
@@ -30,7 +30,7 @@ describe('BecomeAMemberComponent', () => {
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
-  let userSignal: ReturnType<typeof signal<UserData | null>>;
+  let userSignal: ReturnType<typeof signal<UserDetails | null>>;
   let mockDataManager: {
     countries: SearchableSet<'name', CountryCode>;
     updateMember: ReturnType<typeof vi.fn>;
@@ -38,9 +38,9 @@ describe('BecomeAMemberComponent', () => {
 
   const sampleProducts: StripeProduct[] = [
     {
-      id: 'prod_membership_annual',
-      name: 'MEMBERSHIP : Annual',
-      description: 'Annual membership',
+      id: 'prod_mem_annual',
+      name: 'ILC Annual Membership',
+      description: 'Annual membership fee',
       active: true,
       images: [],
       metadata: {},
@@ -84,8 +84,8 @@ describe('BecomeAMemberComponent', () => {
       ],
     },
     {
-      id: 'prod_membership_life',
-      name: 'MEMBERSHIP : Life',
+      id: 'prod_mem_life',
+      name: 'ILC Lifetime Membership',
       description: 'Lifetime membership',
       active: true,
       images: [],
@@ -142,22 +142,24 @@ describe('BecomeAMemberComponent', () => {
     },
   ];
 
-  const sampleUser: UserData = {
-    email: 'test@example.com',
-    member: {
-      ...initMember(),
-      docId: 'mem_test_123',
-      name: 'Jane Doe',
-      dateOfBirth: '1990-01-01',
-      country: 'United States',
-      membershipType: MembershipType.Annual,
-      currentMembershipExpires: '2027-01-01',
-      membershipSubscriptionId: 'sub_123',
-      membershipNextAutoRenewDate: '2027-01-01',
-    },
-    memberDocIds: ['mem_test_123'],
+  const sampleMember = {
+    ...initMember(),
+    docId: 'mem_test_123',
+    name: 'Jane Doe',
+    dateOfBirth: '1990-01-01',
+    country: 'United States',
+    membershipType: MembershipType.Annual,
+    currentMembershipExpires: '2027-01-01',
+    membershipSubscriptionId: 'sub_123',
+    membershipNextAutoRenewDate: '2027-01-01',
+  };
+
+  const sampleUser: UserDetails = {
+    member: sampleMember,
+    memberProfiles: [sampleMember],
     schoolsManaged: [],
     isAdmin: false,
+    firebaseUser: { email: 'test@example.com', uid: 'uid_test_123' } as never,
   };
 
   let mockFirebaseService: {
@@ -187,7 +189,7 @@ describe('BecomeAMemberComponent', () => {
       }),
     };
 
-    userSignal = signal<UserData | null>(sampleUser);
+    userSignal = signal<UserDetails | null>(sampleUser);
 
     mockFirebaseService = {
       user: userSignal,
