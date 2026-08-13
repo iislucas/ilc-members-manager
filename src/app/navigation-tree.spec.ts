@@ -306,7 +306,7 @@ describe('NavigationTreeService', () => {
     user.set(null);
     const appRoot = {
       label: 'ILC Portal',
-      shortLabel: 'ILC',
+      shortLabel: 'ILC Portal',
       url: '/',
     };
     goTo(Views.Home);
