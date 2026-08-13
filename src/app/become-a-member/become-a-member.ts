@@ -31,6 +31,9 @@ import {
   StripeProduct,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
+import { environment } from '../../environments/environment';
+
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
 
 export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
 
@@ -43,6 +46,7 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
+    InlineAuthComponent,
   ],
   templateUrl: './become-a-member.html',
   styleUrl: './become-a-member.scss',
@@ -55,6 +59,7 @@ export class BecomeAMemberComponent {
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
 
+  environment = environment;
   Views = Views;
   LoginStatus = LoginStatus;
   user = this.firebaseService.user;
@@ -99,9 +104,14 @@ export class BecomeAMemberComponent {
   };
 
   countryWithCode = computed(() => {
-    const cName = this.country();
+    const cName = this.country().trim();
+    if (!cName) return null;
     return (
-      this.dataService.countries.entries().find((c) => c.name === cName) || null
+      this.dataService.countries.entries().find(
+        (c) =>
+          c.name.toLowerCase() === cName.toLowerCase() ||
+          c.id.toLowerCase() === cName.toLowerCase(),
+      ) || null
     );
   });
 
@@ -154,7 +164,7 @@ export class BecomeAMemberComponent {
     return !!(
       this.name().trim() &&
       this.dateOfBirth().trim() &&
-      this.country().trim()
+      this.countryWithCode()
     );
   });
 
@@ -527,12 +537,18 @@ export class BecomeAMemberComponent {
 
     const memberName = this.name().trim();
     const memberDob = this.dateOfBirth().trim();
-    const memberCountry = this.country().trim();
+    const resolvedCountry = this.countryWithCode();
 
-    if (!memberName || !memberDob || !memberCountry) {
-      this.checkoutError.set(
-        'Please enter your full name, date of birth, and country before proceeding.',
-      );
+    if (!memberName || !memberDob || !resolvedCountry) {
+      if (!resolvedCountry && this.country().trim()) {
+        const errorMsg = `Unrecognized country "${this.country()}". Please select a valid country from the list. If your country is missing, please contact ${environment.adminEmail}.`;
+        console.error(errorMsg);
+        this.checkoutError.set(errorMsg);
+      } else {
+        this.checkoutError.set(
+          'Please enter your full name, date of birth, and select a valid country before proceeding.',
+        );
+      }
       return;
     }
 
@@ -547,7 +563,7 @@ export class BecomeAMemberComponent {
           ...user.member,
           name: memberName,
           dateOfBirth: memberDob,
-          country: memberCountry,
+          country: resolvedCountry.name,
           phone: this.phone().trim(),
           address: this.address().trim(),
           city: this.city().trim(),

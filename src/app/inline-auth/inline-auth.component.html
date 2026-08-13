@@ -1,60 +1,95 @@
-<div class="login-container">
-  @if (firebaseService.loginStatus() === LoginStatus.LoggingIn) {
-    <app-spinner>Signing in…</app-spinner>
-  } @else if (firebaseService.loginStatus() === LoginStatus.NeedsEmailVerification) {
-    <div class="login-card">
-      <p class="step-guidance">
-        We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
-        Please check your inbox and click the link to activate your account.
-      </p>
-
-      @if (resendSuccess(); as message) {
-        <div class="success-message">{{ message }}</div>
-      }
-      @if (firebaseService.verificationError(); as error) {
-        <div class="error-container">
-          <span class="error-message">{{ error }}</span>
+@if (isLoggedIn()) {
+  <div class="logged-in-box">
+    <div class="user-info">
+      <app-icon name="person" width="28px" height="28px"></app-icon>
+      <div class="user-details-text">
+        <div class="user-email-row">
+          Signed in as
+          <strong>{{
+            user()?.member?.emails?.[0] || user()?.firebaseUser?.email
+          }}</strong>
         </div>
-      }
-      @if (verificationError(); as error) {
-        <div class="error-container">
-          <span class="error-message">{{ error }}</span>
-        </div>
-      }
-
-      <div class="step-actions">
-        <button
-          type="button"
-          id="check-verified-btn"
-          (click)="checkEmailVerified()"
-          [disabled]="authLoading()"
-        >
-          I've Verified My Email
-        </button>
-        <button
-          type="button"
-          id="resend-verification-btn"
-          class="secondary-action"
-          (click)="resendVerificationEmail()"
-          [disabled]="authLoading()"
-        >
-          Resend Email
-        </button>
-        <button
-          type="button"
-          class="secondary-action"
-          (click)="logout()"
-        >
-          Use a different email
-        </button>
+        @if (user()?.member?.memberId) {
+          <div class="member-id-hint">
+            Member ID:
+            <span class="identifier-chip">{{ user()?.member?.memberId }}</span>
+          </div>
+        }
       </div>
     </div>
-  } @else {
-    <div class="login-card">
-      @switch (loginStep()) {
+    <button
+      type="button"
+      class="subtle-button logout-btn"
+      (click)="logout()"
+      title="Sign out of this account"
+    >
+      <app-icon name="logout"></app-icon>
+      <span>Log Out</span>
+    </button>
+  </div>
+  <ng-content></ng-content>
+} @else if (isNeedsVerification()) {
+  <div class="verification-box">
+    <div class="verification-header">
+      <app-icon name="mail" width="28px" height="28px"></app-icon>
+      <span class="verification-title">Verify Your Email Address</span>
+    </div>
+    <p class="verification-text">
+      We sent a verification link to <strong>{{ unverifiedEmail() }}</strong>.
+      Please check your inbox and click the link to activate your account.
+    </p>
 
+    @if (resendSuccess(); as message) {
+      <div class="success-message">{{ message }}</div>
+    }
+    @if (firebaseService.verificationError(); as error) {
+      <div class="error-container">
+        <span class="error-message">{{ error }}</span>
+      </div>
+    }
+    @if (verificationError(); as error) {
+      <div class="error-container">
+        <span class="error-message">{{ error }}</span>
+      </div>
+    }
+
+    <div class="step-actions">
+      <button
+        type="button"
+        id="check-verified-btn"
+        (click)="checkEmailVerified()"
+        [disabled]="authLoading()"
+      >
+        I've Verified My Email
+      </button>
+      <button
+        type="button"
+        id="resend-verification-btn"
+        class="secondary-action"
+        (click)="resendVerificationEmail()"
+        [disabled]="authLoading()"
+      >
+        Resend Email
+      </button>
+      <button
+        type="button"
+        class="back-link"
+        (click)="logout()"
+      >
+        Use a different email
+      </button>
+    </div>
+  </div>
+} @else {
+  <div class="inline-auth-form">
+    @if (firebaseService.loginStatus() === LoginStatus.LoggingIn || authLoading()) {
+      <div class="spinner-row">
+        <app-spinner>Signing in…</app-spinner>
+      </div>
+    } @else {
+      @switch (step()) {
         <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
-        @case (LoginStep.Email) {
+        @case (InlineAuthStep.Email) {
           <div class="input-field">
             <label for="email-input">Login with Email:</label>
             <input
@@ -62,8 +97,8 @@
               autocomplete="email"
               type="email"
               name="email"
-              [ngModel]="loginEmail()"
-              (ngModelChange)="loginEmail.set($event)"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)"
               (keyup.enter)="checkEmail()"
               placeholder="you@example.com"
             />
@@ -80,7 +115,7 @@
             <button
               id="continue-btn"
               (click)="checkEmail()"
-              [disabled]="!loginEmail()"
+              [disabled]="!email().trim()"
             >
               Continue
             </button>
@@ -88,14 +123,16 @@
         }
 
         <!-- ──────────── STEP: CHECKING ──────────── -->
-        @case (LoginStep.Checking) {
-          <app-spinner>Checking your email…</app-spinner>
+        @case (InlineAuthStep.Checking) {
+          <div class="spinner-row">
+            <app-spinner>Checking your email…</app-spinner>
+          </div>
         }
 
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
-        @case (LoginStep.GoogleSignin) {
+        @case (InlineAuthStep.GoogleSignin) {
           <div class="google-signin-step">
-            <div class="email-display">{{ loginEmail() }}</div>
+            <div class="email-display">{{ email() }}</div>
             @if (loginWithGoogleError(); as message) {
               <div class="error-container">
                 <span class="error-message">{{ message }}</span>
@@ -109,7 +146,6 @@
                 Sign in with Google
               </button>
               <button
-                type="button"
                 id="use-password-btn"
                 class="secondary-action"
                 (click)="usePasswordInstead()"
@@ -128,17 +164,17 @@
         }
 
         <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
-        @case (LoginStep.PasswordLogin) {
+        @case (InlineAuthStep.PasswordLogin) {
           <div class="input-field">
-            <label for="password-input">Password for <strong>{{ loginEmail() }}</strong></label>
+            <label for="password-input">Password for <strong>{{ email() }}</strong></label>
             <div class="password-input-row">
               <input
                 id="password-input"
                 autocomplete="current-password"
                 [type]="showPassword() ? 'text' : 'password'"
                 name="password"
-                [ngModel]="loginPassword()"
-                (ngModelChange)="loginPassword.set($event)"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
                 (keyup.enter)="loginWithEmail()"
                 placeholder="Password"
               />
@@ -183,9 +219,9 @@
             <button
               id="login-btn"
               (click)="loginWithEmail()"
-              [disabled]="!loginPassword()"
+              [disabled]="!password()"
             >
-              Sign in
+              Sign In
             </button>
             @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
               <button
@@ -208,21 +244,25 @@
         }
 
         <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
-        @case (LoginStep.CreateAccount) {
+        @case (InlineAuthStep.CreateAccount) {
           <p class="step-guidance">
-            We found your membership record for
-            <strong>{{ loginEmail() }}</strong>.
+            @if (emailStatus()?.hasMemberRecord) {
+              We found your membership record for
+              <strong>{{ email() }}</strong>. Create a password to get started.
+            } @else {
+              Create a password for <strong>{{ email() }}</strong> (minimum 6 characters).
+            }
           </p>
           <div class="input-field">
-            <label for="new-password-input">Create a password to get started</label>
+            <label for="new-password-input">Password</label>
             <div class="password-input-row">
               <input
                 id="new-password-input"
                 autocomplete="new-password"
                 [type]="showPassword() ? 'text' : 'password'"
                 name="password"
-                [ngModel]="loginPassword()"
-                (ngModelChange)="loginPassword.set($event)"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
                 (keyup.enter)="signupWithEmail()"
                 placeholder="Create a password (min. 6 characters)"
               />
@@ -252,9 +292,9 @@
             <button
               id="create-account-btn"
               (click)="signupWithEmail()"
-              [disabled]="!loginPassword() || loginPassword().length < 6"
+              [disabled]="!password() || password().length < 6"
             >
-              Create account
+              Create Account
             </button>
             <button
               type="button"
@@ -267,22 +307,20 @@
         }
 
         <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
-        @case (LoginStep.GuestCreateAccount) {
-          <div class="step-guidance">
-            <p>
-              You are creating an account for <strong>{{ loginEmail() }}</strong> without a linked membership.
-            </p>
-          </div>
+        @case (InlineAuthStep.GuestCreateAccount) {
+          <p class="step-guidance">
+            You are creating an account for <strong>{{ email() }}</strong> without a linked membership.
+          </p>
           <div class="input-field">
-            <label for="guest-password-input">Create a password</label>
+            <label for="guest-password-input">Password</label>
             <div class="password-input-row">
               <input
                 id="guest-password-input"
                 autocomplete="new-password"
                 [type]="showPassword() ? 'text' : 'password'"
                 name="password"
-                [ngModel]="loginPassword()"
-                (ngModelChange)="loginPassword.set($event)"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
                 (keyup.enter)="signupWithEmail()"
                 placeholder="Create a password (min. 6 characters)"
               />
@@ -312,9 +350,9 @@
             <button
               id="create-guest-account-submit-btn"
               (click)="signupWithEmail()"
-              [disabled]="!loginPassword() || loginPassword().length < 6"
+              [disabled]="!password() || password().length < 6"
             >
-              Create account
+              Create Account
             </button>
             <button
               type="button"
@@ -327,11 +365,11 @@
         }
 
         <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
-        @case (LoginStep.NoMember) {
+        @case (InlineAuthStep.NoMember) {
           <div class="step-guidance">
             <p>
               We don't have a membership record linked to
-              <strong>{{ loginEmail() }}</strong>.
+              <strong>{{ email() }}</strong>.
             </p>
             <p>
               This could mean you used a different email address when
@@ -353,7 +391,7 @@
             <button
               id="create-guest-account-btn"
               class="secondary-action"
-              (click)="loginStep.set(LoginStep.GuestCreateAccount)"
+              (click)="step.set(InlineAuthStep.GuestCreateAccount)"
             >
               Create account without membership
             </button>
@@ -367,16 +405,16 @@
           </div>
         }
       }
-    </div>
-  }
+    }
 
-  @if (firebaseService.loginError()) {
-    <div class="error-container global-error">
-      <div>Login error:</div>
-      <div class="error-message">{{ firebaseService.loginError() }}</div>
-      <button class="icon-only-button" (click)="firebaseService.loginError.set(null)">
-        <app-icon name="close"></app-icon>
-      </button>
-    </div>
-  }
-</div>
+    @if (firebaseService.loginError()) {
+      <div class="error-container global-error">
+        <div>Login error:</div>
+        <div class="error-message">{{ firebaseService.loginError() }}</div>
+        <button class="icon-only-button" (click)="firebaseService.loginError.set(null)">
+          <app-icon name="close"></app-icon>
+        </button>
+      </div>
+    }
+  </div>
+}

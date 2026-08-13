@@ -27,13 +27,22 @@ export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   const db = admin.firestore();
 
   try {
-    // TOOD: Get email from uid...
     const user = await admin.auth().getUser(uid);
     if (!user.email) {
       throw new HttpsError(
         'permission-denied',
         'This service only works for users with an email address.',
       );
+    }
+
+    if (!user.emailVerified) {
+      logger.info('User email is not verified, blocking profile fetch/linking', { email: user.email });
+      return {
+        userMemberProfiles: [],
+        isAdmin: false,
+        schoolsManaged: [],
+        emailVerified: false,
+      };
     }
 
     let aclDoc = await db.collection('acl').doc(user.email).get();

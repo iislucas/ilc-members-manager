@@ -30,10 +30,12 @@ import {
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+
 @Component({
   selector: 'app-instructor-license-purchase',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
   templateUrl: './instructor-license-purchase.html',
   styleUrl: './instructor-license-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

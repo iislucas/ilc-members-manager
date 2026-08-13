@@ -37,15 +37,19 @@ export const checkEmailStatus = onCall<
     aclDoc.exists &&
     ((aclDoc.data() as { memberDocIds?: string[] })?.memberDocIds?.length ?? 0) > 0;
 
-  // 2. Check Firebase Auth for an existing account and Google provider.
+  // 2. Check Firebase Auth for an existing account and providers.
   let hasAuthAccount = false;
   let hasGoogleProvider = false;
+  let hasPasswordProvider = false;
   try {
     const userRecord = await admin.auth().getUserByEmail(email);
     hasAuthAccount = true;
     hasGoogleProvider = userRecord.providerData.some(
       (p) => p.providerId === 'google.com',
     );
+    hasPasswordProvider =
+      userRecord.providerData.some((p) => p.providerId === 'password') ||
+      !!userRecord.passwordHash;
   } catch {
     // User not found in Firebase Auth — expected for new members.
   }
@@ -55,5 +59,11 @@ export const checkEmailStatus = onCall<
   const isGoogleDomain = GOOGLE_EMAIL_DOMAINS.includes(domain);
   const isGoogleManaged = isGoogleDomain || hasGoogleProvider;
 
-  return { hasMemberRecord, hasAuthAccount, isGoogleManaged };
+  return {
+    hasMemberRecord,
+    hasAuthAccount,
+    isGoogleManaged,
+    hasPasswordProvider,
+    hasGoogleProvider,
+  };
 });

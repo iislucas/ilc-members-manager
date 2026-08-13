@@ -17,7 +17,7 @@ description: Read this when making HTML templates/files or CSS/SCSS styling chan
 The app is a **functional, data-dense management portal** — not a marketing site. The aesthetic priorities are:
 
 1. **Clarity over decoration**: Clean layouts, readable typography, moderate whitespace.
-2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #18181b`, `$button-bg-color: #f4f4f5`), dark slate grey header/footer (`$header-bg-color: #2d3748`), classic red accents (`$heading-accent-color: #991b1b`), and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`).
+2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #18181b`, `$button-bg-color: #f4f4f5`), dark slate grey header/footer (`$header-bg-color: #2d3748`), classic red accents (`$heading-accent-color: #991b1b`), and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`). Positive call-to-action buttons (e.g. "Renew Now", "Subscribe", "Extend", checkout buttons) use lighter blue accent styling (or primary blue) — **never solid black backgrounds**.
 3. **Subtle depth**: Light box-shadows (`$shadow-color`) and border-based separation rather than heavy gradients.
 4. **Responsive simplicity**: Grid/flexbox layouts that collapse gracefully at 600px. No complex responsive breakpoint system — just a single mobile breakpoint.
 5. **Reuse global styles**: Shared UI patterns (buttons, chips, cards, menus, inputs, errors) are defined once in `styles.scss`. Component SCSS should only handle layout and component-specific positioning.
@@ -220,6 +220,14 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 
 > [!IMPORTANT]
 > If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
+
+> [!WARNING]
+> **NO BLACK BACKGROUNDS FOR POSITIVE ACTION BUTTONS**
+> Positive actions (such as "Renew Now", "Subscribe", "Extend", checkout buttons, or promotional action prompts) must **NEVER** use solid black (`#18181b`, `#000000`, `#27272a`) backgrounds.
+> Instead, positive actions use:
+> - **Lighter blue accent styling**: `background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd;` (hover: `background: #e0f2fe; border-color: #7dd3fc; color: #0369a1;`)
+> - Or **Primary blue**: `background: $primary-color; color: #ffffff; border: 1px solid $primary-color;` (hover: `background: #0069d9;`)
+> Base buttons use the neutral `$button-bg-color: #f4f4f5` with dark text. Solid black backgrounds for buttons are strictly forbidden.
 
 ### Links
 
@@ -614,3 +622,4 @@ Before submitting any styling change:
 9. **Transitions**: Did you add a `transition` for any interactive state changes (hover, focus, active)?
 10. **Class naming**: Are your class names descriptive and scoped to the component? (e.g., `.member-view-actions`, not `.actions`)
 11. **No height/width 100%**: Prefer flex-based sizing.
+12. **Positive action buttons**: Did you ensure positive/CTA buttons use lighter blue accent styling or primary blue, and NEVER solid black backgrounds?

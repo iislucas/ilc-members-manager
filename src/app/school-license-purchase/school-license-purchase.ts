@@ -34,12 +34,14 @@ import {
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+
 export type SchoolLicenseAction = 'renew' | 'new';
 
 @Component({
   selector: 'app-school-license-purchase',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SpinnerComponent, InlineAuthComponent],
   templateUrl: './school-license-purchase.html',
   styleUrl: './school-license-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

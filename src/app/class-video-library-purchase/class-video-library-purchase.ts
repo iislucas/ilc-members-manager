@@ -28,10 +28,12 @@ import {
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
+import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+
 @Component({
   selector: 'app-class-video-library-purchase',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent],
+  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
   templateUrl: './class-video-library-purchase.html',
   styleUrl: './class-video-library-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,6 +100,18 @@ export class ClassVideoLibraryPurchaseComponent {
       m.classVideoLibraryNextAutoRenewDate >= this.today()
     );
   });
+
+  hasActiveStripeSubscription = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return false;
+    return !!m.classVideoLibrarySubscriptionId && this.hasVideoAccess();
+  });
+
+  isSubscribeFoldOpen = signal(false);
+
+  toggleSubscribeFold(): void {
+    this.isSubscribeFoldOpen.update((open) => !open);
+  }
 
   nextAutoRenewDate = computed(() => {
     return this.user()?.member.classVideoLibraryNextAutoRenewDate || '';

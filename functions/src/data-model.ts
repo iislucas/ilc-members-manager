@@ -1043,7 +1043,6 @@ export type Member = {
   stripeCustomerId: string; // Stripe cus_... ID or empty
 
   // Structured active subscriptions map
-  subscriptions?: Record<string, MemberSubscriptionItem>;
   stripeSubscriptions?: Record<string, MemberSubscriptionItem>;
 
   // Notes only for ILC HQ.
@@ -1597,7 +1596,6 @@ export function initMember(): Member {
     stripeCustomerId: '',
 
     // Structured active subscriptions map
-    subscriptions: {},
     stripeSubscriptions: {},
 
     // Notes - information only for ILC HQ management.
@@ -1959,6 +1957,7 @@ export type FetchUserDetailsResult = {
   userMemberProfiles: Member[];
   isAdmin: boolean;
   schoolsManaged: string[];
+  emailVerified?: boolean;
 };
 
 // Result from the pre-auth checkEmailStatus function. Guides the login UI
@@ -1971,6 +1970,10 @@ export type CheckEmailStatusResult = {
   // Whether the email appears to be Google-managed (gmail.com / googlemail.com
   // domain, or the existing auth account has a google.com provider).
   isGoogleManaged: boolean;
+  // Whether the existing auth account has a password provider configured.
+  hasPasswordProvider?: boolean;
+  // Whether the existing auth account has a google.com provider configured.
+  hasGoogleProvider?: boolean;
 };
 
 // ==================================================================

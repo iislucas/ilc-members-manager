@@ -518,12 +518,16 @@ a.selectable-card {
 }
 
 .identifier-chip {
+  display: inline-block;
+  vertical-align: middle;
   background-color: $theme-chip-bg-color;
-  border-radius: 5px;
-  font-size: small;
+  border-radius: 4px;
+  font-size: 0.85em;
   font-family: monospace;
   border: 1px solid $theme-chip-border-color;
-  padding: 0.2em;
+  padding: 1px 6px;
+  line-height: 1.3;
+  box-sizing: border-box;
 
   &.expired-recent {
     background-color: #fff3cd;
@@ -970,3 +974,84 @@ button.menu-item {
     transform: translateY(-100%) scaleY(0.7);
   }
 }
+
+// ----------------------------------------------------------------------------
+//  Service Link Cards Grid
+//  Used for navigation tiles with icon, title, and subtitle (e.g. member-orders,
+//  login home page, public section discovery).
+// ----------------------------------------------------------------------------
+
+.services-links-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.service-link-card {
+  flex: 0 0 calc((100% - 32px) / 3);
+  max-width: calc((100% - 32px) / 3);
+  min-width: 260px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid $border-color-light;
+  border-radius: 10px;
+  padding: 18px 18px;
+  text-decoration: none;
+  color: $text-primary;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+
+  app-icon {
+    color: $row-highlight-border;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .service-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+
+    .service-link-title {
+      font-weight: 600;
+      font-size: 1.05em;
+      line-height: 1.25;
+      color: $text-primary;
+    }
+
+    .service-link-sub {
+      font-size: 0.88em;
+      color: $text-secondary;
+      line-height: 1.35;
+    }
+  }
+
+  &:hover {
+    border-color: $primary-color;
+    background: $table-row-selected;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@media (max-width: 900px) {
+  .service-link-card {
+    flex: 0 0 calc((100% - 16px) / 2);
+    max-width: calc((100% - 16px) / 2);
+  }
+}
+
+@media (max-width: 600px) {
+  .service-link-card {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+

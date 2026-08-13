@@ -73,123 +73,20 @@
       }
     </div>
 
-    @if (isLoggedIn()) {
-      <div class="logged-in-box">
-        <div class="user-info">
-          <app-icon name="person" width="28px" height="28px"></app-icon>
-          <div class="user-details-text">
-            <div class="user-email-row">
-              Signed in as
-              <strong>{{
-                user()?.member?.emails?.[0] || user()?.firebaseUser?.email
-              }}</strong>
-            </div>
-            @if (user()?.member?.memberId) {
-              <div class="member-id-hint">
-                Member ID:
-                <span class="identifier-chip">{{
-                  user()?.member?.memberId
-                }}</span>
-              </div>
-            }
-          </div>
-        </div>
-        <button
-          type="button"
-          class="subtle-button logout-btn"
-          (click)="onLogout()"
-          title="Sign out of this account"
-        >
-          <app-icon name="logout"></app-icon>
-          <span>Log Out</span>
-        </button>
-      </div>
+    @if (!isLoggedIn()) {
+      <p class="step-guidance">
+        Please sign in or create an account to link your new membership.
+      </p>
+    }
 
+    <app-inline-auth>
       @if (!user()?.member?.memberId) {
         <p class="account-welcome-note">
           Welcome, you do not have a previous membership, please complete the
           information below.
         </p>
       }
-    } @else {
-      <div class="auth-prompt">
-        <p>Please sign in or create an account to link your new membership.</p>
-        <div class="auth-grid">
-          <div class="field-item">
-            <label for="member-email">Email</label>
-            <input
-              id="member-email"
-              type="email"
-              placeholder="you@example.com"
-              [ngModel]="loginEmail()"
-              (ngModelChange)="loginEmail.set($event)"
-            />
-          </div>
-
-          <div class="field-item">
-            <label for="member-password">Password</label>
-            <div class="password-row">
-              <input
-                id="member-password"
-                [type]="showPassword() ? 'text' : 'password'"
-                placeholder="Password"
-                [ngModel]="loginPassword()"
-                (ngModelChange)="loginPassword.set($event)"
-              />
-              <button
-                type="button"
-                class="icon-only-button"
-                (click)="showPassword.set(!showPassword())"
-              >
-                <app-icon
-                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
-                ></app-icon>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        @if (authError()) {
-          <div class="error-container">
-            <span class="error-message">{{ authError() }}</span>
-            <button class="icon-only-button" (click)="authError.set(null)">
-              <app-icon name="close"></app-icon>
-            </button>
-          </div>
-        }
-
-        <div class="auth-buttons">
-          <button
-            type="button"
-            [disabled]="authLoading() || !loginEmail() || !loginPassword()"
-            (click)="onLoginWithEmail()"
-          >
-            {{ authLoading() ? "Signing in..." : "Sign In" }}
-          </button>
-          <button
-            type="button"
-            class="secondary-btn"
-            [disabled]="
-              authLoading() ||
-              !loginEmail() ||
-              !loginPassword() ||
-              loginPassword().length < 6
-            "
-            (click)="onSignupWithEmail()"
-          >
-            Create Account
-          </button>
-          <button
-            type="button"
-            class="google-btn subtle-button"
-            [disabled]="authLoading()"
-            (click)="onLoginWithGoogle()"
-          >
-            Sign in with Google
-          </button>
-        </div>
-      </div>
-    }
+    </app-inline-auth>
   </div>
 
   <!-- Step 2: Personal Information -->
@@ -285,9 +182,15 @@
             [placeholder]="'Search for a country...'"
             [initSearchTerm]="country()"
             (textUpdated)="country.set($event)"
+            (itemSelected)="country.set($event.name)"
           ></app-autocomplete>
           @if (countryWithCode(); as cc) {
             <span class="identifier-chip country-chip">{{ cc.id }}</span>
+          } @else if (country().trim()) {
+            <div class="error-message">
+              Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
+              <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+            </div>
           }
         </div>
 

@@ -88,7 +88,7 @@ describe('LoginComponent', () => {
     expect(component.loginStep()).toBe(LoginStep.NoMember);
   });
 
-  it('should route to GoogleSignin for Google-managed email with member record', async () => {
+  it('should route to GoogleSignin for Google-managed email without auth account', async () => {
     vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue({
       hasMemberRecord: true,
       hasAuthAccount: false,
@@ -96,6 +96,36 @@ describe('LoginComponent', () => {
     });
 
     component.loginEmail.set('member@example.com');
+    await component.checkEmail();
+
+    expect(component.loginStep()).toBe(LoginStep.GoogleSignin);
+  });
+
+  it('should route to PasswordLogin when email has existing auth account and password provider, even if Google-managed', async () => {
+    vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+      hasPasswordProvider: true,
+      hasGoogleProvider: true,
+    });
+
+    component.loginEmail.set('member@gmail.com');
+    await component.checkEmail();
+
+    expect(component.loginStep()).toBe(LoginStep.PasswordLogin);
+  });
+
+  it('should route to GoogleSignin when existing auth account only has Google provider', async () => {
+    vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+      hasPasswordProvider: false,
+      hasGoogleProvider: true,
+    });
+
+    component.loginEmail.set('googleonly@gmail.com');
     await component.checkEmail();
 
     expect(component.loginStep()).toBe(LoginStep.GoogleSignin);
@@ -165,6 +195,7 @@ describe('LoginComponent', () => {
       email: 'member@example.org',
       hasAuthAccount: true,
       isGoogleManaged: false,
+      preferredMethod: 'password',
     });
   });
 
@@ -307,6 +338,7 @@ describe('LoginComponent', () => {
       email: 'member@example.org',
       hasAuthAccount: true,
       isGoogleManaged: false,
+      preferredMethod: 'password',
     });
   });
 
@@ -328,6 +360,7 @@ describe('LoginComponent', () => {
 
     const cached = getCachedLoginInfo();
     expect(cached?.hasAuthAccount).toBe(true);
+    expect(cached?.preferredMethod).toBe('password');
   });
 
   it('should update cache after successful loginWithGoogle', async () => {
@@ -343,6 +376,7 @@ describe('LoginComponent', () => {
       email: 'user@example.com',
       isGoogleManaged: true,
       hasAuthAccount: true,
+      preferredMethod: 'google',
     });
   });
 
@@ -536,5 +570,32 @@ describe('LoginComponent', () => {
     expect(component.signupError()).toBeNull();
     expect(component.resetPasswordError()).toBeNull();
     expect(component.resetPasswordSuccess()).toBeNull();
+    expect(component.verificationError()).toBeNull();
+    expect(component.resendSuccess()).toBeNull();
+  });
+
+  // ---------------------------------------------------------------------------
+  //  Email Verification
+  // ---------------------------------------------------------------------------
+
+  it('should call checkEmailVerification on checkEmailVerified', async () => {
+    const spy = vi.spyOn(mockService, 'checkEmailVerification').mockResolvedValue({ verified: true });
+    await component.checkEmailVerified();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call resendVerificationEmail on resendVerificationEmail', async () => {
+    const spy = vi.spyOn(mockService, 'resendVerificationEmail').mockResolvedValue({ success: true });
+    await component.resendVerificationEmail();
+    expect(spy).toHaveBeenCalled();
+    expect(component.resendSuccess()).toContain('verification email has been sent');
+  });
+
+  it('should call logout and reset to Email step on logout', async () => {
+    const spy = vi.spyOn(mockService, 'logout').mockResolvedValue({ success: true });
+    component.loginStep.set(LoginStep.PasswordLogin);
+    await component.logout();
+    expect(spy).toHaveBeenCalled();
+    expect(component.loginStep()).toBe(LoginStep.Email);
   });
 });

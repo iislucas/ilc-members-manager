@@ -68,16 +68,32 @@ describe('App', () => {
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
-    // Stub navigation so the logged-out Home redirect effect is a no-op and the
-    // view stays on Home (navigateTo now applies History changes synchronously).
-    vi.spyOn(app.routingService, 'navigateToParts').mockImplementation(() => {});
     app.routingService.matchedPatternId.set(Views.Home);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.title')?.textContent).toContain('Members Portal');
+    expect(compiled.querySelector('.title')?.textContent).toContain('Welcome');
   });
 
-  it('should redirect logged-out users on Home to login', async () => {
+  it('should render Members Portal title for logged-in user on Home', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedIn);
+    firebaseStateServiceMock.user!.set({
+      member: {
+        membershipType: 'Life',
+        name: 'Test Member',
+        dateOfBirth: '2000-01-01',
+        country: 'Testland',
+      },
+      firebaseUser: { photoURL: null },
+    } as unknown as UserDetails);
+    app.routingService.matchedPatternId.set(Views.Home);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.title')?.textContent).toContain('ILC Portal');
+  });
+
+  it('should not redirect logged-out users on Home to login', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
 
@@ -90,7 +106,7 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(app.routingService.navigateToParts).toHaveBeenCalledWith(['login']);
+    expect(app.routingService.navigateToParts).not.toHaveBeenCalled();
   });
 
   it('should redirect logged-in users on Login to home when no returnUrl', async () => {
@@ -158,7 +174,77 @@ describe('App', () => {
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Practice', 'Instructors']);
+    expect(breadcrumbLabels).toEqual([
+      'ILC Portal',
+      'Practice',
+      'Instructors',
+    ]);
+  });
+
+  it('should show restricted page login prompt and other pages section when logged out on a sub-page', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+    app.routingService.matchedPatternId.set(Views.ClassVideoLibrary);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Should show "This page requires you to be logged in." prompt
+    const prompt = compiled.querySelector('.restricted-page-prompt');
+    expect(prompt).toBeTruthy();
+    expect(prompt?.textContent).toContain('This page requires you to be logged in.');
+
+    // Should show login component
+    expect(compiled.querySelector('app-login')).toBeTruthy();
+
+    // Should show "Other pages you might be looking for" section below login
+    const otherPagesSection = compiled.querySelector('.other-pages-section');
+    expect(otherPagesSection).toBeTruthy();
+    expect(otherPagesSection?.querySelector('h2')?.textContent).toContain(
+      'Other pages you might be looking for',
+    );
+    const otherCards = otherPagesSection?.querySelectorAll('.service-link-card');
+    expect(otherCards?.length).toBe(5);
+
+    // Should NOT show the generic login app-info welcome message
+    expect(compiled.querySelector('.app-info')).toBeNull();
+  });
+
+  it('should show generic welcome and options above login on generic login page', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+    app.routingService.matchedPatternId.set(Views.Login);
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    // Should show the generic login app-info welcome message
+    const appInfo = compiled.querySelector('.app-info');
+    expect(appInfo).toBeTruthy();
+    expect(appInfo?.textContent).toContain('Welcome to the ILC App');
+
+    // Should show public service link cards above login
+    const loginSiteLinks = compiled.querySelector('.login-site-links');
+    expect(loginSiteLinks).toBeTruthy();
+    const siteCards = loginSiteLinks?.querySelectorAll('.service-link-card');
+    expect(siteCards?.length).toBe(5);
+
+    // Should show login component
+    expect(compiled.querySelector('app-login')).toBeTruthy();
+
+    // Should NOT show the restricted page prompt
+    expect(compiled.querySelector('.restricted-page-prompt')).toBeNull();
+
+    // Should NOT show the other-pages section below login
+    expect(compiled.querySelector('.other-pages-section')).toBeNull();
   });
 
   it('should correctly parse the members-area post path for a logged-in user', async () => {
@@ -190,7 +276,12 @@ describe('App', () => {
 
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
-    expect(breadcrumbLabels).toEqual(['Members Portal', 'Learn', 'Members Posts', 'Article']);
+    expect(breadcrumbLabels).toEqual([
+      'ILC Members Portal',
+      'Learn',
+      'Members Posts',
+      'Article',
+    ]);
   });
 
   it('should intercept click on breadcrumb links and navigate client-side', async () => {

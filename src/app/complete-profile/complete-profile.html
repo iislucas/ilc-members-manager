@@ -60,12 +60,16 @@
         [placeholder]="'Search for a country'"
         [initSearchTerm]="fillCountry()"
         (textUpdated)="updateCountry($event)"
+        (itemSelected)="updateCountry($event.name)"
       ></app-autocomplete>
       @if (!countryWithCode()) {
         @if (!fillCountry().trim()) {
           <div class="error-message">please select a country</div>
         } @else {
-          <div class="error-message">invalid country</div>
+          <div class="error-message">
+            Unrecognized country "{{ fillCountry() }}". Please select a valid country from the list, or contact
+            <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+          </div>
         }
       }
     </div>
@@ -77,7 +81,7 @@
         [disabled]="
           !fillName().trim() ||
           !fillDOB().trim() ||
-          !fillCountry().trim() ||
+          !countryWithCode() ||
           fillingProfile()
         "
       >

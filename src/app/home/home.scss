@@ -29,12 +29,16 @@
 }
 
 .cards-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1rem;
 }
 
 .card {
+  flex: 0 0 calc((100% - 2rem) / 3);
+  max-width: calc((100% - 2rem) / 3);
+  box-sizing: border-box;
   background: white;
   text-decoration: none;
   border-radius: 8px;
@@ -187,8 +191,9 @@
 }
 
 @media (max-width: 900px) {
-  .cards-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .card {
+    flex: 0 0 calc((100% - 1rem) / 2);
+    max-width: calc((100% - 1rem) / 2);
   }
 }
 
@@ -197,8 +202,9 @@
     padding: 0 1rem 1rem 1rem;
   }
 
-  .cards-grid {
-    grid-template-columns: 1fr;
+  .card {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 }
 

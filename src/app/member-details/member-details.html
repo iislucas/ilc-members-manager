@@ -220,11 +220,15 @@
           [placeholder]="'Search for a country'"
           [initSearchTerm]="form.country().value()"
           (textUpdated)="updateCountry($event)"
+          (itemSelected)="updateCountry($event.name)"
         ></app-autocomplete>
         @if (countryWithCode(); as cc) {
           <div class="identifier-chip">{{ cc.id }}</div>
-        } @else {
-          <div class="error-message">invalid country</div>
+        } @else if (form.country().value().trim()) {
+          <div class="error-message">
+            Invalid country "{{ form.country().value() }}". Please select a valid country from the list, or contact
+            <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+          </div>
         }
       </div>
 

@@ -14,7 +14,7 @@
  * returning users can skip the email entry step entirely.
  */
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
 import { AuthErrorCodes } from 'firebase/auth';
@@ -37,8 +37,9 @@ export enum LoginStep {
 // Cached login info persisted to localStorage.
 type CachedLoginInfo = {
   email: string;
-  isGoogleManaged: boolean;
-  hasAuthAccount: boolean;
+  isGoogleManaged?: boolean;
+  hasAuthAccount?: boolean;
+  preferredMethod?: 'password' | 'google';
 };
 
 const CACHED_LOGIN_KEY = 'ilc-login-info';
@@ -105,6 +106,13 @@ export class LoginComponent {
   signupError = signal<string | null>(null);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
+  verificationError = signal<string | null>(null);
+  resendSuccess = signal<string | null>(null);
+  authLoading = signal<boolean>(false);
+
+  unverifiedEmail = computed(
+    () => this.firebaseService.unverifiedUser()?.email || this.loginEmail(),
+  );
 
   constructor() {
     // Check for cached login info from a previous session.
@@ -113,12 +121,16 @@ export class LoginComponent {
       this.loginEmail.set(cached.email);
       this.emailStatus.set({
         hasMemberRecord: true, // only cached when this is true
-        hasAuthAccount: cached.hasAuthAccount,
-        isGoogleManaged: cached.isGoogleManaged,
+        hasAuthAccount: cached.hasAuthAccount ?? true,
+        isGoogleManaged: cached.isGoogleManaged ?? false,
       });
       this.isReturningUser.set(true);
 
-      if (cached.isGoogleManaged) {
+      if (cached.preferredMethod === 'password') {
+        this.loginStep.set(LoginStep.PasswordLogin);
+      } else if (cached.preferredMethod === 'google') {
+        this.loginStep.set(LoginStep.GoogleSignin);
+      } else if (cached.isGoogleManaged) {
         this.loginStep.set(LoginStep.GoogleSignin);
       } else if (cached.hasAuthAccount) {
         this.loginStep.set(LoginStep.PasswordLogin);
@@ -141,23 +153,41 @@ export class LoginComponent {
       const result = await this.firebaseService.checkEmailStatus(email);
       this.emailStatus.set(result);
 
-      if (!result.hasMemberRecord) {
+      if (!result.hasMemberRecord && !result.hasAuthAccount) {
         this.loginStep.set(LoginStep.NoMember);
       } else {
+        // Determine default step:
+        // 1. If account exists with password, default to PasswordLogin.
+        // 2. If account exists with Google only, default to GoogleSignin.
+        // 3. If no auth account yet: if Google-managed domain, default to GoogleSignin, else CreateAccount.
+        let defaultStep: LoginStep;
+        let preferredMethod: 'password' | 'google' = 'password';
+
+        if (result.hasAuthAccount) {
+          if (result.hasPasswordProvider) {
+            defaultStep = LoginStep.PasswordLogin;
+            preferredMethod = 'password';
+          } else if (result.hasGoogleProvider) {
+            defaultStep = LoginStep.GoogleSignin;
+            preferredMethod = 'google';
+          } else {
+            defaultStep = result.isGoogleManaged ? LoginStep.GoogleSignin : LoginStep.PasswordLogin;
+            preferredMethod = result.isGoogleManaged ? 'google' : 'password';
+          }
+        } else {
+          defaultStep = result.isGoogleManaged ? LoginStep.GoogleSignin : LoginStep.CreateAccount;
+          preferredMethod = result.isGoogleManaged ? 'google' : 'password';
+        }
+
         // Cache for returning-user experience next time.
         setCachedLoginInfo({
           email,
           isGoogleManaged: result.isGoogleManaged,
           hasAuthAccount: result.hasAuthAccount,
+          preferredMethod,
         });
 
-        if (result.isGoogleManaged) {
-          this.loginStep.set(LoginStep.GoogleSignin);
-        } else if (result.hasAuthAccount) {
-          this.loginStep.set(LoginStep.PasswordLogin);
-        } else {
-          this.loginStep.set(LoginStep.CreateAccount);
-        }
+        this.loginStep.set(defaultStep);
       }
     } catch (error: unknown) {
       console.error('checkEmailStatus failed:', error);
@@ -173,9 +203,14 @@ export class LoginComponent {
     const result = await this.firebaseService.loginWithGoogle();
     if (result.success) {
       // Update cache: they now definitely have an auth account.
-      const email = this.loginEmail().trim();
+      const email = this.loginEmail().trim() || this.firebaseService.user()?.firebaseUser?.email || '';
       if (email) {
-        setCachedLoginInfo({ email, isGoogleManaged: true, hasAuthAccount: true });
+        setCachedLoginInfo({
+          email,
+          isGoogleManaged: true,
+          hasAuthAccount: true,
+          preferredMethod: 'google',
+        });
       }
     } else {
       console.warn(result.errorCode);
@@ -196,6 +231,7 @@ export class LoginComponent {
         email,
         isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
         hasAuthAccount: true,
+        preferredMethod: 'password',
       });
     } else {
       console.warn(result.errorCode);
@@ -218,6 +254,7 @@ export class LoginComponent {
         email,
         isGoogleManaged: this.emailStatus()?.isGoogleManaged ?? false,
         hasAuthAccount: true,
+        preferredMethod: 'password',
       });
     } else {
       console.warn(result.errorCode);
@@ -228,7 +265,7 @@ export class LoginComponent {
           'An account already exists for this email. Please sign in with your password, or reset it below.',
         );
       } else {
-        this.signupError.set(`${result.errorCode}: check you are online?`);
+        this.signupError.set(result.errorCode);
       }
     }
   }
@@ -254,12 +291,19 @@ export class LoginComponent {
 
   // From the GoogleSignin step, go to the appropriate password step.
   usePasswordInstead() {
+    this.dismissMessages();
     const status = this.emailStatus();
     if (status?.hasAuthAccount) {
       this.loginStep.set(LoginStep.PasswordLogin);
     } else {
       this.loginStep.set(LoginStep.CreateAccount);
     }
+  }
+
+  // From the PasswordLogin step, switch to Google signin.
+  useGoogleInstead() {
+    this.dismissMessages();
+    this.loginStep.set(LoginStep.GoogleSignin);
   }
 
   goBackToEmail() {
@@ -270,6 +314,37 @@ export class LoginComponent {
     clearCachedLoginInfo();
   }
 
+  async checkEmailVerified() {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.checkEmailVerification();
+      if (!res.verified && res.message) {
+        this.verificationError.set(res.message);
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
+  async resendVerificationEmail() {
+    this.dismissMessages();
+    this.authLoading.set(true);
+    try {
+      const res = await this.firebaseService.resendVerificationEmail();
+      if (res.success) {
+        this.resendSuccess.set('A new verification email has been sent! Please check your inbox.');
+      }
+    } finally {
+      this.authLoading.set(false);
+    }
+  }
+
+  async logout() {
+    await this.firebaseService.logout();
+    this.loginStep.set(LoginStep.Email);
+  }
+
   dismissMessages() {
     this.checkEmailError.set(null);
     this.loginError.set(null);
@@ -278,6 +353,8 @@ export class LoginComponent {
     this.signupError.set(null);
     this.resetPasswordError.set(null);
     this.resetPasswordSuccess.set(null);
+    this.verificationError.set(null);
+    this.resendSuccess.set(null);
     this.firebaseService.loginError.set(null);
   }
 }

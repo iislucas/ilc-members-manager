@@ -133,12 +133,19 @@
 }
 
 .services-links-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .service-link-card {
+  flex: 0 0 calc((100% - 32px) / 3);
+  max-width: calc((100% - 32px) / 3);
+  min-width: 260px;
+  box-sizing: border-box;
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -182,6 +189,20 @@
     background: v.$table-row-selected;
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@media (max-width: 900px) {
+  .service-link-card {
+    flex: 0 0 calc((100% - 16px) / 2);
+    max-width: calc((100% - 16px) / 2);
+  }
+}
+
+@media (max-width: 600px) {
+  .service-link-card {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 }
 
@@ -298,11 +319,13 @@
       }
 
       &.renew-link {
-        background: #18181b;
-        color: #ffffff;
-        border: 1px solid #18181b;
+        background: #f0f9ff;
+        color: #0284c7;
+        border: 1px solid #bae6fd;
         &:hover {
-          background: #27272a;
+          background: #e0f2fe;
+          border-color: #7dd3fc;
+          color: #0369a1;
         }
       }
 

@@ -189,7 +189,7 @@ describe('NavigationTreeService', () => {
     goTo(Views.EventEdit, { eventId: 'E1' });
     const crumbs = navTree.breadcrumbs();
     expect(crumbs.map((c) => c.label)).toEqual([
-      'Members Portal',
+      'ILC Portal',
       'Practice',
       'Events & Workshops',
       'Summer Camp',
@@ -203,7 +203,7 @@ describe('NavigationTreeService', () => {
   it('shows only the root crumb on Home', () => {
     goTo(Views.Home);
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'Members Portal',
+      'ILC Portal',
     ]);
   });
 
@@ -226,7 +226,7 @@ describe('NavigationTreeService', () => {
     routing.matchedPatternId.set(null);
     expect(navTree.currentTitle()).toBe('Page Not Found');
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'Members Portal',
+      'ILC Portal',
       'Page Not Found',
     ]);
   });
@@ -237,7 +237,7 @@ describe('NavigationTreeService', () => {
     expect(ancestorLabels()).toEqual(['Me', 'Events']);
     expect(navTree.parent()?.url).toBe('/my-events');
     expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'Members Portal',
+      'ILC Portal',
       'Me',
       'Events',
       'Organise or List an Event',
@@ -300,5 +300,21 @@ describe('NavigationTreeService', () => {
     crumbs = navTree.breadcrumbs();
     expect(crumbs[crumbs.length - 1].label).toBe('Summer Camp');
     expect(crumbs[crumbs.length - 1].isLoading).toBe(false);
+  });
+
+  it('titles Home and Login as Welcome when logged out', () => {
+    user.set(null);
+    const appRoot = {
+      label: 'ILC Portal',
+      shortLabel: 'ILC',
+      url: '/',
+    };
+    goTo(Views.Home);
+    expect(navTree.currentTitle()).toBe('Welcome');
+    expect(navTree.breadcrumbs()).toEqual([appRoot, { label: 'Welcome' }]);
+
+    goTo(Views.Login);
+    expect(navTree.currentTitle()).toBe('Welcome');
+    expect(navTree.breadcrumbs()).toEqual([appRoot, { label: 'Welcome' }]);
   });
 });

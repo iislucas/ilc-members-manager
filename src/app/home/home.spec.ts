@@ -197,5 +197,19 @@ describe('HomeComponent', () => {
     expect(element.textContent).toContain('Expired: 2020-01-01');
     expect(element.textContent).not.toContain('Requires subscription');
   });
+
+  it('renders Orders card in the Me tab', async () => {
+    component.setActiveTab('me');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Orders');
+    expect(element.textContent).toContain('Manage purchases, receipts, and renewals');
+
+    const links = element.querySelectorAll<HTMLAnchorElement>('a.card');
+    const orderLink = Array.from(links).find((a) => a.getAttribute('href')?.includes('my-orders'));
+    expect(orderLink).toBeTruthy();
+  });
 });
 

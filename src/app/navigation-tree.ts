@@ -83,7 +83,13 @@ export class NavigationTreeService {
   }
 
   /** Title of the page being viewed, also used as the document title. */
-  public currentTitle = computed(() => this.titleOf(this.currentView()));
+  public currentTitle = computed(() => {
+    const view = this.currentView();
+    if (view === Views.Home && !this.firebaseState.user()) {
+      return 'Welcome';
+    }
+    return this.titleOf(view);
+  });
 
   /**
    * The pages above the current one, root-first, excluding Home. Empty for a
@@ -102,7 +108,9 @@ export class NavigationTreeService {
   });
 
   /** Whether the current view is the root page (Home of the Members Portal). */
-  public isHome = computed(() => this.currentView() === Views.Home);
+  public isHome = computed(
+    () => this.currentView() === Views.Home || this.currentView() === Views.Login,
+  );
 
   /**
    * Target for the back button in the header. Returns null at the root (Home),
@@ -142,13 +150,20 @@ export class NavigationTreeService {
   /** Full breadcrumb trail: app root, ancestors, current page. */
   public breadcrumbs = computed<BreadcrumbNode[]>(() => {
     const view = this.currentView();
+    const isLoggedIn = !!this.firebaseState.user();
     const appRoot: NavNode & { shortLabel?: string } = {
-      label: 'Members Portal',
-      shortLabel: 'Members Portal',
+      label: 'ILC Portal',
+      shortLabel: 'ILC Portal',
       url: '/',
     };
     if (view === Views.Home) {
+      if (!isLoggedIn) {
+        return [appRoot, { label: 'Welcome' }];
+      }
       return [appRoot];
+    }
+    if (view === Views.Login) {
+      return [appRoot, { label: 'Welcome' }];
     }
     if (!view) {
       return [
@@ -681,7 +696,7 @@ export class NavigationTreeService {
       case Views.ManageVod:
         return 'Manage VOD';
       case Views.Login:
-        return 'Login';
+        return 'Welcome';
       case Views.NewMember:
         return 'New Member';
       case Views.MyStudentView: {

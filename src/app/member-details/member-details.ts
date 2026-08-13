@@ -83,6 +83,7 @@ export class MemberDetailsComponent {
   close = output();
 
   // Constants
+  environment = environment;
   AssignKind = AssignKind;
   MembershipType = MembershipType;
   membershipTypes = Object.values(MembershipType);
@@ -365,11 +366,16 @@ export class MemberDetailsComponent {
     return this.isSaving() && !this.isDirty();
   });
   countryWithCode = computed<CountryCode | null>(() => {
-    const countryName = this.editableMember().country;
+    const countryName = this.editableMember().country?.trim();
+    if (!countryName) return null;
     return (
       this.membersService.countries
         .entries()
-        .find((c) => c.name === countryName) || null
+        .find(
+          (c) =>
+            c.name.toLowerCase() === countryName.toLowerCase() ||
+            c.id.toLowerCase() === countryName.toLowerCase(),
+        ) || null
     );
   });
 
@@ -909,6 +915,18 @@ export class MemberDetailsComponent {
         tags: this.form.tags().value().filter((t) => t.trim() !== ''),
         mastersLevels: this.form.mastersLevels().value(),
       };
+
+      if (member.country?.trim() && !this.countryWithCode()) {
+        const err = `Invalid country "${member.country}". Please select a valid country from the list, or contact ${environment.adminEmail}.`;
+        console.error(err);
+        this.asyncError.set(new Error(err));
+        this.isSaving.set(false);
+        return;
+      }
+      if (this.countryWithCode()) {
+        member.country = this.countryWithCode()!.name;
+      }
+
       const memberIdAssignment = this.memberIdAssignment().kind;
       if (memberIdAssignment === AssignKind.AssignNewAutoId) {
         const countryCode = this.countryWithCode()?.id;

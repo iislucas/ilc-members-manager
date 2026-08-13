@@ -145,6 +145,11 @@ export class App {
     return !!view && PUBLIC_VIEWS.has(view);
   });
 
+  public isLoginPage = computed(() => {
+    const view = this.currentView();
+    return view === Views.Login || view === Views.Home;
+  });
+
   onEventTitleLoaded(title: string) {
     this.navTree.loadedEventTitle.set(title);
   }
@@ -270,12 +275,11 @@ export class App {
       const view = this.routingService.matchedPatternId();
 
       const isOnPublicPage = !!view && PUBLIC_VIEWS.has(view);
-      if (isLoggedOut && view === Views.Home) {
-        this.routingService.navigateToParts(['login']);
-      } else if (isLoggedOut && view === Views.Login) {
-        // Stay on login page
-      } else if (isLoggedOut && (isOnPublicPage || !view)) {
-        // Stay on public page or not found page — login is available in header
+      if (
+        isLoggedOut &&
+        (view === Views.Home || view === Views.Login || isOnPublicPage || !view)
+      ) {
+        // Stay on current page — root / renders login & site discovery cards without URL rewrite
       } else if (isLoggedIn) {
         if (view === Views.Login) {
           // After login, redirect to the returnUrl if one was provided

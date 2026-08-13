@@ -171,8 +171,13 @@
       color: v.$text-primary;
     }
     .member-id-hint {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
       margin-top: 0.3em;
       font-size: 0.85em;
+      line-height: 1.4;
     }
   }
 
