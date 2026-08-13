@@ -109,6 +109,7 @@ export class LoginComponent {
   verificationError = signal<string | null>(null);
   resendSuccess = signal<string | null>(null);
   authLoading = signal<boolean>(false);
+  optionsMenuOpen = signal<boolean>(false);
 
   unverifiedEmail = computed(
     () => this.firebaseService.unverifiedUser()?.email || this.loginEmail(),
@@ -355,6 +356,7 @@ export class LoginComponent {
     this.resetPasswordSuccess.set(null);
     this.verificationError.set(null);
     this.resendSuccess.set(null);
+    this.optionsMenuOpen.set(false);
     this.firebaseService.loginError.set(null);
   }
 }

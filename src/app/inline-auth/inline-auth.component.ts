@@ -113,6 +113,7 @@ export class InlineAuthComponent {
   resetPasswordSuccess = signal<string | null>(null);
   verificationError = signal<string | null>(null);
   resendSuccess = signal<string | null>(null);
+  optionsMenuOpen = signal<boolean>(false);
 
   constructor() {
     const cached = getCachedLoginInfo();
@@ -355,6 +356,7 @@ export class InlineAuthComponent {
     this.resetPasswordSuccess.set(null);
     this.verificationError.set(null);
     this.resendSuccess.set(null);
+    this.optionsMenuOpen.set(false);
     this.firebaseService.loginError.set(null);
   }
 }

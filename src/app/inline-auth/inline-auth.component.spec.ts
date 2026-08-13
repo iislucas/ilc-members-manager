@@ -214,4 +214,31 @@ describe('InlineAuthComponent', () => {
     await component.logout();
     expect(mockFirebaseService.logout).toHaveBeenCalled();
   });
+
+  it('should toggle options menu in GoogleSignin step', async () => {
+    await createComponent();
+    component.step.set(InlineAuthStep.GoogleSignin);
+    component.emailStatus.set({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+    });
+    fixture.detectChanges();
+
+    expect(component.optionsMenuOpen()).toBe(false);
+    const moreBtn = fixture.nativeElement.querySelector('.more-options-btn') as HTMLButtonElement;
+    expect(moreBtn).toBeTruthy();
+
+    moreBtn.click();
+    fixture.detectChanges();
+    expect(component.optionsMenuOpen()).toBe(true);
+
+    const usePasswordBtn = fixture.nativeElement.querySelector('#use-password-btn') as HTMLButtonElement;
+    expect(usePasswordBtn).toBeTruthy();
+    usePasswordBtn.click();
+    fixture.detectChanges();
+
+    expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+    expect(component.optionsMenuOpen()).toBe(false);
+  });
 });

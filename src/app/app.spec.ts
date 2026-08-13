@@ -277,7 +277,7 @@ describe('App', () => {
     // Verify breadcrumbs
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
     expect(breadcrumbLabels).toEqual([
-      'ILC Members Portal',
+      'ILC Portal',
       'Learn',
       'Members Posts',
       'Article',

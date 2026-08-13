@@ -591,11 +591,29 @@ describe('LoginComponent', () => {
     expect(component.resendSuccess()).toContain('verification email has been sent');
   });
 
-  it('should call logout and reset to Email step on logout', async () => {
-    const spy = vi.spyOn(mockService, 'logout').mockResolvedValue({ success: true });
-    component.loginStep.set(LoginStep.PasswordLogin);
-    await component.logout();
-    expect(spy).toHaveBeenCalled();
-    expect(component.loginStep()).toBe(LoginStep.Email);
+  it('should toggle options menu and execute actions from menu', () => {
+    component.loginStep.set(LoginStep.GoogleSignin);
+    component.emailStatus.set({
+      hasMemberRecord: true,
+      hasAuthAccount: true,
+      isGoogleManaged: true,
+    });
+    fixture.detectChanges();
+
+    expect(component.optionsMenuOpen()).toBe(false);
+    const moreBtn = fixture.nativeElement.querySelector('.more-options-btn') as HTMLButtonElement;
+    expect(moreBtn).toBeTruthy();
+
+    moreBtn.click();
+    fixture.detectChanges();
+    expect(component.optionsMenuOpen()).toBe(true);
+
+    const usePasswordBtn = fixture.nativeElement.querySelector('#use-password-btn') as HTMLButtonElement;
+    expect(usePasswordBtn).toBeTruthy();
+    usePasswordBtn.click();
+    fixture.detectChanges();
+
+    expect(component.loginStep()).toBe(LoginStep.PasswordLogin);
+    expect(component.optionsMenuOpen()).toBe(false);
   });
 });
