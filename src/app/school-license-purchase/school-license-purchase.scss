@@ -66,9 +66,9 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+    background: v.$highlight-tag-bg;
+    color: v.$highlight-tag-text;
+    border: 1px solid v.$highlight-tag-border;
 
     app-icon {
       width: 15px;
@@ -237,12 +237,12 @@
 
   &:hover {
     border-color: v.$primary-color;
-    background: v.$table-row-selected;
+    background: v.$separator-color;
   }
 
   &.selected {
     border: 2px solid v.$primary-color;
-    background: v.$table-row-selected;
+    background: v.$separator-color;
   }
 
   .school-choice-header {
@@ -420,7 +420,7 @@ app-autocomplete {
 
   .option-card {
     border: 2px solid v.$primary-color;
-    background: v.$table-row-selected;
+    background: v.$separator-color;
     border-radius: 8px;
     padding: 1.25rem 1.5rem;
 
@@ -468,8 +468,9 @@ app-autocomplete {
 }
 
 .order-confirmation-card {
-  border-left: 4px solid v.$row-highlight-border;
-  background: v.$row-highlight-bg;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid #18181b;
+  background: v.$separator-color;
 
   .confirmation-header {
     display: flex;

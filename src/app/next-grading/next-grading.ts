@@ -31,6 +31,8 @@ import {
   gradingProgression,
   normalizeGradingLevel,
   achievedGradingLevels,
+  StudentLevel,
+  ApplicationLevel,
 } from '../../../functions/src/data-model';
 import {
   CheckoutSessionSummary,
@@ -100,11 +102,15 @@ export class NextGradingComponent {
   });
 
   currentStudentLevel = computed(() => {
-    return this.user()?.member.studentLevel || 'None';
+    const lvl = this.user()?.member.studentLevel;
+    if (!lvl) return 'None';
+    return `${lvl}`;
   });
 
   currentApplicationLevel = computed(() => {
-    return this.user()?.member.applicationLevel || 'None';
+    const lvl = this.user()?.member.applicationLevel;
+    if (!lvl) return null;
+    return `${lvl}`;
   });
 
   // Achieved levels from member record

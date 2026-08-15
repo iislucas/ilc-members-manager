@@ -33,6 +33,21 @@ h2 {
 }
 
 // ----------------------------------------------------------------------------
+//  Global Links
+//  Standout inline links throughout the app use the official ILC brand red.
+// ----------------------------------------------------------------------------
+
+a {
+  color: $heading-accent-color;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: color.adjust($heading-accent-color, $lightness: -10%);
+  }
+}
+
+// ----------------------------------------------------------------------------
 //  Centered Container
 //  Use on page-level wrapper divs to constrain content width with auto margins.
 //  Override max-width in component SCSS only when a wider/narrower layout is needed.
@@ -175,14 +190,14 @@ button:disabled {
   background-color: transparent;
   border: none;
   box-shadow: none;
-  color: $text-primary;
+  color: $heading-accent-color;
   text-decoration: underline;
   cursor: pointer;
 
   &:hover {
     background-color: transparent;
     box-shadow: none;
-    color: $text-secondary;
+    color: color.adjust($heading-accent-color, $lightness: -10%);
   }
   &:active {
     background-color: transparent;
@@ -248,6 +263,55 @@ button:disabled {
   flex-direction: column;
   align-items: start;
   gap: 0.3em;
+}
+
+// ----------------------------------------------------------------------------
+//  Notes & Status Banners
+//  Clean neutral grey box with dark left accent border for active subscription
+//  statuses, guidance notes, and info callouts.
+// ----------------------------------------------------------------------------
+
+.note-box,
+.current-membership-banner {
+  border: 1px solid $border-color-light;
+  border-left: 4px solid #18181b;
+  background: $separator-color;
+  border-radius: 8px;
+  padding: 1.25em 1.5em;
+  box-sizing: border-box;
+
+  .banner-header,
+  .note-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1em;
+
+    h3 {
+      margin: 0 0 0.25em;
+      font-size: 1.1em;
+      color: $text-primary;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.95em;
+      color: $text-secondary;
+      line-height: 1.4;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95em;
+    color: $text-secondary;
+    line-height: 1.4;
+  }
+}
+
+.note {
+  color: $text-secondary;
+  font-size: 0.9em;
+  line-height: 1.4;
 }
 
 // ----------------------------------------------------------------------------
@@ -515,6 +579,73 @@ a.selectable-card {
   padding: 0.25em 0.5em;
   font-size: small;
   font-family: monospace;
+}
+
+// ----------------------------------------------------------------------------
+//  Highlight Badges & Step Checkmarks (Light Blue Theme)
+// ----------------------------------------------------------------------------
+
+.step-completed-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: $highlight-tag-bg;
+  color: $highlight-tag-text;
+  border: 1px solid $highlight-tag-border;
+
+  app-icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.active-badge,
+.lifetime-badge,
+.badge-highlight {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 0.75em;
+  font-weight: 600;
+  border-radius: 12px;
+  background: $highlight-tag-bg;
+  color: $highlight-tag-text;
+  border: 1px solid $highlight-tag-border;
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 0.75em;
+  font-weight: 600;
+  border-radius: 12px;
+  white-space: nowrap;
+
+  &.paid,
+  &.status-paid,
+  &.status-active,
+  &.status-lifetime {
+    background: $highlight-tag-bg;
+    color: $highlight-tag-text;
+    border: 1px solid $highlight-tag-border;
+  }
+
+  &.unpaid,
+  &.status-expired,
+  &.status-failed {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  &.status-pending {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
 }
 
 .identifier-chip {

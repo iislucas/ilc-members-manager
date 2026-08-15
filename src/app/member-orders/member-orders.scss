@@ -272,7 +272,7 @@
         }
 
         .renew-date {
-          color: #047857;
+          color: v.$heading-accent-color;
         }
 
         .off-text {
@@ -360,10 +360,11 @@
   border-radius: 12px;
   white-space: nowrap;
 
-  &.status-active {
-    background: #ecfdf5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
+  &.status-active,
+  &.status-lifetime {
+    background: v.$highlight-tag-bg;
+    color: v.$highlight-tag-text;
+    border: 1px solid v.$highlight-tag-border;
   }
 
   &.status-expired {
@@ -532,9 +533,9 @@
             background: #f4f4f5;
             color: #3f3f46;
             &.badge-renewal {
-              background: #eff6ff;
-              color: #1e40af;
-              border: 1px solid #bfdbfe;
+              background: #f4f4f5;
+              color: #3f3f46;
+              border: 1px solid v.$border-color-light;
             }
             &.badge-cancellation {
               background: #fef2f2;
@@ -545,9 +546,9 @@
 
           &.status-badge {
             &.status-paid {
-              background: #ecfdf5;
-              color: #065f46;
-              border: 1px solid #a7f3d0;
+              background: v.$highlight-tag-bg;
+              color: v.$highlight-tag-text;
+              border: 1px solid v.$highlight-tag-border;
             }
             &.status-pending {
               background: #fffbeb;

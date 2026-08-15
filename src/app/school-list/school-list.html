@@ -16,7 +16,7 @@
           (input)="onSearch($event)"
         />
       </div>
-      @if (u.isAdmin) {
+      @if (u.isAdmin && !isMySchools()) {
         <button (click)="onNewSchool()">New School</button>
       }
     </div>

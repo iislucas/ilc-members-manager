@@ -61,7 +61,12 @@ $theme-chip-bg-color: #f4f4f5;
 $theme-chip-border-color: #d4d4d8;
 
 $theme-tag-bg-color: #e0f2fe;
-$theme-tag-border-color: #bae6fd;
+$theme-tag-border-color: #7dd3fc;
+
+// Highlight badges, active chips & stage checkmarks (Light blue bg with medium blue border)
+$highlight-tag-bg: #e0f2fe;
+$highlight-tag-border: #7dd3fc;
+$highlight-tag-text: #0369a1;
 
 // ============================================================================
 //  Menu Colors
@@ -84,11 +89,11 @@ $max-main-width: 900px; // Default max-width for centered page containers
 $card-padding: 10px;
 $card-sep: 0.75em;
 
-// List styling (Light blue hover and selection highlights)
+// List styling (Selection / active item highlights — red left-border with light grey background)
 $row-border-color: #e4e4e7;
-$row-highlight-bg: #f4f9ff;
-$row-highlight-border: #4da3ff;
-$table-row-selected: #f4f9ff;
+$row-highlight-bg: #f4f4f5;
+$row-highlight-border: #950000;
+$table-row-selected: #f4f4f5;
 $primary-color: #950000;
 
 @mixin row-highlight-base {

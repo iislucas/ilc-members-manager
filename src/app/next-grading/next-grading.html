@@ -213,12 +213,13 @@
 
       <div class="levels-grid">
         <div class="level-box current">
-          <div class="level-label">Student Level</div>
-          <div class="level-value">{{ currentStudentLevel() }}</div>
-        </div>
-        <div class="level-box current">
-          <div class="level-label">Application Level</div>
-          <div class="level-value">{{ currentApplicationLevel() }}</div>
+          <div class="level-label">Current Level</div>
+          <div class="level-value">
+            <div>Student {{ currentStudentLevel() }}</div>
+            @if (currentApplicationLevel()) {
+              <div>Application {{ currentApplicationLevel() }}</div>
+            }
+          </div>
         </div>
         <div class="level-box next">
           <div class="level-label">Next level to purchase</div>

@@ -139,7 +139,7 @@
     }
 
     a {
-      color: var(--primary-color, #3a5af1);
+      color: $heading-accent-color;
       text-decoration: none;
       border-bottom: 1px solid transparent;
       transition: border-color 0.2s;
@@ -326,7 +326,7 @@
           margin-bottom: 1.5rem;
         }
         a {
-          color: var(--primary-color, #3a5af1);
+          color: $heading-accent-color;
           text-decoration: none;
           border-bottom: 1px solid transparent;
           transition: border-color 0.2s;

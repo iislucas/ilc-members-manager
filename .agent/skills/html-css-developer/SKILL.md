@@ -293,6 +293,24 @@ Use the `.card` class from `styles.scss` — it provides `$theme-bg-color` backg
 
 The home page overrides `.card` with white background and interactive hover (lift effect) — this is one of the few cases where a component legitimately overrides a global class.
 
+### Notes & Status Banners
+
+The app uses a **common note & status banner style** (`.note-box`, `.current-membership-banner`, and `.note` in `styles.scss`) for subscription statuses, active license callouts, and informational notes:
+- **Container**: `$separator-color` (`#f4f4f5`) neutral grey background with `1px solid $border-color-light` (`#e4e4e7`) outline and a solid `4px solid #18181b` dark left accent stripe.
+- **Header**: Icon (e.g. `<app-icon name="check">` or `<app-icon name="info">`) aligned with bold title (`h3`, `$text-primary`) and secondary description text (`p`, `$text-secondary`).
+
+```html
+<div class="current-membership-banner card">
+  <div class="banner-header">
+    <app-icon name="check" width="24px" height="24px"></app-icon>
+    <div>
+      <h3>Active Lifetime Instructor License</h3>
+      <p>You hold an official Lifetime Instructor License. Lifetime licenses never expire.</p>
+    </div>
+  </div>
+</div>
+```
+
 ### Pill Tabs
 
 The app uses a **global pill-tab system** for in-page tab navigation (settings, gradings, import-export, members/instructors area). Tabs sit on a tinted track; the active tab pops out with a white background and subtle shadow.
@@ -312,14 +330,14 @@ Use the global classes from `styles.scss` — **do not define local tab styles i
 
 ### Interactive List Rows (Row Highlight)
 
-The app uses a standardised **row-highlight** pattern for clickable list items and detail page headers. It provides a subtle left-border accent with a light blue background, giving the user clear hover and selection feedback on desktop.
+The app uses a standardised **row-highlight** pattern for clickable list items, event listings, and detail page headers. It provides a red left-border accent (`$row-highlight-border: #950000`) with a light grey background (`$row-highlight-bg: #f4f4f5`), giving the user clear, consistent hover and selection feedback on desktop.
 
 The pattern is built from two SCSS mixins in `scss_variables.scss`:
 
 | Mixin | Effect |
 | --- | --- |
 | `row-highlight-base` | Adds a 4px transparent left border with a smooth transition (background + border color) |
-| `row-highlight-active` | Sets `background-color: $row-highlight-bg` and `border-left-color: $row-highlight-border` |
+| `row-highlight-active` | Sets `background-color: $row-highlight-bg` (`#f4f4f5`) and `border-left-color: $row-highlight-border` (`#950000`) |
 
 **Pattern A — Hover highlight (list items, table rows):**
 
