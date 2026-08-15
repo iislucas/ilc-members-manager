@@ -206,7 +206,6 @@ export class NavigationTreeService {
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
       view === Views.ClassVideoLibrary ||
-      view === Views.ClassVideoLibraryPurchase ||
       view === Views.Videos ||
       view === Views.VideoView
     ) {
