@@ -30,13 +30,13 @@ type TestItem = {
   lastUpdated: string;
 };
 
+type TestItemDoc = Omit<TestItem, 'docId'>;
+
 function firestoreDocToTestItem(doc: GenericFsDoc): TestItem {
-  const data = (doc.data() as Partial<TestItem>) || {};
+  const data = doc.data() as TestItemDoc;
   return {
+    ...data,
     docId: doc.id,
-    name: data.name ?? '',
-    country: data.country ?? '',
-    lastUpdated: data.lastUpdated ?? '',
   };
 }
 
