@@ -12,7 +12,7 @@
 
   <!-- Hero Featured Spotlight Banner -->
   @if (featuredVideo(); as feat) {
-    @if (!searchQuery() && selectedCategory() === 'all' && !selectedTag() && !selectedInstructor()) {
+    @if (!searchQuery() && !selectedTag() && !selectedInstructor()) {
       <div class="featured-hero-banner">
         <div class="hero-poster-wrapper">
           @if (feat.thumbnailUrl) {
@@ -27,7 +27,6 @@
 
         <div class="hero-info">
           <div class="hero-meta-row">
-            <span class="category-pill">{{ getCategoryLabel(feat.category) }}</span>
             <span class="duration-pill">{{ formatDuration(feat.durationSeconds) }}</span>
             <span class="access-pill" [class]="getAccessTierBadge(feat.accessTier).cssClass">
               {{ getAccessTierBadge(feat.accessTier).label }}
@@ -78,24 +77,35 @@
       }
     </div>
 
-    <!-- Category Tabs Navigation -->
-    <div class="category-tabs-scroll">
-      <div class="category-tabs">
-        @for (cat of categories; track cat.value) {
-          <button
-            type="button"
-            class="cat-tab"
-            [class.active]="selectedCategory() === cat.value"
-            (click)="setCategory(cat.value)"
-          >
-            {{ cat.label }}
-          </button>
-        }
-      </div>
-    </div>
-
-    <!-- Secondary Filters Row (Instructor, Tag, Clear) -->
+    <!-- Secondary Filters Row (Tag Autocomplete, Instructor Autocomplete, Clear) -->
     <div class="secondary-filters-row">
+      <!-- Tag Filter Autocomplete -->
+      <div class="filter-item">
+        <label>Tag:</label>
+        <div class="autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Tag"
+            [searchableSet]="dataService.tagsSet"
+            [displayFns]="tagDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedTag()"
+            placeholder="All Tags (type #tag)..."
+            (itemSelected)="onTagSelected($event)"
+            (textUpdated)="onTagTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedTag()) {
+            <button
+              type="button"
+              class="icon-only-button clear-filter-btn"
+              (click)="clearTagFilter()"
+              title="Clear tag"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        </div>
+      </div>
+
       <!-- Instructor Filter Autocomplete -->
       <div class="filter-item">
         <label>Instructor:</label>
@@ -124,7 +134,7 @@
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedCategory() !== 'all' || selectedTag() || selectedInstructor() || selectedTier() !== 'all') {
+      @if (searchQuery() || selectedTag() || selectedInstructor() || selectedTier() !== 'all') {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
@@ -139,7 +149,7 @@
     <!-- Tag Cloud Chips -->
     @if (availableTags().length) {
       <div class="tag-cloud">
-        <span class="tags-label">Tags:</span>
+        <span class="tags-label">Popular Tags:</span>
         <div class="tags-list">
           @for (tag of availableTags(); track tag) {
             <button
@@ -147,6 +157,7 @@
               class="tag-chip"
               [class.active]="selectedTag() === tag"
               (click)="setTag(tag)"
+              [title]="getTagTooltip(tag)"
             >
               #{{ tag }}
             </button>
@@ -160,8 +171,8 @@
   <div class="catalog-content">
     <div class="section-title-row">
       <h3>
-        @if (selectedCategory() !== 'all') {
-          {{ getCategoryLabel(selectedCategory()) }}
+        @if (selectedTag()) {
+          #{{ selectedTag() }} Recordings
         } @else {
           All Recordings
         }
@@ -202,7 +213,6 @@
             <!-- Card Info -->
             <div class="card-info">
               <div class="card-header-row">
-                <span class="card-category">{{ getCategoryLabel(video.category) }}</span>
                 <span
                   class="access-tier-chip"
                   [class]="getAccessTierBadge(video.accessTier).cssClass"
@@ -235,7 +245,7 @@
               @if (video.tags && video.tags.length) {
                 <div class="card-tags">
                   @for (t of video.tags.slice(0, 3); track t) {
-                    <span class="mini-tag">#{{ t }}</span>
+                    <span class="mini-tag" [title]="getTagTooltip(t)">#{{ t }}</span>
                   }
                 </div>
               }
@@ -279,3 +289,4 @@
     }
   </div>
 </div>
+

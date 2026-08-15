@@ -30,6 +30,7 @@ import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
+import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { MediaTypeFilter, SortOption } from '../my-materials/my-materials';
 
@@ -42,6 +43,7 @@ import { MediaTypeFilter, SortOption } from '../my-materials/my-materials';
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
+    TagInputComponent,
   ],
   templateUrl: './manage-materials.html',
   styleUrl: './manage-materials.scss',
@@ -591,7 +593,7 @@ export class ManageMaterialsComponent implements OnInit {
   vodCategory = signal<VodCategory>(VodCategory.SeminarRecording);
   vodAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
   vodPriceDollars = signal<number | null>(null);
-  vodTags = signal('');
+  vodTags = signal<string[]>([]);
 
   readonly vodCategories = [
     { value: VodCategory.SeminarRecording, label: 'Seminar Recording' },
@@ -649,7 +651,7 @@ export class ManageMaterialsComponent implements OnInit {
     this.vodCategory.set(VodCategory.SeminarRecording);
     this.vodAccessTier.set(VodAccessTier.MembersOnly);
     this.vodPriceDollars.set(null);
-    this.vodTags.set((mat.tags || []).join(', '));
+    this.vodTags.set([...(mat.tags || [])]);
   }
 
   closePublishVodModal() {
@@ -662,10 +664,7 @@ export class ManageMaterialsComponent implements OnInit {
 
     this.isPublishingVod.set(true);
     try {
-      const tags = this.vodTags()
-        .split(',')
-        .map((t) => t.trim())
-        .filter((t) => !!t);
+      const tags = this.vodTags();
 
       const price = this.vodPriceDollars();
       const priceCents = price ? Math.round(price * 100) : undefined;

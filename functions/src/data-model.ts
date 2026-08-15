@@ -2667,4 +2667,45 @@ export function firestoreDocToVideoProgress(doc: GenericFsDoc): VideoProgress {
   };
 }
 
+export type VideoTagMeta = {
+  tag: string;           // Short identifier / slug (e.g. "spinning_hands", "level_3")
+  label?: string;        // Human-readable title (e.g. "Spinning Hands")
+  description: string;   // Explanatory summary displayed on hover tooltip
+  category?: string;     // Optional group for future organization
+  createdAt?: string;    // ISO timestamp
+  lastUpdated?: string;  // ISO timestamp
+};
+
+export function initVideoTagMeta(tag = '', description = '', label = ''): VideoTagMeta {
+  return {
+    tag,
+    label: label || tag,
+    description,
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export type SystemVideoTagsDoc = {
+  tags: Record<string, VideoTagMeta>;
+  lastUpdated: string;
+};
+
+export type SystemTagsDoc = SystemVideoTagsDoc;
+
+export type TagItem = {
+  tag: string;
+  label?: string;
+  description?: string;
+};
+
+export function initSystemVideoTagsDoc(): SystemVideoTagsDoc {
+  return {
+    tags: {},
+    lastUpdated: '',
+  };
+}
+
+export const initSystemTagsDoc = initSystemVideoTagsDoc;
+
 

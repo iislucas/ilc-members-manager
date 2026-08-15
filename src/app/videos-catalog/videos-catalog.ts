@@ -24,11 +24,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import {
   VideoItem,
-  VodCategory,
   VodAccessTier,
   VodStatus,
   VideoProgress,
   InstructorPublicData,
+  TagItem,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -36,11 +36,6 @@ import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
-
-export interface CategoryOption {
-  value: string;
-  label: string;
-}
 
 @Component({
   selector: 'app-videos-catalog',
@@ -63,7 +58,6 @@ export class VideosCatalogComponent implements OnInit {
 
   // URL Parameter Signals
   searchQuery = computed(() => this.viewSignals.urlParams.q() || '');
-  selectedCategory = computed(() => this.viewSignals.urlParams.category() || 'all');
   selectedTag = computed(() => this.viewSignals.urlParams.tag() || '');
   selectedInstructor = computed(() => this.viewSignals.urlParams.instructorId() || '');
   selectedTier = computed(() => this.viewSignals.urlParams.tier() || 'all');
@@ -71,19 +65,22 @@ export class VideosCatalogComponent implements OnInit {
   // Local state signals
   isLoading = signal(false);
   instructorSearchInput = signal('');
+  tagSearchInput = signal('');
   continueWatchingList = signal<VideoProgress[]>([]);
 
-  // Categories list for filter tabs
-  readonly categories: CategoryOption[] = [
-    { value: 'all', label: 'All Videos' },
-    { value: VodCategory.SeminarRecording, label: 'Seminar Recordings' },
-    { value: VodCategory.TechniqueBreakdown, label: 'Technique Breakdowns' },
-    { value: VodCategory.GradingSyllabus, label: 'Grading Syllabus' },
-    { value: VodCategory.FormDemonstration, label: 'Form Demonstrations' },
-    { value: VodCategory.InstructorTraining, label: 'Instructor Training' },
-    { value: VodCategory.Workshop, label: 'Workshops' },
-    { value: VodCategory.HistoricalArchive, label: 'Historical Archives' },
-  ];
+  // Autocomplete display helper for tags
+  tagDisplayFns: DisplayFns<TagItem> = {
+    toChipId: (t) => t.tag,
+    toName: (t) => (t.description ? `#${t.tag} (${t.description})` : '#' + t.tag),
+  };
+
+  getTagTooltip(tag: string): string {
+    const meta = this.dataService.getTagMeta(tag);
+    if (meta?.description) {
+      return `#${tag}: ${meta.description}`;
+    }
+    return `Filter by #${tag}`;
+  }
 
   // Autocomplete display helper for instructors
   instructorDisplayFns: DisplayFns<InstructorPublicData> = {
@@ -127,7 +124,6 @@ export class VideosCatalogComponent implements OnInit {
   // Filtered catalog
   filteredVideos = computed<VideoItem[]>(() => {
     const q = this.searchQuery().toLowerCase().trim();
-    const cat = this.selectedCategory();
     const tag = this.selectedTag().toLowerCase().trim();
     const instId = this.selectedInstructor();
     const tier = this.selectedTier();
@@ -145,10 +141,6 @@ export class VideosCatalogComponent implements OnInit {
           v.instructorName.toLowerCase().includes(q) ||
           (v.tags && v.tags.some((t) => t.toLowerCase().includes(q))),
       );
-    }
-
-    if (cat && cat !== 'all') {
-      items = items.filter((v) => v.category === cat);
     }
 
     if (tag) {
@@ -188,13 +180,26 @@ export class VideosCatalogComponent implements OnInit {
     this.viewSignals.urlParams.q.set(q || '');
   }
 
-  setCategory(cat: string): void {
-    this.viewSignals.urlParams.category.set(cat === 'all' ? '' : cat);
-  }
-
   setTag(tag: string): void {
     const current = this.selectedTag();
     this.viewSignals.urlParams.tag.set(current === tag ? '' : tag);
+    this.tagSearchInput.set(current === tag ? '' : tag);
+  }
+
+  onTagSelected(item: TagItem): void {
+    this.setTag(item.tag);
+  }
+
+  onTagTextUpdated(text: string): void {
+    this.tagSearchInput.set(text);
+    if (!text.trim()) {
+      this.viewSignals.urlParams.tag.set('');
+    }
+  }
+
+  clearTagFilter(): void {
+    this.tagSearchInput.set('');
+    this.viewSignals.urlParams.tag.set('');
   }
 
   onInstructorSelected(inst: InstructorPublicData | null): void {
@@ -213,11 +218,11 @@ export class VideosCatalogComponent implements OnInit {
 
   clearAllFilters(): void {
     this.viewSignals.urlParams.q.set('');
-    this.viewSignals.urlParams.category.set('');
     this.viewSignals.urlParams.tag.set('');
     this.viewSignals.urlParams.instructorId.set('');
     this.viewSignals.urlParams.tier.set('');
     this.instructorSearchInput.set('');
+    this.tagSearchInput.set('');
   }
 
   getVideoHref(video: VideoItem): string {
@@ -241,11 +246,6 @@ export class VideosCatalogComponent implements OnInit {
       return `${hrs}h ${mins}m`;
     }
     return `${mins}m`;
-  }
-
-  getCategoryLabel(category: VodCategory | string): string {
-    const match = this.categories.find((c) => c.value === category);
-    return match ? match.label : category;
   }
 
   getAccessTierBadge(tier: VodAccessTier | string): {

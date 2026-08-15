@@ -75,6 +75,7 @@ export enum Views {
   Videos = 'videos',
   VideoView = 'videoView',
   ManageVod = 'manageVod',
+  ManageVideoTags = 'manageVideoTags',
   BecomeAMember = 'becomeAMember',
   NextGrading = 'nextGrading',
   InstructorLicensePurchase = 'instructorLicensePurchase',
@@ -265,6 +266,7 @@ export const initPathPatterns = {
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
     'q', 'status', 'category', 'instructorId',
   ]),
+  [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
 };
 
 // Santiy check for type correctness...

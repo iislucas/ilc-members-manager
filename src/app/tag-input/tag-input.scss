@@ -1,0 +1,139 @@
+@use '../../scss_variables.scss' as v;
+
+.tag-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+
+  &.disabled {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+}
+
+.selected-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 1.8rem;
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: #e0e7ff;
+      border-color: #a5b4fc;
+    }
+
+    .tag-label {
+      user-select: none;
+    }
+
+    .chip-remove-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      margin: 0;
+      background: none;
+      border: none;
+      color: #6366f1;
+      cursor: pointer;
+      border-radius: 50%;
+      width: 1rem;
+      height: 1rem;
+      transition: background 0.15s ease, color 0.15s ease;
+
+      app-icon {
+        font-size: 0.75rem;
+        width: 0.75rem;
+        height: 0.75rem;
+      }
+
+      &:hover {
+        background: #c7d2fe;
+        color: #312e81;
+      }
+    }
+  }
+}
+
+.tag-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+
+  .tag-autocomplete-box {
+    flex: 1;
+    min-width: 0;
+
+    ::ng-deep app-autocomplete {
+      width: 100%;
+
+      .autocomplete-container {
+        width: 100%;
+      }
+
+      input {
+        width: 100%;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid v.$border-color-light;
+        border-radius: 6px;
+        font-size: 0.88rem;
+        color: v.$text-primary;
+        background: #ffffff;
+        box-sizing: border-box;
+
+        &:focus {
+          outline: none;
+          border-color: v.$focus-ring-color;
+          box-shadow: 0 0 0 2px rgba(149, 0, 0, 0.15);
+        }
+      }
+    }
+  }
+
+  .add-tag-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.1rem;
+    width: 2.1rem;
+    min-width: 2.1rem;
+    padding: 0;
+    border-radius: 6px;
+    background: v.$button-bg-color;
+    border: 1px solid v.$button-border-color;
+    color: v.$button-text-color;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    app-icon {
+      font-size: 1.1rem;
+    }
+
+    &:hover:not(:disabled) {
+      background: v.$button-hover-bg-color;
+      border-color: v.$theme-border-color;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}

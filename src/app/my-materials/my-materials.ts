@@ -20,6 +20,7 @@ import {
   UploadItem,
   UploadItemSource,
   IlcEvent,
+  VodStatus,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -28,6 +29,7 @@ import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
+import { TagInputComponent } from '../tag-input/tag-input';
 import { SearchableSet } from '../searchable-set';
 import { makeThumbnail } from '../utils';
 
@@ -43,6 +45,7 @@ export type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | '
     IconComponent,
     SpinnerComponent,
     AutocompleteComponent,
+    TagInputComponent,
   ],
   templateUrl: './my-materials.html',
   styleUrl: './my-materials.scss',
@@ -623,5 +626,32 @@ export class MyMaterialsComponent implements OnInit {
   filterByTag(tag: string) {
     const current = this.selectedTagFilter();
     this.setTagFilter(current === tag ? '' : tag);
+  }
+
+  VodStatus = VodStatus;
+
+  getVodStatusLabel(mat: UploadItem): string {
+    switch (mat.vodStatus) {
+      case VodStatus.Ready:
+        return 'In VOD';
+      case VodStatus.Transcoding:
+        return 'Transcoding...';
+      case VodStatus.Queued:
+        return 'VOD Queued';
+      case VodStatus.Failed:
+        return 'VOD Failed';
+      default:
+        return '';
+    }
+  }
+
+  getVodViewHref(mat: UploadItem): string {
+    const videoId = mat.vodVideoId || mat.docId;
+    return this.routingService.hrefForView(Views.VideoView, { videoId });
+  }
+
+  getManageVodHref(mat: UploadItem): string {
+    const videoId = mat.vodVideoId || mat.docId;
+    return this.routingService.hrefForView(Views.ManageVod, { q: videoId });
   }
 }

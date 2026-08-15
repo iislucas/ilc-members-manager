@@ -9,17 +9,25 @@ import { ManageVodComponent } from './manage-vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
-import { signal, WritableSignal } from '@angular/core';
+import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus, TagItem } from '../../../functions/src/data-model';
+import { SearchableSet } from '../searchable-set';
+import { signal, WritableSignal, computed } from '@angular/core';
 
 describe('ManageVodComponent', () => {
   let component: ManageVodComponent;
   let fixture: ComponentFixture<ManageVodComponent>;
   let mockDataService: {
-    videos: { entries: WritableSignal<VideoItem[]> };
-    saveVideo: ReturnType<typeof vi.fn>;
+    videos: {
+      entries: WritableSignal<VideoItem[]>;
+      get: (id: string) => VideoItem | undefined;
+    };
+    tagsSet: SearchableSet<'tag', TagItem>;
+    getTagMeta: ReturnType<typeof vi.fn>;
+    getTagDescription: ReturnType<typeof vi.fn>;
+    updateVideoMetadata: ReturnType<typeof vi.fn>;
     deleteVideo: ReturnType<typeof vi.fn>;
     transcodeVideoForVod: ReturnType<typeof vi.fn>;
+    checkVodJobStatus: ReturnType<typeof vi.fn>;
   };
   let mockFirebaseState: {
     user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
@@ -30,7 +38,6 @@ describe('ManageVodComponent', () => {
         urlParams: {
           q: WritableSignal<string | null>;
           status: WritableSignal<string | null>;
-          category: WritableSignal<string | null>;
         };
       };
     };
@@ -38,34 +45,60 @@ describe('ManageVodComponent', () => {
   };
 
   beforeEach(async () => {
+    const sampleVideos: VideoItem[] = [
+      {
+        ...initVideoItem(),
+        docId: 'v1',
+        title: 'Sample Video 1',
+        vodStatus: VodStatus.Ready,
+        accessTier: VodAccessTier.Public,
+        isPublished: true,
+        durationSeconds: 3600,
+        tags: ['basics', 'spinning'],
+        lastUpdated: '2026-01-01',
+      },
+      {
+        ...initVideoItem(),
+        docId: 'v2',
+        title: 'Sample Video 2',
+        vodStatus: VodStatus.Transcoding,
+        accessTier: VodAccessTier.DirectPurchase,
+        priceCents: 1500,
+        isPublished: false,
+        durationSeconds: 1800,
+        tags: ['partner'],
+        lastUpdated: '2026-01-02',
+      },
+    ];
+
     mockDataService = {
       videos: {
-        entries: signal([
-          {
-            ...initVideoItem(),
-            docId: 'v1',
-            title: 'Sample Video 1',
-            vodStatus: VodStatus.Ready,
-            isPublished: true,
-            durationSeconds: 3600,
-            category: VodCategory.SeminarRecording,
-            lastUpdated: '2026-01-01',
-          },
-          {
-            ...initVideoItem(),
-            docId: 'v2',
-            title: 'Sample Video 2',
-            vodStatus: VodStatus.Transcoding,
-            isPublished: false,
-            durationSeconds: 1800,
-            category: VodCategory.TechniqueBreakdown,
-            lastUpdated: '2026-01-02',
-          },
-        ]),
+        entries: signal(sampleVideos),
+        get: (id: string) => sampleVideos.find((v) => v.docId === id),
       },
-      saveVideo: vi.fn().mockResolvedValue(undefined),
+      tagsSet: new SearchableSet<'tag', TagItem>(['tag', 'label', 'description'], 'tag', [
+        { tag: 'basics', description: 'Foundational drills' },
+        { tag: 'spinning', description: 'Circular energy exercises' },
+        { tag: 'partner', description: '' },
+      ]),
+      getTagMeta: vi.fn((tag: string) => {
+        if (tag === 'spinning') return { tag: 'spinning', description: 'Circular energy exercises', createdAt: '', lastUpdated: '' };
+        if (tag === 'basics') return { tag: 'basics', description: 'Foundational drills', createdAt: '', lastUpdated: '' };
+        return undefined;
+      }),
+      getTagDescription: vi.fn((tag: string) => {
+        if (tag === 'spinning') return 'Circular energy exercises';
+        if (tag === 'basics') return 'Foundational drills';
+        return '';
+      }),
+      updateVideoMetadata: vi.fn().mockResolvedValue(undefined),
       deleteVideo: vi.fn().mockResolvedValue(undefined),
       transcodeVideoForVod: vi.fn().mockResolvedValue({ success: true }),
+      checkVodJobStatus: vi.fn().mockResolvedValue({
+        success: true,
+        videoId: 'v2',
+        vodStatus: VodStatus.Ready,
+      }),
     };
 
     mockFirebaseState = {
@@ -78,7 +111,6 @@ describe('ManageVodComponent', () => {
           urlParams: {
             q: signal(null),
             status: signal(null),
-            category: signal(null),
           },
         },
       },
@@ -121,14 +153,61 @@ describe('ManageVodComponent', () => {
     expect(component.editingVideo()).toBeNull();
   });
 
-  it('should save edited video metadata', async () => {
+  it('should save edited video metadata using updateVideoMetadata', async () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
-    component.editTagInput.set('spinning, form');
+    component.editTags.set(['spinning', 'form']);
     component.priceDollars.set(25.00);
 
     await component.saveVideoChanges();
-    expect(mockDataService.saveVideo).toHaveBeenCalled();
+    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', expect.objectContaining({
+      tags: ['spinning', 'form'],
+      priceCents: 2500,
+    }));
     expect(component.editingVideo()).toBeNull();
+  });
+
+  it('should toggle published / listed status', async () => {
+    const video = mockDataService.videos.entries()[0];
+    await component.togglePublished(video);
+    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', {
+      isPublished: false,
+    });
+  });
+
+  it('should open drawer and check job status', async () => {
+    const video = mockDataService.videos.entries()[1];
+    component.openDrawer(video);
+    expect(component.drawerVideo()?.docId).toBe('v2');
+
+    await component.checkJobStatus('v2');
+    expect(mockDataService.checkVodJobStatus).toHaveBeenCalledWith('v2');
+
+    component.closeDrawer();
+    expect(component.drawerVideo()).toBeNull();
+  });
+
+  it('should filter by tag and clear tag filter', () => {
+    component.onTagSelected({ tag: 'spinning' });
+    expect(component.selectedTagFilter()).toBe('spinning');
+
+    const filtered = component.filteredVideos();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].docId).toBe('v1');
+
+    component.clearTagFilter();
+    expect(component.selectedTagFilter()).toBe('');
+    expect(component.filteredVideos().length).toBe(2);
+  });
+
+  it('should format access tier labels correctly', () => {
+    expect(component.getAccessTierLabel(VodAccessTier.Public)).toBe('Public (Free)');
+    expect(component.getAccessTierLabel(VodAccessTier.DirectPurchase, 1500)).toBe('Direct Purchase ($15.00)');
+    expect(component.getAccessTierLabel(VodAccessTier.MembersOnly)).toBe('Members Only');
+  });
+
+  it('should return correct tag tooltips with descriptions', () => {
+    expect(component.getTagTooltip('spinning')).toBe('#spinning: Circular energy exercises');
+    expect(component.getTagTooltip('partner')).toBe('Filter by #partner');
   });
 });

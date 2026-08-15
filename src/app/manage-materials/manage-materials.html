@@ -380,7 +380,7 @@
                       type="button"
                       class="tag-chip mini-tag"
                       (click)="filterByTag(tag)"
-                      title="Filter by tag: {{ tag }}"
+                      [title]="dataService.getTagDescription(tag) ? ('#' + tag + ': ' + dataService.getTagDescription(tag)) : ('Filter by tag #' + tag)"
                     >
                       #{{ tag }}
                     </button>
@@ -511,7 +511,7 @@
                           type="button"
                           class="tag-chip mini-tag"
                           (click)="filterByTag(tag)"
-                          title="Filter by tag: {{ tag }}"
+                          [title]="dataService.getTagDescription(tag) ? ('#' + tag + ': ' + dataService.getTagDescription(tag)) : ('Filter by tag #' + tag)"
                         >
                           #{{ tag }}
                         </button>
@@ -753,37 +753,11 @@
 
           <!-- Tags in Edit Modal -->
           <div class="form-group">
-            <label for="adminEditTags">Tags</label>
-            <div class="tags-input-container">
-              <div class="tags-chips-list">
-                @for (tag of editTags(); track tag) {
-                  <span class="tag-chip editable-tag-chip">
-                    #{{ tag }}
-                    <button type="button" class="remove-tag-btn" (click)="removeEditTag(tag)" title="Remove tag">
-                      <app-icon name="close" />
-                    </button>
-                  </span>
-                }
-              </div>
-              <div class="tag-input-row">
-                <input
-                  id="adminEditTags"
-                  type="text"
-                  placeholder="Add a tag..."
-                  [value]="editTagsInput()"
-                  (input)="editTagsInput.set($any($event.target).value)"
-                  (keydown.enter)="$event.preventDefault(); addEditTag(editTagsInput())"
-                />
-                <button
-                  type="button"
-                  class="button subtle-button"
-                  (click)="addEditTag(editTagsInput())"
-                  [disabled]="!editTagsInput().trim()"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
+            <label>Tags</label>
+            <app-tag-input
+              [(tags)]="editTags"
+              placeholder="Search or add a tag (type #tag)..."
+            ></app-tag-input>
           </div>
 
           <div class="form-group">
@@ -892,14 +866,11 @@
           </div>
 
           <div class="form-group">
-            <label for="vodTagsInput">Tags (comma-separated)</label>
-            <input
-              id="vodTagsInput"
-              type="text"
-              placeholder="e.g. spinning hands, neutral, basics"
-              [value]="vodTags()"
-              (input)="vodTags.set($any($event.target).value)"
-            />
+            <label>Tags</label>
+            <app-tag-input
+              [(tags)]="vodTags"
+              placeholder="Search or add a tag (type #tag)..."
+            ></app-tag-input>
           </div>
         </div>
 

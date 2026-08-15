@@ -251,6 +251,27 @@ describe('DataManagerService - searchEvents', () => {
 
       expect(service.schools.get('SCH-01')?.schoolName).toBe('Berlin Academy');
     });
+
+    it('manages video tags dictionary and provides descriptions and labels', async () => {
+      service.tagsDoc.set({
+        spinning: {
+          tag: 'spinning',
+          label: 'Spinning Hands',
+          description: 'Circular energy partner exercise',
+          createdAt: '2026-01-01',
+          lastUpdated: '2026-01-01',
+        },
+      });
+      TestBed.flushEffects();
+
+      expect(service.getTagDescription('spinning')).toBe('Circular energy partner exercise');
+      expect(service.getTagLabel('spinning')).toBe('Spinning Hands');
+      expect(service.getTagDescription('unknown')).toBe('');
+      expect(service.getTagLabel('unknown')).toBe('unknown');
+
+      const tags = service.tagsSet.entries();
+      expect(tags.find((t) => t.tag === 'spinning')?.description).toBe('Circular energy partner exercise');
+    });
   });
 });
 

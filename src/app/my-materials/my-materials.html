@@ -430,6 +430,21 @@
                     </button>
                   </div>
                 }
+                @if (mat.vodStatus && mat.vodStatus !== VodStatus.None) {
+                  <a
+                    class="vod-status-chip"
+                    [class.ready]="mat.vodStatus === VodStatus.Ready"
+                    [class.processing]="mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued"
+                    [class.failed]="mat.vodStatus === VodStatus.Failed"
+                    [href]="mat.vodStatus === VodStatus.Ready ? getVodViewHref(mat) : getManageVodHref(mat)"
+                    target="_blank"
+                    (click)="$event.stopPropagation()"
+                    title="VOD Status: {{ mat.vodStatus }} (Click to view)"
+                  >
+                    <app-icon name="live_tv" />
+                    <span>{{ getVodStatusLabel(mat) }}</span>
+                  </a>
+                }
                 <span class="size-badge">{{ formatBytes(mat.size) }}</span>
               </div>
 
@@ -440,7 +455,7 @@
                       type="button"
                       class="tag-chip mini-tag"
                       (click)="filterByTag(tag)"
-                      title="Filter by tag: {{ tag }}"
+                      [title]="dataService.getTagDescription(tag) ? ('#' + tag + ': ' + dataService.getTagDescription(tag)) : ('Filter by tag #' + tag)"
                     >
                       #{{ tag }}
                     </button>
@@ -513,7 +528,24 @@
                   </a>
                 </td>
                 <td class="name-cell">
-                  <span class="file-name">{{ mat.name }}</span>
+                  <div class="name-with-status">
+                    <span class="file-name">{{ mat.name }}</span>
+                    @if (mat.vodStatus && mat.vodStatus !== VodStatus.None) {
+                      <a
+                        class="vod-status-chip"
+                        [class.ready]="mat.vodStatus === VodStatus.Ready"
+                        [class.processing]="mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued"
+                        [class.failed]="mat.vodStatus === VodStatus.Failed"
+                        [href]="mat.vodStatus === VodStatus.Ready ? getVodViewHref(mat) : getManageVodHref(mat)"
+                        target="_blank"
+                        (click)="$event.stopPropagation()"
+                        title="VOD Status: {{ mat.vodStatus }} (Click to view)"
+                      >
+                        <app-icon name="live_tv" />
+                        <span>{{ getVodStatusLabel(mat) }}</span>
+                      </a>
+                    }
+                  </div>
                   @if (mat.tags.length) {
                     <div class="table-tags">
                       @for (tag of mat.tags; track tag) {
@@ -521,7 +553,7 @@
                           type="button"
                           class="tag-chip mini-tag"
                           (click)="filterByTag(tag)"
-                          title="Filter by tag: {{ tag }}"
+                          [title]="dataService.getTagDescription(tag) ? ('#' + tag + ': ' + dataService.getTagDescription(tag)) : ('Filter by tag #' + tag)"
                         >
                           #{{ tag }}
                         </button>
@@ -710,37 +742,11 @@
 
           <!-- Tags in Edit Modal -->
           <div class="form-group">
-            <label for="editTags">Tags</label>
-            <div class="tags-input-container">
-              <div class="tags-chips-list">
-                @for (tag of editTags(); track tag) {
-                  <span class="tag-chip editable-tag-chip">
-                    #{{ tag }}
-                    <button type="button" class="remove-tag-btn" (click)="removeEditTag(tag)" title="Remove tag">
-                      <app-icon name="close" />
-                    </button>
-                  </span>
-                }
-              </div>
-              <div class="tag-input-row">
-                <input
-                  id="editTags"
-                  type="text"
-                  placeholder="Add a tag..."
-                  [value]="editTagsInput()"
-                  (input)="editTagsInput.set($any($event.target).value)"
-                  (keydown.enter)="$event.preventDefault(); addEditTag(editTagsInput())"
-                />
-                <button
-                  type="button"
-                  class="button subtle-button"
-                  (click)="addEditTag(editTagsInput())"
-                  [disabled]="!editTagsInput().trim()"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
+            <label>Tags</label>
+            <app-tag-input
+              [(tags)]="editTags"
+              placeholder="Search or add a tag (type #tag)..."
+            ></app-tag-input>
           </div>
 
           <div class="form-group">

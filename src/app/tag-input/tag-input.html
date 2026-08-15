@@ -1,0 +1,54 @@
+<div class="tag-input-container" [class.disabled]="disabled()">
+  <!-- Selected Tags Chips List -->
+  @if (tags().length > 0) {
+    <div class="selected-tags-chips">
+      @for (tag of tags(); track tag) {
+        <span class="tag-chip" [title]="getTagTooltip(tag)">
+          <span class="tag-label">#{{ tag }}</span>
+          @if (!disabled()) {
+            <button
+              type="button"
+              class="chip-remove-btn"
+              (click)="removeTag(tag)"
+              title="Remove tag #{{ tag }}"
+              aria-label="Remove tag"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Autocomplete and Plus Button Adder -->
+  @if (!disabled()) {
+    <div class="tag-input-row">
+      <div class="tag-autocomplete-box">
+        <app-autocomplete
+          name="Tag Input"
+          [searchableSet]="dataService.tagsSet"
+          [displayFns]="tagDisplayFns"
+          [inputBoxIsChip]="false"
+          [initSearchTerm]="inputText()"
+          [placeholder]="placeholder()"
+          [disabled]="disabled()"
+          (itemSelected)="onTagSelected($event)"
+          (textUpdated)="onTextUpdated($event)"
+          (keydown)="onKeydown($event)"
+        ></app-autocomplete>
+      </div>
+
+      <button
+        type="button"
+        class="add-tag-btn icon-only-button"
+        [disabled]="disabled() || !canAddCurrentText()"
+        (click)="addCurrentText()"
+        title="Add tag"
+        aria-label="Add tag"
+      >
+        <app-icon name="add"></app-icon>
+      </button>
+    </div>
+  }
+</div>

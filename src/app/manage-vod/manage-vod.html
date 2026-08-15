@@ -1,37 +1,69 @@
-<div class="manage-vod-container">
+<div class="manage-vod-container" (click)="closeMenu()">
   <!-- Header -->
   <div class="page-header">
     <div class="header-titles">
       <h2>VOD Catalog Management</h2>
       <p class="subtitle">
-        Curate instructor uploads, monitor video transcoding pipelines, configure pricing, and manage video on demand streaming.
+        Curate instructor uploads, monitor video transcoding pipelines, configure pricing and access tiers, and manage streaming videos.
       </p>
+    </div>
+    <div class="header-actions">
+      <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVideoTags, {})">
+        <app-icon name="edit"></app-icon>
+        <span>Manage Tags</span>
+      </a>
     </div>
   </div>
 
-  <!-- Stats Metric Cards -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <span class="stat-label">Total Videos</span>
-      <span class="stat-val">{{ stats().total }}</span>
+  <!-- 1-Line Stats Summary Bar with Fold-down Details -->
+  <div class="stats-summary-bar">
+    <div class="stats-summary-line">
+      <span class="summary-item"><strong>{{ stats().total }}</strong> Total Videos</span>
+      <span class="dot-sep">&bull;</span>
+      <span class="summary-item text-success"><strong>{{ stats().ready }}</strong> Ready ({{ stats().totalHours }}h)</span>
+      @if (stats().processing > 0) {
+        <span class="dot-sep">&bull;</span>
+        <span class="summary-item text-warn"><strong>{{ stats().processing }}</strong> Transcoding</span>
+      }
+      <span class="dot-sep">&bull;</span>
+      <span class="summary-item"><strong>{{ stats().published }}</strong> Published</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Published</span>
-      <span class="stat-val">{{ stats().published }}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Ready for Streaming</span>
-      <span class="stat-val text-success">{{ stats().ready }}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Transcoding / Queued</span>
-      <span class="stat-val text-warn">{{ stats().processing }}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Total Content Hours</span>
-      <span class="stat-val">{{ stats().totalHours }}h</span>
-    </div>
+
+    <button
+      type="button"
+      class="subtle-btn stats-fold-toggle"
+      (click)="showStatsFold.set(!showStatsFold())"
+      [title]="showStatsFold() ? 'Hide detailed metrics' : 'Show detailed metrics'"
+    >
+      <span>{{ showStatsFold() ? 'Hide Details' : 'Details' }}</span>
+      <app-icon [name]="showStatsFold() ? 'expand_less' : 'expand_more'"></app-icon>
+    </button>
   </div>
+
+  @if (showStatsFold()) {
+    <div class="stats-fold-content">
+      <div class="stat-card">
+        <span class="stat-label">Total Videos</span>
+        <span class="stat-val">{{ stats().total }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Published to Catalog</span>
+        <span class="stat-val">{{ stats().published }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Ready for Streaming</span>
+        <span class="stat-val text-success">{{ stats().ready }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Transcoding / Queued</span>
+        <span class="stat-val text-warn">{{ stats().processing }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Total Content Hours</span>
+        <span class="stat-val">{{ stats().totalHours }}h</span>
+      </div>
+    </div>
+  }
 
   <!-- Filter & Search Toolbar -->
   <div class="filter-toolbar">
@@ -39,38 +71,61 @@
       <app-icon name="search"></app-icon>
       <input
         type="text"
-        placeholder="Search videos by title, instructor, tags..."
+        placeholder="Search videos by title, instructor, description..."
         [ngModel]="searchQuery()"
         (ngModelChange)="setSearchQuery($event)"
       />
+      @if (searchQuery()) {
+        <button type="button" class="icon-only-button clear-search-btn" (click)="setSearchQuery('')" title="Clear search">
+          <app-icon name="close"></app-icon>
+        </button>
+      }
     </div>
 
     <div class="filter-selectors">
-      <!-- Status Filter -->
-      <select
-        class="filter-select"
-        [ngModel]="selectedStatus()"
-        (ngModelChange)="setStatus($event)"
-      >
-        <option value="all">All Statuses</option>
-        <option value="ready">Ready</option>
-        <option value="transcoding">Transcoding</option>
-        <option value="queued">Queued</option>
-        <option value="failed">Failed</option>
-        <option value="draft">Draft</option>
-      </select>
+      <!-- Tag Autocomplete Filter -->
+      <div class="tag-filter-item">
+        <label>Tag:</label>
+        <div class="tag-autocomplete-wrapper">
+          <app-autocomplete
+            name="Filter Tag"
+            [searchableSet]="dataService.tagsSet"
+            [displayFns]="tagDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="selectedTagSearchTerm()"
+            placeholder="All Tags (type #tag)..."
+            (itemSelected)="onTagSelected($event)"
+            (textUpdated)="onTagTextUpdated($event)"
+          ></app-autocomplete>
+          @if (selectedTagFilter()) {
+            <button
+              type="button"
+              class="icon-only-button clear-tag-btn"
+              (click)="clearTagFilter()"
+              title="Clear tag filter"
+            >
+              <app-icon name="close"></app-icon>
+            </button>
+          }
+        </div>
+      </div>
 
-      <!-- Category Filter -->
-      <select
-        class="filter-select"
-        [ngModel]="selectedCategory()"
-        (ngModelChange)="setCategory($event)"
-      >
-        <option value="all">All Categories</option>
-        @for (c of categories; track c.value) {
-          <option [value]="c.value">{{ c.label }}</option>
-        }
-      </select>
+      <!-- Status Filter -->
+      <div class="status-filter-item">
+        <label>Status:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedStatus()"
+          (ngModelChange)="setStatus($event)"
+        >
+          <option value="all">All Statuses</option>
+          <option value="ready">Ready</option>
+          <option value="transcoding">Transcoding</option>
+          <option value="queued">Queued</option>
+          <option value="failed">Failed</option>
+          <option value="draft">Hidden / Draft</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -79,12 +134,11 @@
     <table class="vod-table">
       <thead>
         <tr>
-          <th>Thumbnail</th>
-          <th>Title & Instructor</th>
-          <th>Category</th>
-          <th>Access Tier</th>
+          <th>Preview</th>
+          <th>Title, Instructor & Tags</th>
+          <th>Who Can View</th>
           <th>Duration</th>
-          <th>Status</th>
+          <th>Status & Visibility</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -92,7 +146,7 @@
         @for (video of filteredVideos(); track video.docId) {
           <tr>
             <!-- Thumbnail -->
-            <td class="thumb-cell">
+            <td class="thumb-cell" (click)="openDrawer(video)">
               @if (video.thumbnailUrl) {
                 <img [src]="video.thumbnailUrl" [alt]="video.title" class="thumb-img" />
               } @else {
@@ -102,31 +156,38 @@
               }
             </td>
 
-            <!-- Title & Info -->
-            <td class="title-cell">
+            <!-- Title, Instructor & Tags -->
+            <td class="title-cell" (click)="openDrawer(video)">
               <div class="video-main-info">
                 <span class="table-video-title">{{ video.title }}</span>
                 @if (video.instructorName) {
                   <span class="table-video-instructor">{{ video.instructorName }}</span>
                 }
                 @if (video.featured) {
-                  <span class="featured-badge">Featured</span>
+                  <span class="featured-badge">Featured Spotlight</span>
+                }
+                @if (video.tags && video.tags.length) {
+                  <div class="table-tags">
+                    @for (tag of video.tags; track tag) {
+                      <span
+                        class="tag-chip mini-tag"
+                        (click)="$event.stopPropagation(); onTagSelected({ tag: tag })"
+                        [title]="getTagTooltip(tag)"
+                      >
+                        #{{ tag }}
+                      </span>
+                    }
+                  </div>
                 }
               </div>
             </td>
 
-            <!-- Category -->
-            <td>
-              <span class="category-tag">{{ video.category }}</span>
-            </td>
-
-            <!-- Access Tier & Price -->
+            <!-- Who Can View (Access Tier & Price) -->
             <td>
               <div class="tier-info">
-                <span class="tier-tag">{{ video.accessTier }}</span>
-                @if (video.priceCents) {
-                  <span class="price-pill">${{ (video.priceCents / 100).toFixed(2) }}</span>
-                }
+                <span class="tier-pill" [class.free]="video.accessTier === 'public'" [class.paid]="video.accessTier === 'direct_purchase'">
+                  {{ getAccessTierLabel(video.accessTier, video.priceCents) }}
+                </span>
               </div>
             </td>
 
@@ -135,63 +196,109 @@
               <span class="dur-text">{{ formatDuration(video.durationSeconds) }}</span>
             </td>
 
-            <!-- Status -->
+            <!-- Status & Visibility -->
             <td>
-              <span class="status-badge" [class]="getStatusClass(video.vodStatus)">
-                {{ video.vodStatus }}
-              </span>
+              <div class="status-col">
+                <span class="status-badge" [class]="getStatusClass(video.vodStatus)" (click)="openDrawer(video)" title="Click to view pipeline details">
+                  @if (video.vodStatus === 'transcoding' || video.vodStatus === 'queued') {
+                    <app-spinner size="12px"></app-spinner>
+                  }
+                  {{ video.vodStatus }}
+                </span>
+                <span class="published-pill" [class.published]="video.isPublished" (click)="togglePublished(video)" title="Click to toggle listed/hidden">
+                  {{ video.isPublished ? 'Listed' : 'Hidden' }}
+                </span>
+              </div>
             </td>
 
-            <!-- Actions -->
+            <!-- Actions (3-Dots Kebab Menu) -->
             <td class="actions-cell">
-              <div class="action-buttons">
-                <!-- Preview / Watch -->
-                <a
-                  class="icon-button"
-                  [href]="getVideoHref(video)"
-                  title="Watch Video"
-                  target="_blank"
-                >
-                  <app-icon name="visibility"></app-icon>
-                </a>
-
-                <!-- Edit Metadata -->
+              <div class="kebab-container">
                 <button
                   type="button"
-                  class="icon-button"
-                  (click)="openEditModal(video)"
-                  title="Edit Metadata"
+                  class="icon-button kebab-btn"
+                  (click)="toggleMenu(video.docId, $event)"
+                  title="More actions"
                 >
-                  <app-icon name="edit"></app-icon>
+                  <app-icon name="more_vert"></app-icon>
                 </button>
 
-                <!-- Retry Transcoding -->
-                @if (video.vodStatus === 'failed' || video.vodStatus === 'none') {
-                  <button
-                    type="button"
-                    class="icon-button warn"
-                    (click)="retryTranscoding(video)"
-                    title="Retry Transcoding"
-                  >
-                    <app-icon name="refresh"></app-icon>
-                  </button>
+                @if (activeMenuVideoId() === video.docId) {
+                  <div class="kebab-dropdown" (click)="$event.stopPropagation()">
+                    <!-- Edit Metadata -->
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      (click)="openEditModal(video)"
+                    >
+                      <app-icon name="edit"></app-icon>
+                      <span>Edit Metadata</span>
+                    </button>
+
+                    <!-- Toggle Listed / Hidden -->
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      (click)="togglePublished(video)"
+                    >
+                      <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
+                      <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                    </button>
+
+                    <!-- Pipeline & Transcoder Details (Drawer) -->
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      (click)="openDrawer(video)"
+                    >
+                      <app-icon name="live_tv"></app-icon>
+                      <span>Job & Pipeline Details</span>
+                    </button>
+
+                    <!-- Watch Video (if ready) -->
+                    @if (video.vodStatus === 'ready') {
+                      <a
+                        class="dropdown-item"
+                        [href]="getVideoHref(video)"
+                        target="_blank"
+                        (click)="closeMenu()"
+                      >
+                        <app-icon name="play_arrow"></app-icon>
+                        <span>Watch Video</span>
+                      </a>
+                    }
+
+                    <!-- Retry Transcoding -->
+                    @if (video.vodStatus === 'failed' || video.vodStatus === 'none' || video.vodStatus === 'queued') {
+                      <button
+                        type="button"
+                        class="dropdown-item warn"
+                        (click)="retryTranscoding(video)"
+                      >
+                        <app-icon name="refresh"></app-icon>
+                        <span>Re-trigger Transcoding</span>
+                      </button>
+                    }
+
+                    <div class="dropdown-divider"></div>
+
+                    <!-- Delete Video -->
+                    <button
+                      type="button"
+                      class="dropdown-item danger"
+                      (click)="deleteVideo(video)"
+                    >
+                      <app-icon name="delete"></app-icon>
+                      <span>Delete from VOD</span>
+                    </button>
+                  </div>
                 }
-
-                <!-- Delete -->
-                <button
-                  type="button"
-                  class="icon-button delete"
-                  (click)="deleteVideo(video)"
-                  title="Delete Video"
-                >
-                  <app-icon name="delete"></app-icon>
-                </button>
               </div>
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="empty-row">
+            <td colspan="6" class="empty-row">
               No videos matching the selected criteria.
             </td>
           </tr>
@@ -200,12 +307,186 @@
     </table>
   </div>
 
+  <!-- Slide-Over Job Details Drawer -->
+  @if (drawerVideo(); as d) {
+    <div class="drawer-backdrop" (click)="closeDrawer()">
+      <div class="drawer-panel" (click)="$event.stopPropagation()">
+        <!-- Drawer Header -->
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <h3>Transcoding & Pipeline Details</h3>
+            <span class="drawer-subtitle">{{ d.title }}</span>
+          </div>
+          <button type="button" class="icon-only-button" (click)="closeDrawer()" title="Close drawer">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <!-- Drawer Content -->
+        <div class="drawer-body">
+          <!-- Preview & Quick Summary -->
+          <div class="drawer-preview-card">
+            @if (d.thumbnailUrl) {
+              <img [src]="d.thumbnailUrl" [alt]="d.title" class="drawer-thumb" />
+            } @else {
+              <div class="drawer-thumb-placeholder">
+                <app-icon name="video_library"></app-icon>
+              </div>
+            }
+            <div class="drawer-preview-meta">
+              <h4>{{ d.title }}</h4>
+              <p class="drawer-instructor">{{ d.instructorName || 'Featured Instructor' }}</p>
+              <div class="drawer-chips">
+                <span class="status-badge" [class]="getStatusClass(d.vodStatus)">
+                  {{ d.vodStatus }}
+                </span>
+                <span class="published-badge" [class.published]="d.isPublished">
+                  {{ d.isPublished ? 'Listed in Catalog' : 'Hidden / Draft' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Transcoding Pipeline Status -->
+          <div class="drawer-section">
+            <div class="section-title-row">
+              <h5>Transcoder Pipeline Status</h5>
+              @if (d.vodStatus === 'transcoding' || d.vodStatus === 'queued') {
+                <span class="pulse-indicator">
+                  <span class="pulse-dot"></span>
+                  In Progress (Auto-polling)
+                </span>
+              }
+            </div>
+
+            <div class="pipeline-card" [class.failed]="d.vodStatus === 'failed'" [class.ready]="d.vodStatus === 'ready'">
+              <div class="pipeline-status-row">
+                <span class="pipeline-label">Current Pipeline State:</span>
+                <span class="pipeline-value status-badge" [class]="getStatusClass(d.vodStatus)">
+                  {{ d.vodStatus | uppercase }}
+                </span>
+              </div>
+
+              @if (d.vodError) {
+                <div class="pipeline-error-box">
+                  <app-icon name="info"></app-icon>
+                  <div class="error-msg">
+                    <strong>Failure Diagnostic:</strong>
+                    <p>{{ d.vodError }}</p>
+                  </div>
+                </div>
+              }
+
+              <div class="pipeline-details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">GCP Job ID</span>
+                  <span class="detail-val mono">{{ d.vodJobId || 'Simulated / Pending' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Source Upload ID</span>
+                  <span class="detail-val mono">{{ d.sourceUploadDocId }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Target Renditions</span>
+                  <span class="detail-val">
+                    @if (d.resolutions && d.resolutions.length) {
+                      {{ d.resolutions.join(', ') }}
+                    } @else {
+                      1080p, 720p, 480p, 360p (Auto Multi-bitrate HLS)
+                    }
+                  </span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Duration & Size</span>
+                  <span class="detail-val">{{ formatDuration(d.durationSeconds) }} ({{ formatBytes(d.originalSize) }})</span>
+                </div>
+                <div class="detail-item full-width">
+                  <span class="detail-label">Master Manifest URL</span>
+                  <span class="detail-val mono truncate">{{ d.manifestUrl || 'Generated on completion' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Published At</span>
+                  <span class="detail-val">{{ d.publishedAt || '—' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Last Checked</span>
+                  <span class="detail-val">{{ d.lastUpdated }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audience & Access Config -->
+          <div class="drawer-section">
+            <h5>Audience & Access Level</h5>
+            <div class="access-info-card">
+              <div class="access-row">
+                <span class="access-label">Who Can Stream:</span>
+                <span class="access-val bold">{{ getAccessTierLabel(d.accessTier, d.priceCents) }}</span>
+              </div>
+              @if (d.tags && d.tags.length) {
+                <div class="drawer-tags-row">
+                  <span class="access-label">Search Tags:</span>
+                  <div class="drawer-tags">
+                    @for (tag of d.tags; track tag) {
+                      <span class="tag-chip" [title]="getTagTooltip(tag)">#{{ tag }}</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawer Footer Actions -->
+        <div class="drawer-footer">
+          <button
+            type="button"
+            class="subtle-button"
+            [disabled]="isCheckingJobStatus()"
+            (click)="checkJobStatus(d.docId)"
+          >
+            @if (isCheckingJobStatus()) {
+              <app-spinner size="14px"></app-spinner>
+              <span>Checking...</span>
+            } @else {
+              <app-icon name="refresh"></app-icon>
+              <span>Refresh Status</span>
+            }
+          </button>
+
+          @if (d.vodStatus === 'failed' || d.vodStatus === 'none' || d.vodStatus === 'queued') {
+            <button
+              type="button"
+              class="secondary-btn warn"
+              (click)="retryTranscoding(d)"
+            >
+              <app-icon name="refresh"></app-icon>
+              <span>Re-trigger Transcoding</span>
+            </button>
+          }
+
+          @if (d.vodStatus === 'ready') {
+            <a
+              class="primary-btn"
+              [href]="getVideoHref(d)"
+              target="_blank"
+            >
+              <app-icon name="play_arrow"></app-icon>
+              <span>Watch Video</span>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- Edit Metadata Modal -->
   @if (editingVideo(); as edit) {
     <div class="modal-backdrop" (click)="closeEditModal()">
       <div class="modal-dialog" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Edit VOD Video</h3>
+          <h3>Edit VOD Metadata</h3>
           <button type="button" class="icon-only-button" (click)="closeEditModal()">
             <app-icon name="close"></app-icon>
           </button>
@@ -225,28 +506,16 @@
           </div>
 
           <div class="form-row">
-            <!-- Category -->
-            <div class="form-group">
-              <label>Category</label>
-              <select [(ngModel)]="edit.category">
-                @for (c of categories; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
-                }
-              </select>
-            </div>
-
             <!-- Access Tier -->
             <div class="form-group">
-              <label>Access Tier</label>
+              <label>Who Can View (Access Tier)</label>
               <select [(ngModel)]="edit.accessTier">
                 @for (t of accessTiers; track t.value) {
                   <option [value]="t.value">{{ t.label }}</option>
                 }
               </select>
             </div>
-          </div>
 
-          <div class="form-row">
             <!-- Price (USD) -->
             <div class="form-group">
               <label>Price ($ USD, optional for one-off purchase)</label>
@@ -259,34 +528,22 @@
                 placeholder="15.00"
               />
             </div>
-
-            <!-- Stripe Price ID -->
-            <div class="form-group">
-              <label>Stripe Price ID (optional)</label>
-              <input
-                type="text"
-                [(ngModel)]="edit.stripePriceId"
-                placeholder="price_123..."
-              />
-            </div>
           </div>
 
           <!-- Tags -->
           <div class="form-group">
-            <label>Tags (comma-separated)</label>
-            <input
-              type="text"
-              [ngModel]="editTagInput()"
-              (ngModelChange)="editTagInput.set($event)"
-              placeholder="e.g. spinning hands, neutral, basics"
-            />
+            <label>Tags</label>
+            <app-tag-input
+              [(tags)]="editTags"
+              placeholder="Search or add a tag (type #tag)..."
+            ></app-tag-input>
           </div>
 
           <!-- Toggles -->
           <div class="toggles-row">
             <label class="checkbox-label">
               <input type="checkbox" [(ngModel)]="edit.isPublished" />
-              <span>Published in Catalog</span>
+              <span>Listed in Public / Member Catalog</span>
             </label>
 
             <label class="checkbox-label">
@@ -318,3 +575,4 @@
     </div>
   }
 </div>
+

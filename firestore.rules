@@ -208,6 +208,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /system/video-tags {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /system/deletions/{collectionName}/{document=**} {
       allow read: if (collectionName in ['instructors', 'schools', 'events']) || isAdmin();
       allow write: if isAdmin();

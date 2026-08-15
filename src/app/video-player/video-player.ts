@@ -73,6 +73,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   isBuffering = signal(false);
   currentTime = signal(0);
   duration = signal(0);
+  bufferedPercent = signal(0);
   volume = signal(1);
   isMuted = signal(false);
   playbackRate = signal(1);
@@ -192,6 +193,19 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   private setupNativeEvents(video: HTMLVideoElement): void {
+    const updateBuffer = () => {
+      const dur = video.duration;
+      if (!dur || dur <= 0 || !video.buffered) return;
+      const current = video.currentTime;
+      for (let i = 0; i < video.buffered.length; i++) {
+        if (video.buffered.start(i) <= current && current <= video.buffered.end(i)) {
+          const pct = Math.min(100, Math.max(0, (video.buffered.end(i) / dur) * 100));
+          this.bufferedPercent.set(pct);
+          return;
+        }
+      }
+    };
+
     video.addEventListener('play', () => this.isPlaying.set(true));
     video.addEventListener('pause', () => {
       this.isPlaying.set(false);
@@ -199,15 +213,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     });
     video.addEventListener('waiting', () => this.isBuffering.set(true));
     video.addEventListener('playing', () => this.isBuffering.set(false));
+    video.addEventListener('progress', updateBuffer);
     video.addEventListener('timeupdate', () => {
       this.currentTime.set(video.currentTime);
+      updateBuffer();
       if (this.duration() > 0 && video.currentTime / this.duration() >= 0.95) {
         this.videoCompleted.emit();
       }
     });
-    video.addEventListener('durationchange', () =>
-      this.duration.set(video.duration),
-    );
+    video.addEventListener('durationchange', () => {
+      this.duration.set(video.duration);
+      updateBuffer();
+    });
   }
 
   togglePlay(): void {

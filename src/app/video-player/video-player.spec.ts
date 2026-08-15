@@ -81,4 +81,8 @@ describe('VideoPlayerComponent', () => {
     expect(component.vod()?.docId).toBe('v123');
     expect(component.vod()?.title).toBe('Spinning Hands Workshop');
   });
+
+  it('should initialize bufferedPercent to 0', () => {
+    expect(component.bufferedPercent()).toBe(0);
+  });
 });

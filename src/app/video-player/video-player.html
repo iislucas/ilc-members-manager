@@ -44,7 +44,7 @@
     <!-- Timeline Scrub Bar -->
     <div class="timeline-container">
       <div class="timeline-track" (click)="onTimelineClick($event)">
-        <div class="timeline-buffered" [style.width.%]="playedPercent()"></div>
+        <div class="timeline-buffered" [style.width.%]="bufferedPercent()"></div>
         <div class="timeline-played" [style.width.%]="playedPercent()">
           <div class="timeline-thumb"></div>
         </div>

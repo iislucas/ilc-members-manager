@@ -73,6 +73,11 @@ import {
   VodAccessTier,
   VodCategory,
   VideoGrantKind,
+  SystemTagsDoc,
+  SystemVideoTagsDoc,
+  VideoTagMeta,
+  initVideoTagMeta,
+  TagItem,
 } from '../../functions/src/data-model';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
@@ -311,6 +316,27 @@ export class DataManagerService {
     'docId',
   );
 
+  public tagsDoc = signal<Record<string, VideoTagMeta>>({});
+  public tagsSet = new SearchableSet<'tag', TagItem>(
+    ['tag', 'label', 'description'],
+    'tag',
+  );
+
+  getTagMeta(tag: string): VideoTagMeta | undefined {
+    if (!tag) return undefined;
+    return this.tagsDoc()[tag.trim().toLowerCase()];
+  }
+
+  getTagDescription(tag: string): string {
+    if (!tag) return '';
+    return this.getTagMeta(tag)?.description || '';
+  }
+
+  getTagLabel(tag: string): string {
+    if (!tag) return '';
+    return this.getTagMeta(tag)?.label || tag;
+  }
+
   // Reactive map from memberId to docId for efficient member lookups by
   // human-readable member ID.
   public memberIdToDocIdMap = computed(() => {
@@ -400,6 +426,7 @@ export class DataManagerService {
 
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
+    this.updateSystemTagsSync();
     this.updateVideosSync();
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
@@ -465,6 +492,31 @@ export class DataManagerService {
       } else {
         this.listenToMemberOrders('');
       }
+    });
+
+    // Reactive effect for System Video Tags
+    effect(() => {
+      const docMap = this.tagsDoc();
+      const docKeys = Object.keys(docMap);
+      const fromVideos = this.videos.entries().flatMap((v) => v.tags || []);
+      const uniqueKeys = Array.from(
+        new Set(
+          [...docKeys, ...fromVideos]
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => Boolean(t)),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
+
+      const items: TagItem[] = uniqueKeys.map((key) => {
+        const meta = docMap[key];
+        return {
+          tag: key,
+          label: meta?.label || key,
+          description: meta?.description || '',
+        };
+      });
+
+      this.tagsSet.setEntries(items);
     });
   }
 
@@ -1073,6 +1125,96 @@ export class DataManagerService {
         this.countries.setError(error.message);
       }),
     );
+  }
+
+  async updateSystemTagsSync() {
+    const tagsRef = doc(this.db, 'system', 'video-tags');
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(
+        tagsRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const rawData = docSnap.data() as Partial<SystemVideoTagsDoc> & {
+              tags?: Record<string, VideoTagMeta> | string[];
+            };
+            const tagsRecord: Record<string, VideoTagMeta> = {};
+
+            if (rawData && rawData.tags) {
+              if (Array.isArray(rawData.tags)) {
+                for (const t of rawData.tags) {
+                  if (typeof t === 'string' && t.trim()) {
+                    const norm = t.trim().toLowerCase();
+                    tagsRecord[norm] = initVideoTagMeta(norm, '', norm);
+                  }
+                }
+              } else if (typeof rawData.tags === 'object') {
+                for (const [key, val] of Object.entries(rawData.tags)) {
+                  if (val && typeof val === 'object') {
+                    tagsRecord[key] = {
+                      tag: val.tag || key,
+                      label: val.label || key,
+                      description: val.description || '',
+                      category: val.category || '',
+                      createdAt: val.createdAt || '',
+                      lastUpdated: val.lastUpdated || '',
+                    };
+                  } else if (typeof val === 'string') {
+                    tagsRecord[key] = initVideoTagMeta(key, val, key);
+                  }
+                }
+              }
+            }
+            this.tagsDoc.set(tagsRecord);
+          }
+        },
+        (error) => {
+          console.warn('Error fetching system video tags:', error);
+        },
+      ),
+    );
+  }
+
+  async saveSystemTags(
+    tags: (string | Partial<VideoTagMeta>)[],
+  ): Promise<void> {
+    const current = { ...this.tagsDoc() };
+    const nowIso = new Date().toISOString();
+
+    for (const item of tags) {
+      if (typeof item === 'string') {
+        const norm = item.trim().toLowerCase();
+        if (!norm) continue;
+        if (!current[norm]) {
+          current[norm] = initVideoTagMeta(norm, '', norm);
+        }
+      } else if (item && item.tag) {
+        const norm = item.tag.trim().toLowerCase();
+        if (!norm) continue;
+        const existing = current[norm] || initVideoTagMeta(norm, '', norm);
+        current[norm] = {
+          ...existing,
+          ...item,
+          tag: norm,
+          lastUpdated: nowIso,
+        };
+      }
+    }
+
+    const tagsRef = doc(this.db, 'system', 'video-tags');
+    await setDoc(
+      tagsRef,
+      {
+        tags: current,
+        lastUpdated: nowIso,
+      },
+      { merge: true },
+    ).catch((err) => {
+      console.warn('Failed to save system video tags:', err);
+    });
+  }
+
+  async saveVideoTagMeta(meta: VideoTagMeta): Promise<void> {
+    await this.saveSystemTags([meta]);
   }
 
   private emailTemplatesUnsubscribe: (() => void) | null = null;
@@ -2323,7 +2465,121 @@ export class DataManagerService {
       { success: boolean; videoId: string; vodStatus: VodStatus; jobId?: string }
     >(getFunctions(this.firebaseService.app), 'transcodeVideoForVod');
     const result = await fn({ uploadDocId, memberDocId, vodConfig });
+    if (vodConfig.tags && vodConfig.tags.length > 0) {
+      this.saveSystemTags(vodConfig.tags);
+    }
     return result.data;
+  }
+
+  /**
+   * Checks the live status of a VOD transcoding job via Cloud Function.
+   */
+  async checkVodJobStatus(
+    videoId: string,
+  ): Promise<{
+    success: boolean;
+    videoId: string;
+    vodStatus: VodStatus;
+    vodJobId?: string;
+    vodError?: string;
+  }> {
+    const fn = httpsCallable<
+      { videoId: string },
+      {
+        success: boolean;
+        videoId: string;
+        vodStatus: VodStatus;
+        vodJobId?: string;
+        vodError?: string;
+      }
+    >(getFunctions(this.firebaseService.app), 'checkVodJobStatus');
+    const result = await fn({ videoId });
+    return result.data;
+  }
+
+  /**
+   * Updates metadata for an existing VideoItem (title, description, tags, tier, price, isPublished).
+   */
+  async updateVideoMetadata(
+    videoId: string,
+    patch: Partial<VideoItem>,
+  ): Promise<void> {
+    const videoRef = doc(this.db, 'videos', videoId);
+    const nowIso = new Date().toISOString();
+    await updateDoc(videoRef, {
+      ...patch,
+      lastUpdated: nowIso,
+    });
+    if (patch.tags && patch.tags.length > 0) {
+      this.saveSystemTags(patch.tags);
+    }
+  }
+
+  /**
+   * Renames a video tag in /system/video-tags and updates all videos referencing oldTag.
+   */
+  async renameVideoTag(
+    oldTag: string,
+    newTag: string,
+    metaPatch?: Partial<VideoTagMeta>,
+  ): Promise<{ updatedVideos: number }> {
+    const cleanOld = oldTag.trim().toLowerCase();
+    const cleanNew = newTag.trim().toLowerCase();
+    if (!cleanOld || !cleanNew) return { updatedVideos: 0 };
+
+    const currentDoc = { ...this.tagsDoc() };
+    const oldMeta = currentDoc[cleanOld] || initVideoTagMeta(cleanOld, '', cleanOld);
+    delete currentDoc[cleanOld];
+
+    const updatedMeta: VideoTagMeta = {
+      ...oldMeta,
+      ...metaPatch,
+      tag: cleanNew,
+      label: metaPatch?.label || (oldMeta.label === cleanOld ? cleanNew : oldMeta.label),
+      lastUpdated: new Date().toISOString(),
+    };
+    currentDoc[cleanNew] = updatedMeta;
+
+    const tagsRef = doc(this.db, 'system', 'video-tags');
+    await setDoc(tagsRef, { tags: currentDoc, lastUpdated: new Date().toISOString() });
+
+    // Update in-memory tagsDoc signal immediately
+    this.tagsDoc.set(currentDoc);
+
+    // Update all videos in Firestore that reference cleanOld
+    let updatedVideos = 0;
+    const affectedVideos = this.videos
+      .entries()
+      .filter((v) => v.tags && v.tags.includes(cleanOld));
+
+    for (const v of affectedVideos) {
+      const updatedTags = v.tags.map((t) => (t === cleanOld ? cleanNew : t));
+      const videoRef = doc(this.db, 'videos', v.docId);
+      await updateDoc(videoRef, {
+        tags: Array.from(new Set(updatedTags)),
+        lastUpdated: new Date().toISOString(),
+      }).catch((err) => {
+        console.warn(`Failed to update tags on video ${v.docId}:`, err);
+      });
+      updatedVideos++;
+    }
+
+    return { updatedVideos };
+  }
+
+  /**
+   * Deletes a video tag from /system/video-tags.
+   */
+  async deleteVideoTag(tag: string): Promise<void> {
+    const clean = tag.trim().toLowerCase();
+    if (!clean) return;
+
+    const currentDoc = { ...this.tagsDoc() };
+    delete currentDoc[clean];
+
+    const tagsRef = doc(this.db, 'system', 'video-tags');
+    await setDoc(tagsRef, { tags: currentDoc, lastUpdated: new Date().toISOString() });
+    this.tagsDoc.set(currentDoc);
   }
 
   /**

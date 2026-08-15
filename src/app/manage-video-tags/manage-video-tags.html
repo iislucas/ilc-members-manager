@@ -1,0 +1,325 @@
+<div class="manage-tags-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>Video Tags Manager</h1>
+      <p class="subtitle">
+        Define, describe, rename, and organize tags across the Video on Demand catalog and uploaded materials.
+      </p>
+    </div>
+    <div class="header-actions">
+      <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVod, {})">
+        <app-icon name="arrow_back"></app-icon>
+        <span>Back to Manage VOD</span>
+      </a>
+      <button type="button" class="primary-btn" (click)="openAddModal()">
+        <app-icon name="add"></app-icon>
+        <span>Add New Tag</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  @if (statusMessage()) {
+    <div class="toast-banner success">
+      <app-icon name="check"></app-icon>
+      <span>{{ statusMessage() }}</span>
+    </div>
+  }
+
+  <!-- Stats Grid -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-num">{{ stats().total }}</span>
+      <span class="stat-label">Total Tags</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num highlight">{{ stats().withDescriptions }}</span>
+      <span class="stat-label">With Hover Descriptions</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num in-use">{{ stats().inUse }}</span>
+      <span class="stat-label">Tags In Use On Videos</span>
+    </div>
+  </div>
+
+  <!-- Search & Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <app-icon name="search"></app-icon>
+      <input
+        type="text"
+        placeholder="Search tags by slug, display label, or description..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+      />
+      @if (searchQuery()) {
+        <button
+          type="button"
+          class="icon-only-button clear-btn"
+          (click)="searchQuery.set('')"
+          title="Clear search"
+        >
+          <app-icon name="close"></app-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Tags Table -->
+  <div class="table-container">
+    @if (tagRows().length > 0) {
+      <table class="tags-table">
+        <thead>
+          <tr>
+            <th>Tag Slug</th>
+            <th>Display Label</th>
+            <th>Hover Description</th>
+            <th class="center">Videos</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of tagRows(); track row.tag) {
+            <tr>
+              <!-- Tag Slug -->
+              <td class="slug-cell">
+                <span class="tag-chip" [title]="row.description || ('#' + row.tag)">
+                  #{{ row.tag }}
+                </span>
+                @if (!row.isRegistered) {
+                  <span class="unregistered-badge" title="Discovered on videos but not registered in system tag dictionary">
+                    Auto-Discovered
+                  </span>
+                }
+              </td>
+
+              <!-- Display Label -->
+              <td class="label-cell">
+                <span class="tag-title">{{ row.label }}</span>
+              </td>
+
+              <!-- Description -->
+              <td class="desc-cell">
+                @if (row.description) {
+                  <span class="tag-desc">{{ row.description }}</span>
+                } @else {
+                  <span class="no-desc">No description set (shows #{{ row.tag }} on hover)</span>
+                }
+              </td>
+
+              <!-- Videos Count -->
+              <td class="center count-cell">
+                <span class="count-pill" [class.zero]="row.videoCount === 0">
+                  {{ row.videoCount }}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td class="actions-cell">
+                <button
+                  type="button"
+                  class="icon-button edit-btn"
+                  (click)="openEditModal(row)"
+                  title="Edit or rename tag #{{ row.tag }}"
+                >
+                  <app-icon name="edit"></app-icon>
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button danger"
+                  (click)="confirmDelete(row.tag)"
+                  title="Delete tag #{{ row.tag }}"
+                >
+                  <app-icon name="trash"></app-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <div class="empty-state">
+        <app-icon name="info"></app-icon>
+        <h3>No tags found</h3>
+        <p>No video tags match your search query.</p>
+        <button type="button" class="primary-btn" (click)="searchQuery.set('')">
+          Clear Search
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- Add Tag Modal -->
+  @if (isAddModalOpen()) {
+    <div class="modal-overlay" (click)="closeAddModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Add New Video Tag</h2>
+          <button type="button" class="icon-only-button" (click)="closeAddModal()">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          @if (errorMessage()) {
+            <div class="error-banner">{{ errorMessage() }}</div>
+          }
+
+          <div class="form-group">
+            <label>Tag Slug (Short Identifier) <span class="required">*</span></label>
+            <input
+              type="text"
+              placeholder="e.g. spinning_hands, level_3, footwork"
+              [ngModel]="newTagSlug()"
+              (ngModelChange)="newTagSlug.set($event)"
+            />
+            <span class="form-help">Will be used in search and URL filters (lowercase, numbers, underscores).</span>
+          </div>
+
+          <div class="form-group">
+            <label>Display Label</label>
+            <input
+              type="text"
+              placeholder="e.g. Spinning Hands"
+              [ngModel]="newTagLabel()"
+              (ngModelChange)="newTagLabel.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Hover Description</label>
+            <textarea
+              rows="3"
+              placeholder="Explains what this tag means when members hover over the chip..."
+              [ngModel]="newTagDescription()"
+              (ngModelChange)="newTagDescription.set($event)"
+            ></textarea>
+            <span class="form-help">Shows as a helpful tooltip whenever users hover over #{{ newTagSlug() || 'tag' }}.</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="closeAddModal()">
+            Cancel
+          </button>
+          <button type="button" class="primary-btn" [disabled]="isSaving()" (click)="saveNewTag()">
+            @if (isSaving()) {
+              <app-spinner size="14px"></app-spinner>
+              <span>Saving...</span>
+            } @else {
+              <span>Create Tag</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Edit / Rename Modal -->
+  @if (editingTag(); as edit) {
+    <div class="modal-overlay" (click)="closeEditModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Edit Tag: #{{ originalTagSlug() }}</h2>
+          <button type="button" class="icon-only-button" (click)="closeEditModal()">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          @if (errorMessage()) {
+            <div class="error-banner">{{ errorMessage() }}</div>
+          }
+
+          <div class="form-group">
+            <label>Tag Slug (Renaming will update all videos)</label>
+            <input
+              type="text"
+              [ngModel]="editTagSlug()"
+              (ngModelChange)="editTagSlug.set($event)"
+            />
+            @if (editTagSlug().trim().toLowerCase() !== originalTagSlug().toLowerCase()) {
+              <div class="rename-warning">
+                <app-icon name="info"></app-icon>
+                <span>Renaming will update all video records currently tagged with <strong>#{{ originalTagSlug() }}</strong> to <strong>#{{ editTagSlug().trim().toLowerCase() }}</strong>.</span>
+              </div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label>Display Label</label>
+            <input
+              type="text"
+              [ngModel]="editTagLabel()"
+              (ngModelChange)="editTagLabel.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Hover Description</label>
+            <textarea
+              rows="3"
+              placeholder="Explains what this tag means on mouse-over..."
+              [ngModel]="editTagDescription()"
+              (ngModelChange)="editTagDescription.set($event)"
+            ></textarea>
+            <span class="form-help">Users see this in tooltips across all video recordings and uploads.</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="closeEditModal()">
+            Cancel
+          </button>
+          <button type="button" class="primary-btn" [disabled]="isSaving()" (click)="saveTagEdits()">
+            @if (isSaving()) {
+              <app-spinner size="14px"></app-spinner>
+              <span>Saving...</span>
+            } @else {
+              <span>Save Changes</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (deletingTagSlug(); as delSlug) {
+    <div class="modal-overlay" (click)="cancelDelete()">
+      <div class="modal-card confirm-delete-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Delete Tag</h2>
+          <button type="button" class="icon-only-button" (click)="cancelDelete()">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            Are you sure you want to remove <strong>#{{ delSlug }}</strong> from the registered video tags?
+          </p>
+          <p class="sub-warning">
+            Existing videos referencing this tag will keep their text, but this tag metadata and description will be deleted.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="subtle-btn" [disabled]="isSaving()" (click)="cancelDelete()">
+            Cancel
+          </button>
+          <button type="button" class="danger-btn" [disabled]="isSaving()" (click)="executeDelete()">
+            @if (isSaving()) {
+              <app-spinner size="14px"></app-spinner>
+              <span>Deleting...</span>
+            } @else {
+              <span>Confirm Delete</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
