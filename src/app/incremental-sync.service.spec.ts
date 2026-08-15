@@ -21,12 +21,24 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
+import { GenericFsDoc } from '../../functions/src/data-model';
+
 type TestItem = {
   docId: string;
   name: string;
   country: string;
   lastUpdated: string;
 };
+
+function firestoreDocToTestItem(doc: GenericFsDoc): TestItem {
+  const data = (doc.data() as Partial<TestItem>) || {};
+  return {
+    docId: doc.id,
+    name: data.name ?? '',
+    country: data.country ?? '',
+    lastUpdated: data.lastUpdated ?? '',
+  };
+}
 
 describe('IncrementalSyncService', () => {
   let service: IncrementalSyncService;
@@ -160,7 +172,7 @@ describe('IncrementalSyncService', () => {
       collectionPath: 'test_items',
       idField: 'docId',
       targetSet,
-      docConverter: (doc) => ({ ...(doc.data() as object), docId: doc.id } as TestItem),
+      docConverter: firestoreDocToTestItem,
     };
 
     await service.syncCollection(config);
@@ -209,7 +221,7 @@ describe('IncrementalSyncService', () => {
       collectionPath: 'empty_delta_key',
       idField: 'docId',
       targetSet,
-      docConverter: (doc) => ({ ...(doc.data() as object), docId: doc.id } as TestItem),
+      docConverter: firestoreDocToTestItem,
     };
 
     await service.syncCollection(config);
