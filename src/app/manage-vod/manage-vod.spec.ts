@@ -157,14 +157,38 @@ describe('ManageVodComponent', () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
     component.editTags.set(['spinning', 'form']);
+    component.editIsBuyable.set(true);
     component.priceDollars.set(25.00);
 
     await component.saveVideoChanges();
     expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', expect.objectContaining({
       tags: ['spinning', 'form'],
+      isBuyable: true,
       priceCents: 2500,
     }));
     expect(component.editingVideo()).toBeNull();
+  });
+
+  it('should toggle access tiers in edit modal', () => {
+    const video = mockDataService.videos.entries()[0];
+    component.openEditModal(video);
+
+    expect(component.isAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
+    component.toggleAccessTier(VodAccessTier.InstructorsOnly);
+    expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(true);
+
+    component.toggleAccessTier(VodAccessTier.InstructorsOnly);
+    expect(component.isAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(false);
+  });
+
+  it('should format access tier summary correctly', () => {
+    const video1 = {
+      ...mockDataService.videos.entries()[0],
+      accessTiers: [VodAccessTier.InstructorsOnly, VodAccessTier.ClassVideoSubscribers],
+      isBuyable: true,
+      priceCents: 2000,
+    };
+    expect(component.getAccessTiersSummary(video1)).toBe('Instructors • Class Subscribers • Buy ($20.00)');
   });
 
   it('should toggle published / listed status', async () => {

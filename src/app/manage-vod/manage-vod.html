@@ -185,8 +185,8 @@
             <!-- Who Can View (Access Tier & Price) -->
             <td>
               <div class="tier-info">
-                <span class="tier-pill" [class.free]="video.accessTier === 'public'" [class.paid]="video.accessTier === 'direct_purchase'">
-                  {{ getAccessTierLabel(video.accessTier, video.priceCents) }}
+                <span class="tier-pill" [class.free]="video.accessTier === VodAccessTier.Public || (video.accessTiers && video.accessTiers.includes(VodAccessTier.Public))">
+                  {{ getAccessTiersSummary(video) }}
                 </span>
               </div>
             </td>
@@ -422,7 +422,7 @@
             <div class="access-info-card">
               <div class="access-row">
                 <span class="access-label">Who Can Stream:</span>
-                <span class="access-val bold">{{ getAccessTierLabel(d.accessTier, d.priceCents) }}</span>
+                <span class="access-val bold">{{ getAccessTiersSummary(d) }}</span>
               </div>
               @if (d.tags && d.tags.length) {
                 <div class="drawer-tags-row">
@@ -505,29 +505,63 @@
             <textarea rows="3" [(ngModel)]="edit.description"></textarea>
           </div>
 
-          <div class="form-row">
-            <!-- Access Tier -->
-            <div class="form-group">
-              <label>Who Can View (Access Tier)</label>
-              <select [(ngModel)]="edit.accessTier">
-                @for (t of accessTiers; track t.value) {
-                  <option [value]="t.value">{{ t.label }}</option>
-                }
-              </select>
+          <!-- Access Tiers (Multi-select) -->
+          <div class="form-group access-tiers-group">
+            <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
+            <p class="section-description">Select which groups have automatic streaming access:</p>
+            <div class="tiers-checkbox-grid">
+              @for (t of availableAccessTiers; track t.value) {
+                <label class="tier-card-option" [class.checked]="isAccessTierSelected(t.value)">
+                  <input
+                    type="checkbox"
+                    [checked]="isAccessTierSelected(t.value)"
+                    (change)="toggleAccessTier(t.value)"
+                  />
+                  <div class="tier-card-content">
+                    <span class="tier-title">{{ t.label }}</span>
+                    <span class="tier-desc">{{ t.description }}</span>
+                  </div>
+                </label>
+              }
             </div>
+          </div>
 
-            <!-- Price (USD) -->
-            <div class="form-group">
-              <label>Price ($ USD, optional for one-off purchase)</label>
+          <!-- One-off VOD Purchase Option -->
+          <div class="form-group buyable-box">
+            <label class="checkbox-label buyable-toggle">
               <input
-                type="number"
-                step="0.50"
-                min="0"
-                [ngModel]="priceDollars()"
-                (ngModelChange)="priceDollars.set($event)"
-                placeholder="15.00"
+                type="checkbox"
+                [ngModel]="editIsBuyable()"
+                (ngModelChange)="editIsBuyable.set($event)"
               />
-            </div>
+              <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
+            </label>
+            <p class="buyable-hint">Allows users without the above memberships or licenses to purchase individual lifetime streaming access.</p>
+
+            @if (editIsBuyable()) {
+              <div class="form-row buyable-inputs">
+                <div class="form-group">
+                  <label>Purchase Price ($ USD) <span class="required">*</span></label>
+                  <input
+                    type="number"
+                    step="0.50"
+                    min="0.50"
+                    [ngModel]="priceDollars()"
+                    (ngModelChange)="priceDollars.set($event)"
+                    placeholder="15.00"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Stripe Price ID (Optional)</label>
+                  <input
+                    type="text"
+                    [ngModel]="editStripePriceId()"
+                    (ngModelChange)="editStripePriceId.set($event)"
+                    placeholder="price_1N..."
+                  />
+                </div>
+              </div>
+            }
           </div>
 
           <!-- Tags -->

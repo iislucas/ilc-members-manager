@@ -28,8 +28,8 @@
         <div class="hero-info">
           <div class="hero-meta-row">
             <span class="duration-pill">{{ formatDuration(feat.durationSeconds) }}</span>
-            <span class="access-pill" [class]="getAccessTierBadge(feat.accessTier).cssClass">
-              {{ getAccessTierBadge(feat.accessTier).label }}
+            <span class="access-pill" [class]="getAccessTierBadge(feat).cssClass">
+              {{ getAccessTierBadge(feat).label }}
             </span>
           </div>
 
@@ -215,9 +215,9 @@
               <div class="card-header-row">
                 <span
                   class="access-tier-chip"
-                  [class]="getAccessTierBadge(video.accessTier).cssClass"
+                  [class]="getAccessTierBadge(video).cssClass"
                 >
-                  {{ getAccessTierBadge(video.accessTier).label }}
+                  {{ getAccessTierBadge(video).label }}
                 </span>
               </div>
 
@@ -269,7 +269,7 @@
                 } @else {
                   <span class="access-cta locked">
                     <app-icon name="lock"></app-icon>
-                    <span>{{ getAccessTierBadge(video.accessTier).label }}</span>
+                    <span>{{ getAccessTierBadge(video).label }}</span>
                   </span>
                 }
               </div>

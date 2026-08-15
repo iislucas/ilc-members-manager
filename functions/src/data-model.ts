@@ -2499,7 +2499,9 @@ export type VideoItem = {
   location: string;                  // Venue / City
 
   // Access & Pricing Configuration
-  accessTier: VodAccessTier;         // Enum access tier
+  accessTier: VodAccessTier;         // Primary access tier (for backward compatibility)
+  accessTiers: VodAccessTier[];      // Multiple allowed access tiers (e.g. [InstructorsOnly, ClassVideoSubscribers])
+  isBuyable: boolean;                // Whether one-off purchase is available
   minLevel?: number;                 // Optional minimum student level requirement (e.g. Level 3+)
   priceCents?: number;               // Direct purchase price in cents (e.g. 1500 for $15.00)
   currency?: string;                 // e.g. 'usd'
@@ -2553,6 +2555,8 @@ export function initVideoItem(): VideoItem {
     recordedDate: '',
     location: '',
     accessTier: VodAccessTier.MembersOnly,
+    accessTiers: [VodAccessTier.MembersOnly],
+    isBuyable: false,
     isPublished: false,
     featured: false,
     publishedAt: '',
@@ -2579,6 +2583,14 @@ export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
   const data = (doc.data() || {}) as Partial<VideoItemFsDoc>;
   const createdAt = data.createdAt || new Date().toISOString();
   const lastUpdated = normalizeLastUpdated(data.lastUpdated) || createdAt;
+  const rawAccessTiers = Array.isArray(data.accessTiers) && data.accessTiers.length > 0
+    ? data.accessTiers
+    : (data.accessTier ? [data.accessTier] : [VodAccessTier.MembersOnly]);
+  const isBuyable = Boolean(
+    data.isBuyable ||
+    rawAccessTiers.includes(VodAccessTier.DirectPurchase) ||
+    (data.priceCents && data.priceCents > 0),
+  );
   return {
     ...initVideoItem(),
     ...data,
@@ -2586,7 +2598,9 @@ export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
     tags: Array.isArray(data.tags) ? data.tags : [],
     resolutions: Array.isArray(data.resolutions) ? data.resolutions : [],
     category: data.category || VodCategory.SeminarRecording,
-    accessTier: data.accessTier || VodAccessTier.MembersOnly,
+    accessTier: data.accessTier || rawAccessTiers[0] || VodAccessTier.MembersOnly,
+    accessTiers: rawAccessTiers,
+    isBuyable,
     vodStatus: data.vodStatus || VodStatus.None,
     createdAt,
     lastUpdated,

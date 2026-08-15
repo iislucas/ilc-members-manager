@@ -592,6 +592,9 @@ export class ManageMaterialsComponent implements OnInit {
   vodDescription = signal('');
   vodCategory = signal<VodCategory>(VodCategory.SeminarRecording);
   vodAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
+  vodAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
+  vodIsBuyable = signal(false);
+  vodStripePriceId = signal('');
   vodPriceDollars = signal<number | null>(null);
   vodTags = signal<string[]>([]);
 
@@ -605,19 +608,32 @@ export class ManageMaterialsComponent implements OnInit {
     { value: VodCategory.HistoricalArchive, label: 'Historical Archive' },
   ];
 
-  readonly vodAccessTiers = [
-    { value: VodAccessTier.Public, label: 'Public / Free' },
-    { value: VodAccessTier.MembersOnly, label: 'Members Only' },
-    { value: VodAccessTier.InstructorsOnly, label: 'Instructors Only' },
-    {
-      value: VodAccessTier.ClassVideoSubscribers,
-      label: 'Class Video Subscribers',
-    },
-    { value: VodAccessTier.DirectPurchase, label: 'Direct Purchase' },
+  readonly availableAccessTiers = [
+    { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible to all visitors without logging in' },
+    { value: VodAccessTier.MembersOnly, label: 'Members', description: 'Active annual and life members (instructors included)' },
+    { value: VodAccessTier.InstructorsOnly, label: 'Instructors Only', description: 'Licensed ILC instructors' },
+    { value: VodAccessTier.ClassVideoSubscribers, label: 'Class Video Subscribers', description: 'Active class video library subscribers' },
   ];
 
   VodStatus = VodStatus;
+  VodAccessTier = VodAccessTier;
   Views = Views;
+
+  toggleVodAccessTier(tier: VodAccessTier): void {
+    const current = this.vodAccessTiers();
+    if (current.includes(tier)) {
+      if (current.length === 1 && !this.vodIsBuyable()) {
+        return;
+      }
+      this.vodAccessTiers.set(current.filter((t) => t !== tier));
+    } else {
+      this.vodAccessTiers.set([...current, tier]);
+    }
+  }
+
+  isVodAccessTierSelected(tier: VodAccessTier): boolean {
+    return this.vodAccessTiers().includes(tier);
+  }
 
   getVodStatusLabel(mat: UploadItem): string {
     switch (mat.vodStatus) {
@@ -628,9 +644,9 @@ export class ManageMaterialsComponent implements OnInit {
       case VodStatus.Queued:
         return 'VOD Queued';
       case VodStatus.Failed:
-        return 'VOD Failed';
+        return 'Failed';
       default:
-        return '';
+        return 'Not Published';
     }
   }
 
@@ -649,7 +665,9 @@ export class ManageMaterialsComponent implements OnInit {
     this.vodTitle.set(mat.name || 'Untitled Video');
     this.vodDescription.set(mat.notes || '');
     this.vodCategory.set(VodCategory.SeminarRecording);
-    this.vodAccessTier.set(VodAccessTier.MembersOnly);
+    this.vodAccessTiers.set([VodAccessTier.MembersOnly]);
+    this.vodIsBuyable.set(false);
+    this.vodStripePriceId.set('');
     this.vodPriceDollars.set(null);
     this.vodTags.set([...(mat.tags || [])]);
   }
@@ -665,9 +683,14 @@ export class ManageMaterialsComponent implements OnInit {
     this.isPublishingVod.set(true);
     try {
       const tags = this.vodTags();
+      const tiers = this.vodAccessTiers();
+      const isBuyable = this.vodIsBuyable();
 
       const price = this.vodPriceDollars();
-      const priceCents = price ? Math.round(price * 100) : undefined;
+      const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
+      const stripePriceId = isBuyable && this.vodStripePriceId().trim()
+        ? this.vodStripePriceId().trim()
+        : undefined;
 
       const res = await this.dataService.transcodeVideoForVod(
         item.docId,
@@ -676,9 +699,12 @@ export class ManageMaterialsComponent implements OnInit {
           title: this.vodTitle(),
           description: this.vodDescription(),
           category: this.vodCategory(),
-          accessTier: this.vodAccessTier(),
-          tags,
+          accessTier: tiers[0] || VodAccessTier.MembersOnly,
+          accessTiers: tiers,
+          isBuyable,
           priceCents,
+          stripePriceId,
+          tags,
           instructorDocId: item.memberDocId,
           instructorName: item.memberName,
           instructorId: item.instructorId,

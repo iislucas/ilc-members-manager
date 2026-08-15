@@ -30,7 +30,9 @@ export interface TranscodeVideoRequest {
     description: string;
     category: VodCategory;
     tags: string[];
-    accessTier: VodAccessTier;
+    accessTier?: VodAccessTier;
+    accessTiers?: VodAccessTier[];
+    isBuyable?: boolean;
     minLevel?: number;
     priceCents?: number;
     currency?: string;
@@ -91,6 +93,15 @@ export const transcodeVideoForVod = onCall(
     const config = data.vodConfig || {};
     const nowIso = new Date().toISOString();
 
+    const rawAccessTiers = Array.isArray(config.accessTiers) && config.accessTiers.length > 0
+      ? config.accessTiers
+      : (config.accessTier ? [config.accessTier] : [VodAccessTier.MembersOnly]);
+    const isBuyable = Boolean(
+      config.isBuyable ||
+      rawAccessTiers.includes(VodAccessTier.DirectPurchase) ||
+      (config.priceCents && config.priceCents > 0),
+    );
+
     const updatedVideo: VideoItem = {
       ...existingVideo,
       docId: videoId,
@@ -107,7 +118,9 @@ export const transcodeVideoForVod = onCall(
       eventTitle: config.eventTitle || uploadItem.eventTitle || '',
       recordedDate: config.recordedDate || uploadItem.date || nowIso.split('T')[0],
       location: config.location || uploadItem.location || '',
-      accessTier: config.accessTier || VodAccessTier.MembersOnly,
+      accessTier: config.accessTier || rawAccessTiers[0] || VodAccessTier.MembersOnly,
+      accessTiers: rawAccessTiers,
+      isBuyable,
       minLevel: config.minLevel,
       priceCents: config.priceCents,
       currency: config.currency || 'usd',

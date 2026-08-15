@@ -185,6 +185,41 @@ export class VideoViewComponent implements OnInit {
     }
   }
 
+  getAccessSummary(video: VideoItem): string {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    const labels: string[] = [];
+    if (tiers.includes(VodAccessTier.Public)) labels.push('Free / Public');
+    if (tiers.includes(VodAccessTier.MembersOnly)) labels.push('Members');
+    if (tiers.includes(VodAccessTier.InstructorsOnly)) labels.push('Instructors');
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) labels.push('Class Subscribers');
+
+    const isBuyable = Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+    if (isBuyable) {
+      const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
+      labels.push(`Buy (${priceStr})`);
+    }
+
+    return labels.length > 0 ? labels.join(' • ') : 'Members Only';
+  }
+
+  isBuyable(video: VideoItem): boolean {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+    return Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+  }
+
   formatDuration(seconds: number): string {
     if (!seconds || seconds <= 0) return '0 min';
     const hrs = Math.floor(seconds / 3600);

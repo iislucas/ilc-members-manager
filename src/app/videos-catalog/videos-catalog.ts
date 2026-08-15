@@ -248,60 +248,90 @@ export class VideosCatalogComponent implements OnInit {
     return `${mins}m`;
   }
 
-  getAccessTierBadge(tier: VodAccessTier | string): {
+  getAccessTiersSummary(video: VideoItem): string {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    const labels: string[] = [];
+    if (tiers.includes(VodAccessTier.Public)) labels.push('Free');
+    if (tiers.includes(VodAccessTier.MembersOnly)) labels.push('Members');
+    if (tiers.includes(VodAccessTier.InstructorsOnly)) labels.push('Instructors');
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) labels.push('Class Subs');
+
+    const isBuyable = Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+    if (isBuyable) {
+      const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
+      labels.push(`Buy (${priceStr})`);
+    }
+
+    return labels.length > 0 ? labels.join(' • ') : 'Members Only';
+  }
+
+  getAccessTierBadge(video: VideoItem): {
     label: string;
     cssClass: string;
   } {
-    switch (tier) {
-      case VodAccessTier.Public:
-        return { label: 'Free / Public', cssClass: 'badge-public' };
-      case VodAccessTier.MembersOnly:
-        return { label: 'Members Only', cssClass: 'badge-members' };
-      case VodAccessTier.InstructorsOnly:
-        return { label: 'Instructors Only', cssClass: 'badge-instructors' };
-      case VodAccessTier.ClassVideoSubscribers:
-        return { label: 'Class Subscribers', cssClass: 'badge-class' };
-      case VodAccessTier.DirectPurchase:
-        return { label: 'Purchasable', cssClass: 'badge-purchase' };
-      default:
-        return { label: 'Protected', cssClass: 'badge-default' };
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    if (tiers.includes(VodAccessTier.Public)) {
+      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-public' };
     }
+    if (tiers.includes(VodAccessTier.MembersOnly)) {
+      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-members' };
+    }
+    if (tiers.includes(VodAccessTier.InstructorsOnly)) {
+      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-instructors' };
+    }
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
+      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-class' };
+    }
+    return { label: this.getAccessTiersSummary(video), cssClass: 'badge-purchase' };
   }
 
   userHasAccess(video: VideoItem): boolean {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    if (tiers.includes(VodAccessTier.Public) || video.accessTier === VodAccessTier.Public) {
+      return true;
+    }
+
     const user = this.firebaseState.user();
     if (!user) {
-      return video.accessTier === VodAccessTier.Public;
+      return false;
     }
     if (user.isAdmin) return true;
-    if (video.accessTier === VodAccessTier.Public) return true;
 
     const member = user.member;
     if (!member) return false;
 
     const today = new Date().toISOString().split('T')[0];
-    if (
-      video.accessTier === VodAccessTier.MembersOnly &&
-      member.currentMembershipExpires &&
-      member.currentMembershipExpires >= today
-    ) {
-      return true;
-    }
-    if (
-      video.accessTier === VodAccessTier.InstructorsOnly &&
+    const isInstructor = Boolean(
       member.instructorLicenseExpires &&
-      member.instructorLicenseExpires >= today
-    ) {
-      return true;
-    }
-    if (
-      video.accessTier === VodAccessTier.ClassVideoSubscribers &&
+      member.instructorLicenseExpires >= today,
+    );
+    const isMember = Boolean(
+      (member.currentMembershipExpires && member.currentMembershipExpires >= today) ||
+      isInstructor,
+    );
+    const isClassSubscriber = Boolean(
       member.classVideoLibrarySubscription &&
       member.classVideoLibraryExpirationDate &&
-      member.classVideoLibraryExpirationDate >= today
-    ) {
-      return true;
-    }
+      member.classVideoLibraryExpirationDate >= today,
+    );
+
+    if (tiers.includes(VodAccessTier.MembersOnly) && isMember) return true;
+    if (tiers.includes(VodAccessTier.InstructorsOnly) && isInstructor) return true;
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers) && isClassSubscriber) return true;
+
     return false;
   }
 }

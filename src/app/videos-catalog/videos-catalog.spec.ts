@@ -130,12 +130,14 @@ describe('VideosCatalogComponent', () => {
   });
 
   it('should return appropriate access tier badge', () => {
-    const pubBadge = component.getAccessTierBadge(VodAccessTier.Public);
-    expect(pubBadge.label).toBe('Free / Public');
+    const pubVideo = { ...initVideoItem(), accessTier: VodAccessTier.Public, accessTiers: [VodAccessTier.Public] };
+    const pubBadge = component.getAccessTierBadge(pubVideo);
+    expect(pubBadge.label).toBe('Free');
     expect(pubBadge.cssClass).toBe('badge-public');
 
-    const memBadge = component.getAccessTierBadge(VodAccessTier.MembersOnly);
-    expect(memBadge.label).toBe('Members Only');
+    const memVideo = { ...initVideoItem(), accessTier: VodAccessTier.MembersOnly, accessTiers: [VodAccessTier.MembersOnly] };
+    const memBadge = component.getAccessTierBadge(memVideo);
+    expect(memBadge.label).toBe('Members');
     expect(memBadge.cssClass).toBe('badge-members');
   });
 

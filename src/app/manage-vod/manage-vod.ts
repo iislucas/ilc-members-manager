@@ -90,7 +90,19 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editingVideo = signal<VideoItem | null>(null);
   isSaving = signal(false);
   editTags = signal<string[]>([]);
+  editAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
+  editIsBuyable = signal<boolean>(false);
+  editStripePriceId = signal<string>('');
   priceDollars = signal<number | null>(null);
+
+  readonly availableAccessTiers = [
+    { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible to all visitors without logging in' },
+    { value: VodAccessTier.MembersOnly, label: 'Members', description: 'Active annual and life members (instructors included)' },
+    { value: VodAccessTier.InstructorsOnly, label: 'Instructors Only', description: 'Licensed ILC instructors' },
+    { value: VodAccessTier.ClassVideoSubscribers, label: 'Class Video Subscribers', description: 'Active class video library subscribers' },
+  ];
+
+  VodAccessTier = VodAccessTier;
 
   // Status Counts
   stats = computed(() => {
@@ -162,7 +174,6 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   ];
 
   VodStatus = VodStatus;
-  VodAccessTier = VodAccessTier;
 
   ngOnInit(): void {}
 
@@ -300,10 +311,40 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       video.priceCents ? video.priceCents / 100 : null,
     );
     this.editTags.set([...(video.tags || [])]);
+
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+    this.editAccessTiers.set([...tiers]);
+    this.editIsBuyable.set(
+      Boolean(
+        video.isBuyable ||
+        tiers.includes(VodAccessTier.DirectPurchase) ||
+        (video.priceCents && video.priceCents > 0),
+      ),
+    );
+    this.editStripePriceId.set(video.stripePriceId || '');
   }
 
   closeEditModal(): void {
     this.editingVideo.set(null);
+  }
+
+  toggleAccessTier(tier: VodAccessTier): void {
+    const current = this.editAccessTiers();
+    if (current.includes(tier)) {
+      if (current.length === 1 && !this.editIsBuyable()) {
+        // Keep at least one access tier selected
+        return;
+      }
+      this.editAccessTiers.set(current.filter((t) => t !== tier));
+    } else {
+      this.editAccessTiers.set([...current, tier]);
+    }
+  }
+
+  isAccessTierSelected(tier: VodAccessTier): boolean {
+    return this.editAccessTiers().includes(tier);
   }
 
   async saveVideoChanges(): Promise<void> {
@@ -313,18 +354,26 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     this.isSaving.set(true);
     try {
       const tags = this.editTags();
+      const tiers = this.editAccessTiers();
+      const isBuyable = this.editIsBuyable();
 
       const price = this.priceDollars();
-      const priceCents = price ? Math.round(price * 100) : undefined;
+      const priceCents = isBuyable && price ? Math.round(price * 100) : undefined;
+      const stripePriceId = isBuyable && this.editStripePriceId().trim()
+        ? this.editStripePriceId().trim()
+        : undefined;
 
       const patch: Partial<VideoItem> = {
         title: v.title,
         description: v.description,
-        accessTier: v.accessTier,
+        accessTier: tiers[0] || VodAccessTier.MembersOnly,
+        accessTiers: tiers,
+        isBuyable,
         isPublished: v.isPublished,
         featured: v.featured,
         tags,
         priceCents,
+        stripePriceId,
       };
 
       await this.dataService.updateVideoMetadata(v.docId, patch);
@@ -391,6 +440,30 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     return this.routingService.hrefForView(Views.VideoView, {
       videoId: video.docId,
     });
+  }
+
+  getAccessTiersSummary(video: VideoItem): string {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    const labels: string[] = [];
+    if (tiers.includes(VodAccessTier.Public)) labels.push('Public (Free)');
+    if (tiers.includes(VodAccessTier.MembersOnly)) labels.push('Members');
+    if (tiers.includes(VodAccessTier.InstructorsOnly)) labels.push('Instructors');
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) labels.push('Class Subscribers');
+
+    const isBuyable = Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+    if (isBuyable) {
+      const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
+      labels.push(`Buy (${priceStr})`);
+    }
+
+    return labels.length > 0 ? labels.join(' • ') : 'Members Only';
   }
 
   getAccessTierLabel(tier: VodAccessTier, priceCents?: number): string {

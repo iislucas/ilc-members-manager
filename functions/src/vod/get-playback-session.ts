@@ -63,8 +63,19 @@ export const getVideoPlaybackSession = onCall(
       );
     }
 
-    // 1. Public tier is accessible to all viewers (including unauthenticated)
-    if (video.accessTier === VodAccessTier.Public) {
+    // 1. Collect all enabled access tiers
+    const tiers: VodAccessTier[] = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    const isBuyable = Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+
+    // 2. Public tier is accessible to all viewers (including unauthenticated)
+    if (tiers.includes(VodAccessTier.Public) || video.accessTier === VodAccessTier.Public) {
       return {
         authorized: true,
         manifestUrl: video.manifestUrl,
@@ -73,7 +84,7 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    // Gated tiers require authentication
+    // 3. Gated tiers require authentication
     if (!request.auth || !request.auth.token.email) {
       return {
         authorized: false,
@@ -85,7 +96,7 @@ export const getVideoPlaybackSession = onCall(
 
     const email = request.auth.token.email.toLowerCase();
 
-    // Check if admin
+    // 4. Check if admin (admins have access to all videos)
     let member: Member | null = null;
     try {
       member = await getMemberByEmail(email, db);
@@ -102,7 +113,7 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    // Check individual video grants (if member bought this specific video)
+    // 5. Check individual video grants (if member bought or was granted this specific video)
     if (member) {
       const grantRef = db
         .collection('members')
@@ -145,75 +156,68 @@ export const getVideoPlaybackSession = onCall(
       }
     }
 
-    // Check tier-specific permissions
+    // 6. Check multiple tier conditions (with subset hierarchy: instructors are members)
     const today = new Date().toISOString().split('T')[0];
+    const isInstructor = Boolean(
+      member &&
+      member.instructorLicenseExpires &&
+      member.instructorLicenseExpires >= today,
+    );
+    const isMember = Boolean(
+      member &&
+      (hasActiveMembership(member) || isInstructor),
+    );
+    const isClassSubscriber = Boolean(
+      member &&
+      member.classVideoLibrarySubscription &&
+      member.classVideoLibraryExpirationDate &&
+      member.classVideoLibraryExpirationDate >= today,
+    );
 
-    switch (video.accessTier) {
-      case VodAccessTier.MembersOnly:
-        if (member && hasActiveMembership(member)) {
-          return {
-            authorized: true,
-            manifestUrl: video.manifestUrl,
-            title: video.title,
-            durationSeconds: video.durationSeconds,
-          };
-        }
-        return {
-          authorized: false,
-          reason: 'subscription_required',
-          priceCents: video.priceCents,
-          stripePriceId: video.stripePriceId,
-        };
-
-      case VodAccessTier.InstructorsOnly:
-        if (
-          member &&
-          member.instructorLicenseExpires &&
-          member.instructorLicenseExpires >= today
-        ) {
-          return {
-            authorized: true,
-            manifestUrl: video.manifestUrl,
-            title: video.title,
-            durationSeconds: video.durationSeconds,
-          };
-        }
-        return {
-          authorized: false,
-          reason: 'instructor_required',
-          priceCents: video.priceCents,
-          stripePriceId: video.stripePriceId,
-        };
-
-      case VodAccessTier.ClassVideoSubscribers:
-        if (
-          member &&
-          member.classVideoLibrarySubscription &&
-          member.classVideoLibraryExpirationDate &&
-          member.classVideoLibraryExpirationDate >= today
-        ) {
-          return {
-            authorized: true,
-            manifestUrl: video.manifestUrl,
-            title: video.title,
-            durationSeconds: video.durationSeconds,
-          };
-        }
-        return {
-          authorized: false,
-          reason: 'class_sub_required',
-          priceCents: video.priceCents,
-          stripePriceId: video.stripePriceId,
-        };
-
-      case VodAccessTier.DirectPurchase:
-      default:
-        return {
-          authorized: false,
-          reason: 'purchase_required',
-          priceCents: video.priceCents,
-          stripePriceId: video.stripePriceId,
-        };
+    if (tiers.includes(VodAccessTier.MembersOnly) && isMember) {
+      return {
+        authorized: true,
+        manifestUrl: video.manifestUrl,
+        title: video.title,
+        durationSeconds: video.durationSeconds,
+      };
     }
+
+    if (tiers.includes(VodAccessTier.InstructorsOnly) && isInstructor) {
+      return {
+        authorized: true,
+        manifestUrl: video.manifestUrl,
+        title: video.title,
+        durationSeconds: video.durationSeconds,
+      };
+    }
+
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers) && isClassSubscriber) {
+      return {
+        authorized: true,
+        manifestUrl: video.manifestUrl,
+        title: video.title,
+        durationSeconds: video.durationSeconds,
+      };
+    }
+
+    // 7. Not authorized: select the most appropriate reason/action
+    let reason: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required' = 'purchase_required';
+    if (isBuyable) {
+      reason = 'purchase_required';
+    } else if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
+      reason = 'class_sub_required';
+    } else if (tiers.includes(VodAccessTier.MembersOnly)) {
+      reason = 'subscription_required';
+    } else if (tiers.includes(VodAccessTier.InstructorsOnly)) {
+      reason = 'instructor_required';
+    }
+
+    return {
+      authorized: false,
+      reason,
+      priceCents: video.priceCents,
+      stripePriceId: video.stripePriceId,
+    };
   },
 );

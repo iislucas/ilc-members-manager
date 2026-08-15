@@ -54,7 +54,7 @@
                 }
                 @case ('subscription_required') {
                   <p>
-                    This recording is exclusively available to active ILC Members.
+                    This recording is accessible to active ILC Members.
                     Join or renew your annual membership to unlock full access.
                   </p>
                   <div class="lock-actions">
@@ -80,32 +80,38 @@
                   </div>
                 }
                 @default {
-                  @if (v.priceCents) {
-                    <p>Unlock on-demand lifetime access to this masterclass recording.</p>
-                    <div class="purchase-box">
-                      <span class="price-tag">${{ (v.priceCents / 100).toFixed(2) }}</span>
-                      <button
-                        type="button"
-                        class="primary-btn purchase-btn"
-                        [disabled]="isPurchasing()"
-                        (click)="startPurchase()"
-                      >
-                        @if (isPurchasing()) {
-                          <app-spinner></app-spinner>
-                          <span>Processing...</span>
-                        } @else {
-                          <app-icon name="shopping_cart"></app-icon>
-                          <span>Buy Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
-                        }
-                      </button>
-                    </div>
-                  } @else {
+                  @if (!isBuyable(v)) {
                     <p>You do not have access to view this recording.</p>
                     <div class="lock-actions">
                       <a class="primary-btn" [href]="getCatalogHref()">Browse Other Videos</a>
                     </div>
                   }
                 }
+              }
+
+              <!-- Direct Purchase Option (if buyable) -->
+              @if (isBuyable(v) && v.priceCents) {
+                <div class="purchase-box-section">
+                  <div class="or-divider"><span>OR</span></div>
+                  <p class="purchase-subtext">Unlock on-demand lifetime access to this masterclass recording:</p>
+                  <div class="purchase-box">
+                    <span class="price-tag">${{ (v.priceCents / 100).toFixed(2) }}</span>
+                    <button
+                      type="button"
+                      class="primary-btn purchase-btn"
+                      [disabled]="isPurchasing()"
+                      (click)="startPurchase()"
+                    >
+                      @if (isPurchasing()) {
+                        <app-spinner></app-spinner>
+                        <span>Processing...</span>
+                      } @else {
+                        <app-icon name="shopping_cart"></app-icon>
+                        <span>Buy Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
+                      }
+                    </button>
+                  </div>
+                </div>
               }
             </div>
           </div>
@@ -121,7 +127,7 @@
           <div class="badge-row">
             <span class="category-badge">{{ v.category }}</span>
             <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>
-            <span class="access-badge">{{ v.accessTier }}</span>
+            <span class="access-badge">{{ getAccessSummary(v) }}</span>
           </div>
 
           <h1 class="video-title">{{ v.title }}</h1>

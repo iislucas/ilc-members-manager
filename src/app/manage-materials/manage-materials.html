@@ -824,45 +824,78 @@
             ></textarea>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="vodCatSelect">Category</label>
-              <select
-                id="vodCatSelect"
-                [value]="vodCategory()"
-                (change)="vodCategory.set($any($event.target).value)"
-              >
-                @for (c of vodCategories; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
-                }
-              </select>
-            </div>
+          <div class="form-group">
+            <label for="vodCatSelect">Category</label>
+            <select
+              id="vodCatSelect"
+              [value]="vodCategory()"
+              (change)="vodCategory.set($any($event.target).value)"
+            >
+              @for (c of vodCategories; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </div>
 
-            <div class="form-group">
-              <label for="vodTierSelect">Access Tier</label>
-              <select
-                id="vodTierSelect"
-                [value]="vodAccessTier()"
-                (change)="vodAccessTier.set($any($event.target).value)"
-              >
-                @for (t of vodAccessTiers; track t.value) {
-                  <option [value]="t.value">{{ t.label }}</option>
-                }
-              </select>
+          <!-- Access Tiers (Multi-select) -->
+          <div class="form-group access-tiers-group">
+            <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>
+            <p class="section-description">Select which groups have automatic streaming access:</p>
+            <div class="tiers-checkbox-grid">
+              @for (t of availableAccessTiers; track t.value) {
+                <label class="tier-card-option" [class.checked]="isVodAccessTierSelected(t.value)">
+                  <input
+                    type="checkbox"
+                    [checked]="isVodAccessTierSelected(t.value)"
+                    (change)="toggleVodAccessTier(t.value)"
+                  />
+                  <div class="tier-card-content">
+                    <span class="tier-title">{{ t.label }}</span>
+                    <span class="tier-desc">{{ t.description }}</span>
+                  </div>
+                </label>
+              }
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="vodPriceInput">Price ($ USD, optional for one-off purchase)</label>
-            <input
-              id="vodPriceInput"
-              type="number"
-              step="0.50"
-              min="0"
-              placeholder="15.00"
-              [value]="vodPriceDollars() ?? ''"
-              (input)="vodPriceDollars.set($any($event.target).value ? +$any($event.target).value : null)"
-            />
+          <!-- One-off VOD Purchase Option -->
+          <div class="form-group buyable-box">
+            <label class="checkbox-label buyable-toggle">
+              <input
+                type="checkbox"
+                [ngModel]="vodIsBuyable()"
+                (ngModelChange)="vodIsBuyable.set($event)"
+              />
+              <span class="buyable-label-text">Available for Direct / One-Off VOD Purchase</span>
+            </label>
+            <p class="buyable-hint">Allows users without the above memberships or licenses to purchase individual lifetime streaming access.</p>
+
+            @if (vodIsBuyable()) {
+              <div class="form-row buyable-inputs">
+                <div class="form-group">
+                  <label for="vodPriceInput">Purchase Price ($ USD) <span class="required">*</span></label>
+                  <input
+                    id="vodPriceInput"
+                    type="number"
+                    step="0.50"
+                    min="0.50"
+                    placeholder="15.00"
+                    [value]="vodPriceDollars() ?? ''"
+                    (input)="vodPriceDollars.set($any($event.target).value ? +$any($event.target).value : null)"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="vodStripePriceInput">Stripe Price ID (Optional)</label>
+                  <input
+                    id="vodStripePriceInput"
+                    type="text"
+                    placeholder="price_1N..."
+                    [value]="vodStripePriceId()"
+                    (input)="vodStripePriceId.set($any($event.target).value)"
+                  />
+                </div>
+              </div>
+            }
           </div>
 
           <div class="form-group">
