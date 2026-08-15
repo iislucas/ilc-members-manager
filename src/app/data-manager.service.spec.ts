@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { DataManagerService } from './data-manager.service';
+import { IncrementalSyncService } from './incremental-sync.service';
+import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
@@ -52,6 +54,8 @@ describe('DataManagerService - searchEvents', () => {
         { provide: FirebaseStateService, useValue: mockFirebaseState },
         { provide: FIREBASE_APP, useValue: app },
         DataManagerService,
+        IncrementalSyncService,
+        IdbStorageService,
       ],
     });
 

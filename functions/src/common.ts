@@ -139,3 +139,29 @@ export async function assertAdminOrSchoolManager(
     'You do not have permission to perform this action.',
   );
 }
+
+/**
+ * Records a tombstone document when a record is deleted so incremental
+ * delta sync on clients can detect and prune deletions from local storage.
+ */
+export async function recordTombstone(
+  db: admin.firestore.Firestore,
+  collectionName: string,
+  docId: string,
+): Promise<void> {
+  try {
+    const tombstoneRef = db
+      .collection('system')
+      .doc('deletions')
+      .collection(collectionName)
+      .doc(docId);
+    await tombstoneRef.set({
+      docId,
+      collection: collectionName,
+      deletedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Failed to record tombstone for ${collectionName}/${docId}:`, error);
+  }
+}
+

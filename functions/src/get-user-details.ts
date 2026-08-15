@@ -9,7 +9,6 @@ import { allowedOrigins } from './common';
 import {
   FetchUserDetailsResult,
   Member,
-  MemberFirestoreDoc,
   MembershipType,
   firestoreDocToMember,
   initMember,

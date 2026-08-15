@@ -74,7 +74,7 @@ async function run() {
     let needsUpdate = false;
     const update: any = { ...school };
 
-    // We don't save docId explicitly inside SchoolFirebaseDoc per the data-model
+    // We don't save docId explicitly inside SchoolFsDoc per the data-model
     delete update.docId;
 
     // Restore lastUpdated as a Timestamp, fixing it if it was accidentally converted to a string

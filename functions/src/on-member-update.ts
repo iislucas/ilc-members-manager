@@ -16,7 +16,7 @@ import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';
 import { updateInstructorPublicProfile } from './mirror-instructors-to-public-profile';
 import { ensureCountersAreAtLeast } from './counters';
-import { FirestoreUpdate } from './common';
+import { FirestoreUpdate, recordTombstone } from './common';
 import * as logger from 'firebase-functions/logger';
 import { environment } from './environment/environment.js';
 import {
@@ -522,5 +522,9 @@ export const onMemberDeleted = onDocumentDeleted(
     await updateMemberViewForSchoolAndInstrucor(snap.id, undefined, member);
     await updateInstructorPublicProfile({ previous: member, member: undefined });
     await updateACL({ previous: member, member: undefined });
+    await recordTombstone(getDb(), 'members', snap.id);
+    if (member.instructorId) {
+      await recordTombstone(getDb(), 'instructors', snap.id);
+    }
   },
 );

@@ -203,6 +203,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /system/deletions/{collectionName}/{document=**} {
+      allow read: if (collectionName in ['instructors', 'schools', 'events']) || request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /system/{document=**} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

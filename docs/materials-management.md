@@ -109,7 +109,7 @@ export function initUploadItem(): UploadItem {
   };
 }
 
-export function firestoreDocToUploadItem(doc: GenericFirestoreDoc): UploadItem {
+export function firestoreDocToUploadItem(doc: GenericFsDoc): UploadItem {
   const data = doc.data() as Partial<UploadItem>;
   return {
     ...initUploadItem(),

@@ -34,7 +34,6 @@ import {
   firestoreDocToMember,
   initMember,
   Member,
-  MemberFirestoreDoc,
 } from '../../functions/src/data-model';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];

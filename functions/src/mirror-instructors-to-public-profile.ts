@@ -1,8 +1,9 @@
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
 import {
   InstructorLicenseType,
-  InstructorPublicData,
+  InstructorPublicDataFsDoc,
   Member,
 } from './data-model';
 
@@ -54,8 +55,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
       logger.info(
         `Updating instructorId(${member.instructorId}) for member with Doc ${member.docId}`,
       );
-      const instructor: InstructorPublicData = {
-        docId: member.docId, // The ID of this document matches the Member Document ID
+      const instructor: InstructorPublicDataFsDoc = {
         name: member.name,
         memberId: member.memberId,
         studentLevel: member.studentLevel,
@@ -78,6 +78,7 @@ export async function updateInstructorPublicProfile(update: InstructorUpdate) {
         publicCoverImageUrl: member.publicCoverImageUrl || '',
         publicBioMarkdown: member.publicBioMarkdown || '',
         tags: member.tags || [],
+        lastUpdated: FieldValue.serverTimestamp(),
       };
       // For now we copy all data
       await instructorRef.set(instructor);

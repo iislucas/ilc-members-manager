@@ -19,7 +19,7 @@ import {
   SquareSpaceOrder,
   MembershipType,
   InstructorLicenseType,
-  MemberStatisticsFirebaseDoc,
+  MemberStatisticsFsDoc,
   Histogram,
   HistogramMap,
   OrderKind,
@@ -76,7 +76,7 @@ export function computeStatisticsFromMembers(
   members: Member[],
   todayIso: string,
   schools: School[] = [],
-): Omit<MemberStatisticsFirebaseDoc, 'date'> {
+): Omit<MemberStatisticsFsDoc, 'date'> {
   let activeMembers = 0;
   let activeInstructors = 0;
 
@@ -223,7 +223,7 @@ async function performComputeStatistics(): Promise<string> {
   }));
   const orderStats = computeOrderStatistics(ssOrders);
 
-  const statsDoc: MemberStatisticsFirebaseDoc = {
+  const statsDoc: MemberStatisticsFsDoc = {
     ...stats,
     squarespaceOrdersByProductMonthly: orderStats,
     date: new Date().toISOString(),

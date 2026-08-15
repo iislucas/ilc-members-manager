@@ -12,6 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf, isGradingPaid } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
+import { recordTombstone } from './common';
 import * as logger from 'firebase-functions/logger';
 
 const db = admin.firestore();
@@ -1210,6 +1211,8 @@ export const onGradingDeleted = onDocumentDeleted(
     for (const memberDocId of linkedEvent.docIds) {
       await cancelAndDismissGradingNotifications(memberDocId, gradingDocId);
     }
+
+    await recordTombstone(db, 'gradings', gradingDocId);
 
     logger.info(`Grading ${gradingDocId} deleted and mirrors removed.`);
   },
