@@ -4,7 +4,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, ROUTING_CONFIG, initPathPatterns } from '../app.config';
-import { UploadItem, initUploadItem, InstructorPublicData } from '../../../functions/src/data-model';
+import { UploadItem, initUploadItem, InstructorPublicData, VodStatus } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -97,6 +97,7 @@ describe('ManageMaterialsComponent', () => {
         } as unknown as InstructorPublicData,
       ],
     ),
+    transcodeVideoForVod: vi.fn().mockResolvedValue({ success: true, videoId: 'upload1', vodStatus: 'ready' }),
     getRecentEvents: vi.fn().mockResolvedValue([]),
     searchEvents: vi.fn().mockResolvedValue([
       { docId: 'ev1', title: 'NYC Spring Workshop', start: '2026-05-10T10:00:00Z', location: 'New York' },
@@ -318,5 +319,38 @@ describe('ManageMaterialsComponent', () => {
     expect(component.selectedStartDate()).toBe('');
     expect(component.selectedEndDate()).toBe('');
     expect(component.filteredMaterials().length).toBe(2);
+  });
+
+  it('should return correct VOD status label and URLs', () => {
+    const itemReady: UploadItem = {
+      ...initUploadItem(),
+      docId: 'up1',
+      vodStatus: VodStatus.Ready,
+      vodVideoId: 'up1',
+    };
+    expect(component.getVodStatusLabel(itemReady)).toBe('In VOD');
+    expect(component.getVodViewHref(itemReady)).toContain('/videos/up1');
+
+    const itemTranscoding: UploadItem = {
+      ...initUploadItem(),
+      docId: 'up2',
+      vodStatus: VodStatus.Transcoding,
+    };
+    expect(component.getVodStatusLabel(itemTranscoding)).toBe('Transcoding...');
+    expect(component.getManageVodHref(itemTranscoding)).toContain('/manage-vod');
+  });
+
+  it('should open publish modal and submit VOD transcoding', async () => {
+    await component.loadAllMaterials();
+    const item = component.materials()[0];
+
+    component.openPublishVodModal(item);
+    expect(component.vodPublishItem()?.docId).toBe('upload1');
+    expect(component.vodTitle()).toBe(item.name);
+
+    await component.submitPublishVod();
+    expect(mockDataManagerService.transcodeVideoForVod).toHaveBeenCalled();
+    expect(component.vodPublishItem()).toBeNull();
+    expect(component.materials()[0].vodStatus).toBe(VodStatus.Ready);
   });
 });

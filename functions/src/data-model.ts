@@ -2375,6 +2375,12 @@ export type UploadItem = {
   tags: string[];                // Searchable tags
   source: UploadItemSource;      // 'direct' (materials page) vs 'event' (event edit page)
 
+  // VOD Curation & Transcoding Status
+  vodStatus?: VodStatus;         // 'none' | 'queued' | 'transcoding' | 'ready' | 'failed'
+  vodVideoId?: string;           // Linked document ID in /videos (e.g. uploadDocId)
+  vodJobId?: string;             // GCP Transcoder job resource name / ID for tracking
+  vodPublishedAt?: string;       // ISO date string when published
+
   createdAt: string;             // ISO date string
   lastUpdated: string;           // ISO date string
 };
@@ -2400,6 +2406,10 @@ export function initUploadItem(): UploadItem {
     notes: '',
     tags: [],
     source: UploadItemSource.Direct,
+    vodStatus: VodStatus.None,
+    vodVideoId: '',
+    vodJobId: '',
+    vodPublishedAt: '',
     createdAt: '',
     lastUpdated: '',
   };
@@ -2416,6 +2426,10 @@ export function firestoreDocToUploadItem(doc: GenericFsDoc): UploadItem {
     ...data,
     docId: doc.id,
     tags: Array.isArray(data.tags) ? data.tags : [],
+    vodStatus: data.vodStatus || VodStatus.None,
+    vodVideoId: data.vodVideoId || '',
+    vodJobId: data.vodJobId || '',
+    vodPublishedAt: data.vodPublishedAt || '',
     createdAt,
     lastUpdated,
   };

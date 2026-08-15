@@ -184,6 +184,15 @@ export const transcodeVideoForVod = onCall(
 
     await videoRef.set(updatedVideo);
 
+    // Update source upload record with VOD tracking status
+    await uploadRef.update({
+      vodStatus: updatedVideo.vodStatus,
+      vodVideoId: videoId,
+      vodJobId: jobId,
+      vodPublishedAt: updatedVideo.publishedAt,
+      lastUpdated: nowIso,
+    });
+
     return {
       success: true,
       videoId,

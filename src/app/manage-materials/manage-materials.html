@@ -355,6 +355,21 @@
                     </button>
                   </div>
                 }
+                @if (mat.vodStatus && mat.vodStatus !== VodStatus.None) {
+                  <a
+                    class="vod-status-chip"
+                    [class.ready]="mat.vodStatus === VodStatus.Ready"
+                    [class.processing]="mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued"
+                    [class.failed]="mat.vodStatus === VodStatus.Failed"
+                    [href]="mat.vodStatus === VodStatus.Ready ? getVodViewHref(mat) : getManageVodHref(mat)"
+                    target="_blank"
+                    (click)="$event.stopPropagation()"
+                    title="VOD Status: {{ mat.vodStatus }} (Click to view)"
+                  >
+                    <app-icon name="live_tv" />
+                    <span>{{ getVodStatusLabel(mat) }}</span>
+                  </a>
+                }
                 <span class="size-badge">{{ formatBytes(mat.size) }}</span>
               </div>
 
@@ -388,14 +403,36 @@
                   <app-icon name="link" />
                 </a>
                 @if (mat.contentType.startsWith('video/')) {
-                  <button
-                    type="button"
-                    class="icon-only-button vod-action-btn"
-                    (click)="openPublishVodModal(mat)"
-                    title="Publish to Video on Demand (VOD)"
-                  >
-                    <app-icon name="live_tv" />
-                  </button>
+                  @if (mat.vodStatus === VodStatus.Ready) {
+                    <a
+                      class="icon-only-button vod-action-btn ready"
+                      [href]="getVodViewHref(mat)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Watch in Video on Demand (VOD)"
+                    >
+                      <app-icon name="live_tv" />
+                    </a>
+                  } @else if (mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued) {
+                    <a
+                      class="icon-only-button vod-action-btn in-progress"
+                      [href]="getManageVodHref(mat)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Transcoding in progress... (Click to view in Manage VOD)"
+                    >
+                      <app-icon name="live_tv" />
+                    </a>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icon-only-button vod-action-btn"
+                      (click)="openPublishVodModal(mat)"
+                      title="Publish to Video on Demand (VOD)"
+                    >
+                      <app-icon name="live_tv" />
+                    </button>
+                  }
                 }
                 <button
                   type="button"
@@ -449,7 +486,24 @@
                   </a>
                 </td>
                 <td class="name-cell">
-                  <span class="file-name">{{ mat.name }}</span>
+                  <div class="name-with-status">
+                    <span class="file-name">{{ mat.name }}</span>
+                    @if (mat.vodStatus && mat.vodStatus !== VodStatus.None) {
+                      <a
+                        class="vod-status-chip"
+                        [class.ready]="mat.vodStatus === VodStatus.Ready"
+                        [class.processing]="mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued"
+                        [class.failed]="mat.vodStatus === VodStatus.Failed"
+                        [href]="mat.vodStatus === VodStatus.Ready ? getVodViewHref(mat) : getManageVodHref(mat)"
+                        target="_blank"
+                        (click)="$event.stopPropagation()"
+                        title="VOD Status: {{ mat.vodStatus }} (Click to view)"
+                      >
+                        <app-icon name="live_tv" />
+                        <span>{{ getVodStatusLabel(mat) }}</span>
+                      </a>
+                    }
+                  </div>
                   @if (mat.tags.length) {
                     <div class="table-tags">
                       @for (tag of mat.tags; track tag) {
@@ -572,14 +626,36 @@
                     <app-icon name="link" />
                   </a>
                   @if (mat.contentType.startsWith('video/')) {
-                    <button
-                      type="button"
-                      class="icon-only-button vod-action-btn"
-                      (click)="openPublishVodModal(mat)"
-                      title="Publish to Video on Demand (VOD)"
-                    >
-                      <app-icon name="live_tv" />
-                    </button>
+                    @if (mat.vodStatus === VodStatus.Ready) {
+                      <a
+                        class="icon-only-button vod-action-btn ready"
+                        [href]="getVodViewHref(mat)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Watch in Video on Demand (VOD)"
+                      >
+                        <app-icon name="live_tv" />
+                      </a>
+                    } @else if (mat.vodStatus === VodStatus.Transcoding || mat.vodStatus === VodStatus.Queued) {
+                      <a
+                        class="icon-only-button vod-action-btn in-progress"
+                        [href]="getManageVodHref(mat)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Transcoding in progress... (Click to view in Manage VOD)"
+                      >
+                        <app-icon name="live_tv" />
+                      </a>
+                    } @else {
+                      <button
+                        type="button"
+                        class="icon-only-button vod-action-btn"
+                        (click)="openPublishVodModal(mat)"
+                        title="Publish to Video on Demand (VOD)"
+                      >
+                        <app-icon name="live_tv" />
+                      </button>
+                    }
                   }
                   <button type="button" class="icon-only-button" (click)="openEditModal(mat)" title="Edit">
                     <app-icon name="admin" />

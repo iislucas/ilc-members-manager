@@ -21,6 +21,7 @@ import {
   InstructorPublicData,
   VodCategory,
   VodAccessTier,
+  VodStatus,
 } from '../../../functions/src/data-model';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -613,6 +614,34 @@ export class ManageMaterialsComponent implements OnInit {
     { value: VodAccessTier.DirectPurchase, label: 'Direct Purchase' },
   ];
 
+  VodStatus = VodStatus;
+  Views = Views;
+
+  getVodStatusLabel(mat: UploadItem): string {
+    switch (mat.vodStatus) {
+      case VodStatus.Ready:
+        return 'In VOD';
+      case VodStatus.Transcoding:
+        return 'Transcoding...';
+      case VodStatus.Queued:
+        return 'VOD Queued';
+      case VodStatus.Failed:
+        return 'VOD Failed';
+      default:
+        return '';
+    }
+  }
+
+  getVodViewHref(mat: UploadItem): string {
+    const videoId = mat.vodVideoId || mat.docId;
+    return this.routingService.hrefForView(Views.VideoView, { videoId });
+  }
+
+  getManageVodHref(mat: UploadItem): string {
+    const videoId = mat.vodVideoId || mat.docId;
+    return this.routingService.hrefForView(Views.ManageVod, { q: videoId });
+  }
+
   openPublishVodModal(mat: UploadItem) {
     this.vodPublishItem.set(mat);
     this.vodTitle.set(mat.name || 'Untitled Video');
@@ -641,7 +670,7 @@ export class ManageMaterialsComponent implements OnInit {
       const price = this.vodPriceDollars();
       const priceCents = price ? Math.round(price * 100) : undefined;
 
-      await this.dataService.transcodeVideoForVod(
+      const res = await this.dataService.transcodeVideoForVod(
         item.docId,
         item.memberDocId,
         {
@@ -661,13 +690,28 @@ export class ManageMaterialsComponent implements OnInit {
         },
       );
 
+      const newStatus = res?.vodStatus || VodStatus.Transcoding;
+      this.materials.update((list) =>
+        list.map((m) =>
+          m.docId === item.docId
+            ? {
+                ...m,
+                vodStatus: newStatus,
+                vodVideoId: item.docId,
+                vodPublishedAt: new Date().toISOString(),
+              }
+            : m,
+        ),
+      );
+
       this.successMessage.set(
         `"${this.vodTitle()}" has been queued for VOD transcoding and catalog publication.`,
       );
       this.closePublishVodModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error publishing to VOD:', err);
-      alert(err.message || 'Failed to trigger VOD transcoding.');
+      const msg = err instanceof Error ? err.message : 'Failed to trigger VOD transcoding.';
+      alert(msg);
     } finally {
       this.isPublishingVod.set(false);
     }

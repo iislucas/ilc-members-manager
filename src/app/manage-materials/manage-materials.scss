@@ -481,6 +481,84 @@
   overflow: hidden;
 }
 
+.vod-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: v.$highlight-tag-bg;
+  color: v.$highlight-tag-text;
+  border: 1px solid v.$highlight-tag-border;
+  transition: all 0.15s ease;
+
+  app-icon {
+    font-size: 0.85em;
+  }
+
+  &.ready {
+    background: v.$highlight-tag-bg;
+    color: v.$highlight-tag-text;
+    border-color: v.$highlight-tag-border;
+
+    &:hover {
+      background: #bae6fd;
+    }
+  }
+
+  &.processing {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+
+    &:hover {
+      background: #fde68a;
+    }
+  }
+
+  &.failed {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+
+    &:hover {
+      background: #fecaca;
+    }
+  }
+}
+
+.name-with-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vod-action-btn {
+  &.ready {
+    color: #0284c7;
+    background: #f0f9ff;
+
+    &:hover {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+  }
+
+  &.in-progress {
+    color: #d97706;
+    background: #fffbeb;
+
+    &:hover {
+      background: #fef3c7;
+      color: #b45309;
+    }
+  }
+}
+
 .material-card-actions {
   display: flex;
   align-items: center;
