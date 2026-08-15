@@ -2557,10 +2557,14 @@ export function initVideoItem(): VideoItem {
   };
 }
 
-export function firestoreDocToVideoItem(doc: GenericFirestoreDoc): VideoItem {
-  const data = (doc.data() || {}) as Partial<VideoItem>;
+export type VideoItemFsDoc = Omit<VideoItem, 'docId'> & {
+  lastUpdated: FsTimestamp;
+};
+
+export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
+  const data = (doc.data() || {}) as Partial<VideoItemFsDoc>;
   const createdAt = data.createdAt || new Date().toISOString();
-  const lastUpdated = data.lastUpdated || createdAt;
+  const lastUpdated = normalizeLastUpdated(data.lastUpdated) || createdAt;
   return {
     ...initVideoItem(),
     ...data,
@@ -2590,6 +2594,8 @@ export type VideoGrant = {
   expiresAt?: string;                // Optional expiration timestamp (for rentals or temporary access)
 };
 
+export type VideoGrantFsDoc = Omit<VideoGrant, 'docId'>;
+
 export function initVideoGrant(videoId = '', memberDocId = ''): VideoGrant {
   return {
     docId: videoId,
@@ -2601,8 +2607,8 @@ export function initVideoGrant(videoId = '', memberDocId = ''): VideoGrant {
   };
 }
 
-export function firestoreDocToVideoGrant(doc: GenericFirestoreDoc): VideoGrant {
-  const data = (doc.data() || {}) as Partial<VideoGrant>;
+export function firestoreDocToVideoGrant(doc: GenericFsDoc): VideoGrant {
+  const data = (doc.data() || {}) as Partial<VideoGrantFsDoc>;
   return {
     ...initVideoGrant(doc.id, data.memberDocId || ''),
     ...data,
@@ -2623,6 +2629,8 @@ export type VideoProgress = {
   lastWatchedAt: string;             // ISO Timestamp
 };
 
+export type VideoProgressFsDoc = Omit<VideoProgress, 'docId'>;
+
 export function initVideoProgress(videoId = '', memberDocId = ''): VideoProgress {
   return {
     docId: videoId,
@@ -2635,8 +2643,8 @@ export function initVideoProgress(videoId = '', memberDocId = ''): VideoProgress
   };
 }
 
-export function firestoreDocToVideoProgress(doc: GenericFirestoreDoc): VideoProgress {
-  const data = (doc.data() || {}) as Partial<VideoProgress>;
+export function firestoreDocToVideoProgress(doc: GenericFsDoc): VideoProgress {
+  const data = (doc.data() || {}) as Partial<VideoProgressFsDoc>;
   return {
     ...initVideoProgress(doc.id, data.memberDocId || ''),
     ...data,
