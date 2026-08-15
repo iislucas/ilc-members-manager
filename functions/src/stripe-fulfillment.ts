@@ -24,6 +24,7 @@ import {
   Grading,
   GradingStatus,
   PaymentStatus,
+  firestoreDocToMember,
   initGrading,
   initMember,
   initSchool,
@@ -53,27 +54,39 @@ function unixSecondsToDateString(seconds: number | null | undefined): string {
 /**
  * Add N years to an existing date string (YYYY-MM-DD), ensuring that if the
  * current date has not yet passed, the extension starts from the current
- * expiry rather than resetting from today.
+ * expiry rather than resetting from the reference date (order date/today).
  */
-function extendDateByYears(currentDateStr: string, yearsToAdd = 1): string {
+export function extendDateByYears(
+  currentDateStr: string | null | undefined,
+  yearsToAdd = 1,
+  referenceDateStr?: string,
+): string {
   if (currentDateStr === '9999-12-31') return '9999-12-31';
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = referenceDateStr || new Date().toISOString().split('T')[0];
+  const cleanedCurrent = currentDateStr ? currentDateStr.split('T')[0].trim() : '';
   const baseDateStr =
-    currentDateStr && currentDateStr >= todayStr ? currentDateStr : todayStr;
+    cleanedCurrent && cleanedCurrent >= todayStr ? cleanedCurrent : todayStr;
   const d = new Date(baseDateStr + 'T00:00:00Z');
   d.setUTCFullYear(d.getUTCFullYear() + (yearsToAdd || 1));
   return d.toISOString().split('T')[0];
 }
 
 /**
- * Add N months to an existing date string (YYYY-MM-DD).
+ * Add N months to an existing date string (YYYY-MM-DD), ensuring that if the
+ * current date has not yet passed, the extension starts from the current
+ * expiry rather than resetting from the reference date (order date/today).
  */
-function extendDateByMonths(currentDateStr: string, monthsToAdd = 1): string {
-  const todayStr = new Date().toISOString().split('T')[0];
+export function extendDateByMonths(
+  currentDateStr: string | null | undefined,
+  monthsToAdd = 1,
+  referenceDateStr?: string,
+): string {
+  const todayStr = referenceDateStr || new Date().toISOString().split('T')[0];
+  const cleanedCurrent = currentDateStr ? currentDateStr.split('T')[0].trim() : '';
   const baseDateStr =
-    currentDateStr && currentDateStr >= todayStr ? currentDateStr : todayStr;
+    cleanedCurrent && cleanedCurrent >= todayStr ? cleanedCurrent : todayStr;
   const d = new Date(baseDateStr + 'T00:00:00Z');
-  d.setUTCMonth(d.getUTCMonth() + monthsToAdd);
+  d.setUTCMonth(d.getUTCMonth() + (monthsToAdd || 1));
   return d.toISOString().split('T')[0];
 }
 
@@ -90,7 +103,7 @@ export async function resolveMemberForStripeOrder(
   if (memberDocId) {
     const doc = await db.collection('members').doc(memberDocId).get();
     if (doc.exists) {
-      return { ...doc.data(), docId: doc.id } as Member;
+      return firestoreDocToMember(doc);
     }
   }
 
@@ -103,7 +116,7 @@ export async function resolveMemberForStripeOrder(
       .get();
     if (!query.empty) {
       const doc = query.docs[0];
-      return { ...doc.data(), docId: doc.id } as Member;
+      return firestoreDocToMember(doc);
     }
   }
 
@@ -116,7 +129,7 @@ export async function resolveMemberForStripeOrder(
       if (memberDocIds.length > 0) {
         const doc = await db.collection('members').doc(memberDocIds[0]).get();
         if (doc.exists) {
-          return { ...doc.data(), docId: doc.id } as Member;
+          return firestoreDocToMember(doc);
         }
       }
     }
@@ -128,7 +141,7 @@ export async function resolveMemberForStripeOrder(
       .get();
     if (!membersQuery.empty) {
       const doc = membersQuery.docs[0];
-      return { ...doc.data(), docId: doc.id } as Member;
+      return firestoreDocToMember(doc);
     }
   }
 
@@ -155,7 +168,7 @@ export function categorizeLineItem(
   if (metaType === 'video' || metaType === 'video_library') {
     return OrderItemCategory.VideoLibrary;
   }
-  if (metaType === 'school_license') {
+  if (metaType === 'school' || metaType === 'school_license') {
     return OrderItemCategory.SchoolLicense;
   }
 
@@ -379,7 +392,9 @@ export async function fulfillSpouseLifeMembership(
     return null;
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const orderDate = order.created
+    ? order.created.split('T')[0]
+    : new Date().toISOString().split('T')[0];
 
   // 1. Try to lookup existing member
   let existingSpouseDoc: admin.firestore.DocumentSnapshot | null = null;
@@ -444,12 +459,13 @@ export async function fulfillSpouseLifeMembership(
       membershipType: MembershipType.Life,
       currentMembershipExpires: '9999-12-31',
       membershipNextAutoRenewDate: '',
-      lastRenewalDate: today,
+      lastRenewalDate: orderDate,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    if (!spouseData.firstMembershipStarted) {
-      updates['firstMembershipStarted'] = today;
+    // Never overwrite firstMembershipStarted if already set
+    if (!spouseData.firstMembershipStarted || spouseData.firstMembershipStarted.trim() === '') {
+      updates['firstMembershipStarted'] = orderDate;
     }
     if (spouseDob && !spouseData.dateOfBirth) {
       updates['dateOfBirth'] = spouseDob;
@@ -518,8 +534,8 @@ export async function fulfillSpouseLifeMembership(
     emails: spouseEmail ? [spouseEmail] : [],
     dateOfBirth: spouseDob,
     membershipType: MembershipType.Life,
-    firstMembershipStarted: today,
-    lastRenewalDate: today,
+    firstMembershipStarted: orderDate,
+    lastRenewalDate: orderDate,
     currentMembershipExpires: '9999-12-31',
     lastUpdated: new Date().toISOString(),
   };
@@ -553,7 +569,9 @@ export async function fulfillStripeOrder(
   order: StripeOrder,
   orderDocId: string,
 ): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
+  const orderDate = order.created
+    ? order.created.split('T')[0]
+    : new Date().toISOString().split('T')[0];
   const memberRef = db.collection('members').doc(member.docId);
   const memberUpdates: Record<string, unknown> = {
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
@@ -573,7 +591,7 @@ export async function fulfillStripeOrder(
         memberUpdates['membershipType'] = MembershipType.Life;
         memberUpdates['currentMembershipExpires'] = '9999-12-31';
         memberUpdates['membershipNextAutoRenewDate'] = '';
-        memberUpdates['lastRenewalDate'] = today;
+        memberUpdates['lastRenewalDate'] = orderDate;
 
         if (
           descLower.includes('spouse') ||
@@ -586,9 +604,10 @@ export async function fulfillStripeOrder(
         const newExpires = extendDateByYears(
           member.currentMembershipExpires,
           1,
+          orderDate,
         );
         memberUpdates['membershipType'] = MembershipType.Annual;
-        memberUpdates['lastRenewalDate'] = today;
+        memberUpdates['lastRenewalDate'] = orderDate;
         memberUpdates['currentMembershipExpires'] = newExpires;
 
         if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
@@ -657,23 +676,26 @@ export async function fulfillStripeOrder(
         }
       }
 
-      // Record first membership start date if not set
-      if (!member.firstMembershipStarted) {
-        memberUpdates['firstMembershipStarted'] = today;
-        member.firstMembershipStarted = today;
+      // Record first membership start date ONLY if not already set (never overwrite)
+      if (!member.firstMembershipStarted || member.firstMembershipStarted.trim() === '') {
+        memberUpdates['firstMembershipStarted'] = orderDate;
+        member.firstMembershipStarted = orderDate;
       }
     } else if (category === OrderItemCategory.InstructorLicense) {
-      if (member.instructorLicenseType === InstructorLicenseType.Life) {
-        memberUpdates['instructorLicenseRenewalDate'] = today;
+      if (member.instructorLicenseType === InstructorLicenseType.Life || descLower.includes('life')) {
+        memberUpdates['instructorLicenseRenewalDate'] = orderDate;
         memberUpdates['instructorLicenseExpires'] = '9999-12-31';
+        memberUpdates['instructorLicenseType'] = InstructorLicenseType.Life;
+        memberUpdates['instructorLicenseNextAutoRenewDate'] = '';
       } else {
         const yearsToAdd =
           item.quantity && item.quantity > 0 ? item.quantity : 1;
         const newExpires = extendDateByYears(
           member.instructorLicenseExpires,
           yearsToAdd,
+          orderDate,
         );
-        memberUpdates['instructorLicenseRenewalDate'] = today;
+        memberUpdates['instructorLicenseRenewalDate'] = orderDate;
         memberUpdates['instructorLicenseExpires'] = newExpires;
         memberUpdates['instructorLicenseType'] = InstructorLicenseType.Annual;
         member.instructorLicenseExpires = newExpires;
@@ -719,11 +741,11 @@ export async function fulfillStripeOrder(
     } else if (category === OrderItemCategory.VideoLibrary) {
       const isYearly = descLower.includes('year') || descLower.includes('annual');
       const newExpires = isYearly
-        ? extendDateByYears(member.classVideoLibraryExpirationDate, 1)
-        : extendDateByMonths(member.classVideoLibraryExpirationDate, 1);
+        ? extendDateByYears(member.classVideoLibraryExpirationDate, 1, orderDate)
+        : extendDateByMonths(member.classVideoLibraryExpirationDate, 1, orderDate);
 
       memberUpdates['classVideoLibrarySubscription'] = true;
-      memberUpdates['classVideoLibraryLastRenewalDate'] = today;
+      memberUpdates['classVideoLibraryLastRenewalDate'] = orderDate;
       memberUpdates['classVideoLibraryExpirationDate'] = newExpires;
 
       if (order.mode === StripeCheckoutMode.Subscription && order.subscriptionId) {
@@ -769,10 +791,10 @@ export async function fulfillStripeOrder(
           const sData = sDoc.data() || {};
           const currentExp = (sData['schoolLicenseExpires'] as string) || '';
           const newExpires = isYearly
-            ? extendDateByYears(currentExp, 1)
-            : extendDateByMonths(currentExp, 1);
+            ? extendDateByYears(currentExp, 1, orderDate)
+            : extendDateByMonths(currentExp, 1, orderDate);
           await targetSchoolRef.update({
-            schoolLicenseRenewalDate: today,
+            schoolLicenseRenewalDate: orderDate,
             schoolLicenseExpires: newExpires,
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -786,8 +808,8 @@ export async function fulfillStripeOrder(
 
       // If not renewing an existing school, create a new school entry
       const newExpires = isYearly
-        ? extendDateByYears(today, 1)
-        : extendDateByMonths(today, 1);
+        ? extendDateByYears('', 1, orderDate)
+        : extendDateByMonths('', 1, orderDate);
 
       let newSchoolId = '';
       try {
@@ -816,7 +838,7 @@ export async function fulfillStripeOrder(
         managerInstructorIds: [],
         ownerEmails: member.emails && member.emails.length > 0 ? member.emails : [],
         managerEmails: [],
-        schoolLicenseRenewalDate: today,
+        schoolLicenseRenewalDate: orderDate,
         schoolLicenseExpires: newExpires,
         lastUpdated: new Date().toISOString(),
       };
@@ -850,13 +872,14 @@ export async function fulfillStripeOrder(
   // If order was a subscription, record into subscriptions map
   if (order.subscriptionId && order.mode === StripeCheckoutMode.Subscription) {
     const subKey = order.subscriptionId;
-    const isYearly = order.lineItems.some((l) =>
-      l.description.toLowerCase().includes('year'),
-    );
+    const isYearly = order.lineItems.some((l) => {
+      const d = l.description.toLowerCase();
+      return d.includes('year') || d.includes('annual');
+    });
     const interval = isYearly ? SubscriptionInterval.Year : SubscriptionInterval.Month;
     const periodEnd = isYearly
-      ? extendDateByYears(today, 1)
-      : extendDateByMonths(today, 1);
+      ? extendDateByYears(orderDate, 1, orderDate)
+      : extendDateByMonths(orderDate, 1, orderDate);
 
     memberUpdates[`stripeSubscriptions.${subKey}`] = {
       subscriptionId: order.subscriptionId,
@@ -866,7 +889,7 @@ export async function fulfillStripeOrder(
       amount: order.amountTotal || 0,
       currency: order.currency || 'usd',
       interval,
-      currentPeriodStart: today,
+      currentPeriodStart: orderDate,
       currentPeriodEnd: periodEnd,
       nextAutoRenewDate: periodEnd,
       cancelAtPeriodEnd: false,
@@ -900,7 +923,7 @@ export async function syncSubscriptionStatusToMember(
 
   if (memberDocIdMeta) {
     const doc = await db.collection('members').doc(memberDocIdMeta).get();
-    if (doc.exists) member = { ...doc.data(), docId: doc.id } as Member;
+    if (doc.exists) member = firestoreDocToMember(doc);
   }
 
   if (!member && customerId) {
@@ -910,7 +933,7 @@ export async function syncSubscriptionStatusToMember(
       .limit(1)
       .get();
     if (!query.empty) {
-      member = { ...query.docs[0].data(), docId: query.docs[0].id } as Member;
+      member = firestoreDocToMember(query.docs[0]);
     }
   }
 
@@ -928,6 +951,7 @@ export async function syncSubscriptionStatusToMember(
   const cancelAtPeriodEnd = subscription.cancel_at_period_end;
   const nextAutoRenewDate = cancelAtPeriodEnd ? '' : periodEnd;
   const status = subscription.status;
+  const isActive = status === 'active' || status === 'trialing';
 
   const memberRef = db.collection('members').doc(member.docId);
   const updates: Record<string, unknown> = {
@@ -936,17 +960,40 @@ export async function syncSubscriptionStatusToMember(
 
   if (member.membershipSubscriptionId === subscription.id) {
     updates['membershipNextAutoRenewDate'] = nextAutoRenewDate;
+    if (isActive && periodEnd) {
+      if (!member.currentMembershipExpires || member.currentMembershipExpires < periodEnd) {
+        updates['currentMembershipExpires'] = periodEnd;
+      }
+    }
   }
   if (member.instructorLicenseSubscriptionId === subscription.id) {
     updates['instructorLicenseNextAutoRenewDate'] = nextAutoRenewDate;
+    if (isActive && periodEnd) {
+      if (!member.instructorLicenseExpires || member.instructorLicenseExpires < periodEnd) {
+        updates['instructorLicenseExpires'] = periodEnd;
+      }
+    }
   }
   if (member.classVideoLibrarySubscriptionId === subscription.id) {
     updates['classVideoLibraryNextAutoRenewDate'] = nextAutoRenewDate;
+    if (isActive && periodEnd) {
+      updates['classVideoLibrarySubscription'] = true;
+      if (!member.classVideoLibraryExpirationDate || member.classVideoLibraryExpirationDate < periodEnd) {
+        updates['classVideoLibraryExpirationDate'] = periodEnd;
+      }
+    } else if (status === 'canceled' || status === 'unpaid') {
+      const today = new Date().toISOString().split('T')[0];
+      if (member.classVideoLibraryExpirationDate && member.classVideoLibraryExpirationDate < today) {
+        updates['classVideoLibrarySubscription'] = false;
+      }
+    }
   }
 
   if (member.stripeSubscriptions && member.stripeSubscriptions[subscription.id]) {
     updates[`stripeSubscriptions.${subscription.id}.status`] = status;
-    updates[`stripeSubscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
+    if (periodEnd) {
+      updates[`stripeSubscriptions.${subscription.id}.currentPeriodEnd`] = periodEnd;
+    }
     updates[`stripeSubscriptions.${subscription.id}.nextAutoRenewDate`] =
       nextAutoRenewDate;
     updates[`stripeSubscriptions.${subscription.id}.cancelAtPeriodEnd`] =

@@ -370,6 +370,39 @@ app-autocomplete {
   }
 }
 
+.bullet-points-container {
+  margin-bottom: 0.5rem;
+
+  .section-lead {
+    margin: 0 0 0.75rem;
+    font-weight: 600;
+    color: v.$text-primary;
+    font-size: 0.95rem;
+  }
+
+  .bullet-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    li {
+      font-size: 0.95rem;
+      color: v.$text-secondary;
+      line-height: 1.4;
+
+      strong {
+        color: v.$text-primary;
+      }
+
+      .option-subtext {
+        color: v.$text-muted;
+      }
+    }
+  }
+}
+
 .membership-options-overview {
   margin-bottom: 1.25rem;
 

@@ -69,7 +69,7 @@ export class IncrementalSyncService {
   ): Promise<boolean> {
     try {
       const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
-      if (bundle && Array.isArray(bundle.entries) && bundle.entries.length > 0) {
+      if (bundle && Array.isArray(bundle.entries)) {
         const sorted = sortFn ? [...bundle.entries].sort(sortFn) : bundle.entries;
         targetSet.setEntries(sorted);
         return true;
@@ -107,8 +107,8 @@ export class IncrementalSyncService {
         return;
       }
 
-      // Populate memory if not already loaded
-      if (cachedBundle.entries.length > 0 && targetSet.entries().length === 0) {
+      // Populate memory if targetSet is still in loading state
+      if (Array.isArray(cachedBundle.entries) && targetSet.loading()) {
         const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
         targetSet.setEntries(initialSorted);
       }
@@ -150,6 +150,10 @@ export class IncrementalSyncService {
 
       // If no updates and no deletions, cache is already up-to-date!
       if (deltaSnap.empty && tombstones.length === 0) {
+        if (targetSet.loading()) {
+          const initialSorted = sortFn ? [...cachedBundle.entries].sort(sortFn) : cachedBundle.entries;
+          targetSet.setEntries(initialSorted);
+        }
         return;
       }
 
@@ -178,6 +182,14 @@ export class IncrementalSyncService {
       // Prune tombstones
       for (const deletedDocId of tombstones) {
         map.delete(deletedDocId);
+        if (idField !== 'docId') {
+          for (const [key, val] of map.entries()) {
+            if ((val as unknown as { docId?: string }).docId === deletedDocId) {
+              map.delete(key);
+              break;
+            }
+          }
+        }
       }
 
       const mergedEntries = Array.from(map.values());

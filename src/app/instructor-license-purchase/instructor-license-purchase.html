@@ -1,8 +1,9 @@
 <div class="instructor-license-container">
   <div class="page-header">
-    <h1>Get or Renew an Instructor License</h1>
     <p class="subtitle">
-      Maintain your certified teaching credentials, list classes, conduct workshops, and certify students within the Chin Family I Liq Chuan Association.
+      Maintain your certified teaching credentials, lead study groups, list
+      classes, conduct workshops, and certify students within the Chin Family I
+      Liq Chuan Association.
     </p>
   </div>
 
@@ -10,12 +11,12 @@
   @if (sessionId()) {
     <div class="order-confirmation-card card">
       @if (returnSessionLoading()) {
-        <app-spinner>Your instructor license is being updated shortly...</app-spinner>
+        <app-spinner>Your license is being updated shortly...</app-spinner>
       } @else if (returnSessionSummary(); as s) {
         <div class="confirmation-header">
           <app-icon name="check" width="32px" height="32px"></app-icon>
           <div>
-            <h2>Instructor License Payment Received!</h2>
+            <h2>Instructor &amp; Group Leader License Payment Received!</h2>
             <p>Your license record is being updated at headquarters.</p>
           </div>
         </div>
@@ -23,11 +24,15 @@
         <div class="order-details-box">
           <div class="detail-row">
             <span class="detail-label">Status</span>
-            <span class="detail-value status-badge paid">{{ s.paymentStatus }}</span>
+            <span class="detail-value status-badge paid">{{
+              s.paymentStatus
+            }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Amount</span>
-            <span class="detail-value">{{ formatPrice(s.amountTotal, s.currency) }}</span>
+            <span class="detail-value">{{
+              formatPrice(s.amountTotal, s.currency)
+            }}</span>
           </div>
           @if (s.lineItems[0]; as item) {
             <div class="detail-row">
@@ -63,16 +68,46 @@
   }
 
   <!-- Active License / Subscription Banner (if active) -->
-  @if (isLicenseActive()) {
+  @if (isLifeInstructor()) {
+    <div class="current-membership-banner card life-member">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Active Lifetime Instructor License</h3>
+          <p>
+            You hold an official <strong>Lifetime Instructor License</strong>. Lifetime licenses never expire and you do not need to renew.
+          </p>
+        </div>
+      </div>
+
+      <div class="portal-homepage-action">
+        <a
+          [href]="routingService.hrefForView(Views.Home)"
+          class="subtle-button homepage-link-btn"
+        >
+          <span class="btn-content">
+            <app-icon name="home"></app-icon>
+            <span>Go to Member's Portal Homepage</span>
+          </span>
+        </a>
+      </div>
+    </div>
+  } @else if (isLicenseActive()) {
     <div class="current-membership-banner card">
       <div class="banner-header">
         <app-icon name="check" width="24px" height="24px"></app-icon>
         <div>
-          <h3>Active Instructor License</h3>
+          <h3>
+            Active
+            {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
+          </h3>
           <p>
             Valid through <strong>{{ licenseExpires() }}</strong>.
             @if (hasActiveSubscription()) {
-              Auto-renews on <strong>{{ user()?.member?.instructorLicenseNextAutoRenewDate }}</strong>.
+              Auto-renews on
+              <strong>{{
+                user()?.member?.instructorLicenseNextAutoRenewDate
+              }}</strong>.
             }
           </p>
         </div>
@@ -97,7 +132,9 @@
               (click)="onCancelAutoRenew()"
             >
               <app-icon name="close"></app-icon>
-              <span>{{ cancelInProgress() ? 'Cancelling...' : 'Cancel Auto-Renewal' }}</span>
+              <span>{{
+                cancelInProgress() ? "Cancelling..." : "Cancel Auto-Renewal"
+              }}</span>
             </button>
           } @else {
             <button
@@ -107,7 +144,9 @@
               (click)="onResumeAutoRenew()"
             >
               <app-icon name="check"></app-icon>
-              <span>{{ cancelInProgress() ? 'Resuming...' : 'Resume Auto-Renewal' }}</span>
+              <span>{{
+                cancelInProgress() ? "Resuming..." : "Resume Auto-Renewal"
+              }}</span>
             </button>
           }
         </div>
@@ -115,89 +154,218 @@
     </div>
   }
 
-  <!-- Step 1: Sign in / Account -->
+  <!-- Details of what is offered / Value of License -->
   <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>1. Your Account</h2>
-        @if (isLoggedIn()) {
-          <span class="step-completed-badge" title="Account verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
+    <div class="license-clarification-note">
+      <p>
+        Our Instructor License authorizes the individual to lead events and
+        gradings. In addition, Licensed Instructors may be hired to lead
+        classes at an existing Licensed School. There is no requirement for a
+        Licensed Instructor to have their own School License.
+      </p>
+      <p>
+        Holding an active license grants the right to use the Chin Family I
+        Liq Chuan trademarks to promote approved events. (Note that, without a
+        license, you may not represent yourself as an I Liq Chuan instructor
+        or group leader, or use branding.)
+      </p>
     </div>
 
-    @if (!isLoggedIn()) {
-      <p class="step-guidance">
-        You must be signed in to manage or renew an instructor license.
+    <div class="bullet-points-container">
+      <p class="section-lead">
+        An official
+        {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
+        provides:
       </p>
-    }
-
-    <app-inline-auth></app-inline-auth>
+      <ul class="bullet-list">
+        @if (isInstructorTier()) {
+          <li>
+            <strong>Lead Events &amp; Gradings:</strong>
+            <span class="option-subtext">
+              Official authorization to lead events, workshops, and
+              prepare/certify students for student level examinations.</span
+            >
+          </li>
+          <li>
+            <strong>Teach at Licensed Schools:</strong>
+            <span class="option-subtext">
+              Teach classes at an existing Licensed School without needing
+              your own School License.</span
+            >
+          </li>
+          <li>
+            <strong>Searchable Instructor Directory Listing:</strong>
+            <span class="option-subtext">
+              Public instructor profile in our searchable database of instructors (see
+              <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
+            >
+          </li>
+          <li>
+            <strong>Trademark &amp; Branding Rights:</strong>
+            <span class="option-subtext">
+              Right to use Chin Family I Liq Chuan trademarks to promote approved events.</span
+            >
+          </li>
+        } @else {
+          <li>
+            <strong>Lead Official Study Groups:</strong>
+            <span class="option-subtext">
+              Official authorization to organize and lead I Liq Chuan study
+              groups.</span
+            >
+          </li>
+          <li>
+            <strong>Searchable Directory Listing:</strong>
+            <span class="option-subtext">
+              Public group leader listing in our searchable database of instructors (see
+              <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
+            >
+          </li>
+          <li>
+            <strong>Trademark &amp; Branding Rights:</strong>
+            <span class="option-subtext">
+              Right to use Chin Family I Liq Chuan trademarks to promote approved study group events.</span
+            >
+          </li>
+          <li>
+            <strong>Pathway to Instructor License:</strong>
+            <span class="option-subtext">
+              Automatically transitions to a full Instructor License upon
+              passing your Application Level 1 grading.</span
+            >
+          </li>
+          <li>
+            <strong>Association Recognition:</strong>
+            <span class="option-subtext">
+              Recognized active group leadership within the Chin Family I Liq
+              Chuan Association.</span
+            >
+          </li>
+        }
+      </ul>
+    </div>
   </div>
 
-  <!-- Step 2: Instructor Qualifications & Status -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>2. Instructor Qualifications &amp; Status</h2>
-        @if (isLoggedIn() && isActiveMember() && hasAppLevel1()) {
-          <span class="step-completed-badge" title="Prerequisites met">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
+  @if (!isLifeInstructor()) {
+    <!-- Step 1: Sign in / Account -->
+    <div class="form-card card">
+      <div class="step-header-row">
+        <div class="step-header-left">
+          <h2>1. Your Account</h2>
+          @if (isLoggedIn()) {
+            <span class="step-completed-badge" title="Account verified">
+              <app-icon name="check"></app-icon>
+            </span>
+          }
+        </div>
       </div>
+
+      @if (!isLoggedIn()) {
+        <p class="step-guidance">
+          You must be signed in to manage or renew an instructor &amp; group
+          leader license.
+        </p>
+      }
+
+      <app-inline-auth></app-inline-auth>
     </div>
 
-    @if (!isLoggedIn()) {
-      <p class="muted-note">Please sign in to check your instructor certification eligibility.</p>
-    } @else if (!isActiveMember()) {
-      <div class="guard-notice-box">
-        <app-icon name="hands_lotus" width="28px" height="28px"></app-icon>
-        <div>
-          <h3>Active Membership Required</h3>
-          <p>
-            An active I Liq Chuan membership is required to obtain or maintain an instructor license.
-          </p>
-          <a
-            class="button auth-action-btn"
-            [href]="routingService.hrefForView(Views.BecomeAMember)"
-          >
-            <app-icon name="link"></app-icon>
-            <span>Become a Member / Renew</span>
-          </a>
+    <!-- Step 2: Instructor / Group Leader Qualifications & Status -->
+    <div class="form-card card">
+      <div class="step-header-row">
+        <div class="step-header-left">
+          <h2>2. License Qualifications &amp; Status</h2>
+          @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
+            <span class="step-completed-badge" title="Prerequisites met">
+              <app-icon name="check"></app-icon>
+            </span>
+          }
         </div>
       </div>
-    } @else if (!hasAppLevel1()) {
-      <div class="guard-notice-box">
-        <app-icon name="mountain" width="28px" height="28px"></app-icon>
-        <div>
-          <h3>Application Level 1 Required</h3>
-          <p>
-            To qualify for an instructor license, you must first reach at least <strong>Application Level 1</strong>.
-            Your current application level is <strong>{{ user()?.member?.applicationLevel || 'None' }}</strong>.
-          </p>
-          <a
-            class="button auth-action-btn"
-            [href]="routingService.hrefForView(Views.NextGrading)"
-          >
-            <app-icon name="arrow_forward"></app-icon>
-            <span>Get Your Next Grading</span>
-          </a>
-        </div>
-      </div>
-    } @else {
-      <div class="status-grid">
-        @if (hasInstructorId()) {
-          <div class="status-box">
-            <div class="status-label">Instructor ID</div>
-            <div class="status-value highlight">{{ instructorId() }}</div>
+
+      @if (!isLoggedIn()) {
+        <p class="muted-note">
+          Please sign in to check your license eligibility.
+        </p>
+      } @else if (!isActiveMember()) {
+        <div class="guard-notice-box">
+          <app-icon name="hands_lotus" width="28px" height="28px"></app-icon>
+          <div>
+            <h3>Active Membership Required</h3>
+            <p>
+              An active I Liq Chuan membership is required to obtain or maintain
+              an instructor or group leader license.
+            </p>
+            <a
+              class="button auth-action-btn"
+              [href]="routingService.hrefForView(Views.BecomeAMember)"
+            >
+              <app-icon name="link"></app-icon>
+              <span>Become a Member / Renew</span>
+            </a>
           </div>
+        </div>
+      } @else if (isBelowLevelPrerequisites()) {
+        <div class="guard-notice-box">
+          <app-icon name="mountain" width="28px" height="28px"></app-icon>
+          <div>
+            <h3>Student Level 2 Required</h3>
+            <p>
+              To qualify for an Instructor &amp; Group Leader License, you must
+              first reach at least <strong>Student Level 2</strong> (for a Group
+              Leader License) or <strong>Application Level 1</strong> (for an
+              Instructor License). Your current level is
+              <strong>{{
+                user()?.member?.studentLevel
+                  ? "Student Level " + user()?.member?.studentLevel
+                  : "None"
+              }}</strong>.
+            </p>
+            <a
+              class="button auth-action-btn"
+              [href]="routingService.hrefForView(Views.NextGrading)"
+            >
+              <app-icon name="arrow_forward"></app-icon>
+              <span>Get Your Next Grading</span>
+            </a>
+          </div>
+        </div>
+      } @else {
+        <div class="status-grid">
+          <div class="status-box full-span">
+            <div class="status-label">License Tier</div>
+            @if (isGroupLeaderTier()) {
+              <div class="status-value highlight">Group Leader License</div>
+              <p class="tier-explanation">
+                As you currently hold
+                <strong>Student Level {{ studentLevelNum() }}</strong> (and do not
+                yet have Application Level 1), this will be a
+                <strong>Group Leader License</strong> (if you grade Application
+                Level 1 while this license is active, it will be automatically upgraded to a full Instructor License).
+              </p>
+            } @else {
+              <div class="status-value highlight">Instructor License</div>
+              <p class="tier-explanation">
+                You hold
+                  <strong
+                    >Application Level
+                    {{ user()?.member?.applicationLevel }}</strong
+                  >
+              </p>
+            }
+          </div>
+
+          @if (hasInstructorId()) {
+            <div class="status-box">
+              <div class="status-label">Instructor ID</div>
+              <div class="status-value highlight">{{ instructorId() }}</div>
+            </div>
+          }
+
           @if (hasLicenseDates()) {
             <div class="status-box">
               <div class="status-label">Last Renewed</div>
-              <div class="status-value">{{ licenseRenewalDate() || 'N/A' }}</div>
+              <div class="status-value">{{ licenseRenewalDate() || "N/A" }}</div>
             </div>
             <div class="status-box">
               <div class="status-label">License Expiry</div>
@@ -210,105 +378,89 @@
                 }
               </div>
             </div>
-          } @else {
-            <div class="status-box full-span">
+          } @else if (hasInstructorId()) {
+            <div class="status-box">
               <div class="status-label">License Records</div>
               <div class="status-value muted">
-                ILC Headquarters doesn't have a record of your last instructor license dates.
+                ILC Headquarters doesn't have a record of your last license dates.
               </div>
             </div>
           }
-        } @else {
-          <div class="status-box full-span">
-            <div class="status-label">Certification Status</div>
-            <div class="status-value">
-              You meet the prerequisites (Application Level 1+) to obtain an instructor license!
+        </div>
+      }
+    </div>
+
+    <!-- Step 3: Annual License Fee & Checkout -->
+    @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
+      <div class="form-card card">
+        <div class="step-header-row">
+          <div class="step-header-left">
+            <h2>
+              3. Annual
+              {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
+            </h2>
+          </div>
+        </div>
+
+        @if (productsLoading()) {
+          <app-spinner>Loading license rates...</app-spinner>
+        } @else if (productsError()) {
+          <div class="error-container">
+            <span class="error-message">{{ productsError() }}</span>
+            <button class="icon-only-button" (click)="loadProducts()">
+              <app-icon name="refresh"></app-icon>
+            </button>
+          </div>
+        } @else if (selectedPrice(); as price) {
+          <div class="membership-options-grid">
+            <div class="option-card selected">
+              <div class="option-title">{{ productOptionTitle() }}</div>
+              <div class="rate-price">
+                {{ formatPrice(price.unitAmount, price.currency) }} / year
+              </div>
+              <div class="rate-desc">
+                {{ productOptionDescription() }}
+              </div>
             </div>
+          </div>
+
+          <div class="checkout-section">
+            @if (checkoutError()) {
+              <div class="error-container">
+                <span class="error-message">{{ checkoutError() }}</span>
+                <button
+                  class="icon-only-button"
+                  (click)="checkoutError.set(null)"
+                >
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+
+            <div class="checkout-actions">
+              @if (isRedirecting()) {
+                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="button pay-btn"
+                  (click)="onPurchaseInstructorLicense()"
+                >
+                  <span>{{ checkoutButtonText() }}</span>
+                  <app-icon name="arrow_forward"></app-icon>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-notice">
+            <p>
+              License rates are currently being configured. Please check back
+              shortly.
+            </p>
           </div>
         }
       </div>
     }
-  </div>
-
-  <!-- Step 3: Annual License Fee & Checkout -->
-  @if (isLoggedIn() && isActiveMember() && hasAppLevel1()) {
-    <div class="form-card card">
-      <div class="step-header-row">
-        <div class="step-header-left">
-          <h2>3. Annual Instructor License</h2>
-        </div>
-      </div>
-
-      <div class="bullet-points-container">
-        <p class="section-lead">An official Instructor License provides:</p>
-        <ul class="bullet-list">
-          <li>
-            <strong>Official Instructor Directory Listing:</strong>
-            <span class="option-subtext"> Listed publicly on the ILC Instructor directory.</span>
-          </li>
-          <li>
-            <strong>Teach &amp; Host Workshops:</strong>
-            <span class="option-subtext"> Official authorization to teach the Chin Family I Liq Chuan system and conduct workshops.</span>
-          </li>
-          <li>
-            <strong>Student Gradings &amp; Certificates:</strong>
-            <span class="option-subtext"> Authority to prepare and certify students for student level examinations.</span>
-          </li>
-        </ul>
-      </div>
-
-      @if (productsLoading()) {
-        <app-spinner>Loading instructor license rates...</app-spinner>
-      } @else if (productsError()) {
-        <div class="error-container">
-          <span class="error-message">{{ productsError() }}</span>
-          <button class="icon-only-button" (click)="loadProducts()">
-            <app-icon name="refresh"></app-icon>
-          </button>
-        </div>
-      } @else if (selectedPrice(); as price) {
-        <div class="membership-options-grid">
-          <div class="option-card selected">
-            <div class="option-title">1-Year Certified Instructor License</div>
-            <div class="rate-price">
-              {{ formatPrice(price.unitAmount, price.currency) }} / year
-            </div>
-            <div class="rate-desc">
-              Extends your instructor license for 1 full year from your current expiration date (or starting today if new/expired).
-            </div>
-          </div>
-        </div>
-
-        <div class="checkout-section">
-          @if (checkoutError()) {
-            <div class="error-container">
-              <span class="error-message">{{ checkoutError() }}</span>
-              <button class="icon-only-button" (click)="checkoutError.set(null)">
-                <app-icon name="close"></app-icon>
-              </button>
-            </div>
-          }
-
-          <div class="checkout-actions">
-            @if (isRedirecting()) {
-              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-            } @else {
-              <button
-                type="button"
-                class="button pay-btn"
-                (click)="onPurchaseInstructorLicense()"
-              >
-                <span>{{ isLicenseActive() ? 'Renew Instructor License' : 'Get Instructor License' }}</span>
-                <app-icon name="arrow_forward"></app-icon>
-              </button>
-            }
-          </div>
-        </div>
-      } @else {
-        <div class="empty-notice">
-          <p>Instructor license rates are currently being configured. Please check back shortly.</p>
-        </div>
-      }
-    </div>
   }
 </div>

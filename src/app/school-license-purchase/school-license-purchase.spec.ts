@@ -301,4 +301,12 @@ describe('SchoolLicensePurchaseComponent', () => {
     expect(component.mySchools().length).toBe(0);
     expect(component.licenseAction()).toBe('new');
   });
+
+  it('should render clarification note about school license authorization and instructor requirements', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain(
+      'A School License authorizes the individual to open and operate a Licensed School, at one or more locations, in an area that is reserved for their use. They may hire Licensed Instructors to lead classes or events at any of their locations. The holder of a School License does not need to be a Licensed Instructor.',
+    );
+  });
 });

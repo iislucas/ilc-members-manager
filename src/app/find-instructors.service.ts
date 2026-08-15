@@ -48,9 +48,7 @@ export class FindInstructorsService {
     this.syncService.loadCachedData('public_instructors', this.instructors, sortInstructors);
 
     // 2. Perform background incremental delta sync
-    effect(() => {
-      this.updateInstructorsSync();
-    });
+    this.updateInstructorsSync();
   }
 
   async updateInstructorsSync(forceFullRefresh = false): Promise<void> {

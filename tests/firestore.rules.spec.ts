@@ -1404,4 +1404,137 @@ describe('Firestore Rules', () => {
       await assertSucceeds(orderRef.delete());
     });
   });
+
+  describe('System Collection & Deletions', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        const db = adminContext.firestore();
+        await db.collection('system').doc('counters').set({
+          memberIdCounters: { US: 100 },
+          instructorIdCounter: 100,
+          schoolIdCounter: 100,
+        });
+        await db.collection('system').doc('country-codes').set({
+          codes: [{ id: 'US', name: 'United States' }],
+        });
+        await db.collection('system').doc('email-templates').set({
+          templates: {},
+        });
+        await db.collection('system').doc('deletions').collection('schools').doc('deleted-sch-1').set({
+          deletedAt: new Date().toISOString(),
+        });
+        await db.collection('system').doc('deletions').collection('members').doc('deleted-mem-1').set({
+          deletedAt: new Date().toISOString(),
+        });
+      });
+    });
+
+    it('should allow anyone (including unauthenticated) to read country-codes', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(unauthDb.collection('system').doc('country-codes').get());
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(memberDb.collection('system').doc('country-codes').get());
+    });
+
+    it('should allow admin to write country-codes, but deny non-admin', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        adminDb.collection('system').doc('country-codes').update({
+          codes: [{ id: 'CA', name: 'Canada' }],
+        }),
+      );
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        memberDb.collection('system').doc('country-codes').update({
+          codes: [{ id: 'MX', name: 'Mexico' }],
+        }),
+      );
+    });
+
+    it('should allow admin to read and write system/counters', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(adminDb.collection('system').doc('counters').get());
+      await assertSucceeds(
+        adminDb.collection('system').doc('counters').update({
+          instructorIdCounter: 101,
+        }),
+      );
+    });
+
+    it('should deny non-admin (member or unauthenticated) from reading or writing system/counters', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertFails(unauthDb.collection('system').doc('counters').get());
+      await assertFails(
+        unauthDb.collection('system').doc('counters').set({ instructorIdCounter: 999 }),
+      );
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(memberDb.collection('system').doc('counters').get());
+      await assertFails(
+        memberDb.collection('system').doc('counters').update({ instructorIdCounter: 999 }),
+      );
+    });
+
+    it('should allow admin to read and write system/email-templates, but deny non-admin', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(adminDb.collection('system').doc('email-templates').get());
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(memberDb.collection('system').doc('email-templates').get());
+    });
+
+    it('should allow anyone to read deletions for public collections (instructors, schools, events)', async () => {
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(
+        unauthDb
+          .collection('system')
+          .doc('deletions')
+          .collection('schools')
+          .doc('deleted-sch-1')
+          .get(),
+      );
+    });
+
+    it('should deny non-admin from reading deletions for private collections (e.g. members)', async () => {
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        memberDb
+          .collection('system')
+          .doc('deletions')
+          .collection('members')
+          .doc('deleted-mem-1')
+          .get(),
+      );
+
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        adminDb
+          .collection('system')
+          .doc('deletions')
+          .collection('members')
+          .doc('deleted-mem-1')
+          .get(),
+      );
+    });
+  });
 });

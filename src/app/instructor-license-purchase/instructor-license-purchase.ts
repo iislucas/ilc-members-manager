@@ -23,7 +23,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MembershipType } from '../../../functions/src/data-model';
+import { InstructorLicenseType, MembershipType } from '../../../functions/src/data-model';
 import {
   CheckoutSessionSummary,
   StripeProduct,
@@ -89,13 +89,30 @@ export class InstructorLicensePurchaseComponent {
     return !!expires && expires >= this.today();
   });
 
+  studentLevelNum = computed<number>(() => {
+    const lvl = this.user()?.member.studentLevel?.trim() || '';
+    if (!lvl || lvl.toLowerCase() === 'entry') return 0;
+    const match = lvl.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+    const num = parseInt(lvl, 10);
+    return isNaN(num) ? 0 : num;
+  });
+
+  applicationLevelNum = computed<number>(() => {
+    const lvl = this.user()?.member.applicationLevel?.trim() || '';
+    if (!lvl) return 0;
+    const match = lvl.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+    const num = parseInt(lvl, 10);
+    return isNaN(num) ? 0 : num;
+  });
+
   hasAppLevel1 = computed(() => {
-    const m = this.user()?.member;
-    if (!m) return false;
-    const appLvl = m.applicationLevel?.trim();
-    if (!appLvl) return false;
-    const num = parseInt(appLvl, 10);
-    return !isNaN(num) && num >= 1;
+    return this.applicationLevelNum() >= 1;
+  });
+
+  hasStudentLevel2 = computed(() => {
+    return this.studentLevelNum() >= 2;
   });
 
   hasInstructorId = computed(() => {
@@ -104,6 +121,34 @@ export class InstructorLicensePurchaseComponent {
 
   instructorId = computed(() => {
     return this.user()?.member.instructorId?.trim() || '';
+  });
+
+  isLifeInstructor = computed(() => {
+    const m = this.user()?.member;
+    return (
+      m?.instructorLicenseType === InstructorLicenseType.Life ||
+      m?.instructorLicenseExpires === '9999-12-31'
+    );
+  });
+
+  isInstructorTier = computed(() => {
+    return (
+      this.hasAppLevel1() ||
+      this.hasInstructorId() ||
+      this.isLifeInstructor()
+    );
+  });
+
+  isGroupLeaderTier = computed(() => {
+    return !this.isInstructorTier() && this.hasStudentLevel2();
+  });
+
+  isEligibleForLicense = computed(() => {
+    return this.isInstructorTier() || this.isGroupLeaderTier();
+  });
+
+  isBelowLevelPrerequisites = computed(() => {
+    return !this.isEligibleForLicense();
   });
 
   hasLicenseDates = computed(() => {
@@ -135,6 +180,37 @@ export class InstructorLicensePurchaseComponent {
     );
   });
 
+  productOptionTitle = computed<string>(() => {
+    if (this.isGroupLeaderTier()) {
+      return '1-Year Group Leader License';
+    }
+    if (this.isInstructorTier()) {
+      return '1-Year Certified Instructor License';
+    }
+    return '1-Year Certified Instructor & Group Leader License';
+  });
+
+  productOptionDescription = computed<string>(() => {
+    if (this.isGroupLeaderTier()) {
+      return 'Provides an official Group Leader License for 1 full year. Automatically transitions to an Instructor License once you grade Application Level 1.';
+    }
+    if (this.isInstructorTier()) {
+      return 'Extends your instructor license for 1 full year from your current expiration date (or starting today if new/expired).';
+    }
+    return 'Extends your license for 1 full year from your current expiration date (or starting today if new/expired).';
+  });
+
+  checkoutButtonText = computed<string>(() => {
+    const active = this.isLicenseActive();
+    if (this.isGroupLeaderTier()) {
+      return active ? 'Renew Group Leader License' : 'Get Group Leader License';
+    }
+    if (this.isInstructorTier()) {
+      return active ? 'Renew Instructor License' : 'Get Instructor License';
+    }
+    return active ? 'Renew License' : 'Get License';
+  });
+
   selectedPrice = computed<StripeProductPrice | null>(() => {
     for (const prod of this.licenseProducts()) {
       const p = prod.prices.find((pr) => pr.active && pr.unitAmount !== null);
@@ -151,7 +227,8 @@ export class InstructorLicensePurchaseComponent {
         o.lineItems?.some(
           (li) =>
             li.description.toLowerCase().includes('instructor') ||
-            li.description.toLowerCase().includes('license'),
+            li.description.toLowerCase().includes('license') ||
+            li.description.toLowerCase().includes('group leader'),
         ),
       ) || null
     );
@@ -175,6 +252,7 @@ export class InstructorLicensePurchaseComponent {
         return (
           p.active &&
           (titleLower.includes('instructor') ||
+            titleLower.includes('group leader') ||
             (titleLower.includes('license') && !titleLower.includes('school'))) &&
           p.prices.some((pr) => pr.active && pr.unitAmount !== null)
         );

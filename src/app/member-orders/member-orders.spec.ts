@@ -240,4 +240,54 @@ describe('MemberOrdersComponent', () => {
     expect(cardTexts[0]).toContain('active Lifetime Membership');
     expect(cardTexts[1]).toContain('active Lifetime Instructor License');
   });
+
+  it('sets group leader title and subtitle when member is Student Level 2 or 3 without Application Level 1', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        instructorId: '',
+        studentLevel: 'Student Level 2' as any,
+        applicationLevel: '' as any,
+        instructorLicenseSubscriptionId: 'sub_gl_123',
+        instructorLicenseExpires: '2027-05-15',
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    expect(component.isGroupLeaderTier()).toBe(true);
+    expect(component.isInstructorTier()).toBe(false);
+    expect(component.licenseCardSubtitle()).toContain('group leader license');
+
+    const subs = component.subscriptions();
+    const licSub = subs.find((s) => s.category === 'instructor_license');
+    expect(licSub?.title).toBe('Group Leader License');
+  });
+
+  it('sets instructor title and subtitle when member has Application Level 1 or Instructor ID', async () => {
+    mockFirebaseStateService.user.set({
+      member: {
+        ...sampleMember,
+        instructorId: 'INS-01',
+        studentLevel: 'Student Level 6' as any,
+        applicationLevel: 'Application Level 1' as any,
+      },
+      memberProfiles: [{ ...sampleMember }],
+      isAdmin: false,
+      schoolsManaged: [],
+      firebaseUser: { uid: 'mem-123' } as never,
+    });
+
+    await fixture.whenStable();
+    expect(component.isInstructorTier()).toBe(true);
+    expect(component.isGroupLeaderTier()).toBe(false);
+    expect(component.licenseCardSubtitle()).toContain('certified instructor teaching license');
+
+    const subs = component.subscriptions();
+    const licSub = subs.find((s) => s.category === 'instructor_license');
+    expect(licSub?.title).toBe('Instructor License');
+  });
 });

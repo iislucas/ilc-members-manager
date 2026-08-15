@@ -369,6 +369,21 @@ app-autocomplete {
   }
 }
 
+.license-clarification-note {
+  background: v.$row-highlight-bg;
+  border-left: 4px solid v.$row-highlight-border;
+  border-radius: 4px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: v.$text-primary;
+  }
+}
+
 .bullet-points-container {
   margin-bottom: 1.5rem;
 

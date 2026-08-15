@@ -63,7 +63,7 @@
           <app-icon name="meditation" width="32px" height="32px"></app-icon>
           <div class="service-link-text">
             <div class="service-link-title">
-              <span>Instructor License</span>
+              <span>Instructor &amp; Group Leader License</span>
               <span class="active-badge">Active</span>
             </div>
             <div class="service-link-sub">You have an active Lifetime Instructor License. Never expires.</div>
@@ -73,8 +73,8 @@
         <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
           <app-icon name="meditation" width="32px" height="32px"></app-icon>
           <div class="service-link-text">
-            <div class="service-link-title">Instructor License</div>
-            <div class="service-link-sub">Obtain or renew 1-year certified instructor teaching license.</div>
+            <div class="service-link-title">Instructor &amp; Group Leader License</div>
+            <div class="service-link-sub">{{ licenseCardSubtitle() }}</div>
           </div>
         </a>
       }

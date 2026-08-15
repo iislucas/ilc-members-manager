@@ -271,6 +271,37 @@
         color: v.$text-muted;
       }
     }
+
+    .tier-explanation {
+      margin: 0.5rem 0 0;
+      font-size: 0.9rem;
+      font-weight: normal;
+      color: v.$text-secondary;
+      line-height: 1.45;
+
+      strong {
+        color: v.$text-primary;
+      }
+    }
+  }
+}
+
+.license-clarification-note {
+  background: v.$row-highlight-bg;
+  border-left: 4px solid v.$row-highlight-border;
+  border-radius: 4px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: v.$text-primary;
+
+    & + p {
+      margin-top: 0.5rem;
+    }
   }
 }
 
@@ -448,5 +479,38 @@
   color: v.$text-muted;
   font-size: 0.95em;
   margin: 0;
+}
+
+.portal-homepage-action {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-start;
+
+  .homepage-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.6em 1.2em;
+    font-size: 0.95em;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    color: v.$text-primary;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    .btn-content {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+    }
+
+    &:hover {
+      background: v.$table-row-selected;
+      border-color: v.$primary-color;
+      color: v.$primary-color;
+    }
+  }
 }
 

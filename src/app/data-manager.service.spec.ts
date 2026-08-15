@@ -49,17 +49,23 @@ describe('DataManagerService - searchEvents', () => {
       user: vi.fn().mockReturnValue(null),
     };
 
+    const mockSyncService = {
+      loadCachedData: vi.fn().mockResolvedValue(true),
+      syncCollection: vi.fn().mockResolvedValue(undefined),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         { provide: FirebaseStateService, useValue: mockFirebaseState },
         { provide: FIREBASE_APP, useValue: app },
+        { provide: IncrementalSyncService, useValue: mockSyncService },
         DataManagerService,
-        IncrementalSyncService,
         IdbStorageService,
       ],
     });
 
     service = TestBed.inject(DataManagerService);
+    vi.mocked(getDocs).mockClear();
   });
 
   afterEach(async () => {
@@ -154,6 +160,28 @@ describe('DataManagerService - searchEvents', () => {
 
       const items = await service.getAllUploads({ eventDocId: 'ev1' });
       expect(items).toHaveLength(1);
+    });
+  });
+
+  describe('loadingState and caching', () => {
+    it('loadingState should become Loaded when all sets are not loading', () => {
+      service.members.setEntries([]);
+      service.schools.setEntries([]);
+      service.instructors.setEntries([]);
+      service.myStudents.setEntries([]);
+
+      expect(service.loadingState()).toBe('Loaded');
+    });
+
+    it('loadingState should be Loading when any set is still loading', () => {
+      // Create a fresh unpopulated searchable set
+      service.members.setEntries([]);
+      service.schools.setEntries([]);
+      service.instructors.setEntries([]);
+      // Simulate myStudents in loading state
+      (service.myStudents as any).state.set({ entries: [], loading: true, error: null });
+
+      expect(service.loadingState()).toBe('Loading');
     });
   });
 });

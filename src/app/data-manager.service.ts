@@ -197,10 +197,10 @@ export class DataManagerService {
   private snapshotsToUnsubscribe: (() => void)[] = [];
   loadingState = linkedSignal<DataServiceState>(() => {
     if (
-      this.members.loaded() &&
-      this.schools.loaded() &&
-      this.instructors.loaded() &&
-      this.myStudents.loaded()
+      !this.members.loading() &&
+      !this.schools.loading() &&
+      !this.instructors.loading() &&
+      !this.myStudents.loading()
     ) {
       return DataServiceState.Loaded;
     } else {
@@ -377,17 +377,34 @@ export class DataManagerService {
   }
 
   constructor() {
-    effect(async () => {
-      this.unsubscribeSnapshots();
-      const user = await this.firebaseService.loggedIn();
-      this.updateMembersSync(user);
-      // Instructors are loaded by FindInstructorsService (no auth required).
-      this.updateMyStudentsSync(user);
-      this.updateSchoolsSync();
-      this.updateCountersSync();
-      this.updateCountryCodesSync();
-      this.updateEmailTemplatesSync();
-      this.updateMyGradingsAssessedSync(user);
+    // 1. Immediately load public schools from IndexedDB cache and sync in background
+    this.syncService.loadCachedData('schools', this.schools, (a, b) =>
+      (b.schoolId || '').localeCompare(a.schoolId || ''),
+    );
+    this.updateSchoolsSync();
+
+    // 2. Setup public system listeners
+    this.updateCountryCodesSync();
+
+    // 3. Reactively sync user-dependent collections whenever authenticated user changes
+    effect(() => {
+      const user = this.firebaseService.user();
+      if (user) {
+        this.updateMembersSync(user);
+        this.updateMyStudentsSync(user);
+        this.updateMyGradingsAssessedSync(user);
+      } else {
+        this.members.setEntries([]);
+        this.myStudents.setEntries([]);
+        this.myGradingsAssessed.setEntries([]);
+      }
+    });
+
+    // Admin system listeners (counters, email-templates)
+    effect(() => {
+      const user = this.firebaseService.user();
+      this.updateCountersSync(user);
+      this.updateEmailTemplatesSync(user);
     });
 
     // Admin "Manage Gradings" subscription, kept separate so it can re-subscribe
@@ -471,9 +488,26 @@ export class DataManagerService {
 
   unsubscribeSnapshots() {
     this.snapshotsToUnsubscribe.forEach((unsubscribe) => unsubscribe());
+    this.snapshotsToUnsubscribe = [];
+    if (this.myGradingsAssessedUnsubscribe) {
+      this.myGradingsAssessedUnsubscribe();
+      this.myGradingsAssessedUnsubscribe = null;
+    }
     if (this.myOrdersUnsubscribe) {
       this.myOrdersUnsubscribe();
       this.myOrdersUnsubscribe = null;
+    }
+    if (this.gradingsUnsubscribe) {
+      this.gradingsUnsubscribe();
+      this.gradingsUnsubscribe = null;
+    }
+    if (this.countersUnsubscribe) {
+      this.countersUnsubscribe();
+      this.countersUnsubscribe = null;
+    }
+    if (this.emailTemplatesUnsubscribe) {
+      this.emailTemplatesUnsubscribe();
+      this.emailTemplatesUnsubscribe = null;
     }
   }
 
@@ -971,10 +1005,16 @@ export class DataManagerService {
   }
 
 
-  async updateCountersSync() {
-    const countersRef = doc(this.db, 'system', 'counters');
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(countersRef, (doc) => {
+  private countersUnsubscribe: (() => void) | null = null;
+
+  updateCountersSync(user: UserDetails | null) {
+    if (this.countersUnsubscribe) {
+      this.countersUnsubscribe();
+      this.countersUnsubscribe = null;
+    }
+    if (user?.isAdmin) {
+      const countersRef = doc(this.db, 'system', 'counters');
+      this.countersUnsubscribe = onSnapshot(countersRef, (doc) => {
         if (doc.exists()) {
           this.counters.set(doc.data() as Counters);
         } else {
@@ -990,10 +1030,10 @@ export class DataManagerService {
         }
       }, (error) => {
         console.error('Error fetching counters:', error);
-        // Counters is a regular signal, not a SearchableSet, but we could handle the error somehow,
-        // e.g. setting an error symbol or empty counters if needed to avoid hanging.
-      }),
-    );
+      });
+    } else {
+      this.counters.set(null);
+    }
   }
 
   async updateCountryCodesSync() {
@@ -1019,10 +1059,16 @@ export class DataManagerService {
     );
   }
 
-  async updateEmailTemplatesSync() {
-    const emailTemplatesRef = doc(this.db, 'system', 'email-templates');
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(emailTemplatesRef, (doc) => {
+  private emailTemplatesUnsubscribe: (() => void) | null = null;
+
+  updateEmailTemplatesSync(user: UserDetails | null) {
+    if (this.emailTemplatesUnsubscribe) {
+      this.emailTemplatesUnsubscribe();
+      this.emailTemplatesUnsubscribe = null;
+    }
+    if (user?.isAdmin) {
+      const emailTemplatesRef = doc(this.db, 'system', 'email-templates');
+      this.emailTemplatesUnsubscribe = onSnapshot(emailTemplatesRef, (doc) => {
         if (doc.exists()) {
           this.emailTemplates.set(doc.data() as EmailTemplates);
         } else {
@@ -1031,8 +1077,10 @@ export class DataManagerService {
         }
       }, (error) => {
         console.error('Error fetching email templates:', error);
-      }),
-    );
+      });
+    } else {
+      this.emailTemplates.set(null);
+    }
   }
 
   private gradingsUnsubscribe: (() => void) | null = null;
@@ -1171,24 +1219,29 @@ export class DataManagerService {
     return [];
   }
 
-  async updateMyGradingsAssessedSync(user: UserDetails) {
-    if (user.member.instructorId) {
+  private myGradingsAssessedUnsubscribe: (() => void) | null = null;
+
+  updateMyGradingsAssessedSync(user: UserDetails) {
+    if (this.myGradingsAssessedUnsubscribe) {
+      this.myGradingsAssessedUnsubscribe();
+      this.myGradingsAssessedUnsubscribe = null;
+    }
+
+    if (user.member.instructorId && user.member.docId) {
       const q = query(
         collection(this.db, `instructors/${user.member.docId}/gradings`),
         orderBy('lastUpdated', 'desc'),
       );
-      this.snapshotsToUnsubscribe.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const gradingsList = snapshot.docs.map(firestoreDocToGrading);
-            this.myGradingsAssessed.setEntries(gradingsList);
-          },
-          (error) => {
-            console.error('Error fetching my gradings assessed:', error);
-            this.myGradingsAssessed.setError(error.message);
-          },
-        ),
+      this.myGradingsAssessedUnsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const gradingsList = snapshot.docs.map(firestoreDocToGrading);
+          this.myGradingsAssessed.setEntries(gradingsList);
+        },
+        (error) => {
+          console.error('Error fetching my gradings assessed:', error);
+          this.myGradingsAssessed.setError(error.message);
+        },
       );
     } else {
       this.myGradingsAssessed.setEntries([]);

@@ -213,10 +213,10 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     expect(linkBtn?.getAttribute('href')).toContain('class-video-library');
     expect(linkBtn?.textContent).toContain('Open Class Video Library');
 
-    // Since sampleUser has classVideoLibrarySubscriptionId: 'sub_vid_123', the form below should be hidden
+    // Since sampleUser has classVideoLibrarySubscriptionId: 'sub_vid_123', the subscription form below should be hidden
     expect(component.hasActiveStripeSubscription()).toBe(true);
     expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
-    expect(compiled.querySelector('.form-card')).toBeNull();
+    expect(compiled.querySelector('.checkout-section')).toBeNull();
   });
 
   it('should show link to video library and provide fold header when user has active non-Stripe subscription', async () => {
@@ -283,10 +283,11 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     // Active banner should NOT be present
     expect(compiled.querySelector('.current-membership-banner')).toBeNull();
 
-    // Fold should NOT be present; form cards should be rendered directly
+    // Fold should NOT be present; value card and form cards should be rendered directly
     expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
     const formCards = compiled.querySelectorAll('.form-card');
-    expect(formCards.length).toBe(2);
+    expect(formCards.length).toBe(3); // Value card + Step 1 + Step 2
+    expect(compiled.querySelector('.checkout-section')).toBeTruthy();
   });
 
   it('should deny video access when classVideoLibrarySubscription boolean is false even if expiration date is in future', async () => {
