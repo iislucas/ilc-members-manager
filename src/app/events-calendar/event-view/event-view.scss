@@ -1,4 +1,5 @@
 @use "../../../scss_variables.scss" as v;
+@use "sass:color";
 
 :host {
   display: block;
@@ -164,11 +165,11 @@
     white-space: pre-wrap;
 
     a {
-      color: #1a73e8;
+      color: v.$heading-accent-color;
       text-decoration: underline;
 
       &:hover {
-        color: #0d47a1;
+        color: color.adjust(v.$heading-accent-color, $lightness: -10%);
       }
     }
   }
@@ -194,12 +195,12 @@
       display: inline-flex;
       align-items: center;
       gap: 0.4em;
-      color: #1a73e8;
+      color: v.$heading-accent-color;
       text-decoration: underline;
       font-size: 0.95rem;
 
       &:hover {
-        color: #0d47a1;
+        color: color.adjust(v.$heading-accent-color, $lightness: -10%);
       }
 
       app-icon {

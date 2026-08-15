@@ -83,6 +83,49 @@ export class MemberOrdersComponent {
     );
   });
 
+  studentLevelNum = computed<number>(() => {
+    const lvl = this.user()?.member.studentLevel?.trim() || '';
+    if (!lvl || lvl.toLowerCase() === 'entry') return 0;
+    const match = lvl.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+    const num = parseInt(lvl, 10);
+    return isNaN(num) ? 0 : num;
+  });
+
+  applicationLevelNum = computed<number>(() => {
+    const lvl = this.user()?.member.applicationLevel?.trim() || '';
+    if (!lvl) return 0;
+    const match = lvl.match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+    const num = parseInt(lvl, 10);
+    return isNaN(num) ? 0 : num;
+  });
+
+  isInstructorTier = computed<boolean>(() => {
+    const m = this.user()?.member;
+    if (!m) return false;
+    return (
+      this.applicationLevelNum() >= 1 ||
+      !!m.instructorId?.trim() ||
+      m.instructorLicenseType === InstructorLicenseType.Life ||
+      m.instructorLicenseExpires === '9999-12-31'
+    );
+  });
+
+  isGroupLeaderTier = computed<boolean>(() => {
+    return !this.isInstructorTier() && this.studentLevelNum() >= 2;
+  });
+
+  licenseCardSubtitle = computed<string>(() => {
+    if (this.isGroupLeaderTier()) {
+      return 'Obtain or renew 1-year group leader license (becomes instructor license on grading Application 1).';
+    }
+    if (this.isInstructorTier()) {
+      return 'Obtain or renew 1-year certified instructor teaching license.';
+    }
+    return 'Obtain or renew 1-year instructor or group leader license.';
+  });
+
   // Active Subscriptions Card List
   subscriptions = computed<DisplaySubscriptionCard[]>(() => {
     const u = this.user();
@@ -145,13 +188,19 @@ export class MemberOrdersComponent {
       });
     }
 
-    // 2. Instructor License Card (if member has instructor status or had license)
+    // 2. Instructor / Group Leader License Card (if member has instructor status or had license)
     if (
       m.instructorId ||
       m.instructorLicenseExpires ||
       m.instructorLicenseSubscriptionId ||
       m.instructorLicenseType === InstructorLicenseType.Life
     ) {
+      const licenseTitle = this.isGroupLeaderTier()
+        ? 'Group Leader License'
+        : this.isInstructorTier()
+          ? 'Instructor License'
+          : 'Instructor & Group Leader License';
+
       if (
         m.instructorLicenseType === InstructorLicenseType.Life ||
         m.instructorLicenseExpires === '9999-12-31'
@@ -159,7 +208,7 @@ export class MemberOrdersComponent {
         cards.push({
           id: 'instructor-license-card',
           subscriptionId: '',
-          title: 'Instructor License',
+          title: licenseTitle,
           category: SubscriptionCardCategory.InstructorLicense,
           status: SubscriptionCardStatus.Lifetime,
           statusLabel: 'Lifetime Access',
@@ -187,7 +236,7 @@ export class MemberOrdersComponent {
         cards.push({
           id: m.instructorLicenseSubscriptionId || 'instructor-license-card',
           subscriptionId: m.instructorLicenseSubscriptionId || '',
-          title: 'Instructor License',
+          title: licenseTitle,
           category: SubscriptionCardCategory.InstructorLicense,
           status,
           statusLabel: isExpired
@@ -386,6 +435,45 @@ export class MemberOrdersComponent {
         `Unable to open billing portal: ${msg}`,
       );
     }
+  }
+
+  copiedOrderId = signal<string | null>(null);
+
+  getOrderDisplayId(order: MemberOrder): string {
+    // If order has an invoice ID and orderNumber is a checkout session, prefer invoice ID
+    if (
+      order.stripeInvoiceId &&
+      (!order.orderNumber || order.orderNumber.startsWith('cs_'))
+    ) {
+      return order.stripeInvoiceId;
+    }
+    return order.orderNumber || order.orderDocId || order.docId || '';
+  }
+
+  async copyOrderId(orderId: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!orderId) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(orderId);
+      }
+      this.copiedOrderId.set(orderId);
+      setTimeout(() => {
+        if (this.copiedOrderId() === orderId) {
+          this.copiedOrderId.set(null);
+        }
+      }, 2000);
+    } catch {
+      // Ignore clipboard write error
+    }
+  }
+
+  getOrderQuantity(order: MemberOrder): number {
+    if (!order.lineItems || order.lineItems.length === 0) return 1;
+    return order.lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   }
 
   formatAmount(amount: number | null, currency: string | null): string {

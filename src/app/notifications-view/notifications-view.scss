@@ -113,8 +113,8 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.style-info {
-    background-color: v.$row-highlight-bg;
-    border-left: 4px solid v.$row-highlight-border;
+    background-color: #f4f4f5;
+    border-left: 4px solid #71717a;
   }
 
   // Action items (a TODO for the member) get a distinct light-orange background
@@ -153,11 +153,11 @@
     border-radius: 50%;
     flex-shrink: 0;
     transition: opacity 0.2s ease, background-color 0.2s ease;
-    background-color: #dbeafe; // default/info: soft blue darker than card bg (#f4f9ff)
+    background-color: #e4e4e7; // default/info: neutral grey
   }
 
   &.style-info .notification-icon {
-    background-color: #dbeafe; // Soft blue darker than #f4f9ff
+    background-color: #e4e4e7; // neutral grey
   }
 
   &.style-action .notification-icon {

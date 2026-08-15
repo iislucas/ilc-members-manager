@@ -387,7 +387,7 @@ describe('BecomeAMemberComponent', () => {
     );
   });
 
-  it('should prevent life members from initiating another membership purchase', async () => {
+  it('should prevent life members from initiating another membership purchase and skip buying steps in DOM', async () => {
     userSignal.set({
       ...sampleUser,
       member: {
@@ -398,8 +398,16 @@ describe('BecomeAMemberComponent', () => {
     await createComponent();
 
     expect(component.isLifeMember()).toBe(true);
-    await component.onProceedToPayment();
 
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Active Lifetime Membership');
+    expect(element.textContent).toContain('An official I Liq Chuan Membership provides');
+    expect(element.textContent).not.toContain('1. Your Account');
+    expect(element.textContent).not.toContain('2. Basic Information');
+    expect(element.textContent).not.toContain('3. Choose Membership Option');
+    expect(element.querySelector('.pay-btn')).toBeNull();
+
+    await component.onProceedToPayment();
     expect(mockStripeService.createCheckoutSession).not.toHaveBeenCalled();
     expect(component.checkoutError()).toContain('Lifetime Membership');
   });

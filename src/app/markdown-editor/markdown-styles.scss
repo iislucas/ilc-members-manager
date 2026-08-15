@@ -61,4 +61,13 @@
   
   strong { font-weight: bold !important; }
   em { font-style: italic !important; }
+
+  a {
+    color: #950000 !important;
+    text-decoration: underline !important;
+
+    &:hover {
+      color: #7a0000 !important;
+    }
+  }
 }

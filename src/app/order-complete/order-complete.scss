@@ -338,13 +338,16 @@
     padding: 0.85em 1.85em;
     font-size: 1.05em;
     font-weight: 600;
-    background: v.$primary-color;
+    background: #950000;
+    border: 1px solid #950000;
+    border-radius: 6px;
     color: #ffffff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: background 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
-      background: #0056b3;
+      background: #7a0000;
+      border-color: #7a0000;
       color: #ffffff;
       box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
     }
@@ -360,7 +363,7 @@
     transition: background 0.15s ease, border-color 0.15s ease;
 
     &:hover {
-      background: v.$table-row-selected;
+      background: v.$separator-color;
       border-color: v.$primary-color;
       color: v.$primary-color;
     }

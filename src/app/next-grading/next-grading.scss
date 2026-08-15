@@ -66,9 +66,9 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+    background: v.$highlight-tag-bg;
+    color: v.$highlight-tag-text;
+    border: 1px solid v.$highlight-tag-border;
 
     app-icon {
       width: 15px;
@@ -201,7 +201,7 @@
 
 .levels-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1em;
 
   @media (max-width: 600px) {
@@ -209,7 +209,7 @@
   }
 
   .level-box {
-    padding: 1em;
+    padding: 1em 1.25em;
     border: 1px solid v.$border-color-light;
     border-radius: 6px;
     background: v.$theme-bg-color;
@@ -217,22 +217,21 @@
     .level-label {
       font-size: 0.85em;
       color: v.$text-muted;
-      margin-bottom: 0.25em;
+      margin-bottom: 0.35em;
     }
 
     .level-value {
       font-size: 1.15em;
       font-weight: 600;
+      color: v.$text-primary;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25em;
 
       &.target {
-        color: v.$primary-color;
-        font-weight: 700;
+        color: v.$text-primary;
+        font-weight: 600;
       }
-    }
-
-    &.next {
-      border-color: v.$primary-color;
-      background: v.$table-row-selected;
     }
   }
 }
@@ -242,19 +241,21 @@
   align-items: flex-start;
   gap: 1em;
   margin-bottom: 1.25rem;
-  padding: 1rem;
-  background: v.$row-highlight-bg;
-  border-left: 4px solid v.$primary-color;
-  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  background: v.$separator-color;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid #18181b;
+  border-radius: 8px;
 
   h3 {
     margin: 0 0 0.25em;
     font-size: 1.05em;
+    color: v.$text-primary;
   }
 
   p {
     margin: 0 0 0.75em;
-    color: v.$text-muted;
+    color: v.$text-secondary;
     font-size: 0.95em;
   }
 
@@ -427,28 +428,31 @@
 
     &.selected {
       border-color: v.$primary-color;
-      background: v.$table-row-selected;
+      background: v.$separator-color;
     }
 
     &:hover:not(.selected) {
-      border-color: v.$row-border-color;
-      background: v.$row-highlight-bg;
+      border-color: v.$primary-color;
+      background: v.$separator-color;
     }
   }
 }
 
-.bullet-points-container {
-  margin-bottom: 1.5rem;
+.intro-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
 
-  .fee-explanation {
-    margin: 0 0 1rem;
+  .intro-description {
+    margin: 0;
     font-size: 0.95rem;
     line-height: 1.5;
     color: v.$text-secondary;
   }
 
   .section-lead {
-    margin: 0 0 0.75rem;
+    margin: 0.25rem 0 0;
     font-weight: 600;
     color: v.$text-primary;
     font-size: 0.95rem;
@@ -459,7 +463,7 @@
     padding-left: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.45rem;
 
     li {
       font-size: 0.95rem;
@@ -469,21 +473,10 @@
       strong {
         color: v.$text-primary;
       }
-    }
-  }
 
-  .local-eval-note {
-    margin: 1.25rem 0 0;
-    padding: 0.85rem 1rem;
-    background: v.$row-highlight-bg;
-    border-left: 3px solid v.$primary-color;
-    border-radius: 4px;
-    font-size: 0.92rem;
-    line-height: 1.45;
-    color: v.$text-secondary;
-
-    strong {
-      color: v.$text-primary;
+      .option-subtext {
+        color: v.$text-muted;
+      }
     }
   }
 }
@@ -495,8 +488,8 @@
   margin-bottom: 1.5rem;
 
   .option-card {
-    border: 2px solid v.$primary-color;
-    background: v.$table-row-selected;
+    border: 1px solid v.$border-color-light;
+    background: v.$separator-color;
     border-radius: 8px;
     padding: 1.25rem 1.5rem;
 
@@ -544,8 +537,9 @@
 }
 
 .order-confirmation-card {
-  border-left: 4px solid v.$row-highlight-border;
-  background: v.$row-highlight-bg;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid #18181b;
+  background: v.$separator-color;
 
   .confirmation-header {
     display: flex;

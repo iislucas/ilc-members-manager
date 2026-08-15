@@ -288,4 +288,35 @@ describe('SearchableSet', () => {
       expect(results.map((r) => r.id).sort()).toEqual(['1', '3']);
     });
   });
+
+  describe('upsert and delete operations', () => {
+    it('should upsert new and existing entries', () => {
+      searchableSet.setEntries([{ id: '1', name: 'Alice' }]);
+      expect(searchableSet.entries().length).toBe(1);
+
+      // Update existing
+      searchableSet.upsert({ id: '1', name: 'Alice Updated' });
+      expect(searchableSet.entries().length).toBe(1);
+      expect(searchableSet.get('1')?.name).toBe('Alice Updated');
+
+      // Insert new
+      searchableSet.upsert({ id: '2', name: 'Bob' });
+      expect(searchableSet.entries().length).toBe(2);
+      expect(searchableSet.get('2')?.name).toBe('Bob');
+    });
+
+    it('should delete entry by ID', () => {
+      searchableSet.setEntries([
+        { id: '1', name: 'Alice' },
+        { id: '2', name: 'Bob' },
+      ]);
+      expect(searchableSet.entries().length).toBe(2);
+
+      searchableSet.delete('1');
+      expect(searchableSet.entries().length).toBe(1);
+      expect(searchableSet.get('1')).toBeUndefined();
+      expect(searchableSet.get('2')?.name).toBe('Bob');
+    });
+  });
 });
+

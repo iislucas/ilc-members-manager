@@ -1,6 +1,5 @@
 <div class="school-license-container">
   <div class="page-header">
-    <h1>Get or Renew a School License</h1>
     <p class="subtitle">
       Establish and operate an official I Liq Chuan school, host certified group classes, list your branch publicly, and issue certificates.
     </p>
@@ -61,6 +60,37 @@
       }
     </div>
   }
+
+  <!-- Details of what is offered / Value of School License -->
+  <div class="intro-info-section">
+    <p class="intro-description">
+      A School License authorizes the individual to open and operate a Licensed School, at one or more locations, in an area that is reserved for their use. They may hire Licensed Instructors to lead classes or events at any of their locations. The holder of a School License does not need to be a Licensed Instructor.
+    </p>
+
+    <p class="section-lead">An official School Affiliation License provides:</p>
+    <ul class="bullet-list">
+      <li>
+        <strong>Open &amp; Operate in Reserved Areas:</strong>
+        <span class="option-subtext"> Authorization to open and operate a Licensed School at one or more locations in your reserved territory.</span>
+      </li>
+      <li>
+        <strong>Hire Licensed Instructors:</strong>
+        <span class="option-subtext"> Hire Licensed Instructors to lead classes or events at any of your locations (the school license holder does not need to be a licensed instructor).</span>
+      </li>
+      <li>
+        <strong>Official School Directory Listing:</strong>
+        <span class="option-subtext"> Listed in the international I Liq Chuan school directory (see <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindSchool)">Find a School</a>).</span>
+      </li>
+      <li>
+        <strong>Conduct Official Gradings:</strong>
+        <span class="option-subtext"> Host and advertise events for licensed instructors to conduct gradings.</span>
+      </li>
+      <li>
+        <strong>Produce and Sell Branded Merchandise:</strong>
+        <span class="option-subtext"> Produce, sell, and distribute official I Liq Chuan branded merchandise.</span>
+      </li>
+    </ul>
+  </div>
 
   <!-- Step 1: Sign in / Account -->
   <div class="form-card card">
@@ -368,24 +398,6 @@
         <div class="step-header-left">
           <h2>3. School License Fee</h2>
         </div>
-      </div>
-
-      <div class="bullet-points-container">
-        <p class="section-lead">An official School Affiliation License provides:</p>
-        <ul class="bullet-list">
-          <li>
-            <strong>Official School Directory Listing:</strong>
-            <span class="option-subtext"> Listed on the international I Liq Chuan school locator map and directory.</span>
-          </li>
-          <li>
-            <strong>Conduct Official Gradings:</strong>
-            <span class="option-subtext"> Authority to host student examinations and submit records to headquarters.</span>
-          </li>
-          <li>
-            <strong>Produce and Sell Branded Merchandise:</strong>
-            <span class="option-subtext"> Produce, sell, and distribute official I Liq Chuan branded merchandise.</span>
-          </li>
-        </ul>
       </div>
 
       @if (productsLoading()) {

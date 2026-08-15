@@ -176,4 +176,78 @@ describe('IncrementalSyncService', () => {
     expect(cached?.entries.length).toBe(3);
     expect(cached?.lastSyncTimestamp).toBe('2026-08-14T11:30:00.000Z');
   });
+
+  it('loadCachedData populates SearchableSet and marks loaded when cache is an empty array', async () => {
+    const emptyCache: CachedCollectionBundle<TestItem> = {
+      lastSyncTimestamp: '2026-08-01T12:00:00.000Z',
+      entries: [],
+    };
+
+    await mockIdb.set('empty_cache_key', emptyCache);
+
+    const loaded = await service.loadCachedData('empty_cache_key', targetSet);
+
+    expect(loaded).toBe(true);
+    expect(targetSet.entries().length).toBe(0);
+    expect(targetSet.loading()).toBe(false);
+    expect(targetSet.loaded()).toBe(true);
+  });
+
+  it('syncCollection sets loading to false when cache is empty and delta has no changes', async () => {
+    await mockIdb.set('empty_delta_key', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [],
+    });
+
+    vi.mocked(firestore.getDocs).mockResolvedValue({
+      empty: true,
+      docs: [],
+    } as any);
+
+    const config: SyncCollectionConfig<'docId', TestItem> = {
+      cacheKey: 'empty_delta_key',
+      collectionPath: 'empty_delta_key',
+      idField: 'docId',
+      targetSet,
+      docConverter: (doc) => ({ ...doc.data(), docId: doc.id } as TestItem),
+    };
+
+    await service.syncCollection(config);
+
+    expect(targetSet.entries().length).toBe(0);
+    expect(targetSet.loading()).toBe(false);
+    expect(targetSet.loaded()).toBe(true);
+  });
+
+  it('upsertCachedEntry updates existing and appends new cached records', async () => {
+    await mockIdb.set('test_upsert', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [{ docId: '1', name: 'Alice' }],
+    });
+
+    // Update existing
+    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '1', name: 'Alice Renamed' });
+    let bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
+    expect(bundle?.entries.length).toBe(1);
+    expect(bundle?.entries[0].name).toBe('Alice Renamed');
+
+    // Insert new
+    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '2', name: 'Bob' });
+    bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
+    expect(bundle?.entries.length).toBe(2);
+    expect(bundle?.entries[1].name).toBe('Bob');
+  });
+
+  it('deleteCachedEntry removes record from cache bundle', async () => {
+    await mockIdb.set('test_delete', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [{ docId: '1', name: 'Alice' }, { docId: '2', name: 'Bob' }],
+    });
+
+    await service.deleteCachedEntry('test_delete', 'docId', '1');
+    const bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_delete');
+    expect(bundle?.entries.length).toBe(1);
+    expect(bundle?.entries[0].docId).toBe('2');
+  });
 });
+

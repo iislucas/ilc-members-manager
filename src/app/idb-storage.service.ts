@@ -50,6 +50,11 @@ export class IdbStorageService {
           console.warn('IndexedDB failed to open, using in-memory cache fallback:', event);
           resolve(null);
         };
+
+        request.onblocked = (event) => {
+          console.warn('IndexedDB open blocked, using in-memory cache fallback:', event);
+          resolve(null);
+        };
       } catch (err) {
         console.warn('Error initializing IndexedDB, using in-memory cache fallback:', err);
         resolve(null);

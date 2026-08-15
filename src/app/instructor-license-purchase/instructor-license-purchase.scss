@@ -66,9 +66,9 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
+    background: v.$highlight-tag-bg;
+    color: v.$highlight-tag-text;
+    border: 1px solid v.$highlight-tag-border;
 
     app-icon {
       width: 15px;
@@ -78,8 +78,9 @@
 }
 
 .current-membership-banner {
-  border-left: 4px solid v.$row-highlight-border;
-  background: v.$row-highlight-bg;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid #18181b;
+  background: v.$separator-color;
 
   .banner-header {
     display: flex;
@@ -271,14 +272,36 @@
         color: v.$text-muted;
       }
     }
+
+    .tier-explanation {
+      margin: 0.5rem 0 0;
+      font-size: 0.9rem;
+      font-weight: normal;
+      color: v.$text-secondary;
+      line-height: 1.45;
+
+      strong {
+        color: v.$text-primary;
+      }
+    }
   }
 }
 
-.bullet-points-container {
-  margin-bottom: 1.5rem;
+.intro-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
+
+  .intro-description {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: v.$text-secondary;
+  }
 
   .section-lead {
-    margin: 0 0 0.75rem;
+    margin: 0.25rem 0 0;
     font-weight: 600;
     color: v.$text-primary;
     font-size: 0.95rem;
@@ -289,12 +312,12 @@
     padding-left: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
 
     li {
       font-size: 0.95rem;
       color: v.$text-secondary;
-      line-height: 1.4;
+      line-height: 1.45;
 
       strong {
         color: v.$text-primary;
@@ -315,7 +338,7 @@
 
   .option-card {
     border: 2px solid v.$primary-color;
-    background: v.$table-row-selected;
+    background: v.$separator-color;
     border-radius: 8px;
     padding: 1.25rem 1.5rem;
 
@@ -363,8 +386,9 @@
 }
 
 .order-confirmation-card {
-  border-left: 4px solid v.$row-highlight-border;
-  background: v.$row-highlight-bg;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid #18181b;
+  background: v.$separator-color;
 
   .confirmation-header {
     display: flex;
@@ -448,5 +472,38 @@
   color: v.$text-muted;
   font-size: 0.95em;
   margin: 0;
+}
+
+.portal-homepage-action {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-start;
+
+  .homepage-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.6em 1.2em;
+    font-size: 0.95em;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+    color: v.$text-primary;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    .btn-content {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5em;
+    }
+
+    &:hover {
+      background: v.$separator-color;
+      border-color: v.$primary-color;
+      color: v.$primary-color;
+    }
+  }
 }
 

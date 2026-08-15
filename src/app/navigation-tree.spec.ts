@@ -317,4 +317,90 @@ describe('NavigationTreeService', () => {
     expect(navTree.currentTitle()).toBe('Welcome');
     expect(navTree.breadcrumbs()).toEqual([appRoot, { label: 'Welcome' }]);
   });
+
+  it('places subscription and order pages under Me > Orders in the navigation tree', () => {
+    // 1. Class Video Library Subscription
+    goTo(Views.ClassVideoLibraryPurchase);
+    expect(navTree.currentTitle()).toBe('Class Video Library Subscription');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Class Video Library Subscription',
+    ]);
+
+    // 2. Become a Member
+    goTo(Views.BecomeAMember);
+    expect(navTree.currentTitle()).toBe('Become a Member');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Become a Member',
+    ]);
+
+    // 3. Instructor & Group Leader License
+    goTo(Views.InstructorLicensePurchase);
+    expect(navTree.currentTitle()).toBe('Instructor & Group Leader License');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Instructor & Group Leader License',
+    ]);
+
+    // 4. School License
+    goTo(Views.SchoolLicensePurchase);
+    expect(navTree.currentTitle()).toBe('School License');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'School License',
+    ]);
+
+    // 5. Purchase Next Grading
+    goTo(Views.NextGrading);
+    expect(navTree.currentTitle()).toBe('Purchase Next Grading');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Purchase Next Grading',
+    ]);
+
+    // 6. Products
+    goTo(Views.Products);
+    expect(navTree.currentTitle()).toBe('Products');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Products',
+    ]);
+
+    // 7. Order Complete
+    goTo(Views.OrderComplete);
+    expect(navTree.currentTitle()).toBe('Order Complete');
+    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
+    expect(navTree.parent()?.url).toBe('/my-orders');
+    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
+      'ILC Portal',
+      'Me',
+      'Orders',
+      'Order Complete',
+    ]);
+  });
 });

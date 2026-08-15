@@ -1,6 +1,5 @@
 <div class="become-a-member-container">
   <div class="page-header">
-    <h1>Become a Member</h1>
     <p class="subtitle">
       Join the Chin Family – Zhong Xin Dao / I Liq Chuan community. Members
       benefit from training resources, online classes, workshop discounts, and
@@ -8,7 +7,31 @@
     </p>
   </div>
 
-  @if (hasActiveSubscription()) {
+  <!-- Current Membership Status Banner -->
+  @if (isLifeMember()) {
+    <div class="current-membership-banner card life-member">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Active Lifetime Membership</h3>
+          <p>
+            You are currently an active <strong>Lifetime Member</strong>. Lifetime memberships never expire and you do not need to purchase another membership.
+          </p>
+        </div>
+      </div>
+      <div class="portal-homepage-action">
+        <a
+          [href]="routingService.hrefForView(Views.Home)"
+          class="subtle-button homepage-link-btn"
+        >
+          <span class="btn-content">
+            <app-icon name="home"></app-icon>
+            <span>Go to Member's Portal Homepage</span>
+          </span>
+        </a>
+      </div>
+    </div>
+  } @else if (hasActiveSubscription() || hasActiveAnnualMembership()) {
     <div class="current-membership-banner card">
       <div class="banner-header">
         <app-icon name="check" width="24px" height="24px"></app-icon>
@@ -16,12 +39,10 @@
           <h3>You have an active ILC Membership</h3>
           <p>
             Valid through
-            <strong>{{ user()?.member?.currentMembershipExpires }}</strong
-            >.
+            <strong>{{ user()?.member?.currentMembershipExpires }}</strong>.
             @if (user()?.member?.membershipNextAutoRenewDate) {
               Auto-renews on
-              <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong
-              >.
+              <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong>.
             }
           </p>
         </div>
@@ -60,235 +81,235 @@
         }
       </div>
     </div>
+  } @else if (hasExpiredMembership()) {
+    <div class="current-membership-banner card expired-member">
+      <div class="banner-header">
+        <app-icon name="info" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Membership Expired</h3>
+          <p>
+            Your previous membership expired on <strong>{{ user()?.member?.currentMembershipExpires }}</strong>. Select an option below to renew.
+          </p>
+        </div>
+      </div>
+    </div>
   }
 
-  <!-- Step 1: Sign in / Account -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <h2>1. Your Account</h2>
-      @if (isLoggedIn()) {
-        <span class="step-completed-badge" title="Account verified">
-          <app-icon name="check"></app-icon>
-        </span>
-      }
-    </div>
-
-    @if (!isLoggedIn()) {
-      <p class="step-guidance">
-        Please sign in or create an account to link your new membership.
-      </p>
-    }
-
-    <app-inline-auth>
-      @if (!user()?.member?.memberId) {
-        <p class="account-welcome-note">
-          Welcome, you do not have a previous membership, please complete the
-          information below.
-        </p>
-      }
-    </app-inline-auth>
+  <!-- Details of what is offered / Value of Membership -->
+  <div class="intro-info-section">
+    <p class="section-lead">An official I Liq Chuan Membership provides:</p>
+    <ul class="bullet-list">
+      <li>
+        <strong>Access Lineage &amp; Training Resources:</strong>
+        <span class="option-subtext"> Access member-exclusive instructional materials, articles, and training resources.</span>
+      </li>
+      <li>
+        <strong>Take Official Gradings:</strong>
+        <span class="option-subtext"> Eligibility to be evaluated and certified across the 11 Student Levels and 6 Application Levels.</span>
+      </li>
+      <li>
+        <strong>Workshop &amp; Event Discounts:</strong>
+        <span class="option-subtext"> Discounts on official seminars, workshops, and international training camps.</span>
+      </li>
+      <li>
+        <strong>Global Member Directory &amp; Recognition:</strong>
+        <span class="option-subtext"> Verified member profile in good standing within the Chin Family I Liq Chuan Association.</span>
+      </li>
+    </ul>
   </div>
 
-  <!-- Step 2: Personal Information -->
-  <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
-    <div
-      class="step-header-row"
-      [class.clickable]="isExistingActiveMember()"
-      (click)="isExistingActiveMember() ? toggleBasicInfoCollapse() : null"
-    >
-      <div class="step-header-left">
-        <h2>2. Basic Information</h2>
-        @if (hasCompletedBasicInfo()) {
-          <span class="step-completed-badge" title="Basic information complete">
+  @if (!isLifeMember()) {
+    <!-- Step 1: Sign in / Account -->
+    <div class="form-card card">
+      <div class="step-header-row">
+        <h2>1. Your Account</h2>
+        @if (isLoggedIn()) {
+          <span class="step-completed-badge" title="Account verified">
             <app-icon name="check"></app-icon>
           </span>
         }
       </div>
-      @if (isExistingActiveMember()) {
-        <button
-          type="button"
-          class="icon-only-button fold-toggle-btn"
-          (click)="$event.stopPropagation(); toggleBasicInfoCollapse()"
-          [title]="
-            isBasicInfoCollapsed()
-              ? 'Unfold basic information'
-              : 'Fold basic information'
-          "
-        >
-          <app-icon
-            [name]="isBasicInfoCollapsed() ? 'expand_more' : 'expand_less'"
-          ></app-icon>
-        </button>
+
+      @if (!isLoggedIn()) {
+        <p class="step-guidance">
+          Please sign in or create an account to link your new membership.
+        </p>
       }
+
+      <app-inline-auth>
+        @if (!user()?.member?.memberId) {
+          <p class="account-welcome-note">
+            Welcome, you do not have a previous membership, please complete the
+            information below.
+          </p>
+        }
+      </app-inline-auth>
     </div>
 
-    @if (isBasicInfoCollapsed()) {
-      <div class="collapsed-summary">
-        <span class="summary-text">
-          <strong>{{ name() }}</strong> • {{ dateOfBirth() }} • {{ country() }}
-        </span>
-        <button
-          type="button"
-          class="subtle-button edit-link-btn"
-          (click)="toggleBasicInfoCollapse()"
-        >
-          <app-icon name="edit"></app-icon>
-          <span>Edit</span>
-        </button>
-      </div>
-    } @else {
-      <div class="fields-grid">
-        <div class="field-item full-width">
-          <label for="fullName">Full Name <span class="required">*</span></label>
-          <input
-            id="fullName"
-            type="text"
-            placeholder="e.g. Jane Doe"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="name()"
-            (ngModelChange)="name.set($event)"
-          />
-        </div>
-
-        <div class="field-item">
-          <label for="dob">Date of Birth <span class="required">*</span></label>
-          <input
-            id="dob"
-            type="date"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="dateOfBirth()"
-            (ngModelChange)="dateOfBirth.set($event)"
-          />
-        </div>
-
-        <div class="field-item">
-          <label for="genderInput">Gender</label>
-          <input
-            id="genderInput"
-            type="text"
-            placeholder="Optional"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="gender()"
-            (ngModelChange)="gender.set($event)"
-          />
-        </div>
-
-        <div class="field-item full-width">
-          <label>Country of Residence <span class="required">*</span></label>
-          <app-autocomplete
-            [searchableSet]="dataService.countries"
-            [displayFns]="countryDisplayFns"
-            [inputBoxIsChip]="false"
-            [placeholder]="'Search for a country...'"
-            [initSearchTerm]="country()"
-            (textUpdated)="country.set($event)"
-            (itemSelected)="country.set($event.name)"
-          ></app-autocomplete>
-          @if (countryWithCode(); as cc) {
-            <span class="identifier-chip country-chip">{{ cc.id }}</span>
-          } @else if (country().trim()) {
-            <div class="error-message">
-              Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
-              <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
-            </div>
+    <!-- Step 2: Personal Information -->
+    <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
+      <div
+        class="step-header-row"
+        [class.clickable]="isExistingActiveMember()"
+        (click)="isExistingActiveMember() ? toggleBasicInfoCollapse() : null"
+      >
+        <div class="step-header-left">
+          <h2>2. Basic Information</h2>
+          @if (hasCompletedBasicInfo()) {
+            <span class="step-completed-badge" title="Basic information complete">
+              <app-icon name="check"></app-icon>
+            </span>
           }
         </div>
-
-        <div class="field-item">
-          <label for="phoneNum">Phone Number</label>
-          <input
-            id="phoneNum"
-            type="tel"
-            placeholder="+1 555 0199"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="phone()"
-            (ngModelChange)="phone.set($event)"
-          />
-        </div>
-
-        <div class="field-item full-width">
-          <label for="addressInput">Street Address</label>
-          <input
-            id="addressInput"
-            type="text"
-            placeholder="Street address line"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="address()"
-            (ngModelChange)="address.set($event)"
-          />
-        </div>
-
-        <div class="field-item">
-          <label for="cityInput">City</label>
-          <input
-            id="cityInput"
-            type="text"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="city()"
-            (ngModelChange)="city.set($event)"
-          />
-        </div>
-
-        <div class="field-item">
-          <label for="zipInput">Zip / Postal Code</label>
-          <input
-            id="zipInput"
-            type="text"
-            [disabled]="!isLoggedIn()"
-            [ngModel]="zipCode()"
-            (ngModelChange)="zipCode.set($event)"
-          />
-        </div>
+        @if (isExistingActiveMember()) {
+          <button
+            type="button"
+            class="icon-only-button fold-toggle-btn"
+            (click)="$event.stopPropagation(); toggleBasicInfoCollapse()"
+            [title]="
+              isBasicInfoCollapsed()
+                ? 'Unfold basic information'
+                : 'Fold basic information'
+            "
+          >
+            <app-icon
+              [name]="isBasicInfoCollapsed() ? 'expand_more' : 'expand_less'"
+            ></app-icon>
+          </button>
+        }
       </div>
-    }
-  </div>
 
-  <!-- Step 3: Choose Membership Option -->
-  <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
-    <div class="step-header-row">
-      <h2>3. Choose Membership Option</h2>
-      @if (isExistingActiveMember()) {
-        <span class="step-completed-badge" title="Active membership">
-          <app-icon name="check"></app-icon>
-        </span>
+      @if (isBasicInfoCollapsed()) {
+        <div class="collapsed-summary">
+          <span class="summary-text">
+            <strong>{{ name() }}</strong> • {{ dateOfBirth() }} • {{ country() }}
+          </span>
+          <button
+            type="button"
+            class="subtle-button edit-link-btn"
+            (click)="toggleBasicInfoCollapse()"
+          >
+            <app-icon name="edit"></app-icon>
+            <span>Edit</span>
+          </button>
+        </div>
+      } @else {
+        <div class="fields-grid">
+          <div class="field-item full-width">
+            <label for="fullName">Full Name <span class="required">*</span></label>
+            <input
+              id="fullName"
+              type="text"
+              placeholder="e.g. Jane Doe"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)"
+            />
+          </div>
+
+          <div class="field-item">
+            <label for="dob">Date of Birth <span class="required">*</span></label>
+            <input
+              id="dob"
+              type="date"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="dateOfBirth()"
+              (ngModelChange)="dateOfBirth.set($event)"
+            />
+          </div>
+
+          <div class="field-item">
+            <label for="genderInput">Gender</label>
+            <input
+              id="genderInput"
+              type="text"
+              placeholder="Optional"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="gender()"
+              (ngModelChange)="gender.set($event)"
+            />
+          </div>
+
+          <div class="field-item full-width">
+            <label>Country of Residence <span class="required">*</span></label>
+            <app-autocomplete
+              [searchableSet]="dataService.countries"
+              [displayFns]="countryDisplayFns"
+              [inputBoxIsChip]="false"
+              [placeholder]="'Search for a country...'"
+              [initSearchTerm]="country()"
+              (textUpdated)="country.set($event)"
+              (itemSelected)="country.set($event.name)"
+            ></app-autocomplete>
+            @if (countryWithCode(); as cc) {
+              <span class="identifier-chip country-chip">{{ cc.id }}</span>
+            } @else if (country().trim()) {
+              <div class="error-message">
+                Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
+                <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+              </div>
+            }
+          </div>
+
+          <div class="field-item">
+            <label for="phoneNum">Phone Number</label>
+            <input
+              id="phoneNum"
+              type="tel"
+              placeholder="+1 555 0199"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="phone()"
+              (ngModelChange)="phone.set($event)"
+            />
+          </div>
+
+          <div class="field-item full-width">
+            <label for="addressInput">Street Address</label>
+            <input
+              id="addressInput"
+              type="text"
+              placeholder="Street address line"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="address()"
+              (ngModelChange)="address.set($event)"
+            />
+          </div>
+
+          <div class="field-item">
+            <label for="cityInput">City</label>
+            <input
+              id="cityInput"
+              type="text"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="city()"
+              (ngModelChange)="city.set($event)"
+            />
+          </div>
+
+          <div class="field-item">
+            <label for="zipInput">Zip / Postal Code</label>
+            <input
+              id="zipInput"
+              type="text"
+              [disabled]="!isLoggedIn()"
+              [ngModel]="zipCode()"
+              (ngModelChange)="zipCode.set($event)"
+            />
+          </div>
+        </div>
       }
     </div>
 
-    @if (isLifeMember()) {
-      <div class="membership-status-box life-member">
-        <app-icon name="check" width="24px" height="24px"></app-icon>
-        <div class="status-content">
-          <h3>Active Lifetime Membership</h3>
-          <p>
-            You are currently an active <strong>Lifetime Member</strong>. Lifetime memberships never expire and you do not need to purchase another membership.
-          </p>
-        </div>
+    <!-- Step 3: Choose Membership Option -->
+    <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
+      <div class="step-header-row">
+        <h2>3. Choose Membership Option</h2>
+        @if (isExistingActiveMember()) {
+          <span class="step-completed-badge" title="Active membership">
+            <app-icon name="check"></app-icon>
+          </span>
+        }
       </div>
-    } @else {
-      @if (hasActiveAnnualMembership()) {
-        <div class="membership-status-box annual-member">
-          <app-icon name="check" width="24px" height="24px"></app-icon>
-          <div class="status-content">
-            <h3>Current Membership: Annual</h3>
-            <p>
-              Your membership is active through <strong>{{ user()?.member?.currentMembershipExpires }}</strong>.
-              @if (user()?.member?.membershipNextAutoRenewDate) {
-                Auto-renews on <strong>{{ user()?.member?.membershipNextAutoRenewDate }}</strong>.
-              }
-            </p>
-          </div>
-        </div>
-      } @else if (hasExpiredMembership()) {
-        <div class="membership-status-box expired-member">
-          <app-icon name="info" width="24px" height="24px"></app-icon>
-          <div class="status-content">
-            <h3>Membership Expired</h3>
-            <p>
-              Your previous membership expired on <strong>{{ user()?.member?.currentMembershipExpires }}</strong>. Select an option below to renew.
-            </p>
-          </div>
-        </div>
-      }
 
       @if (productsLoading()) {
         <app-spinner>Loading membership options...</app-spinner>
@@ -420,25 +441,9 @@
           </div>
         }
       }
-    }
+    </div>
 
-    @if (isExistingActiveMember()) {
-      <div class="portal-homepage-action">
-        <a
-          [href]="routingService.hrefForView(Views.Home)"
-          class="subtle-button homepage-link-btn"
-        >
-          <span class="btn-content">
-            <app-icon name="home"></app-icon>
-            <span>Go to Member's Portal Homepage</span>
-          </span>
-        </a>
-      </div>
-    }
-  </div>
-
-  <!-- Step 4: Checkout Action -->
-  @if (!isLifeMember()) {
+    <!-- Step 4: Checkout Action -->
     @if (checkoutError()) {
       <div class="error-container">
         <span class="error-message">{{ checkoutError() }}</span>

@@ -1,7 +1,7 @@
 {
   "name": "I Liq Chuan Members Portal",
   "short_name": "ILC Portal",
-  "theme_color": "#64748b",
+  "theme_color": "#808080",
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "/",

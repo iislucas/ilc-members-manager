@@ -71,14 +71,14 @@
             @if (contact.instructorId) {
               <a class="instructor-chip" [href]="instructorProfileLink(contact.instructorId)">
                 <span class="icon-only-button">
-                  <app-icon name="salut"></app-icon>
+                  <app-icon name="person"></app-icon>
                 </span>
                 <span class="detail-text">Contact: {{ contact.name }}</span>
               </a>
             } @else {
               <div class="instructor-chip">
                 <span class="icon-only-button">
-                  <app-icon name="salut"></app-icon>
+                  <app-icon name="person"></app-icon>
                 </span>
                 <span class="detail-text">Contact: {{ contact.name }}</span>
               </div>
@@ -86,7 +86,7 @@
             @if (contact.contactEmail) {
               <a class="instructor-chip" [href]="'mailto:' + contact.contactEmail">
                 <span class="icon-only-button">
-                  <app-icon name="person"></app-icon>
+                  <app-icon name="mail"></app-icon>
                 </span>
                 <span class="detail-text">{{ contact.contactEmail }}</span>
               </a>

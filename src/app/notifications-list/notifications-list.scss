@@ -30,9 +30,9 @@
     }
 
     &.has-fyis-only .section-header {
-      background-color: v.$row-highlight-bg;
-      border: 1px solid #bfdbfe;
-      border-left: 4px solid v.$row-highlight-border;
+      background-color: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-left: 4px solid #71717a;
     }
   }
 
@@ -167,11 +167,11 @@
         }
 
         &.badge-fyi {
-          background-color: #2563eb;
+          background-color: #71717a;
           color: white;
 
           &:hover {
-            background-color: #1d4ed8;
+            background-color: #52525b;
             transform: scale(1.08);
           }
         }
@@ -383,8 +383,8 @@
     border-left-width: 4px;
 
     &.style-info {
-      background-color: v.$row-highlight-bg;
-      border-left: 4px solid v.$row-highlight-border;
+      background-color: #f4f4f5;
+      border-left: 4px solid #71717a;
     }
 
     // Action items (a TODO for the member) get a light-orange background and a
@@ -402,12 +402,12 @@
       height: 40px;
       border-radius: 50%;
       flex-shrink: 0;
-      background-color: #dbeafe; // default/info: soft blue darker than card bg (#f4f9ff)
+      background-color: #e4e4e7; // default/info: neutral grey
       transition: background-color 0.2s ease, opacity 0.2s ease;
     }
 
     &.style-info .notification-icon {
-      background-color: #dbeafe; // Soft blue darker than #f4f9ff
+      background-color: #e4e4e7; // neutral grey
     }
 
     &.style-action .notification-icon {

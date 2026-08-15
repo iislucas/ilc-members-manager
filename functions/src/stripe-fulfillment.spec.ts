@@ -17,6 +17,9 @@ import {
   fulfillSpouseLifeMembership,
   mirrorOrderToMemberSubcollection,
   resolveMemberForStripeOrder,
+  extendDateByYears,
+  extendDateByMonths,
+  syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
 
 describe('stripe-fulfillment', () => {
@@ -972,6 +975,255 @@ describe('stripe-fulfillment', () => {
             schoolAddress: '10 Downing St',
             ownerMemberDocId: sampleMember.docId,
             schoolId: 'SCH-101',
+          }),
+        );
+      });
+    });
+
+    describe('Date arithmetic & firstMembershipStarted preservation', () => {
+      it('extendDateByYears extends 1 year from reference date when expired or empty', () => {
+        expect(extendDateByYears('', 1, '2026-08-15')).toBe('2027-08-15');
+        expect(extendDateByYears(null, 1, '2026-08-15')).toBe('2027-08-15');
+        expect(extendDateByYears('2025-01-01', 1, '2026-08-15')).toBe('2027-08-15');
+      });
+
+      it('extendDateByYears extends from current expiry when renewing early while active', () => {
+        expect(extendDateByYears('2026-12-31', 1, '2026-08-15')).toBe('2027-12-31');
+        expect(extendDateByYears('2027-05-15', 2, '2026-08-15')).toBe('2029-05-15');
+      });
+
+      it('extendDateByYears preserves life membership (9999-12-31)', () => {
+        expect(extendDateByYears('9999-12-31', 1, '2026-08-15')).toBe('9999-12-31');
+      });
+
+      it('extendDateByMonths extends 1 month from reference date when expired or empty', () => {
+        expect(extendDateByMonths('', 1, '2026-08-15')).toBe('2026-09-15');
+        expect(extendDateByMonths(null, 1, '2026-08-15')).toBe('2026-09-15');
+        expect(extendDateByMonths('2026-01-01', 1, '2026-08-15')).toBe('2026-09-15');
+      });
+
+      it('extendDateByMonths extends from current expiry when renewing early while active', () => {
+        expect(extendDateByMonths('2026-09-15', 1, '2026-08-20')).toBe('2026-10-15');
+      });
+
+      it('never overwrites existing firstMembershipStarted on annual membership renewal', async () => {
+        const existingMember = {
+          ...sampleMember,
+          firstMembershipStarted: '2020-03-01',
+          lastRenewalDate: '2025-05-15',
+          currentMembershipExpires: '2026-05-15',
+        };
+
+        const order: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-08-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_renew_mem',
+          mode: StripeCheckoutMode.Payment,
+          created: '2026-08-15T00:00:00Z',
+          amountTotal: 8500,
+          currency: 'usd',
+          metadata: { memberDocId: existingMember.docId },
+          lineItems: [
+            {
+              productId: 'prod_mem',
+              priceId: 'price_mem_annual',
+              description: 'Annual Membership Renewal',
+              quantity: 1,
+              amountTotal: 8500,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(mockDb, existingMember, order, 'order_renew_mem');
+
+        expect(mockMemberRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lastRenewalDate: '2026-08-15',
+            currentMembershipExpires: '2027-08-15',
+          }),
+        );
+        // firstMembershipStarted must NOT be in the update payload
+        const updateArgs = mockMemberRef.update.mock.calls[0][0];
+        expect(updateArgs.firstMembershipStarted).toBeUndefined();
+        expect(existingMember.firstMembershipStarted).toBe('2020-03-01');
+      });
+
+      it('sets firstMembershipStarted on first-time membership purchase when previously empty', async () => {
+        const newMember = {
+          ...sampleMember,
+          firstMembershipStarted: '',
+          lastRenewalDate: '',
+          currentMembershipExpires: '',
+        };
+
+        const order: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-08-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_new_mem',
+          mode: StripeCheckoutMode.Payment,
+          created: '2026-08-15T00:00:00Z',
+          amountTotal: 8500,
+          currency: 'usd',
+          metadata: { memberDocId: newMember.docId },
+          lineItems: [
+            {
+              productId: 'prod_mem',
+              priceId: 'price_mem_annual',
+              description: 'Annual Membership',
+              quantity: 1,
+              amountTotal: 8500,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(mockDb, newMember, order, 'order_new_mem');
+
+        expect(mockMemberRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            firstMembershipStarted: '2026-08-15',
+            lastRenewalDate: '2026-08-15',
+            currentMembershipExpires: '2027-08-15',
+          }),
+        );
+      });
+
+      it('correctly sets 1 month expiry for monthly video subscription and 1 year for annual video subscription', async () => {
+        // Test Monthly
+        const monthlyMember = {
+          ...sampleMember,
+          classVideoLibraryExpirationDate: '',
+        };
+
+        const monthlyOrder: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-08-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_video_monthly',
+          mode: StripeCheckoutMode.Subscription,
+          subscriptionId: 'sub_vid_month_123',
+          created: '2026-08-15T00:00:00Z',
+          amountTotal: 2500,
+          currency: 'usd',
+          metadata: { memberDocId: monthlyMember.docId },
+          lineItems: [
+            {
+              productId: 'prod_video',
+              priceId: 'price_video_monthly',
+              description: 'Class Video Library Subscription (Monthly)',
+              quantity: 1,
+              amountTotal: 2500,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(mockDb, monthlyMember, monthlyOrder, 'order_vid_m');
+
+        expect(mockMemberRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classVideoLibrarySubscription: true,
+            classVideoLibraryLastRenewalDate: '2026-08-15',
+            classVideoLibraryExpirationDate: '2026-09-15',
+            classVideoLibraryNextAutoRenewDate: '2026-09-15',
+            'stripeSubscriptions.sub_vid_month_123': expect.objectContaining({
+              interval: 'month',
+              currentPeriodStart: '2026-08-15',
+              currentPeriodEnd: '2026-09-15',
+            }),
+          }),
+        );
+
+        // Test Annual
+        mockMemberRef.update.mockClear();
+        const yearlyMember = {
+          ...sampleMember,
+          classVideoLibraryExpirationDate: '',
+        };
+
+        const yearlyOrder: StripeOrder = {
+          docId: '',
+          lastUpdated: '2026-08-15T00:00:00Z',
+          ilcAppOrderKind: OrderKind.Stripe,
+          stripeOrderType: StripeOrderType.Checkout,
+          stripeObjectId: 'cs_video_yearly',
+          mode: StripeCheckoutMode.Subscription,
+          subscriptionId: 'sub_vid_year_456',
+          created: '2026-08-15T00:00:00Z',
+          amountTotal: 25000,
+          currency: 'usd',
+          metadata: { memberDocId: yearlyMember.docId },
+          lineItems: [
+            {
+              productId: 'prod_video',
+              priceId: 'price_video_yearly',
+              description: 'Class Video Library Subscription (Annual)',
+              quantity: 1,
+              amountTotal: 25000,
+              currency: 'usd',
+            },
+          ],
+        };
+
+        await fulfillStripeOrder(mockDb, yearlyMember, yearlyOrder, 'order_vid_y');
+
+        expect(mockMemberRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            classVideoLibrarySubscription: true,
+            classVideoLibraryLastRenewalDate: '2026-08-15',
+            classVideoLibraryExpirationDate: '2027-08-15',
+            classVideoLibraryNextAutoRenewDate: '2027-08-15',
+            'stripeSubscriptions.sub_vid_year_456': expect.objectContaining({
+              interval: 'year',
+              currentPeriodStart: '2026-08-15',
+              currentPeriodEnd: '2027-08-15',
+            }),
+          }),
+        );
+      });
+
+      it('syncSubscriptionStatusToMember updates currentMembershipExpires and video expiration when active subscription renews', async () => {
+        const memberWithSub = {
+          ...sampleMember,
+          membershipSubscriptionId: 'sub_mem_789',
+          currentMembershipExpires: '2026-08-15',
+          stripeSubscriptions: {
+            sub_mem_789: {
+              subscriptionId: 'sub_mem_789',
+              status: 'active',
+              currentPeriodEnd: '2026-08-15',
+            },
+          },
+        };
+
+        mockMemberRef.get = vi.fn().mockResolvedValue({
+          exists: true,
+          id: 'mem_123',
+          data: () => memberWithSub,
+        });
+
+        const fakeSubscription: any = {
+          id: 'sub_mem_789',
+          status: 'active',
+          cancel_at_period_end: false,
+          current_period_end: Math.floor(new Date('2027-08-15T00:00:00Z').getTime() / 1000),
+          metadata: { memberDocId: 'mem_123' },
+        };
+
+        await syncSubscriptionStatusToMember(mockDb, fakeSubscription);
+
+        expect(mockMemberRef.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            membershipNextAutoRenewDate: '2027-08-15',
+            currentMembershipExpires: '2027-08-15',
+            'stripeSubscriptions.sub_mem_789.status': 'active',
+            'stripeSubscriptions.sub_mem_789.currentPeriodEnd': '2027-08-15',
           }),
         );
       });

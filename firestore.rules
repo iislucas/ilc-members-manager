@@ -203,14 +203,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /system/country-codes {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /system/deletions/{collectionName}/{document=**} {
-      allow read: if (collectionName in ['instructors', 'schools', 'events']) || request.auth != null;
+      allow read: if (collectionName in ['instructors', 'schools', 'events']) || isAdmin();
       allow write: if isAdmin();
     }
 
     match /system/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     match /orders/{orderId} {

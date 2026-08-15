@@ -17,7 +17,7 @@ description: Read this when making HTML templates/files or CSS/SCSS styling chan
 The app is a **functional, data-dense management portal** — not a marketing site. The aesthetic priorities are:
 
 1. **Clarity over decoration**: Clean layouts, readable typography, moderate whitespace.
-2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #18181b`, `$button-bg-color: #f4f4f5`), dark slate grey header/footer (`$header-bg-color: #2d3748`), classic red accents (`$heading-accent-color: #991b1b`), and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`). Positive call-to-action buttons (e.g. "Renew Now", "Subscribe", "Extend", checkout buttons) use lighter blue accent styling (or primary blue) — **never solid black backgrounds**.
+2. **Yin/Yang Palette with Red Accent & Blue Highlights**: The brand uses crisp black/white cards and surfaces (`$theme-bg-color: #ffffff`, `$theme-border-color: #181818`, `$button-bg-color: #f4f4f5`), medium grey header (`$header-bg-color: #808080`) with 3px black bottom border (`$header-border-color: #000`), classic dark red brand accents (`$heading-accent-color: #950000`), medium grey footer (`$footer-bg-color: #808080`) with 3px top border, and light blue interactive highlights (`$row-highlight-bg: #f4f9ff`, `$row-highlight-border: #4da3ff`, `$theme-tag-*`). Positive call-to-action buttons (e.g. "Renew Now", "Manage Billing", checkout buttons) use brand red accent styling (`#950000`) with white text — **never solid black backgrounds**.
 3. **Subtle depth**: Light box-shadows (`$shadow-color`) and border-based separation rather than heavy gradients.
 4. **Responsive simplicity**: Grid/flexbox layouts that collapse gracefully at 600px. No complex responsive breakpoint system — just a single mobile breakpoint.
 5. **Reuse global styles**: Shared UI patterns (buttons, chips, cards, menus, inputs, errors) are defined once in `styles.scss`. Component SCSS should only handle layout and component-specific positioning.
@@ -293,6 +293,24 @@ Use the `.card` class from `styles.scss` — it provides `$theme-bg-color` backg
 
 The home page overrides `.card` with white background and interactive hover (lift effect) — this is one of the few cases where a component legitimately overrides a global class.
 
+### Notes & Status Banners
+
+The app uses a **common note & status banner style** (`.note-box`, `.current-membership-banner`, and `.note` in `styles.scss`) for subscription statuses, active license callouts, and informational notes:
+- **Container**: `$separator-color` (`#f4f4f5`) neutral grey background with `1px solid $border-color-light` (`#e4e4e7`) outline and a solid `4px solid #18181b` dark left accent stripe.
+- **Header**: Icon (e.g. `<app-icon name="check">` or `<app-icon name="info">`) aligned with bold title (`h3`, `$text-primary`) and secondary description text (`p`, `$text-secondary`).
+
+```html
+<div class="current-membership-banner card">
+  <div class="banner-header">
+    <app-icon name="check" width="24px" height="24px"></app-icon>
+    <div>
+      <h3>Active Lifetime Instructor License</h3>
+      <p>You hold an official Lifetime Instructor License. Lifetime licenses never expire.</p>
+    </div>
+  </div>
+</div>
+```
+
 ### Pill Tabs
 
 The app uses a **global pill-tab system** for in-page tab navigation (settings, gradings, import-export, members/instructors area). Tabs sit on a tinted track; the active tab pops out with a white background and subtle shadow.
@@ -312,14 +330,14 @@ Use the global classes from `styles.scss` — **do not define local tab styles i
 
 ### Interactive List Rows (Row Highlight)
 
-The app uses a standardised **row-highlight** pattern for clickable list items and detail page headers. It provides a subtle left-border accent with a light blue background, giving the user clear hover and selection feedback on desktop.
+The app uses a standardised **row-highlight** pattern for clickable list items, event listings, and detail page headers. It provides a red left-border accent (`$row-highlight-border: #950000`) with a light grey background (`$row-highlight-bg: #f4f4f5`), giving the user clear, consistent hover and selection feedback on desktop.
 
 The pattern is built from two SCSS mixins in `scss_variables.scss`:
 
 | Mixin | Effect |
 | --- | --- |
 | `row-highlight-base` | Adds a 4px transparent left border with a smooth transition (background + border color) |
-| `row-highlight-active` | Sets `background-color: $row-highlight-bg` and `border-left-color: $row-highlight-border` |
+| `row-highlight-active` | Sets `background-color: $row-highlight-bg` (`#f4f4f5`) and `border-left-color: $row-highlight-border` (`#950000`) |
 
 **Pattern A — Hover highlight (list items, table rows):**
 

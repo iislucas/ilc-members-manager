@@ -18,71 +18,71 @@
   <!-- Section: Purchase -->
   <section class="services-quick-links-section">
     <div class="section-title">
-      <h2>Purchase</h2>
+      <h2>Learn about or purchase</h2>
       <p class="section-subtitle">
-        Direct access to get or renew memberships, licenses, gradings, and subscriptions.
+        Direct access to get or renew memberships, licenses, gradings, and
+        subscriptions.
       </p>
     </div>
     <div class="services-links-grid">
-      @if (isLifeMember()) {
-        <div class="service-link-card disabled">
-          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">
-              <span>Membership</span>
-              <span class="active-badge">Active</span>
-            </div>
-            <div class="service-link-sub">You have an active Lifetime Membership. Never expires.</div>
+      <a
+        class="service-link-card"
+        [href]="routingService.hrefForView(Views.BecomeAMember)"
+      >
+        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Membership</div>
+          <div class="service-link-sub">
+            Join as an annual or life member, or renew existing membership.
           </div>
         </div>
-      } @else {
-        <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
-          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">Membership</div>
-            <div class="service-link-sub">Join as an annual or life member, or renew existing membership.</div>
-          </div>
-        </a>
-      }
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.NextGrading)">
+      </a>
+      <a
+        class="service-link-card"
+        [href]="routingService.hrefForView(Views.NextGrading)"
+      >
         <app-icon name="mountain" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
           <div class="service-link-title">Next Grading</div>
-          <div class="service-link-sub">Pay student or application level examination fee.</div>
+          <div class="service-link-sub">
+            Pay student or application level examination fee.
+          </div>
         </div>
       </a>
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+      <a
+        class="service-link-card"
+        [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)"
+      >
         <app-icon name="video_library" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
           <div class="service-link-title">Class Video Library</div>
-          <div class="service-link-sub">Subscribe to recorded Saturday classes and global library archive.</div>
+          <div class="service-link-sub">
+            Subscribe to recorded Saturday classes and global library archive.
+          </div>
         </div>
       </a>
-      @if (isLifeInstructor()) {
-        <div class="service-link-card disabled">
-          <app-icon name="meditation" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">
-              <span>Instructor License</span>
-              <span class="active-badge">Active</span>
-            </div>
-            <div class="service-link-sub">You have an active Lifetime Instructor License. Never expires.</div>
+      <a
+        class="service-link-card"
+        [href]="routingService.hrefForView(Views.InstructorLicensePurchase)"
+      >
+        <app-icon name="meditation" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">Instructor &amp; Group Leader License</div>
+          <div class="service-link-sub">
+            {{ licenseCardSubtitle() }}
           </div>
         </div>
-      } @else {
-        <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
-          <app-icon name="meditation" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">Instructor License</div>
-            <div class="service-link-sub">Obtain or renew 1-year certified instructor teaching license.</div>
-          </div>
-        </a>
-      }
-      <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
+      </a>
+      <a
+        class="service-link-card"
+        [href]="routingService.hrefForView(Views.SchoolLicensePurchase)"
+      >
         <app-icon name="location_on" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
           <div class="service-link-title">School License</div>
-          <div class="service-link-sub">Establish or renew official school affiliation and class listing.</div>
+          <div class="service-link-sub">
+            Establish or renew official school affiliation and class listing.
+          </div>
         </div>
       </a>
     </div>
@@ -93,7 +93,8 @@
     <div class="section-title">
       <h2>My Membership, Licenses, and Subscriptions</h2>
       <p class="section-subtitle">
-        Manage access and auto-renewal settings for your memberships, licenses, and subscriptions.
+        Manage access and auto-renewal settings for your memberships, licenses,
+        and subscriptions.
       </p>
     </div>
 
@@ -113,9 +114,9 @@
             <div class="info-row">
               <span class="info-label">Access Status:</span>
               <span class="info-val highlight">
-                @if (sub.status === 'lifetime') {
+                @if (sub.status === "lifetime") {
                   Lifetime Access
-                } @else if (sub.status === 'expired') {
+                } @else if (sub.status === "expired") {
                   Expired on {{ sub.expirationDate }}
                 } @else {
                   Valid through {{ sub.expirationDate }}
@@ -127,11 +128,15 @@
               <span class="info-label">Auto-Renewal:</span>
               <span class="info-val">
                 @if (sub.isAutoRenewing) {
-                  <strong class="renew-date">Renews on {{ sub.nextAutoRenewDate }}</strong>
-                } @else if (sub.status === 'lifetime') {
+                  <strong class="renew-date"
+                    >Renews on {{ sub.nextAutoRenewDate }}</strong
+                  >
+                } @else if (sub.status === "lifetime") {
                   Not applicable
                 } @else {
-                  <span class="off-text">Off (Will not renew automatically)</span>
+                  <span class="off-text"
+                    >Off (Will not renew automatically)</span
+                  >
                 }
               </span>
             </div>
@@ -153,7 +158,11 @@
                   [disabled]="actionInProgressSubId() === sub.subscriptionId"
                   (click)="onCancelAutoRenew(sub.subscriptionId)"
                 >
-                  {{ actionInProgressSubId() === sub.subscriptionId ? 'Cancelling...' : 'Cancel Auto-Renewal' }}
+                  {{
+                    actionInProgressSubId() === sub.subscriptionId
+                      ? "Cancelling..."
+                      : "Cancel Auto-Renewal"
+                  }}
                 </button>
               }
 
@@ -164,14 +173,21 @@
                   [disabled]="actionInProgressSubId() === sub.subscriptionId"
                   (click)="onResumeAutoRenew(sub.subscriptionId)"
                 >
-                  {{ actionInProgressSubId() === sub.subscriptionId ? 'Resuming...' : 'Resume Auto-Renewal' }}
+                  {{
+                    actionInProgressSubId() === sub.subscriptionId
+                      ? "Resuming..."
+                      : "Resume Auto-Renewal"
+                  }}
                 </button>
               }
 
               @if (sub.canSubscribe) {
                 <a
                   class="sub-btn renew-link"
-                  [href]="sub.subscribeUrl || routingService.hrefForView(Views.Products)"
+                  [href]="
+                    sub.subscribeUrl ||
+                    routingService.hrefForView(Views.Products)
+                  "
                 >
                   Renew Now
                 </a>
@@ -212,25 +228,72 @@
       </div>
     </div>
 
-    <!-- Orders Table / List (Directly displayed without fold/unfold) -->
+    <!-- Orders List -->
     <div class="orders-list">
-      @for (order of orders(); track (order.orderDocId || order.docId)) {
+      @for (order of orders(); track order.orderDocId || order.docId) {
         <div class="order-card">
           <div class="order-summary-row">
             <div class="col-date">
-              <span class="date-text">{{ order.date }}</span>
-              <span class="order-num">#{{ order.orderDocId || order.docId }}</span>
+              <span class="date-text">
+                @if (order.created && order.created.includes("T")) {
+                  {{ order.created | date: "medium" }}
+                } @else {
+                  {{ order.created || order.date | date: "mediumDate" }}
+                }
+              </span>
+              @let rawId = getOrderDisplayId(order);
+              @if (rawId) {
+                <div class="order-num-row">
+                  <span class="order-num" [title]="rawId">
+                    <span class="order-hash">#</span><span class="order-id-text">{{ rawId }}</span>
+                  </span>
+                  <button
+                    type="button"
+                    class="icon-only-button copy-id-btn"
+                    [class.copied]="copiedOrderId() === rawId"
+                    [title]="
+                      copiedOrderId() === rawId
+                        ? 'Copied to clipboard!'
+                        : 'Copy full order ID'
+                    "
+                    (click)="copyOrderId(rawId, $event)"
+                  >
+                    @if (copiedOrderId() === rawId) {
+                      <app-icon
+                        name="check"
+                        width="13px"
+                        height="13px"
+                      ></app-icon>
+                    } @else {
+                      <app-icon
+                        name="content_copy"
+                        width="13px"
+                        height="13px"
+                      ></app-icon>
+                    }
+                  </button>
+                </div>
+              }
             </div>
 
             <div class="col-desc">
-              <span class="main-desc">{{ order.description || 'Order ' + (order.orderDocId || order.docId) }}</span>
+              <span class="main-desc">{{
+                order.description ||
+                  "Order #" +
+                    (order.orderNumber || order.orderDocId || order.docId)
+              }}</span>
               <div class="badge-group">
-                <span
-                  class="badge type-badge"
-                  [ngClass]="getOrderTypeBadgeClass(order.orderType)"
-                >
-                  {{ order.orderType }}
+                <span class="badge qty-badge">
+                  Qty: {{ getOrderQuantity(order) }}
                 </span>
+                @if (order.orderType && order.orderType !== "checkout") {
+                  <span
+                    class="badge type-badge"
+                    [ngClass]="getOrderTypeBadgeClass(order.orderType)"
+                  >
+                    {{ order.orderType }}
+                  </span>
+                }
                 @if (order.paymentStatus) {
                   <span
                     class="badge status-badge"
@@ -238,6 +301,22 @@
                   >
                     {{ order.paymentStatus }}
                   </span>
+                }
+                @if (order.stripeReceiptUrl) {
+                  <a
+                    class="receipt-link"
+                    [href]="order.stripeReceiptUrl"
+                    target="_blank"
+                    rel="noopener"
+                    title="View Stripe Receipt"
+                  >
+                    <app-icon
+                      name="receipt_long"
+                      width="14px"
+                      height="14px"
+                    ></app-icon>
+                    <span>Receipt</span>
+                  </a>
                 }
               </div>
             </div>
@@ -248,53 +327,14 @@
               </span>
             </div>
           </div>
-
-          <!-- Order Details & Line Items -->
-          @if (order.lineItems && order.lineItems.length > 0) {
-            <div class="order-details-pane">
-              <div class="line-items-table">
-                <div class="line-items-header">
-                  <span>Item</span>
-                  <span>Qty</span>
-                  <span>Total</span>
-                </div>
-                @for (item of order.lineItems; track $index) {
-                  <div class="line-item-row">
-                    <span class="item-name">{{ item.description }}</span>
-                    <span class="item-qty">{{ item.quantity || 1 }}</span>
-                    <span class="item-price">
-                      {{ formatAmount(item.amountTotal, item.currency) }}
-                    </span>
-                  </div>
-                }
-              </div>
-
-              <div class="details-footer">
-                @if (order.stripeInvoiceId) {
-                  <span class="invoice-ref">
-                    Stripe Invoice: <code>{{ order.stripeInvoiceId }}</code>
-                  </span>
-                }
-                @if (order.stripeReceiptUrl) {
-                  <a
-                    class="receipt-link"
-                    [href]="order.stripeReceiptUrl"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    <app-icon name="receipt_long" width="16px" height="16px"></app-icon>
-                    <span>View Stripe Receipt</span>
-                  </a>
-                }
-              </div>
-            </div>
-          }
         </div>
       } @empty {
         <div class="empty-orders">
           @if (searchQuery()) {
             <p>No orders matched your search query "{{ searchQuery() }}".</p>
-            <button class="secondary-btn" (click)="searchQuery.set('')">Clear Search</button>
+            <button class="secondary-btn" (click)="searchQuery.set('')">
+              Clear Search
+            </button>
           } @else {
             <p>No orders or transactions recorded yet.</p>
           }
@@ -308,7 +348,8 @@
     <div class="portal-info">
       <div class="portal-title">Manage Billing &amp; Payment Methods</div>
       <div class="portal-subtext">
-        Stripe is our payment processor. You can view all processed charges, update credit cards, and download official invoices directly on Stripe.
+        Stripe is our payment processor. You can view all processed charges,
+        update credit cards, and download official invoices directly on Stripe.
       </div>
     </div>
     <div class="portal-action">

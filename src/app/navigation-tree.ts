@@ -232,8 +232,12 @@ export class NavigationTreeService {
       view === Views.MyOrders ||
       view === Views.MemberGradings ||
       view === Views.NextGrading ||
+      view === Views.BecomeAMember ||
       view === Views.InstructorLicensePurchase ||
       view === Views.SchoolLicensePurchase ||
+      view === Views.ClassVideoLibraryPurchase ||
+      view === Views.Products ||
+      view === Views.OrderComplete ||
       view === Views.MyEvents ||
       view === Views.MyEventView ||
       view === Views.MyEventEdit ||
@@ -395,16 +399,16 @@ export class NavigationTreeService {
         return this.gradingReturnsToMyGradings()
           ? [this.node(Views.MemberGradings, 'Gradings')]
           : [this.node(Views.ManageGradings, 'Gradings')];
-      case Views.NextGrading:
-        return [this.node(Views.MemberGradings, 'Gradings')];
 
-      // --- Licenses & Subscriptions ---
+      // --- Licenses, Subscriptions & Orders ---
+      case Views.BecomeAMember:
       case Views.InstructorLicensePurchase:
-        return [this.node(Views.MyProfile, 'Profile')];
       case Views.SchoolLicensePurchase:
-        return [this.node(Views.MySchools, 'Schools')];
       case Views.ClassVideoLibraryPurchase:
-        return [this.node(Views.ClassVideoLibrary, 'Class Video Library')];
+      case Views.NextGrading:
+      case Views.Products:
+      case Views.OrderComplete:
+        return [this.node(Views.MyOrders, 'Orders')];
 
       // --- Orders, articles, settings ---
       case Views.OrderView:
@@ -680,7 +684,7 @@ export class NavigationTreeService {
       case Views.NextGrading:
         return 'Purchase Next Grading';
       case Views.InstructorLicensePurchase:
-        return 'Instructor License';
+        return 'Instructor & Group Leader License';
       case Views.SchoolLicensePurchase:
         return 'School License';
       case Views.ClassVideoLibraryPurchase:

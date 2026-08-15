@@ -139,6 +139,16 @@ export class SearchableSet<
     });
   }
 
+  /**
+   * Remove a single entry (matched by its id field) from the set.
+   */
+  delete(id: string) {
+    this.state.update((state) => {
+      const entries = state.entries.filter((e) => e[this.idField] !== id);
+      return { ...state, entries };
+    });
+  }
+
   setError(error: string) {
     this.state.update((state) => ({ ...state, error, loading: false }));
   }

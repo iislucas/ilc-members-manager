@@ -141,6 +141,7 @@ describe('InstructorLicensePurchaseComponent', () => {
           provide: RoutingService,
           useValue: {
             navigateToParts: vi.fn(),
+            hrefForView: vi.fn().mockReturnValue('/mock-path'),
             signals: {
               [Views.InstructorLicensePurchase]: {
                 urlParams: {
@@ -167,7 +168,76 @@ describe('InstructorLicensePurchaseComponent', () => {
     expect(component.hasAppLevel1()).toBe(true);
     expect(component.hasInstructorId()).toBe(true);
     expect(component.instructorId()).toBe('US-INS-01');
+    expect(component.isInstructorTier()).toBe(true);
+    expect(component.isGroupLeaderTier()).toBe(false);
+    expect(component.isEligibleForLicense()).toBe(true);
+    expect(component.productOptionTitle()).toBe('1-Year Certified Instructor License');
     expect(component.hasActiveSubscription()).toBe(true);
+  });
+
+  it('should identify Group Leader tier for Student Level 2/3 without Application Level 1', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorId: '',
+        studentLevel: StudentLevel.Level2,
+        applicationLevel: ApplicationLevel.None,
+        instructorLicenseExpires: '',
+      },
+    });
+    await createComponent();
+
+    expect(component.isLoggedIn()).toBe(true);
+    expect(component.isActiveMember()).toBe(true);
+    expect(component.hasAppLevel1()).toBe(false);
+    expect(component.hasStudentLevel2()).toBe(true);
+    expect(component.isGroupLeaderTier()).toBe(true);
+    expect(component.isInstructorTier()).toBe(false);
+    expect(component.isEligibleForLicense()).toBe(true);
+    expect(component.productOptionTitle()).toBe('1-Year Group Leader License');
+    expect(component.checkoutButtonText()).toBe('Get Group Leader License');
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Group Leader License');
+    expect(element.textContent).toContain('automatically upgraded to a full Instructor License');
+  });
+
+  it('should identify Below Prerequisites when member is Student Level 1', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorId: '',
+        studentLevel: StudentLevel.Level1,
+        applicationLevel: ApplicationLevel.None,
+        instructorLicenseExpires: '',
+      },
+    });
+    await createComponent();
+
+    expect(component.isGroupLeaderTier()).toBe(false);
+    expect(component.isInstructorTier()).toBe(false);
+    expect(component.isEligibleForLicense()).toBe(false);
+    expect(component.isBelowLevelPrerequisites()).toBe(true);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Student Level 2 Required');
+  });
+
+  it('should render the clarification text regarding events, gradings, and schools', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain(
+      'Our Instructor License authorizes the individual to lead events and gradings. In addition, Licensed Instructors may be hired to lead classes at an existing Licensed School. There is no requirement for a Licensed Instructor to have their own School License.',
+    );
+    expect(element.textContent).toContain(
+      'Holding an active license grants the right to use the Chin Family I Liq Chuan trademarks to promote approved events. (Note that, without a license, you may not represent yourself as an I Liq Chuan instructor or group leader, or use branding.)',
+    );
+    expect(element.textContent).toContain('searchable database of instructors');
+    const findLink = element.querySelector('a.inline-link-button');
+    expect(findLink).toBeTruthy();
+    expect(findLink?.textContent).toContain('Find an Instructor');
   });
 
   it('should redirect to Stripe Checkout on license purchase', async () => {
@@ -199,5 +269,27 @@ describe('InstructorLicensePurchaseComponent', () => {
       'sub_lic_123',
     );
     expect(component.cancelSuccessMessage()).toContain('cancelled');
+  });
+
+  it('should display active lifetime instructor license banner and skip buying stages in DOM', async () => {
+    userSignal.set({
+      ...sampleUser,
+      member: {
+        ...sampleMember,
+        instructorLicenseType: 'Life' as any,
+        instructorLicenseExpires: '9999-12-31',
+      },
+    });
+    await createComponent();
+
+    expect(component.isLifeInstructor()).toBe(true);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('Active Lifetime Instructor License');
+    expect(element.textContent).toContain('Our Instructor License authorizes the individual to lead events and gradings');
+    expect(element.textContent).not.toContain('1. Your Account');
+    expect(element.textContent).not.toContain('2. License Qualifications & Status');
+    expect(element.textContent).not.toContain('3. Annual');
+    expect(element.querySelector('.pay-btn')).toBeNull();
   });
 });
