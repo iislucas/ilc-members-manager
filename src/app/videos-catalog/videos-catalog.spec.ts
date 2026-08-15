@@ -10,15 +10,40 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { ROUTING_CONFIG } from '../app.config';
-import { initVideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
-import { signal } from '@angular/core';
+import { initVideoItem, InstructorPublicData, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
+import { signal, WritableSignal } from '@angular/core';
 
 describe('VideosCatalogComponent', () => {
   let component: VideosCatalogComponent;
   let fixture: ComponentFixture<VideosCatalogComponent>;
-  let mockDataService: any;
-  let mockFirebaseState: any;
-  let mockRoutingService: any;
+  let mockDataService: {
+    videos: {
+      entries: WritableSignal<VideoItem[]>;
+      search: ReturnType<typeof vi.fn>;
+    };
+    instructors: {
+      entries: WritableSignal<InstructorPublicData[]>;
+      search: ReturnType<typeof vi.fn>;
+    };
+    getMyVideoProgressList: ReturnType<typeof vi.fn>;
+  };
+  let mockFirebaseState: {
+    user: WritableSignal<null>;
+  };
+  let mockRoutingService: {
+    signals: {
+      videos: {
+        urlParams: {
+          q: WritableSignal<string | null>;
+          category: WritableSignal<string | null>;
+          tag: WritableSignal<string | null>;
+          instructorId: WritableSignal<string | null>;
+          tier: WritableSignal<string | null>;
+        };
+      };
+    };
+    hrefForView: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     mockDataService = {

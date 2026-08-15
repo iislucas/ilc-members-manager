@@ -9,15 +9,33 @@ import { ManageVodComponent } from './manage-vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initVideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
-import { signal } from '@angular/core';
+import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
+import { signal, WritableSignal } from '@angular/core';
 
 describe('ManageVodComponent', () => {
   let component: ManageVodComponent;
   let fixture: ComponentFixture<ManageVodComponent>;
-  let mockDataService: any;
-  let mockFirebaseState: any;
-  let mockRoutingService: any;
+  let mockDataService: {
+    videos: { entries: WritableSignal<VideoItem[]> };
+    saveVideo: ReturnType<typeof vi.fn>;
+    deleteVideo: ReturnType<typeof vi.fn>;
+    transcodeVideoForVod: ReturnType<typeof vi.fn>;
+  };
+  let mockFirebaseState: {
+    user: WritableSignal<{ isAdmin: boolean; member: { docId: string } } | null>;
+  };
+  let mockRoutingService: {
+    signals: {
+      manageVod: {
+        urlParams: {
+          q: WritableSignal<string | null>;
+          status: WritableSignal<string | null>;
+          category: WritableSignal<string | null>;
+        };
+      };
+    };
+    hrefForView: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     mockDataService = {

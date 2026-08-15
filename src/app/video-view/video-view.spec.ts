@@ -10,16 +10,35 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { initVideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
-import { signal } from '@angular/core';
+import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
+import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {
   let component: VideoViewComponent;
   let fixture: ComponentFixture<VideoViewComponent>;
-  let mockDataService: any;
-  let mockFirebaseState: any;
-  let mockRoutingService: any;
-  let mockStripeService: any;
+  let mockDataService: {
+    getVideoById: ReturnType<typeof vi.fn>;
+    getVideoPlaybackSession: ReturnType<typeof vi.fn>;
+    getVideoProgress: ReturnType<typeof vi.fn>;
+    saveVideoProgress: ReturnType<typeof vi.fn>;
+    videos: { entries: WritableSignal<VideoItem[]> };
+  };
+  let mockFirebaseState: {
+    user: WritableSignal<null>;
+  };
+  let mockRoutingService: {
+    signals: {
+      videoView: {
+        pathVars: {
+          videoId: WritableSignal<string>;
+        };
+      };
+    };
+    hrefForView: ReturnType<typeof vi.fn>;
+  };
+  let mockStripeService: {
+    createCheckoutSession: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     mockDataService = {

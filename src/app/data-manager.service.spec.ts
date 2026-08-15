@@ -7,6 +7,7 @@ import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
 import { vi } from 'vitest';
 import { getDocs, query, where, collection } from 'firebase/firestore';
+import { Member, School, initMember, initSchool } from '../../functions/src/data-model';
 
 vi.mock('firebase/firestore', () => {
   return {
@@ -191,7 +192,8 @@ describe('DataManagerService - searchEvents', () => {
 
   describe('optimistic in-memory and local cache updates on mutations', () => {
     it('updateMember updates the in-memory SearchableSet and calls upsertCachedEntry', async () => {
-      const initialMember: any = {
+      const initialMember: Member = {
+        ...initMember(),
         docId: 'mem1',
         memberId: 'DE195',
         name: 'Hans Student',
@@ -202,7 +204,7 @@ describe('DataManagerService - searchEvents', () => {
       service.members.setEntries([initialMember]);
       expect(service.members.get('mem1')?.lastRenewalDate).toBe('');
 
-      const updatedMember: any = {
+      const updatedMember: Member = {
         ...initialMember,
         lastRenewalDate: '2026-08-15',
         currentMembershipExpires: '2027-08-15',
@@ -218,7 +220,8 @@ describe('DataManagerService - searchEvents', () => {
     });
 
     it('deleteMember removes the member from the in-memory SearchableSet', async () => {
-      const initialMember: any = {
+      const initialMember: Member = {
+        ...initMember(),
         docId: 'mem1',
         memberId: 'DE195',
         name: 'Hans Student',
@@ -232,14 +235,15 @@ describe('DataManagerService - searchEvents', () => {
     });
 
     it('setSchool updates in-memory schools set', async () => {
-      const school: any = {
+      const school: School = {
+        ...initSchool(),
         docId: 'sch1',
         schoolId: 'SCH-01',
-        name: 'Berlin School',
+        schoolName: 'Berlin School',
       };
       service.schools.setEntries([school]);
 
-      const updatedSchool: any = {
+      const updatedSchool: School = {
         ...school,
         schoolName: 'Berlin Academy',
       };
