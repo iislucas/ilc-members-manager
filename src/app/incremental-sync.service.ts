@@ -317,6 +317,55 @@ export class IncrementalSyncService {
   }
 
   /**
+   * Optimistically updates or inserts an entry in the IndexedDB cached bundle.
+   */
+  async upsertCachedEntry<ID extends string, T extends { [key in ID]: string }>(
+    cacheKey: string,
+    idField: ID,
+    entry: T,
+  ): Promise<void> {
+    try {
+      const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
+      if (bundle && Array.isArray(bundle.entries)) {
+        const id = entry[idField];
+        const idx = bundle.entries.findIndex((e) => e[idField] === id);
+        const entries =
+          idx >= 0
+            ? [...bundle.entries.slice(0, idx), entry, ...bundle.entries.slice(idx + 1)]
+            : [...bundle.entries, entry];
+        await this.idb.set(cacheKey, {
+          ...bundle,
+          entries,
+        });
+      }
+    } catch (err) {
+      console.warn(`[IncrementalSync] Error upserting cached entry for ${cacheKey}:`, err);
+    }
+  }
+
+  /**
+   * Optimistically deletes an entry from the IndexedDB cached bundle.
+   */
+  async deleteCachedEntry<ID extends string, T extends { [key in ID]: string }>(
+    cacheKey: string,
+    idField: ID,
+    id: string,
+  ): Promise<void> {
+    try {
+      const bundle = await this.idb.get<CachedCollectionBundle<T>>(cacheKey);
+      if (bundle && Array.isArray(bundle.entries)) {
+        const entries = bundle.entries.filter((e) => e[idField] !== id);
+        await this.idb.set(cacheKey, {
+          ...bundle,
+          entries,
+        });
+      }
+    } catch (err) {
+      console.warn(`[IncrementalSync] Error deleting cached entry for ${cacheKey}:`, err);
+    }
+  }
+
+  /**
    * Clears local cache for a specific collection.
    */
   async clearCache(cacheKey: string): Promise<void> {
@@ -330,3 +379,4 @@ export class IncrementalSyncService {
     await this.idb.clear();
   }
 }
+

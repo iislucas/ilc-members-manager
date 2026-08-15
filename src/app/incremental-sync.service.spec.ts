@@ -218,4 +218,36 @@ describe('IncrementalSyncService', () => {
     expect(targetSet.loading()).toBe(false);
     expect(targetSet.loaded()).toBe(true);
   });
+
+  it('upsertCachedEntry updates existing and appends new cached records', async () => {
+    await mockIdb.set('test_upsert', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [{ docId: '1', name: 'Alice' }],
+    });
+
+    // Update existing
+    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '1', name: 'Alice Renamed' });
+    let bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
+    expect(bundle?.entries.length).toBe(1);
+    expect(bundle?.entries[0].name).toBe('Alice Renamed');
+
+    // Insert new
+    await service.upsertCachedEntry('test_upsert', 'docId', { docId: '2', name: 'Bob' });
+    bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_upsert');
+    expect(bundle?.entries.length).toBe(2);
+    expect(bundle?.entries[1].name).toBe('Bob');
+  });
+
+  it('deleteCachedEntry removes record from cache bundle', async () => {
+    await mockIdb.set('test_delete', {
+      lastSyncTimestamp: '2026-08-14T10:00:00.000Z',
+      entries: [{ docId: '1', name: 'Alice' }, { docId: '2', name: 'Bob' }],
+    });
+
+    await service.deleteCachedEntry('test_delete', 'docId', '1');
+    const bundle = await service.getCachedBundle<{ docId: string; name: string }>('test_delete');
+    expect(bundle?.entries.length).toBe(1);
+    expect(bundle?.entries[0].docId).toBe('2');
+  });
 });
+

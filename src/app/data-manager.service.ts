@@ -1294,6 +1294,58 @@ export class DataManagerService {
     }
   }
 
+  private async persistMemberLocally(member: Member): Promise<void> {
+    this.members.upsert(member);
+    if (this.myStudents.get(member.docId)) {
+      this.myStudents.upsert(member);
+    }
+    const user = this.firebaseService.user();
+    if (user?.isAdmin) {
+      const adminCacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
+      await this.syncService.upsertCachedEntry(adminCacheKey, 'docId', member);
+    }
+    if (member.primarySchoolId) {
+      const schoolCacheKey = `school_members_${member.primarySchoolId}`;
+      await this.syncService.upsertCachedEntry(schoolCacheKey, 'docId', member);
+    }
+    if (user?.member?.docId) {
+      const instructorCacheKey = `my_students_${user.member.docId}`;
+      await this.syncService.upsertCachedEntry(instructorCacheKey, 'docId', member);
+    }
+  }
+
+  private async removeMemberLocally(memberDocId: string, primarySchoolId?: string): Promise<void> {
+    this.members.delete(memberDocId);
+    this.myStudents.delete(memberDocId);
+    const user = this.firebaseService.user();
+    if (user?.isAdmin) {
+      const adminCacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
+      await this.syncService.deleteCachedEntry(adminCacheKey, 'docId', memberDocId);
+    }
+    if (primarySchoolId) {
+      const schoolCacheKey = `school_members_${primarySchoolId}`;
+      await this.syncService.deleteCachedEntry(schoolCacheKey, 'docId', memberDocId);
+    }
+    if (user?.member?.docId) {
+      const instructorCacheKey = `my_students_${user.member.docId}`;
+      await this.syncService.deleteCachedEntry(instructorCacheKey, 'docId', memberDocId);
+    }
+  }
+
+  private async persistSchoolLocally(school: School): Promise<void> {
+    this.schools.upsert(school);
+    if (this.mySchools.get(school.schoolId)) {
+      this.mySchools.upsert(school);
+    }
+    await this.syncService.upsertCachedEntry('schools', 'schoolId', school);
+  }
+
+  private async removeSchoolLocally(schoolId: string): Promise<void> {
+    this.schools.delete(schoolId);
+    this.mySchools.delete(schoolId);
+    await this.syncService.deleteCachedEntry('schools', 'schoolId', schoolId);
+  }
+
   async addMember(member: Member): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef);
@@ -1301,7 +1353,14 @@ export class DataManagerService {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
     };
-    return setDoc(newDocRef, memberWithNewTimestamp).then(() => newDocRef);
+    await setDoc(newDocRef, memberWithNewTimestamp);
+    const addedMember: Member = {
+      ...member,
+      docId: newDocRef.id,
+      lastUpdated: new Date().toISOString(),
+    };
+    await this.persistMemberLocally(addedMember);
+    return newDocRef;
   }
 
   async updateMember(id: string, newMember: Member, oldMember?: Member): Promise<void> {
@@ -1316,7 +1375,7 @@ export class DataManagerService {
     // member document, and also it is necessary to stop small oddnesses in 
     // the firestore database content (e.g. old field names, etc.) from breaking 
     // member updates to themselves. By only asking to update fields that changed, 
-    // we avoid firestore rules from rejecting the update due to the precense of 
+    // we avoid firestore rules from rejecting the update due to the presence of 
     // fields that are not allowed.
     if (originalMember) {
       const changes: Partial<MemberFsDoc> = {};
@@ -1328,7 +1387,7 @@ export class DataManagerService {
         }
       }
       changes.lastUpdated = serverTimestamp() as Timestamp;
-      return setDoc(docRef, changes, { merge: true });
+      await setDoc(docRef, changes, { merge: true });
     } else {
       // Fallback if no old member is found
       const memberWithNewTimestamp: MemberFsDoc = {
@@ -1336,8 +1395,16 @@ export class DataManagerService {
         lastUpdated: serverTimestamp() as Timestamp,
       };
       delete (memberWithNewTimestamp as { docId?: string }).docId;
-      return setDoc(docRef, memberWithNewTimestamp, { merge: true });
+      await setDoc(docRef, memberWithNewTimestamp, { merge: true });
     }
+
+    // Optimistically update in-memory SearchableSet and IndexedDB cache immediately!
+    const updatedMember: Member = {
+      ...newMember,
+      docId: id,
+      lastUpdated: new Date().toISOString(),
+    };
+    await this.persistMemberLocally(updatedMember);
   }
 
   async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {
@@ -1366,11 +1433,33 @@ export class DataManagerService {
     });
 
     await batch.commit();
+
+    const updatedMember: Member = {
+      ...member,
+      docId: id,
+      lastUpdated: new Date().toISOString(),
+    };
+    await this.persistMemberLocally(updatedMember);
+
+    // Update affected students locally as well
+    for (const d of snapOld.docs) {
+      const m = this.members.get(d.id);
+      if (m) {
+        const updatedStudent: Member = {
+          ...m,
+          primaryInstructorId: member.instructorId,
+          lastUpdated: new Date().toISOString(),
+        };
+        await this.persistMemberLocally(updatedStudent);
+      }
+    }
   }
 
   async deleteMember(emailId: string): Promise<void> {
     const docRef = doc(this.db, 'members', emailId);
-    return deleteDoc(docRef);
+    const existing = this.members.get(emailId);
+    await deleteDoc(docRef);
+    await this.removeMemberLocally(emailId, existing?.primarySchoolId);
   }
 
   async setSchool(school: School, oldSchool?: School): Promise<void> {
@@ -1394,15 +1483,22 @@ export class DataManagerService {
         }
       }
       changes.lastUpdated = serverTimestamp() as Timestamp;
-      return setDoc(docRef, changes, { merge: true });
+      await setDoc(docRef, changes, { merge: true });
+    } else {
+      // Fallback: send everything (for new schools or when no original is available)
+      const schoolWithNewTimestamp: SchoolFsDoc = {
+        ...school,
+        lastUpdated: serverTimestamp() as Timestamp,
+      };
+      await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
     }
 
-    // Fallback: send everything (for new schools or when no original is available)
-    const schoolWithNewTimestamp: SchoolFsDoc = {
+    const updatedSchool: School = {
       ...school,
-      lastUpdated: serverTimestamp() as Timestamp,
+      docId: docRef.id,
+      lastUpdated: new Date().toISOString(),
     };
-    await setDoc(docRef, schoolWithNewTimestamp, { merge: true });
+    await this.persistSchoolLocally(updatedSchool);
   }
 
   async setSchoolAndUpdateMembers(school: School, oldSchoolId: string): Promise<void> {
@@ -1437,6 +1533,25 @@ export class DataManagerService {
     });
 
     await batch.commit();
+
+    const updatedSchool: School = {
+      ...school,
+      docId: schoolDocRef.id,
+      lastUpdated: new Date().toISOString(),
+    };
+    await this.persistSchoolLocally(updatedSchool);
+
+    for (const d of snapOld.docs) {
+      const m = this.members.get(d.id);
+      if (m) {
+        const updatedMember: Member = {
+          ...m,
+          primarySchoolId: school.schoolId,
+          lastUpdated: new Date().toISOString(),
+        };
+        await this.persistMemberLocally(updatedMember);
+      }
+    }
   }
 
   async deleteSchool(id: string, onProgress?: (msg: string) => void): Promise<void> {
@@ -1449,7 +1564,11 @@ export class DataManagerService {
       }
     }
     if (onProgress) onProgress('Deleting school...');
-    return deleteDoc(doc(this.db, 'schools', id));
+    await deleteDoc(doc(this.db, 'schools', id));
+    const school = this.schools.entries().find(s => s.docId === id || s.schoolId === id);
+    if (school) {
+      await this.removeSchoolLocally(school.schoolId);
+    }
   }
 
   async addGrading(grading: Grading): Promise<DocumentReference> {
@@ -1459,7 +1578,14 @@ export class DataManagerService {
       ...grading,
       lastUpdated: serverTimestamp() as Timestamp,
     };
-    return setDoc(newDocRef, gradingWithNewTimestamp).then(() => newDocRef);
+    await setDoc(newDocRef, gradingWithNewTimestamp);
+    const addedGrading: Grading = {
+      ...grading,
+      docId: newDocRef.id,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.gradings.upsert(addedGrading);
+    return newDocRef;
   }
 
   async updateGrading(id: string, newGrading: Grading, oldGrading?: Grading): Promise<void> {
@@ -1487,16 +1613,23 @@ export class DataManagerService {
       }
       changes.lastUpdated = serverTimestamp() as Timestamp;
       console.log('updateGrading: sending changes:', Object.keys(changes));
-      return setDoc(docRef, changes, { merge: true });
+      await setDoc(docRef, changes, { merge: true });
     } else {
-    // Fallback: send everything (for new gradings or when no original is available)
+      // Fallback: send everything (for new gradings or when no original is available)
       const gradingWithNewTimestamp: GradingFsDoc = {
         ...newGrading,
         lastUpdated: serverTimestamp() as Timestamp,
       };
       delete (gradingWithNewTimestamp as { docId?: string }).docId;
-      return setDoc(docRef, gradingWithNewTimestamp, { merge: true });
+      await setDoc(docRef, gradingWithNewTimestamp, { merge: true });
     }
+
+    const updatedGrading: Grading = {
+      ...newGrading,
+      docId: id,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.applyLocalGradingUpdate(updatedGrading);
   }
 
   /**
@@ -1515,7 +1648,10 @@ export class DataManagerService {
   }
 
   async deleteGrading(id: string): Promise<void> {
-    return deleteDoc(doc(this.db, 'gradings', id));
+    await deleteDoc(doc(this.db, 'gradings', id));
+    this.gradings.delete(id);
+    this.myGradings.delete(id);
+    this.myGradingsAssessed.delete(id);
   }
 
 
@@ -1527,7 +1663,14 @@ export class DataManagerService {
       ...order,
       lastUpdated: serverTimestamp() as Timestamp,
     };
-    return setDoc(newDocRef, orderWithNewTimestamp).then(() => newDocRef);
+    await setDoc(newDocRef, orderWithNewTimestamp);
+    const addedOrder: Order = {
+      ...order,
+      docId: newDocRef.id,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.orders.upsert(addedOrder);
+    return newDocRef;
   }
 
   async updateOrder(id: string, order: Order): Promise<void> {
@@ -1536,7 +1679,13 @@ export class DataManagerService {
       ...order,
       lastUpdated: serverTimestamp() as Timestamp,
     };
-    return setDoc(docRef, orderWithNewTimestamp, { merge: true });
+    await setDoc(docRef, orderWithNewTimestamp, { merge: true });
+    const updatedOrder: Order = {
+      ...order,
+      docId: id,
+      lastUpdated: new Date().toISOString(),
+    };
+    this.orders.upsert(updatedOrder);
   }
 
   /**
@@ -1557,10 +1706,14 @@ export class DataManagerService {
     if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
 
     item.ilcAppMemberIdInferred = memberId;
-    return updateDoc(docRef, {
+    await updateDoc(docRef, {
       lineItems,
       lastUpdated: serverTimestamp(),
     });
+    const existing = this.orders.get(orderId);
+    if (existing && 'lineItems' in existing) {
+      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+    }
   }
 
   /**
@@ -1581,10 +1734,14 @@ export class DataManagerService {
     if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
 
     item.ilcAppSchoolIdInferred = schoolId;
-    return updateDoc(docRef, {
+    await updateDoc(docRef, {
       lineItems,
       lastUpdated: serverTimestamp(),
     });
+    const existing = this.orders.get(orderId);
+    if (existing && 'lineItems' in existing) {
+      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+    }
   }
 
   /**
@@ -1605,10 +1762,14 @@ export class DataManagerService {
     if (!item) throw new Error(`Line item ${lineItemId} not found in order`);
 
     item.ilcAppCountryOverride = country;
-    return updateDoc(docRef, {
+    await updateDoc(docRef, {
       lineItems,
       lastUpdated: serverTimestamp(),
     });
+    const existing = this.orders.get(orderId);
+    if (existing && 'lineItems' in existing) {
+      this.orders.upsert({ ...existing, lineItems, lastUpdated: new Date().toISOString() } as Order);
+    }
   }
 
   /**
@@ -1626,10 +1787,14 @@ export class DataManagerService {
   /** Update the ilcAppNotes field on an order document. */
   async updateOrderNotes(orderId: string, notes: string): Promise<void> {
     const docRef = doc(this.db, 'orders', orderId);
-    return updateDoc(docRef, {
+    await updateDoc(docRef, {
       ilcAppNotes: notes,
       lastUpdated: serverTimestamp(),
     });
+    const existing = this.orders.get(orderId);
+    if (existing) {
+      this.orders.upsert({ ...existing, ilcAppNotes: notes, lastUpdated: new Date().toISOString() });
+    }
   }
 
   async clearSchoolMembers(schoolDocId: string): Promise<void> {
