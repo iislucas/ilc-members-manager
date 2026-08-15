@@ -43,7 +43,7 @@ describe('FindInstructorsService', () => {
       name: 'Alpha',
       country: 'France',
       applicationLevel: ApplicationLevel.Level1,
-      studentLevel: StudentLevel.StudentTeacher,
+      studentLevel: StudentLevel.Level1,
     };
     const inst2: InstructorPublicData = {
       ...initInstructor(),
@@ -52,7 +52,7 @@ describe('FindInstructorsService', () => {
       name: 'Beta',
       country: 'France',
       applicationLevel: ApplicationLevel.Level2,
-      studentLevel: StudentLevel.CertifiedInstructor,
+      studentLevel: StudentLevel.Level2,
     };
     const inst3: InstructorPublicData = {
       ...initInstructor(),
@@ -61,7 +61,7 @@ describe('FindInstructorsService', () => {
       name: 'Gamma',
       country: 'Australia',
       applicationLevel: ApplicationLevel.Level1,
-      studentLevel: StudentLevel.StudentTeacher,
+      studentLevel: StudentLevel.Level1,
     };
 
     const list = [inst1, inst2, inst3].sort(sortInstructors);

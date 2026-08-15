@@ -241,11 +241,11 @@ describe('DataManagerService - searchEvents', () => {
 
       const updatedSchool: any = {
         ...school,
-        name: 'Berlin Academy',
+        schoolName: 'Berlin Academy',
       };
       await service.setSchool(updatedSchool, school);
 
-      expect(service.schools.get('SCH-01')?.name).toBe('Berlin Academy');
+      expect(service.schools.get('SCH-01')?.schoolName).toBe('Berlin Academy');
     });
   });
 });

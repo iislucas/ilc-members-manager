@@ -160,7 +160,7 @@ describe('IncrementalSyncService', () => {
       collectionPath: 'test_items',
       idField: 'docId',
       targetSet,
-      docConverter: (doc) => ({ ...doc.data(), docId: doc.id } as TestItem),
+      docConverter: (doc) => ({ ...(doc.data() as object), docId: doc.id } as TestItem),
     };
 
     await service.syncCollection(config);
@@ -209,7 +209,7 @@ describe('IncrementalSyncService', () => {
       collectionPath: 'empty_delta_key',
       idField: 'docId',
       targetSet,
-      docConverter: (doc) => ({ ...doc.data(), docId: doc.id } as TestItem),
+      docConverter: (doc) => ({ ...(doc.data() as object), docId: doc.id } as TestItem),
     };
 
     await service.syncCollection(config);
