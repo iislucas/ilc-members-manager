@@ -37,16 +37,16 @@ import {
   InstructorPublicData,
   initInstructor,
   Counters,
-  MemberFirestoreDoc,
-  SchoolFirebaseDoc,
+  MemberFsDoc,
+  SchoolFsDoc,
   firestoreDocToMember,
   firestoreDocToSchool,
   firestoreDocToInstructorPublicData,
   Order,
   firestoreDocToOrder,
-  OrderFirebaseDoc,
+  OrderFsDoc,
   Grading,
-  GradingFirebaseDoc,
+  GradingFsDoc,
   firestoreDocToGrading,
   SquareSpaceOrder,
   SquareSpaceLineItem,
@@ -71,6 +71,7 @@ import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { deepObjEq } from './utils';
 import { FindInstructorsService } from './find-instructors.service';
+import { IncrementalSyncService } from './incremental-sync.service';
 
 /** The state of the schools collection. */
 export interface SchoolsState {
@@ -186,6 +187,7 @@ export type GradingSearchCriteria =
 export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private findInstructorsService = inject(FindInstructorsService);
+  private syncService = inject(IncrementalSyncService);
   private db = getFirestore(this.firebaseService.app);
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
@@ -475,81 +477,61 @@ export class DataManagerService {
     }
   }
 
-  async updateMembersSync(user: UserDetails) {
+  async updateMembersSync(user: UserDetails, forceFullRefresh = false) {
     if (user.isAdmin) {
-      const q = query(this.membersCollection, orderBy('lastUpdated', 'desc'));
-      this.snapshotsToUnsubscribe.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const members = snapshot.docs.map(firestoreDocToMember);
-            this.members.setEntries(members);
-          },
-          (error) => {
-            console.error(error);
-            this.members.setError(error.message);
-          },
-        ),
+      const cacheKey = `members_admin_${user.firebaseUser?.uid || 'admin'}`;
+      this.syncService.loadCachedData(cacheKey, this.members, (a, b) =>
+        (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
       );
+      await this.syncService.syncCollection({
+        cacheKey,
+        collectionPath: 'members',
+        idField: 'docId',
+        targetSet: this.members,
+        docConverter: firestoreDocToMember,
+        sortFn: (a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
+        forceFullRefresh,
+      });
     } else if (user.schoolsManaged.length > 0) {
       const allMembers = new Map<string, Member>();
 
-      user.schoolsManaged.forEach((schoolId) => {
-        const membersQuery = query(
-          collection(this.db, `schools/${schoolId}/members`),
-          orderBy('lastUpdated', 'desc'),
+      for (const schoolId of user.schoolsManaged) {
+        const cacheKey = `school_members_${schoolId}`;
+        const tempSet = new SearchableSet<'docId', Member>(
+          this.members.fieldsToSearch,
+          'docId',
         );
-        const unsubscribe = onSnapshot(
-          membersQuery,
-          (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-              if (change.type === 'removed') {
-                // Avoids race condition when someone is moved from one school
-                // you own to another. Without this, we might add/update the
-                // member due to the new school, but then remove them from the
-                // old school, which, without this check would remove them from
-                // the global set.
-                const mem = allMembers.get(change.doc.id);
-                if (mem?.primarySchoolId === schoolId) {
-                  allMembers.delete(change.doc.id);
-                }
-              } else {
-                allMembers.set(change.doc.id, firestoreDocToMember(change.doc));
-              }
-            });
-            this.members.setEntries(Array.from(allMembers.values()));
-          },
-          (error) => {
-            console.error(
-              `Error fetching members for school ${schoolId}:`,
-              error,
-            );
-            this.members.setError(
-              `Error fetching members for school ${schoolId}.`,
-            );
-          },
-        );
-        this.snapshotsToUnsubscribe.push(unsubscribe);
-      });
+        this.syncService.loadCachedData(cacheKey, tempSet);
+        await this.syncService.syncCollection({
+          cacheKey,
+          collectionPath: `schools/${schoolId}/members`,
+          idField: 'docId',
+          targetSet: tempSet,
+          docConverter: firestoreDocToMember,
+          sortFn: (a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
+          forceFullRefresh,
+        });
+        tempSet.entries().forEach((m) => allMembers.set(m.docId, m));
+      }
+      this.members.setEntries(Array.from(allMembers.values()));
     } else {
       this.members.setEntries([]);
     }
   }
 
-  async updateSchoolsSync() {
-    const q = query(this.schoolsCollection, orderBy('schoolId', 'desc'));
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(
-        q,
-        (snapshot) => {
-          const schools = snapshot.docs.map(firestoreDocToSchool);
-          this.schools.setEntries(schools);
-        },
-        (error) => {
-          this.schools.setError(error.message);
-        },
-      ),
+  async updateSchoolsSync(forceFullRefresh = false) {
+    this.syncService.loadCachedData('schools', this.schools, (a, b) =>
+      (b.schoolId || '').localeCompare(a.schoolId || ''),
     );
+    await this.syncService.syncCollection({
+      cacheKey: 'schools',
+      collectionPath: 'schools',
+      idField: 'schoolId',
+      targetSet: this.schools,
+      docConverter: firestoreDocToSchool,
+      sortFn: (a, b) => (b.schoolId || '').localeCompare(a.schoolId || ''),
+      forceFullRefresh,
+    });
   }
 
   // Instructor data is now managed by FindInstructorsService.
@@ -966,27 +948,23 @@ export class DataManagerService {
 
 
 
-  async updateMyStudentsSync(user: UserDetails) {
+  async updateMyStudentsSync(user: UserDetails, forceFullRefresh = false) {
     // If the user is an instructor (has an instructorId), load their students.
     // Note: We check if they have a numeric instructorId, as that indicates they are an instructor.
-    if (user.member.instructorId) {
-      const q = query(
-        collection(this.db, `instructors/${user.member.docId}/members`),
-        orderBy('name', 'asc'),
+    if (user.member.instructorId && user.member.docId) {
+      const cacheKey = `my_students_${user.member.docId}`;
+      this.syncService.loadCachedData(cacheKey, this.myStudents, (a, b) =>
+        (a.name || '').localeCompare(b.name || ''),
       );
-      this.snapshotsToUnsubscribe.push(
-        onSnapshot(
-          q,
-          (snapshot) => {
-            const students = snapshot.docs.map(firestoreDocToMember);
-            this.myStudents.setEntries(students);
-          },
-          (error) => {
-            console.error('Error fetching my students:', error);
-            this.myStudents.setError(`Error fetching students: ${error.message}`);
-          },
-        ),
-      );
+      await this.syncService.syncCollection({
+        cacheKey,
+        collectionPath: `instructors/${user.member.docId}/members`,
+        idField: 'docId',
+        targetSet: this.myStudents,
+        docConverter: firestoreDocToMember,
+        sortFn: (a, b) => (a.name || '').localeCompare(b.name || ''),
+        forceFullRefresh,
+      });
     } else {
       this.myStudents.setEntries([]);
     }
@@ -1266,7 +1244,7 @@ export class DataManagerService {
   async addMember(member: Member): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'members');
     const newDocRef = doc(collectionRef);
-    const memberWithNewTimestamp: MemberFirestoreDoc = {
+    const memberWithNewTimestamp: MemberFsDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1288,7 +1266,7 @@ export class DataManagerService {
     // we avoid firestore rules from rejecting the update due to the precense of 
     // fields that are not allowed.
     if (originalMember) {
-      const changes: Partial<MemberFirestoreDoc> = {};
+      const changes: Partial<MemberFsDoc> = {};
       for (const key of Object.keys(newMember) as Array<keyof Member>) {
         if (key === 'docId' || key === 'lastUpdated') continue;
         if (!deepObjEq(newMember[key], originalMember[key])) {
@@ -1300,7 +1278,7 @@ export class DataManagerService {
       return setDoc(docRef, changes, { merge: true });
     } else {
       // Fallback if no old member is found
-      const memberWithNewTimestamp: MemberFirestoreDoc = {
+      const memberWithNewTimestamp: MemberFsDoc = {
         ...newMember,
         lastUpdated: serverTimestamp() as Timestamp,
       };
@@ -1311,7 +1289,7 @@ export class DataManagerService {
 
   async updateMemberAndStudentInstructorIds(id: string, member: Member, oldInstructorId: string): Promise<void> {
     const docRef = doc(this.db, 'members', id);
-    const memberWithNewTimestamp: MemberFirestoreDoc = {
+    const memberWithNewTimestamp: MemberFsDoc = {
       ...member,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1354,7 +1332,7 @@ export class DataManagerService {
     // This is necessary for school managers who are restricted by
     // firestore rules to only update specific fields via affectedKeys().hasOnly(...).
     if (oldSchool) {
-      const changes: Partial<SchoolFirebaseDoc> = {};
+      const changes: Partial<SchoolFsDoc> = {};
       for (const key of Object.keys(school) as Array<keyof School>) {
         if (key === 'docId' || key === 'lastUpdated') continue;
         if (!deepObjEq(school[key], oldSchool[key])) {
@@ -1367,7 +1345,7 @@ export class DataManagerService {
     }
 
     // Fallback: send everything (for new schools or when no original is available)
-    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
+    const schoolWithNewTimestamp: SchoolFsDoc = {
       ...school,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1375,7 +1353,7 @@ export class DataManagerService {
   }
 
   async setSchoolAndUpdateMembers(school: School, oldSchoolId: string): Promise<void> {
-    const schoolWithNewTimestamp: SchoolFirebaseDoc = {
+    const schoolWithNewTimestamp: SchoolFsDoc = {
       ...school,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1424,7 +1402,7 @@ export class DataManagerService {
   async addGrading(grading: Grading): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'gradings');
     const newDocRef = doc(collectionRef);
-    const gradingWithNewTimestamp: GradingFirebaseDoc = {
+    const gradingWithNewTimestamp: GradingFsDoc = {
       ...grading,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1444,7 +1422,7 @@ export class DataManagerService {
     // instructors) whose Firestore rules restrict updates to a subset of
     // fields. Sending unchanged fields would cause rule violations.
     if (originalGrading) {
-      const changes: Partial<GradingFirebaseDoc> = {};
+      const changes: Partial<GradingFsDoc> = {};
       for (const key of Object.keys(newGrading) as Array<keyof Grading>) {
         if (key === 'docId' || key === 'lastUpdated') continue;
         if (!deepObjEq(newGrading[key], originalGrading[key])) {
@@ -1459,7 +1437,7 @@ export class DataManagerService {
       return setDoc(docRef, changes, { merge: true });
     } else {
     // Fallback: send everything (for new gradings or when no original is available)
-      const gradingWithNewTimestamp: GradingFirebaseDoc = {
+      const gradingWithNewTimestamp: GradingFsDoc = {
         ...newGrading,
         lastUpdated: serverTimestamp() as Timestamp,
       };
@@ -1492,7 +1470,7 @@ export class DataManagerService {
   async addOrder(order: Order): Promise<DocumentReference> {
     const collectionRef = collection(this.db, 'orders');
     const newDocRef = doc(collectionRef);
-    const orderWithNewTimestamp: OrderFirebaseDoc = {
+    const orderWithNewTimestamp: OrderFsDoc = {
       ...order,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -1501,7 +1479,7 @@ export class DataManagerService {
 
   async updateOrder(id: string, order: Order): Promise<void> {
     const docRef = doc(this.db, 'orders', id);
-    const orderWithNewTimestamp: OrderFirebaseDoc = {
+    const orderWithNewTimestamp: OrderFsDoc = {
       ...order,
       lastUpdated: serverTimestamp() as Timestamp,
     };
@@ -2037,9 +2015,20 @@ export class DataManagerService {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  async clearAllLocalCaches(): Promise<void> {
+    await this.syncService.clearAllCaches();
+  }
+
+  async forceRefreshAllData(user: UserDetails): Promise<void> {
+    await Promise.all([
+      this.updateMembersSync(user, true),
+      this.updateSchoolsSync(true),
+      this.updateMyStudentsSync(user, true),
+      this.findInstructorsService.updateInstructorsSync(true),
+    ]);
   }
 }

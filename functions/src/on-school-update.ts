@@ -1,12 +1,14 @@
 import {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentDeleted,
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { School } from './data-model';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
+import { recordTombstone } from './common';
 
 const db = admin.firestore();
 
@@ -182,3 +184,22 @@ export const onSchoolUpdated = onDocumentUpdated(
     }
   }
 );
+
+export const onSchoolDeleted = onDocumentDeleted(
+  'schools/{schoolId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    await recordTombstone(db, 'schools', snap.id);
+
+    // Refresh ACLs of any users who were associated with this school
+    const existingEmails = await findEmailsWithSchoolInACL(snap.id);
+    for (const email of existingEmails) {
+      if (email) {
+        await refreshACLAdminStatus(email);
+      }
+    }
+  }
+);
+

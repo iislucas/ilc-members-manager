@@ -1,12 +1,16 @@
 import {
   Timestamp,
+  FieldValue,
 } from 'firebase/firestore';
+import type { FieldValue as AdminFieldValue } from 'firebase-admin/firestore';
 import {
   membershipActivatedSubject,
   membershipActivatedBody,
   instructorLicenseActivatedSubject,
   instructorLicenseActivatedBody,
 } from './email-templates.js';
+
+export type FsTimestamp = Timestamp | FieldValue | AdminFieldValue;
 
 // ==================================================================
 // # Collections in Firebase
@@ -113,7 +117,26 @@ the cache refresh functions.
 
 */
 
-export type GenericFirestoreDoc = { data: () => unknown, id: string };
+export type GenericFsDoc = { data: () => unknown, id: string };
+
+/**
+ * Normalizes any timestamp representation (Firestore Timestamp, Date, or string)
+ * into a standard, lexicographically-sortable ISO 8601 string (UTC).
+ */
+export function normalizeLastUpdated(val: unknown): string {
+  if (!val) return new Date().toISOString();
+  if (typeof (val as { toDate?: () => Date }).toDate === 'function') {
+    return (val as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof val === 'string') {
+    return val;
+  }
+  try {
+    return new Date(val as string).toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
 
 // ==================================================================
 // # COUNTERS
@@ -526,22 +549,17 @@ export type School = {
   schoolLicenseExpires: string; // YYYY-MM-DD
 };
 
-export type SchoolFirebaseDoc = Omit<School, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type SchoolFsDoc = Omit<School, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export function firestoreDocToSchool(doc: GenericFirestoreDoc): School {
-  const docData = doc.data() as SchoolFirebaseDoc & {
+export function firestoreDocToSchool(doc: GenericFsDoc): School {
+  const docData = doc.data() as SchoolFsDoc & {
     owner?: string;
     managers?: string[];
     ownerEmail?: string;
   };
-  // There's a short time after a write happens where
-  // memberData.lastUpdated is full before the server timestamp gets
-  // the actual data back.
-  const lastUpdated = docData.lastUpdated
-    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
-    : new Date().toISOString();
+  const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
 
   const ownerInstructorId = docData.ownerInstructorId || docData.owner || '';
   const ownerMemberDocId = docData.ownerMemberDocId || '';
@@ -1065,12 +1083,14 @@ export type Member = {
   notificationSettings?: MemberNotificationSettings;
 };
 
-export type MemberFirestoreDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type MemberFsDoc = Omit<Member, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export function firestoreDocToMemberNotification(doc: GenericFirestoreDoc): MemberNotification {
-  const docData = doc.data() as any;
+export type MemberNotificationFsDoc = Omit<MemberNotification, 'docId'>;
+
+export function firestoreDocToMemberNotification(doc: GenericFsDoc): MemberNotification {
+  const docData = (doc.data() || {}) as Partial<MemberNotificationFsDoc>;
   return {
     ...initMemberNotification(),
     ...docData,
@@ -1078,17 +1098,12 @@ export function firestoreDocToMemberNotification(doc: GenericFirestoreDoc): Memb
   } as MemberNotification;
 }
 
-export function firestoreDocToMember(doc: GenericFirestoreDoc): Member {
-  const docData = doc.data() as MemberFirestoreDoc & {
+export function firestoreDocToMember(doc: GenericFsDoc): Member {
+  const docData = doc.data() as MemberFsDoc & {
     managingOrgId?: string;
     sifuInstructorId?: string;
   };
-  // There's a short time after a write happens where
-  // memberData.lastUpdated is full before the server timestamp gets
-  // the actual data back.
-  const lastUpdated = docData.lastUpdated
-    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
-    : new Date().toISOString();
+  const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
 
   const primarySchoolId = docData.primarySchoolId || docData.managingOrgId || '';
   const primaryInstructorId = docData.primaryInstructorId || docData.sifuInstructorId || '';
@@ -1134,15 +1149,20 @@ export type InstructorPublicData = {
   publicEmail: string;
   publicPhone: string;
   tags: string[];
+
+  lastUpdated: string; // ISO 8601 UTC string (YYYY-MM-DDTHH:mm:ss.sssZ)
 };
 
-export type InstructorPublicDataFirebaseDoc = Omit<InstructorPublicData, 'docId'>;
+export type InstructorPublicDataFsDoc = Omit<InstructorPublicData, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
+};
 
 export function firestoreDocToInstructorPublicData(
-  doc: GenericFirestoreDoc,
+  doc: GenericFsDoc,
 ): InstructorPublicData {
-  const docData = doc.data() as InstructorPublicDataFirebaseDoc;
-  return { ...initInstructor(), ...docData, docId: doc.id };
+  const docData = (doc.data() || {}) as Partial<InstructorPublicDataFsDoc> & { lastUpdated?: unknown };
+  const lastUpdated = normalizeLastUpdated(docData?.lastUpdated);
+  return { ...initInstructor(), ...docData, lastUpdated, docId: doc.id };
 }
 
 // ==================================================================
@@ -1355,28 +1375,26 @@ export type StripeOrder = BaseOrder & {
 
 export type Order = SheetsImportOrder | SquareSpaceOrder | StripeOrder;
 
-export type SheetsImportOrderFirebaseDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type SheetsImportOrderFsDoc = Omit<SheetsImportOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export type SquarespaceOrderFirebaseDoc = Omit<SquareSpaceOrder, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type SquarespaceOrderFsDoc = Omit<SquareSpaceOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export type StripeOrderFirebaseDoc = Omit<StripeOrder, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type StripeOrderFsDoc = Omit<StripeOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export type OrderFirebaseDoc =
-  | SheetsImportOrderFirebaseDoc
-  | SquarespaceOrderFirebaseDoc
-  | StripeOrderFirebaseDoc;
+export type OrderFsDoc =
+  | SheetsImportOrderFsDoc
+  | SquarespaceOrderFsDoc
+  | StripeOrderFsDoc;
 
-export function firestoreDocToOrder(doc: GenericFirestoreDoc): Order {
-  const docData = doc.data() as OrderFirebaseDoc;
-  const lastUpdated = docData.lastUpdated
-    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
-    : new Date().toISOString();
+export function firestoreDocToOrder(doc: GenericFsDoc): Order {
+  const docData = doc.data() as OrderFsDoc;
+  const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
 
   if (!docData.ilcAppOrderKind || docData.ilcAppOrderKind === OrderKind.SheetsImport) {
     return { ...initSheetsImportOrder(), ...docData, ilcAppOrderKind: OrderKind.SheetsImport, lastUpdated, docId: doc.id } as SheetsImportOrder;
@@ -1469,8 +1487,8 @@ export type MemberOrder = {
   gradingDocId?: string; // If this order purchased a grading
 };
 
-export type MemberOrderFirestoreDoc = Omit<MemberOrder, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type MemberOrderFsDoc = Omit<MemberOrder, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
 export function initMemberOrder(): MemberOrder {
@@ -1494,13 +1512,9 @@ export function initMemberOrder(): MemberOrder {
   };
 }
 
-export function firestoreDocToMemberOrder(doc: GenericFirestoreDoc): MemberOrder {
-  const docData = doc.data() as MemberOrderFirestoreDoc;
-  const lastUpdated = docData?.lastUpdated
-    ? typeof docData.lastUpdated.toDate === 'function'
-      ? docData.lastUpdated.toDate().toISOString()
-      : new Date(docData.lastUpdated as unknown as string).toISOString()
-    : new Date().toISOString();
+export function firestoreDocToMemberOrder(doc: GenericFsDoc): MemberOrder {
+  const docData = doc.data() as MemberOrderFsDoc;
+  const lastUpdated = normalizeLastUpdated(docData?.lastUpdated);
 
   return {
     ...initMemberOrder(),
@@ -1755,15 +1769,13 @@ export type Grading = {
   reviewIssue: string; // Store the issue/reason when grading processing requires admin review.
 };
 
-export type GradingFirebaseDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
-  lastUpdated: Timestamp;
+export type GradingFsDoc = Omit<Grading, 'lastUpdated' | 'docId'> & {
+  lastUpdated: FsTimestamp;
 };
 
-export function firestoreDocToGrading(doc: GenericFirestoreDoc): Grading {
-  const docData = doc.data() as GradingFirebaseDoc;
-  const lastUpdated = docData.lastUpdated
-    ? typeof docData.lastUpdated.toDate === 'function' ? docData.lastUpdated.toDate().toISOString() : new Date(docData.lastUpdated as unknown as string).toISOString()
-    : new Date().toISOString();
+export function firestoreDocToGrading(doc: GenericFsDoc): Grading {
+  const docData = doc.data() as GradingFsDoc;
+  const lastUpdated = normalizeLastUpdated(docData.lastUpdated);
   const grading = { ...initGrading(), ...docData, lastUpdated, docId: doc.id };
   if (grading.level) {
     const lower = grading.level.toLowerCase().trim();
@@ -1845,6 +1857,30 @@ export function initInstructor(): InstructorPublicData {
     publicEmail: '',
     publicPhone: '',
     tags: [],
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+// ==================================================================
+// # Tombstones (Deletions tracking for delta sync)
+// ==================================================================
+export type Tombstone = {
+  docId: string;
+  collection: string;
+  deletedAt: string; // ISO timestamp
+};
+
+export type TombstoneFsDoc = Omit<Tombstone, 'deletedAt'> & {
+  deletedAt: FsTimestamp;
+};
+
+export function firestoreDocToTombstone(doc: GenericFsDoc): Tombstone {
+  const docData = doc.data() as TombstoneFsDoc & { collection?: string };
+  const deletedAt = normalizeLastUpdated(docData.deletedAt);
+  return {
+    docId: doc.id,
+    collection: docData.collection || '',
+    deletedAt,
   };
 }
 
@@ -1879,7 +1915,7 @@ export type ACL = {
   schoolLicenseExpires: string;
 };
 
-export type ACLFirebaseDoc = ACL;
+export type ACLFsDoc = ACL;
 
 // ==================================================================
 // # Statistics
@@ -1927,10 +1963,10 @@ export type MemberStatistics = {
   };
 };
 
-export type MemberStatisticsFirebaseDoc = Omit<MemberStatistics, 'docId'>;
+export type MemberStatisticsFsDoc = Omit<MemberStatistics, 'docId'>;
 
-export function firestoreDocToStatistics(doc: GenericFirestoreDoc): MemberStatistics {
-  const docData = doc.data() as MemberStatisticsFirebaseDoc;
+export function firestoreDocToStatistics(doc: GenericFsDoc): MemberStatistics {
+  const docData = doc.data() as MemberStatisticsFsDoc;
   return { ...initStatistics(), ...docData, docId: doc.id };
 }
 
@@ -2368,8 +2404,10 @@ export function initUploadItem(): UploadItem {
   };
 }
 
-export function firestoreDocToUploadItem(doc: GenericFirestoreDoc): UploadItem {
-  const data = (doc.data() || {}) as Partial<UploadItem>;
+export type UploadItemFsDoc = Omit<UploadItem, 'docId'>;
+
+export function firestoreDocToUploadItem(doc: GenericFsDoc): UploadItem {
+  const data = (doc.data() || {}) as Partial<UploadItemFsDoc>;
   const createdAt = data.createdAt || new Date().toISOString();
   const lastUpdated = data.lastUpdated || createdAt;
   return {

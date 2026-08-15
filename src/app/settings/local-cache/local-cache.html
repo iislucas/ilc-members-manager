@@ -1,0 +1,213 @@
+<div class="local-cache-container">
+  <div class="cache-header">
+    <div class="header-titles">
+      <h2>Local Cache & Storage Management</h2>
+      <p class="subtitle">
+        Snapshot data stored in browser IndexedDB for instant startup and offline use.
+        Queries only fetch changes since last update.
+      </p>
+    </div>
+    <div class="online-badge" [class.online]="isOnline()" [class.offline]="!isOnline()">
+      <span class="dot"></span>
+      {{ isOnline() ? 'Online' : 'Offline' }}
+    </div>
+  </div>
+
+  @if (statusMessage()) {
+  <div class="info-banner">
+    <app-icon name="check"></app-icon>
+    <span>{{ statusMessage() }}</span>
+  </div>
+  }
+
+  @if (errorMessage()) {
+  <div class="error-container">
+    <span class="error-message">{{ errorMessage() }}</span>
+    <button class="icon-only-button" (click)="errorMessage.set(null)" title="Dismiss">
+      <app-icon name="close"></app-icon>
+    </button>
+  </div>
+  }
+
+  <!-- Stats Overview Cards -->
+  <div class="stats-grid">
+    <div class="card stat-card">
+      <div class="stat-icon">
+        <app-icon name="bullet_list"></app-icon>
+      </div>
+      <div class="stat-details">
+        <span class="stat-label">Total Cached Records</span>
+        <span class="stat-value">{{ totalCachedRecords() | number }}</span>
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="stat-icon">
+        <app-icon name="format"></app-icon>
+      </div>
+      <div class="stat-details">
+        <span class="stat-label">Active Datasets</span>
+        <span class="stat-value">{{ collections().length }}</span>
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="stat-icon">
+        <app-icon name="bar_chart"></app-icon>
+      </div>
+      <div class="stat-details">
+        <span class="stat-label">Estimated Storage</span>
+        <span class="stat-value">{{ formatBytes(totalSizeBytes()) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Actions Toolbar -->
+  <div class="global-actions">
+    <div class="actions-left">
+      <button
+        class="refresh-all-btn"
+        (click)="forceRefreshAll()"
+        [disabled]="isActionRunning() || isLoading()"
+      >
+        <app-icon name="refresh"></app-icon>
+        Force Full Re-fetch All
+      </button>
+      <button
+        class="subtle-button"
+        (click)="refreshSummaries()"
+        [disabled]="isActionRunning() || isLoading()"
+      >
+        <app-icon name="refresh"></app-icon>
+        Check Cache Status
+      </button>
+    </div>
+    <div class="actions-right">
+      <button
+        class="delete-button"
+        (click)="clearAll()"
+        [disabled]="isActionRunning() || isLoading()"
+      >
+        <app-icon name="trash"></app-icon>
+        Clear All Local Cache
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+  <div class="loading-state">
+    <app-spinner></app-spinner>
+    <p>Inspecting local IndexedDB storage...</p>
+  </div>
+  } @else if (collections().length === 0) {
+  <div class="empty-state card">
+    <app-icon name="info"></app-icon>
+    <h3>No Cached Data Yet</h3>
+    <p>Local cache is created automatically when navigating through schools, members, or instructors.</p>
+    <button class="refresh-all-btn" (click)="forceRefreshAll()">
+      <app-icon name="refresh"></app-icon>
+      Fetch Initial Data Now
+    </button>
+  </div>
+  } @else {
+  <!-- Collections List -->
+  <div class="collections-list">
+    @for (col of collections(); track col.summary.cacheKey) {
+    <div class="card collection-card" [class.is-expanded]="expandedKey() === col.summary.cacheKey">
+      <div class="collection-header">
+        <div class="collection-meta">
+          <div class="collection-title-row">
+            <h3 class="collection-title">{{ friendlyCollectionName(col.summary.cacheKey) }}</h3>
+            <span class="identifier-chip">{{ col.summary.cacheKey }}</span>
+          </div>
+          <div class="collection-submeta">
+            <span class="meta-item">
+              <strong>{{ col.summary.count | number }}</strong> records
+            </span>
+            <span class="meta-separator">•</span>
+            <span class="meta-item">
+              Size: {{ formatBytes(col.summary.approximateSizeBytes) }}
+            </span>
+            <span class="meta-separator">•</span>
+            <span class="meta-item">
+              Last Synced: {{ formatDate(col.summary.lastSyncTimestamp) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="collection-actions">
+          <button
+            class="subtle-button action-btn"
+            (click)="syncSingleCollection(col.summary.cacheKey)"
+            [disabled]="isActionRunning()"
+            title="Incremental sync against Firestore"
+          >
+            <app-icon name="refresh"></app-icon>
+            <span>Sync Delta</span>
+          </button>
+
+          <button
+            class="subtle-button action-btn"
+            (click)="toggleInspectRaw(col.summary.cacheKey)"
+            title="Inspect raw records"
+          >
+            <app-icon [name]="expandedKey() === col.summary.cacheKey ? 'expand_less' : 'visibility'"></app-icon>
+            <span>{{ expandedKey() === col.summary.cacheKey ? 'Hide Raw' : 'View Raw' }}</span>
+          </button>
+
+          <button
+            class="delete-button action-btn"
+            (click)="clearSingleCollection(col.summary.cacheKey)"
+            [disabled]="isActionRunning()"
+            title="Delete this cached collection from IndexedDB"
+          >
+            <app-icon name="trash"></app-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Raw Records Inspector -->
+      @if (expandedKey() === col.summary.cacheKey) {
+      <div class="raw-inspector">
+        <div class="inspector-toolbar">
+          <div class="inspector-search">
+            <app-icon name="search"></app-icon>
+            <input
+              type="text"
+              placeholder="Search within raw JSON records..."
+              [ngModel]="rawSearchQuery()"
+              (ngModelChange)="rawSearchQuery.set($event)"
+            />
+            @if (rawSearchQuery()) {
+            <button class="icon-only-button" (click)="rawSearchQuery.set('')">
+              <app-icon name="close"></app-icon>
+            </button>
+            }
+          </div>
+
+          <div class="inspector-controls">
+            <span class="inspector-count">
+              Showing {{ filteredRawRecords().length }} of {{ rawRecords().length }} records
+            </span>
+            <button
+              class="subtle-button copy-btn"
+              (click)="copyRawJson(col.summary.cacheKey)"
+              title="Copy JSON to clipboard"
+            >
+              <app-icon [name]="copiedKey() === col.summary.cacheKey ? 'check' : 'edit'"></app-icon>
+              <span>{{ copiedKey() === col.summary.cacheKey ? 'Copied!' : 'Copy JSON' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="raw-json-viewer">
+          <pre><code>{{ filteredRawRecords() | json }}</code></pre>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>

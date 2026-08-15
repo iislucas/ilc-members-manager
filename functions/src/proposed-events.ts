@@ -13,7 +13,7 @@ import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebas
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
-import { getMemberByEmail, allowedOrigins, hasActiveMembership } from './common';
+import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
 
@@ -495,4 +495,6 @@ export const onEventDeleted = onDocumentDeleted('/events/{docId}', async (event)
   } catch (err) {
     logger.warn(`Failed to clean up storage for event ${eventDocId}:`, err);
   }
+
+  await recordTombstone(admin.firestore(), 'events', eventDocId);
 });

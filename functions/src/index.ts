@@ -23,7 +23,7 @@ export {
   onMemberDeleted,
 } from './on-member-update';
 
-export { onSchoolCreated, onSchoolUpdated } from './on-school-update';
+export { onSchoolCreated, onSchoolUpdated, onSchoolDeleted } from './on-school-update';
 
 export {
   onGradingCreated,
