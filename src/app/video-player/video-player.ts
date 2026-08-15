@@ -114,7 +114,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   private setupHls(src: string, video: HTMLVideoElement): void {
-    if (Hls.isSupported()) {
+    const isHls =
+      src.includes('.m3u8') ||
+      (src.startsWith('blob:') && src.includes('m3u8'));
+
+    if (isHls && Hls.isSupported()) {
       this.hls = new Hls({
         capLevelToPlayerSize: true,
         autoStartLoad: true,
@@ -162,19 +166,28 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
               break;
             default:
               this.hls?.destroy();
+              this.hls = null;
+              this.playDirect(src, video);
               break;
           }
         }
       });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native Apple Safari HLS
-      video.src = src;
-      if (this.initialPositionSeconds > 0) {
-        video.currentTime = this.initialPositionSeconds;
-      }
-      if (this.autoplay) {
-        video.play().catch(() => this.isPlaying.set(false));
-      }
+      this.playDirect(src, video);
+    } else {
+      // Direct progressive video playback (e.g. MP4, WebM, or raw Cloud Storage download URL)
+      this.playDirect(src, video);
+    }
+  }
+
+  private playDirect(src: string, video: HTMLVideoElement): void {
+    video.src = src;
+    if (this.initialPositionSeconds > 0) {
+      video.currentTime = this.initialPositionSeconds;
+    }
+    if (this.autoplay) {
+      video.play().catch(() => this.isPlaying.set(false));
     }
   }
 

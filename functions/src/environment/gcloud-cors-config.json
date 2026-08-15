@@ -1,16 +1,26 @@
 [
   {
     "origin": [
+      "http://localhost:4200",
+      "https://ilc-paris-class-tracker.web.app",
+      "https://ilc-paris-class-tracker.firebaseapp.com",
       "https://app.zxd.fr",
       "https://iliqchuan.com",
       "http://iliqchuan.com",
       "http://www.iliqchuan.com",
       "https://storage.googleapis.com",
-      "https://localhost:4200",
       "https://lute-denim-99n2.squarespace.com"
     ],
-    "method": ["GET"],
-    "responseHeader": ["Content-Type"],
-    "maxAgeSeconds": 300
+    "method": ["GET", "HEAD", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Range",
+      "Accept-Ranges",
+      "Content-Range",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Headers"
+    ],
+    "maxAgeSeconds": 3600
   }
 ]
