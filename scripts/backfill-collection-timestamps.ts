@@ -54,7 +54,7 @@ async function main() {
 
     for (const docSnap of snap.docs) {
       const data = docSnap.data();
-      const rawLastUpdated = data.lastUpdated;
+      const rawLastUpdated = data['lastUpdated'];
       
       let needsUpdate = false;
       let targetTimestamp: Timestamp = Timestamp.now();

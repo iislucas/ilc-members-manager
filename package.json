@@ -38,7 +38,7 @@
     "test:rules": "pnpm exec firebase emulators:exec --only firestore \"pnpm test:rules:in_emulator\"",
     "test:watch": "vitest --no-color",
     "test": "pnpm test:once",
-    "backfill:timestamps": "tsx scripts/backfill-collection-timestamps.ts",
+    "backfill:timestamps": "ts-node -O '{\"module\": \"commonjs\"}' scripts/backfill-collection-timestamps.ts",
     "typecheck:tests": "tsc -p tsconfig.spec.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "watch": "ng build --watch --configuration development --project ilc-members-manager"
   },
