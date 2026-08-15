@@ -155,95 +155,91 @@
   }
 
   <!-- Details of what is offered / Value of License -->
-  <div class="form-card card">
-    <div class="license-clarification-note">
-      <p>
-        Our Instructor License authorizes the individual to lead events and
-        gradings. In addition, Licensed Instructors may be hired to lead
-        classes at an existing Licensed School. There is no requirement for a
-        Licensed Instructor to have their own School License.
-      </p>
-      <p>
-        Holding an active license grants the right to use the Chin Family I
-        Liq Chuan trademarks to promote approved events. (Note that, without a
-        license, you may not represent yourself as an I Liq Chuan instructor
-        or group leader, or use branding.)
-      </p>
-    </div>
+  <div class="intro-info-section">
+    <p class="intro-description">
+      Our Instructor License authorizes the individual to lead events and
+      gradings. In addition, Licensed Instructors may be hired to lead
+      classes at an existing Licensed School. There is no requirement for a
+      Licensed Instructor to have their own School License.
+    </p>
+    <p class="intro-description">
+      Holding an active license grants the right to use the Chin Family I
+      Liq Chuan trademarks to promote approved events. (Note that, without a
+      license, you may not represent yourself as an I Liq Chuan instructor
+      or group leader, or use branding.)
+    </p>
 
-    <div class="bullet-points-container">
-      <p class="section-lead">
-        An official
-        {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
-        provides:
-      </p>
-      <ul class="bullet-list">
-        @if (isInstructorTier()) {
-          <li>
-            <strong>Lead Events &amp; Gradings:</strong>
-            <span class="option-subtext">
-              Official authorization to lead events, workshops, and
-              prepare/certify students for student level examinations.</span
-            >
-          </li>
-          <li>
-            <strong>Teach at Licensed Schools:</strong>
-            <span class="option-subtext">
-              Teach classes at an existing Licensed School without needing
-              your own School License.</span
-            >
-          </li>
-          <li>
-            <strong>Searchable Instructor Directory Listing:</strong>
-            <span class="option-subtext">
-              Public instructor profile in our searchable database of instructors (see
-              <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
-            >
-          </li>
-          <li>
-            <strong>Trademark &amp; Branding Rights:</strong>
-            <span class="option-subtext">
-              Right to use Chin Family I Liq Chuan trademarks to promote approved events.</span
-            >
-          </li>
-        } @else {
-          <li>
-            <strong>Lead Official Study Groups:</strong>
-            <span class="option-subtext">
-              Official authorization to organize and lead I Liq Chuan study
-              groups.</span
-            >
-          </li>
-          <li>
-            <strong>Searchable Directory Listing:</strong>
-            <span class="option-subtext">
-              Public group leader listing in our searchable database of instructors (see
-              <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
-            >
-          </li>
-          <li>
-            <strong>Trademark &amp; Branding Rights:</strong>
-            <span class="option-subtext">
-              Right to use Chin Family I Liq Chuan trademarks to promote approved study group events.</span
-            >
-          </li>
-          <li>
-            <strong>Pathway to Instructor License:</strong>
-            <span class="option-subtext">
-              Automatically transitions to a full Instructor License upon
-              passing your Application Level 1 grading.</span
-            >
-          </li>
-          <li>
-            <strong>Association Recognition:</strong>
-            <span class="option-subtext">
-              Recognized active group leadership within the Chin Family I Liq
-              Chuan Association.</span
-            >
-          </li>
-        }
-      </ul>
-    </div>
+    <p class="section-lead">
+      An official
+      {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
+      provides:
+    </p>
+    <ul class="bullet-list">
+      @if (isInstructorTier()) {
+        <li>
+          <strong>Lead Events &amp; Gradings:</strong>
+          <span class="option-subtext">
+            Official authorization to lead events, workshops, and
+            prepare/certify students for student level examinations.</span
+          >
+        </li>
+        <li>
+          <strong>Teach at Licensed Schools:</strong>
+          <span class="option-subtext">
+            Teach classes at an existing Licensed School without needing
+            your own School License.</span
+          >
+        </li>
+        <li>
+          <strong>Searchable Instructor Directory Listing:</strong>
+          <span class="option-subtext">
+            Public instructor profile in our searchable database of instructors (see
+            <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
+          >
+        </li>
+        <li>
+          <strong>Trademark &amp; Branding Rights:</strong>
+          <span class="option-subtext">
+            Right to use Chin Family I Liq Chuan trademarks to promote approved events.</span
+          >
+        </li>
+      } @else {
+        <li>
+          <strong>Lead Official Study Groups:</strong>
+          <span class="option-subtext">
+            Official authorization to organize and lead I Liq Chuan study
+            groups.</span
+          >
+        </li>
+        <li>
+          <strong>Searchable Directory Listing:</strong>
+          <span class="option-subtext">
+            Public group leader listing in our searchable database of instructors (see
+            <a class="inline-link-button" [href]="routingService.hrefForView(Views.FindAnInstructor)">Find an Instructor</a>).</span
+          >
+        </li>
+        <li>
+          <strong>Trademark &amp; Branding Rights:</strong>
+          <span class="option-subtext">
+            Right to use Chin Family I Liq Chuan trademarks to promote approved study group events.</span
+          >
+        </li>
+        <li>
+          <strong>Pathway to Instructor License:</strong>
+          <span class="option-subtext">
+            Automatically transitions to a full Instructor License upon
+            passing your Application Level 1 grading.</span
+          >
+        </li>
+        <li>
+          <strong>Association Recognition:</strong>
+          <span class="option-subtext">
+            Recognized active group leadership within the Chin Family I Liq
+            Chuan Association.</span
+          >
+        </li>
+      }
+    </ul>
   </div>
 
   @if (!isLifeInstructor()) {

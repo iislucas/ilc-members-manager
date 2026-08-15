@@ -283,10 +283,11 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     // Active banner should NOT be present
     expect(compiled.querySelector('.current-membership-banner')).toBeNull();
 
-    // Fold should NOT be present; value card and form cards should be rendered directly
+    // Fold should NOT be present; intro info section and form cards should be rendered directly
     expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
+    expect(compiled.querySelector('.intro-info-section')).toBeTruthy();
     const formCards = compiled.querySelectorAll('.form-card');
-    expect(formCards.length).toBe(3); // Value card + Step 1 + Step 2
+    expect(formCards.length).toBe(2); // Step 1 + Step 2
     expect(compiled.querySelector('.checkout-section')).toBeTruthy();
   });
 

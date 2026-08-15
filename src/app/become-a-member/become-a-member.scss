@@ -370,11 +370,14 @@ app-autocomplete {
   }
 }
 
-.bullet-points-container {
-  margin-bottom: 0.5rem;
+.intro-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
 
   .section-lead {
-    margin: 0 0 0.75rem;
+    margin: 0;
     font-weight: 600;
     color: v.$text-primary;
     font-size: 0.95rem;
@@ -385,12 +388,12 @@ app-autocomplete {
     padding-left: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
 
     li {
       font-size: 0.95rem;
       color: v.$text-secondary;
-      line-height: 1.4;
+      line-height: 1.45;
 
       strong {
         color: v.$text-primary;

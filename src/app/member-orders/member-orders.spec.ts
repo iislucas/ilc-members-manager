@@ -214,7 +214,7 @@ describe('MemberOrdersComponent', () => {
     expect(headings).toContain('Order History');
   });
 
-  it('greys out Membership and Instructor License cards in Purchase section when user has lifetime status', async () => {
+  it('renders clickable Membership and Instructor License cards with lifetime status when user has lifetime access', async () => {
     mockFirebaseStateService.user.set({
       member: {
         ...sampleMember,
@@ -233,12 +233,12 @@ describe('MemberOrdersComponent', () => {
     expect(component.isLifeInstructor()).toBe(true);
 
     const element = fixture.nativeElement as HTMLElement;
-    const disabledCards = element.querySelectorAll('.service-link-card.disabled');
-    expect(disabledCards.length).toBe(2);
+    const allCards = element.querySelectorAll('a.service-link-card');
+    expect(allCards.length).toBe(5);
 
-    const cardTexts = Array.from(disabledCards).map((c) => c.textContent);
-    expect(cardTexts[0]).toContain('active Lifetime Membership');
-    expect(cardTexts[1]).toContain('active Lifetime Instructor License');
+    const cardTexts = Array.from(allCards).map((c) => c.textContent);
+    expect(cardTexts[0]).toContain('Active Lifetime Membership');
+    expect(cardTexts[3]).toContain('Active Lifetime Instructor License');
   });
 
   it('sets group leader title and subtitle when member is Student Level 2 or 3 without Application Level 1', async () => {

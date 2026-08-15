@@ -24,26 +24,24 @@
       </p>
     </div>
     <div class="services-links-grid">
-      @if (isLifeMember()) {
-        <div class="service-link-card disabled">
-          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">
-              <span>Membership</span>
-              <span class="active-badge">Active</span>
-            </div>
-            <div class="service-link-sub">You have an active Lifetime Membership. Never expires.</div>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
+        <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">
+            <span>Membership</span>
+            @if (isLifeMember()) {
+              <span class="active-badge">Lifetime</span>
+            }
+          </div>
+          <div class="service-link-sub">
+            @if (isLifeMember()) {
+              Active Lifetime Membership. View benefits, value, and status.
+            } @else {
+              Join as an annual or life member, or renew existing membership.
+            }
           </div>
         </div>
-      } @else {
-        <a class="service-link-card" [href]="routingService.hrefForView(Views.BecomeAMember)">
-          <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">Membership</div>
-            <div class="service-link-sub">Join as an annual or life member, or renew existing membership.</div>
-          </div>
-        </a>
-      }
+      </a>
       <a class="service-link-card" [href]="routingService.hrefForView(Views.NextGrading)">
         <app-icon name="mountain" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
@@ -58,26 +56,24 @@
           <div class="service-link-sub">Subscribe to recorded Saturday classes and global library archive.</div>
         </div>
       </a>
-      @if (isLifeInstructor()) {
-        <div class="service-link-card disabled">
-          <app-icon name="meditation" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">
-              <span>Instructor &amp; Group Leader License</span>
-              <span class="active-badge">Active</span>
-            </div>
-            <div class="service-link-sub">You have an active Lifetime Instructor License. Never expires.</div>
+      <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
+        <app-icon name="meditation" width="32px" height="32px"></app-icon>
+        <div class="service-link-text">
+          <div class="service-link-title">
+            <span>Instructor &amp; Group Leader License</span>
+            @if (isLifeInstructor()) {
+              <span class="active-badge">Lifetime</span>
+            }
+          </div>
+          <div class="service-link-sub">
+            @if (isLifeInstructor()) {
+              Active Lifetime Instructor License. View benefits, value, and status.
+            } @else {
+              {{ licenseCardSubtitle() }}
+            }
           </div>
         </div>
-      } @else {
-        <a class="service-link-card" [href]="routingService.hrefForView(Views.InstructorLicensePurchase)">
-          <app-icon name="meditation" width="32px" height="32px"></app-icon>
-          <div class="service-link-text">
-            <div class="service-link-title">Instructor &amp; Group Leader License</div>
-            <div class="service-link-sub">{{ licenseCardSubtitle() }}</div>
-          </div>
-        </a>
-      }
+      </a>
       <a class="service-link-card" [href]="routingService.hrefForView(Views.SchoolLicensePurchase)">
         <app-icon name="location_on" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
