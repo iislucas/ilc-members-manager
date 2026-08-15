@@ -437,6 +437,45 @@ export class MemberOrdersComponent {
     }
   }
 
+  copiedOrderId = signal<string | null>(null);
+
+  getOrderDisplayId(order: MemberOrder): string {
+    // If order has an invoice ID and orderNumber is a checkout session, prefer invoice ID
+    if (
+      order.stripeInvoiceId &&
+      (!order.orderNumber || order.orderNumber.startsWith('cs_'))
+    ) {
+      return order.stripeInvoiceId;
+    }
+    return order.orderNumber || order.orderDocId || order.docId || '';
+  }
+
+  async copyOrderId(orderId: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!orderId) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(orderId);
+      }
+      this.copiedOrderId.set(orderId);
+      setTimeout(() => {
+        if (this.copiedOrderId() === orderId) {
+          this.copiedOrderId.set(null);
+        }
+      }, 2000);
+    } catch {
+      // Ignore clipboard write error
+    }
+  }
+
+  getOrderQuantity(order: MemberOrder): number {
+    if (!order.lineItems || order.lineItems.length === 0) return 1;
+    return order.lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  }
+
   formatAmount(amount: number | null, currency: string | null): string {
     if (amount === null || amount === undefined) return '—';
     const curr = (currency || 'usd').toUpperCase();

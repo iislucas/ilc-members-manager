@@ -209,7 +209,7 @@ describe('MemberOrdersComponent', () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     const headings = Array.from(element.querySelectorAll('h2')).map((h) => h.textContent?.trim());
-    expect(headings).toContain('Purchase');
+    expect(headings).toContain('Learn about or purchase');
     expect(headings).toContain('My Membership, Licenses, and Subscriptions');
     expect(headings).toContain('Order History');
   });
@@ -289,5 +289,78 @@ describe('MemberOrdersComponent', () => {
     const subs = component.subscriptions();
     const licSub = subs.find((s) => s.category === 'instructor_license');
     expect(licSub?.title).toBe('Instructor License');
+  });
+
+  it('calculates order quantity correctly', () => {
+    expect(component.getOrderQuantity(sampleOrders[0])).toBe(1);
+    expect(component.getOrderQuantity(sampleOrders[1])).toBe(1);
+
+    const multiItemOrder: MemberOrder = {
+      ...sampleOrders[0],
+      lineItems: [
+        { productId: 'p1', priceId: 'pr1', description: 'Item 1', quantity: 2, amountTotal: 2000, currency: 'usd' },
+        { productId: 'p2', priceId: 'pr2', description: 'Item 2', quantity: 3, amountTotal: 3000, currency: 'usd' },
+      ],
+    };
+    expect(component.getOrderQuantity(multiItemOrder)).toBe(5);
+  });
+
+  it('renders simplified order cards without sub-table or checkout chip', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    // Verify no sub-table exists
+    expect(element.querySelector('.order-details-pane')).toBeNull();
+    expect(element.querySelector('.line-items-table')).toBeNull();
+
+    // Verify order cards are rendered
+    const orderCards = element.querySelectorAll('.order-card');
+    expect(orderCards.length).toBe(2);
+
+    // Card 1: Checkout order -> has Qty: 1, Paid badge, but NO checkout badge
+    const card1Text = orderCards[0].textContent || '';
+    expect(card1Text).toContain('Annual Membership');
+    expect(card1Text).toContain('Qty: 1');
+    expect(card1Text).toContain('paid');
+    expect(card1Text).not.toContain('checkout');
+
+    // Card 2: Renewal order -> has Qty: 1, Paid badge, and Renewal badge
+    const card2Text = orderCards[1].textContent || '';
+    expect(card2Text).toContain('Class Video Library');
+    expect(card2Text).toContain('Qty: 1');
+    expect(card2Text).toContain('renewal');
+    expect(card2Text).toContain('paid');
+  });
+
+  it('derives display order ID and preserves full ID in DOM for selection', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const orderIdElements = element.querySelectorAll('.order-id-text');
+    expect(orderIdElements.length).toBe(2);
+    // Verifies full raw IDs are in DOM nodes (enabling click-to-select-all)
+    expect(orderIdElements[0].textContent).toBe(sampleOrders[0].orderNumber);
+    expect(orderIdElements[1].textContent).toBe(sampleOrders[1].orderNumber);
+
+    // Tests getOrderDisplayId logic
+    expect(component.getOrderDisplayId(sampleOrders[0])).toBe(sampleOrders[0].orderNumber);
+    const invoiceOrder: MemberOrder = {
+      ...sampleOrders[0],
+      orderNumber: 'cs_live_123',
+      stripeInvoiceId: 'in_9999',
+    };
+    expect(component.getOrderDisplayId(invoiceOrder)).toBe('in_9999');
+  });
+
+  it('copies order ID to clipboard and sets copiedOrderId state', async () => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await component.copyOrderId('cs_live_123');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('cs_live_123');
+    expect(component.copiedOrderId()).toBe('cs_live_123');
   });
 });

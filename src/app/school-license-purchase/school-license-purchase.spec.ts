@@ -175,6 +175,11 @@ describe('SchoolLicensePurchaseComponent', () => {
           provide: RoutingService,
           useValue: {
             navigateToParts: vi.fn(),
+            hrefForView: vi.fn().mockImplementation((view: Views) => {
+              if (view === Views.FindSchool) return '/find-school';
+              if (view === Views.BecomeAMember) return '/become-a-member';
+              return '/mock-path';
+            }),
             signals: {
               [Views.SchoolLicensePurchase]: {
                 urlParams: {
@@ -307,6 +312,25 @@ describe('SchoolLicensePurchaseComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain(
       'A School License authorizes the individual to open and operate a Licensed School, at one or more locations, in an area that is reserved for their use. They may hire Licensed Instructors to lead classes or events at any of their locations. The holder of a School License does not need to be a Licensed Instructor.',
+    );
+  });
+
+  it('should render updated directory listing and grading benefit bullet points with link to find school', async () => {
+    await createComponent();
+    const element = fixture.nativeElement as HTMLElement;
+
+    // Check directory listing text does not mention map
+    expect(element.textContent).not.toContain('map');
+    expect(element.textContent).toContain('Listed in the international I Liq Chuan school directory');
+
+    // Check link to find a school
+    const findSchoolLink = element.querySelector('a.inline-link-button[href="/find-school"]');
+    expect(findSchoolLink).toBeTruthy();
+    expect(findSchoolLink?.textContent).toContain('Find a School');
+
+    // Check gradings clarification
+    expect(element.textContent).toContain(
+      'Host and advertise events for licensed instructors to conduct gradings.',
     );
   });
 });
