@@ -2,40 +2,41 @@
 //  Text Colors
 //  Used for headings, body copy, labels, and metadata throughout the app.
 // ============================================================================
-$text-primary: #18181b;          // Deep black / near-black — main body text, primary titles
-$text-secondary: #52525b;        // Charcoal gray — labels, descriptions, secondary text
-$text-muted: #71717a;            // Medium neutral gray — timestamps, metadata
-$text-placeholder: #a1a1aa;      // Light neutral gray — placeholders, search icons
+$text-primary: #18181b; // Deep black / near-black — main body text, primary titles
+$text-secondary: #52525b; // Charcoal gray — labels, descriptions, secondary text
+$text-muted: #71717a; // Medium neutral gray — timestamps, metadata
+$text-placeholder: #a1a1aa; // Light neutral gray — placeholders, search icons
 
 // ============================================================================
 //  Border & Separator Colors
 //  Used for input borders, card outlines, dividers, and section separators.
 // ============================================================================
-$border-color-light: #e4e4e7;    // Clean neutral borders on inputs, cards, menus, and dividers
-$separator-color: #f4f4f5;       // Subtle separators between list items, sections, and backgrounds
+$border-color-light: #e4e4e7; // Clean neutral borders on inputs, cards, menus, and dividers
+$separator-color: #f4f4f5; // Subtle separators between list items, sections, and backgrounds
 
 // ============================================================================
 //  Brand / Theme Colors
 //  Yin/Yang monochrome palette (crisp black & white) with vibrant red accent.
 //  Used for the header, footer, card backgrounds, and form section headings.
 // ============================================================================
-$theme-bg-color: #ffffff;              // Crisp white — card, panel, and content background
-$theme-border-color: #18181b;          // Solid black stripe — card outlines and active borders
-$theme-heading-color-subtle: #27272a;  // Dark charcoal — form section heading text
-$heading-accent-color: #991b1b;        // Bold red accent — headings, primary accents (e.g. edit-form h3)
+$theme-bg-color: #ffffff; // Crisp white — card, panel, and content background
+$theme-border-color: #181818; // Solid black stripe — card outlines and active borders
+$theme-heading-color-subtle: #272727; // Dark charcoal — form section heading text
+$heading-accent-color: #950000; // Official I Liq Chuan dark red brand accent — headings, primary accents
+$brand-red: #950000; // Official I Liq Chuan dark red brand accent
 
-// Header & Footer (Lighter Slate Grey Surface with Black Underline & White Text)
-$header-bg-color: #64748b;             // Lighter slate grey header background
-$header-text-color: #ffffff;           // Crisp white header text
-$header-border-color: #18181b;         // Distinct black underline stripe under header
-$footer-bg-color: #64748b;             // Lighter slate grey footer background
-$footer-text-color: #f8fafc;           // Clean light footer text
-$footer-border-color: #18181b;         // Distinct black border stripe above footer
+// Header & Footer (Dark Charcoal Grey Header with Red #950000 Underline & White Text)
+$header-bg-color: #808080; // Dark charcoal grey header background
+$header-text-color: #fff; // Crisp white header text
+$header-border-color: #000; // Official ILC dark red border stripe under header
+$footer-bg-color: #808080; // Lighter slate grey footer background
+$footer-text-color: #fff; // Clean light footer text
+$footer-border-color: #181818; // Distinct black border stripe above footer
 
 // ============================================================================
 //  Interactive / Focus Colors
 // ============================================================================
-$focus-ring-color: #007bff;   // Light blue focus ring on search inputs and active tags
+$focus-ring-color: #950000; // Focus ring on search inputs and active tags
 
 // ============================================================================
 //  Button Colors (Monochrome Yin/Yang with Dark Borders)
@@ -79,7 +80,7 @@ $danger-color: #d32f2f;
 // ============================================================================
 //  Layout Constants
 // ============================================================================
-$max-main-width: 900px;        // Default max-width for centered page containers
+$max-main-width: 900px; // Default max-width for centered page containers
 $card-padding: 10px;
 $card-sep: 0.75em;
 
@@ -88,7 +89,7 @@ $row-border-color: #e4e4e7;
 $row-highlight-bg: #f4f9ff;
 $row-highlight-border: #4da3ff;
 $table-row-selected: #f4f9ff;
-$primary-color: #007bff;
+$primary-color: #950000;
 
 @mixin row-highlight-base {
   border-left: 4px solid transparent;

@@ -31,18 +31,9 @@
       >
         <app-icon name="hands_lotus" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
-          <div class="service-link-title">
-            <span>Membership</span>
-            @if (isLifeMember()) {
-              <span class="active-badge">Lifetime</span>
-            }
-          </div>
+          <div class="service-link-title">Membership</div>
           <div class="service-link-sub">
-            @if (isLifeMember()) {
-              Active Lifetime Membership. View benefits, value, and status.
-            } @else {
-              Join as an annual or life member, or renew existing membership.
-            }
+            Join as an annual or life member, or renew existing membership.
           </div>
         </div>
       </a>
@@ -76,19 +67,9 @@
       >
         <app-icon name="meditation" width="32px" height="32px"></app-icon>
         <div class="service-link-text">
-          <div class="service-link-title">
-            <span>Instructor &amp; Group Leader License</span>
-            @if (isLifeInstructor()) {
-              <span class="active-badge">Lifetime</span>
-            }
-          </div>
+          <div class="service-link-title">Instructor &amp; Group Leader License</div>
           <div class="service-link-sub">
-            @if (isLifeInstructor()) {
-              Active Lifetime Instructor License. View benefits, value, and
-              status.
-            } @else {
-              {{ licenseCardSubtitle() }}
-            }
+            {{ licenseCardSubtitle() }}
           </div>
         </div>
       </a>

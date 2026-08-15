@@ -62,7 +62,7 @@
   .icon-container {
     margin-bottom: 0;
     margin-right: 1.25rem;
-    color: #5f6368;
+    color: $heading-accent-color;
 
     // Ensure icon inherits color or set it explicitly
     ::ng-deep svg {

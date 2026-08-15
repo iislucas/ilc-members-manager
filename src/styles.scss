@@ -823,7 +823,7 @@ button.menu-item {
   align-items: center;
   gap: 0.35rem;
   padding: 0.3rem;
-  background: #e2e8f0;
+  background: #e4e4e7;
   border-radius: 10px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -847,7 +847,7 @@ button.menu-item {
   font-size: 0.85rem;
   line-height: 1.25;
   font-weight: 500;
-  color: #64748b;
+  color: #71717a;
   border-radius: 8px;
   white-space: nowrap;
   box-shadow: none;
@@ -888,16 +888,16 @@ button.menu-item {
   }
 
   &:hover {
-    color: #334155;
-    background: rgba(255, 255, 255, 0.6);
+    color: #27272a;
+    background: rgba(255, 255, 255, 0.7);
     box-shadow: none;
   }
 
   &:active {
     transform: none;
     box-shadow: none;
-    color: #334155;
-    background: rgba(255, 255, 255, 0.6);
+    color: #27272a;
+    background: rgba(255, 255, 255, 0.7);
   }
 
   &:focus {
@@ -905,14 +905,14 @@ button.menu-item {
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(100, 116, 139, 0.4);
+    outline: 2px solid rgba(113, 113, 122, 0.4);
     outline-offset: 1px;
   }
 
   &.active {
     background: white;
-    color: #1e293b;
-    box-shadow: 0 1px 4px rgba(30, 41, 59, 0.12);
+    color: #18181b;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     font-weight: 600;
   }
 }
@@ -1008,7 +1008,7 @@ button.menu-item {
   transition: all 0.15s ease;
 
   app-icon {
-    color: $row-highlight-border;
+    color: $heading-accent-color;
     flex-shrink: 0;
     margin-top: 2px;
   }
@@ -1034,8 +1034,8 @@ button.menu-item {
   }
 
   &:hover {
-    border-color: $primary-color;
-    background: $table-row-selected;
+    border-color: $heading-accent-color;
+    background: #fafafa;
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
   }

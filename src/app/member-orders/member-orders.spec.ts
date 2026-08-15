@@ -214,7 +214,7 @@ describe('MemberOrdersComponent', () => {
     expect(headings).toContain('Order History');
   });
 
-  it('renders clickable Membership and Instructor License cards with lifetime status when user has lifetime access', async () => {
+  it('renders clean quick link cards and displays lifetime access status on subscription cards', async () => {
     mockFirebaseStateService.user.set({
       member: {
         ...sampleMember,
@@ -236,9 +236,14 @@ describe('MemberOrdersComponent', () => {
     const allCards = element.querySelectorAll('a.service-link-card');
     expect(allCards.length).toBe(5);
 
-    const cardTexts = Array.from(allCards).map((c) => c.textContent);
-    expect(cardTexts[0]).toContain('Active Lifetime Membership');
-    expect(cardTexts[3]).toContain('Active Lifetime Instructor License');
+    // Quick links have no active-badge lifetime chips
+    expect(element.querySelector('.service-link-card .active-badge')).toBeNull();
+
+    // Subscription cards derive lifetime access
+    const subs = component.subscriptions();
+    const memSub = subs.find((s) => s.category === 'membership');
+    expect(memSub?.status).toBe('lifetime');
+    expect(memSub?.statusLabel).toBe('Lifetime Access');
   });
 
   it('sets group leader title and subtitle when member is Student Level 2 or 3 without Application Level 1', async () => {
