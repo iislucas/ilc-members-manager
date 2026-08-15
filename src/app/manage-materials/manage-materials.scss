@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "../../scss_variables.scss" as v;
 @use "../../styles" as *;
 
@@ -812,7 +813,7 @@
       color: v.$text-secondary;
     }
 
-    input, select, textarea {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
       padding: 8px 10px;
       border: 1px solid v.$border-color-light;
       border-radius: 4px;
@@ -949,13 +950,18 @@
         }
 
         &:hover {
-          border-color: v.$heading-accent-color;
-          background: #fafafa;
+          border-color: #94a3b8;
+          background: #f8fafc;
         }
 
         &.checked {
           border-color: v.$heading-accent-color;
           background: #fdf2f2;
+
+          &:hover {
+            border-color: color.adjust(v.$heading-accent-color, $lightness: -10%);
+            background: #fce8e8;
+          }
         }
       }
     }

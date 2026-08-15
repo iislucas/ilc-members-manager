@@ -135,16 +135,16 @@ describe('NavigationMenuComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    // Admin should be currently expanded, Learn should be collapsed
+    // Admin should be currently expanded, Read & Watch should be collapsed
     const topNavs = Array.from(compiled.querySelectorAll<HTMLElement>('.top-level-nav'));
-    const learnTopNav = topNavs.find((el) => el.textContent?.includes('Learn'));
+    const learnTopNav = topNavs.find((el) => el.textContent?.includes('Read & Watch'));
     expect(learnTopNav).toBeTruthy();
 
     const accordions = compiled.querySelectorAll<HTMLElement>('.submenu-accordion');
     const learnAccordion = accordions[0];
     expect(learnAccordion.classList.contains('open')).toBe(false);
 
-    // Click Learn section header -> expands Learn accordion
+    // Click Read & Watch section header -> expands Read & Watch accordion
     learnTopNav!.click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -154,7 +154,7 @@ describe('NavigationMenuComponent', () => {
     expect(navigateSpy).not.toHaveBeenCalled();
     expect(closeSpy).not.toHaveBeenCalled();
 
-    // Click Learn header again -> navigates and closes
+    // Click Read & Watch header again -> navigates and closes
     learnTopNav!.click();
     expect(navigateSpy).toHaveBeenCalledWith('');
     expect(closeSpy).toHaveBeenCalledTimes(1);

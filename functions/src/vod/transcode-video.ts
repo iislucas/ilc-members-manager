@@ -15,7 +15,6 @@ import {
   VideoItem,
   VodStatus,
   VodAccessTier,
-  VodCategory,
   initVideoItem,
   firestoreDocToVideoItem,
   UploadItem,
@@ -28,7 +27,6 @@ export interface TranscodeVideoRequest {
   vodConfig: {
     title: string;
     description: string;
-    category: VodCategory;
     tags: string[];
     accessTier?: VodAccessTier;
     accessTiers?: VodAccessTier[];
@@ -46,6 +44,7 @@ export interface TranscodeVideoRequest {
     eventTitle?: string;
     recordedDate?: string;
     location?: string;
+    resolutions?: string[];
   };
 }
 
@@ -102,6 +101,13 @@ export const transcodeVideoForVod = onCall(
       (config.priceCents && config.priceCents > 0),
     );
 
+    const targetResolutions =
+      Array.isArray(config.resolutions) && config.resolutions.length > 0
+        ? config.resolutions
+        : existingVideo.resolutions.length
+          ? existingVideo.resolutions
+          : ['360p', '480p', '720p', '1080p'];
+
     const updatedVideo: VideoItem = {
       ...existingVideo,
       docId: videoId,
@@ -109,7 +115,6 @@ export const transcodeVideoForVod = onCall(
       sourceMemberDocId: data.memberDocId,
       title: config.title || uploadItem.name || 'Untitled Video',
       description: config.description || uploadItem.notes || '',
-      category: config.category || VodCategory.SeminarRecording,
       tags: Array.isArray(config.tags) ? config.tags : uploadItem.tags || [],
       instructorDocId: config.instructorDocId || uploadItem.memberDocId || '',
       instructorName: config.instructorName || uploadItem.memberName || '',
@@ -137,9 +142,7 @@ export const transcodeVideoForVod = onCall(
       spriteWidth: 160,
       spriteHeight: 90,
       durationSeconds: existingVideo.durationSeconds || 0,
-      resolutions: existingVideo.resolutions.length
-        ? existingVideo.resolutions
-        : ['360p', '480p', '720p', '1080p'],
+      resolutions: targetResolutions,
       originalSize: uploadItem.size || 0,
       createdAt: existingVideo.createdAt || nowIso,
       lastUpdated: nowIso,
@@ -173,7 +176,106 @@ export const transcodeVideoForVod = onCall(
           job: {
             inputUri,
             outputUri,
-            templateId: 'preset/web-hd',
+            config: {
+              elementaryStreams: [
+                {
+                  key: 'video-stream-1080p',
+                  videoStream: {
+                    h264: {
+                      heightPixels: 1080,
+                      widthPixels: 1920,
+                      bitrateBps: 4500000,
+                      frameRate: 30,
+                    },
+                  },
+                },
+                {
+                  key: 'video-stream-720p',
+                  videoStream: {
+                    h264: {
+                      heightPixels: 720,
+                      widthPixels: 1280,
+                      bitrateBps: 2200000,
+                      frameRate: 30,
+                    },
+                  },
+                },
+                {
+                  key: 'video-stream-360p',
+                  videoStream: {
+                    h264: {
+                      heightPixels: 360,
+                      widthPixels: 640,
+                      bitrateBps: 800000,
+                      frameRate: 30,
+                    },
+                  },
+                },
+                {
+                  key: 'audio-stream0',
+                  audioStream: {
+                    codec: 'aac',
+                    bitrateBps: 128000,
+                    channelCount: 2,
+                  },
+                },
+              ],
+              muxStreams: [
+                {
+                  key: 'sd',
+                  fileName: 'sd.m3u8',
+                  container: 'ts',
+                  elementaryStreams: ['video-stream-360p', 'audio-stream0'],
+                  segmentSettings: {
+                    segmentDuration: {
+                      seconds: 6,
+                    },
+                  },
+                },
+                {
+                  key: 'hd',
+                  fileName: 'hd.m3u8',
+                  container: 'ts',
+                  elementaryStreams: ['video-stream-720p', 'audio-stream0'],
+                  segmentSettings: {
+                    segmentDuration: {
+                      seconds: 6,
+                    },
+                  },
+                },
+                {
+                  key: 'fhd',
+                  fileName: 'fhd.m3u8',
+                  container: 'ts',
+                  elementaryStreams: ['video-stream-1080p', 'audio-stream0'],
+                  segmentSettings: {
+                    segmentDuration: {
+                      seconds: 6,
+                    },
+                  },
+                },
+              ],
+              manifests: [
+                {
+                  fileName: 'manifest.m3u8',
+                  type: 'HLS',
+                  muxStreams: ['sd', 'hd', 'fhd'],
+                },
+              ],
+              spriteSheets: [
+                {
+                  format: 'jpeg',
+                  filePrefix: 'sprite@',
+                  spriteWidthPixels: 160,
+                  spriteHeightPixels: 90,
+                  columnCount: 10,
+                  rowCount: 10,
+                  interval: {
+                    seconds: 5,
+                  },
+                },
+              ],
+            },
           },
         });
 

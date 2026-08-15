@@ -71,7 +71,6 @@ import {
   firestoreDocToVideoProgress,
   VodStatus,
   VodAccessTier,
-  VodCategory,
   VideoGrantKind,
   SystemTagsDoc,
   SystemVideoTagsDoc,

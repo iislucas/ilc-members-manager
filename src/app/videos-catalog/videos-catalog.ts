@@ -5,7 +5,6 @@
  *
  * Features:
  * - Search bar with instant fuzzy search
- * - Category filter tabs (Seminars, Techniques, Grading Prep, Form Demos, Workshops, etc.)
  * - Tag filter chips
  * - Instructor filter autocomplete
  * - Hero spotlight for featured video

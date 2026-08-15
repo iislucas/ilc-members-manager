@@ -2458,18 +2458,6 @@ export enum VodStatus {
   Failed = 'failed',
 }
 
-/** Categories for catalog organization and filtering. */
-export enum VodCategory {
-  SeminarRecording = 'seminar_recording',
-  TechniqueBreakdown = 'technique_breakdown',
-  GradingSyllabus = 'grading_syllabus',
-  FormDemonstration = 'form_demonstration',
-  InstructorTraining = 'instructor_training',
-  Workshop = 'workshop',
-  HistoricalArchive = 'historical_archive',
-  ClassArchive = 'class_archive',
-}
-
 /** Source origin of an individual video access grant. */
 export enum VideoGrantKind {
   StripePurchase = 'stripe_purchase',
@@ -2486,7 +2474,6 @@ export type VideoItem = {
   // Public Catalog & Search Metadata
   title: string;                     // Curated video title
   description: string;               // Markdown or plain text description
-  category: VodCategory;             // Enum category
   tags: string[];                    // Searchable tags (e.g. ['spinning_hands', 'level_3', 'paris_2026'])
 
   // Instructor & Event Credits
@@ -2545,7 +2532,6 @@ export function initVideoItem(): VideoItem {
     sourceMemberDocId: '',
     title: '',
     description: '',
-    category: VodCategory.SeminarRecording,
     tags: [],
     instructorDocId: '',
     instructorName: '',
@@ -2597,7 +2583,6 @@ export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
     docId: doc.id,
     tags: Array.isArray(data.tags) ? data.tags : [],
     resolutions: Array.isArray(data.resolutions) ? data.resolutions : [],
-    category: data.category || VodCategory.SeminarRecording,
     accessTier: data.accessTier || rawAccessTiers[0] || VodAccessTier.MembersOnly,
     accessTiers: rawAccessTiers,
     isBuyable,

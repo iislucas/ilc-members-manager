@@ -176,7 +176,7 @@ describe('App', () => {
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
     expect(breadcrumbLabels).toEqual([
       'ILC Portal',
-      'Practice',
+      'Train',
       'Instructors',
     ]);
   });
@@ -278,7 +278,7 @@ describe('App', () => {
     const breadcrumbLabels = app.breadcrumbs().map((b) => b.label);
     expect(breadcrumbLabels).toEqual([
       'ILC Portal',
-      'Learn',
+      'Read & Watch',
       'Members Area',
       'Article',
     ]);

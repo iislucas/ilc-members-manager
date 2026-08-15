@@ -13,6 +13,8 @@
     #videoElement
     class="video-element"
     playsinline
+    webkit-playsinline
+    preload="auto"
     (click)="togglePlay()"
     [poster]="posterUrl || vod()?.thumbnailUrl || ''"
   ></video>
@@ -41,13 +43,41 @@
     class="player-controls-overlay"
     [class.visible]="controlsVisible() || !isPlaying()"
   >
-    <!-- Timeline Scrub Bar -->
-    <div class="timeline-container">
-      <div class="timeline-track" (click)="onTimelineClick($event)">
+    <!-- Timeline Scrub Bar with Hover & Drag Thumbnail Preview -->
+    <div
+      class="timeline-container"
+      (pointerdown)="onTimelinePointerDown($event)"
+      (pointermove)="onTimelinePointerMove($event)"
+      (pointerup)="onTimelinePointerUp($event)"
+      (pointercancel)="onTimelinePointerCancel($event)"
+      (pointerleave)="onTimelinePointerLeave($event)"
+    >
+      <!-- Floating Scrub / Hover Preview Card -->
+      @if (showHoverPreview() && hoverTime() !== null) {
+        <div
+          class="timeline-preview-card"
+          [style.left.px]="hoverPixelX()"
+        >
+          <div class="preview-thumb-box" [ngStyle]="previewStyle()">
+            <div class="preview-time-overlay">{{ formatTime(hoverTime()!) }}</div>
+          </div>
+          @if (activeChapter(); as chapterTitle) {
+            <div class="preview-chapter-label" [title]="chapterTitle">
+              {{ chapterTitle }}
+            </div>
+          }
+        </div>
+      }
+
+      <div class="timeline-track">
         <div class="timeline-buffered" [style.width.%]="bufferedPercent()"></div>
         <div class="timeline-played" [style.width.%]="playedPercent()">
-          <div class="timeline-thumb"></div>
+          <div class="timeline-thumb" [class.dragging]="isDragging()"></div>
         </div>
+        <!-- Hover indicator line -->
+        @if (showHoverPreview()) {
+          <div class="timeline-hover-pos" [style.left.px]="hoverPixelX()"></div>
+        }
       </div>
     </div>
 
@@ -115,11 +145,11 @@
       <!-- Right Controls: Settings, PiP, Fullscreen -->
       <div class="controls-right">
         <!-- Settings Menu Wrapper -->
-        <div class="settings-wrapper">
+        <div class="settings-wrapper" (click)="$event.stopPropagation()">
           <button
             type="button"
             class="ctrl-btn"
-            (click)="showSettingsMenu.set(!showSettingsMenu())"
+            (click)="toggleSettings($event)"
             title="Settings"
           >
             <app-icon name="settings"></app-icon>
@@ -127,7 +157,7 @@
 
           <!-- Main Settings Dropdown -->
           @if (showSettingsMenu()) {
-            <div class="settings-dropdown">
+            <div class="settings-dropdown" (click)="$event.stopPropagation()">
               <button
                 type="button"
                 class="menu-item"
@@ -149,7 +179,7 @@
 
           <!-- Quality Submenu -->
           @if (showQualityMenu()) {
-            <div class="settings-dropdown">
+            <div class="settings-dropdown" (click)="$event.stopPropagation()">
               <div class="dropdown-header">
                 <button
                   type="button"
@@ -178,7 +208,7 @@
 
           <!-- Speed Submenu -->
           @if (showSpeedMenu()) {
-            <div class="settings-dropdown">
+            <div class="settings-dropdown" (click)="$event.stopPropagation()">
               <div class="dropdown-header">
                 <button
                   type="button"

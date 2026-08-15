@@ -81,7 +81,60 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // Job Details Drawer state
   drawerVideo = signal<VideoItem | null>(null);
   isCheckingJobStatus = signal(false);
+  isTranscoding = signal(false);
+  copyFeedback = signal<string | null>(null);
   private pollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Quality & Transcoding Ladder options
+  selectedQualityPreset = signal<'full' | '4k' | 'hd' | 'light' | 'custom'>('full');
+  selectedResolutions = signal<string[]>(['1080p', '720p', '480p', '360p']);
+
+  readonly qualityPresets: {
+    id: 'full' | '4k' | 'hd' | 'light' | 'custom';
+    label: string;
+    resolutions: string[];
+    description: string;
+  }[] = [
+    {
+      id: 'full',
+      label: 'Full ABR Ladder (Recommended)',
+      resolutions: ['1080p', '720p', '480p', '360p'],
+      description: '1080p FHD, 720p HD, 480p SD, 360p Mobile. Optimal for all devices.',
+    },
+    {
+      id: '4k',
+      label: '4K Ultra Ladder',
+      resolutions: ['2160p (4K)', '1080p', '720p', '480p'],
+      description: 'Ultra-high definition for large 4K displays + HD stream fallback.',
+    },
+    {
+      id: 'hd',
+      label: 'HD Only',
+      resolutions: ['1080p', '720p'],
+      description: 'High-definition only (1080p and 720p). Saves encoding storage.',
+    },
+    {
+      id: 'light',
+      label: 'Lightweight / Mobile',
+      resolutions: ['720p', '480p', '360p'],
+      description: 'Standard definition and mobile-optimized streams.',
+    },
+    {
+      id: 'custom',
+      label: 'Custom Ladder',
+      resolutions: [],
+      description: 'Select custom target rendition resolutions below.',
+    },
+  ];
+
+  readonly availableResolutions = [
+    '2160p (4K)',
+    '1080p',
+    '720p',
+    '480p',
+    '360p',
+    '240p',
+  ];
 
   // Stats Folddown toggle
   showStatsFold = signal(false);
@@ -219,12 +272,32 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   async togglePublished(video: VideoItem): Promise<void> {
     this.closeMenu();
     try {
+      const newPublished = !video.isPublished;
       await this.dataService.updateVideoMetadata(video.docId, {
-        isPublished: !video.isPublished,
+        isPublished: newPublished,
       });
+      if (this.drawerVideo()?.docId === video.docId) {
+        this.drawerVideo.update((prev) => (prev ? { ...prev, isPublished: newPublished } : prev));
+      }
     } catch (err: unknown) {
       console.error('Error toggling published status:', err);
       const msg = err instanceof Error ? err.message : 'Failed to update publication status.';
+      alert(msg);
+    }
+  }
+
+  async toggleFeatured(video: VideoItem): Promise<void> {
+    try {
+      const newFeatured = !video.featured;
+      await this.dataService.updateVideoMetadata(video.docId, {
+        featured: newFeatured,
+      });
+      if (this.drawerVideo()?.docId === video.docId) {
+        this.drawerVideo.update((prev) => (prev ? { ...prev, featured: newFeatured } : prev));
+      }
+    } catch (err: unknown) {
+      console.error('Error toggling featured status:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to update featured status.';
       alert(msg);
     }
   }
@@ -233,6 +306,21 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   openDrawer(video: VideoItem): void {
     this.closeMenu();
     this.drawerVideo.set(video);
+
+    const res =
+      video.resolutions && video.resolutions.length > 0
+        ? [...video.resolutions]
+        : ['1080p', '720p', '480p', '360p'];
+    this.selectedResolutions.set(res);
+
+    const match = this.qualityPresets.find(
+      (p) =>
+        p.id !== 'custom' &&
+        p.resolutions.length === res.length &&
+        p.resolutions.every((r) => res.includes(r)),
+    );
+    this.selectedQualityPreset.set(match ? match.id : 'custom');
+
     if (
       video.vodStatus === VodStatus.Transcoding ||
       video.vodStatus === VodStatus.Queued
@@ -244,6 +332,101 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   closeDrawer(): void {
     this.stopPolling();
     this.drawerVideo.set(null);
+  }
+
+  applyQualityPreset(presetId: 'full' | '4k' | 'hd' | 'light' | 'custom'): void {
+    this.selectedQualityPreset.set(presetId);
+    const preset = this.qualityPresets.find((p) => p.id === presetId);
+    if (preset && preset.id !== 'custom') {
+      this.selectedResolutions.set([...preset.resolutions]);
+    }
+  }
+
+  toggleResolution(res: string): void {
+    const current = this.selectedResolutions();
+    let updated: string[];
+    if (current.includes(res)) {
+      if (current.length === 1) {
+        return; // Keep at least one resolution
+      }
+      updated = current.filter((r) => r !== res);
+    } else {
+      updated = [...current, res];
+    }
+    this.selectedResolutions.set(updated);
+
+    const match = this.qualityPresets.find(
+      (p) =>
+        p.id !== 'custom' &&
+        p.resolutions.length === updated.length &&
+        p.resolutions.every((r) => updated.includes(r)),
+    );
+    this.selectedQualityPreset.set(match ? match.id : 'custom');
+  }
+
+  isResolutionSelected(res: string): boolean {
+    return this.selectedResolutions().includes(res);
+  }
+
+  async transcodeAtQuality(video: VideoItem): Promise<void> {
+    const resolutions = this.selectedResolutions();
+    if (resolutions.length === 0) {
+      alert('Please select at least one target resolution.');
+      return;
+    }
+
+    const resList = resolutions.join(', ');
+    if (
+      !confirm(
+        `Are you sure you want to trigger transcoding for "${video.title}" at quality: ${resList}?`,
+      )
+    ) {
+      return;
+    }
+
+    this.isTranscoding.set(true);
+    try {
+      const res = await this.dataService.transcodeVideoForVod(
+        video.sourceUploadDocId,
+        video.sourceMemberDocId,
+        {
+          ...video,
+          resolutions,
+        },
+      );
+      if (this.drawerVideo()?.docId === video.docId) {
+        this.drawerVideo.update((prev) =>
+          prev
+            ? {
+                ...prev,
+                vodStatus: res.vodStatus || VodStatus.Queued,
+                resolutions,
+              }
+            : prev,
+        );
+        this.startPolling(video.docId);
+      }
+      alert(`Transcoding job queued successfully with target renditions: ${resList}`);
+    } catch (err: unknown) {
+      console.error('Error starting transcoding at quality:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to start transcoding.';
+      alert(msg);
+    } finally {
+      this.isTranscoding.set(false);
+    }
+  }
+
+  copyToClipboard(text: string, label: string): void {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(
+      () => {
+        this.copyFeedback.set(`${label} copied!`);
+        setTimeout(() => this.copyFeedback.set(null), 2500);
+      },
+      (err) => {
+        console.warn('Could not copy to clipboard:', err);
+      },
+    );
   }
 
   private startPolling(videoId: string): void {

@@ -62,6 +62,38 @@ export const checkVodJobStatus = onCall(
             // GCP States: PROCESSING_STATE_UNSPECIFIED, PENDING, RUNNING, SUCCEEDED, FAILED
             if (job.state === 'SUCCEEDED') {
               updatedStatus = VodStatus.Ready;
+
+              // Apply immutable cache-control to video segments and playlists in Cloud Storage
+              try {
+                const bucket = admin.storage().bucket();
+                const [files] = await bucket.getFiles({ prefix: `vod/${data.videoId}/` });
+                await Promise.all(
+                  files.map(async (file) => {
+                    const isPlaylist = file.name.endsWith('.m3u8');
+                    const isSegment =
+                      file.name.endsWith('.ts') ||
+                      file.name.endsWith('.m4s') ||
+                      file.name.endsWith('.mp4');
+                    const cacheControl = isSegment
+                      ? 'public, max-age=31536000, immutable'
+                      : isPlaylist
+                        ? 'public, max-age=3600'
+                        : 'public, max-age=86400';
+                    const contentType = isPlaylist
+                      ? 'application/x-mpegURL'
+                      : file.name.endsWith('.ts')
+                        ? 'video/MP2T'
+                        : 'video/mp4';
+
+                    await file.setMetadata({
+                      cacheControl,
+                      contentType,
+                    });
+                  }),
+                );
+              } catch (storageErr) {
+                logger.warn('Failed to update Cloud Storage cache headers for VOD files:', storageErr);
+              }
             } else if (job.state === 'RUNNING') {
               updatedStatus = VodStatus.Transcoding;
             } else if (job.state === 'PENDING') {

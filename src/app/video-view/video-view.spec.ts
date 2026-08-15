@@ -10,7 +10,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
+import { initVideoItem, VideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {
@@ -21,6 +21,7 @@ describe('VideoViewComponent', () => {
     getVideoPlaybackSession: ReturnType<typeof vi.fn>;
     getVideoProgress: ReturnType<typeof vi.fn>;
     saveVideoProgress: ReturnType<typeof vi.fn>;
+    getTagMeta: ReturnType<typeof vi.fn>;
     videos: { entries: WritableSignal<VideoItem[]> };
   };
   let mockFirebaseState: {
@@ -46,7 +47,6 @@ describe('VideoViewComponent', () => {
         ...initVideoItem(),
         docId: 'v100',
         title: 'Mastering Zhong Xin Dao',
-        category: VodCategory.SeminarRecording,
         accessTier: VodAccessTier.Public,
         vodStatus: VodStatus.Ready,
         durationSeconds: 3600,
@@ -60,6 +60,12 @@ describe('VideoViewComponent', () => {
       }),
       getVideoProgress: vi.fn().mockResolvedValue(null),
       saveVideoProgress: vi.fn().mockResolvedValue(undefined),
+      getTagMeta: vi.fn().mockImplementation((tag: string) => {
+        if (tag === 'spinning') {
+          return { tag: 'spinning', description: 'Spinning hands drills' };
+        }
+        return undefined;
+      }),
       videos: {
         entries: signal([]),
       },
@@ -115,5 +121,41 @@ describe('VideoViewComponent', () => {
     await component.ngOnInit();
     component.onTimeUpdated(120);
     expect(mockDataService.saveVideoProgress).toHaveBeenCalledWith('v100', 120, 3600, false);
+  });
+
+  it('should generate correct access tier chips', () => {
+    const video = {
+      ...initVideoItem(),
+      accessTiers: [VodAccessTier.MembersOnly, VodAccessTier.InstructorsOnly],
+      isBuyable: true,
+      priceCents: 1500,
+    };
+    const chips = component.getAccessTierChips(video);
+    expect(chips.map(c => c.label)).toContain('Members Only');
+    expect(chips.map(c => c.label)).toContain('Instructors Only');
+    expect(chips.map(c => c.label)).toContain('Direct Buy ($15.00)');
+  });
+
+  it('should return correct tag tooltips', () => {
+    expect(component.getTagTooltip('spinning')).toBe('#spinning: Spinning hands drills');
+    expect(component.getTagTooltip('basics')).toBe('Filter catalog by #basics');
+  });
+
+  it('should format bytes correctly', () => {
+    expect(component.formatBytes(0)).toBe('0 B');
+    expect(component.formatBytes(1024)).toBe('1.0 KB');
+    expect(component.formatBytes(1048576 * 15)).toBe('15.0 MB');
+  });
+
+  it('should trigger offline storage download and clear cache', async () => {
+    const makeSpy = vi.spyOn(component.offlineStorage, 'makeVideoAvailableOffline').mockResolvedValue();
+    const clearSpy = vi.spyOn(component.offlineStorage, 'clearAllCache').mockResolvedValue();
+
+    const video = { ...initVideoItem(), docId: 'v100', manifestUrl: 'https://example.com/stream.m3u8' };
+    await component.toggleSaveOffline(video);
+    expect(makeSpy).toHaveBeenCalledWith(video, 'https://example.com/stream.m3u8');
+
+    await component.clearAllDeviceCache();
+    expect(clearSpy).toHaveBeenCalled();
   });
 });

@@ -104,9 +104,64 @@
 }
 
 .timeline-container {
+  position: relative;
   width: 100%;
-  padding: 8px 0;
+  padding: 10px 0;
   cursor: pointer;
+  touch-action: none;
+}
+
+.timeline-preview-card {
+  position: absolute;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 35;
+  backdrop-filter: blur(8px);
+  max-width: 200px;
+
+  .preview-thumb-box {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #09090b;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+
+    .preview-time-overlay {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #f8fafc;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  .preview-chapter-label {
+    max-width: 160px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #38bdf8;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+  }
 }
 
 .timeline-track {
@@ -117,13 +172,23 @@
   border-radius: 3px;
   transition: height 0.15s ease;
 
-  &:hover {
+  &:hover, &:active {
     height: 8px;
 
     .timeline-thumb {
       transform: translate(50%, -50%) scale(1.3);
     }
   }
+}
+
+.timeline-hover-pos {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  border-radius: 1px;
 }
 
 .timeline-buffered {
@@ -154,8 +219,14 @@
   border-radius: 50%;
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease;
   pointer-events: none;
+
+  &.dragging {
+    transform: translate(50%, -50%) scale(1.5);
+    background: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  }
 }
 
 .controls-row {

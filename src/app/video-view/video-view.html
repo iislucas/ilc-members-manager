@@ -8,9 +8,9 @@
   </div>
 
   @if (isLoading()) {
-    <div class="loading-state">
+    <div class="loading-state-theater">
+      <span class="loading-text">Loading video session...</span>
       <app-spinner></app-spinner>
-      <span>Loading video session...</span>
     </div>
   } @else if (errorMessage()) {
     <div class="error-banner">
@@ -27,9 +27,10 @@
           [manifestUrl]="sessionState()!.manifestUrl!"
           [posterUrl]="v.thumbnailUrl"
           [initialPositionSeconds]="initialPositionSeconds()"
-          [autoplay]="true"
+          [autoplay]="false"
           (timeUpdated)="onTimeUpdated($event)"
           (videoCompleted)="onVideoCompleted()"
+          (statsUpdated)="streamingStats.set($event)"
         ></app-video-player>
       } @else {
         <!-- Locked Video Gating Screen -->
@@ -119,18 +120,195 @@
       }
     </div>
 
+    <!-- Streaming Diagnostics & Debug Box -->
+    @if (streamingStats(); as stats) {
+      <div class="streaming-debug-card">
+        <div class="debug-header">
+          <div class="debug-title">
+            <app-icon name="speed"></app-icon>
+            <span class="debug-label-text">Stream Diagnostics</span>
+            <span class="quality-pill">{{ stats.activeQualityLabel }}</span>
+            <span class="engine-pill">{{ stats.engine }}</span>
+            <span class="state-pill" [class]="stats.playerState">{{ stats.playerState }}</span>
+          </div>
+          <button
+            type="button"
+            class="debug-toggle-btn"
+            (click)="showDebugDetails.set(!showDebugDetails())"
+          >
+            {{ showDebugDetails() ? 'Hide Details' : 'Debug Info' }}
+          </button>
+        </div>
+
+        <!-- Summary Metrics Row -->
+        <div class="debug-metrics-grid">
+          <div class="metric-cell">
+            <span class="metric-label">Streamed So Far</span>
+            <span class="metric-val highlight">{{ formatBytes(stats.totalBytesDownloaded) }}</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-label">Cached Ahead (Unplayed)</span>
+            <span class="metric-val highlight-green">{{ formatBytes(stats.bytesAheadCached) }} ({{ stats.bufferAheadSeconds.toFixed(1) }}s)</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-label">Quality & Bitrate</span>
+            <span class="metric-val">{{ stats.activeQualityLabel }} &bull; {{ stats.currentBitrateMbps > 0 ? stats.currentBitrateMbps.toFixed(2) + ' Mbps' : 'ABR' }}</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-label">Position / Duration</span>
+            <span class="metric-val">{{ formatDuration(stats.currentPosition) }} / {{ formatDuration(stats.duration) }} ({{ stats.playedPercent.toFixed(0) }}%)</span>
+          </div>
+        </div>
+
+        <!-- Detailed Debug Panel (Foldable) -->
+        @if (showDebugDetails()) {
+          <div class="debug-details-panel">
+            <div class="detail-item">
+              <span class="detail-key">Recent Download:</span>
+              <span class="detail-val">{{ formatBytes(stats.lastChunkBytes) }} in {{ stats.lastChunkDurationMs }}ms</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Buffer Ahead:</span>
+              <span class="detail-val">{{ stats.bufferAheadSeconds.toFixed(2) }}s ahead ({{ stats.bufferedPercent.toFixed(1) }}% total buffer)</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Dropped Frames:</span>
+              <span class="detail-val">{{ stats.droppedFrames }} dropped / {{ stats.totalFrames }} total</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Stream URL:</span>
+              <span class="detail-val truncate" [title]="stats.url">{{ stats.url }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Offline Availability & Local Storage Manager Card -->
+    <div class="offline-storage-card">
+      <div class="offline-main-row">
+        <div class="offline-status-block">
+          <div class="storage-title">
+            <app-icon name="storage"></app-icon>
+            <span class="storage-title-text">On-Device Storage</span>
+            <span class="storage-usage-pill">
+              {{ offlineStorage.formatBytes(offlineStorage.totalStorageBytes()) }} used ({{ offlineStorage.totalCachedChunks() }} chunks)
+            </span>
+          </div>
+
+          @if (offlineStorage.getProgress(v.docId); as prog) {
+            @if (prog.status === 'downloading') {
+              <div class="offline-progress-wrap">
+                <div class="progress-info-row">
+                  <span class="progress-label">Downloading for offline playback...</span>
+                  <span class="progress-count">{{ prog.percent }}% ({{ prog.currentChunk }}/{{ prog.totalChunks }} chunks • {{ offlineStorage.formatBytes(prog.bytesDownloaded) }})</span>
+                </div>
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" [style.width.%]="prog.percent"></div>
+                </div>
+              </div>
+            } @else if (prog.status === 'failed') {
+              <div class="offline-error-text">
+                <span>Download failed: {{ prog.error }}</span>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="offline-actions-row">
+          <!-- Download / Saved Button -->
+          @if (offlineStorage.getProgress(v.docId)?.status === 'downloading') {
+            <button
+              type="button"
+              class="offline-action-btn cancel-btn"
+              (click)="cancelOfflineDownload(v.docId)"
+            >
+              <app-icon name="close"></app-icon>
+              <span>Cancel</span>
+            </button>
+          } @else if (offlineStorage.isVideoSavedOffline(v.docId)) {
+            <button
+              type="button"
+              class="offline-action-btn saved-btn"
+              (click)="toggleSaveOffline(v)"
+              title="Click to remove from offline storage"
+            >
+              <app-icon name="download_done"></app-icon>
+              <span>Saved Offline ({{ offlineStorage.formatBytes(offlineStorage.getVideoOfflineSize(v.docId)) }})</span>
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="offline-action-btn download-btn"
+              [disabled]="!sessionState()?.authorized"
+              (click)="toggleSaveOffline(v)"
+            >
+              <app-icon name="download"></app-icon>
+              <span>Make Available Offline</span>
+            </button>
+          }
+
+          <!-- Clear All Cache Button -->
+          @if (offlineStorage.totalStorageBytes() > 0) {
+            <button
+              type="button"
+              class="offline-action-btn clear-btn"
+              (click)="clearAllDeviceCache()"
+              title="Clear all cached videos on this device"
+            >
+              <app-icon name="delete_sweep"></app-icon>
+              <span>Clear Cache</span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
     <!-- Video Metadata & Details Layout -->
     <div class="video-details-layout">
       <!-- Main Column: Info, Instructor, Description, Chapters -->
       <div class="main-info-col">
         <div class="title-header">
           <div class="badge-row">
-            <span class="category-badge">{{ v.category }}</span>
             <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>
             <span class="access-badge">{{ getAccessSummary(v) }}</span>
           </div>
 
           <h1 class="video-title">{{ v.title }}</h1>
+
+          <!-- Tags & Access Chips Section -->
+          <div class="chips-section">
+            <!-- Access Tiers (Grey Chips) -->
+            <div class="chips-group">
+              <span class="chips-heading">Who can access:</span>
+              <div class="chips-row">
+                @for (chip of getAccessTierChips(v); track chip.label) {
+                  <span class="access-grey-chip">
+                    <app-icon [name]="chip.icon"></app-icon>
+                    <span>{{ chip.label }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Tags (Blue Highlight Chips) -->
+            @if (v.tags && v.tags.length) {
+              <div class="chips-group">
+                <span class="chips-heading">Tags:</span>
+                <div class="chips-row">
+                  @for (tag of v.tags; track tag) {
+                    <a
+                      class="tag-blue-chip"
+                      [href]="getCatalogHrefForTag(tag)"
+                      [title]="getTagTooltip(tag)"
+                    >
+                      #{{ tag }}
+                    </a>
+                  }
+                </div>
+              </div>
+            }
+          </div>
 
           <div class="meta-row">
             @if (v.instructorName) {

@@ -19,7 +19,6 @@ import {
   UploadItem,
   IlcEvent,
   InstructorPublicData,
-  VodCategory,
   VodAccessTier,
   VodStatus,
 } from '../../../functions/src/data-model';
@@ -590,23 +589,12 @@ export class ManageMaterialsComponent implements OnInit {
   isPublishingVod = signal(false);
   vodTitle = signal('');
   vodDescription = signal('');
-  vodCategory = signal<VodCategory>(VodCategory.SeminarRecording);
   vodAccessTier = signal<VodAccessTier>(VodAccessTier.MembersOnly);
   vodAccessTiers = signal<VodAccessTier[]>([VodAccessTier.MembersOnly]);
   vodIsBuyable = signal(false);
   vodStripePriceId = signal('');
   vodPriceDollars = signal<number | null>(null);
   vodTags = signal<string[]>([]);
-
-  readonly vodCategories = [
-    { value: VodCategory.SeminarRecording, label: 'Seminar Recording' },
-    { value: VodCategory.TechniqueBreakdown, label: 'Technique Breakdown' },
-    { value: VodCategory.GradingSyllabus, label: 'Grading Syllabus' },
-    { value: VodCategory.FormDemonstration, label: 'Form Demonstration' },
-    { value: VodCategory.InstructorTraining, label: 'Instructor Training' },
-    { value: VodCategory.Workshop, label: 'Workshop' },
-    { value: VodCategory.HistoricalArchive, label: 'Historical Archive' },
-  ];
 
   readonly availableAccessTiers = [
     { value: VodAccessTier.Public, label: 'Public (Free to everyone)', description: 'Accessible to all visitors without logging in' },
@@ -664,7 +652,6 @@ export class ManageMaterialsComponent implements OnInit {
     this.vodPublishItem.set(mat);
     this.vodTitle.set(mat.name || 'Untitled Video');
     this.vodDescription.set(mat.notes || '');
-    this.vodCategory.set(VodCategory.SeminarRecording);
     this.vodAccessTiers.set([VodAccessTier.MembersOnly]);
     this.vodIsBuyable.set(false);
     this.vodStripePriceId.set('');
@@ -698,7 +685,6 @@ export class ManageMaterialsComponent implements OnInit {
         {
           title: this.vodTitle(),
           description: this.vodDescription(),
-          category: this.vodCategory(),
           accessTier: tiers[0] || VodAccessTier.MembersOnly,
           accessTiers: tiers,
           isBuyable,

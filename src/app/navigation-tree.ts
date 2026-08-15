@@ -185,9 +185,9 @@ export class NavigationTreeService {
   private areaNode(area: 'learn' | 'practice' | 'me' | 'admin'): NavNode {
     switch (area) {
       case 'learn':
-        return { label: 'Learn', url: '/?tab=learn' };
+        return { label: 'Read & Watch', url: '/?tab=learn' };
       case 'practice':
-        return { label: 'Practice', url: '/?tab=practice' };
+        return { label: 'Train', url: '/?tab=practice' };
       case 'me':
         return { label: 'Me', url: '/?tab=me' };
       case 'admin':

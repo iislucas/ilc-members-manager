@@ -377,6 +377,16 @@ textarea:disabled {
   border: none;
 }
 
+input[type="checkbox"] {
+  accent-color: $heading-accent-color;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba(149, 0, 0, 0.4);
+    outline-offset: 2px;
+  }
+}
+
 // ----------------------------------------------------------------------------
 //  List Search and Filtering
 // ----------------------------------------------------------------------------

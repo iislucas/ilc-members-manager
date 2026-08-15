@@ -9,7 +9,7 @@ import { ManageVodComponent } from './manage-vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodCategory, VodStatus, TagItem } from '../../../functions/src/data-model';
+import { initVideoItem, VideoItem, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal, computed } from '@angular/core';
 
@@ -233,5 +233,61 @@ describe('ManageVodComponent', () => {
   it('should return correct tag tooltips with descriptions', () => {
     expect(component.getTagTooltip('spinning')).toBe('#spinning: Circular energy exercises');
     expect(component.getTagTooltip('partner')).toBe('Filter by #partner');
+  });
+
+  it('should toggle featured status', async () => {
+    const video = mockDataService.videos.entries()[0];
+    component.openDrawer(video);
+    await component.toggleFeatured(video);
+    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', {
+      featured: true,
+    });
+    expect(component.drawerVideo()?.featured).toBe(true);
+  });
+
+  it('should handle quality presets and resolution selection', () => {
+    const video = mockDataService.videos.entries()[0];
+    component.openDrawer(video);
+
+    expect(component.selectedQualityPreset()).toBe('full');
+    expect(component.selectedResolutions()).toEqual(['1080p', '720p', '480p', '360p']);
+
+    component.applyQualityPreset('hd');
+    expect(component.selectedQualityPreset()).toBe('hd');
+    expect(component.selectedResolutions()).toEqual(['1080p', '720p']);
+
+    component.toggleResolution('4K (2160p)');
+    expect(component.isResolutionSelected('4K (2160p)')).toBe(true);
+    expect(component.selectedQualityPreset()).toBe('custom');
+  });
+
+  it('should trigger transcodeAtQuality with selected resolutions', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    const video = mockDataService.videos.entries()[0];
+    component.openDrawer(video);
+    component.applyQualityPreset('4k');
+
+    await component.transcodeAtQuality(video);
+    expect(mockDataService.transcodeVideoForVod).toHaveBeenCalledWith(
+      video.sourceUploadDocId,
+      video.sourceMemberDocId,
+      expect.objectContaining({
+        resolutions: ['2160p (4K)', '1080p', '720p', '480p'],
+      }),
+    );
+  });
+
+  it('should copy text to clipboard and set feedback', async () => {
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextSpy,
+      },
+    });
+
+    component.copyToClipboard('https://example.com/manifest.m3u8', 'Manifest URL');
+    expect(writeTextSpy).toHaveBeenCalledWith('https://example.com/manifest.m3u8');
   });
 });

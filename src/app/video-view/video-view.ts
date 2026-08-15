@@ -23,7 +23,6 @@ import {
 import {
   VideoItem,
   VodAccessTier,
-  VodCategory,
   VodStatus,
   VideoProgress,
 } from '../../../functions/src/data-model';
@@ -32,9 +31,10 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { VideoPlayerComponent } from '../video-player/video-player';
-import { IconComponent } from '../icons/icon.component';
+import { VideoPlayerComponent, StreamingStats } from '../video-player/video-player';
+import { IconComponent, IconName } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { VodOfflineStorageService } from '../vod-offline-storage.service';
 
 export interface PlaybackSessionState {
   authorized: boolean;
@@ -64,6 +64,7 @@ export class VideoViewComponent implements OnInit {
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   public stripeService = inject(StripeService);
+  public offlineStorage = inject(VodOfflineStorageService);
 
   private viewSignals = this.routingService.signals[Views.VideoView];
 
@@ -77,6 +78,10 @@ export class VideoViewComponent implements OnInit {
   isPurchasing = signal(false);
   initialPositionSeconds = signal(0);
   errorMessage = signal<string | null>(null);
+
+  // Streaming Diagnostics
+  streamingStats = signal<StreamingStats | null>(null);
+  showDebugDetails = signal(false);
 
   // Related Videos
   relatedVideos = computed<VideoItem[]>(() => {
@@ -248,11 +253,83 @@ export class VideoViewComponent implements OnInit {
     return this.routingService.hrefForView(Views.MyOrders, {});
   }
 
+  getAccessTierChips(video: VideoItem): { label: string; icon: IconName }[] {
+    const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
+      ? video.accessTiers
+      : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    const chips: { label: string; icon: IconName }[] = [];
+    if (tiers.includes(VodAccessTier.Public)) {
+      chips.push({ label: 'Public (Free)', icon: 'public' });
+    }
+    if (tiers.includes(VodAccessTier.MembersOnly)) {
+      chips.push({ label: 'Members Only', icon: 'person' });
+    }
+    if (tiers.includes(VodAccessTier.InstructorsOnly)) {
+      chips.push({ label: 'Instructors Only', icon: 'military_tech' });
+    }
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
+      chips.push({ label: 'Class Subscribers', icon: 'video_library' });
+    }
+
+    const isBuyable = Boolean(
+      video.isBuyable ||
+      tiers.includes(VodAccessTier.DirectPurchase) ||
+      (video.priceCents && video.priceCents > 0),
+    );
+    if (isBuyable) {
+      const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
+      chips.push({ label: `Direct Buy (${priceStr})`, icon: 'shopping_cart' });
+    }
+
+    if (chips.length === 0) {
+      chips.push({ label: 'Members Only', icon: 'person' });
+    }
+    return chips;
+  }
+
+  getTagTooltip(tag: string): string {
+    const meta = this.dataService.getTagMeta(tag);
+    if (meta && meta.description) {
+      return `#${tag}: ${meta.description}`;
+    }
+    return `Filter catalog by #${tag}`;
+  }
+
+  getCatalogHrefForTag(tag: string): string {
+    return `${this.getCatalogHref()}?tag=${encodeURIComponent(tag)}`;
+  }
+
+  formatBytes(bytes: number): string {
+    if (!bytes || bytes <= 0 || isNaN(bytes)) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const val = bytes / Math.pow(1024, i);
+    return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i] || 'B'}`;
+  }
+
   getInstructorHref(): string {
     const v = this.video();
     if (!v || (!v.instructorDocId && !v.instructorId)) return '#';
     return this.routingService.hrefForView(Views.InstructorView, {
       instructorId: v.instructorId || v.instructorDocId,
     });
+  }
+
+  async toggleSaveOffline(video: VideoItem): Promise<void> {
+    if (this.offlineStorage.isVideoSavedOffline(video.docId)) {
+      await this.offlineStorage.removeVideoFromOffline(video.docId);
+    } else {
+      const url = this.sessionState()?.manifestUrl || video.manifestUrl;
+      await this.offlineStorage.makeVideoAvailableOffline(video, url);
+    }
+  }
+
+  cancelOfflineDownload(videoId: string): void {
+    this.offlineStorage.cancelOfflineDownload(videoId);
+  }
+
+  async clearAllDeviceCache(): Promise<void> {
+    await this.offlineStorage.clearAllCache();
   }
 }

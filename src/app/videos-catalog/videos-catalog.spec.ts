@@ -10,7 +10,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { ROUTING_CONFIG } from '../app.config';
-import { initVideoItem, InstructorPublicData, VideoItem, VodAccessTier, VodCategory, VodStatus } from '../../../functions/src/data-model';
+import { initVideoItem, InstructorPublicData, VideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideosCatalogComponent', () => {
@@ -35,7 +35,6 @@ describe('VideosCatalogComponent', () => {
       videos: {
         urlParams: {
           q: WritableSignal<string | null>;
-          category: WritableSignal<string | null>;
           tag: WritableSignal<string | null>;
           instructorId: WritableSignal<string | null>;
           tier: WritableSignal<string | null>;
@@ -53,7 +52,6 @@ describe('VideosCatalogComponent', () => {
             ...initVideoItem(),
             docId: 'v1',
             title: 'Zhong Xin Dao Fundamentals',
-            category: VodCategory.TechniqueBreakdown,
             accessTier: VodAccessTier.Public,
             isPublished: true,
             durationSeconds: 1800,
@@ -63,7 +61,6 @@ describe('VideosCatalogComponent', () => {
             ...initVideoItem(),
             docId: 'v2',
             title: 'Advanced Sticky Hands',
-            category: VodCategory.SeminarRecording,
             accessTier: VodAccessTier.MembersOnly,
             isPublished: true,
             durationSeconds: 5400,
@@ -88,7 +85,6 @@ describe('VideosCatalogComponent', () => {
         videos: {
           urlParams: {
             q: signal(null),
-            category: signal(null),
             tag: signal(null),
             instructorId: signal(null),
             tier: signal(null),

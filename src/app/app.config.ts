@@ -260,11 +260,11 @@ export const initPathPatterns = {
     { name: 'session_id', ephemeral: true },
   ]),
   [Views.Videos]: addUrlParams(pathPattern`videos`, [
-    'q', 'category', 'tag', 'instructorId', 'tier',
+    'q', 'tag', 'instructorId', 'tier',
   ]),
   [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
-    'q', 'status', 'category', 'instructorId',
+    'q', 'status', 'instructorId',
   ]),
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
 };

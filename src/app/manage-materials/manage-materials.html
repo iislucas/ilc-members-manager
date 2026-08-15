@@ -824,19 +824,6 @@
             ></textarea>
           </div>
 
-          <div class="form-group">
-            <label for="vodCatSelect">Category</label>
-            <select
-              id="vodCatSelect"
-              [value]="vodCategory()"
-              (change)="vodCategory.set($any($event.target).value)"
-            >
-              @for (c of vodCategories; track c.value) {
-                <option [value]="c.value">{{ c.label }}</option>
-              }
-            </select>
-          </div>
-
           <!-- Access Tiers (Multi-select) -->
           <div class="form-group access-tiers-group">
             <label class="section-heading-label">Who Can View (Allowed Access Methods)</label>

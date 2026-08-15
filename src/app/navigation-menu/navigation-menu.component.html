@@ -1,7 +1,7 @@
 <div class="menu-overlay" (click)="closeMenu.emit()"></div>
 @if (user(); as u) {
   <div class="menu">
-    <!-- LEARN SECTION -->
+    <!-- READ & WATCH SECTION -->
     <div class="nav-section" [class.expanded]="selectedArea() === 'learn'">
       <div
         class="section-header top-level-nav"
@@ -10,7 +10,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-title">Learn</span>
+        <span class="nav-title">Read & Watch</span>
         <app-icon
           name="chevron_right"
           width="18px"
@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <!-- PRACTICE SECTION -->
+    <!-- TRAIN SECTION -->
     <div class="nav-section" [class.expanded]="selectedArea() === 'practice'">
       <div
         class="section-header top-level-nav"
@@ -55,7 +55,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="nav-title">Practice</span>
+        <span class="nav-title">Train</span>
         <app-icon
           name="chevron_right"
           width="18px"

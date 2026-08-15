@@ -212,6 +212,7 @@
             </td>
 
             <!-- Actions (3-Dots Kebab Menu) -->
+            <!-- Actions (3-Dots Kebab Menu) -->
             <td class="actions-cell">
               <div class="kebab-container">
                 <button
@@ -224,7 +225,12 @@
                 </button>
 
                 @if (activeMenuVideoId() === video.docId) {
-                  <div class="kebab-dropdown" (click)="$event.stopPropagation()">
+                  <div class="menu-overlay transparent" (click)="closeMenu(); $event.stopPropagation()"></div>
+                  <div
+                    class="kebab-dropdown"
+                    [class.dropdown-up]="$count > 2 && $index >= $count - 2"
+                    (click)="$event.stopPropagation()"
+                  >
                     <!-- Edit Metadata -->
                     <button
                       type="button"
@@ -324,6 +330,63 @@
 
         <!-- Drawer Content -->
         <div class="drawer-body">
+          <!-- Drawer Quick Actions Bar -->
+          <div class="drawer-quick-actions">
+            <button
+              type="button"
+              class="drawer-action-btn"
+              (click)="openEditModal(d)"
+              title="Edit Title, Description, Tags, Access Tiers and Price"
+            >
+              <app-icon name="edit"></app-icon>
+              <span>Edit Metadata</span>
+            </button>
+
+            <button
+              type="button"
+              class="drawer-action-btn"
+              [class.active]="d.isPublished"
+              (click)="togglePublished(d)"
+              [title]="d.isPublished ? 'Click to hide from catalog' : 'Click to publish in catalog'"
+            >
+              <app-icon [name]="d.isPublished ? 'visibility' : 'visibility_off'"></app-icon>
+              <span>{{ d.isPublished ? 'Listed in Catalog' : 'Hidden / Draft' }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="drawer-action-btn"
+              [class.active]="d.featured"
+              (click)="toggleFeatured(d)"
+              title="Toggle featured spotlight hero status"
+            >
+              <app-icon name="military_tech"></app-icon>
+              <span>{{ d.featured ? 'Featured Spotlight' : 'Standard' }}</span>
+            </button>
+
+            @if (d.vodStatus === 'ready') {
+              <a
+                class="drawer-action-btn primary"
+                [href]="getVideoHref(d)"
+                target="_blank"
+                title="Watch video playback in player"
+              >
+                <app-icon name="play_arrow"></app-icon>
+                <span>Watch</span>
+              </a>
+            }
+
+            <button
+              type="button"
+              class="drawer-action-btn"
+              (click)="copyToClipboard(getVideoHref(d), 'Video URL')"
+              title="Copy video link to clipboard"
+            >
+              <app-icon name="link"></app-icon>
+              <span>Copy Link</span>
+            </button>
+          </div>
+
           <!-- Preview & Quick Summary -->
           <div class="drawer-preview-card">
             @if (d.thumbnailUrl) {
@@ -343,20 +406,109 @@
                 <span class="published-badge" [class.published]="d.isPublished">
                   {{ d.isPublished ? 'Listed in Catalog' : 'Hidden / Draft' }}
                 </span>
+                @if (d.featured) {
+                  <span class="featured-badge">Featured Spotlight</span>
+                }
               </div>
             </div>
           </div>
 
-          <!-- Live Transcoding Pipeline Status -->
+          <!-- Transcode & Quality Renditions Section -->
           <div class="drawer-section">
             <div class="section-title-row">
-              <h5>Transcoder Pipeline Status</h5>
+              <h5>Transcode & Quality Renditions</h5>
               @if (d.vodStatus === 'transcoding' || d.vodStatus === 'queued') {
                 <span class="pulse-indicator">
                   <span class="pulse-dot"></span>
-                  In Progress (Auto-polling)
+                  Transcoding In Progress
                 </span>
               }
+            </div>
+
+            <div class="quality-section">
+              <div class="quality-heading-row">
+                <span class="quality-label">Current Renditions:</span>
+                <div class="current-renditions">
+                  @if (d.resolutions && d.resolutions.length) {
+                    @for (r of d.resolutions; track r) {
+                      <span class="res-chip">{{ r }}</span>
+                    }
+                  } @else {
+                    <span class="res-chip">1080p, 720p, 480p, 360p (Auto Multi-bitrate HLS)</span>
+                  }
+                </div>
+              </div>
+
+              <!-- Quality Ladder Presets -->
+              <div class="quality-presets-container">
+                <label class="quality-preset-label">Transcode at Quality Preset:</label>
+                <div class="quality-presets-list">
+                  @for (preset of qualityPresets; track preset.id) {
+                    <label
+                      class="preset-card"
+                      [class.selected]="selectedQualityPreset() === preset.id"
+                      (click)="applyQualityPreset(preset.id)"
+                    >
+                      <input
+                        type="radio"
+                        name="qualityPreset"
+                        [checked]="selectedQualityPreset() === preset.id"
+                        (change)="applyQualityPreset(preset.id)"
+                      />
+                      <div class="preset-content">
+                        <span class="preset-title">{{ preset.label }}</span>
+                        <span class="preset-desc">{{ preset.description }}</span>
+                      </div>
+                    </label>
+                  }
+                </div>
+              </div>
+
+              <!-- Custom Resolutions Selection (if custom or fine-tuning) -->
+              @if (selectedQualityPreset() === 'custom') {
+                <div class="custom-resolutions-container">
+                  <label class="quality-preset-label">Select Target Rendition Qualities:</label>
+                  <div class="custom-resolutions-grid">
+                    @for (res of availableResolutions; track res) {
+                      <label class="res-toggle-option">
+                        <input
+                          type="checkbox"
+                          [checked]="isResolutionSelected(res)"
+                          (change)="toggleResolution(res)"
+                        />
+                        <span>{{ res }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Transcode Action Trigger Button -->
+              <div class="transcode-action-row">
+                <button
+                  type="button"
+                  class="transcode-btn"
+                  [disabled]="isTranscoding() || selectedResolutions().length === 0"
+                  (click)="transcodeAtQuality(d)"
+                >
+                  @if (isTranscoding()) {
+                    <app-spinner size="14px"></app-spinner>
+                    <span>Queueing Transcode...</span>
+                  } @else {
+                    <app-icon name="speed"></app-icon>
+                    <span>
+                      {{ d.vodStatus === 'ready' ? 'Re-transcode at Selected Quality' : 'Start Transcoding with Selected Quality' }}
+                    </span>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Transcoding Pipeline Status & Technical Details -->
+          <div class="drawer-section">
+            <div class="section-title-row">
+              <h5>Pipeline Technical Diagnostics</h5>
             </div>
 
             <div class="pipeline-card" [class.failed]="d.vodStatus === 'failed'" [class.ready]="d.vodStatus === 'ready'">
@@ -387,28 +539,30 @@
                   <span class="detail-val mono">{{ d.sourceUploadDocId }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Target Renditions</span>
-                  <span class="detail-val">
-                    @if (d.resolutions && d.resolutions.length) {
-                      {{ d.resolutions.join(', ') }}
-                    } @else {
-                      1080p, 720p, 480p, 360p (Auto Multi-bitrate HLS)
-                    }
-                  </span>
-                </div>
-                <div class="detail-item">
                   <span class="detail-label">Duration & Size</span>
                   <span class="detail-val">{{ formatDuration(d.durationSeconds) }} ({{ formatBytes(d.originalSize) }})</span>
-                </div>
-                <div class="detail-item full-width">
-                  <span class="detail-label">Master Manifest URL</span>
-                  <span class="detail-val mono truncate">{{ d.manifestUrl || 'Generated on completion' }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Published At</span>
                   <span class="detail-val">{{ d.publishedAt || '—' }}</span>
                 </div>
-                <div class="detail-item">
+                <div class="detail-item full-width manifest-row">
+                  <div class="manifest-header">
+                    <span class="detail-label">Master Manifest URL</span>
+                    @if (d.manifestUrl) {
+                      <button
+                        type="button"
+                        class="icon-only-button copy-manifest-btn"
+                        (click)="copyToClipboard(d.manifestUrl, 'Master Manifest URL')"
+                        title="Copy Manifest URL"
+                      >
+                        <app-icon name="content_copy"></app-icon>
+                      </button>
+                    }
+                  </div>
+                  <span class="detail-val mono truncate">{{ d.manifestUrl || 'Generated on completion' }}</span>
+                </div>
+                <div class="detail-item full-width">
                   <span class="detail-label">Last Checked</span>
                   <span class="detail-val">{{ d.lastUpdated }}</span>
                 </div>
@@ -438,6 +592,13 @@
           </div>
         </div>
 
+        <!-- Toast Feedback Notification -->
+        @if (copyFeedback()) {
+          <div class="drawer-toast">
+            <span>{{ copyFeedback() }}</span>
+          </div>
+        }
+
         <!-- Drawer Footer Actions -->
         <div class="drawer-footer">
           <button
@@ -455,27 +616,28 @@
             }
           </button>
 
-          @if (d.vodStatus === 'failed' || d.vodStatus === 'none' || d.vodStatus === 'queued') {
+          <div class="footer-right-actions">
             <button
               type="button"
-              class="secondary-btn warn"
-              (click)="retryTranscoding(d)"
+              class="subtle-btn danger-btn"
+              (click)="deleteVideo(d)"
+              title="Delete video from VOD catalog"
             >
-              <app-icon name="refresh"></app-icon>
-              <span>Re-trigger Transcoding</span>
+              <app-icon name="delete"></app-icon>
+              <span>Delete</span>
             </button>
-          }
 
-          @if (d.vodStatus === 'ready') {
-            <a
-              class="primary-btn"
-              [href]="getVideoHref(d)"
-              target="_blank"
-            >
-              <app-icon name="play_arrow"></app-icon>
-              <span>Watch Video</span>
-            </a>
-          }
+            @if (d.vodStatus === 'ready') {
+              <a
+                class="primary-btn"
+                [href]="getVideoHref(d)"
+                target="_blank"
+              >
+                <app-icon name="play_arrow"></app-icon>
+                <span>Watch Video</span>
+              </a>
+            }
+          </div>
         </div>
       </div>
     </div>

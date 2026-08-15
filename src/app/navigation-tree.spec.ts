@@ -95,11 +95,11 @@ describe('NavigationTreeService', () => {
 
   it('puts an event under its list, and the event editor under the event', () => {
     goTo(Views.EventView, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Practice', 'Events & Workshops']);
+    expect(ancestorLabels()).toEqual(['Train', 'Events & Workshops']);
 
     navTree.loadedEventTitle.set('Summer Camp');
     goTo(Views.EventEdit, { eventId: 'E1' });
-    expect(ancestorLabels()).toEqual(['Practice', 'Events & Workshops', 'Summer Camp']);
+    expect(ancestorLabels()).toEqual(['Train', 'Events & Workshops', 'Summer Camp']);
     expect(navTree.parent()?.url).toBe('/events/E1');
   });
 
@@ -117,7 +117,7 @@ describe('NavigationTreeService', () => {
   it('puts a class calendar under the instructor whose calendar it is', () => {
     goTo(Views.ClassCalendarView, { instructorId: 'I7' });
     expect(navTree.parent()?.url).toBe('/instructors/I7');
-    expect(ancestorLabels()).toEqual(['Practice', 'Instructors', 'I7']);
+    expect(ancestorLabels()).toEqual(['Train', 'Instructors', 'I7']);
   });
 
   it('puts settings sub-pages under Settings', () => {
@@ -190,7 +190,7 @@ describe('NavigationTreeService', () => {
     const crumbs = navTree.breadcrumbs();
     expect(crumbs.map((c) => c.label)).toEqual([
       'ILC Portal',
-      'Practice',
+      'Train',
       'Events & Workshops',
       'Summer Camp',
       'Edit: Summer Camp',

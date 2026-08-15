@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "../../scss_variables.scss" as v;
 @use "../../styles" as *;
 
@@ -259,7 +260,11 @@
   background: white;
   border: 1px solid v.$border-color-light;
   border-radius: 8px;
-  overflow-x: auto;
+  overflow: visible;
+
+  @media (max-width: 768px) {
+    overflow-x: auto;
+  }
 }
 
 .vod-table {
@@ -511,16 +516,21 @@
     .kebab-dropdown {
       position: absolute;
       right: 0;
-      top: 100%;
+      top: calc(100% + 4px);
       z-index: 100;
       min-width: 210px;
       background: white;
       border: 1px solid v.$border-color-light;
       border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
       padding: 6px 0;
       display: flex;
       flex-direction: column;
+
+      &.dropdown-up {
+        top: auto;
+        bottom: calc(100% + 4px);
+      }
 
       .dropdown-item {
         display: flex;
@@ -651,6 +661,71 @@
     flex-direction: column;
     gap: 20px;
 
+    .drawer-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+
+      .drawer-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        padding: 6px 10px;
+        background: #f8fafc;
+        border: 1px solid v.$border-color-light;
+        border-radius: 6px;
+        color: v.$text-primary;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 500;
+        font-family: inherit;
+        transition: all 0.15s ease;
+
+        app-icon {
+          font-size: 1rem;
+          color: v.$text-secondary;
+        }
+
+        &:hover {
+          background: #f1f5f9;
+          border-color: v.$text-placeholder;
+          color: v.$heading-accent-color;
+
+          app-icon {
+            color: v.$heading-accent-color;
+          }
+        }
+
+        &.active {
+          background: #e0f2fe;
+          border-color: #bae6fd;
+          color: #0369a1;
+
+          app-icon {
+            color: #0369a1;
+          }
+        }
+
+        &.primary {
+          background: #f0f9ff;
+          border-color: #bae6fd;
+          color: #0284c7;
+
+          app-icon {
+            color: #0284c7;
+          }
+
+          &:hover {
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+            color: #0369a1;
+          }
+        }
+      }
+    }
+
     .drawer-preview-card {
       display: flex;
       gap: 14px;
@@ -700,6 +775,17 @@
           gap: 6px;
           margin-top: auto;
           flex-wrap: wrap;
+          align-items: center;
+
+          .featured-badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            color: v.$heading-accent-color;
+            font-weight: 600;
+            background: #fff1f2;
+            padding: 2px 6px;
+            border-radius: 4px;
+          }
         }
       }
     }
@@ -738,6 +824,192 @@
           border-radius: 50%;
           background: #d97706;
           animation: pulse 1.5s infinite;
+        }
+      }
+    }
+
+    .quality-section {
+      background: white;
+      border: 1px solid v.$border-color-light;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .quality-heading-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        .quality-label {
+          font-weight: 600;
+          font-size: 0.85rem;
+          color: v.$text-secondary;
+        }
+
+        .current-renditions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+
+          .res-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: v.$text-primary;
+            border: 1px solid v.$border-color-light;
+          }
+        }
+      }
+
+      .quality-presets-container {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .quality-preset-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: v.$text-secondary;
+        }
+
+        .quality-presets-list {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+
+          .preset-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1.5px solid v.$border-color-light;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: #f8fafc;
+
+            input[type="radio"] {
+              margin-top: 3px;
+              cursor: pointer;
+              accent-color: v.$heading-accent-color;
+            }
+
+            .preset-content {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+
+              .preset-title {
+                font-size: 0.84rem;
+                font-weight: 600;
+                color: v.$text-primary;
+              }
+
+              .preset-desc {
+                font-size: 0.74rem;
+                color: v.$text-muted;
+                line-height: 1.25;
+              }
+            }
+
+            &:hover {
+              border-color: v.$heading-accent-color;
+              background: #ffffff;
+            }
+
+            &.selected {
+              border-color: v.$heading-accent-color;
+              background: #fdf2f2;
+            }
+          }
+        }
+      }
+
+      .custom-resolutions-container {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .quality-preset-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: v.$text-secondary;
+        }
+
+        .custom-resolutions-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+          gap: 8px;
+          padding: 10px;
+          background: #f8fafc;
+          border: 1px dashed v.$border-color-light;
+          border-radius: 6px;
+
+          .res-toggle-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: v.$text-primary;
+            cursor: pointer;
+
+            input[type="checkbox"] {
+              accent-color: v.$heading-accent-color;
+              cursor: pointer;
+            }
+          }
+        }
+      }
+
+      .transcode-action-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-top: 4px;
+
+        .transcode-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          padding: 8px 14px;
+          border-radius: 6px;
+          cursor: pointer;
+          background: #f0f9ff;
+          color: #0284c7;
+          border: 1px solid #bae6fd;
+          transition: all 0.15s ease;
+
+          app-icon {
+            font-size: 1.1rem;
+            color: #0284c7;
+          }
+
+          &:hover:not(:disabled) {
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+            color: #0369a1;
+
+            app-icon {
+              color: #0369a1;
+            }
+          }
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
         }
       }
     }
@@ -811,6 +1083,26 @@
             grid-column: 1 / -1;
           }
 
+          &.manifest-row {
+            .manifest-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+
+              .copy-manifest-btn {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 2px;
+                color: v.$text-muted;
+
+                &:hover {
+                  color: v.$text-primary;
+                }
+              }
+            }
+          }
+
           .detail-label {
             font-size: 0.75rem;
             color: v.$text-muted;
@@ -880,6 +1172,21 @@
     }
   }
 
+  .drawer-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #18181b;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    animation: fadeIn 0.2s ease;
+  }
+
   .drawer-footer {
     display: flex;
     align-items: center;
@@ -901,6 +1208,40 @@
       cursor: pointer;
       text-decoration: none;
       font-weight: 500;
+    }
+
+    .footer-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .danger-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.88rem;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: #dc2626;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        app-icon {
+          color: #dc2626;
+        }
+
+        &:hover {
+          background: #fee2e2;
+          border-color: #fca5a5;
+          color: #991b1b;
+
+          app-icon {
+            color: #991b1b;
+          }
+        }
+      }
     }
 
     .secondary-btn.warn {
@@ -972,7 +1313,7 @@
         color: v.$text-secondary;
       }
 
-      input,
+      input:not([type="checkbox"]):not([type="radio"]),
       select,
       textarea {
         padding: 8px 12px;
@@ -1048,13 +1389,18 @@
           }
 
           &:hover {
-            border-color: v.$heading-accent-color;
-            background: #fafafa;
+            border-color: #94a3b8;
+            background: #f8fafc;
           }
 
           &.checked {
             border-color: v.$heading-accent-color;
             background: #fdf2f2;
+
+            &:hover {
+              border-color: color.adjust(v.$heading-accent-color, $lightness: -10%);
+              background: #fce8e8;
+            }
           }
         }
       }
