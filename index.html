@@ -3,69 +3,89 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>I Liq Chuan - Project Portal</title>
+    <title>I Liq Chuan — Project Portal</title>
     <style>
       :root {
-        --bg-color: #0f172a;
-        --text-color: #e2e8f0;
-        --accent-color: #38bdf8;
-        --secondary-color: #94a3b8;
+        --bg-color: #0b1120;
         --card-bg: #1e293b;
+        --card-hover-bg: #24344d;
         --border-color: #334155;
+        --border-hover: #475569;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --accent-color: #38bdf8;
+        --accent-hover: #7dd3fc;
+        --accent-bg: rgba(56, 189, 248, 0.1);
+        --accent-border: rgba(56, 189, 248, 0.25);
+        --brand-red: #f43f5e;
+        --brand-red-bg: rgba(244, 63, 94, 0.1);
+        --brand-red-border: rgba(244, 63, 94, 0.25);
+        --brand-emerald: #10b981;
+        --brand-emerald-bg: rgba(16, 185, 129, 0.1);
+        --brand-emerald-border: rgba(16, 185, 129, 0.25);
+        --brand-amber: #f59e0b;
+        --brand-amber-bg: rgba(245, 158, 11, 0.1);
+        --brand-amber-border: rgba(245, 158, 11, 0.25);
+        --brand-purple: #a855f7;
+        --brand-purple-bg: rgba(168, 85, 247, 0.1);
+        --brand-purple-border: rgba(168, 85, 247, 0.25);
       }
+
       * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
       }
+
       body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-          Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background-color: var(--bg-color);
-        color: var(--text-color);
+        color: var(--text-primary);
         line-height: 1.6;
         display: flex;
         flex-direction: column;
         align-items: center;
         min-height: 100vh;
-        padding: 2rem;
+        padding: 2.5rem 1.5rem;
       }
+
       header {
         text-align: center;
         margin-bottom: 3rem;
-        max-width: 800px;
+        max-width: 900px;
       }
+
       .hero-image-wrapper {
         position: relative;
         display: inline-block;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25rem;
       }
+
       .hero-image-wrapper::before {
         content: "";
         position: absolute;
-        inset: -20%;
+        inset: -25%;
         border-radius: 50%;
         background: radial-gradient(
           circle,
-          rgba(56, 189, 248, 0.15) 0%,
-          rgba(56, 189, 248, 0.05) 40%,
+          rgba(56, 189, 248, 0.18) 0%,
+          rgba(56, 189, 248, 0.05) 45%,
           transparent 70%
         );
         animation: hero-pulse 4s ease-in-out infinite;
         pointer-events: none;
       }
+
       .hero-image {
-        width: 180px;
-        height: 180px;
-        filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.25))
-          drop-shadow(0 0 48px rgba(56, 189, 248, 0.1));
+        width: 140px;
+        height: 140px;
+        filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.25)) drop-shadow(0 0 40px rgba(56, 189, 248, 0.1));
         position: relative;
       }
 
       @keyframes hero-pulse {
-        0%,
-        100% {
+        0%, 100% {
           opacity: 1;
           transform: scale(1);
         }
@@ -74,93 +94,256 @@
           transform: scale(1.08);
         }
       }
+
       h1 {
-        font-size: 2.5rem;
-        color: var(--accent-color);
+        font-size: 2.4rem;
+        color: var(--text-primary);
         margin-bottom: 0.5rem;
         font-weight: 700;
+        letter-spacing: -0.02em;
       }
+
       p.subtitle {
-        font-size: 1.2rem;
-        color: var(--secondary-color);
+        font-size: 1.15rem;
+        color: var(--text-secondary);
+        max-width: 680px;
+        margin: 0 auto;
       }
+
       main {
-        max-width: 800px;
+        max-width: 1080px;
         width: 100%;
-        display: grid;
-        gap: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
       }
-      section {
+
+      .section-header {
+        margin-bottom: 1.25rem;
+      }
+
+      .section-header h2 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .section-header p {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+      }
+
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.25rem;
+      }
+
+      .portal-card {
         background: var(--card-bg);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
+        border-radius: 10px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+      }
+
+      .portal-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--accent-color);
+        background-color: var(--card-hover-bg);
+      }
+
+      .card-top {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .card-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .portal-card:hover .card-title {
+        color: var(--accent-color);
+      }
+
+      .card-desc {
+        font-size: 0.92rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+
+      .card-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+      }
+
+      .badge-html {
+        background: var(--accent-bg);
+        border: 1px solid var(--accent-border);
+        color: var(--accent-color);
+      }
+
+      .badge-plan {
+        background: var(--brand-amber-bg);
+        border: 1px solid var(--brand-amber-border);
+        color: var(--brand-amber);
+      }
+
+      .badge-story {
+        background: var(--brand-emerald-bg);
+        border: 1px solid var(--brand-emerald-border);
+        color: var(--brand-emerald);
+      }
+
+      .badge-tool {
+        background: var(--brand-purple-bg);
+        border: 1px solid var(--brand-purple-border);
+        color: var(--brand-purple);
+      }
+
+      .badge-spec {
+        background: var(--brand-red-bg);
+        border: 1px solid var(--brand-red-border);
+        color: var(--brand-red);
+      }
+
+      .card-footer {
+        margin-top: 1.25rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+        color: var(--accent-color);
+        font-weight: 500;
+      }
+
+      .card-footer span.arrow {
+        transition: transform 0.2s ease;
+      }
+
+      .portal-card:hover .card-footer span.arrow {
+        transform: translateX(4px);
+      }
+
+      .goals-box {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
         padding: 1.5rem;
       }
-      h2 {
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0.5rem;
-        color: var(--accent-color);
-      }
-      ul {
+
+      .goals-list {
         list-style: none;
-      }
-      li {
-        margin-bottom: 0.75rem;
-      }
-      a {
-        color: var(--accent-color);
-        text-decoration: none;
-        font-weight: 500;
-        transition: color 0.2s;
-      }
-      a:hover {
-        color: #7dd3fc;
-        text-decoration: underline;
-      }
-      .btn {
-        display: inline-block;
-        background: var(--accent-color);
-        color: var(--bg-color);
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-weight: 600;
-        margin-top: 0.5rem;
-        transition: opacity 0.2s;
-      }
-      .btn:hover {
-        opacity: 0.9;
-        text-decoration: none;
-        color: var(--bg-color);
-      }
-      footer {
-        margin-top: auto;
-        padding-top: 3rem;
-        color: var(--secondary-color);
-        font-size: 0.9rem;
-        text-align: center;
-      }
-      .tool-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1rem;
         margin-top: 1rem;
       }
-      .tool-card {
-        background: rgba(255, 255, 255, 0.05);
+
+      .goals-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
         padding: 1rem;
-        border-radius: 6px;
-        text-align: center;
-        border: 1px solid transparent;
-        transition: border-color 0.2s;
+        border-radius: 8px;
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
       }
-      .tool-card:hover {
-        border-color: var(--accent-color);
+
+      .goals-item-icon {
+        color: var(--accent-color);
+        font-size: 1.2rem;
+        line-height: 1;
       }
-      .tool-card h3 {
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
+
+      .goals-item-text h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+      }
+
+      .goals-item-text p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+
+      footer {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-color);
+        width: 100%;
+        max-width: 1080px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+      }
+
+      footer a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      footer a:hover {
+        color: var(--accent-color);
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 1.5rem 1rem;
+        }
+
+        h1 {
+          font-size: 1.8rem;
+        }
+
+        .cards-grid {
+          grid-template-columns: 1fr;
+        }
+
+        footer {
+          flex-direction: column;
+          text-align: center;
+        }
       }
     </style>
   </head>
@@ -173,100 +356,395 @@
           class="hero-image"
         />
       </div>
-      <h1>I Liq Chuan Portal</h1>
+      <h1>I Liq Chuan Project Portal</h1>
       <p class="subtitle">
-        Internal tools, experiments, and documentation for the ILC Portal
-        project.
+        Central index for system architecture, technical specifications, implementation RFCs, user acceptance stories, and interactive developer utilities.
       </p>
     </header>
 
     <main>
-      <section id="goals">
-        <h2>Project Goals</h2>
-        <p>
-          The ILC Portal is designed to be a comprehensive platform for the I
-          Liq Chuan community. Key objectives include:
-        </p>
-        <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem">
-          <li>
-            Facilitating school management and providing students with
-            information about I Liq Chuan. Including providing a form of digital
-            passbook for members to track their progress and status.
-          </li>
-          <li>Streamlining administrative tasks for Headquarters (HQ).</li>
-          <li>Maintaining a public directory of instructors and events.</li>
-        </ul>
-      </section>
+      <!-- Section 1: Core System Architecture & Documentation -->
+      <section id="architecture">
+        <div class="section-header">
+          <h2>System Architecture & Documentation</h2>
+          <p>Comprehensive interactive guides and specifications for the platform architecture.</p>
+        </div>
+        <div class="cards-grid">
+          <a class="portal-card" href="docs/README.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">System Architecture Portal</span>
+                <span class="card-badge badge-html">Interactive Portal</span>
+              </div>
+              <p class="card-desc">
+                Complete overview of Firebase Authentication, Cloud Firestore schemas, ACL synchronization triggers, security rules, and Angular Signal architecture.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Explore System Architecture</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
 
-      <section id="tools">
-        <h2>Mini-Tools & Applications</h2>
-        <p>
-          These are self-contained utilities developed to support the project or
-          explore specific features.
-        </p>
-        <div class="tool-grid">
-          <div class="tool-card">
-            <h3>Logo Maker</h3>
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--secondary-color);
-                margin-bottom: 0.5rem;
-              "
-            >
-              Interactive SVG emblem generator.
-            </p>
-            <a
-              href="mini-tools/logo-maker/iliqchuan-logo-maker.html"
-              class="btn"
-              >Launch</a
-            >
-          </div>
-          <div class="tool-card">
-            <h3>Yin-Yang Designer</h3>
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--secondary-color);
-                margin-bottom: 0.5rem;
-              "
-            >
-              Explore geometry parameters of the Yin Yang symbols.
-            </p>
-            <a href="mini-tools/yin-yang-designer.html">Open</a>
-          </div>
-          <div class="tool-card">
-            <h3>Cog Designer</h3>
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--secondary-color);
-                margin-bottom: 0.5rem;
-              "
-            >
-              Generate SVG gears icon, with some parameters to try and make it
-              look about right.
-            </p>
-            <a href="mini-tools/cog-designer.html">Open</a>
-          </div>
+          <a class="portal-card" href="docs/orders-and-subscriptions.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Orders & Subscriptions</span>
+                <span class="card-badge badge-html">Interactive Doc</span>
+              </div>
+              <p class="card-desc">
+                In-depth design of Stripe Checkout, Customer Portal, recurring membership billing, webhook processing, and manual order fulfillment workflows.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Payment Architecture</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Gradings System Spec</span>
+                <span class="card-badge badge-spec">Specification</span>
+              </div>
+              <p class="card-desc">
+                Specifications for grading purchase, candidate application workflows, instructor review & acceptance, event link permissions, and level updates.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Read Gradings Spec</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/materials-management.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Materials Management</span>
+                <span class="card-badge badge-spec">Specification</span>
+              </div>
+              <p class="card-desc">
+                Cloud Storage media upload pipeline, video metadata schemas, download permissions, and instructor material sharing controls.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Read Materials Spec</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/push-notifications.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Push Notifications</span>
+                <span class="card-badge badge-spec">Specification</span>
+              </div>
+              <p class="card-desc">
+                Firebase Cloud Messaging (FCM) integration architecture, token lifecycle, grading alerts, and notification preference dispatching.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Read Notifications Architecture</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
         </div>
       </section>
 
-      <section id="docs">
-        <h2>Documentation</h2>
-        <ul>
-          <li>
-            <a href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md"
-              >Gradings System</a
-            >
-            - Information about the grading structure.
-          </li>
-        </ul>
+      <!-- Section 2: Implementation Plans & RFCs -->
+      <section id="plans">
+        <div class="section-header">
+          <h2>Implementation Plans & RFCs</h2>
+          <p>Architectural roadmaps and milestone specifications for core platform features.</p>
+        </div>
+        <div class="cards-grid">
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/plans/video-on-demand-streaming.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">VOD Streaming</span>
+                <span class="card-badge badge-plan">RFC Plan</span>
+              </div>
+              <p class="card-desc">
+                Architecture for migrating Vimeo On Demand content to Cloud Storage with HLS adaptive bitrate streaming and subscription-gated playback.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View VOD Plan</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/plans/incremental-sync-and-local-cache.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Incremental Sync & Local Cache</span>
+                <span class="card-badge badge-plan">RFC Plan</span>
+              </div>
+              <p class="card-desc">
+                High-performance IndexedDB client caching strategy with timestamp delta sync to eliminate full collection refetches.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Sync Plan</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/plans/orders-and-subscriptions.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Stripe Subscriptions Plan</span>
+                <span class="card-badge badge-plan">RFC Plan</span>
+              </div>
+              <p class="card-desc">
+                Detailed step-by-step rollout plan for Stripe recurring product definitions, customer IDs, and auto-renewals.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Subscription Plan</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/plans/event-attendance-and-registration.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Event Attendance & Registration</span>
+                <span class="card-badge badge-plan">RFC Plan</span>
+              </div>
+              <p class="card-desc">
+                Workshop registration, participant check-in validation, digital passbook attendance stamping, and instructor reports.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Attendance Plan</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/plans/instructor-posts-and-following.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Instructor Posts & Feeds</span>
+                <span class="card-badge badge-plan">RFC Plan</span>
+              </div>
+              <p class="card-desc">
+                Community updates feed, school announcements, following instructors, and targeted member communications.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Posts Plan</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Section 3: User Stories & Acceptance Tests -->
+      <section id="user-stories">
+        <div class="section-header">
+          <h2>User Stories & Acceptance Specs</h2>
+          <p>Executable behavior scenarios verified against the Firebase emulator harness.</p>
+        </div>
+        <div class="cards-grid">
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/README.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">User Stories Test Suite</span>
+                <span class="card-badge badge-story">Overview</span>
+              </div>
+              <p class="card-desc">
+                Overview of automated end-to-end acceptance tests running in the local Firebase emulator environment.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Test Harness</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/grading-request-acceptance.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Grading Request Acceptance</span>
+                <span class="card-badge badge-story">User Story</span>
+              </div>
+              <p class="card-desc">
+                Student grading application flow, Sifu review & acceptance, and rejection notes workflow.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Acceptance Story</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/grading-event-managers.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Grading Event Managers</span>
+                <span class="card-badge badge-story">User Story</span>
+              </div>
+              <p class="card-desc">
+                Event organizers and managers dynamically gaining management permissions for linked gradings.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Event Story</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/grading-result-recorded.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Grading Results Recorded</span>
+                <span class="card-badge badge-story">User Story</span>
+              </div>
+              <p class="card-desc">
+                Recording pass/fail outcomes, automatic student level progression, and digital passbook sync.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Result Story</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/grading-unpaid-request-guard.md">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Unpaid Request Guard</span>
+                <span class="card-badge badge-story">User Story</span>
+              </div>
+              <p class="card-desc">
+                Ensuring unpurchased grading slots cannot be submitted or progressed without valid payment records.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>View Guard Story</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Section 4: Interactive Mini-Tools & Utilities -->
+      <section id="mini-tools">
+        <div class="section-header">
+          <h2>Interactive Mini-Tools & Utilities</h2>
+          <p>Self-contained browser-based utilities developed for emblem generation and geometry prototyping.</p>
+        </div>
+        <div class="cards-grid">
+          <a class="portal-card" href="mini-tools/logo-maker/iliqchuan-logo-maker.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">ILC Logo Maker</span>
+                <span class="card-badge badge-tool">Interactive Tool</span>
+              </div>
+              <p class="card-desc">
+                Interactive SVG emblem generator with real-time parameter tweaking, optimizer, pixel diffing against master PNG, and multi-resolution PNG/SVG export.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Launch Logo Maker</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="mini-tools/yin-yang-designer.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Yin-Yang Designer</span>
+                <span class="card-badge badge-tool">Interactive Tool</span>
+              </div>
+              <p class="card-desc">
+                Parametric geometric explorer for generating authentic Taiji Yin-Yang curves, eye radius ratios, and center offsets.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Open Yin-Yang Designer</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="mini-tools/cog-designer.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Cog & Gear Designer</span>
+                <span class="card-badge badge-tool">Interactive Tool</span>
+              </div>
+              <p class="card-desc">
+                Parametric SVG gear generator with tooth count, curvature, inner ring, and hub configuration controls.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Open Cog Designer</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <a class="portal-card" href="mini-tools/venn-experiment.html">
+            <div class="card-top">
+              <div class="card-header-row">
+                <span class="card-title">Venn Diagram Experiment</span>
+                <span class="card-badge badge-tool">Interactive Tool</span>
+              </div>
+              <p class="card-desc">
+                Interactive multi-set Venn curve visualization and SVG path boolean merge experiment.
+              </p>
+            </div>
+            <div class="card-footer">
+              <span>Open Venn Experiment</span>
+              <span class="arrow">&rarr;</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Section 5: Platform Objectives -->
+      <section id="goals">
+        <div class="goals-box">
+          <div class="section-header" style="margin-bottom: 0;">
+            <h2>About the ILC Members Manager</h2>
+            <p>A unified member-facing digital portal and administrative platform for the international I Liq Chuan community.</p>
+          </div>
+          <div class="goals-list">
+            <div class="goals-item">
+              <div class="goals-item-icon">&#9672;</div>
+              <div class="goals-item-text">
+                <h4>Digital Member Passbook</h4>
+                <p>Track student & instructor levels, active licenses, attendance history, and grading achievements securely online.</p>
+              </div>
+            </div>
+            <div class="goals-item">
+              <div class="goals-item-icon">&#9672;</div>
+              <div class="goals-item-text">
+                <h4>School & Instructor Management</h4>
+                <p>Empower school managers and instructors to oversee student rosters, manage licenses, and coordinate gradings.</p>
+              </div>
+            </div>
+            <div class="goals-item">
+              <div class="goals-item-icon">&#9672;</div>
+              <div class="goals-item-text">
+                <h4>HQ Administration & Commerce</h4>
+                <p>Streamline memberships, Stripe subscriptions, Squarespace imports, and international event coordination for Headquarters.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
     <footer>
-      <p>&copy; 2026 I Liq Chuan. All rights reserved.</p>
+      <div>&copy; 2026 I Liq Chuan. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="https://github.com/iislucas/ilc-members-manager" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+        <a href="https://github.com/iislucas/ilc-members-manager/issues" target="_blank" rel="noopener noreferrer">Issues & Feedback</a>
+        <a href="https://iliqchuan.com" target="_blank" rel="noopener noreferrer">Official Website</a>
+      </div>
     </footer>
   </body>
 </html>
+

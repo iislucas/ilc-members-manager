@@ -48,7 +48,7 @@ Key fields on a `Grading` (see `data-model.ts` for the full list and comments):
 | `gradingEventDocId` | DocId of a linked `IlcEvent`, or `''` — see [Linking a grading to an event](#linking-a-grading-to-an-event). |
 | `instructorAcceptedDate` | Date the request was accepted. |
 | `acceptedByMemberDocId` / `acceptedByName` | Who accepted the request (the acceptance milestone; cleared if later declined). The name is a snapshot for display. |
-| `statusChangedByMemberDocId` / `statusChangedByName` | Who most recently changed the status (any transition). Used for the "Moved back by X" display. |
+| `statusChangedByMemberDocId` / `statusChangedByName` | Who most recently changed the status (any transition). |
 | `notes` | Instructor/manager notes about the grading. |
 | `studentNotes` | Optional note from the student with their request. |
 | `resultNotes` | Feedback from the instructor to the student after grading. |
@@ -92,8 +92,7 @@ instructor. Grading managers are:
 
 When someone accepts, the grading records `acceptedByMemberDocId` /
 `acceptedByName`, and the progress view shows **"Accepted by X"**. If the status
-is later moved back (e.g. declined), the view shows **"Moved back by X"** based on
-`statusChangedBy*`. When one manager accepts, the other managers' "you are now a
+is later moved back (e.g. declined). When one manager accepts, the other managers' "you are now a
 manager" notifications are updated to note who accepted.
 
 ## Linking a grading to an event

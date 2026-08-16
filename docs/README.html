@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ILC Members Portal — System Architecture & Documentation</title>
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-card: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --border-focus: #2563eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0d9488;
+      --accent-light: #f0fdfa;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --purple: #7c3aed;
+      --purple-light: #f5f3ff;
+      --amber: #b45309;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 290px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 16px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #2563eb, #0d9488);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 20px;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .nav-search {
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .nav-search input {
+      width: 100%;
+      padding: 8px 12px 8px 32px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .nav-search input:focus {
+      background: var(--bg-surface);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    .nav-search svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      fill: var(--text-muted);
+    }
+
+    .nav-group {
+      margin-bottom: 20px;
+    }
+
+    .nav-group-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      margin-bottom: 4px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .nav-link.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-link svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      fill: currentColor;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      max-width: 1100px;
+      padding: 40px 48px 80px;
+      overflow-x: hidden;
+    }
+
+    /* Typography & Core Content */
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.025em;
+    }
+
+    .lead-text {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 48px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 28px 0 12px;
+    }
+
+    p, ul, ol {
+      margin-bottom: 16px;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    ul, ol {
+      padding-left: 24px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Badges & Chips */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-primary { background: var(--primary-light); color: var(--primary); }
+    .badge-accent { background: var(--accent-light); color: var(--accent); }
+    .badge-success { background: var(--success-light); color: var(--success); }
+    .badge-warning { background: var(--warning-light); color: var(--warning); }
+    .badge-danger { background: var(--danger-light); color: var(--danger); }
+    .badge-purple { background: var(--purple-light); color: var(--purple); }
+
+    /* Cards & Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    /* Callouts / Alerts */
+    .callout {
+      border-left: 4px solid var(--primary);
+      background: var(--primary-light);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+    }
+
+    .callout-warning {
+      border-left-color: var(--warning);
+      background: var(--warning-light);
+    }
+
+    .callout-success {
+      border-left-color: var(--success);
+      background: var(--success-light);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .callout p {
+      margin-bottom: 0;
+      font-size: 0.875rem;
+    }
+
+    /* Tables */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin: 20px 0;
+      box-shadow: var(--shadow-sm);
+      background: var(--bg-surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+
+    th {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: var(--bg-subtle);
+    }
+
+    /* Code & Pre */
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.825rem;
+      background: var(--bg-subtle);
+      color: #b91c1c;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    pre {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      margin: 16px 0;
+      position: relative;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border: none;
+      font-size: 0.85rem;
+    }
+
+    /* Architecture Diagram Canvas */
+    .diagram-container {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .diagram-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+
+    .diagram-svg {
+      width: 100%;
+      height: auto;
+      min-height: 480px;
+      background: #fbfcfe;
+      border-radius: 8px;
+      border: 1px dashed var(--border-color);
+    }
+
+    /* Interactive tabs */
+    .tab-container {
+      margin: 24px 0;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .tab-button {
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-button:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      .app-layout {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .main-content {
+        padding: 24px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">ILC</div>
+        <div>
+          <div class="brand-title">ILC Portal</div>
+          <div class="brand-subtitle">System Architecture</div>
+        </div>
+      </div>
+
+      <div class="nav-search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="docSearch" placeholder="Search documentation..." oninput="filterNav(this.value)" />
+      </div>
+
+      <nav id="sidebarNav">
+        <div class="nav-group">
+          <div class="nav-group-title">Overview</div>
+          <a href="#overview" class="nav-link active">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            System Overview
+          </a>
+          <a href="#architecture-diagram" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+            Architecture Diagram
+          </a>
+          <a href="#user-roles" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            User Roles & Personas
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Database & Models</div>
+          <a href="#collections" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+            Firestore Collections
+          </a>
+          <a href="#subcollections" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+            Subcollections & Indexes
+          </a>
+          <a href="#security-rules" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            Security Rules & ACL
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Application Routing</div>
+          <a href="#routing-system" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            Routes & Views Catalog
+          </a>
+          <a href="#public-vs-gated" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            Public vs Gated Views
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Backend & Microservices</div>
+          <a href="#cloud-functions" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+            Cloud Functions & Triggers
+          </a>
+          <a href="#stripe-orders" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            Stripe & Order Fulfillment
+          </a>
+          <a href="#vod-streaming" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12zm-5-6l-7 4V7z"/></svg>
+            VOD Streaming Pipeline
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-title">Operations & Guides</div>
+          <a href="#dev-setup" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+            Dev Setup & Scripts
+          </a>
+          <a href="#deployment-guide" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            Deployment Guide
+          </a>
+          <a href="#troubleshooting" class="nav-link">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Troubleshooting
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Section: Overview -->
+      <section id="overview">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <span class="badge badge-primary">PWA Web App</span>
+          <span class="badge badge-accent">Angular 20+</span>
+          <span class="badge badge-purple">Firebase Gen 2</span>
+          <span class="badge badge-success">Stripe Checkout</span>
+        </div>
+        <h1>ILC Members Portal Architecture</h1>
+        <p class="lead-text">
+          The official web platform and member portal for the international <strong>Zhong Xin Dao I Liq Chuan</strong> martial arts community. A high-performance, real-time Progressive Web App (PWA) managing memberships, international gradings, certified schools, instructor profiles, workshop events, Video-on-Demand (VOD) streaming, and unified multi-channel store orders.
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🌐 Practitioners & Members</span>
+              <span class="badge badge-primary">Self-Service</span>
+            </div>
+            <p class="card-description">
+              Digital passbook tracking student grades, membership status, seminar signups, event proposals, notifications, and subscription renewals.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🥋 Instructors & Schools</span>
+              <span class="badge badge-accent">Community</span>
+            </div>
+            <p class="card-description">
+              Student roster management, grading requests acceptance and evaluations, school listings, class schedules, and teaching materials uploads.
+            </p>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🛡️ Headquarters (HQ) Admin</span>
+              <span class="badge badge-purple">Global Control</span>
+            </div>
+            <p class="card-description">
+              Unified control plane for global member records, manual order reconciliation, Stripe product syncing, VOD transcoding curation, and backups.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Architecture Diagram -->
+      <section id="architecture-diagram">
+        <h2>System Architecture Diagram</h2>
+        <p>
+          High-level interaction between the Angular client, Firebase serverless backend, GCP Cloud Services, Stripe Billing, and third-party APIs:
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <span class="diagram-title">System Data Flow & Service Topology</span>
+            <span class="badge badge-primary">Live Interactive SVG</span>
+          </div>
+
+          <svg class="diagram-svg" viewBox="0 0 950 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gradClient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#3b82f6" />
+                <stop offset="100%" stop-color="#1d4ed8" />
+              </linearGradient>
+              <linearGradient id="gradFunctions" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#7c3aed" />
+                <stop offset="100%" stop-color="#5b21b6" />
+              </linearGradient>
+              <linearGradient id="gradFirestore" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+              <linearGradient id="gradStorage" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0d9488" />
+                <stop offset="100%" stop-color="#0f766e" />
+              </linearGradient>
+              <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08" />
+              </filter>
+            </defs>
+
+            <!-- Background Groups -->
+            <rect x="20" y="20" width="260" height="520" rx="12" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" />
+            <text x="35" y="45" font-family="system-ui" font-size="12" font-weight="700" fill="#1e40af">CLIENT TIER (Angular 20+ PWA)</text>
+
+            <rect x="310" y="20" width="310" height="520" rx="12" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5" />
+            <text x="325" y="45" font-family="system-ui" font-size="12" font-weight="700" fill="#6b21a8">CLOUD FUNCTIONS & SERVICES</text>
+
+            <rect x="650" y="20" width="280" height="520" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5" />
+            <text x="665" y="45" font-family="system-ui" font-size="12" font-weight="700" fill="#92400e">DATA & STORAGE TIER</text>
+
+            <!-- Client Nodes -->
+            <g transform="translate(40, 70)" filter="url(#dropShadow)">
+              <rect width="220" height="70" rx="8" fill="url(#gradClient)" />
+              <text x="15" y="28" font-family="system-ui" font-size="14" font-weight="700" fill="#ffffff">Angular Standalone PWA</text>
+              <text x="15" y="48" font-family="system-ui" font-size="11" fill="#dbeafe">Signals, OnPush, Router, Forms</text>
+            </g>
+
+            <g transform="translate(40, 160)" filter="url(#dropShadow)">
+              <rect width="220" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="26" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">DataManagerService</text>
+              <text x="15" y="44" font-family="system-ui" font-size="11" fill="#64748b">SearchableSet & Realtime Sync</text>
+            </g>
+
+            <g transform="translate(40, 240)" filter="url(#dropShadow)">
+              <rect width="220" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="26" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">HLS Video Player</text>
+              <text x="15" y="44" font-family="system-ui" font-size="11" fill="#64748b">hls.js ABR + Native Fallback</text>
+            </g>
+
+            <g transform="translate(40, 320)" filter="url(#dropShadow)">
+              <rect width="220" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="26" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">Public Web Components</text>
+              <text x="15" y="44" font-family="system-ui" font-size="11" fill="#64748b">Find Instructor / Events Viewer</text>
+            </g>
+
+            <g transform="translate(40, 400)" filter="url(#dropShadow)">
+              <rect width="220" height="60" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="26" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">Push Notifications</text>
+              <text x="15" y="44" font-family="system-ui" font-size="11" fill="#64748b">Web Push API + Service Worker</text>
+            </g>
+
+            <!-- Function Nodes -->
+            <g transform="translate(330, 70)" filter="url(#dropShadow)">
+              <rect width="270" height="65" rx="8" fill="url(#gradFunctions)" />
+              <text x="15" y="26" font-family="system-ui" font-size="13" font-weight="700" fill="#ffffff">Callable Cloud Functions</text>
+              <text x="15" y="44" font-family="system-ui" font-size="11" fill="#f3e8ff">checkEmailStatus, getPlaybackSession...</text>
+            </g>
+
+            <g transform="translate(330, 155)" filter="url(#dropShadow)">
+              <rect width="270" height="65" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="24" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">Document Triggers</text>
+              <text x="15" y="42" font-family="system-ui" font-size="11" fill="#64748b">onMemberUpdate, onGradingUpdate...</text>
+            </g>
+
+            <g transform="translate(330, 240)" filter="url(#dropShadow)">
+              <rect width="270" height="65" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="24" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">Stripe Webhook & Fulfillment</text>
+              <text x="15" y="42" font-family="system-ui" font-size="11" fill="#64748b">Memberships, Gradings, Subscriptions, VOD</text>
+            </g>
+
+            <g transform="translate(330, 325)" filter="url(#dropShadow)">
+              <rect width="270" height="65" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="24" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">GCP Video Transcoder API</text>
+              <text x="15" y="42" font-family="system-ui" font-size="11" fill="#64748b">ABR HLS 1080p-360p + Spritesheets</text>
+            </g>
+
+            <g transform="translate(330, 410)" filter="url(#dropShadow)">
+              <rect width="270" height="65" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="24" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">External Integrations</text>
+              <text x="15" y="42" font-family="system-ui" font-size="11" fill="#64748b">Google Calendar API, Squarespace API</text>
+            </g>
+
+            <!-- Data & Storage Nodes -->
+            <g transform="translate(670, 70)" filter="url(#dropShadow)">
+              <rect width="240" height="110" rx="8" fill="url(#gradFirestore)" />
+              <text x="15" y="26" font-family="system-ui" font-size="14" font-weight="700" fill="#ffffff">Cloud Firestore</text>
+              <text x="15" y="46" font-family="system-ui" font-size="11" fill="#fef3c7">/members, /schools, /instructors</text>
+              <text x="15" y="64" font-family="system-ui" font-size="11" fill="#fef3c7">/gradings, /events, /orders</text>
+              <text x="15" y="82" font-family="system-ui" font-size="11" fill="#fef3c7">/videos, /video_grants, /acl</text>
+            </g>
+
+            <g transform="translate(670, 200)" filter="url(#dropShadow)">
+              <rect width="240" height="85" rx="8" fill="url(#gradStorage)" />
+              <text x="15" y="26" font-family="system-ui" font-size="14" font-weight="700" fill="#ffffff">Cloud Storage</text>
+              <text x="15" y="46" font-family="system-ui" font-size="11" fill="#ccfbf1">/materials/** (Original uploads)</text>
+              <text x="15" y="64" font-family="system-ui" font-size="11" fill="#ccfbf1">/vod/** (HLS segments & manifests)</text>
+            </g>
+
+            <g transform="translate(670, 305)" filter="url(#dropShadow)">
+              <rect width="240" height="75" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+              <text x="15" y="24" font-family="system-ui" font-size="13" font-weight="700" fill="#0f172a">Stripe Payments Engine</text>
+              <text x="15" y="42" font-family="system-ui" font-size="11" fill="#64748b">Hosted Checkout & Customer Portal</text>
+              <text x="15" y="58" font-family="system-ui" font-size="11" fill="#64748b">Recurring billing & webhooks</text>
+            </g>
+
+            <!-- Connecting Lines -->
+            <path d="M 260 190 L 670 120" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4" fill="none" />
+            <path d="M 260 100 L 330 100" stroke="#3b82f6" stroke-width="2" fill="none" />
+            <path d="M 600 100 L 670 100" stroke="#7c3aed" stroke-width="2" fill="none" />
+            <path d="M 600 185 L 670 140" stroke="#7c3aed" stroke-width="2" fill="none" />
+            <path d="M 600 270 L 670 330" stroke="#7c3aed" stroke-width="2" fill="none" />
+            <path d="M 600 355 L 670 240" stroke="#0d9488" stroke-width="2" fill="none" />
+          </svg>
+        </div>
+      </section>
+
+      <!-- Section: User Roles -->
+      <section id="user-roles">
+        <h2>User Roles & Access Control Matrix</h2>
+        <p>The system uses an explicit Role-Based Access Control (RBAC) model cached in Firestore <code>/acl/{email}</code> and evaluated in Firestore Security Rules:</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Who</th>
+                <th>Key Capabilities</th>
+                <th>Permissions in Rules</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Public / Visitor</strong></td>
+                <td>Unauthenticated viewers</td>
+                <td>Browse public instructors, view upcoming workshops & school calendars, watch public VOD videos, purchase direct items.</td>
+                <td>Read-only for public collections (<code>/events</code>, <code>/schools</code>, <code>/instructors</code>, <code>/videos[isPublished=true]</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Registered User</strong></td>
+                <td>Authenticated via Email / Google</td>
+                <td>Create member application profile, complete profile details, view personal dashboard.</td>
+                <td>Read/write own <code>/members/{ownId}</code> and <code>/acl/{ownEmail}</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Active Member</strong></td>
+                <td>Current paid member (Annual / Life)</td>
+                <td>Access digital passbook, read members-only articles & videos, request gradings, propose workshops, receive push notifications.</td>
+                <td>Read <code>/members-area</code> content, read/write own <code>/gradings</code>, write <code>/events</code> proposals.</td>
+              </tr>
+              <tr>
+                <td><strong>Certified Instructor</strong></td>
+                <td>Licensed ILC Instructor</td>
+                <td>View student rosters, review/accept grading requests, evaluate student levels, post teaching materials, manage public profile bio.</td>
+                <td>Read/update students in <code>/instructors/{id}/members</code>, manage linked <code>/gradings</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>School Manager</strong></td>
+                <td>Owner or Manager of an ILC School</td>
+                <td>Manage school address, timetable, and view members belonging to the school branch.</td>
+                <td>Read/update school profile and members in <code>/schools/{id}/members</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Event Manager</strong></td>
+                <td>Organizer of an <code>IlcEvent</code></td>
+                <td>Edit workshop schedule, venue, contacts, and manage gradings conducted at that workshop.</td>
+                <td>Derived dynamically via <code>isGradingEventManager()</code> in Firestore rules.</td>
+              </tr>
+              <tr>
+                <td><strong>HQ Admin</strong></td>
+                <td>Global ILC Administrators</td>
+                <td>Full system control: approve gradings, trigger video transcoding, reconcile orders, export backups, manage settings.</td>
+                <td>Bypasses restrictions via <code>isAdmin()</code> in security rules.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Collections -->
+      <section id="collections">
+        <h2>Firestore Collections Architecture</h2>
+        <p>The primary Firestore root collections and domain types defined in <code>functions/src/data-model.ts</code>:</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📁 /members/{docId}</span>
+              <span class="badge badge-primary">Member</span>
+            </div>
+            <p class="card-description">
+              Primary member records containing full profile, membership type (Annual, Life), expiration dates, license statuses, and linked IDs.
+            </p>
+            <code>emails: string[], memberId: string, name: string, studentLevel: number</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🥋 /instructors/{docId}</span>
+              <span class="badge badge-accent">InstructorPublicData</span>
+            </div>
+            <p class="card-description">
+              Public instructor registry mirrored automatically from the member document. Displayed in public find-an-instructor tools.
+            </p>
+            <code>instructorId: string, name: string, level: string, bio: string, location: string</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🏫 /schools/{docId}</span>
+              <span class="badge badge-purple">School</span>
+            </div>
+            <p class="card-description">
+              Official school branches worldwide with geographic coordinates, owner instructor IDs, manager emails, and class schedules.
+            </p>
+            <code>schoolId: string, schoolName: string, ownerInstructorId: string, lat: number</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⛰️ /gradings/{docId}</span>
+              <span class="badge badge-warning">Grading</span>
+            </div>
+            <p class="card-description">
+              Assessment requests tracking the 3-step workflow (Requested → Awaiting Grading → Finalized Passed/Not Passed) and examiner notes.
+            </p>
+            <code>studentMemberDocId: string, level: string, status: GradingStatus, gradingEventDocId</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📅 /events/{docId}</span>
+              <span class="badge badge-success">IlcEvent</span>
+            </div>
+            <p class="card-description">
+              Workshops, seminars, and training camps. Synced from Google Calendar or proposed directly by members and approved by HQ.
+            </p>
+            <code>title: string, startDate: string, ownerDocId: string, managerDocIds: string[]</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📦 /orders/{docId}</span>
+              <span class="badge badge-primary">Order</span>
+            </div>
+            <p class="card-description">
+              Multi-channel unified order ledger aggregating Stripe checkout sessions, Squarespace store orders, and legacy Google Sheets imports.
+            </p>
+            <code>orderNumber: string, amountTotal: number, paymentStatus: string, lineItems: []</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🎬 /videos/{docId}</span>
+              <span class="badge badge-purple">VideoItem</span>
+            </div>
+            <p class="card-description">
+              Video on Demand streaming catalog. Contains HLS master manifest URLs, resolutions, duration, pricing, categories, and tags.
+            </p>
+            <code>accessTier: VodAccessTier, vodStatus: VodStatus, manifestUrl: string, tags: []</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🔑 /acl/{email}</span>
+              <span class="badge badge-danger">ACL</span>
+            </div>
+            <p class="card-description">
+              Fast permission cache indexed by normalized lowercase email. Enables rapid security rule execution without expensive sub-queries.
+            </p>
+            <code>isAdmin: boolean, memberDocIds: string[], schoolDocIds: string[]</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Subcollections -->
+      <section id="subcollections">
+        <h2>Subcollections & Realtime Indexes</h2>
+        <p>Specific nested subcollections representing scoped user resources:</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Path Pattern</th>
+                <th>Type</th>
+                <th>Purpose</th>
+                <th>Write Authority</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>/members/{id}/notifications/{notifId}</code></td>
+                <td><code>MemberNotification</code></td>
+                <td>Per-user notifications queue (Actionable requests and FYI alerts).</td>
+                <td>Cloud Functions & Member (dismiss status).</td>
+              </tr>
+              <tr>
+                <td><code>/members/{id}/orders/{orderId}</code></td>
+                <td><code>MemberOrder</code></td>
+                <td>Denormalized personal order history for user self-service.</td>
+                <td>Stripe Webhook Trigger.</td>
+              </tr>
+              <tr>
+                <td><code>/members/{id}/videoGrants/{videoId}</code></td>
+                <td><code>VideoGrant</code></td>
+                <td>Direct video entitlements purchased or assigned to the member.</td>
+                <td>Stripe Fulfillment & Admin.</td>
+              </tr>
+              <tr>
+                <td><code>/members/{id}/videoProgress/{videoId}</code></td>
+                <td><code>VideoProgress</code></td>
+                <td>Playback timestamp position for "Continue Watching" across devices.</td>
+                <td>Client (authenticated owner).</td>
+              </tr>
+              <tr>
+                <td><code>/members/{id}/uploads/{uploadId}</code></td>
+                <td><code>UploadItem</code></td>
+                <td>Instructor media and video recordings uploaded to Cloud Storage.</td>
+                <td>Instructor Owner & Admin.</td>
+              </tr>
+              <tr>
+                <td><code>/instructors/{id}/members/{studentId}</code></td>
+                <td><code>Member</code></td>
+                <td>Cached student roster for instructor dashboard query acceleration.</td>
+                <td><code>onMemberUpdate</code> Trigger.</td>
+              </tr>
+              <tr>
+                <td><code>/schools/{id}/members/{memberId}</code></td>
+                <td><code>Member</code></td>
+                <td>Cached school member roster for school manager dashboard.</td>
+                <td><code>onMemberUpdate</code> Trigger.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Routing System -->
+      <section id="routing-system">
+        <h2>Routing System & Views Catalog</h2>
+        <p>
+          The application uses a custom, lightweight, signal-driven router (<code>RoutingService</code> in <code>src/app/routing.service.ts</code>) parameterized by <code>AppPathPatterns</code> in <code>src/app/app.config.ts</code>.
+        </p>
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-button active" onclick="switchTab('public-routes', this)">Public Views</button>
+            <button class="tab-button" onclick="switchTab('member-routes', this)">Member Views</button>
+            <button class="tab-button" onclick="switchTab('admin-routes', this)">Admin Views</button>
+          </div>
+
+          <div id="public-routes" class="tab-pane active">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>URL Path</th>
+                    <th>View ID</th>
+                    <th>Component</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>/find-an-instructor</code></td>
+                    <td><code>Views.FindAnInstructor</code></td>
+                    <td><code>FindAnInstructorComponent</code></td>
+                    <td>Searchable directory of licensed ILC instructors worldwide.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/instructor/:instructorId</code></td>
+                    <td><code>Views.InstructorView</code></td>
+                    <td><code>InstructorViewComponent</code></td>
+                    <td>Public profile, bio, level, and contact details for an instructor.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/find-school</code></td>
+                    <td><code>Views.FindSchool</code></td>
+                    <td><code>FindSchoolComponent</code></td>
+                    <td>Directory and interactive map of certified ILC schools.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/school/:schoolId</code></td>
+                    <td><code>Views.SchoolView</code></td>
+                    <td><code>SchoolViewComponent</code></td>
+                    <td>School profile, timetable, instructors, and location.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/events</code></td>
+                    <td><code>Views.EventsCalendar</code></td>
+                    <td><code>EventListComponent</code></td>
+                    <td>Calendar and list view of upcoming workshops and seminars.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/event/:eventId</code></td>
+                    <td><code>Views.EventView</code></td>
+                    <td><code>EventViewComponent</code></td>
+                    <td>Workshop details, instructor bio, schedule, and pricing.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/videos</code></td>
+                    <td><code>Views.Videos</code></td>
+                    <td><code>VideosCatalogComponent</code></td>
+                    <td>Public Video-on-Demand (VOD) search, categories, and filters.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/videos/:videoId</code></td>
+                    <td><code>Views.VideoView</code></td>
+                    <td><code>VideoViewComponent</code></td>
+                    <td>Video player watch page with entitlement authorization gating.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/products</code></td>
+                    <td><code>Views.Products</code></td>
+                    <td><code>ProductsComponent</code></td>
+                    <td>Storefront for memberships, licenses, gradings, and books.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/order-complete</code></td>
+                    <td><code>Views.OrderComplete</code></td>
+                    <td><code>OrderCompleteComponent</code></td>
+                    <td>Stripe checkout confirmation and onboarding next steps.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="member-routes" class="tab-pane">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>URL Path</th>
+                    <th>View ID</th>
+                    <th>Component</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>/</code></td>
+                    <td><code>Views.Home</code></td>
+                    <td><code>HomeComponent</code></td>
+                    <td>Member dashboard tiles organized by Learn, Practice, and Me.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/profile</code></td>
+                    <td><code>Views.MyProfile</code></td>
+                    <td><code>CompleteProfileComponent</code></td>
+                    <td>Digital passbook, renewal actions, and personal contact editor.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/gradings</code></td>
+                    <td><code>Views.MemberGradings</code></td>
+                    <td><code>MemberGradingsComponent</code></td>
+                    <td>Grading history, upcoming grading request, and examiner notes.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/my-events</code></td>
+                    <td><code>Views.MyEvents</code></td>
+                    <td><code>EventListComponent</code></td>
+                    <td>Workshops organized or managed by the logged-in member.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/propose-event</code></td>
+                    <td><code>Views.ProposeEvent</code></td>
+                    <td><code>ProposeEventComponent</code></td>
+                    <td>Form for members/instructors to submit a workshop for HQ review.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/my-materials</code></td>
+                    <td><code>Views.MyMaterials</code></td>
+                    <td><code>MyMaterialsComponent</code></td>
+                    <td>Personal media uploads, seminar recordings, and photos.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/my-students</code></td>
+                    <td><code>Views.MyStudents</code></td>
+                    <td><code>FilteredMembersComponent</code></td>
+                    <td>Student roster for instructors to check active statuses.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/my-orders</code></td>
+                    <td><code>Views.MyOrders</code></td>
+                    <td><code>MemberOrdersComponent</code></td>
+                    <td>Receipts, invoices, and subscription cancellation management.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/notifications</code></td>
+                    <td><code>Views.Notifications</code></td>
+                    <td><code>NotificationsViewComponent</code></td>
+                    <td>Notification center with bulk dismissal and actionable links.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/members-area</code></td>
+                    <td><code>Views.MembersArea</code></td>
+                    <td><code>SquarespaceContentComponent</code></td>
+                    <td>Members-only articles and training resources.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="admin-routes" class="tab-pane">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>URL Path</th>
+                    <th>View ID</th>
+                    <th>Component</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>/members</code></td>
+                    <td><code>Views.ManageMembers</code></td>
+                    <td><code>FilteredMembersComponent</code></td>
+                    <td>Global member roster with filters for expired, licenses, levels.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-schools</code></td>
+                    <td><code>Views.ManageSchools</code></td>
+                    <td><code>SchoolListComponent</code></td>
+                    <td>School branch directory management and coordinator assignments.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-gradings</code></td>
+                    <td><code>Views.ManageGradings</code></td>
+                    <td><code>GradingListComponent</code></td>
+                    <td>Global grading requests ledger, examiner assigner, and level updater.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-orders</code></td>
+                    <td><code>Views.ManageOrders</code></td>
+                    <td><code>OrderList</code></td>
+                    <td>Orders audit ledger, manual fulfillment resolver, and refunds.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-events</code></td>
+                    <td><code>Views.ManageEvents</code></td>
+                    <td><code>ManageEventsComponent</code></td>
+                    <td>Workshop approval console, calendar sync, and manager assigner.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-materials</code></td>
+                    <td><code>Views.ManageMaterials</code></td>
+                    <td><code>ManageMaterialsComponent</code></td>
+                    <td>Global media asset explorer and "Publish to VOD" launcher.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/manage-vod</code></td>
+                    <td><code>Views.ManageVod</code></td>
+                    <td><code>ManageVodComponent</code></td>
+                    <td>VOD catalog manager, transcode retry, pricing, and tags editor.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/statistics</code></td>
+                    <td><code>Views.Statistics</code></td>
+                    <td><code>StatisticsComponent</code></td>
+                    <td>Global membership metrics, growth trends, and retention graphs.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/import-export</code></td>
+                    <td><code>Views.ImportExport</code></td>
+                    <td><code>ImportExportComponent</code></td>
+                    <td>CSV import/export engine for members, schools, and legacy orders.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Cloud Functions -->
+      <section id="cloud-functions">
+        <h2>Cloud Functions & Microservices</h2>
+        <p>Node.js 22 serverless Cloud Functions deployed in <code>functions/src/</code>:</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚡ HTTP & Callable Endpoints</span>
+              <span class="badge badge-primary">2nd Gen onCall</span>
+            </div>
+            <ul style="font-size: 0.85rem;">
+              <li><code>checkEmailStatus</code>: Pre-auth email check for account lookup.</li>
+              <li><code>getUserDetails</code>: Hydrates full member session and ACL tokens.</li>
+              <li><code>listStripeProducts</code>: Caches active Stripe products & prices.</li>
+              <li><code>createStripeCheckoutSession</code>: Generates hosted checkout URLs.</li>
+              <li><code>createCustomerPortalSession</code>: Self-service billing management.</li>
+              <li><code>getVideoPlaybackSession</code>: Gated entitlement validator for VOD.</li>
+              <li><code>transcodeVideoForVod</code>: Initiates GCP Transcoder encoding.</li>
+              <li><code>deleteVideoFromCatalog</code>: Cleans up VOD manifests and storage.</li>
+              <li><code>getResourceDownloadUrl</code>: Generates signed temporary storage URLs.</li>
+              <li><code>socialPreview</code>: Dynamic OpenGraph image preview generator.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🔄 Firestore Document Triggers</span>
+              <span class="badge badge-accent">onDocumentWritten</span>
+            </div>
+            <ul style="font-size: 0.85rem;">
+              <li><code>onMemberCreated</code>: Auto-provisions Member ID and initializes ACL.</li>
+              <li><code>onMemberUpdate</code>: Mirrors member data to instructor & school subcollections, sends welcome emails, and updates ACL.</li>
+              <li><code>onSchoolUpdate</code>: Syncs school manager emails into ACL cache.</li>
+              <li><code>onGradingUpdate</code>: Increments student level on Pass, mirrors grading to examiners, sends notifications.</li>
+              <li><code>stripeWebhook</code>: Listens for <code>checkout.session.completed</code>, <code>invoice.paid</code>, and triggers <code>fulfillStripeOrder</code>.</li>
+              <li><code>backupScheduled</code>: Nightly backup dumping all collections to GCS.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: VOD Streaming -->
+      <section id="vod-streaming">
+        <h2>Video-on-Demand (VOD) Streaming Pipeline</h2>
+        <p>The end-to-end streaming architecture transforms uploaded MP4/MOV recordings into Adaptive Bitrate HLS playlists:</p>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <span class="diagram-title">VOD Transcoding & Streaming Sequence</span>
+            <span class="badge badge-purple">ABR HLS</span>
+          </div>
+
+          <svg class="diagram-svg" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+            <!-- Steps -->
+            <g transform="translate(30, 40)">
+              <rect width="180" height="150" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" />
+              <text x="15" y="30" font-family="system-ui" font-size="13" font-weight="700" fill="#1e40af">1. Raw Video Upload</text>
+              <text x="15" y="60" font-family="system-ui" font-size="11" fill="#475569">Instructor uploads</text>
+              <text x="15" y="80" font-family="system-ui" font-size="11" fill="#475569">high-res recording to</text>
+              <text x="15" y="100" font-family="system-ui" font-size="11" font-weight="600" fill="#0f172a">gs://.../materials/**</text>
+            </g>
+
+            <path d="M 220 115 L 260 115" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)" />
+
+            <g transform="translate(260, 40)">
+              <rect width="180" height="150" rx="8" fill="#faf5ff" stroke="#7c3aed" stroke-width="2" />
+              <text x="15" y="30" font-family="system-ui" font-size="13" font-weight="700" fill="#6b21a8">2. Transcode Job</text>
+              <text x="15" y="60" font-family="system-ui" font-size="11" fill="#475569">Admin selects video.</text>
+              <text x="15" y="80" font-family="system-ui" font-size="11" fill="#475569">GCP Transcoder outputs</text>
+              <text x="15" y="100" font-family="system-ui" font-size="11" font-weight="600" fill="#0f172a">1080p, 720p, 480p, 360p</text>
+              <text x="15" y="120" font-family="system-ui" font-size="11" fill="#475569">+ Spritesheet preview</text>
+            </g>
+
+            <path d="M 450 115 L 490 115" stroke="#94a3b8" stroke-width="2" />
+
+            <g transform="translate(490, 40)">
+              <rect width="180" height="150" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="2" />
+              <text x="15" y="30" font-family="system-ui" font-size="13" font-weight="700" fill="#b45309">3. Catalog & Entitlements</text>
+              <text x="15" y="60" font-family="system-ui" font-size="11" fill="#475569">Stored in <code>/videos</code></text>
+              <text x="15" y="80" font-family="system-ui" font-size="11" fill="#475569">Gated across 5 tiers &</text>
+              <text x="15" y="100" font-family="system-ui" font-size="11" font-weight="600" fill="#0f172a">Stripe Video Grants</text>
+            </g>
+
+            <path d="M 680 115 L 720 115" stroke="#94a3b8" stroke-width="2" />
+
+            <g transform="translate(720, 40)">
+              <rect width="150" height="150" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" />
+              <text x="15" y="30" font-family="system-ui" font-size="13" font-weight="700" fill="#15803d">4. ABR Playback</text>
+              <text x="15" y="60" font-family="system-ui" font-size="11" fill="#475569">hls.js Adaptive Stream</text>
+              <text x="15" y="80" font-family="system-ui" font-size="11" fill="#475569">Time tracking syncing</text>
+              <text x="15" y="100" font-family="system-ui" font-size="11" font-weight="600" fill="#0f172a">to /videoProgress</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Section: Dev Setup -->
+      <section id="dev-setup">
+        <h2>Development Setup & Quickstart</h2>
+        <p>The project strictly uses <code>pnpm</code> (never <code>npm</code> or <code>npx</code>) and runs on Angular 20+ and Node.js 22:</p>
+
+        <pre><code># 1. Install dependencies
+pnpm install
+cd functions && pnpm install && cd ..
+
+# 2. Build Cloud Functions TypeScript
+pnpm build:functions
+
+# 3. Start local development server (Angular on http://localhost:4200)
+pnpm start
+
+# 4. Start Firebase Emulators (Auth 9099, Firestore 8080, Functions 5001, Storage 9199, UI 4000)
+pnpm emulator:start
+
+# 5. Run full test suites
+pnpm test              # Vitest Angular Unit Tests
+pnpm test:functions    # Cloud Functions Tests
+pnpm test:rules        # Firestore Rules Tests in Emulator</code></pre>
+      </section>
+
+      <!-- Section: Deployment Guide -->
+      <section id="deployment-guide">
+        <h2>Deployment Guide</h2>
+        <p>Deployment commands targeting the configured Firebase project (<code>ilc-paris-class-tracker</code>):</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Target</th>
+                <th>Command</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Full Stack</strong></td>
+                <td><code>pnpm run deploy</code></td>
+                <td>Builds Angular app and Cloud Functions, then deploys Hosting, Functions, Firestore Rules, and Storage Rules.</td>
+              </tr>
+              <tr>
+                <td><strong>Web App Hosting</strong></td>
+                <td><code>pnpm run deploy:hosting</code></td>
+                <td>Builds and uploads static bundle from <code>dist/ilc-members-manager/browser</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Cloud Functions</strong></td>
+                <td><code>pnpm run deploy:functions</code></td>
+                <td>Compiles TypeScript and deploys 2nd Gen Cloud Functions.</td>
+              </tr>
+              <tr>
+                <td><strong>Security Rules</strong></td>
+                <td><code>pnpm run deploy:rules</code></td>
+                <td>Releases <code>firestore.rules</code> and <code>storage.rules</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Web Components</strong></td>
+                <td><code>pnpm run deploy:find-instructor-wc</code><br><code>pnpm run deploy:events-wc</code></td>
+                <td>Builds embeddable web components and deploys them to the shared cloud storage bucket.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Troubleshooting -->
+      <section id="troubleshooting">
+        <h2>Troubleshooting & Known Gotchas</h2>
+        
+        <div class="callout callout-warning">
+          <div class="callout-title">⚠️ Backups: "Permission 'iam.serviceAccounts.signBlob' denied"</div>
+          <p>
+            When calling <code>listBackups</code>, the Cloud Function requires the <strong>Service Account Token Creator</strong> (<code>roles/iam.serviceAccountTokenCreator</code>) IAM role to generate signed GCS download URLs.
+          </p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">ℹ️ Email Case Normalization</div>
+          <p>
+            All login and member lookup queries normalize emails to lowercase (<code>email.toLowerCase().trim()</code>). Firestore <code>/acl/{email}</code> document IDs must always be stored in lowercase.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <div>ILC Members Manager Architecture & Documentation • Built for Zhong Xin Dao I Liq Chuan</div>
+        <div>Self-Contained Offline Documentation Portal</div>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // Tab switching logic
+    function switchTab(paneId, buttonEl) {
+      const container = buttonEl.closest('.tab-container');
+      container.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      container.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+      
+      buttonEl.classList.add('active');
+      const targetPane = document.getElementById(paneId);
+      if (targetPane) {
+        targetPane.classList.add('active');
+      }
+    }
+
+    // Sidebar search filter
+    function filterNav(query) {
+      const q = query.toLowerCase().trim();
+      const links = document.querySelectorAll('#sidebarNav .nav-link');
+      links.forEach(link => {
+        const text = link.textContent.toLowerCase();
+        if (text.includes(q)) {
+          link.style.display = 'flex';
+        } else {
+          link.style.display = 'none';
+        }
+      });
+    }
+
+    // Smooth scroll for anchors
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+          document.querySelectorAll('#sidebarNav .nav-link').forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
