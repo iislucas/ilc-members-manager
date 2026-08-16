@@ -23,10 +23,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
@@ -45,9 +45,9 @@ jobs:
           # Copy root landing page and assets
           cp ghpages-site/index.html ghpages-site/ilc.svg public_site/
           
-          # Copy docs
+          # Copy docs recursively (including plans and user-stories)
           mkdir -p public_site/docs
-          cp docs/* public_site/docs/
+          cp -r docs/. public_site/docs/
           
           # Copy mini-tools (top level HTML files)
           mkdir -p public_site/mini-tools
