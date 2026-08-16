@@ -138,7 +138,7 @@
           <th>Title, Instructor & Tags</th>
           <th>Who Can View</th>
           <th>Duration</th>
-          <th>Status & Visibility</th>
+          <th>Resolutions & Visibility</th>
           <th>Actions</th>
         </tr>
       <tbody>
@@ -153,7 +153,7 @@
           </tr>
         } @else {
           @for (video of filteredVideos(); track video.docId) {
-          <tr>
+          <tr [class.deleting-row]="isDeleting(video.docId)">
             <!-- Thumbnail -->
             <td class="thumb-cell" (click)="openDrawer(video)">
               @if (video.thumbnailUrl) {
@@ -188,6 +188,9 @@
                     }
                   </div>
                 }
+                @if (formatAddedDate(video); as dateStr) {
+                  <span class="table-video-date" title="Date & time added to VOD catalog">{{ dateStr }}</span>
+                }
               </div>
             </td>
 
@@ -205,110 +208,135 @@
               <span class="dur-text">{{ formatDuration(video.durationSeconds) }}</span>
             </td>
 
-            <!-- Status & Visibility -->
+            <!-- Resolutions & Visibility -->
             <td>
               <div class="status-col">
-                <span class="status-badge" [class]="getStatusClass(video.vodStatus)" (click)="openDrawer(video)" title="Click to view pipeline details">
-                  @if (video.vodStatus === 'transcoding' || video.vodStatus === 'queued') {
+                @if (video.vodStatus === VodStatus.Transcoding || video.vodStatus === VodStatus.Queued) {
+                  <span class="status-badge" [class]="getStatusClass(video.vodStatus)" (click)="openDrawer(video)" title="Click to view pipeline details">
                     <app-spinner size="12px"></app-spinner>
-                  }
-                  {{ video.vodStatus }}
-                </span>
+                    <span>{{ video.vodStatus }}</span>
+                  </span>
+                } @else if (video.vodStatus === VodStatus.Failed) {
+                  <span class="status-badge status-failed" (click)="openDrawer(video)" title="Transcoding failed. Click for error details.">
+                    <app-icon name="error" width="12px" height="12px"></app-icon>
+                    <span>Failed</span>
+                  </span>
+                } @else if (video.resolutions && video.resolutions.length > 0) {
+                  <div class="resolutions-pills" (click)="openDrawer(video)" title="Supported resolutions (ready) — click to manage renditions">
+                    @for (res of video.resolutions; track res) {
+                      <span class="res-mini-pill">{{ res }}</span>
+                    }
+                  </div>
+                } @else if (video.vodStatus === VodStatus.Ready) {
+                  <span class="status-badge status-ready" (click)="openDrawer(video)" title="Ready — click to manage renditions">
+                    Ready (1080p)
+                  </span>
+                } @else {
+                  <span class="status-badge status-draft" (click)="openDrawer(video)" title="No renditions ready. Click to transcode.">
+                    No renditions
+                  </span>
+                }
                 <span class="published-pill" [class.published]="video.isPublished" (click)="togglePublished(video)" title="Click to toggle listed/hidden">
                   {{ video.isPublished ? 'Listed' : 'Hidden' }}
                 </span>
               </div>
             </td>
 
-            <!-- Actions (3-Dots Kebab Menu) -->
+            <!-- Actions (3-Dots Kebab Menu or Deleting Spinner) -->
             <td class="actions-cell">
-              <div class="actions-menu-container">
-                <button
-                  type="button"
-                  class="icon-only-button"
-                  (click)="toggleMenu(video.docId, $event)"
-                  title="More actions"
-                  aria-label="More actions for this video"
-                >
-                  <app-icon name="more_vert"></app-icon>
-                </button>
-
-                @if (activeMenuVideoId() === video.docId) {
-                  <div class="menu-overlay transparent" (click)="closeMenu(); $event.stopPropagation()"></div>
-                  <div
-                    class="actions-menu"
-                    [class.dropdown-up]="$count > 2 && $index >= $count - 2"
-                    (click)="$event.stopPropagation()"
+              @if (isDeleting(video.docId)) {
+                <div class="deleting-spinner-wrapper" title="Deleting video...">
+                  <app-spinner size="18px"></app-spinner>
+                </div>
+              } @else {
+                <div class="actions-menu-container">
+                  <button
+                    type="button"
+                    class="icon-only-button"
+                    (click)="toggleMenu(video.docId, $event)"
+                    title="More actions"
+                    aria-label="More actions for this video"
                   >
-                    <!-- Edit Metadata -->
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="openEditModal(video); closeMenu()"
+                    <app-icon name="more_vert"></app-icon>
+                  </button>
+
+                  @if (activeMenuVideoId() === video.docId) {
+                    <div class="menu-overlay transparent" (click)="closeMenu(); $event.stopPropagation()"></div>
+                    <div
+                      class="actions-menu"
+                      [class.dropdown-up]="$count > 2 && $index >= $count - 2"
+                      (click)="$event.stopPropagation()"
                     >
-                      <app-icon name="edit"></app-icon>
-                      <span>Edit Metadata</span>
-                    </button>
-
-                    <!-- Toggle Listed / Hidden -->
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="togglePublished(video); closeMenu()"
-                    >
-                      <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
-                      <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
-                    </button>
-
-                    <!-- Pipeline & Transcoder Details (Drawer) -->
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="openDrawer(video); closeMenu()"
-                    >
-                      <app-icon name="live_tv"></app-icon>
-                      <span>Job & Pipeline Details</span>
-                    </button>
-
-                    <!-- Watch Video (if ready) -->
-                    @if (video.vodStatus === 'ready') {
-                      <a
-                        class="menu-item"
-                        [href]="getVideoHref(video)"
-                        target="_blank"
-                        (click)="closeMenu()"
-                      >
-                        <app-icon name="play_arrow"></app-icon>
-                        <span>Watch Video</span>
-                      </a>
-                    }
-
-                    <!-- Retry Transcoding -->
-                    @if (video.vodStatus === 'failed' || video.vodStatus === 'none' || video.vodStatus === 'queued') {
+                      <!-- Edit Metadata -->
                       <button
                         type="button"
                         class="menu-item"
-                        (click)="retryTranscoding(video); closeMenu()"
+                        (click)="openEditModal(video); closeMenu()"
                       >
-                        <app-icon name="refresh"></app-icon>
-                        <span>Re-trigger Transcoding</span>
+                        <app-icon name="edit"></app-icon>
+                        <span>Edit Metadata</span>
                       </button>
-                    }
 
-                    <div class="menu-divider"></div>
+                      <!-- Toggle Listed / Hidden -->
+                      <button
+                        type="button"
+                        class="menu-item"
+                        (click)="togglePublished(video); closeMenu()"
+                      >
+                        <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
+                        <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                      </button>
 
-                    <!-- Delete Video -->
-                    <button
-                      type="button"
-                      class="menu-item danger-item"
-                      (click)="deleteVideo(video); closeMenu()"
-                    >
-                      <app-icon name="delete"></app-icon>
-                      <span>Delete from VOD</span>
-                    </button>
-                  </div>
-                }
-              </div>
+                      <!-- Pipeline & Transcoder Details (Drawer) -->
+                      <button
+                        type="button"
+                        class="menu-item"
+                        (click)="openDrawer(video); closeMenu()"
+                      >
+                        <app-icon name="live_tv"></app-icon>
+                        <span>Job & Pipeline Details</span>
+                      </button>
+
+                      <!-- Watch Video (if ready or has resolutions) -->
+                      @if (video.vodStatus === 'ready' || (video.resolutions && video.resolutions.length > 0)) {
+                        <a
+                          class="menu-item"
+                          [href]="getVideoHref(video)"
+                          target="_blank"
+                          (click)="closeMenu()"
+                        >
+                          <app-icon name="play_arrow"></app-icon>
+                          <span>Watch Video</span>
+                        </a>
+                      }
+
+                      <!-- Retry Transcoding -->
+                      @if (video.vodStatus === 'failed' || video.vodStatus === 'none' || video.vodStatus === 'queued') {
+                        <button
+                          type="button"
+                          class="menu-item"
+                          (click)="retryTranscoding(video); closeMenu()"
+                        >
+                          <app-icon name="refresh"></app-icon>
+                          <span>Re-trigger Transcoding</span>
+                        </button>
+                      }
+
+                      <div class="menu-divider"></div>
+
+                      <!-- Delete Video -->
+                      <button
+                        type="button"
+                        class="menu-item danger-item"
+                        (click)="deleteVideo(video); closeMenu()"
+                      >
+                        <app-icon name="delete"></app-icon>
+                        <span>Delete from VOD</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
             </td>
           </tr>
         } @empty {
@@ -412,10 +440,16 @@
                   <button
                     type="button"
                     class="menu-item danger-item"
+                    [disabled]="isDeleting(d.docId)"
                     (click)="deleteVideo(d); closeMenu()"
                   >
-                    <app-icon name="delete"></app-icon>
-                    <span>Delete from VOD</span>
+                    @if (isDeleting(d.docId)) {
+                      <app-spinner size="14px"></app-spinner>
+                      <span>Deleting from VOD...</span>
+                    } @else {
+                      <app-icon name="delete"></app-icon>
+                      <span>Delete from VOD</span>
+                    }
                   </button>
                 </div>
               }

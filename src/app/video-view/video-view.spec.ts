@@ -169,6 +169,10 @@ describe('VideoViewComponent', () => {
       bufferAheadSeconds: 30,
       bufferedPercent: 40,
       totalBytesDownloaded: 100000,
+      totalResolutionSizeBytes: 31250000,
+      totalEstimatedSizeBytes: 31250000,
+      totalWatchSessionBytes: 28225000,
+      remainingWatchBytes: 28125000,
       bytesAheadCached: 20000,
       lastChunkBytes: 5000,
       lastChunkDurationMs: 200,
@@ -180,6 +184,10 @@ describe('VideoViewComponent', () => {
       playerState: 'playing',
       url: 'https://example.com/manifest.m3u8',
       playedPercent: 10,
+      resolutionLadder: [
+        { id: 0, label: '360p', height: 360, bitrateMbps: 0.8, estimatedSizeBytes: 10000000 },
+        { id: 1, label: '720p', height: 720, bitrateMbps: 2.5, estimatedSizeBytes: 31250000 },
+      ],
     });
 
     expect(component.isQualityActive('720p')).toBe(true);
@@ -192,6 +200,39 @@ describe('VideoViewComponent', () => {
 
     component.onQualitySelected('1080p');
     expect(playerSpy).toHaveBeenCalledWith('1080p');
+  });
+
+  it('should return resolution size estimate from ladder or calculate from duration', () => {
+    component.streamingStats.set({
+      engine: 'HLS.js',
+      currentPosition: 0,
+      duration: 1000,
+      bufferAheadSeconds: 0,
+      bufferedPercent: 0,
+      totalBytesDownloaded: 0,
+      totalResolutionSizeBytes: 300000000,
+      totalEstimatedSizeBytes: 300000000,
+      totalWatchSessionBytes: 300000000,
+      remainingWatchBytes: 300000000,
+      bytesAheadCached: 0,
+      lastChunkBytes: 0,
+      lastChunkDurationMs: 0,
+      currentBitrateMbps: 2.4,
+      currentResolution: '720p',
+      activeQualityLabel: '720p',
+      droppedFrames: 0,
+      totalFrames: 0,
+      playerState: 'idle',
+      url: '',
+      playedPercent: 0,
+      resolutionLadder: [
+        { id: 0, label: '360p', height: 360, bitrateMbps: 0.8, estimatedSizeBytes: 100000000 },
+        { id: 1, label: '720p', height: 720, bitrateMbps: 2.4, estimatedSizeBytes: 300000000 },
+      ],
+    });
+
+    expect(component.getResolutionSizeEstimate('360p')).toBe('~95.4 MB');
+    expect(component.getResolutionSizeEstimate('720p')).toBe('~286.1 MB');
   });
 
   it('should trigger offline storage download and clear cache', async () => {

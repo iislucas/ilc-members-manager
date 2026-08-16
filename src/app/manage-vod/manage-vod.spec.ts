@@ -321,4 +321,62 @@ describe('ManageVodComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Loading VOD catalog...');
   });
+
+  it('should track deleting status and call deleteVideo on dataService', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    let resolveDelete: () => void;
+    const deletePromise = new Promise<void>((res) => {
+      resolveDelete = res;
+    });
+    mockDataService.deleteVideo.mockReturnValue(deletePromise);
+
+    const video = mockDataService.videos.entries()[0];
+    const deleteOp = component.deleteVideo(video);
+
+    expect(component.isDeleting('v1')).toBe(true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const deletingRow = compiled.querySelector('tr.deleting-row');
+    expect(deletingRow).toBeTruthy();
+
+    resolveDelete!();
+    await deleteOp;
+
+    expect(component.isDeleting('v1')).toBe(false);
+    expect(mockDataService.deleteVideo).toHaveBeenCalledWith('v1');
+  });
+
+  it('should render supported resolutions in the resolutions column', () => {
+    const sampleWithResolutions: VideoItem = {
+      ...mockDataService.videos.entries()[0],
+      resolutions: ['1080p', '720p', '480p', '360p'],
+    };
+    mockDataService.videos.entries.set([sampleWithResolutions]);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const resPills = compiled.querySelectorAll('.res-mini-pill');
+    expect(resPills.length).toBe(4);
+    expect(resPills[0].textContent?.trim()).toBe('1080p');
+    expect(resPills[1].textContent?.trim()).toBe('720p');
+  });
+
+  it('should format and display date and time added under title and tags without Added prefix', () => {
+    const videoWithDate: VideoItem = {
+      ...mockDataService.videos.entries()[0],
+      createdAt: '2026-05-15T10:30:00Z',
+    };
+    mockDataService.videos.entries.set([videoWithDate]);
+    fixture.detectChanges();
+
+    const formatted = component.formatAddedDate(videoWithDate);
+    expect(formatted).toBeTruthy();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const dateEl = compiled.querySelector('.table-video-date');
+    expect(dateEl).toBeTruthy();
+    expect(dateEl?.textContent?.trim()).toBe(formatted);
+    expect(dateEl?.textContent).not.toContain('Added');
+  });
 });

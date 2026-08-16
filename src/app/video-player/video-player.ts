@@ -38,13 +38,25 @@ export interface QualityLevel {
   height: number;
 }
 
+export interface ResolutionSizeEstimate {
+  id: number;
+  label: string;
+  height: number;
+  bitrateMbps: number;
+  estimatedSizeBytes: number;
+}
+
 export interface StreamingStats {
   engine: 'HLS.js' | 'Native HLS' | 'Direct Progressive';
   currentPosition: number;
   duration: number;
   bufferAheadSeconds: number;
   bufferedPercent: number;
-  totalBytesDownloaded: number;
+  totalBytesDownloaded: number; // Actual bytes downloaded so far this watch session
+  totalResolutionSizeBytes: number; // Full video file size at current active resolution
+  totalEstimatedSizeBytes: number; // Backward-compat alias for totalResolutionSizeBytes
+  totalWatchSessionBytes: number; // Total expected download for this watch (downloaded + remaining)
+  remainingWatchBytes: number; // Estimated remaining bytes to complete watching at current quality
   bytesAheadCached: number;
   lastChunkBytes: number;
   lastChunkDurationMs: number;
@@ -56,6 +68,7 @@ export interface StreamingStats {
   playerState: 'playing' | 'paused' | 'buffering' | 'idle';
   url: string;
   playedPercent: number;
+  resolutionLadder: ResolutionSizeEstimate[];
 }
 
 // Custom on-device CacheStorage Fragment Loader for instant offline replay and fast streaming
@@ -384,7 +397,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
   private emitStreamingStats(): void {
     const video = this.videoRef?.nativeElement;
-    const dur = this.duration() || 0;
+    const dur = this.effectiveDuration();
     const pos = this.currentTime() || 0;
     const playedPct = dur > 0 ? Math.min(100, Math.max(0, (pos / dur) * 100)) : 0;
 
@@ -410,13 +423,27 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     const bufAhead = this.bufferAheadSeconds();
     let estBitrateBps = 0;
-    if (this.hls) {
-      const curLvlIndex = this.hls.currentLevel >= 0 ? this.hls.currentLevel : this.hls.loadLevel;
-      const lvl = curLvlIndex >= 0 ? this.hls.levels[curLvlIndex] : undefined;
-      if (lvl && lvl.bitrate) {
-        estBitrateBps = lvl.bitrate;
+    if (this.currentQualityId() >= 0) {
+      if (this.hls && this.hls.levels && this.hls.levels[this.currentQualityId()]) {
+        estBitrateBps = this.hls.levels[this.currentQualityId()].bitrate || 0;
+      }
+      if (!estBitrateBps) {
+        const q = this.availableQualities().find((item) => item.id === this.currentQualityId());
+        estBitrateBps = q?.bitrate || 0;
+      }
+    } else {
+      if (this.hls && this.hls.levels && this.hls.levels.length > 0) {
+        const curLvlIndex = this.hls.currentLevel >= 0 ? this.hls.currentLevel : (this.hls.loadLevel >= 0 ? this.hls.loadLevel : 0);
+        const lvl = this.hls.levels[curLvlIndex];
+        if (lvl && lvl.bitrate) {
+          estBitrateBps = lvl.bitrate;
+        } else {
+          const sum = this.hls.levels.reduce((acc, l) => acc + (l.bitrate || 0), 0);
+          estBitrateBps = Math.round(sum / this.hls.levels.length);
+        }
       }
     }
+
     if (!estBitrateBps && this.currentBitrateMbps() > 0) {
       estBitrateBps = this.currentBitrateMbps() * 1000000;
     }
@@ -424,11 +451,35 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       estBitrateBps = 2400000; // ~2.4 Mbps default
     }
 
+    const remDur = Math.max(0, dur - pos);
+    const totalResolutionSizeBytes = dur > 0 ? Math.round(dur * (estBitrateBps / 8)) : (this.vod()?.originalSize || 0);
+    const remainingWatchBytes = remDur > 0 ? Math.round(remDur * (estBitrateBps / 8)) : 0;
+    const totalWatchSessionBytes = this.totalBytesDownloaded() + remainingWatchBytes;
     const bytesAhead = Math.max(0, Math.round(bufAhead * (estBitrateBps / 8)));
 
     const activeQ = this.currentQualityId() === -1
       ? (this.currentResolutionLabel().includes('Auto') ? this.currentResolutionLabel() : `Auto (${this.currentResolutionLabel()})`)
       : this.currentResolutionLabel();
+
+    const resolutionLadder: ResolutionSizeEstimate[] = this.availableQualities().map((q) => {
+      let bBps = q.bitrate || 0;
+      if (!bBps) {
+        if (q.height >= 2160) bBps = 12000000;
+        else if (q.height >= 1080) bBps = 4800000;
+        else if (q.height >= 720) bBps = 2400000;
+        else if (q.height >= 480) bBps = 1200000;
+        else if (q.height >= 360) bBps = 800000;
+        else bBps = estBitrateBps;
+      }
+      const estBytes = dur > 0 ? Math.round(dur * (bBps / 8)) : 0;
+      return {
+        id: q.id,
+        label: q.label,
+        height: q.height,
+        bitrateMbps: bBps / 1000000,
+        estimatedSizeBytes: estBytes,
+      };
+    });
 
     const stats: StreamingStats = {
       engine: this.streamingEngine(),
@@ -437,6 +488,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       bufferAheadSeconds: bufAhead,
       bufferedPercent: this.bufferedPercent(),
       totalBytesDownloaded: this.totalBytesDownloaded(),
+      totalResolutionSizeBytes,
+      totalEstimatedSizeBytes: totalResolutionSizeBytes,
+      totalWatchSessionBytes,
+      remainingWatchBytes,
       bytesAheadCached: bytesAhead,
       lastChunkBytes: this.lastChunkBytes(),
       lastChunkDurationMs: this.lastChunkDurationMs(),
@@ -448,6 +503,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       playerState: state,
       url: this.manifestUrl || this.vod()?.manifestUrl || '',
       playedPercent: playedPct,
+      resolutionLadder,
     };
     this.statsUpdated.emit(stats);
   }

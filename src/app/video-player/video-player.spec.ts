@@ -212,4 +212,36 @@ describe('VideoPlayerComponent', () => {
     component.toggleFullscreen();
     expect(exitFullscreenSpy).toHaveBeenCalled();
   });
+
+  it('should calculate totalEstimatedSizeBytes and adapt appropriately on quality change', () => {
+    component.videoData = {
+      ...initVideoItem(),
+      durationSeconds: 1000,
+    };
+    (component as any).updateQualityLevels([
+      { height: 360, bitrate: 800000 },
+      { height: 720, bitrate: 2400000 },
+      { height: 1080, bitrate: 4800000 },
+    ]);
+
+    let emittedStats: any = null;
+    component.statsUpdated.subscribe((stats) => {
+      emittedStats = stats;
+    });
+
+    // Quality 0 is 360p (800,000 bps -> 100,000 bytes/sec -> 100,000,000 bytes for 1000s)
+    component.setQuality(0);
+    expect(emittedStats).toBeTruthy();
+    expect(emittedStats.totalResolutionSizeBytes).toBe(100000000);
+    expect(emittedStats.totalEstimatedSizeBytes).toBe(100000000);
+    expect(emittedStats.totalWatchSessionBytes).toBe(100000000);
+    expect(emittedStats.remainingWatchBytes).toBe(100000000);
+    expect(emittedStats.resolutionLadder.length).toBe(4); // Auto + 3 levels
+
+    // Quality 2 is 1080p (4,800,000 bps -> 600,000 bytes/sec -> 600,000,000 bytes for 1000s)
+    component.setQuality(2);
+    expect(emittedStats.totalResolutionSizeBytes).toBe(600000000);
+    expect(emittedStats.totalEstimatedSizeBytes).toBe(600000000);
+    expect(emittedStats.totalWatchSessionBytes).toBe(600000000);
+  });
 });

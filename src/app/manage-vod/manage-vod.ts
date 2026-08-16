@@ -80,6 +80,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
 
   // 3-Dots Action Menu state
   activeMenuVideoId = signal<string | null>(null);
+  deletingVideoIds = signal<Set<string>>(new Set());
+
+  isDeleting(videoId?: string): boolean {
+    if (!videoId) return false;
+    return this.deletingVideoIds().has(videoId);
+  }
 
   // Job Details Drawer state
   drawerVideo = signal<VideoItem | null>(null);
@@ -666,6 +672,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.deletingVideoIds.update((s) => {
+      const next = new Set(s);
+      next.add(video.docId);
+      return next;
+    });
+
     try {
       await this.dataService.deleteVideo(video.docId);
       if (this.drawerVideo()?.docId === video.docId) {
@@ -678,6 +690,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       console.error('Error deleting video:', err);
       const msg = err instanceof Error ? err.message : 'Failed to delete video.';
       alert(msg);
+    } finally {
+      this.deletingVideoIds.update((s) => {
+        const next = new Set(s);
+        next.delete(video.docId);
+        return next;
+      });
     }
   }
 
@@ -760,6 +778,26 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         return 'status-failed';
       default:
         return 'status-draft';
+    }
+  }
+
+  formatAddedDate(video: VideoItem): string {
+    const raw = video.createdAt || video.publishedAt || video.lastUpdated || '';
+    if (!raw) return '';
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) {
+        return raw.split('T')[0];
+      }
+      return d.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch {
+      return raw.split('T')[0];
     }
   }
 }

@@ -143,8 +143,21 @@
         <!-- Summary Metrics Row -->
         <div class="debug-metrics-grid">
           <div class="metric-cell">
-            <span class="metric-label">Streamed So Far</span>
+            <span class="metric-label">Downloaded This Watch</span>
             <span class="metric-val highlight">{{ formatBytes(stats.totalBytesDownloaded) }}</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-label">Est. Total For This Watch</span>
+            <span class="metric-val highlight-blue">
+              ~{{ formatBytes(stats.totalWatchSessionBytes) }}
+              @if (stats.remainingWatchBytes > 0) {
+                <span class="metric-subval">(~{{ formatBytes(stats.remainingWatchBytes) }} rem)</span>
+              }
+            </span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-label">Full Video at {{ stats.activeQualityLabel }}</span>
+            <span class="metric-val">~{{ formatBytes(stats.totalResolutionSizeBytes) }}</span>
           </div>
           <div class="metric-cell">
             <span class="metric-label">Cached Ahead (Unplayed)</span>
@@ -163,6 +176,32 @@
         <!-- Detailed Debug Panel (Foldable) -->
         @if (showDebugDetails()) {
           <div class="debug-details-panel">
+            <div class="detail-item">
+              <span class="detail-key">Watch Session:</span>
+              <span class="detail-val">
+                <strong>{{ formatBytes(stats.totalBytesDownloaded) }}</strong> transferred so far &bull;
+                <strong>~{{ formatBytes(stats.remainingWatchBytes) }}</strong> remaining to finish video &bull;
+                <strong>~{{ formatBytes(stats.totalWatchSessionBytes) }}</strong> projected total for this watch
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-key">Current Quality:</span>
+              <span class="detail-val">~{{ formatBytes(stats.totalResolutionSizeBytes) }} full file size at {{ stats.activeQualityLabel }}</span>
+            </div>
+            @if (stats.resolutionLadder && stats.resolutionLadder.length) {
+              <div class="detail-item">
+                <span class="detail-key">All Resolutions:</span>
+                <span class="detail-val ladder-val">
+                  @for (lvl of stats.resolutionLadder; track lvl.id) {
+                    @if (lvl.id >= 0) {
+                      <span class="ladder-chip" [class.active-ladder]="isQualityActive(lvl.label)">
+                        {{ lvl.label }}: ~{{ formatBytes(lvl.estimatedSizeBytes) }} ({{ lvl.bitrateMbps.toFixed(1) }} Mbps)
+                      </span>
+                    }
+                  }
+                </span>
+              </div>
+            }
             <div class="detail-item">
               <span class="detail-key">Recent Download:</span>
               <span class="detail-val">{{ formatBytes(stats.lastChunkBytes) }} in {{ stats.lastChunkDurationMs }}ms</span>
@@ -303,10 +342,13 @@
                         class="quality-tag-chip"
                         [class.active]="isQualityActive(res)"
                         (click)="onQualitySelected(res)"
-                        [title]="'Stream in ' + res"
+                        [title]="'Stream in ' + res + (getResolutionSizeEstimate(res) ? ' (' + getResolutionSizeEstimate(res) + ')' : '')"
                       >
                         <app-icon name="hd"></app-icon>
-                        <span>{{ res }}</span>
+                        <span class="res-label">{{ res }}</span>
+                        @if (getResolutionSizeEstimate(res); as sizeEst) {
+                          <span class="res-size-pill">{{ sizeEst }}</span>
+                        }
                       </button>
                     }
                   </div>

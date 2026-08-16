@@ -310,6 +310,33 @@ export class VideoViewComponent implements OnInit {
     this.videoPlayer?.selectQualityByLabel(res);
   }
 
+  getResolutionSizeEstimate(res: string): string {
+    const stats = this.streamingStats();
+    if (stats?.resolutionLadder && stats.resolutionLadder.length > 0) {
+      const cleaned = res.toLowerCase().replace(/[^0-9a-z]/g, '');
+      const match = stats.resolutionLadder.find((lvl) => {
+        const lvlCleaned = lvl.label.toLowerCase().replace(/[^0-9a-z]/g, '');
+        return lvlCleaned === cleaned || (lvl.height > 0 && `${lvl.height}p` === cleaned);
+      });
+      if (match && match.estimatedSizeBytes > 0) {
+        return `~${this.formatBytes(match.estimatedSizeBytes)}`;
+      }
+    }
+
+    const dur = this.video()?.durationSeconds || stats?.duration || 0;
+    if (!dur || dur <= 0) return '';
+    const h = parseInt(res.replace(/[^0-9]/g, ''), 10) || 0;
+    let bitrateBps = 2400000;
+    if (h >= 2160) bitrateBps = 12000000;
+    else if (h >= 1080) bitrateBps = 4800000;
+    else if (h >= 720) bitrateBps = 2400000;
+    else if (h >= 480) bitrateBps = 1200000;
+    else if (h >= 360) bitrateBps = 800000;
+    else if (h > 0) bitrateBps = 500000;
+
+    return `~${this.formatBytes(Math.round(dur * (bitrateBps / 8)))}`;
+  }
+
   getTagTooltip(tag: string): string {
     const meta = this.dataService.getTagMeta(tag);
     if (meta && meta.description) {
