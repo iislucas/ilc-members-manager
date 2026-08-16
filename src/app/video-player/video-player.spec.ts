@@ -166,4 +166,50 @@ describe('VideoPlayerComponent', () => {
     component.hoverTime.set(800);
     expect(component.activeChapter()).toBe('3. Form Breakdown');
   });
+
+  it('should update isFullscreen signal when fullscreenchange event fires', () => {
+    const container = component.containerRef.nativeElement;
+    expect(component.isFullscreen()).toBe(false);
+
+    // Simulate entering fullscreen
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: container,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(component.isFullscreen()).toBe(true);
+
+    // Simulate exiting fullscreen (e.g. user pressing Escape key)
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: null,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(component.isFullscreen()).toBe(false);
+  });
+
+  it('should call requestFullscreen or exitFullscreen on toggleFullscreen', () => {
+    const container = component.containerRef.nativeElement;
+    const requestFullscreenSpy = vi.fn().mockReturnValue(Promise.resolve());
+    const exitFullscreenSpy = vi.fn().mockReturnValue(Promise.resolve());
+
+    container.requestFullscreen = requestFullscreenSpy;
+    document.exitFullscreen = exitFullscreenSpy;
+
+    // When not in fullscreen, toggleFullscreen calls requestFullscreen
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: null,
+    });
+    component.toggleFullscreen();
+    expect(requestFullscreenSpy).toHaveBeenCalled();
+
+    // When in fullscreen, toggleFullscreen calls exitFullscreen
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: container,
+    });
+    component.toggleFullscreen();
+    expect(exitFullscreenSpy).toHaveBeenCalled();
+  });
 });

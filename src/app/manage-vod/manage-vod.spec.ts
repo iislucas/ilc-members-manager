@@ -19,6 +19,7 @@ describe('ManageVodComponent', () => {
   let mockDataService: {
     videos: {
       entries: WritableSignal<VideoItem[]>;
+      loading: WritableSignal<boolean>;
       get: (id: string) => VideoItem | undefined;
     };
     tagsSet: SearchableSet<'tag', TagItem>;
@@ -76,6 +77,7 @@ describe('ManageVodComponent', () => {
     mockDataService = {
       videos: {
         entries: signal(sampleVideos),
+        loading: signal(false),
         get: (id: string) => sampleVideos.find((v) => v.docId === id),
       },
       tagsSet: new SearchableSet<'tag', TagItem>(['tag', 'label', 'description'], 'tag', [
@@ -310,5 +312,13 @@ describe('ManageVodComponent', () => {
 
     component.copyToClipboard('https://example.com/manifest.m3u8', 'Manifest URL');
     expect(writeTextSpy).toHaveBeenCalledWith('https://example.com/manifest.m3u8');
+  });
+
+  it('should display loading state when videos.loading is true', () => {
+    mockDataService.videos.loading.set(true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Loading VOD catalog...');
   });
 });

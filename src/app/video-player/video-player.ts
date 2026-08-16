@@ -697,6 +697,24 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       updateBuffer();
       this.emitStreamingStats();
     });
+    video.addEventListener('webkitbeginfullscreen', () => {
+      this.isFullscreen.set(true);
+    });
+    video.addEventListener('webkitendfullscreen', () => {
+      this.isFullscreen.set(false);
+    });
+  }
+
+  @HostListener('document:fullscreenchange')
+  @HostListener('document:webkitfullscreenchange')
+  onFullscreenChange(): void {
+    const container = this.containerRef?.nativeElement;
+    const video = this.videoRef?.nativeElement;
+    const doc = document as any;
+    const isFull =
+      Boolean(container && (doc.fullscreenElement === container || doc.webkitFullscreenElement === container)) ||
+      Boolean(video && (doc.fullscreenElement === video || doc.webkitFullscreenElement === video));
+    this.isFullscreen.set(isFull);
   }
 
   togglePlay(): void {
@@ -909,11 +927,28 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   toggleFullscreen(): void {
-    const container = this.containerRef.nativeElement;
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().then(() => this.isFullscreen.set(true)).catch(() => {});
+    const container = this.containerRef?.nativeElement;
+    if (!container) return;
+    const video = this.videoRef?.nativeElement;
+    const doc = document as any;
+    const isFull =
+      Boolean(container && (doc.fullscreenElement === container || doc.webkitFullscreenElement === container)) ||
+      Boolean(video && (doc.fullscreenElement === video || doc.webkitFullscreenElement === video));
+
+    if (!isFull) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {});
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      } else if ((video as any)?.webkitEnterFullscreen) {
+        (video as any).webkitEnterFullscreen();
+      }
     } else {
-      document.exitFullscreen().then(() => this.isFullscreen.set(false)).catch(() => {});
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      }
     }
   }
 

@@ -426,7 +426,6 @@ export class DataManagerService {
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
     this.updateSystemTagsSync();
-    this.updateVideosSync();
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
     effect(() => {
@@ -442,11 +441,12 @@ export class DataManagerService {
       }
     });
 
-    // Admin system listeners (counters, email-templates)
+    // System listeners reactive to auth status (counters, email-templates, videos)
     effect(() => {
       const user = this.firebaseService.user();
       this.updateCountersSync(user);
       this.updateEmailTemplatesSync(user);
+      this.updateVideosSync(user);
     });
 
     // Admin "Manage Gradings" subscription, kept separate so it can re-subscribe
@@ -575,6 +575,10 @@ export class DataManagerService {
     if (this.emailTemplatesUnsubscribe) {
       this.emailTemplatesUnsubscribe();
       this.emailTemplatesUnsubscribe = null;
+    }
+    if (this.videosUnsubscribe) {
+      this.videosUnsubscribe();
+      this.videosUnsubscribe = null;
     }
   }
 
@@ -2394,23 +2398,34 @@ export class DataManagerService {
     document.body.removeChild(link);
   }
 
+  private videosUnsubscribe: (() => void) | null = null;
+
   /**
-   * Subscribes to the public /videos collection.
+   * Subscribes to the /videos collection.
+   * If the current user is an admin, queries all videos (published and draft/processing).
+   * Otherwise (public or non-admin member), queries only published videos (isPublished == true)
+   * to comply with Firestore security rules.
    */
-  async updateVideosSync() {
+  updateVideosSync(user: UserDetails | null) {
+    if (this.videosUnsubscribe) {
+      this.videosUnsubscribe();
+      this.videosUnsubscribe = null;
+    }
     const videosRef = collection(this.db, 'videos');
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(
-        videosRef,
-        (snapshot) => {
-          const items = snapshot.docs.map(firestoreDocToVideoItem);
-          this.videos.setEntries(items);
-        },
-        (error) => {
-          console.error('Error fetching videos:', error);
-          this.videos.setError(error.message);
-        },
-      ),
+    const q = user?.isAdmin
+      ? query(videosRef)
+      : query(videosRef, where('isPublished', '==', true));
+
+    this.videosUnsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map(firestoreDocToVideoItem);
+        this.videos.setEntries(items);
+      },
+      (error) => {
+        console.error('Error fetching videos:', error);
+        this.videos.setError(error.message);
+      },
     );
   }
 

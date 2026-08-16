@@ -117,7 +117,7 @@ export class SearchableSet<
   }
 
   setEntries(entries: T[]) {
-    this.state.update((state) => ({ ...state, entries, loading: false }));
+    this.state.update((state) => ({ ...state, entries, loading: false, error: null }));
   }
 
   /**

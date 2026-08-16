@@ -549,6 +549,14 @@
     text-align: center;
     padding: 32px;
     color: v.$text-muted;
+
+    .loading-state {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 0.95rem;
+    }
   }
 }
 

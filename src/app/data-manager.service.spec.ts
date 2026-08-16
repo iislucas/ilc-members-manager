@@ -5,9 +5,9 @@ import { IdbStorageService } from './idb-storage.service';
 import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
-import { vi } from 'vitest';
-import { getDocs, query, where, collection } from 'firebase/firestore';
-import { Member, School, initMember, initSchool } from '../../functions/src/data-model';
+import { getDocs, query, where, collection, onSnapshot } from 'firebase/firestore';
+import { Member, School, initMember, initSchool, VideoItem, initVideoItem } from '../../functions/src/data-model';
+import { UserDetails } from './firebase-state.service';
 
 vi.mock('firebase/firestore', () => {
   return {
@@ -271,6 +271,68 @@ describe('DataManagerService - searchEvents', () => {
 
       const tags = service.tagsSet.entries();
       expect(tags.find((t) => t.tag === 'spinning')?.description).toBe('Circular energy partner exercise');
+    });
+  });
+
+  describe('updateVideosSync', () => {
+    it('subscribes to all videos when user is admin', () => {
+      const adminUser = {
+        isAdmin: true,
+        member: { docId: 'admin1' },
+        memberProfiles: [],
+        schoolsManaged: [],
+        firebaseUser: {} as any,
+      } as UserDetails;
+
+      const queryMock = vi.mocked(query);
+      const whereMock = vi.mocked(where);
+      queryMock.mockClear();
+      whereMock.mockClear();
+
+      service.updateVideosSync(adminUser);
+
+      // Should query videos collection without where('isPublished', '==', true)
+      expect(whereMock).not.toHaveBeenCalledWith('isPublished', '==', true);
+      expect(queryMock).toHaveBeenCalled();
+    });
+
+    it('subscribes only to published videos when user is not admin', () => {
+      const regularUser = {
+        isAdmin: false,
+        member: { docId: 'mem1' },
+        memberProfiles: [],
+        schoolsManaged: [],
+        firebaseUser: {} as any,
+      } as UserDetails;
+
+      const queryMock = vi.mocked(query);
+      const whereMock = vi.mocked(where);
+      queryMock.mockClear();
+      whereMock.mockClear();
+
+      service.updateVideosSync(regularUser);
+
+      expect(whereMock).toHaveBeenCalledWith('isPublished', '==', true);
+    });
+
+    it('subscribes only to published videos when user is null (unauthenticated)', () => {
+      const whereMock = vi.mocked(where);
+      whereMock.mockClear();
+
+      service.updateVideosSync(null);
+
+      expect(whereMock).toHaveBeenCalledWith('isPublished', '==', true);
+    });
+
+    it('cleans up previous listener when re-subscribed and on unsubscribeSnapshots', () => {
+      const unsubSpy = vi.fn();
+      vi.mocked(onSnapshot).mockReturnValueOnce(unsubSpy as any);
+
+      service.updateVideosSync(null);
+
+      // Calling updateVideosSync again should call the previous unsubscribe function
+      service.updateVideosSync(null);
+      expect(unsubSpy).toHaveBeenCalled();
     });
   });
 });

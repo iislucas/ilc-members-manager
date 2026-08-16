@@ -141,9 +141,18 @@
           <th>Status & Visibility</th>
           <th>Actions</th>
         </tr>
-      </thead>
       <tbody>
-        @for (video of filteredVideos(); track video.docId) {
+        @if (dataService.videos.loading()) {
+          <tr>
+            <td colspan="6" class="empty-row">
+              <div class="loading-state">
+                <app-spinner size="20px"></app-spinner>
+                <span>Loading VOD catalog...</span>
+              </div>
+            </td>
+          </tr>
+        } @else {
+          @for (video of filteredVideos(); track video.docId) {
           <tr>
             <!-- Thumbnail -->
             <td class="thumb-cell" (click)="openDrawer(video)">
@@ -309,6 +318,7 @@
             </td>
           </tr>
         }
+      }
       </tbody>
     </table>
   </div>

@@ -71,6 +71,7 @@ export { transcodeVideoForVod } from './vod/transcode-video';
 export { getVideoPlaybackSession } from './vod/get-playback-session';
 export { deleteVideoFromCatalog } from './vod/delete-video';
 export { checkVodJobStatus } from './vod/check-vod-job-status';
+export { onTranscodeJobFinished } from './vod/on-transcode-finished';
 
 
 
