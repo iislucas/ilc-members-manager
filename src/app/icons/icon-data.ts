@@ -85,6 +85,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  hd: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M160-240q-33 0-56.5-23.5T80-320v-320q0-33 23.5-56.5T160-720h640q33 0 56.5 23.5T880-640v320q0 33-23.5 56.5T800-240H160Zm0-80h640v-320H160v320Zm80-60h60v-80h80v80h60v-200h-60v60h-80v-60h-60v200Zm260 0h100q25 0 42.5-17.5T520-440v-80q0-25-17.5-42.5T460-580H360v200Zm60-60v-80h40v80h-40Zm-260 60h640-640Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   home: {
     viewbox: '0 0 24 24',
     fill: 'currentColor',

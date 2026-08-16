@@ -143,6 +143,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   vod = signal<VideoItem | null>(null);
   @Input() set videoData(val: VideoItem | null) {
     this.vod.set(val);
+    this.updateQualityLevels();
   }
   @Input() manifestUrl = '';
   @Input() posterUrl = '';
@@ -314,44 +315,65 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
   private updateQualityLevels(rawLevels?: any[]): void {
     const levelsList = rawLevels && rawLevels.length > 0 ? rawLevels : (this.hls?.levels || []);
-    if (!levelsList || levelsList.length === 0) {
-      this.availableQualities.set([
-        { id: -1, label: 'Auto (Original)', bitrate: 0, height: 0 },
-      ]);
-      return;
-    }
+    if (levelsList && levelsList.length > 1) {
+      const levels: QualityLevel[] = [
+        { id: -1, label: 'Auto', bitrate: 0, height: 0 },
+        ...levelsList
+          .map((lvl: any, index: number) => ({
+            id: index,
+            label: lvl.height ? `${lvl.height}p` : `Level ${index + 1}`,
+            bitrate: lvl.bitrate || 0,
+            height: lvl.height || 0,
+          }))
+          .reverse(),
+      ];
+      this.availableQualities.set(levels);
+    } else {
+      const vodRes = this.vod()?.resolutions;
+      const resList =
+        vodRes && vodRes.length > 0
+          ? vodRes
+          : ['1080p', '720p', '480p', '360p'];
 
-    if (levelsList.length === 1) {
-      const lvl = levelsList[0];
-      const lbl = lvl.height ? `${lvl.height}p (Original)` : 'Original';
-      this.availableQualities.set([
-        { id: -1, label: `Auto (${lbl})`, bitrate: lvl.bitrate || 0, height: lvl.height || 0 },
-        { id: 0, label: lbl, bitrate: lvl.bitrate || 0, height: lvl.height || 0 },
-      ]);
-      return;
-    }
+      const parseHeight = (r: string): number => {
+        const match = r.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
 
-    const levels: QualityLevel[] = [
-      { id: -1, label: 'Auto', bitrate: 0, height: 0 },
-      ...levelsList
-        .map((lvl: any, index: number) => ({
-          id: index,
-          label: lvl.height ? `${lvl.height}p` : `Level ${index + 1}`,
-          bitrate: lvl.bitrate || 0,
-          height: lvl.height || 0,
-        }))
-        .reverse(),
-    ];
-    this.availableQualities.set(levels);
+      const estimateBitrate = (h: number): number => {
+        if (h >= 2160) return 12000000;
+        if (h >= 1080) return 4500000;
+        if (h >= 720) return 2200000;
+        if (h >= 480) return 1200000;
+        if (h >= 360) return 800000;
+        return 500000;
+      };
+
+      const levels: QualityLevel[] = [
+        { id: -1, label: 'Auto', bitrate: 0, height: 0 },
+        ...resList.map((r, idx) => {
+          const h = parseHeight(r);
+          return {
+            id: idx,
+            label: r,
+            bitrate: estimateBitrate(h),
+            height: h,
+          };
+        }),
+      ];
+      this.availableQualities.set(levels);
+    }
 
     // Restore user preferred quality from local storage if available
     try {
       if (typeof window !== 'undefined' && 'localStorage' in window) {
         const savedPref = localStorage.getItem('ilc_preferred_video_quality');
         if (savedPref && savedPref !== 'Auto') {
-          const match = levels.find((l) => l.label === savedPref || `${l.height}p` === savedPref);
+          const match = this.availableQualities().find(
+            (l) => l.label === savedPref || `${l.height}p` === savedPref || (l.height > 0 && savedPref.includes(`${l.height}p`)),
+          );
           if (match && match.id >= 0 && this.currentQualityId() === -1) {
-            this.setQuality(match.id);
+            this.setQuality(match.id, false);
           }
         }
       }
@@ -805,30 +827,50 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     this.isMuted.set(video.muted);
   }
 
-  setQuality(levelId: number): void {
+  setQuality(levelId: number, savePreference = true): void {
     this.currentQualityId.set(levelId);
-    if (this.hls) {
-      this.hls.currentLevel = levelId;
-      this.hls.loadLevel = levelId;
-      this.hls.nextLevel = levelId;
-      this.hls.startLoad();
-    }
     if (levelId === -1) {
+      if (this.hls) {
+        this.hls.currentLevel = -1;
+        this.hls.loadLevel = -1;
+        this.hls.nextLevel = -1;
+        this.hls.startLoad();
+      }
       if (this.hls && this.hls.currentLevel >= 0 && this.hls.levels[this.hls.currentLevel]) {
         const lvl = this.hls.levels[this.hls.currentLevel];
         this.currentResolutionLabel.set(`Auto (${lvl.height}p)`);
       } else {
         this.currentResolutionLabel.set('Auto');
       }
-      try {
-        if (typeof window !== 'undefined' && 'localStorage' in window) {
-          localStorage.setItem('ilc_preferred_video_quality', 'Auto');
-        }
-      } catch {}
+      if (savePreference) {
+        try {
+          if (typeof window !== 'undefined' && 'localStorage' in window) {
+            localStorage.setItem('ilc_preferred_video_quality', 'Auto');
+          }
+        } catch {}
+      }
     } else {
       const q = this.availableQualities().find((item) => item.id === levelId);
-      this.currentResolutionLabel.set(q ? q.label : 'Auto');
-      if (q) {
+      const label = q ? q.label : 'Auto';
+      this.currentResolutionLabel.set(label);
+
+      if (this.hls && this.hls.levels && this.hls.levels.length > 0) {
+        let targetIndex = -1;
+        if (q && q.height > 0) {
+          targetIndex = this.hls.levels.findIndex((lvl) => lvl.height === q.height);
+        }
+        if (targetIndex === -1 && levelId >= 0 && levelId < this.hls.levels.length) {
+          targetIndex = levelId;
+        }
+        if (targetIndex >= 0) {
+          this.hls.currentLevel = targetIndex;
+          this.hls.loadLevel = targetIndex;
+          this.hls.nextLevel = targetIndex;
+          this.hls.startLoad();
+        }
+      }
+
+      if (savePreference && q) {
         try {
           if (typeof window !== 'undefined' && 'localStorage' in window) {
             localStorage.setItem('ilc_preferred_video_quality', q.label);
@@ -839,6 +881,23 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     this.showQualityMenu.set(false);
     this.showSettingsMenu.set(false);
     this.emitStreamingStats();
+  }
+
+  selectQualityByLabel(label: string): void {
+    const cleaned = label.trim().toLowerCase();
+    if (cleaned === 'auto') {
+      this.setQuality(-1);
+      return;
+    }
+    const match = this.availableQualities().find(
+      (q) =>
+        q.label.toLowerCase() === cleaned ||
+        q.label.toLowerCase().replace(/[^0-9a-z]/g, '') === cleaned.replace(/[^0-9a-z]/g, '') ||
+        (q.height > 0 && `${q.height}p` === cleaned),
+    );
+    if (match) {
+      this.setQuality(match.id);
+    }
   }
 
   setSpeed(rate: number): void {

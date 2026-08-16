@@ -1014,4 +1014,33 @@
   padding: 14px 20px;
   border-top: 1px solid v.$border-color-light;
   background: #f8fafc;
+
+  .publishing-progress-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: v.$text-secondary;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 6px 0;
+
+    .inline-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(0, 0, 0, 0.12);
+      border-left-color: v.$heading-accent-color;
+      border-radius: 50%;
+      animation: spin-progress 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+  }
+}
+
+@keyframes spin-progress {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }

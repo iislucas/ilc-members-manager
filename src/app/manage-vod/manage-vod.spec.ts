@@ -38,6 +38,8 @@ describe('ManageVodComponent', () => {
         urlParams: {
           q: WritableSignal<string | null>;
           status: WritableSignal<string | null>;
+          videoId: WritableSignal<string | null>;
+          editVideoId: WritableSignal<string | null>;
         };
       };
     };
@@ -111,6 +113,8 @@ describe('ManageVodComponent', () => {
           urlParams: {
             q: signal(null),
             status: signal(null),
+            videoId: signal(null),
+            editVideoId: signal(null),
           },
         },
       },
@@ -128,13 +132,11 @@ describe('ManageVodComponent', () => {
 
     fixture = TestBed.createComponent(ManageVodComponent);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
-  it('should create the component', () => {
+  it('should create and calculate catalog stats', () => {
     expect(component).toBeTruthy();
-  });
-
-  it('should calculate stats correctly', () => {
     const stats = component.stats();
     expect(stats.total).toBe(2);
     expect(stats.published).toBe(1);
@@ -143,19 +145,29 @@ describe('ManageVodComponent', () => {
     expect(stats.totalHours).toBe('1.5');
   });
 
-  it('should open and close edit modal', () => {
+  it('should open and close edit modal with URL parameter sync', () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
     expect(component.editingVideo()).toBeTruthy();
     expect(component.editingVideo()?.docId).toBe('v1');
+    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('v1');
 
     component.closeEditModal();
     expect(component.editingVideo()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('');
   });
 
-  it('should save edited video metadata using updateVideoMetadata', async () => {
+  it('should auto-open edit modal when editVideoId URL param is present', () => {
+    mockRoutingService.signals.manageVod.urlParams.editVideoId.set('v2');
+    fixture.detectChanges();
+    expect(component.editingVideo()?.docId).toBe('v2');
+  });
+
+  it('should save edited video metadata using updateVideoMetadata and clear URL param', async () => {
     const video = mockDataService.videos.entries()[0];
     component.openEditModal(video);
+    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('v1');
+
     component.editTags.set(['spinning', 'form']);
     component.editIsBuyable.set(true);
     component.priceDollars.set(25.00);
@@ -167,6 +179,7 @@ describe('ManageVodComponent', () => {
       priceCents: 2500,
     }));
     expect(component.editingVideo()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.editVideoId()).toBe('');
   });
 
   it('should toggle access tiers in edit modal', () => {
@@ -199,16 +212,24 @@ describe('ManageVodComponent', () => {
     });
   });
 
-  it('should open drawer and check job status', async () => {
+  it('should open drawer and update videoId in URL, and clear it on close', async () => {
     const video = mockDataService.videos.entries()[1];
     component.openDrawer(video);
     expect(component.drawerVideo()?.docId).toBe('v2');
+    expect(mockRoutingService.signals.manageVod.urlParams.videoId()).toBe('v2');
 
     await component.checkJobStatus('v2');
     expect(mockDataService.checkVodJobStatus).toHaveBeenCalledWith('v2');
 
     component.closeDrawer();
     expect(component.drawerVideo()).toBeNull();
+    expect(mockRoutingService.signals.manageVod.urlParams.videoId()).toBe('');
+  });
+
+  it('should auto-open drawer when videoId URL param is present', () => {
+    mockRoutingService.signals.manageVod.urlParams.videoId.set('v1');
+    fixture.detectChanges();
+    expect(component.drawerVideo()?.docId).toBe('v1');
   });
 
   it('should filter by tag and clear tag filter', () => {

@@ -142,8 +142,18 @@
         </div>
       </div>
 
-      <!-- Right Controls: Settings, PiP, Fullscreen -->
+      <!-- Right Controls: Quality, Settings, PiP, Fullscreen -->
       <div class="controls-right">
+        <!-- Quick Quality Selector Button in Player Controls -->
+        <button
+          type="button"
+          class="quality-quick-btn"
+          (click)="showQualityMenu.set(!showQualityMenu()); showSettingsMenu.set(false); showSpeedMenu.set(false); $event.stopPropagation()"
+          [title]="'Streaming quality: ' + currentResolutionLabel()"
+        >
+          <span>{{ currentResolutionLabel() }}</span>
+        </button>
+
         <!-- Settings Menu Wrapper -->
         <div class="settings-wrapper" (click)="$event.stopPropagation()">
           <button

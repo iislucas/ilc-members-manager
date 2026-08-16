@@ -674,8 +674,8 @@
 
   <!-- Edit Metadata Modal -->
   @if (editingUpload()) {
-    <div class="modal-backdrop" (click)="closeEditModal()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop">
+      <div class="modal-card">
         <div class="modal-header">
           <h3>Edit Material Metadata (Admin)</h3>
           <button type="button" class="icon-only-button" (click)="closeEditModal()" title="Close">
@@ -773,16 +773,19 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="outlined-button" (click)="closeEditModal()" [disabled]="isSavingEdit()">
-            Cancel
-          </button>
-          <button type="button" class="button" (click)="saveEdit()" [disabled]="isSavingEdit()">
-            @if (isSavingEdit()) {
-              <app-spinner>Saving...</app-spinner>
-            } @else {
+          @if (isSavingEdit()) {
+            <div class="publishing-progress-indicator">
+              <div class="inline-spinner"></div>
+              <span>Saving changes...</span>
+            </div>
+          } @else {
+            <button type="button" class="outlined-button" (click)="closeEditModal()">
+              Cancel
+            </button>
+            <button type="button" class="button" (click)="saveEdit()">
               Save Changes
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>
@@ -790,8 +793,8 @@
 
   <!-- Publish to VOD Modal -->
   @if (vodPublishItem(); as vItem) {
-    <div class="modal-backdrop" (click)="closePublishVodModal()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop">
+      <div class="modal-card">
         <div class="modal-header">
           <h3>Publish to Video on Demand (VOD)</h3>
           <button type="button" class="icon-only-button" (click)="closePublishVodModal()" title="Close">
@@ -895,21 +898,23 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="outlined-button" (click)="closePublishVodModal()" [disabled]="isPublishingVod()">
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="button"
-            (click)="submitPublishVod()"
-            [disabled]="isPublishingVod()"
-          >
-            @if (isPublishingVod()) {
-              <app-spinner>Queuing Transcoder...</app-spinner>
-            } @else {
+          @if (isPublishingVod()) {
+            <div class="publishing-progress-indicator">
+              <div class="inline-spinner"></div>
+              <span>Queuing transcoder and publishing to VOD...</span>
+            </div>
+          } @else {
+            <button type="button" class="outlined-button" (click)="closePublishVodModal()">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="button"
+              (click)="submitPublishVod()"
+            >
               Publish to VOD
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>

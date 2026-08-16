@@ -18,6 +18,7 @@ import {
   inject,
   signal,
   computed,
+  ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import {
@@ -286,6 +287,27 @@ export class VideoViewComponent implements OnInit {
       chips.push({ label: 'Members Only', icon: 'person' });
     }
     return chips;
+  }
+
+  @ViewChild(VideoPlayerComponent) videoPlayer?: VideoPlayerComponent;
+
+  getVideoResolutions(video: VideoItem): string[] {
+    if (video.resolutions && video.resolutions.length > 0) {
+      return video.resolutions;
+    }
+    return ['1080p', '720p', '480p', '360p'];
+  }
+
+  isQualityActive(res: string): boolean {
+    const stats = this.streamingStats();
+    if (!stats) return false;
+    const active = (stats.activeQualityLabel || stats.currentResolution || '').toLowerCase().replace(/[^0-9a-z]/g, '');
+    const target = res.toLowerCase().replace(/[^0-9a-z]/g, '');
+    return active.includes(target);
+  }
+
+  onQualitySelected(res: string): void {
+    this.videoPlayer?.selectQualityByLabel(res);
   }
 
   getTagTooltip(tag: string): string {

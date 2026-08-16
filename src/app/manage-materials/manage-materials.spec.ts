@@ -4,7 +4,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, ROUTING_CONFIG, initPathPatterns } from '../app.config';
-import { UploadItem, initUploadItem, InstructorPublicData, VodStatus } from '../../../functions/src/data-model';
+import { UploadItem, initUploadItem, InstructorPublicData, VodStatus, VodAccessTier } from '../../../functions/src/data-model';
 import { SearchableSet } from '../searchable-set';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -352,5 +352,21 @@ describe('ManageMaterialsComponent', () => {
     expect(mockDataManagerService.transcodeVideoForVod).toHaveBeenCalled();
     expect(component.vodPublishItem()).toBeNull();
     expect(component.materials()[0].vodStatus).toBe(VodStatus.Ready);
+  });
+
+  it('should toggle and deselect default members access tier in publish modal', async () => {
+    await component.loadAllMaterials();
+    const item = component.materials()[0];
+
+    component.openPublishVodModal(item);
+    expect(component.isVodAccessTierSelected(VodAccessTier.MembersOnly)).toBe(true);
+
+    // Deselect members only
+    component.toggleVodAccessTier(VodAccessTier.MembersOnly);
+    expect(component.isVodAccessTierSelected(VodAccessTier.MembersOnly)).toBe(false);
+
+    // Select instructors only
+    component.toggleVodAccessTier(VodAccessTier.InstructorsOnly);
+    expect(component.isVodAccessTierSelected(VodAccessTier.InstructorsOnly)).toBe(true);
   });
 });

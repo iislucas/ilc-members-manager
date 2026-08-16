@@ -12,6 +12,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -58,6 +59,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // URL Parameter Signals
   searchQuery = computed(() => this.viewSignals.urlParams.q() || '');
   selectedStatus = computed(() => this.viewSignals.urlParams.status() || 'all');
+  selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
+  editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
 
@@ -211,7 +214,9 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       }
     }
 
-    return items.sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated));
+    return [...items].sort((a, b) =>
+      (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
+    );
   });
 
   readonly accessTiers = [
@@ -227,6 +232,52 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   ];
 
   VodStatus = VodStatus;
+
+  constructor() {
+    effect(() => {
+      const vid = this.selectedVideoIdParam();
+      if (vid) {
+        if (this.drawerVideo()?.docId !== vid) {
+          const v = this.dataService.videos.get(vid);
+          if (v) {
+            this.openDrawer(v, false);
+          } else {
+            this.dataService.getVideoById(vid).then((fetched) => {
+              if (fetched && this.selectedVideoIdParam() === vid) {
+                this.openDrawer(fetched, false);
+              }
+            });
+          }
+        }
+      } else {
+        if (this.drawerVideo()) {
+          this.closeDrawer(false);
+        }
+      }
+    });
+
+    effect(() => {
+      const editId = this.editVideoIdParam();
+      if (editId) {
+        if (this.editingVideo()?.docId !== editId) {
+          const v = this.dataService.videos.get(editId);
+          if (v) {
+            this.openEditModal(v, false);
+          } else {
+            this.dataService.getVideoById(editId).then((fetched) => {
+              if (fetched && this.editVideoIdParam() === editId) {
+                this.openEditModal(fetched, false);
+              }
+            });
+          }
+        }
+      } else {
+        if (this.editingVideo()) {
+          this.closeEditModal(false);
+        }
+      }
+    });
+  }
 
   ngOnInit(): void {}
 
@@ -303,9 +354,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   // Job Details Drawer Methods
-  openDrawer(video: VideoItem): void {
+  openDrawer(video: VideoItem, updateUrl = true): void {
     this.closeMenu();
     this.drawerVideo.set(video);
+    if (updateUrl) {
+      this.viewSignals.urlParams.videoId.set(video.docId);
+    }
 
     const res =
       video.resolutions && video.resolutions.length > 0
@@ -329,9 +383,12 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     }
   }
 
-  closeDrawer(): void {
+  closeDrawer(updateUrl = true): void {
     this.stopPolling();
     this.drawerVideo.set(null);
+    if (updateUrl) {
+      this.viewSignals.urlParams.videoId.set('');
+    }
   }
 
   applyQualityPreset(presetId: 'full' | '4k' | 'hd' | 'light' | 'custom'): void {
@@ -487,7 +544,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   }
 
   // Edit Metadata Modal Methods
-  openEditModal(video: VideoItem): void {
+  openEditModal(video: VideoItem, updateUrl = true): void {
     this.closeMenu();
     this.editingVideo.set({ ...video });
     this.priceDollars.set(
@@ -507,19 +564,21 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       ),
     );
     this.editStripePriceId.set(video.stripePriceId || '');
+    if (updateUrl) {
+      this.viewSignals.urlParams.editVideoId.set(video.docId);
+    }
   }
 
-  closeEditModal(): void {
+  closeEditModal(updateUrl = true): void {
     this.editingVideo.set(null);
+    if (updateUrl) {
+      this.viewSignals.urlParams.editVideoId.set('');
+    }
   }
 
   toggleAccessTier(tier: VodAccessTier): void {
     const current = this.editAccessTiers();
     if (current.includes(tier)) {
-      if (current.length === 1 && !this.editIsBuyable()) {
-        // Keep at least one access tier selected
-        return;
-      }
       this.editAccessTiers.set(current.filter((t) => t !== tier));
     } else {
       this.editAccessTiers.set([...current, tier]);
@@ -560,7 +619,7 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       };
 
       await this.dataService.updateVideoMetadata(v.docId, patch);
-      this.closeEditModal();
+      this.closeEditModal(true);
     } catch (err: unknown) {
       console.error('Error saving video changes:', err);
       const msg = err instanceof Error ? err.message : 'Could not save video changes.';
@@ -610,7 +669,10 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     try {
       await this.dataService.deleteVideo(video.docId);
       if (this.drawerVideo()?.docId === video.docId) {
-        this.closeDrawer();
+        this.closeDrawer(true);
+      }
+      if (this.editingVideo()?.docId === video.docId) {
+        this.closeEditModal(true);
       }
     } catch (err: unknown) {
       console.error('Error deleting video:', err);

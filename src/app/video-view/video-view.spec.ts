@@ -147,6 +147,53 @@ describe('VideoViewComponent', () => {
     expect(component.formatBytes(1048576 * 15)).toBe('15.0 MB');
   });
 
+  it('should return supported quality resolutions', () => {
+    const videoWithRes = {
+      ...initVideoItem(),
+      resolutions: ['2160p (4K)', '1080p', '720p'],
+    };
+    expect(component.getVideoResolutions(videoWithRes)).toEqual(['2160p (4K)', '1080p', '720p']);
+
+    const videoWithoutRes = {
+      ...initVideoItem(),
+      resolutions: [],
+    };
+    expect(component.getVideoResolutions(videoWithoutRes)).toEqual(['1080p', '720p', '480p', '360p']);
+  });
+
+  it('should detect active quality and delegate quality selection', () => {
+    component.streamingStats.set({
+      engine: 'HLS.js',
+      currentPosition: 10,
+      duration: 100,
+      bufferAheadSeconds: 30,
+      bufferedPercent: 40,
+      totalBytesDownloaded: 100000,
+      bytesAheadCached: 20000,
+      lastChunkBytes: 5000,
+      lastChunkDurationMs: 200,
+      currentBitrateMbps: 2.5,
+      currentResolution: '720p',
+      activeQualityLabel: '720p',
+      droppedFrames: 0,
+      totalFrames: 100,
+      playerState: 'playing',
+      url: 'https://example.com/manifest.m3u8',
+      playedPercent: 10,
+    });
+
+    expect(component.isQualityActive('720p')).toBe(true);
+    expect(component.isQualityActive('1080p')).toBe(false);
+
+    const playerSpy = vi.fn();
+    component.videoPlayer = {
+      selectQualityByLabel: playerSpy,
+    } as any;
+
+    component.onQualitySelected('1080p');
+    expect(playerSpy).toHaveBeenCalledWith('1080p');
+  });
+
   it('should trigger offline storage download and clear cache', async () => {
     const makeSpy = vi.spyOn(component.offlineStorage, 'makeVideoAvailableOffline').mockResolvedValue();
     const clearSpy = vi.spyOn(component.offlineStorage, 'clearAllCache').mockResolvedValue();

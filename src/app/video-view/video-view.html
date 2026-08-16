@@ -291,6 +291,29 @@
               </div>
             </div>
 
+            <!-- Supported Quality Options (Interactive Chips) -->
+            @if (getVideoResolutions(v); as resList) {
+              @if (resList.length) {
+                <div class="chips-group">
+                  <span class="chips-heading">Qualities:</span>
+                  <div class="chips-row">
+                    @for (res of resList; track res) {
+                      <button
+                        type="button"
+                        class="quality-tag-chip"
+                        [class.active]="isQualityActive(res)"
+                        (click)="onQualitySelected(res)"
+                        [title]="'Stream in ' + res"
+                      >
+                        <app-icon name="hd"></app-icon>
+                        <span>{{ res }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+
             <!-- Tags (Blue Highlight Chips) -->
             @if (v.tags && v.tags.length) {
               <div class="chips-group">

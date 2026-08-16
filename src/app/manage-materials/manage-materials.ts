@@ -610,9 +610,6 @@ export class ManageMaterialsComponent implements OnInit {
   toggleVodAccessTier(tier: VodAccessTier): void {
     const current = this.vodAccessTiers();
     if (current.includes(tier)) {
-      if (current.length === 1 && !this.vodIsBuyable()) {
-        return;
-      }
       this.vodAccessTiers.set(current.filter((t) => t !== tier));
     } else {
       this.vodAccessTiers.set([...current, tier]);
@@ -679,14 +676,18 @@ export class ManageMaterialsComponent implements OnInit {
         ? this.vodStripePriceId().trim()
         : undefined;
 
+      const effectiveTiers = tiers.length > 0
+        ? tiers
+        : (isBuyable ? [VodAccessTier.DirectPurchase] : [VodAccessTier.MembersOnly]);
+
       const res = await this.dataService.transcodeVideoForVod(
         item.docId,
         item.memberDocId,
         {
           title: this.vodTitle(),
           description: this.vodDescription(),
-          accessTier: tiers[0] || VodAccessTier.MembersOnly,
-          accessTiers: tiers,
+          accessTier: effectiveTiers[0] || VodAccessTier.MembersOnly,
+          accessTiers: effectiveTiers,
           isBuyable,
           priceCents,
           stripePriceId,

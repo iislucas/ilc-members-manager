@@ -212,14 +212,14 @@
             </td>
 
             <!-- Actions (3-Dots Kebab Menu) -->
-            <!-- Actions (3-Dots Kebab Menu) -->
             <td class="actions-cell">
-              <div class="kebab-container">
+              <div class="actions-menu-container">
                 <button
                   type="button"
-                  class="icon-button kebab-btn"
+                  class="icon-only-button"
                   (click)="toggleMenu(video.docId, $event)"
                   title="More actions"
+                  aria-label="More actions for this video"
                 >
                   <app-icon name="more_vert"></app-icon>
                 </button>
@@ -227,15 +227,15 @@
                 @if (activeMenuVideoId() === video.docId) {
                   <div class="menu-overlay transparent" (click)="closeMenu(); $event.stopPropagation()"></div>
                   <div
-                    class="kebab-dropdown"
+                    class="actions-menu"
                     [class.dropdown-up]="$count > 2 && $index >= $count - 2"
                     (click)="$event.stopPropagation()"
                   >
                     <!-- Edit Metadata -->
                     <button
                       type="button"
-                      class="dropdown-item"
-                      (click)="openEditModal(video)"
+                      class="menu-item"
+                      (click)="openEditModal(video); closeMenu()"
                     >
                       <app-icon name="edit"></app-icon>
                       <span>Edit Metadata</span>
@@ -244,8 +244,8 @@
                     <!-- Toggle Listed / Hidden -->
                     <button
                       type="button"
-                      class="dropdown-item"
-                      (click)="togglePublished(video)"
+                      class="menu-item"
+                      (click)="togglePublished(video); closeMenu()"
                     >
                       <app-icon [name]="video.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
                       <span>{{ video.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
@@ -254,8 +254,8 @@
                     <!-- Pipeline & Transcoder Details (Drawer) -->
                     <button
                       type="button"
-                      class="dropdown-item"
-                      (click)="openDrawer(video)"
+                      class="menu-item"
+                      (click)="openDrawer(video); closeMenu()"
                     >
                       <app-icon name="live_tv"></app-icon>
                       <span>Job & Pipeline Details</span>
@@ -264,7 +264,7 @@
                     <!-- Watch Video (if ready) -->
                     @if (video.vodStatus === 'ready') {
                       <a
-                        class="dropdown-item"
+                        class="menu-item"
                         [href]="getVideoHref(video)"
                         target="_blank"
                         (click)="closeMenu()"
@@ -278,21 +278,21 @@
                     @if (video.vodStatus === 'failed' || video.vodStatus === 'none' || video.vodStatus === 'queued') {
                       <button
                         type="button"
-                        class="dropdown-item warn"
-                        (click)="retryTranscoding(video)"
+                        class="menu-item"
+                        (click)="retryTranscoding(video); closeMenu()"
                       >
                         <app-icon name="refresh"></app-icon>
                         <span>Re-trigger Transcoding</span>
                       </button>
                     }
 
-                    <div class="dropdown-divider"></div>
+                    <div class="menu-divider"></div>
 
                     <!-- Delete Video -->
                     <button
                       type="button"
-                      class="dropdown-item danger"
-                      (click)="deleteVideo(video)"
+                      class="menu-item danger-item"
+                      (click)="deleteVideo(video); closeMenu()"
                     >
                       <app-icon name="delete"></app-icon>
                       <span>Delete from VOD</span>
@@ -330,38 +330,16 @@
 
         <!-- Drawer Content -->
         <div class="drawer-body">
-          <!-- Drawer Quick Actions Bar -->
+          <!-- Drawer Quick Actions Bar (Watch, Edit, and Kebab) -->
           <div class="drawer-quick-actions">
             <button
               type="button"
               class="drawer-action-btn"
               (click)="openEditModal(d)"
-              title="Edit Title, Description, Tags, Access Tiers and Price"
+              title="Edit Title, Description, Tags, Visibility, Access Tiers and Price"
             >
               <app-icon name="edit"></app-icon>
               <span>Edit Metadata</span>
-            </button>
-
-            <button
-              type="button"
-              class="drawer-action-btn"
-              [class.active]="d.isPublished"
-              (click)="togglePublished(d)"
-              [title]="d.isPublished ? 'Click to hide from catalog' : 'Click to publish in catalog'"
-            >
-              <app-icon [name]="d.isPublished ? 'visibility' : 'visibility_off'"></app-icon>
-              <span>{{ d.isPublished ? 'Listed in Catalog' : 'Hidden / Draft' }}</span>
-            </button>
-
-            <button
-              type="button"
-              class="drawer-action-btn"
-              [class.active]="d.featured"
-              (click)="toggleFeatured(d)"
-              title="Toggle featured spotlight hero status"
-            >
-              <app-icon name="military_tech"></app-icon>
-              <span>{{ d.featured ? 'Featured Spotlight' : 'Standard' }}</span>
             </button>
 
             @if (d.vodStatus === 'ready') {
@@ -376,15 +354,62 @@
               </a>
             }
 
-            <button
-              type="button"
-              class="drawer-action-btn"
-              (click)="copyToClipboard(getVideoHref(d), 'Video URL')"
-              title="Copy video link to clipboard"
-            >
-              <app-icon name="link"></app-icon>
-              <span>Copy Link</span>
-            </button>
+            <div class="actions-menu-container">
+              <button
+                type="button"
+                class="icon-only-button"
+                (click)="toggleMenu(d.docId + '_drawer', $event)"
+                title="More actions"
+                aria-label="More actions for this video"
+              >
+                <app-icon name="more_vert"></app-icon>
+              </button>
+
+              @if (activeMenuVideoId() === d.docId + '_drawer') {
+                <div class="menu-overlay transparent" (click)="closeMenu(); $event.stopPropagation()"></div>
+                <div class="actions-menu" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="togglePublished(d); closeMenu()"
+                  >
+                    <app-icon [name]="d.isPublished ? 'visibility_off' : 'visibility'"></app-icon>
+                    <span>{{ d.isPublished ? 'Hide from Catalog' : 'List in Catalog' }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="toggleFeatured(d); closeMenu()"
+                  >
+                    <app-icon name="military_tech"></app-icon>
+                    <span>{{ d.featured ? 'Remove from Featured' : 'Mark as Featured' }}</span>
+                  </button>
+
+                  @if (d.vodStatus === 'failed' || d.vodStatus === 'none' || d.vodStatus === 'queued') {
+                    <button
+                      type="button"
+                      class="menu-item"
+                      (click)="retryTranscoding(d); closeMenu()"
+                    >
+                      <app-icon name="refresh"></app-icon>
+                      <span>Re-trigger Transcoding</span>
+                    </button>
+                  }
+
+                  <div class="menu-divider"></div>
+
+                  <button
+                    type="button"
+                    class="menu-item danger-item"
+                    (click)="deleteVideo(d); closeMenu()"
+                  >
+                    <app-icon name="delete"></app-icon>
+                    <span>Delete from VOD</span>
+                  </button>
+                </div>
+              }
+            </div>
           </div>
 
           <!-- Preview & Quick Summary -->
@@ -403,11 +428,28 @@
                 <span class="status-badge" [class]="getStatusClass(d.vodStatus)">
                   {{ d.vodStatus }}
                 </span>
-                <span class="published-badge" [class.published]="d.isPublished">
-                  {{ d.isPublished ? 'Listed in Catalog' : 'Hidden / Draft' }}
+                <span class="status-chip" [class.listed]="d.isPublished" [class.unlisted]="!d.isPublished">
+                  {{ d.isPublished ? 'Listed' : 'Unlisted' }}
                 </span>
-                @if (d.featured) {
-                  <span class="featured-badge">Featured Spotlight</span>
+                <span class="status-chip" [class.featured]="d.featured" [class.standard]="!d.featured">
+                  {{ d.featured ? 'Featured' : 'Not Featured' }}
+                </span>
+                @if (d.vodStatus === 'ready') {
+                  <span class="res-summary-badge" title="Supported stream resolutions">
+                    @if (d.resolutions && d.resolutions.length) {
+                      {{ d.resolutions.join(' • ') }}
+                    } @else {
+                      1080p • 720p • 480p • 360p
+                    }
+                  </span>
+                } @else if (d.vodStatus === 'transcoding' || d.vodStatus === 'queued') {
+                  <span class="res-summary-badge processing" title="Transcoding in progress">
+                    Transcoding in progress...
+                  </span>
+                } @else if (d.vodStatus === 'failed') {
+                  <span class="res-summary-badge failed" title="Transcoding failed">
+                    Transcode Failed
+                  </span>
                 }
               </div>
             </div>
@@ -426,19 +468,6 @@
             </div>
 
             <div class="quality-section">
-              <div class="quality-heading-row">
-                <span class="quality-label">Current Renditions:</span>
-                <div class="current-renditions">
-                  @if (d.resolutions && d.resolutions.length) {
-                    @for (r of d.resolutions; track r) {
-                      <span class="res-chip">{{ r }}</span>
-                    }
-                  } @else {
-                    <span class="res-chip">1080p, 720p, 480p, 360p (Auto Multi-bitrate HLS)</span>
-                  }
-                </div>
-              </div>
-
               <!-- Quality Ladder Presets -->
               <div class="quality-presets-container">
                 <label class="quality-preset-label">Transcode at Quality Preset:</label>
@@ -598,58 +627,17 @@
             <span>{{ copyFeedback() }}</span>
           </div>
         }
-
-        <!-- Drawer Footer Actions -->
-        <div class="drawer-footer">
-          <button
-            type="button"
-            class="subtle-button"
-            [disabled]="isCheckingJobStatus()"
-            (click)="checkJobStatus(d.docId)"
-          >
-            @if (isCheckingJobStatus()) {
-              <app-spinner size="14px"></app-spinner>
-              <span>Checking...</span>
-            } @else {
-              <app-icon name="refresh"></app-icon>
-              <span>Refresh Status</span>
-            }
-          </button>
-
-          <div class="footer-right-actions">
-            <button
-              type="button"
-              class="subtle-btn danger-btn"
-              (click)="deleteVideo(d)"
-              title="Delete video from VOD catalog"
-            >
-              <app-icon name="delete"></app-icon>
-              <span>Delete</span>
-            </button>
-
-            @if (d.vodStatus === 'ready') {
-              <a
-                class="primary-btn"
-                [href]="getVideoHref(d)"
-                target="_blank"
-              >
-                <app-icon name="play_arrow"></app-icon>
-                <span>Watch Video</span>
-              </a>
-            }
-          </div>
-        </div>
       </div>
     </div>
   }
 
   <!-- Edit Metadata Modal -->
   @if (editingVideo(); as edit) {
-    <div class="modal-backdrop" (click)="closeEditModal()">
-      <div class="modal-dialog" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop">
+      <div class="modal-dialog">
         <div class="modal-header">
           <h3>Edit VOD Metadata</h3>
-          <button type="button" class="icon-only-button" (click)="closeEditModal()">
+          <button type="button" class="icon-only-button" (click)="closeEditModal()" title="Close">
             <app-icon name="close"></app-icon>
           </button>
         </div>
@@ -735,37 +723,41 @@
             ></app-tag-input>
           </div>
 
-          <!-- Toggles -->
-          <div class="toggles-row">
-            <label class="checkbox-label">
-              <input type="checkbox" [(ngModel)]="edit.isPublished" />
-              <span>Listed in Public / Member Catalog</span>
-            </label>
+          <!-- Catalog Visibility & Spotlight Status -->
+          <div class="form-group visibility-toggles-group">
+            <label class="section-heading-label">Catalog Visibility & Spotlight</label>
+            <div class="toggles-row">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="edit.isPublished" />
+                <span>Listed in Public / Member Catalog</span>
+              </label>
 
-            <label class="checkbox-label">
-              <input type="checkbox" [(ngModel)]="edit.featured" />
-              <span>Featured in Hero Spotlight</span>
-            </label>
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="edit.featured" />
+                <span>Featured in Hero Spotlight</span>
+              </label>
+            </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="subtle-button" (click)="closeEditModal()">
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="primary-btn"
-            [disabled]="isSaving()"
-            (click)="saveVideoChanges()"
-          >
-            @if (isSaving()) {
-              <app-spinner></app-spinner>
-              <span>Saving...</span>
-            } @else {
+          @if (isSaving()) {
+            <div class="publishing-progress-indicator">
+              <div class="inline-spinner"></div>
+              <span>Saving metadata changes...</span>
+            </div>
+          } @else {
+            <button type="button" class="subtle-button" (click)="closeEditModal()">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="primary-btn"
+              (click)="saveVideoChanges()"
+            >
               <span>Save Changes</span>
-            }
-          </button>
+            </button>
+          }
         </div>
       </div>
     </div>

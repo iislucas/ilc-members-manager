@@ -97,11 +97,19 @@ describe('VideoPlayerComponent', () => {
     expect(component.showSpeedMenu()).toBe(false);
   });
 
-  it('should fallback to default quality level if no HLS levels available', () => {
+  it('should fallback to default quality ladder if no HLS levels available', () => {
+    component.videoData = {
+      ...initVideoItem(),
+      resolutions: ['1080p', '720p', '480p', '360p'],
+    };
     (component as any).updateQualityLevels([]);
     const q = component.availableQualities();
-    expect(q.length).toBe(1);
-    expect(q[0].label).toBe('Auto (Original)');
+    expect(q.length).toBe(5);
+    expect(q[0].label).toBe('Auto');
+    expect(q[1].label).toBe('1080p');
+    expect(q[2].label).toBe('720p');
+    expect(q[3].label).toBe('480p');
+    expect(q[4].label).toBe('360p');
   });
 
   it('should populate quality levels from HLS levels and switch properly', () => {
@@ -121,6 +129,9 @@ describe('VideoPlayerComponent', () => {
     component.setQuality(0); // 360p
     expect(component.currentQualityId()).toBe(0);
     expect(component.currentResolutionLabel()).toBe('360p');
+
+    component.selectQualityByLabel('720p');
+    expect(component.currentResolutionLabel()).toBe('720p');
   });
 
   it('should support seek queuing and fallback to vod duration when video metadata is loading', () => {
