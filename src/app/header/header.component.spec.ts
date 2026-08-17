@@ -172,6 +172,20 @@ describe('HeaderComponent', () => {
     expect(component.hasTopTabs()).toBe(true);
   });
 
+  it('computes hasTopTabs as true for Videos view and applies has-top-tabs class on public page', async () => {
+    const fixture = TestBed.createComponent(HeaderComponent);
+    const component = fixture.componentInstance;
+    component.routingService.matchedPatternId = signal('videos' as any);
+    fixture.componentRef.setInput('isLoggedIn', false);
+    fixture.componentRef.setInput('isPublicPage', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasTopTabs()).toBe(true);
+    const navBar = fixture.nativeElement.querySelector('.nav-bar') as HTMLElement;
+    expect(navBar.classList.contains('has-top-tabs')).toBe(true);
+  });
+
   it('renders SVG logo directly to the left of the navigation title when logged out on login/welcome page', async () => {
     const fixture = TestBed.createComponent(HeaderComponent);
     fixture.componentRef.setInput('isLoggedIn', false);
