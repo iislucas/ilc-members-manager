@@ -192,6 +192,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   hoverTime = signal<number | null>(null);
   hoverPixelX = signal<number>(0);
   showHoverPreview = signal(false);
+  aspectRatio = signal<string>('16 / 9');
 
   // Streaming Stats Signals
   streamingEngine = signal<'HLS.js' | 'Native HLS' | 'Direct Progressive'>('HLS.js');
@@ -564,6 +565,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       this.hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
         const lvl = this.hls?.levels[data.level];
         if (lvl) {
+          if (lvl.width && lvl.height) {
+            this.aspectRatio.set(`${lvl.width} / ${lvl.height}`);
+          }
           if (this.currentQualityId() === -1) {
             this.currentResolutionLabel.set(`Auto (${lvl.height}p)`);
           } else {
@@ -706,13 +710,21 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       }
     };
 
+    const updateVideoDimensions = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        this.aspectRatio.set(`${video.videoWidth} / ${video.videoHeight}`);
+      }
+    };
+
     video.addEventListener('loadedmetadata', () => {
       this.duration.set(video.duration);
+      updateVideoDimensions();
       applyPendingSeek();
       updateBuffer();
       this.emitStreamingStats();
     });
     video.addEventListener('canplay', () => {
+      updateVideoDimensions();
       applyPendingSeek();
       updateBuffer();
     });

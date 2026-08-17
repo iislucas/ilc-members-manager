@@ -3,7 +3,9 @@
 .video-player-container {
   position: relative;
   width: 100%;
+  max-width: 100%;
   aspect-ratio: 16 / 9;
+  max-height: 80vh;
   background-color: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -13,6 +15,7 @@
   outline: none;
   user-select: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: aspect-ratio 0.2s ease;
 
   &:fullscreen,
   &.fullscreen {

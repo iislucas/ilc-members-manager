@@ -117,28 +117,37 @@ function loadVodPricing(): Map<string, VodPricingEntry> {
 
 /**
  * Heuristic Transcoding Ladder Pruner:
- * Caps the generated ABR resolutions based on native source height.
+ * Caps the generated ABR resolutions based on native source height and width.
+ * Preserves 1080p for ultrawide / 2:1 / widescreen videos (e.g. 1920x720, 1920x960, 1920x1080).
  */
-export function determineTranscodingLadder(height: number): {
+export function determineTranscodingLadder(
+  height: number,
+  width = 0,
+): {
   resolutions: string[];
   maxQuality: string;
   savingsRatioVs1080p: string;
 } {
-  if (height >= 900) {
+  const effectiveDimension = Math.max(
+    height,
+    width >= 1920 ? 1080 : width >= 1280 ? 720 : width >= 800 ? 480 : 360,
+  );
+
+  if (height >= 900 || effectiveDimension >= 1080) {
     return {
       resolutions: ['1080p', '720p', '480p', '360p'],
       maxQuality: '1080p',
       savingsRatioVs1080p: '0% (Full 1080p Ladder)',
     };
   }
-  if (height >= 650) {
+  if (height >= 650 || effectiveDimension >= 720) {
     return {
       resolutions: ['720p', '480p', '360p'],
       maxQuality: '720p',
       savingsRatioVs1080p: '~45% compute & storage saved',
     };
   }
-  if (height >= 400) {
+  if (height >= 400 || effectiveDimension >= 480) {
     return {
       resolutions: ['480p', '360p'],
       maxQuality: '480p',
@@ -450,12 +459,14 @@ async function main() {
     const videoNum = i + 1;
     console.log(`\n[${videoNum}/${videosToProcess.length}] Processing: "${video.name}" (Vimeo ID: ${video.id})`);
 
-    // 1. Calculate Source Native Height & Heuristic Transcoding Ladder
+    // 1. Calculate Source Native Dimensions & Heuristic Transcoding Ladder
     const heights = (video.downloadOptions || []).map((d) => d.height || 0).filter(Boolean);
+    const widths = (video.downloadOptions || []).map((d) => d.width || 0).filter(Boolean);
     const nativeHeight = heights.length > 0 ? Math.max(...heights) : video.bestQuality === 'hd' ? 1080 : 480;
-    const ladderInfo = determineTranscodingLadder(nativeHeight);
+    const nativeWidth = widths.length > 0 ? Math.max(...widths) : video.bestQuality === 'hd' ? 1920 : 640;
+    const ladderInfo = determineTranscodingLadder(nativeHeight, nativeWidth);
 
-    console.log(`  Source Height : ${nativeHeight}px (Max: ${ladderInfo.maxQuality})`);
+    console.log(`  Source Dimensions: ${nativeWidth}x${nativeHeight}px (Max: ${ladderInfo.maxQuality})`);
     console.log(`  Target Ladder : [${ladderInfo.resolutions.join(', ')}] (${ladderInfo.savingsRatioVs1080p})`);
     console.log(`  Duration      : ${(video.durationSeconds / 60).toFixed(1)} mins (${video.durationSeconds}s)`);
 

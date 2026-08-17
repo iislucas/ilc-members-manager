@@ -1,6 +1,7 @@
 <div
   #playerContainer
   class="video-player-container"
+  [style.aspect-ratio]="isFullscreen() ? 'auto' : aspectRatio()"
   [class.fullscreen]="isFullscreen()"
   [class.hide-controls]="!controlsVisible() && isPlaying()"
   (mousemove)="onMouseMove()"

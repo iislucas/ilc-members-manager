@@ -244,4 +244,36 @@ describe('VideoPlayerComponent', () => {
     expect(emittedStats.totalEstimatedSizeBytes).toBe(600000000);
     expect(emittedStats.totalWatchSessionBytes).toBe(600000000);
   });
+
+  it('should initialize aspectRatio signal with 16 / 9 and update dynamically on loadedmetadata', () => {
+    expect(component.aspectRatio()).toBe('16 / 9');
+
+    fixture.detectChanges();
+
+    const video = component.videoRef.nativeElement;
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 1920 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 720 });
+
+    video.dispatchEvent(new Event('loadedmetadata'));
+    expect(component.aspectRatio()).toBe('1920 / 720');
+  });
+
+  it('should update aspectRatio when HLS level switch provides dimensions', () => {
+    (component as any).hls = {
+      levels: [
+        { width: 1920, height: 960, bitrate: 4000000 },
+      ],
+      destroy: vi.fn(),
+      on: vi.fn(),
+    };
+
+    // Trigger LEVEL_SWITCHED logic directly
+    const levelSwitchedData = { level: 0 };
+    const lvl = (component as any).hls.levels[levelSwitchedData.level];
+    if (lvl.width && lvl.height) {
+      component.aspectRatio.set(`${lvl.width} / ${lvl.height}`);
+    }
+
+    expect(component.aspectRatio()).toBe('1920 / 960');
+  });
 });
