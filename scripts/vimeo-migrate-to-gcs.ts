@@ -254,7 +254,6 @@ async function submitTranscoderJob(
         videoStream: {
           h264: {
             heightPixels: 1080,
-            widthPixels: 1920,
             bitrateBps: 4500000,
             frameRate: 30,
           },
@@ -276,7 +275,6 @@ async function submitTranscoderJob(
         videoStream: {
           h264: {
             heightPixels: 720,
-            widthPixels: 1280,
             bitrateBps: 2200000,
             frameRate: 30,
           },
@@ -298,7 +296,6 @@ async function submitTranscoderJob(
         videoStream: {
           h264: {
             heightPixels: 480,
-            widthPixels: 854,
             bitrateBps: 1200000,
             frameRate: 30,
           },
@@ -320,7 +317,6 @@ async function submitTranscoderJob(
         videoStream: {
           h264: {
             heightPixels: 360,
-            widthPixels: 640,
             bitrateBps: 800000,
             frameRate: 30,
           },

@@ -1,0 +1,28 @@
+{
+  "name": "@ilc/diagram-router",
+  "version": "1.0.0",
+  "description": "Programmatic orthogonal schematic diagram router with multi-track corridor bundling and node-distance calculations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --config vitest.config.ts --no-color",
+    "generate": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/generate-architecture-diagram.ts"
+  },
+  "keywords": [
+    "svg",
+    "diagram",
+    "router",
+    "schematic",
+    "orthogonal",
+    "bundler"
+  ],
+  "author": "ILC Dev Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.0"
+  }
+}
