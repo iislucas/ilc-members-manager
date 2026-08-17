@@ -3,11 +3,19 @@
 
 .video-view-container {
   max-width: 1280px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-x: hidden;
+
+  @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+    padding: 8px 4px;
+    gap: 12px;
+  }
 }
 
 .breadcrumb-row {
@@ -95,7 +103,8 @@
     .debug-title {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      flex-wrap: wrap;
       font-size: 0.88rem;
       font-weight: 600;
       color: #38bdf8;
@@ -239,20 +248,24 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
 
       .detail-key {
         color: #64748b;
-        min-width: 120px;
+        min-width: 90px;
+        flex-shrink: 0;
       }
 
       .detail-val {
         color: #94a3b8;
+        min-width: 0;
 
         &.truncate {
-          max-width: 500px;
+          max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          word-break: break-all;
         }
 
         &.ladder-val {
@@ -449,6 +462,8 @@
 .player-theater-wrapper {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border-radius: 8px;
   overflow: hidden;
   background: #000;
@@ -461,6 +476,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
   background: linear-gradient(90deg, #1e1b4b 0%, #312e81 100%);
   color: #e0e7ff;
   padding: 10px 16px;
@@ -515,6 +531,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   background: #0f172a;
   padding: 8px 16px;
   border-bottom: 1px solid #1e293b;

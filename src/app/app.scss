@@ -23,6 +23,11 @@ main {
   align-items: stretch;
   flex-grow: 1;
   gap: 1em;
+  overflow-x: hidden;
+
+  @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+    padding: 0 0.5em;
+  }
 
   h1 {
     margin-top: 1em;
