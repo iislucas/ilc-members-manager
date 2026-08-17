@@ -4,15 +4,26 @@
 :host {
   display: block;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .videos-catalog-container {
   max-width: 1280px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 0 16px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-x: hidden;
+
+  @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+    padding: 0 8px 16px 8px;
+    gap: 12px;
+  }
 }
 
 .header-extension-tabs {
@@ -151,9 +162,12 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  box-sizing: border-box;
 
-  @media (max-width: 860px) {
+  @media (max-width: 860px), (orientation: landscape) and (max-height: 500px) {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -295,6 +309,15 @@
   padding: 16px;
   border: 1px solid v.$border-color-light;
   border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+
+  @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+    padding: 12px;
+    gap: 12px;
+  }
 }
 
 .search-box {
@@ -302,6 +325,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  box-sizing: border-box;
 
   app-icon {
     position: absolute;
@@ -312,6 +336,7 @@
 
   input {
     width: 100%;
+    box-sizing: border-box;
     padding: 11px 38px 11px 40px;
     border: 1px solid v.$border-color-light;
     border-radius: 6px;
@@ -335,8 +360,12 @@
 }
 
 .category-tabs-scroll {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow-x: auto;
-  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
 
   &::-webkit-scrollbar {
     height: 4px;
@@ -382,6 +411,9 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 
   .filter-item {
     display: flex;
@@ -389,10 +421,15 @@
     gap: 8px;
     font-size: 0.9rem;
     color: v.$text-secondary;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
 
     .autocomplete-wrapper {
       position: relative;
-      min-width: 240px;
+      min-width: 180px;
+      max-width: 100%;
+      box-sizing: border-box;
 
       .clear-filter-btn {
         position: absolute;
@@ -531,8 +568,15 @@
 
 .videos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 580px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 .video-card {
