@@ -542,9 +542,14 @@ async function main() {
         // Thumbnail Assurance
         let previewDownloadUrl = '';
         if (video.thumbnailUrl) {
+          let thumbSource = video.thumbnailUrl;
+          if (thumbSource.includes('i.vimeocdn.com/video/')) {
+            const baseLink = thumbSource.split('_')[0]!.split('?')[0]!;
+            thumbSource = `${baseLink}_${nativeWidth}x${nativeHeight}`;
+          }
           const previewFile = bucket.file(previewStoragePath);
           const { url: thumbUrl, existed: thumbExisted } = await ensureGcsFileWithDownloadUrl(
-            video.thumbnailUrl,
+            thumbSource,
             previewFile,
             'image/jpeg',
             FORCE,
