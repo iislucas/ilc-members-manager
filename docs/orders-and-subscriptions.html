@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Orders & Subscriptions — Architecture & System Design</title>
+  <title>Orders &amp; Subscriptions — Data Model, Cloud Storage &amp; System Architecture</title>
   <style>
     :root {
       --bg-main: #f8fafc;
@@ -28,6 +28,7 @@
       --danger-light: #fef2f2;
       --purple: #7c3aed;
       --purple-light: #f5f3ff;
+      --amber: #d97706;
       --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
       --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -57,7 +58,7 @@
 
     /* Sidebar Navigation */
     .sidebar {
-      width: 280px;
+      width: 290px;
       background: var(--bg-surface);
       border-right: 1px solid var(--border-color);
       position: sticky;
@@ -78,38 +79,40 @@
     }
 
     .brand-logo {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       background: linear-gradient(135deg, #2563eb, #0284c7);
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 18px;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
     }
 
     .brand-title {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: var(--text-primary);
       line-height: 1.2;
     }
 
     .brand-subtitle {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      font-weight: 600;
     }
 
     .nav-group {
-      margin-bottom: 24px;
+      margin-bottom: 22px;
     }
 
     .nav-heading {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -120,10 +123,10 @@
 
     .nav-link {
       display: block;
-      padding: 8px 12px;
+      padding: 7px 12px;
       color: var(--text-secondary);
       text-decoration: none;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       border-radius: 6px;
       transition: all 0.15s ease;
       margin-bottom: 2px;
@@ -143,7 +146,7 @@
     /* Main Content */
     .main-content {
       flex: 1;
-      max-width: 1100px;
+      max-width: 1120px;
       padding: 40px 48px 80px;
       overflow-x: hidden;
     }
@@ -178,7 +181,7 @@
     .hero-lead {
       font-size: 1.15rem;
       color: var(--text-secondary);
-      max-width: 800px;
+      max-width: 860px;
       line-height: 1.6;
     }
 
@@ -199,7 +202,7 @@
     }
 
     h3 {
-      font-size: 1.25rem;
+      font-size: 1.22rem;
       font-weight: 600;
       color: var(--text-primary);
       margin-top: 24px;
@@ -222,6 +225,13 @@
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
       margin: 20px 0;
     }
@@ -293,6 +303,7 @@
     .badge-warning { background: var(--warning-light); color: var(--warning); }
     .badge-danger { background: var(--danger-light); color: var(--danger); }
     .badge-purple { background: var(--purple-light); color: var(--purple); }
+    .badge-accent { background: var(--accent-light); color: var(--accent); }
 
     /* Tables */
     .table-container {
@@ -307,7 +318,7 @@
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
     }
 
     th {
@@ -330,7 +341,7 @@
     }
 
     tr:hover td {
-      background: rgba(241, 245, 249, 0.4);
+      background: rgba(241, 245, 249, 0.5);
     }
 
     /* Code & Syntax Highlighting simulation */
@@ -419,13 +430,14 @@
       gap: 8px;
       border-bottom: 1px solid var(--border-color);
       margin-bottom: 16px;
+      flex-wrap: wrap;
     }
 
     .tab-btn {
       background: transparent;
       border: none;
       padding: 8px 16px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: var(--text-secondary);
       cursor: pointer;
@@ -490,17 +502,23 @@
       stroke-width: 2;
     }
 
+    .svg-node-box.amber {
+      fill: #fffbeb;
+      stroke: #d97706;
+      stroke-width: 2;
+    }
+
     .svg-text-title {
       font-family: var(--font-sans);
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       fill: #0f172a;
     }
 
     .svg-text-sub {
       font-family: var(--font-sans);
       font-weight: 400;
-      font-size: 11px;
+      font-size: 10.5px;
       fill: #64748b;
     }
 
@@ -511,12 +529,60 @@
       marker-end: url(#arrowhead);
     }
 
+    .svg-link-blue {
+      fill: none;
+      stroke: #2563eb;
+      stroke-width: 1.75;
+      marker-end: url(#arrowhead-blue);
+    }
+
+    .svg-link-purple {
+      fill: none;
+      stroke: #7c3aed;
+      stroke-width: 1.75;
+      marker-end: url(#arrowhead-purple);
+    }
+
+    .svg-link-green {
+      fill: none;
+      stroke: #16a34a;
+      stroke-width: 1.75;
+      marker-end: url(#arrowhead-green);
+    }
+
+    .svg-link-amber {
+      fill: none;
+      stroke: #d97706;
+      stroke-width: 1.75;
+      marker-end: url(#arrowhead-amber);
+    }
+
     .svg-link-label {
       font-family: var(--font-sans);
       font-size: 10px;
       font-weight: 600;
       fill: #475569;
     }
+
+    .callout {
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      border-left: 4px solid;
+    }
+    .callout-info {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: #1e3a8a;
+    }
+    .callout-info p { color: #1e3a8a; margin: 0; }
+
+    .callout-success {
+      background: var(--success-light);
+      border-color: var(--success);
+      color: #14532d;
+    }
+    .callout-success p { color: #14532d; margin: 0; }
 
     /* Responsive */
     @media (max-width: 900px) {
@@ -537,42 +603,43 @@
         <div class="brand-logo">ILC</div>
         <div>
           <div class="brand-title">Members Manager</div>
-          <div class="brand-subtitle">Architecture Docs</div>
+          <div class="brand-subtitle">Architecture &amp; Data Docs</div>
         </div>
       </div>
 
       <div class="nav-group">
         <div class="nav-heading">Overview</div>
         <a href="#overview" class="nav-link active">1. System Overview</a>
-        <a href="#architecture" class="nav-link">2. System Architecture</a>
       </div>
 
       <div class="nav-group">
-        <div class="nav-heading">Data & Storage</div>
-        <a href="#data-model" class="nav-link">3. Core Data Types & Enums</a>
-        <a href="#auto-renew-semantics" class="nav-link">4. Expiry & Auto-Renew Semantics</a>
-        <a href="#firestore-hierarchy" class="nav-link">5. Firestore Hierarchy</a>
+        <div class="nav-heading">Data Architecture &amp; Schemas</div>
+        <a href="#data-model" class="nav-link">2. Firestore Data Model &amp; Tree</a>
+        <a href="#storage-model" class="nav-link">3. Cloud Storage Bucket &amp; Paths</a>
+        <a href="#core-schemas" class="nav-link">4. Core Schemas, Types &amp; Enums</a>
+        <a href="#auto-renew-semantics" class="nav-link">5. Expiry &amp; Auto-Renew Semantics</a>
       </div>
 
       <div class="nav-group">
-        <div class="nav-heading">Information Flow</div>
-        <a href="#webhook-engine" class="nav-link">6. Webhook & Fulfillment Engine</a>
-        <a href="#subscription-lifecycle" class="nav-link">7. Subscription Lifecycle</a>
+        <div class="nav-heading">Architecture &amp; Information Flow</div>
+        <a href="#architecture" class="nav-link">6. System Architecture &amp; Graph</a>
+        <a href="#webhook-engine" class="nav-link">7. Webhook &amp; Fulfillment Engine</a>
+        <a href="#subscription-lifecycle" class="nav-link">8. Subscription Lifecycle</a>
       </div>
 
       <div class="nav-group">
-        <div class="nav-heading">User Journeys</div>
-        <a href="#journey-dashboard" class="nav-link">8. Member Self-Service Dashboard</a>
-        <a href="#journey-cancellation" class="nav-link">9. Auto-Renewal Cancellation</a>
-        <a href="#journey-resumption" class="nav-link">10. Auto-Renewal Resumption</a>
-        <a href="#journey-portal" class="nav-link">11. Stripe Customer Portal</a>
-        <a href="#journey-vod" class="nav-link">12. Video on Demand (VOD) & Video Grants</a>
+        <div class="nav-heading">User Journeys &amp; Workflows</div>
+        <a href="#journey-dashboard" class="nav-link">9. Member Self-Service Dashboard</a>
+        <a href="#journey-cancellation" class="nav-link">10. Auto-Renewal Cancellation</a>
+        <a href="#journey-resumption" class="nav-link">11. Auto-Renewal Resumption</a>
+        <a href="#journey-portal" class="nav-link">12. Stripe Customer Portal</a>
+        <a href="#journey-vod" class="nav-link">13. Video on Demand (VOD) Grants</a>
       </div>
 
       <div class="nav-group">
-        <div class="nav-heading">Security & Reference</div>
-        <a href="#security-rules" class="nav-link">13. Security & Authorization</a>
-        <a href="#code-map" class="nav-link">14. Source Code Reference Map</a>
+        <div class="nav-heading">Security &amp; Reference</div>
+        <a href="#security-rules" class="nav-link">14. Security &amp; Authorization Model</a>
+        <a href="#code-map" class="nav-link">15. Source Code Reference Map</a>
       </div>
     </nav>
 
@@ -580,11 +647,11 @@
     <main class="main-content">
       <!-- Hero Header -->
       <header class="hero-header">
-        <div class="hero-badge">Architecture & System Design</div>
-        <h1 class="hero-title">Orders & Subscriptions</h1>
+        <div class="hero-badge">Architecture, Data Model &amp; Security Specification</div>
+        <h1 class="hero-title">Data Model, Storage, Orders &amp; Subscriptions</h1>
         <p class="hero-lead">
-          Comprehensive documentation of the ILC Members Manager self-service orders and subscriptions system,
-          Stripe billing integration, Video-on-Demand (VOD) streaming access control, Firestore data mirroring, and automated webhook fulfillment engine.
+          Comprehensive specification of the ILC Members Manager platform: Cloud Firestore collection hierarchy, Cloud Storage bucket paths,
+          role-based visibility and security models, Stripe automated billing, Video on Demand (VOD) streaming access control, and self-service workflows.
         </p>
       </header>
 
@@ -592,217 +659,465 @@
       <section id="overview">
         <h2>1. System Overview</h2>
         <p>
-          The Orders and Subscriptions subsystem empowers I Liq Chuan members to manage their memberships, instructor licenses,
-          Class Video Library passes, and standalone Video on Demand (VOD) purchases directly through the <strong>Me</strong> tab (<code>/my-orders</code>)
-          and public video catalog (<code>/videos</code>).
-          The architecture transitions manual and third-party renewals into an automated, self-service Stripe ecosystem
-          while maintaining complete historical compatibility with legacy Squarespace orders and Google Sheets imports.
+          The ILC Members Manager is a modern member-facing web portal and administrative ecosystem for the <strong>I Liq Chuan</strong> martial arts community.
+          It transitions manual membership renewals, instructor license verifications, grading candidate evaluations, and video streaming access
+          into a fully automated, self-service platform backed by <strong>Firebase Cloud Firestore</strong>, <strong>Firebase Cloud Storage</strong>,
+          <strong>Firebase Cloud Functions</strong>, and the <strong>Stripe Billing Platform</strong>.
         </p>
 
-        <div class="grid-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-title">
+              <span>Unified Data Model</span>
+              <span class="badge badge-success">Firestore</span>
+            </div>
+            <div class="card-subtitle">Complete Entity Hierarchy</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Thoroughly typed collections covering members, schools, instructors, gradings, events, orders, VOD catalog items, and access grants.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Cloud Storage Pipeline</span>
+              <span class="badge badge-accent">GCS Bucket</span>
+            </div>
+            <div class="card-subtitle">Tiered Media &amp; Resources</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Hierarchical bucket storage for VOD HLS streams, private instructor workshop uploads, public event flyers, and role-gated curriculum assets.
+            </p>
+          </div>
+
           <div class="card">
             <div class="card-title">
               <span>Member Self-Service</span>
-              <span class="badge badge-primary">Client</span>
+              <span class="badge badge-primary">Angular 21</span>
             </div>
             <div class="card-subtitle">Dedicated <code>/my-orders</code> View</div>
             <p style="font-size: 0.85rem; margin: 0;">
-              Real-time subscription cards with clear renewal dates, one-click cancellation/resumption, and instant receipt access.
+              Real-time subscription cards with clear renewal dates, one-click cancellation/resumption, and instant Stripe hosted receipt access.
             </p>
           </div>
 
           <div class="card">
             <div class="card-title">
-              <span>Stripe Automation</span>
-              <span class="badge badge-purple">Backend</span>
+              <span>Zero-Trust Security</span>
+              <span class="badge badge-purple">ACL &amp; Rules</span>
             </div>
-            <div class="card-subtitle">Cloud Functions & Webhooks</div>
+            <div class="card-subtitle">Default-Deny Authorization</div>
             <p style="font-size: 0.85rem; margin: 0;">
-              Idempotent webhook engine handling checkout fulfillment, automated annual/monthly renewals, and Customer Portal sessions.
-            </p>
-          </div>
-
-          <div class="card">
-            <div class="card-title">
-              <span>Data Mirroring</span>
-              <span class="badge badge-success">Firestore</span>
-            </div>
-            <div class="card-subtitle">Subcollections & Fast Summaries</div>
-            <p style="font-size: 0.85rem; margin: 0;">
-              Dual-layer storage: member document summary for synchronous client routing, plus private subcollection for granular order history.
-            </p>
-          </div>
-
-          <div class="card">
-            <div class="card-title">
-              <span>VOD & Video Grants</span>
-              <span class="badge badge-accent">Streaming</span>
-            </div>
-            <div class="card-subtitle">Subscriptions & Standalone Buys</div>
-            <p style="font-size: 0.85rem; margin: 0;">
-              Dual access models: all-inclusive Class Video Library subscriptions plus standalone Stripe purchases creating durable <code>VideoGrant</code> records.
+              Token-based ACL caching ensuring O(1) rule evaluation across database reads and private file downloads for all user roles.
             </p>
           </div>
         </div>
       </section>
 
-      <!-- Section 2: Architecture Diagram -->
-      <section id="architecture">
-        <h2>2. System Architecture</h2>
+      <!-- Section 2: Firestore Data Model & Collection Hierarchy -->
+      <section id="data-model">
+        <h2>2. Firestore Data Model &amp; Collection Hierarchy</h2>
         <p>
-          The system spans four primary tiers: the <strong>Angular Client App</strong>, <strong>Firebase Cloud Functions</strong>,
-          <strong>Stripe Platform</strong>, and <strong>Cloud Firestore</strong>.
+          The platform's database architecture in Cloud Firestore is divided into <strong>top-level collections</strong> for primary organizational entities,
+          <strong>private subcollections</strong> for member-scoped data (orders, video grants, watch progress, notifications),
+          and <strong>cached subcollections</strong> for instructors and schools that enable fast query execution without expensive multi-collection joins.
+        </p>
+
+        <div class="callout callout-info">
+          <p><strong>Conventions:</strong> Document IDs (<code>docId</code>) are Firestore metadata and are never stored inside the document body; they are injected on read.
+          All timestamps are normalized into ISO 8601 UTC strings on read, while non-admin writes enforce <code>lastUpdated == request.time</code> via Firestore Security Rules.</p>
+        </div>
+
+        <div class="diagram-container">
+          <div class="diagram-header">
+            <div class="diagram-title">Complete Firestore Collection &amp; Subcollection Tree</div>
+            <span class="badge badge-success">Collection Tree</span>
+          </div>
+
+          <pre><code>/databases/(default)/documents
+│
+├── /members/{memberDocId}                     <span class="code-comment">&lt;-- Primary member profile, contact info, Stripe customer link &amp; expiry dates</span>
+│   │
+│   ├── /orders/{orderDocId}                   <span class="code-comment">&lt;-- Subcollection (MemberOrder): Private order &amp; renewal history for member</span>
+│   ├── /videoGrants/{videoId}                 <span class="code-comment">&lt;-- Subcollection (VideoGrant): Purchased/granted standalone video permissions</span>
+│   ├── /videoProgress/{videoId}               <span class="code-comment">&lt;-- Subcollection (VideoProgress): Watch resume timestamp &amp; playback state</span>
+│   ├── /notifications/{notificationId}        <span class="code-comment">&lt;-- Subcollection (MemberNotification): In-app notifications &amp; alerts</span>
+│   ├── /pushSubscriptions/{subId}             <span class="code-comment">&lt;-- Subcollection (PushSubscriptionDoc): Web Push browser subscription tokens</span>
+│   ├── /uploads/{uploadDocId}                 <span class="code-comment">&lt;-- Subcollection (UploadItem): Member uploaded event/seminar materials</span>
+│   └── /events/{eventId}                      <span class="code-comment">&lt;-- Subcollection (EventDocument): Member saved/registered calendar events</span>
+│
+├── /schools/{schoolDocId}                     <span class="code-comment">&lt;-- School public profile, location, website &amp; manager IDs</span>
+│   │
+│   ├── /members/{memberDocId}                 <span class="code-comment">&lt;-- Cached Subcollection (Member): Fast lookup of members in this school</span>
+│   └── /gradings/{gradingDocId}               <span class="code-comment">&lt;-- Cached Subcollection (Grading): Fast lookup of school gradings</span>
+│
+├── /instructors/{instructorMemberDocId}       <span class="code-comment">&lt;-- Public instructor directory profile, mirrored from /members</span>
+│   │
+│   ├── /members/{studentMemberDocId}          <span class="code-comment">&lt;-- Cached Subcollection (Member): Students listing this instructor as primary</span>
+│   └── /gradings/{gradingDocId}               <span class="code-comment">&lt;-- Cached Subcollection (Grading): Gradings assigned to this instructor</span>
+│
+├── /gradings/{gradingDocId}                   <span class="code-comment">&lt;-- Candidate grading purchases, instructor review, event link &amp; pass/fail</span>
+│
+├── /events/{eventId}                          <span class="code-comment">&lt;-- Unified calendar-synced &amp; member-proposed events (public read)</span>
+│
+├── /orders/{orderDocId}                       <span class="code-comment">&lt;-- Global Canonical Orders Store (StripeOrder | SquareSpaceOrder | SheetsImportOrder)</span>
+│
+├── /videos/{videoId}                          <span class="code-comment">&lt;-- Public VOD catalog, access tiers, pricing &amp; HLS streaming manifests</span>
+│
+├── /video_grants/{grantId}                    <span class="code-comment">&lt;-- Global Indexed Grants ({memberDocId}_{videoId}) for fast O(1) gating</span>
+│
+├── /acl/{email}                               <span class="code-comment">&lt;-- Permissions per login email: isAdmin, memberDocIds, schoolDocIds, instructorIds</span>
+│
+├── /members-post/{postId}                     <span class="code-comment">&lt;-- Cached Squarespace blog posts for authenticated full members</span>
+│
+├── /instructors-post/{postId}                 <span class="code-comment">&lt;-- Cached Squarespace blog posts for licensed instructors</span>
+│
+├── /statistics/{statId}                       <span class="code-comment">&lt;-- Aggregated membership metrics, demographics &amp; historical counts</span>
+│
+└── /system/{docId}                            <span class="code-comment">&lt;-- Global configuration and metadata singleton documents:</span>
+    ├── /system/counters                       <span class="code-comment">&lt;-- Counters: Atomic counters for member IDs, instructor IDs, school IDs</span>
+    ├── /system/country-codes                  <span class="code-comment">&lt;-- CountryCodes: ISO-3166 2-letter country code map</span>
+    ├── /system/video-tags                     <span class="code-comment">&lt;-- VideoTags: Managed taxonomy tags for VOD classification</span>
+    ├── /system/squarespaceSync                <span class="code-comment">&lt;-- SquarespaceSync: External poller sync status and timestamps</span>
+    ├── /system/cache-metadata                 <span class="code-comment">&lt;-- CacheMetadata: Content cache refresh timestamps and item counts</span>
+    └── /system/deletions/{coll}/{doc}         <span class="code-comment">&lt;-- Tombstone: Deletion tombstones for reliable offline client sync</span></code></pre>
+        </div>
+
+        <h3>Comprehensive Collections Summary</h3>
+        <p>
+          The table below documents every collection in the application, its TypeScript model type, primary purpose, and Firestore security access level:
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Firestore Path</th>
+                <th>TypeScript Type</th>
+                <th>Primary Purpose &amp; Scope</th>
+                <th>Security &amp; Read/Write Access</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>/members/{memberDocId}</code></td>
+                <td><code>Member</code></td>
+                <td>Primary member profile, contact info, Stripe customer ID, renewal dates, video pass status.</td>
+                <td>Read: Owner, School Mgr, Admin.<br>Write: Admin &amp; Owner (profile subset).</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/orders/{orderId}</code></td>
+                <td><code>MemberOrder</code></td>
+                <td>Private chronological order and renewal history for a specific member.</td>
+                <td>Read: Owner, Admin.<br>Write: Admin / Cloud Functions only.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/videoGrants/{videoId}</code></td>
+                <td><code>VideoGrant</code></td>
+                <td>Durable record of standalone video purchases or admin grants for video streaming.</td>
+                <td>Read: Owner, Admin.<br>Write: Admin / Cloud Functions only.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/videoProgress/{videoId}</code></td>
+                <td><code>VideoProgress</code></td>
+                <td>Playback resume timestamp (<code>positionSeconds</code>) and completion tracking.</td>
+                <td>Read/Write: Owner, Admin.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/notifications/{notifId}</code></td>
+                <td><code>MemberNotification</code></td>
+                <td>In-app actionable alerts (grading updates, license expiration notices, admin messages).</td>
+                <td>Read/Write: Owner, Admin.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/pushSubscriptions/{subId}</code></td>
+                <td><code>PushSubscriptionDoc</code></td>
+                <td>W3C Web Push device endpoint and encryption keys for background notifications.</td>
+                <td>Read/Write: Owner, Admin.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/uploads/{uploadDocId}</code></td>
+                <td><code>UploadItem</code></td>
+                <td>Metadata for member-uploaded media, workshop photos, and seminar videos.</td>
+                <td>Read: Owner, Event Mgr, Admin.<br>Write: Owner, Admin.</td>
+              </tr>
+              <tr>
+                <td><code>.../members/{id}/events/{eventId}</code></td>
+                <td><code>EventDocument</code></td>
+                <td>Member registered or saved calendar events and workshop participations.</td>
+                <td>Read: Owner, Admin.<br>Write: Admin only.</td>
+              </tr>
+              <tr>
+                <td><code>/schools/{schoolDocId}</code></td>
+                <td><code>School</code></td>
+                <td>Official martial arts school location, website, contact, and manager list.</td>
+                <td>Read: Public.<br>Write: Admin &amp; School Manager.</td>
+              </tr>
+              <tr>
+                <td><code>.../schools/{id}/members/{memberDocId}</code></td>
+                <td><code>Member</code></td>
+                <td>Cached member summary for all students affiliated with this school.</td>
+                <td>Read: School Mgr, Admin.<br>Write: Cloud Functions trigger.</td>
+              </tr>
+              <tr>
+                <td><code>.../schools/{id}/gradings/{gradingDocId}</code></td>
+                <td><code>Grading</code></td>
+                <td>Cached grading records for students affiliated with this school.</td>
+                <td>Read: School Mgr, Admin.<br>Write: Cloud Functions trigger.</td>
+              </tr>
+              <tr>
+                <td><code>/instructors/{memberDocId}</code></td>
+                <td><code>InstructorPublicData</code></td>
+                <td>Public instructor directory profile, bios, qualifications, and class calendars.</td>
+                <td>Read: Public.<br>Write: Cloud Functions trigger.</td>
+              </tr>
+              <tr>
+                <td><code>.../instructors/{id}/members/{studentId}</code></td>
+                <td><code>Member</code></td>
+                <td>Cached student summary for all practitioners listing this instructor as primary.</td>
+                <td>Read: Instructor, Admin.<br>Write: Cloud Functions trigger.</td>
+              </tr>
+              <tr>
+                <td><code>.../instructors/{id}/gradings/{gradingId}</code></td>
+                <td><code>Grading</code></td>
+                <td>Cached grading records assigned to or evaluated by this instructor.</td>
+                <td>Read: Instructor, Admin.<br>Write: Cloud Functions trigger.</td>
+              </tr>
+              <tr>
+                <td><code>/gradings/{gradingDocId}</code></td>
+                <td><code>Grading</code></td>
+                <td>Grading candidate purchase, application notes, instructor review, event link &amp; results.</td>
+                <td>Read: Student, Instructor, Event Mgr, Admin.<br>Write: Role-guarded per stage.</td>
+              </tr>
+              <tr>
+                <td><code>/events/{eventId}</code></td>
+                <td><code>IlcEvent</code></td>
+                <td>Unified calendar-synced seminars, workshops, and member-proposed events.</td>
+                <td>Read: Public.<br>Write: Event Owner/Mgr, Admin.</td>
+              </tr>
+              <tr>
+                <td><code>/orders/{orderDocId}</code></td>
+                <td><code>Order</code></td>
+                <td>Global canonical audit record across Stripe, Squarespace, and Sheets imports.</td>
+                <td>Read/Write: Admin only.</td>
+              </tr>
+              <tr>
+                <td><code>/videos/{videoId}</code></td>
+                <td><code>VideoItem</code></td>
+                <td>VOD streaming catalog item, access tiers, pricing, duration, and HLS manifest URL.</td>
+                <td>Read: Public (if published), Admin.<br>Write: Admin only.</td>
+              </tr>
+              <tr>
+                <td><code>/video_grants/{grantId}</code></td>
+                <td><code>VideoGrant</code></td>
+                <td>Global indexed collection keyed by <code>{memberDocId}_{videoId}</code> for O(1) authorization.</td>
+                <td>Read: Grant Owner, Admin.<br>Write: Admin only.</td>
+              </tr>
+              <tr>
+                <td><code>/acl/{email}</code></td>
+                <td><code>ACL</code></td>
+                <td>Cached authorization index mapping login emails to <code>memberDocIds</code>, <code>isAdmin</code>, etc.</td>
+                <td>Read: Email Owner, Admin.<br>Write: Cloud Functions / Admin.</td>
+              </tr>
+              <tr>
+                <td><code>/members-post/{postId}</code></td>
+                <td><code>CachedBlogPost</code></td>
+                <td>Cached members-only blog posts synchronized from Squarespace.</td>
+                <td>Read: Active Members, Admin.<br>Write: Admin / Functions.</td>
+              </tr>
+              <tr>
+                <td><code>/instructors-post/{postId}</code></td>
+                <td><code>CachedBlogPost</code></td>
+                <td>Cached instructors-only blog posts synchronized from Squarespace.</td>
+                <td>Read: Active Instructors, Admin.<br>Write: Admin / Functions.</td>
+              </tr>
+              <tr>
+                <td><code>/statistics/{statId}</code></td>
+                <td><code>MemberStatistics</code></td>
+                <td>Pre-aggregated member counts, country distributions, and historical metrics.</td>
+                <td>Read/Write: Admin only.</td>
+              </tr>
+              <tr>
+                <td><code>/system/{docId}</code></td>
+                <td>Various</td>
+                <td>Singletons for counters, ISO country codes, video taxonomy tags, and sync metadata.</td>
+                <td>Read: Public or Auth.<br>Write: Admin only.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 3: Cloud Storage Bucket Data & Path Hierarchy -->
+      <section id="storage-model">
+        <h2>3. Cloud Storage Bucket Data &amp; Path Hierarchy</h2>
+        <p>
+          In addition to Firestore structured documents, the application utilizes <strong>Google Cloud Storage (Firebase Storage)</strong>
+          for media assets, transcoded Video on Demand (VOD) streaming packages, private workshop materials, event promotional flyers,
+          and role-gated curriculum resources.
         </p>
 
         <div class="diagram-container">
           <div class="diagram-header">
-            <div class="diagram-title">System Architecture & Interaction Graph</div>
-            <span class="badge badge-primary">D3 / SVG Flow</span>
+            <div class="diagram-title">Cloud Storage Bucket Directory Structure</div>
+            <span class="badge badge-accent">GCS Bucket Tree</span>
           </div>
 
-          <!-- Pure SVG Standalone Diagram -->
-          <svg viewBox="0 0 950 480" width="100%" height="480">
-            <defs>
-              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
-              </marker>
-              <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#2563eb" />
-              </marker>
-              <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#16a34a" />
-              </marker>
-            </defs>
+          <pre><code>gs://&lt;firebase-storage-bucket&gt;/
+│
+├── /backups/{backupFile}.json                 <span class="code-comment">&lt;-- Admin-only automated Firestore &amp; Auth backups</span>
+│
+├── /events/{eventId}/
+│   ├── /images/{fileId}                       <span class="code-comment">&lt;-- Public promotional flyers, event headers &amp; photos</span>
+│   ├── /documents/{fileId}                    <span class="code-comment">&lt;-- Public event schedules, registration packets &amp; PDFs</span>
+│   └── /materials/                            <span class="code-comment">&lt;-- Private event media (Event Owner/Managers &amp; Admin only)</span>
+│       ├── /originals/{itemId}/original       <span class="code-comment">&lt;-- Full-resolution seminar footage / photo dumps</span>
+│       └── /previews/{itemId}.jpg             <span class="code-comment">&lt;-- Auto-generated JPEG preview thumbnails</span>
+│
+├── /members/{memberDocId}/
+│   └── /materials/                            <span class="code-comment">&lt;-- Private member &amp; instructor uploaded materials</span>
+│       ├── /originals/{itemId}/original       <span class="code-comment">&lt;-- Original uploaded video / photo / file</span>
+│       └── /previews/{itemId}.jpg             <span class="code-comment">&lt;-- Auto-generated thumbnail preview</span>
+│
+├── /materials/                                <span class="code-comment">&lt;-- Global Master Media Archives &amp; Ingestion:</span>
+│   └── /vimeo/{vimeoVideoId}/                 <span class="code-comment">&lt;-- Vimeo Migrated Master Video Assets:</span>
+│       ├── original.mp4                       <span class="code-comment">&lt;-- Original master video streamed from Vimeo CDN</span>
+│       └── preview.jpg                        <span class="code-comment">&lt;-- High-resolution poster thumbnail</span>
+│
+├── /instructors/{memberDocId}/
+│   └── /images/{fileId}                       <span class="code-comment">&lt;-- Public instructor headshot photos &amp; cover banners</span>
+│
+├── /schools/{schoolDocId}/
+│   └── /images/{fileId}                       <span class="code-comment">&lt;-- Public martial arts school logos &amp; facility photos</span>
+│
+├── /resources/                                <span class="code-comment">&lt;-- Role-gated curriculum assets (Admin write-only):</span>
+│   ├── /public/{fileId}                       <span class="code-comment">&lt;-- Public martial arts brochures, rulebooks, general intro</span>
+│   ├── /members/{fileId}                      <span class="code-comment">&lt;-- Members-only curriculum PDFs &amp; student handbook (Active Membership)</span>
+│   ├── /instructors/{fileId}                  <span class="code-comment">&lt;-- Instructor teaching manuals &amp; grading rubrics (Active Instructor License)</span>
+│   ├── /school-owners/{fileId}                <span class="code-comment">&lt;-- School affiliation agreements &amp; branding kits (Active School License)</span>
+│   └── /admins/{fileId}                       <span class="code-comment">&lt;-- Headquarters administrative operational guides (Admin only)</span>
+│
+└── /vod/                                      <span class="code-comment">&lt;-- Transcoded Video on Demand (VOD) Streaming Packages:</span>
+    └── /vimeo_{vimeoVideoId}/                 <span class="code-comment">&lt;-- HLS Transcoding Output Directory:</span>
+        ├── manifest.m3u8                      <span class="code-comment">&lt;-- Master multi-bitrate HLS playlist</span>
+        ├── fhd.m3u8                           <span class="code-comment">&lt;-- 1080p stream playlist &amp; .ts video chunks</span>
+        ├── hd.m3u8                            <span class="code-comment">&lt;-- 720p stream playlist &amp; .ts video chunks</span>
+        ├── sd.m3u8                            <span class="code-comment">&lt;-- 480p stream playlist &amp; .ts video chunks</span>
+        ├── ld.m3u8                            <span class="code-comment">&lt;-- 360p stream playlist &amp; .ts video chunks</span>
+        └── sprite@0000000000.jpeg             <span class="code-comment">&lt;-- Timeline scrub preview spritesheet</span></code></pre>
+        </div>
 
-            <!-- Tier 1: Client App -->
-            <rect x="20" y="20" width="230" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
-            <text x="35" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">ANGULAR 21 CLIENT APP</text>
-
-            <rect x="35" y="65" width="200" height="60" class="svg-node-box primary" />
-            <text x="50" y="90" class="svg-text-title">Me Tab (Home)</text>
-            <text x="50" y="108" class="svg-text-sub">Entry point: /?tab=me</text>
-
-            <rect x="35" y="145" width="200" height="75" class="svg-node-box primary" />
-            <text x="50" y="170" class="svg-text-title">Member Orders View</text>
-            <text x="50" y="188" class="svg-text-sub">/my-orders component</text>
-            <text x="50" y="204" class="svg-text-sub">Cards & Order History</text>
-
-            <rect x="35" y="240" width="200" height="60" class="svg-node-box" />
-            <text x="50" y="265" class="svg-text-title">Stripe Service</text>
-            <text x="50" y="283" class="svg-text-sub">Callable Functions Wrapper</text>
-
-            <rect x="35" y="320" width="200" height="60" class="svg-node-box" />
-            <text x="50" y="345" class="svg-text-title">Data Manager Service</text>
-            <text x="50" y="363" class="svg-text-sub">Real-time signal stores</text>
-
-            <!-- Tier 2: Cloud Functions -->
-            <rect x="280" y="20" width="220" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
-            <text x="295" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">FIREBASE CLOUD FUNCTIONS</text>
-
-            <rect x="295" y="65" width="190" height="50" class="svg-node-box purple" />
-            <text x="310" y="90" class="svg-text-title">cancelSubscriptionRenewal</text>
-            <text x="310" y="105" class="svg-text-sub">Callable (Ownership Guard)</text>
-
-            <rect x="295" y="125" width="190" height="50" class="svg-node-box purple" />
-            <text x="310" y="150" class="svg-text-title">resumeSubscriptionRenewal</text>
-            <text x="310" y="165" class="svg-text-sub">Callable (Ownership Guard)</text>
-
-            <rect x="295" y="185" width="190" height="50" class="svg-node-box purple" />
-            <text x="310" y="210" class="svg-text-title">createCustomerPortalSession</text>
-            <text x="310" y="225" class="svg-text-sub">Generates single-use URL</text>
-
-            <rect x="295" y="255" width="190" height="80" class="svg-node-box purple" />
-            <text x="310" y="280" class="svg-text-title">stripeWebhook</text>
-            <text x="310" y="296" class="svg-text-sub">HTTP onRequest Handler</text>
-            <text x="310" y="312" class="svg-text-sub">Idempotent Signature Check</text>
-
-            <rect x="295" y="350" width="190" height="55" class="svg-node-box purple" />
-            <text x="310" y="373" class="svg-text-title">stripe-fulfillment.ts</text>
-            <text x="310" y="390" class="svg-text-sub">Modular Business Handlers</text>
-
-            <!-- Tier 3: Stripe Platform -->
-            <rect x="530" y="20" width="180" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
-            <text x="545" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">STRIPE PLATFORM</text>
-
-            <rect x="545" y="65" width="150" height="60" class="svg-node-box accent" />
-            <text x="560" y="90" class="svg-text-title">Subscriptions API</text>
-            <text x="560" y="108" class="svg-text-sub">cancel_at_period_end</text>
-
-            <rect x="545" y="145" width="150" height="60" class="svg-node-box accent" />
-            <text x="560" y="170" class="svg-text-title">Billing Portal</text>
-            <text x="560" y="188" class="svg-text-sub">Cards & Invoices UI</text>
-
-            <rect x="545" y="255" width="150" height="80" class="svg-node-box accent" />
-            <text x="560" y="280" class="svg-text-title">Webhook Events</text>
-            <text x="560" y="296" class="svg-text-sub">invoice.paid</text>
-            <text x="560" y="312" class="svg-text-sub">sub.updated / deleted</text>
-
-            <!-- Tier 4: Firestore Database -->
-            <rect x="740" y="20" width="190" height="430" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4" />
-            <text x="755" y="45" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748b">CLOUD FIRESTORE</text>
-
-            <rect x="755" y="65" width="160" height="65" class="svg-node-box success" />
-            <text x="770" y="90" class="svg-text-title">/members/{docId}</text>
-            <text x="770" y="106" class="svg-text-sub">Expiry Dates</text>
-            <text x="770" y="120" class="svg-text-sub">*NextAutoRenewDate</text>
-
-            <rect x="755" y="150" width="160" height="70" class="svg-node-box success" />
-            <text x="770" y="175" class="svg-text-title">.../orders/{orderId}</text>
-            <text x="770" y="191" class="svg-text-sub">Member Order Rows</text>
-            <text x="770" y="205" class="svg-text-sub">Private Subcollection</text>
-
-            <rect x="755" y="240" width="160" height="60" class="svg-node-box success" />
-            <text x="770" y="265" class="svg-text-title">/orders/{orderId}</text>
-            <text x="770" y="283" class="svg-text-sub">Global Admin Store</text>
-
-            <rect x="755" y="320" width="160" height="60" class="svg-node-box success" />
-            <text x="770" y="345" class="svg-text-title">/gradings/{docId}</text>
-            <text x="770" y="363" class="svg-text-sub">Auto-created records</text>
-
-            <!-- Connections -->
-            <!-- Client -> Functions -->
-            <path d="M 235 255 L 295 90" class="svg-link" />
-            <path d="M 235 270 L 295 150" class="svg-link" />
-            <path d="M 235 285 L 295 210" class="svg-link" />
-
-            <!-- Functions -> Stripe -->
-            <path d="M 485 90 L 545 90" class="svg-link" />
-            <path d="M 485 150 L 545 90" class="svg-link" />
-            <path d="M 485 210 L 545 170" class="svg-link" />
-
-            <!-- Stripe Webhooks -> Functions -->
-            <path d="M 545 295 L 485 295" class="svg-link" />
-            <path d="M 390 335 L 390 350" class="svg-link" />
-
-            <!-- Fulfillment -> Firestore -->
-            <path d="M 485 365 L 755 100" class="svg-link" stroke="#16a34a" />
-            <path d="M 485 375 L 755 185" class="svg-link" stroke="#16a34a" />
-            <path d="M 485 385 L 755 270" class="svg-link" stroke="#16a34a" />
-            <path d="M 485 395 L 755 350" class="svg-link" stroke="#16a34a" />
-
-            <!-- Client reads from Firestore -->
-            <path d="M 755 100 Q 200 10 235 160" class="svg-link" stroke="#2563eb" stroke-dasharray="3" />
-            <path d="M 755 185 Q 230 185 235 185" class="svg-link" stroke="#2563eb" stroke-dasharray="3" />
-          </svg>
+        <h3>Cloud Storage Paths &amp; Access Control Policies</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Bucket Path Pattern</th>
+                <th>Content Type / Media</th>
+                <th>Read Visibility Guard</th>
+                <th>Upload / Delete Guard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>/backups/{backupFile}</code></td>
+                <td>JSON database snapshots</td>
+                <td><span class="badge badge-danger">Admin Only</span></td>
+                <td><span class="badge badge-danger">Admin Only</span></td>
+              </tr>
+              <tr>
+                <td><code>/events/{id}/images/{fileId}</code></td>
+                <td>Flyers, banners (PNG/JPEG)</td>
+                <td><span class="badge badge-success">Public</span></td>
+                <td>Event Owner/Manager or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/events/{id}/documents/{fileId}</code></td>
+                <td>Schedules, PDFs, handouts</td>
+                <td><span class="badge badge-success">Public</span></td>
+                <td>Event Owner/Manager or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/events/{id}/materials/**</code></td>
+                <td>Seminar videos, high-res photos</td>
+                <td>Event Owner/Manager or Admin</td>
+                <td>Event Owner/Manager or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/members/{id}/materials/**</code></td>
+                <td>Instructor uploaded media files</td>
+                <td>Member Owner (via ACL) or Admin</td>
+                <td>Member Owner (via ACL) or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/materials/vimeo/{vimeoVideoId}/**</code></td>
+                <td>Master MP4 video &amp; preview poster</td>
+                <td><span class="badge badge-danger">Admin Only</span></td>
+                <td>Admin / Vimeo Migration Script</td>
+              </tr>
+              <tr>
+                <td><code>/instructors/{id}/images/{fileId}</code></td>
+                <td>Public profile picture &amp; banner</td>
+                <td><span class="badge badge-success">Public</span></td>
+                <td>Instructor Owner or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/schools/{id}/images/{fileId}</code></td>
+                <td>School logo &amp; facility photo</td>
+                <td><span class="badge badge-success">Public</span></td>
+                <td>School Manager (via ACL) or Admin</td>
+              </tr>
+              <tr>
+                <td><code>/resources/public/{fileId}</code></td>
+                <td>Brochures, general guides</td>
+                <td><span class="badge badge-success">Public</span></td>
+                <td>Admin Only</td>
+              </tr>
+              <tr>
+                <td><code>/resources/members/{fileId}</code></td>
+                <td>Curriculum &amp; student handbook</td>
+                <td>Active Members (<code>hasActiveMembership()</code>) or Admin</td>
+                <td>Admin Only</td>
+              </tr>
+              <tr>
+                <td><code>/resources/instructors/{fileId}</code></td>
+                <td>Grading rubrics &amp; teaching manuals</td>
+                <td>Active Instructors (<code>hasActiveInstructorLicense()</code>) or Admin</td>
+                <td>Admin Only</td>
+              </tr>
+              <tr>
+                <td><code>/resources/school-owners/{fileId}</code></td>
+                <td>Contracts &amp; marketing kits</td>
+                <td>Active School Managers (<code>hasActiveSchoolLicense()</code>) or Admin</td>
+                <td>Admin Only</td>
+              </tr>
+              <tr>
+                <td><code>/vod/vimeo_{videoId}/**</code></td>
+                <td>Master HLS playlist (<code>manifest.m3u8</code>), stream playlists (<code>fhd</code>, <code>hd</code>, <code>sd</code>, <code>ld</code>), <code>.ts</code> video segments &amp; timeline scrub spritesheet (<code>sprite@0000000000.jpeg</code>)</td>
+                <td>Public chunk streaming (Session authorized via Cloud Function <code>getVideoPlaybackSession</code>)</td>
+                <td>Admin / GCP Transcoder Pipeline</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <!-- Section 3: Core Data Types & Enums -->
-      <section id="data-model">
-        <h2>3. Core Data Types & TypeScript Enums</h2>
+      <!-- Section 4: Core Data Types & Schemas -->
+      <section id="core-schemas">
+        <h2>4. Core Data Types, Schemas &amp; TypeScript Enums</h2>
         <p>
-          All string union types across <code>functions/src/data-model.ts</code> and <code>functions/src/stripe-types.ts</code>
-          have been converted into TypeScript enums. This prevents typo vulnerabilities, ensures strict compile-time type safety,
-          and facilitates safe refactoring across frontend and backend.
+          All data structures in <code>functions/src/data-model.ts</code> use TypeScript enums and strict schema definitions.
+          Every entity implements an <code>initEntity()</code> constructor (providing safe default values) and a
+          <code>firestoreDocToEntity(doc)</code> converter to ensure runtime and compile-time integrity.
         </p>
 
         <!-- Tab Bar for Data Types -->
         <div class="tab-bar">
           <button class="tab-btn active" onclick="switchTab(event, 'tab-enums')">TypeScript Enums</button>
           <button class="tab-btn" onclick="switchTab(event, 'tab-member')">Member Document</button>
-          <button class="tab-btn" onclick="switchTab(event, 'tab-order')">MemberOrder Document</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-order')">MemberOrder &amp; Order</button>
           <button class="tab-btn" onclick="switchTab(event, 'tab-sub-item')">MemberSubscriptionItem</button>
           <button class="tab-btn" onclick="switchTab(event, 'tab-vod')">VOD &amp; Video Grants</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-gradings-events')">Gradings &amp; Events</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-schools-acl')">Schools &amp; ACL</button>
         </div>
 
         <!-- Tab 1: Enums -->
@@ -818,7 +1133,7 @@
   InstructorLicense = <span class="code-string">'instructor_license'</span>,
   Grading = <span class="code-string">'grading'</span>,
   VideoLibrary = <span class="code-string">'video_library'</span>,
-  Vod = <span class="code-string">'vod'</span>,                     <span class="code-comment">// Direct one-off video purchase</span>
+  Vod = <span class="code-string">'vod'</span>,                     <span class="code-comment">// Standalone one-off VOD video purchase</span>
   Event = <span class="code-string">'event'</span>,
   Other = <span class="code-string">'other'</span>,
 }
@@ -839,7 +1154,7 @@
 
             <div class="card">
               <div class="card-title">
-                <span>Payment &amp; VOD Enums</span>
+                <span>VOD &amp; Subscription Enums</span>
                 <span class="badge badge-purple">data-model.ts</span>
               </div>
               <pre><code><span class="code-keyword">export enum</span> <span class="code-type">VodAccessTier</span> {
@@ -872,23 +1187,24 @@
         <div id="tab-member" class="tab-pane">
           <pre><code><span class="code-keyword">export type</span> <span class="code-type">Member</span> = {
   docId: <span class="code-type">string</span>;
-  memberId: <span class="code-type">string</span>;
+  memberId: <span class="code-type">string</span>;                       <span class="code-comment">// e.g. "US1024"</span>
   name: <span class="code-type">string</span>;
   emails: <span class="code-type">string</span>[];
+  lastUpdated: <span class="code-type">string</span>;                    <span class="code-comment">// ISO 8601 UTC timestamp</span>
 
-  <span class="code-comment">// Stripe Customer Integration</span>
-  stripeCustomerId: <span class="code-type">string</span>; <span class="code-comment">// e.g. 'cus_...'</span>
+  <span class="code-comment">// Stripe Customer Link</span>
+  stripeCustomerId: <span class="code-type">string</span>;               <span class="code-comment">// e.g. "cus_Q12345"</span>
 
-  <span class="code-comment">// Membership &amp; Renewals</span>
-  membershipType: <span class="code-type">MembershipType</span>;
-  currentMembershipExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (access expiration)</span>
-  membershipNextAutoRenewDate: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD or '' (empty if cancelled/off)</span>
+  <span class="code-comment">// Membership &amp; Renewal Semantics</span>
+  membershipType: <span class="code-type">MembershipType</span>;         <span class="code-comment">// Annual, Life, Inactive, etc.</span>
+  currentMembershipExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (access expiration date)</span>
+  membershipNextAutoRenewDate: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD or '' (empty when auto-renew cancelled)</span>
   membershipSubscriptionId: <span class="code-type">string</span>;      <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
   <span class="code-comment">// Instructor License &amp; Renewals</span>
   instructorId: <span class="code-type">string</span>;
   instructorLicenseType: <span class="code-type">InstructorLicenseType</span>;
-  instructorLicenseExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (license expiration)</span>
+  instructorLicenseExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (license expiration date)</span>
   instructorLicenseNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
   instructorLicenseSubscriptionId: <span class="code-type">string</span>;  <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
@@ -899,14 +1215,20 @@
   classVideoLibraryNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
   classVideoLibrarySubscriptionId: <span class="code-type">string</span>;   <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
-  <span class="code-comment">// Full Subscriptions Map (keyed by subscriptionId)</span>
+  <span class="code-comment">// Subscriptions Map for fast multi-subscription iteration</span>
   stripeSubscriptions?: <span class="code-type">Record</span>&lt;<span class="code-type">string</span>, <span class="code-type">MemberSubscriptionItem</span>&gt;;
 };</code></pre>
         </div>
 
-        <!-- Tab 3: MemberOrder -->
+        <!-- Tab 3: MemberOrder & Order -->
         <div id="tab-order" class="tab-pane">
-          <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberOrder</span> {
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">
+                <span>MemberOrder (Private Subcollection)</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberOrder</span> {
   docId: <span class="code-type">string</span>;                <span class="code-comment">// Mirrored from /orders/{docId}</span>
   orderDocId: <span class="code-type">string</span>;           <span class="code-comment">// Canonical global order reference</span>
   memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Owning member Firestore ID</span>
@@ -914,31 +1236,43 @@
 
   orderKind: <span class="code-type">MemberOrderKind</span>;   <span class="code-comment">// Stripe, Squarespace, SheetsImport</span>
   orderType: <span class="code-type">MemberOrderType</span>;   <span class="code-comment">// Checkout, Renewal, Cancellation, OneTime</span>
-  orderNumber?: <span class="code-type">string</span>;         <span class="code-comment">// Invoice number or external reference</span>
+  orderNumber?: <span class="code-type">string</span>;
 
   date: <span class="code-type">string</span>;                 <span class="code-comment">// YYYY-MM-DD</span>
-  created: <span class="code-type">string</span>;              <span class="code-comment">// ISO timestamp</span>
-  lastUpdated: <span class="code-type">string</span>;          <span class="code-comment">// ISO timestamp</span>
-
-  amountTotal: <span class="code-type">number</span> | <span class="code-type">null</span>;   <span class="code-comment">// Cents (e.g. 8500 = $85.00)</span>
+  amountTotal: <span class="code-type">number</span> | <span class="code-type">null</span>;   <span class="code-comment">// In minor units (cents)</span>
   currency: <span class="code-type">string</span> | <span class="code-type">null</span>;      <span class="code-comment">// e.g. 'usd'</span>
-  paymentStatus: <span class="code-type">MemberOrderPaymentStatus</span> | <span class="code-type">null</span>;
-  fulfillmentStatus: <span class="code-type">MemberOrderFulfillmentStatus</span>;
 
-  description: <span class="code-type">string</span>;          <span class="code-comment">// Primary display summary</span>
+  description: <span class="code-type">string</span>;          <span class="code-comment">// Primary human-readable summary</span>
   lineItems: <span class="code-type">MemberOrderLineItem</span>[];
-
-  subscriptionId?: <span class="code-type">string</span>;
-  stripeInvoiceId?: <span class="code-type">string</span>;
   stripeReceiptUrl?: <span class="code-type">string</span>;    <span class="code-comment">// Link to Stripe hosted receipt</span>
-  gradingDocId?: <span class="code-type">string</span>;        <span class="code-comment">// Linked grading if applicable</span>
 }</code></pre>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>Order (Global Admin Store)</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">StripeOrder</span> = <span class="code-type">BaseOrder</span> &amp; {
+  orderSourceKind: <span class="code-type">OrderSourceKind</span>.Stripe;
+  stripeSessionId?: <span class="code-type">string</span>;
+  stripeInvoiceId?: <span class="code-type">string</span>;
+  stripeSubscriptionId?: <span class="code-type">string</span>;
+  stripeCustomerId?: <span class="code-type">string</span>;
+  stripePaymentIntentId?: <span class="code-type">string</span>;
+  stripeHostedInvoiceUrl?: <span class="code-type">string</span>;
+  ilcAppOrderStatus: <span class="code-string">'processed'</span> | <span class="code-string">'error'</span> | <span class="code-string">'pending'</span>;
+};
+
+<span class="code-keyword">export type</span> <span class="code-type">Order</span> = <span class="code-type">SheetsImportOrder</span> | <span class="code-type">SquareSpaceOrder</span> | <span class="code-type">StripeOrder</span>;</code></pre>
+            </div>
+          </div>
         </div>
 
         <!-- Tab 4: MemberSubscriptionItem -->
         <div id="tab-sub-item" class="tab-pane">
           <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberSubscriptionItem</span> {
-  subscriptionId: <span class="code-type">string</span>;       <span class="code-comment">// Stripe sub_...</span>
+  subscriptionId: <span class="code-type">string</span>;       <span class="code-comment">// Stripe sub_... ID</span>
   type: <span class="code-type">SubscriptionItemType</span>;   <span class="code-comment">// Membership, InstructorLicense, VideoLibrary, Vod</span>
   status: <span class="code-type">SubscriptionStatus</span>;   <span class="code-comment">// Active, PastDue, Canceled, etc.</span>
   planName: <span class="code-type">string</span>;             <span class="code-comment">// e.g. "Annual Membership"</span>
@@ -947,11 +1281,11 @@
   interval: <span class="code-type">SubscriptionInterval</span>; <span class="code-comment">// Month, Year</span>
 
   currentPeriodStart: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD</span>
-  currentPeriodEnd: <span class="code-type">string</span>;     <span class="code-comment">// YYYY-MM-DD (access expiration)</span>
-  nextAutoRenewDate: <span class="code-type">string</span>;    <span class="code-comment">// YYYY-MM-DD or '' (when auto-renew cancelled)</span>
+  currentPeriodEnd: <span class="code-type">string</span>;     <span class="code-comment">// YYYY-MM-DD (access expiration date)</span>
+  nextAutoRenewDate: <span class="code-type">string</span>;    <span class="code-comment">// YYYY-MM-DD or '' (empty when auto-renewal cancelled)</span>
 
-  cancelAtPeriodEnd: <span class="code-type">boolean</span>;   <span class="code-comment">// true if auto-renew turned off</span>
-  canceledAt?: <span class="code-type">string</span>;          <span class="code-comment">// ISO string</span>
+  cancelAtPeriodEnd: <span class="code-type">boolean</span>;   <span class="code-comment">// true when recurring charge is turned off</span>
+  canceledAt?: <span class="code-type">string</span>;          <span class="code-comment">// ISO timestamp when cancellation was requested</span>
   stripePriceId?: <span class="code-type">string</span>;
   stripeProductId?: <span class="code-type">string</span>;
 }</code></pre>
@@ -962,51 +1296,138 @@
           <div class="grid-2">
             <div class="card">
               <div class="card-title">
-                <span>VideoGrant Schema</span>
+                <span>VideoItem (Catalog Metadata)</span>
                 <span class="badge badge-purple">data-model.ts</span>
               </div>
-              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
-  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
-  videoId: <span class="code-type">string</span>;              <span class="code-comment">// Matches VideoItem docId</span>
-  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Member Firestore ID</span>
-  memberEmail: <span class="code-type">string</span>;
-  grantKind: <span class="code-type">VideoGrantKind</span>;    <span class="code-comment">// StripePurchase, AdminGrant</span>
-  orderDocId?: <span class="code-type">string</span>;          <span class="code-comment">// Linked order in /orders</span>
-  stripeSessionId?: <span class="code-type">string</span>;     <span class="code-comment">// Stripe checkout session</span>
-  amountPaidCents?: <span class="code-type">number</span>;
-  grantedAt: <span class="code-type">string</span>;            <span class="code-comment">// ISO timestamp</span>
-  expiresAt?: <span class="code-type">string</span>;           <span class="code-comment">// ISO timestamp (or undefined for lifetime)</span>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoItem</span> = {
+  docId: <span class="code-type">string</span>;
+  title: <span class="code-type">string</span>;
+  accessTiers: <span class="code-type">VodAccessTier</span>[]; <span class="code-comment">// [MembersOnly, ClassVideoSubscribers, ...]</span>
+  isBuyable: <span class="code-type">boolean</span>;           <span class="code-comment">// Standalone one-off buy enabled</span>
+  priceCents?: <span class="code-type">number</span>;          <span class="code-comment">// e.g. 2500 ($25.00)</span>
+  stripeProductId?: <span class="code-type">string</span>;
+  stripePriceId?: <span class="code-type">string</span>;
+  vodStatus: <span class="code-type">VodStatus</span>;         <span class="code-comment">// Ready, Transcoding, Queued</span>
+  manifestUrl: <span class="code-type">string</span>;          <span class="code-comment">// HLS master playlist URL</span>
+  durationSeconds: <span class="code-type">number</span>;
 };</code></pre>
             </div>
 
             <div class="card">
               <div class="card-title">
-                <span>VideoItem Catalog Schema</span>
+                <span>VideoGrant &amp; VideoProgress</span>
                 <span class="badge badge-purple">data-model.ts</span>
               </div>
-              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoItem</span> = {
-  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches uploadDocId</span>
-  title: <span class="code-type">string</span>;
-  accessTiers: <span class="code-type">VodAccessTier</span>[]; <span class="code-comment">// [MembersOnly, ClassVideoSubscribers, ...]</span>
-  isBuyable: <span class="code-type">boolean</span>;           <span class="code-comment">// Standalone purchase enabled</span>
-  priceCents?: <span class="code-type">number</span>;          <span class="code-comment">// e.g. 2500 ($25.00)</span>
-  stripeProductId?: <span class="code-type">string</span>;
-  stripePriceId?: <span class="code-type">string</span>;
-  vodStatus: <span class="code-type">VodStatus</span>;         <span class="code-comment">// Ready, Transcoding, Queued</span>
-  manifestUrl: <span class="code-type">string</span>;          <span class="code-comment">// gs:// or HLS master playlist URL</span>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
+  videoId: <span class="code-type">string</span>;              <span class="code-comment">// Target video docId</span>
+  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Owner Firestore ID</span>
+  memberEmail: <span class="code-type">string</span>;
+  grantKind: <span class="code-type">VideoGrantKind</span>;    <span class="code-comment">// StripePurchase, AdminGrant</span>
+  grantedAt: <span class="code-type">string</span>;            <span class="code-comment">// ISO timestamp</span>
+};
+
+<span class="code-keyword">export type</span> <span class="code-type">VideoProgress</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
+  positionSeconds: <span class="code-type">number</span>;      <span class="code-comment">// Resume timestamp</span>
   durationSeconds: <span class="code-type">number</span>;
+  lastWatchedAt: <span class="code-type">string</span>;
+};</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6: Gradings & Events -->
+        <div id="tab-gradings-events" class="tab-pane">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">
+                <span>Grading Entity</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">Grading</span> = {
+  docId: <span class="code-type">string</span>;
+  studentMemberDocId: <span class="code-type">string</span>;
+  studentMemberId: <span class="code-type">string</span>;
+  level: <span class="code-type">StudentLevel</span>;
+  status: <span class="code-type">GradingStatus</span>;          <span class="code-comment">// AwaitingInstructor, Passed, etc.</span>
+  gradingInstructorId: <span class="code-type">string</span>;
+  gradingManagerIds: <span class="code-type">string</span>[];
+  gradingEventDocId: <span class="code-type">string</span>;      <span class="code-comment">// Linked IlcEvent docId</span>
+  gradingEventDate: <span class="code-type">string</span>;       <span class="code-comment">// YYYY-MM-DD</span>
+  acceptedByMemberDocId: <span class="code-type">string</span>;
+  statusChangedByMemberDocId: <span class="code-type">string</span>;
+};</code></pre>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>IlcEvent Entity</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">IlcEvent</span> = {
+  docId: <span class="code-type">string</span>;
+  title: <span class="code-type">string</span>;
+  startDate: <span class="code-type">string</span>;              <span class="code-comment">// YYYY-MM-DD</span>
+  endDate: <span class="code-type">string</span>;                <span class="code-comment">// YYYY-MM-DD</span>
+  ownerDocId: <span class="code-type">string</span>;             <span class="code-comment">// Event organizer</span>
+  managerDocIds: <span class="code-type">string</span>[];        <span class="code-comment">// Event co-managers</span>
+  status: <span class="code-type">EventStatus</span>;            <span class="code-comment">// Confirmed, Proposed, Cancelled</span>
+  eventSourceKind: <span class="code-type">EventSourceKind</span>;
+};</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 7: Schools & ACL -->
+        <div id="tab-schools-acl" class="tab-pane">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">
+                <span>School &amp; Instructor Public</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">School</span> = {
+  docId: <span class="code-type">string</span>;
+  schoolId: <span class="code-type">string</span>;               <span class="code-comment">// e.g. "SCH-10"</span>
+  schoolName: <span class="code-type">string</span>;
+  schoolCountry: <span class="code-type">string</span>;
+  ownerInstructorId: <span class="code-type">string</span>;
+  managerInstructorIds: <span class="code-type">string</span>[];
+};
+
+<span class="code-keyword">export type</span> <span class="code-type">InstructorPublicData</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches Member docId</span>
+  instructorId: <span class="code-type">string</span>;
+  name: <span class="code-type">string</span>;
+  publicEmail: <span class="code-type">string</span>;
+};</code></pre>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>ACL Document (/acl/{email})</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">ACL</span> = {
+  isAdmin: <span class="code-type">boolean</span>;
+  memberDocIds: <span class="code-type">string</span>[];       <span class="code-comment">// Members linked to this email</span>
+  schoolDocIds: <span class="code-type">string</span>[];       <span class="code-comment">// Schools managed by this user</span>
+  instructorIds: <span class="code-type">string</span>[];      <span class="code-comment">// Active instructor licenses</span>
+  membershipExpires: <span class="code-type">string</span>;
+  instructorLicenseExpires: <span class="code-type">string</span>;
 };</code></pre>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Section 4: Auto-Renew Semantics -->
+      <!-- Section 5: Expiry & Auto-Renew Semantics -->
       <section id="auto-renew-semantics">
-        <h2>4. Expiry &amp; Auto-Renew Semantics</h2>
+        <h2>5. Expiry &amp; Auto-Renew Semantics</h2>
         <p>
-          Rather than storing a fragile boolean flag, auto-renewal status is represented by the <strong>explicit next renewal date</strong>.
-          An empty string (<code>''</code>) indicates that auto-renewal is off, while the access expiration date remains intact.
+          Rather than relying on a fragile boolean flag, renewal states are governed deterministically by the <strong>explicit next renewal date</strong>.
+          When a member cancels auto-renewal, the access expiration date remains intact while <code>*NextAutoRenewDate</code> is set to an empty string (<code>''</code>).
         </p>
 
         <div class="table-container">
@@ -1040,7 +1461,7 @@
                 <td><code>2025-05-15</code> (Past)</td>
                 <td><code>''</code> (empty)</td>
                 <td><span class="badge badge-danger">Expired</span><br><small>Expired on May 15, 2025</small></td>
-                <td><code>Renew Membership</code> (Links to /products)</td>
+                <td><code>Renew Membership</code> (Stripe Checkout)</td>
               </tr>
               <tr>
                 <td><strong>Lifetime Member</strong></td>
@@ -1054,81 +1475,186 @@
         </div>
       </section>
 
-      <!-- Section 5: Firestore Hierarchy -->
-      <section id="firestore-hierarchy">
-        <h2>5. Firestore Hierarchy &amp; Indexing</h2>
+      <!-- Section 6: System Architecture & Interaction Graph -->
+      <section id="architecture">
+        <h2>6. System Architecture &amp; Interaction Graph</h2>
         <p>
-          Data is structured to allow instantaneous real-time rendering for members while keeping the global order database secure and queryable by administrators.
+          The system comprises four primary layers: the <strong>Angular 21 Client App</strong>, <strong>Firebase Cloud Functions</strong>,
+          the <strong>Stripe Billing Platform</strong>, and the underlying <strong>Cloud Firestore Database Layer</strong> at the foundation.
+        </p>
+        <p>
+          The diagram below uses orthogonal 90-degree schematic routing (NYC transit style) to illustrate how client requests,
+          Stripe webhook deliveries, and database mutations interact without crossing conflicts.
         </p>
 
         <div class="diagram-container">
           <div class="diagram-header">
-            <div class="diagram-title">Firestore Document Hierarchy</div>
-            <span class="badge badge-success">Collection Tree</span>
+            <div class="diagram-title">System Architecture &amp; Orthogonal Interaction Graph</div>
+            <span class="badge badge-primary">Schematic Flow</span>
           </div>
 
-          <pre><code>/databases/(default)/documents
-│
-├── /members/{memberDocId}                     <span class="code-comment">&lt;-- Fast synchronous read by client &amp; route guards</span>
-│   │   ├── name: "Bruce Lee"
-│   │   ├── emails: ["bruce@example.com"]
-│   │   ├── stripeCustomerId: "cus_Q12345"
-│   │   ├── currentMembershipExpires: "2027-05-15"
-│   │   ├── membershipNextAutoRenewDate: "2027-05-15"
-│   │   ├── membershipSubscriptionId: "sub_1001"
-│   │   ├── classVideoLibrarySubscription: true
-│   │   ├── classVideoLibraryExpirationDate: "2027-05-15"
-│   │   └── stripeSubscriptions: { "sub_1001": { ... } }
-│   │
-│   ├── /orders/{orderDocId}                   <span class="code-comment">&lt;-- Subcollection: Private order history for member</span>
-│   │       ├── docId: "order_stripe_in_101"
-│   │       ├── orderDocId: "order_stripe_in_101"
-│   │       ├── orderKind: "stripe"
-│   │       ├── amountTotal: 8500
-│   │       └── lineItems: [...]
-│   │
-│   ├── /videoGrants/{videoId}                 <span class="code-comment">&lt;-- Subcollection: Purchased/granted standalone videos</span>
-│   │       ├── videoId: "vod_seminar_2026"
-│   │       ├── grantKind: "stripe_purchase"
-│   │       ├── orderDocId: "order_stripe_in_102"
-│   │       └── grantedAt: "2026-08-15T12:00:00Z"
-│   │
-│   └── /videoProgress/{videoId}               <span class="code-comment">&lt;-- Subcollection: Playback position &amp; watch resume</span>
-│           ├── positionSeconds: 1420
-│           ├── durationSeconds: 3600
-│           └── lastWatchedAt: "2026-08-16T19:30:00Z"
-│
-├── /orders/{orderDocId}                       <span class="code-comment">&lt;-- Global Orders Store (Admin only)</span>
-│       ├── docId: "order_stripe_in_101"
-│       ├── memberDocId: "mem_abc123"
-│       └── ilcAppOrderStatus: "processed"
-│
-├── /video_grants/{memberDocId_videoId}        <span class="code-comment">&lt;-- Global Indexed Grants (Fast lookup for gating)</span>
-│       ├── videoId: "vod_seminar_2026"
-│       ├── memberEmail: "bruce@example.com"
-│       └── grantKind: "stripe_purchase"
-│
-├── /videos/{videoId}                          <span class="code-comment">&lt;-- Public Video Catalog Metadata</span>
-│       ├── title: "2026 International Seminar Day 1"
-│       ├── accessTiers: ["class_video_subscribers", "direct_purchase"]
-│       ├── isBuyable: true
-│       ├── priceCents: 2500
-│       ├── stripePriceId: "price_vod_101"
-│       └── vodStatus: "ready"
-│
-└── /gradings/{gradingDocId}                   <span class="code-comment">&lt;-- Auto-created on Grading checkout</span>
-        ├── memberDocId: "mem_abc123"
-        ├── status: "pending"
-        └── ...</code></pre>
+          <!-- Redesigned SVG Diagram: Firestore at bottom, 90-deg NYC Subway style routing -->
+          <svg viewBox="0 0 960 570" width="100%" height="570">
+            <defs>
+              <marker id="arrowhead" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#94a3b8" />
+              </marker>
+              <marker id="arrowhead-blue" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#2563eb" />
+              </marker>
+              <marker id="arrowhead-purple" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#7c3aed" />
+              </marker>
+              <marker id="arrowhead-green" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#16a34a" />
+              </marker>
+              <marker id="arrowhead-amber" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#d97706" />
+              </marker>
+            </defs>
+
+            <!-- ================= UPPER ROW TIERS ================= -->
+
+            <!-- Tier 1: Client App (Upper Left) -->
+            <rect x="25" y="20" width="220" height="330" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="4" />
+            <text x="40" y="42" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="700" fill="#2563eb">ANGULAR 21 CLIENT APP</text>
+
+            <rect x="38" y="50" width="194" height="44" class="svg-node-box primary" />
+            <text x="50" y="69" class="svg-text-title">Me Portal &amp; UI</text>
+            <text x="50" y="85" class="svg-text-sub">/my-orders &amp; /me views</text>
+
+            <rect x="38" y="106" width="194" height="44" class="svg-node-box primary" />
+            <text x="50" y="125" class="svg-text-title">Stripe Service</text>
+            <text x="50" y="141" class="svg-text-sub">Callable Functions SDK wrapper</text>
+
+            <rect x="38" y="162" width="194" height="44" class="svg-node-box primary" />
+            <text x="50" y="181" class="svg-text-title">VOD Catalog &amp; Player</text>
+            <text x="50" y="197" class="svg-text-sub">/videos &amp; &lt;app-video-player&gt;</text>
+
+            <rect x="38" y="245" width="194" height="46" class="svg-node-box primary" />
+            <text x="50" y="264" class="svg-text-title">DataManagerService</text>
+            <text x="50" y="281" class="svg-text-sub">Real-time Signal snapshot stores</text>
+
+            <!-- Tier 2: Cloud Functions (Upper Center) -->
+            <rect x="280" y="20" width="390" height="330" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="4" />
+            <text x="295" y="42" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="700" fill="#7c3aed">FIREBASE CLOUD FUNCTIONS</text>
+
+            <!-- Top 3 Callables (Wider & Centered) -->
+            <rect x="325" y="50" width="300" height="36" class="svg-node-box purple" />
+            <text x="340" y="66" class="svg-text-title">cancelSubscription</text>
+            <text x="340" y="79" class="svg-text-sub">Callable (Sets cancel_at_period_end)</text>
+
+            <rect x="325" y="96" width="300" height="36" class="svg-node-box purple" />
+            <text x="340" y="112" class="svg-text-title">resumeSubscription</text>
+            <text x="340" y="125" class="svg-text-sub">Callable (Reactivates auto-renew)</text>
+
+            <rect x="325" y="142" width="300" height="36" class="svg-node-box purple" />
+            <text x="340" y="158" class="svg-text-title">createCustomerPortal</text>
+            <text x="340" y="171" class="svg-text-sub">Generates single-use Stripe URL</text>
+
+            <!-- Row 4: Playback & Webhook (Top-Aligned) -->
+            <rect x="295" y="188" width="175" height="42" class="svg-node-box purple" />
+            <text x="306" y="206" class="svg-text-title">getVideoPlaybackSession</text>
+            <text x="306" y="221" class="svg-text-sub">Evaluates 7-tier gating cascade</text>
+
+            <rect x="488" y="188" width="168" height="42" class="svg-node-box purple" />
+            <text x="500" y="206" class="svg-text-title">stripeWebhook</text>
+            <text x="500" y="221" class="svg-text-sub">HTTP endpoint &amp; HMAC check</text>
+
+            <!-- Row 5: Fulfillment & Grading Handlers (Top-Aligned) -->
+            <rect x="295" y="245" width="175" height="46" class="svg-node-box purple" />
+            <text x="306" y="264" class="svg-text-title">stripe-fulfillment.ts</text>
+            <text x="306" y="280" class="svg-text-sub">Modular Business Handlers</text>
+
+            <rect x="488" y="245" width="168" height="46" class="svg-node-box purple" />
+            <text x="500" y="264" class="svg-text-title">on-grading-update.ts</text>
+            <text x="500" y="280" class="svg-text-sub">Triggers, mirrors &amp; notifs</text>
+
+            <!-- Tier 3: Stripe Platform (Upper Right) -->
+            <rect x="705" y="20" width="230" height="330" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="4" />
+            <text x="720" y="42" font-family="-apple-system, sans-serif" font-size="11.5" font-weight="700" fill="#0284c7">STRIPE BILLING PLATFORM</text>
+
+            <rect x="720" y="50" width="200" height="46" class="svg-node-box accent" />
+            <text x="734" y="69" class="svg-text-title">Subscriptions API</text>
+            <text x="734" y="85" class="svg-text-sub">cancel_at_period_end update</text>
+
+            <rect x="720" y="106" width="200" height="46" class="svg-node-box accent" />
+            <text x="734" y="125" class="svg-text-title">Customer Billing Portal</text>
+            <text x="734" y="141" class="svg-text-sub">Hosted Cards &amp; Tax Invoices</text>
+
+            <rect x="720" y="162" width="200" height="46" class="svg-node-box accent" />
+            <text x="734" y="181" class="svg-text-title">Checkout Sessions</text>
+            <text x="734" y="197" class="svg-text-sub">One-click buy &amp; recurring subs</text>
+
+            <rect x="720" y="245" width="200" height="46" class="svg-node-box amber" />
+            <text x="734" y="264" class="svg-text-title">Webhook Event Stream</text>
+            <text x="734" y="280" class="svg-text-sub">invoice.paid / checkout / sub.*</text>
+
+            <!-- ================= BOTTOM TIER: FIRESTORE DATABASE ================= -->
+
+            <rect x="25" y="380" width="910" height="175" rx="10" fill="#f8fafc" stroke="#22c55e" stroke-dasharray="4" />
+            <text x="40" y="402" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#16a34a">CLOUD FIRESTORE DATABASE LAYER</text>
+
+            <!-- Box 1: Members & Subcollections -->
+            <rect x="38" y="415" width="210" height="125" class="svg-node-box success" />
+            <text x="50" y="435" class="svg-text-title">/members/{memberDocId}</text>
+            <text x="50" y="452" class="svg-text-sub">├── Expiry Dates (*NextAutoRenew)</text>
+            <text x="50" y="468" class="svg-text-sub">├── /orders/{orderDocId}</text>
+            <text x="50" y="484" class="svg-text-sub">├── /videoGrants/{videoId}</text>
+            <text x="50" y="500" class="svg-text-sub">├── /videoProgress/{videoId}</text>
+            <text x="50" y="516" class="svg-text-sub">└── /notifications/{notifId}</text>
+
+            <!-- Box 2: Orders & Global Grants -->
+            <rect x="264" y="415" width="208" height="125" class="svg-node-box success" />
+            <text x="276" y="435" class="svg-text-title">/orders &amp; /video_grants</text>
+            <text x="276" y="455" class="svg-text-sub">/orders/{orderDocId}</text>
+            <text x="276" y="471" class="svg-text-sub">└── Canonical Global Order Store</text>
+            <text x="276" y="493" class="svg-text-sub">/video_grants/{grantId}</text>
+            <text x="276" y="509" class="svg-text-sub">└── Fast O(1) Gating Index</text>
+
+            <!-- Box 3: Videos, Gradings, Events -->
+            <rect x="488" y="415" width="212" height="125" class="svg-node-box success" />
+            <text x="500" y="435" class="svg-text-title">Videos, Gradings &amp; Events</text>
+            <text x="500" y="455" class="svg-text-sub">/videos/{videoId} (VOD Catalog)</text>
+            <text x="500" y="475" class="svg-text-sub">/gradings/{gradingDocId}</text>
+            <text x="500" y="495" class="svg-text-sub">/events/{eventId} (Public Calendar)</text>
+            <text x="500" y="515" class="svg-text-sub">/members-post &amp; /instructors-post</text>
+
+            <!-- Box 4: ACL, Schools, Instructors & System -->
+            <rect x="716" y="415" width="204" height="125" class="svg-node-box success" />
+            <text x="728" y="435" class="svg-text-title">ACL, Orgs &amp; System</text>
+            <text x="728" y="455" class="svg-text-sub">/acl/{email} (Auth tokens)</text>
+            <text x="728" y="475" class="svg-text-sub">/schools/{id} &amp; /instructors/{id}</text>
+            <text x="728" y="495" class="svg-text-sub">/system/counters &amp; country-codes</text>
+            <text x="728" y="515" class="svg-text-sub">/statistics &amp; /system/deletions</text>
+
+            <!-- ================= ORTHOGONAL 90-DEGREE TRACK ROUTING ================= -->
+
+            <path id="edge-client-to-cancel" d="M 232 117 L 251 117 Q 255 117 255 113 L 255 72 Q 255 68 259 68 L 325 68" class="svg-link-blue" />
+            <path id="edge-client-to-resume" d="M 232 128 L 257 128 Q 261 128 261 124 L 261 118 Q 261 114 265 114 L 325 114" class="svg-link-blue" />
+            <path id="edge-client-to-portal" d="M 232 139 L 254 139 Q 258 139 258 143 L 258 156 Q 258 160 262 160 L 325 160" class="svg-link-blue" />
+            <path id="edge-client-to-playback" d="M 232 184 L 254 184 Q 258 184 258 188 L 258 205 Q 258 209 262 209 L 295 209" class="svg-link-blue" />
+            <path id="edge-cancel-to-stripe" d="M 625 68 L 720 68" class="svg-link-purple" />
+            <path id="edge-resume-to-stripe" d="M 625 114 L 671 114 Q 675 114 675 110 L 675 92 Q 675 88 679 88 L 720 88" class="svg-link-purple" />
+            <path id="edge-portal-to-stripe" d="M 625 160 L 671 160 Q 675 160 675 156 L 675 133 Q 675 129 679 129 L 720 129" class="svg-link-purple" />
+            <path id="edge-stripe-to-webhook" d="M 720 268 L 692 268 Q 688 268 688 264 L 688 213 Q 688 209 684 209 L 656 209" class="svg-link-amber" />
+            <path id="edge-webhook-to-fulfillment" d="M 538.4 230 L 538.4 233 Q 538.4 236 535.4 236 L 430.3 236 Q 426.3 236 426.3 240 L 426.3 245" class="svg-link-purple" />
+            <path id="edge-fulfillment-to-orders" d="M 382.5 291 L 382.5 346 Q 382.5 350 378.5 350 L 372 350 Q 368 350 368 354 L 368 415" class="svg-link-green" />
+            <path id="edge-fulfillment-to-members" d="M 338.8 291 L 338.8 346 Q 338.8 350 334.8 350 L 168 350 Q 164 350 164 354 L 164 415" class="svg-link-green" />
+            <path id="edge-grading-to-acl" d="M 572 291 L 572 346 Q 572 350 576 350 L 814 350 Q 818 350 818 354 L 818 415" class="svg-link-green" />
+            <path id="edge-fulfillment-to-videos" d="M 426.3 291 L 426.3 366 Q 426.3 370 430.3 370 L 590 370 Q 594 370 594 374 L 594 415" class="svg-link-green" />
+            <path id="edge-db-to-datamanager" d="M 100 415 L 100 291" class="svg-link-blue" stroke-dasharray="3" />
+          </svg>
         </div>
       </section>
 
-      <!-- Section 6: Webhook & Fulfillment Engine -->
+      <!-- Section 7: Webhook & Fulfillment Engine -->
       <section id="webhook-engine">
-        <h2>6. Webhook &amp; Fulfillment Engine</h2>
+        <h2>7. Webhook &amp; Fulfillment Engine</h2>
         <p>
-          The Cloud Function <code>stripeWebhook</code> listens for Stripe events, verifies signatures cryptographically,
-          and delegates processing to modular handlers in <code>functions/src/stripe-fulfillment.ts</code>.
+          The Cloud Function <code>stripeWebhook</code> is an HTTP-triggered endpoint that cryptographically verifies the Stripe HMAC signature
+          and routes events to modular handlers in <code>functions/src/stripe-fulfillment.ts</code>.
+          Every webhook execution is designed to be completely idempotent, preventing double-billing or multiple membership extensions.
         </p>
 
         <div class="table-container">
@@ -1143,39 +1669,40 @@
             <tbody>
               <tr>
                 <td><code>checkout.session.completed</code></td>
-                <td>Initial product purchase, first-time subscription, or standalone VOD purchase</td>
+                <td>Initial product purchase, first-time subscription, or standalone VOD purchase.</td>
                 <td>
                   1. Upserts <code>/orders/{orderDocId}</code> and mirrors to <code>/members/{memberDocId}/orders/{orderDocId}</code>.<br>
                   2. Invokes appropriate product fulfillment handler in <code>stripe-fulfillment.ts</code>.<br>
                   3. If membership / instructor / class video library: extends dates &amp; records subscription.<br>
-                  4. If grading purchased: creates <code>/gradings/{docId}</code> and links to member.<br>
-                  5. If VOD purchased (<code>category === 'vod'</code> or <code>metadata.videoId</code>): creates <code>VideoGrant</code> in <code>/members/{memberDocId}/videoGrants/{videoId}</code> and mirrors to <code>/video_grants/</code>.
+                  4. If standalone VOD: writes durable <code>VideoGrant</code> to <code>/members/{id}/videoGrants/{videoId}</code>.<br>
+                  5. If grading: instantiates a new <code>Grading</code> document in <code>/gradings/{docId}</code>.
                 </td>
               </tr>
               <tr>
                 <td><code>invoice.paid</code></td>
-                <td>Scheduled recurring subscription billing cycle succeeded</td>
+                <td>Automatic annual or monthly subscription renewal payment succeeds.</td>
                 <td>
-                  1. Creates renewal order record in global orders and member subcollection.<br>
-                  2. Extends <code>*Expires</code> date by +1 period (month or year).<br>
-                  3. Sets <code>*NextAutoRenewDate</code> equal to new expiration date.
+                  1. Creates a new renewal <code>MemberOrder</code> in the member's subcollection.<br>
+                  2. Advances <code>currentMembershipExpires</code> or <code>classVideoLibraryExpirationDate</code> by 1 full period.<br>
+                  3. Synchronizes <code>*NextAutoRenewDate</code> with Stripe's <code>current_period_end</code>.<br>
+                  4. Syncs the updated expiry date to <code>/acl/{email}</code> for instant security rules enforcement.
                 </td>
               </tr>
               <tr>
                 <td><code>customer.subscription.updated</code></td>
-                <td>Auto-renewal cancelled, resumed, or payment status changed</td>
+                <td>Member cancels/resumes auto-renewal in Stripe Portal, or payment method fails.</td>
                 <td>
-                  1. If <code>cancel_at_period_end == true</code>: clears <code>*NextAutoRenewDate = ''</code> while keeping access active.<br>
-                  2. If <code>cancel_at_period_end == false</code>: restores <code>*NextAutoRenewDate = periodEnd</code>.
+                  1. If <code>cancel_at_period_end == true</code>: clears <code>*NextAutoRenewDate = ''</code> (retaining access expiration).<br>
+                  2. If <code>cancel_at_period_end == false</code>: restores <code>*NextAutoRenewDate = current_period_end</code>.<br>
+                  3. Updates the cached <code>MemberSubscriptionItem</code> inside <code>member.stripeSubscriptions</code>.
                 </td>
               </tr>
               <tr>
                 <td><code>customer.subscription.deleted</code></td>
-                <td>Subscription cancelled immediately or billing period ended after cancellation</td>
+                <td>Subscription lifecycle ends (grace period concludes after cancellation).</td>
                 <td>
-                  1. Records cancellation order row.<br>
-                  2. Clears active subscription IDs from member record.<br>
-                  3. Updates subscription map status to <code>canceled</code>.
+                  1. Clears <code>membershipSubscriptionId</code> or <code>classVideoLibrarySubscriptionId</code> on the member.<br>
+                  2. Marks the subscription record as <code>SubscriptionStatus.Canceled</code>.
                 </td>
               </tr>
             </tbody>
@@ -1183,11 +1710,11 @@
         </div>
       </section>
 
-      <!-- Section 7: Subscription Lifecycle -->
+      <!-- Section 8: Subscription Lifecycle & State Machine -->
       <section id="subscription-lifecycle">
-        <h2>7. Subscription State Machine</h2>
+        <h2>8. Subscription Lifecycle &amp; State Machine</h2>
         <p>
-          A subscription transitions through explicit deterministic states governed by Stripe events and member actions.
+          A subscription transitions through explicit deterministic states governed by Stripe events and member actions:
         </p>
 
         <div class="diagram-container">
@@ -1227,7 +1754,7 @@
 
             <!-- Active -> Active (Annual Invoice Paid) -->
             <path d="M 360 90 C 360 40 400 40 400 90" class="svg-link" />
-            <text x="345" y="35" class="svg-link-label">invoice.paid (+1 Year)</text>
+            <text x="345" y="35" class="svg-link-label">invoice.paid (+1 Period)</text>
 
             <!-- Active (Cancel) -> Inactive (Period Ends) -->
             <path d="M 650 160 C 650 230 100 230 100 160" class="svg-link" />
@@ -1236,9 +1763,9 @@
         </div>
       </section>
 
-      <!-- Section 8: Key User Journeys -->
+      <!-- Section 9: Member Self-Service Dashboard Journey -->
       <section id="journey-dashboard">
-        <h2>8. Member Self-Service Dashboard Journey</h2>
+        <h2>9. Member Self-Service Dashboard Journey</h2>
         <p>
           Members navigate seamlessly from their home portal to their subscription control center.
         </p>
@@ -1277,9 +1804,9 @@
         </div>
       </section>
 
-      <!-- Section 9: Auto-Renewal Cancellation Journey -->
+      <!-- Section 10: Auto-Renewal Cancellation Journey -->
       <section id="journey-cancellation">
-        <h2>9. Auto-Renewal Cancellation Journey</h2>
+        <h2>10. Auto-Renewal Cancellation Journey</h2>
         <p>
           Members can turn off automatic recurring charges without losing access to their current paid term.
         </p>
@@ -1319,11 +1846,11 @@
         </div>
       </section>
 
-      <!-- Section 10: Auto-Renewal Resumption Journey -->
+      <!-- Section 11: Auto-Renewal Resumption Journey -->
       <section id="journey-resumption">
-        <h2>10. Auto-Renewal Resumption Journey</h2>
+        <h2>11. Auto-Renewal Resumption Journey</h2>
         <p>
-          If a member previously cancelled auto-renewal, they can reactivate automatic renewals at any time prior to the period expiration.
+          If a member previously cancelled auto-renewal, they can reactivate automatic renewals at any time prior to period expiration.
         </p>
 
         <div class="journey-step">
@@ -1348,9 +1875,9 @@
         </div>
       </section>
 
-      <!-- Section 11: Customer Portal Journey -->
+      <!-- Section 12: Customer Portal Journey -->
       <section id="journey-portal">
-        <h2>11. Stripe Hosted Customer Portal Journey</h2>
+        <h2>12. Stripe Hosted Customer Portal Journey</h2>
         <p>
           Allows members to securely update credit cards, change default payment methods, and download official PDF tax invoices.
         </p>
@@ -1387,9 +1914,9 @@
         </div>
       </section>
 
-      <!-- Section 12: Video on Demand (VOD) & Video Grants -->
+      <!-- Section 13: Video on Demand (VOD) & Video Grants -->
       <section id="journey-vod">
-        <h2>12. Video on Demand (VOD) &amp; Streaming Grants Flow</h2>
+        <h2>13. Video on Demand (VOD) &amp; Streaming Grants Flow</h2>
         <p>
           The platform integrates digital video monetization through two complementary access models:
           <strong>All-Access Class Video Library Subscriptions</strong> and <strong>Direct Single-Video Grants</strong>.
@@ -1417,12 +1944,12 @@
               <span class="badge badge-accent">One-Time Grant</span>
             </div>
             <p style="font-size: 0.9rem; line-height: 1.5; margin: 8px 0;">
-              Standalone Stripe purchase (<code>OrderItemCategory.Vod</code>) or admin grant providing permanent or time-bound access to individual premium seminar recordings.
+              Standalone Stripe purchase (<code>OrderItemCategory.Vod</code>) or admin grant providing permanent access to individual seminar recordings.
             </p>
             <ul style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 1.2rem;">
               <li>Persisted as <code>VideoGrant</code> in <code>/members/{id}/videoGrants/{videoId}</code></li>
               <li>Indexed globally in <code>/video_grants/{memberDocId_videoId}</code></li>
-              <li>Permits non-members and non-subscribers to buy standalone videos</li>
+              <li>Permits non-members and non-subscribers to purchase standalone titles</li>
             </ul>
           </div>
         </div>
@@ -1491,62 +2018,216 @@
         </div>
       </section>
 
-      <!-- Section 13: Security & Rules -->
+      <!-- Section 14: Security & Authorization Model -->
       <section id="security-rules">
-        <h2>13. Security &amp; Authorization Architecture</h2>
+        <h2>14. Comprehensive Security &amp; Authorization Model</h2>
         <p>
-          The system implements defense-in-depth across Firestore Security Rules and Cloud Function authorization layers.
+          The system implements a unified <strong>Defense-in-Depth Security Model</strong> spanning Cloud Firestore Security Rules,
+          Cloud Storage Security Rules, and server-side Cloud Function authorization guards.
         </p>
 
-        <div class="grid-2">
+        <div class="callout callout-success">
+          <p><strong>Core Principle — Default-Deny &amp; Centralized ACL Resolution:</strong> Every operation defaults to <code>false</code>.
+          Access decisions are resolved in O(1) time by looking up the authenticated user's login email against <code>/databases/(default)/documents/acl/$(request.auth.token.email)</code>.
+          Cloud Function triggers eagerly synchronize active roles, school manager IDs, instructor licenses, and expiration dates into this document,
+          completely avoiding expensive multi-document recursive queries during rule evaluation.</p>
+        </div>
+
+        <h3>Role-Based Visibility &amp; Permission Matrix ("Who Sees What")</h3>
+        <p>
+          The matrix below details exactly what data and storage paths are visible to and modifiable by each persona:
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User Persona / Role</th>
+                <th>Firestore Read Access</th>
+                <th>Firestore Writable Fields</th>
+                <th>Cloud Storage Accessible Paths</th>
+                <th>Primary Authorization Rule Guard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Public / Anonymous</strong></td>
+                <td>
+                  • <code>/events/{id}</code> (Public events)<br>
+                  • <code>/schools/{id}</code> (Public schools)<br>
+                  • <code>/instructors/{id}</code> (Public bios)<br>
+                  • <code>/videos/{id}</code> (Published VOD catalog metadata &amp; trailers)<br>
+                  • <code>/system/country-codes</code> &amp; <code>video-tags</code>
+                </td>
+                <td><em>None (Read-only)</em></td>
+                <td>
+                  • <code>/events/{id}/images/**</code><br>
+                  • <code>/events/{id}/documents/**</code><br>
+                  • <code>/instructors/{id}/images/**</code><br>
+                  • <code>/schools/{id}/images/**</code><br>
+                  • <code>/resources/public/**</code>
+                </td>
+                <td><code>allow read: if true;</code></td>
+              </tr>
+              <tr>
+                <td><strong>Active Member</strong><br><small>(Annual or Life)</small></td>
+                <td>
+                  • All Public data<br>
+                  • Own <code>/members/{memberDocId}</code><br>
+                  • Own subcollections (<code>/orders</code>, <code>/videoGrants</code>, <code>/videoProgress</code>, <code>/notifications</code>, <code>/pushSubscriptions</code>, <code>/uploads</code>, <code>/events</code>)<br>
+                  • <code>/members-post/{id}</code> (Members blog)<br>
+                  • Candidate <code>/gradings/{id}</code>
+                </td>
+                <td>
+                  • Own profile contact &amp; bio fields (name, phone, address, city, photo, notification preferences)<br>
+                  • Own notifications (dismissed, refreshed)<br>
+                  • Candidate grading request notes &amp; assigned instructor (prior to acceptance)
+                </td>
+                <td>
+                  • All Public files<br>
+                  • <code>/members/{myId}/materials/**</code><br>
+                  • <code>/resources/members/**</code> (Curriculum PDFs, handbooks)
+                </td>
+                <td>
+                  <code>isOwner()</code> via email match or <code>memberDocId in getUserMemberDocIds()</code> + <code>hasActiveMembership()</code>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Expired / Inactive Member</strong></td>
+                <td>
+                  • All Public data<br>
+                  • Own <code>/members/{memberDocId}</code> &amp; order history (for receipts &amp; renewing)
+                </td>
+                <td>• Own profile contact details (limited)</td>
+                <td>• All Public files</td>
+                <td><code>hasActiveMembership() == false</code> (Denies members-only blog posts and curriculum downloads)</td>
+              </tr>
+              <tr>
+                <td><strong>Licensed Instructor</strong></td>
+                <td>
+                  • All Member data<br>
+                  • <code>/instructors/{myId}/members</code> (Cached student roster)<br>
+                  • <code>/instructors/{myId}/gradings</code> (Assigned gradings)<br>
+                  • <code>/instructors-post/{id}</code> (Instructors blog)<br>
+                  • Direct student grading documents
+                </td>
+                <td>
+                  • Grading management fields: <code>status</code>, <code>gradingEventDate</code>, <code>gradingEventDocId</code>, <code>resultNotes</code>, <code>studentLevelAtAcceptance</code>, <code>paymentStatus</code>, <code>declineNotes</code><br>
+                  • Instructor public profile details (via Member update)
+                </td>
+                <td>
+                  • All Member files<br>
+                  • <code>/resources/instructors/**</code> (Grading manuals, rubrics)<br>
+                  • <code>/instructors/{myId}/images/**</code> (Headshot, banners)<br>
+                  • <code>/members/{myId}/materials/**</code> (Workshop video uploads)
+                </td>
+                <td>
+                  <code>isInstructor()</code> via <code>instructorIds.size() &gt; 0</code> + <code>isGradingManager()</code>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>School Owner / Manager</strong></td>
+                <td>
+                  • All Member data<br>
+                  • <code>/schools/{schoolId}/members</code> (School student list)<br>
+                  • <code>/schools/{schoolId}/gradings</code> (School grading records)<br>
+                  • Full Member documents of students registered under their school (<code>isManagerOfMemberSchool()</code>)
+                </td>
+                <td>
+                  • School public profile: <code>schoolName</code>, <code>schoolAddress</code>, <code>schoolCity</code>, <code>schoolWebsite</code>, <code>managerInstructorIds</code>, images, cover banner<br>
+                  • Member profile data of students in their school
+                </td>
+                <td>
+                  • All Member files<br>
+                  • <code>/schools/{schoolId}/images/**</code><br>
+                  • <code>/resources/school-owners/**</code> (Licensing contracts, marketing kits)
+                </td>
+                <td>
+                  <code>schoolDocId in getUserSchoolDocIds()</code> (Synchronized eagerly in ACL)
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Event Organizer / Manager</strong></td>
+                <td>
+                  • All Member data<br>
+                  • Private materials attached to their events: <code>/events/{id}/materials/**</code><br>
+                  • Member uploads tagged with their event (<code>isLinkedEventManager()</code>)<br>
+                  • Candidate gradings linked via <code>gradingEventDocId</code>
+                </td>
+                <td>
+                  • Event metadata, schedule, cancellation in <code>/events/{id}</code><br>
+                  • Event materials &amp; photos<br>
+                  • Candidate gradings linked to their event (evaluated as <strong>Grading Event Manager</strong>)
+                </td>
+                <td>
+                  • <code>/events/{myEventId}/images/**</code><br>
+                  • <code>/events/{myEventId}/documents/**</code><br>
+                  • <code>/events/{myEventId}/materials/**</code> (Private seminar video dumps &amp; original photos)
+                </td>
+                <td>
+                  <code>ownerDocId in getUserMemberDocIds() || getUserMemberDocIds().hasAny(managerDocIds)</code>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Headquarters Admin</strong></td>
+                <td><span class="badge badge-success">Full Access</span> to all 13 collections, all subcollections, and global audit stores.</td>
+                <td><span class="badge badge-success">Full Write &amp; Delete</span> access across all documents and collections.</td>
+                <td><span class="badge badge-success">Full Read/Write/Delete</span> on all paths including <code>/backups/</code> and <code>/resources/admins/</code>.</td>
+                <td><code>isAdmin()</code> via <code>get(/databases/(default)/documents/acl/$(email)).data.isAdmin == true</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top: 24px;">
           <div class="card">
             <div class="card-title">
-              <span>Firestore Security Rules</span>
-              <span class="badge badge-success">firestore.rules</span>
+              <span>Cloud Storage Security Rules</span>
+              <span class="badge badge-accent">storage.rules</span>
             </div>
-            <pre><code><span class="code-comment">// Private member subcollections</span>
-<span class="code-keyword">match</span> /members/{memberDocId}/orders/{orderDocId} {
-  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isOrderOwner() || isAdmin();
+            <pre><code><span class="code-comment">// Resource tier access based on ACL expiration dates</span>
+<span class="code-keyword">function</span> hasActiveMembership() {
+  <span class="code-keyword">let</span> email = request.auth.token.email;
+  <span class="code-keyword">let</span> aclData = firestore.get(/databases/(default)/documents/acl/$(email)).data;
+  <span class="code-keyword">let</span> expires = aclData.membershipExpires;
+  <span class="code-keyword">return</span> email != <span class="code-keyword">null</span> &amp;&amp; expires &gt;= todayStr();
+}
+
+<span class="code-keyword">match</span> /resources/members/{fileId} {
+  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> request.auth != <span class="code-keyword">null</span> &amp;&amp; (isAdmin() || hasActiveMembership());
   <span class="code-keyword">allow write</span>: <span class="code-keyword">if</span> isAdmin();
 }
 
-<span class="code-keyword">match</span> /members/{memberDocId}/videoGrants/{grantId} {
-  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isMemberOwner(memberDocId) || isAdmin();
-  <span class="code-keyword">allow write</span>: <span class="code-keyword">if</span> isAdmin();
-}
-
-<span class="code-keyword">match</span> /members/{memberDocId}/videoProgress/{videoId} {
-  <span class="code-keyword">allow read, write</span>: <span class="code-keyword">if</span> isMemberOwner(memberDocId) || isAdmin();
+<span class="code-keyword">match</span> /members/{memberDocId}/materials/{material=**} {
+  <span class="code-keyword">allow read, write</span>: <span class="code-keyword">if</span> isAdmin() || (
+    request.auth != <span class="code-keyword">null</span> &amp;&amp; memberDocId in getUserMemberDocIds()
+  );
 }</code></pre>
           </div>
 
           <div class="card">
             <div class="card-title">
-              <span>Callable Function Ownership Guards</span>
-              <span class="badge badge-purple">stripe-subscriptions.ts &amp; get-playback-session.ts</span>
+              <span>Firestore Field-Level Security Whitelisting</span>
+              <span class="badge badge-success">firestore.rules</span>
             </div>
-            <pre><code><span class="code-comment">// Playback session verification in Cloud Functions</span>
-<span class="code-keyword">const</span> callerEmail = request.auth?.token.email;
-<span class="code-keyword">const</span> member = <span class="code-keyword">await</span> getMemberByEmail(callerEmail, db);
-
-<span class="code-comment">// Verify explicit grant in member subcollection</span>
-<span class="code-keyword">const</span> grantSnap = <span class="code-keyword">await</span> db
-  .collection(<span class="code-string">'members'</span>)
-  .doc(member.docId)
-  .collection(<span class="code-string">'videoGrants'</span>)
-  .doc(video.docId)
-  .get();
-
-<span class="code-keyword">if</span> (grantSnap.exists) {
-  <span class="code-keyword">return</span> { authorized: <span class="code-keyword">true</span>, manifestUrl: video.manifestUrl };
+            <pre><code><span class="code-comment">// Member self-update whitelist (prevents privilege escalation)</span>
+<span class="code-keyword">match</span> /members/{memberDocId} {
+  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isOwner() || isAdmin() || isManagerOfMemberSchool();
+  <span class="code-keyword">allow update</span>: <span class="code-keyword">if</span> hasValidEditUpdate() &amp;&amp; isOwner() &amp;&amp;
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      <span class="code-string">'lastUpdated'</span>, <span class="code-string">'name'</span>, <span class="code-string">'address'</span>, <span class="code-string">'city'</span>, <span class="code-string">'countyOrState'</span>,
+      <span class="code-string">'zipCode'</span>, <span class="code-string">'country'</span>, <span class="code-string">'phone'</span>, <span class="code-string">'emails'</span>, <span class="code-string">'gender'</span>,
+      <span class="code-string">'dateOfBirth'</span>, <span class="code-string">'notificationSettings'</span>, <span class="code-string">'publicBioMarkdown'</span>,
+      <span class="code-string">'publicProfileImageUrl'</span>, <span class="code-string">'publicCoverImageUrl'</span>
+    ]);
 }</code></pre>
           </div>
         </div>
       </section>
 
-      <!-- Section 14: Source Code Map -->
+      <!-- Section 15: Source Code Reference Map -->
       <section id="code-map">
-        <h2>14. Source Code Reference Map</h2>
+        <h2>15. Source Code Reference Map</h2>
         <div class="table-container">
           <table>
             <thead>
@@ -1560,7 +2241,17 @@
               <tr>
                 <td><code>functions/src/data-model.ts</code></td>
                 <td>Data Model</td>
-                <td>Definitions for <code>Member</code>, <code>MemberOrder</code>, <code>VideoGrant</code>, <code>VideoItem</code>, and all TypeScript enums.</td>
+                <td>Complete schemas for <code>Member</code>, <code>Order</code>, <code>MemberOrder</code>, <code>Grading</code>, <code>IlcEvent</code>, <code>School</code>, <code>VideoItem</code>, <code>VideoGrant</code>, <code>UploadItem</code>, and all TypeScript enums.</td>
+              </tr>
+              <tr>
+                <td><code>storage.rules</code></td>
+                <td>Cloud Storage</td>
+                <td>Access control rules for <code>/resources/</code> tiers, private materials, VOD playlists, event flyers, and school/instructor profile images.</td>
+              </tr>
+              <tr>
+                <td><code>firestore.rules</code></td>
+                <td>Security Rules</td>
+                <td>Granular database read/write rules, ACL ownership evaluation, field update whitelisting, and grading stage guards.</td>
               </tr>
               <tr>
                 <td><code>functions/src/stripe-subscriptions.ts</code></td>
@@ -1617,11 +2308,6 @@
                 <td>Routing</td>
                 <td>Route definitions mapping <code>Views.MyOrders</code>, <code>Views.VideosCatalog</code>, <code>Views.ManageVod</code>.</td>
               </tr>
-              <tr>
-                <td><code>firestore.rules</code></td>
-                <td>Security</td>
-                <td>Granular read/write rules protecting <code>/members/{memberDocId}/orders/</code> and <code>/members/{memberDocId}/videoGrants/</code>.</td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -1649,7 +2335,7 @@
 
       window.addEventListener('scroll', () => {
         let currentSection = sections[0];
-        const scrollY = window.scrollY + 100;
+        const scrollY = window.scrollY + 120;
 
         for (const section of sections) {
           if (section.offsetTop <= scrollY) {
