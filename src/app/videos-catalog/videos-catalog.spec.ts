@@ -202,19 +202,18 @@ describe('VideosCatalogComponent', () => {
 
   it('should return appropriate access tier badge', () => {
     const pubVideo = { ...initVideoItem(), accessTier: VodAccessTier.Public, accessTiers: [VodAccessTier.Public] };
-    const pubBadge = component.getAccessTierBadge(pubVideo);
-    expect(pubBadge.label).toBe('Free');
-    expect(pubBadge.cssClass).toBe('badge-public');
+    const pubBadge = component.getTopAccessTierBadge(pubVideo);
+    expect(pubBadge?.label).toBe('Free');
+    expect(pubBadge?.cssClass).toBe('badge-public');
 
     const classVideo = { ...initVideoItem(), accessTier: VodAccessTier.ClassVideoSubscribers, accessTiers: [VodAccessTier.ClassVideoSubscribers] };
-    const classBadge = component.getAccessTierBadge(classVideo);
-    expect(classBadge.label).toBe('Class Subs');
-    expect(classBadge.cssClass).toBe('badge-class');
+    const classBadge = component.getTopAccessTierBadge(classVideo);
+    expect(classBadge?.label).toBe('Class Subs');
+    expect(classBadge?.cssClass).toBe('badge-class');
 
+    // Direct purchase videos should have null top badge (skip buy tag and price at top)
     const buyVideo = { ...initVideoItem(), docId: 'v1', isBuyable: true, priceCents: 4999, accessTier: VodAccessTier.DirectPurchase, accessTiers: [VodAccessTier.DirectPurchase] };
-    const buyBadge = component.getAccessTierBadge(buyVideo);
-    expect(buyBadge.label).toBe('Buy ($49.99)');
-    expect(buyBadge.cssClass).toBe('badge-purchase');
+    expect(component.getTopAccessTierBadge(buyVideo)).toBeNull();
 
     // On My Videos tab: should show Purchased
     component.setTab('my-videos');

@@ -468,44 +468,39 @@ export class VideosCatalogComponent implements OnInit {
     return labels.length > 0 ? labels.join(' • ') : 'Members Only';
   }
 
-  getAccessTierBadge(video: VideoItem): {
+  getTopAccessTierBadge(video: VideoItem): {
     label: string;
     cssClass: string;
-  } {
-    const isMyVideosTab = this.activeTab() === 'my-videos';
-    const hasAccess = this.userHasAccess(video);
-
+  } | null {
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers
       : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
 
-    if (isMyVideosTab) {
-      return { label: 'Purchased', cssClass: 'badge-purchased' };
-    }
-
-    if (
-      hasAccess &&
-      !tiers.includes(VodAccessTier.Public) &&
-      !tiers.includes(VodAccessTier.MembersOnly) &&
-      !tiers.includes(VodAccessTier.InstructorsOnly) &&
-      !tiers.includes(VodAccessTier.ClassVideoSubscribers)
-    ) {
-      return { label: 'Purchased', cssClass: 'badge-purchased' };
-    }
-
     if (tiers.includes(VodAccessTier.Public)) {
-      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-public' };
+      return { label: 'Free', cssClass: 'badge-public' };
     }
     if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
-      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-class' };
+      return { label: 'Class Subs', cssClass: 'badge-class' };
     }
     if (tiers.includes(VodAccessTier.MembersOnly)) {
-      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-members' };
+      return { label: 'Members', cssClass: 'badge-members' };
     }
     if (tiers.includes(VodAccessTier.InstructorsOnly)) {
-      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-instructors' };
+      return { label: 'Instructors', cssClass: 'badge-instructors' };
     }
-    return { label: this.getAccessTiersSummary(video), cssClass: 'badge-purchase' };
+    return null;
+  }
+
+  getAccessTierBadge(video: VideoItem): {
+    label: string;
+    cssClass: string;
+  } {
+    const topBadge = this.getTopAccessTierBadge(video);
+    if (topBadge) return topBadge;
+    if (this.userHasAccess(video) || this.activeTab() === 'my-videos') {
+      return { label: 'Purchased', cssClass: 'badge-purchased' };
+    }
+    return { label: 'Paid', cssClass: 'badge-default' };
   }
 
   userHasAccess(video: VideoItem): boolean {

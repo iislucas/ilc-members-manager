@@ -110,9 +110,11 @@
                 <span>{{ vDate }}</span>
               </span>
             }
-            <span class="access-pill" [class]="getAccessTierBadge(feat).cssClass">
-              {{ getAccessTierBadge(feat).label }}
-            </span>
+            @if (getTopAccessTierBadge(feat); as heroBadge) {
+              <span class="access-pill" [class]="heroBadge.cssClass">
+                {{ heroBadge.label }}
+              </span>
+            }
           </div>
 
           <h2 class="hero-title">{{ feat.title }}</h2>
@@ -305,14 +307,16 @@
 
             <!-- Card Info -->
             <div class="card-info">
-              <div class="card-header-row">
-                <span
-                  class="access-tier-chip"
-                  [class]="getAccessTierBadge(video).cssClass"
-                >
-                  {{ getAccessTierBadge(video).label }}
-                </span>
-              </div>
+              @if (getTopAccessTierBadge(video); as topBadge) {
+                <div class="card-header-row">
+                  <span
+                    class="access-tier-chip"
+                    [class]="topBadge.cssClass"
+                  >
+                    {{ topBadge.label }}
+                  </span>
+                </div>
+              }
 
               <h4 class="card-title">{{ video.title }}</h4>
 
@@ -355,20 +359,22 @@
                     <app-icon name="play_arrow"></app-icon>
                     <span>Watch Now</span>
                   </span>
+                  <span class="access-tier-chip badge-purchased">Purchased</span>
                 } @else if (video.accessTier === 'public') {
                   <span class="access-cta watch-free">
                     <app-icon name="play_arrow"></app-icon>
                     <span>Watch Free</span>
                   </span>
                 } @else if (video.priceCents) {
-                  <span class="access-cta unlock-price">
+                  <span class="access-cta buy-cta">
                     <app-icon name="shopping_cart"></app-icon>
-                    <span>Unlock ${{ (video.priceCents / 100).toFixed(2) }}</span>
+                    <span>Buy</span>
                   </span>
+                  <span class="footer-price">${{ (video.priceCents / 100).toFixed(2) }}</span>
                 } @else {
                   <span class="access-cta locked">
                     <app-icon name="lock"></app-icon>
-                    <span>{{ getAccessTierBadge(video).label }}</span>
+                    <span>{{ getTopAccessTierBadge(video)?.label || 'Members Only' }}</span>
                   </span>
                 }
               </div>
@@ -381,7 +387,7 @@
         <app-icon name="video_library"></app-icon>
         @if (activeTab() === 'my-videos') {
           <h4>No videos purchased yet</h4>
-          <p>You have not purchased any on-demand videos. Browse the "Search &amp; Buy" catalog to unlock masterclasses.</p>
+          <p>You have not purchased any on-demand videos. Browse the "Search &amp; Buy" catalog to find masterclasses.</p>
           <button type="button" class="primary-btn" (click)="setTab('all')">
             Browse Buyable Videos
           </button>

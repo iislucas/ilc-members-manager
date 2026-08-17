@@ -69,13 +69,13 @@
               <div class="unlock-title">Enjoying the preview?</div>
               <div class="unlock-desc">
                 @if (isBuyable(v) && v.priceCents) {
-                  Unlock full lifetime on-demand streaming access to this recording.
+                  Buy on-demand lifetime streaming access to this recording.
                 } @else if (sessionState()?.reason === 'class_sub_required') {
                   Subscribe to the Class Video Library to access the full recording and weekly Saturday class archives.
                 } @else if (sessionState()?.reason === 'subscription_required') {
                   ILC Members enjoy full access to this masterclass recording.
                 } @else {
-                  Sign in or purchase to unlock the complete recording.
+                  Sign in or buy to access the complete recording.
                 }
               </div>
             </div>
@@ -138,7 +138,7 @@
                 @case ('subscription_required') {
                   <p>
                     This recording is accessible to active ILC Members.
-                    Join or renew your annual membership to unlock full access.
+                    Join or renew your annual membership to get full access.
                   </p>
                   <div class="lock-actions">
                     <a class="primary-btn" [href]="getMembershipHref()">Join / Renew Membership</a>
@@ -176,7 +176,7 @@
               @if (isBuyable(v) && v.priceCents) {
                 <div class="purchase-box-section">
                   <div class="or-divider"><span>OR</span></div>
-                  <p class="purchase-subtext">Unlock on-demand lifetime access to this masterclass recording:</p>
+                  <p class="purchase-subtext">Buy on-demand lifetime access to this masterclass recording:</p>
                   <div class="purchase-box">
                     <span class="price-tag">${{ (v.priceCents / 100).toFixed(2) }}</span>
                     <button
