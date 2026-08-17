@@ -436,6 +436,9 @@ export class VideosCatalogComponent implements OnInit {
   }
 
   getAccessTiersSummary(video: VideoItem): string {
+    const isMyVideosTab = this.activeTab() === 'my-videos';
+    const hasAccess = this.userHasAccess(video);
+
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers
       : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
@@ -446,14 +449,20 @@ export class VideosCatalogComponent implements OnInit {
     if (tiers.includes(VodAccessTier.InstructorsOnly)) labels.push('Instructors');
     if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) labels.push('Class Subs');
 
-    const isBuyable = Boolean(
-      video.isBuyable ||
-      tiers.includes(VodAccessTier.DirectPurchase) ||
-      (video.priceCents && video.priceCents > 0),
-    );
-    if (isBuyable) {
-      const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
-      labels.push(`Buy (${priceStr})`);
+    if (isMyVideosTab || hasAccess) {
+      if (labels.length === 0 || isMyVideosTab) {
+        labels.unshift('Purchased');
+      }
+    } else {
+      const isBuyable = Boolean(
+        video.isBuyable ||
+        tiers.includes(VodAccessTier.DirectPurchase) ||
+        (video.priceCents && video.priceCents > 0),
+      );
+      if (isBuyable) {
+        const priceStr = video.priceCents ? `$${(video.priceCents / 100).toFixed(2)}` : 'Paid';
+        labels.push(`Buy (${priceStr})`);
+      }
     }
 
     return labels.length > 0 ? labels.join(' • ') : 'Members Only';
@@ -463,9 +472,26 @@ export class VideosCatalogComponent implements OnInit {
     label: string;
     cssClass: string;
   } {
+    const isMyVideosTab = this.activeTab() === 'my-videos';
+    const hasAccess = this.userHasAccess(video);
+
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers
       : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
+
+    if (isMyVideosTab) {
+      return { label: 'Purchased', cssClass: 'badge-purchased' };
+    }
+
+    if (
+      hasAccess &&
+      !tiers.includes(VodAccessTier.Public) &&
+      !tiers.includes(VodAccessTier.MembersOnly) &&
+      !tiers.includes(VodAccessTier.InstructorsOnly) &&
+      !tiers.includes(VodAccessTier.ClassVideoSubscribers)
+    ) {
+      return { label: 'Purchased', cssClass: 'badge-purchased' };
+    }
 
     if (tiers.includes(VodAccessTier.Public)) {
       return { label: this.getAccessTiersSummary(video), cssClass: 'badge-public' };

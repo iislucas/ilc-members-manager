@@ -210,6 +210,17 @@ describe('VideosCatalogComponent', () => {
     const classBadge = component.getAccessTierBadge(classVideo);
     expect(classBadge.label).toBe('Class Subs');
     expect(classBadge.cssClass).toBe('badge-class');
+
+    const buyVideo = { ...initVideoItem(), docId: 'v1', isBuyable: true, priceCents: 4999, accessTier: VodAccessTier.DirectPurchase, accessTiers: [VodAccessTier.DirectPurchase] };
+    const buyBadge = component.getAccessTierBadge(buyVideo);
+    expect(buyBadge.label).toBe('Buy ($49.99)');
+    expect(buyBadge.cssClass).toBe('badge-purchase');
+
+    // On My Videos tab: should show Purchased
+    component.setTab('my-videos');
+    const myVideosBadge = component.getAccessTierBadge(buyVideo);
+    expect(myVideosBadge.label).toBe('Purchased');
+    expect(myVideosBadge.cssClass).toBe('badge-purchased');
   });
 
   it('should evaluate userHasAccess correctly', () => {
