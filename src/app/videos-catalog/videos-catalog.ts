@@ -13,10 +13,10 @@
 
 import {
   Component,
-  OnInit,
   inject,
   signal,
   computed,
+  effect,
   input,
   ChangeDetectionStrategy,
 } from '@angular/core';
@@ -50,10 +50,26 @@ export type CatalogMode = 'vod' | 'class_library' | 'auto';
   styleUrl: './videos-catalog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VideosCatalogComponent implements OnInit {
+export class VideosCatalogComponent {
   public dataService = inject(DataManagerService);
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
+
+  constructor() {
+    effect(async () => {
+      const user = this.firebaseState.user();
+      if (user?.member?.docId) {
+        try {
+          const progress = await this.dataService.getMyVideoProgressList();
+          this.continueWatchingList.set(progress);
+        } catch {
+          // Non-blocking
+        }
+      } else {
+        this.continueWatchingList.set([]);
+      }
+    });
+  }
 
   readonly Views = Views;
 
@@ -110,7 +126,15 @@ export class VideosCatalogComponent implements OnInit {
   instructorSearchInput = signal('');
   tagSearchInput = signal('');
   continueWatchingList = signal<VideoProgress[]>([]);
-  myVideoGrantIds = signal<Set<string>>(new Set());
+  myVideoGrantIds = computed<Set<string>>(() => {
+    const grants = this.dataService?.myVideoGrants?.entries?.() || [];
+    const set = new Set<string>();
+    for (const g of grants) {
+      if (g.videoId) set.add(g.videoId);
+      if (g.docId) set.add(g.docId);
+    }
+    return set;
+  });
 
   // Subscription state for Class Video Library
   todayDateString = new Date().toISOString().split('T')[0];
@@ -332,22 +356,6 @@ export class VideosCatalogComponent implements OnInit {
     const featured = list.find((v) => Boolean(v.featured));
     return featured || null;
   });
-
-  async ngOnInit(): Promise<void> {
-    if (this.firebaseState.user()?.member?.docId) {
-      try {
-        const [progress, grants] = await Promise.all([
-          this.dataService.getMyVideoProgressList(),
-          this.dataService.getMyVideoGrants(),
-        ]);
-        this.continueWatchingList.set(progress);
-        const grantSet = new Set(grants.map((g) => g.videoId || g.docId));
-        this.myVideoGrantIds.set(grantSet);
-      } catch {
-        // Non-blocking
-      }
-    }
-  }
 
   setTab(tab: 'all' | 'my-videos'): void {
     if (this.routingService.matchedPatternId() === Views.Videos) {

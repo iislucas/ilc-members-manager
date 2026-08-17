@@ -310,6 +310,10 @@ export class DataManagerService {
     ['orderNumber', 'description', 'orderType', 'date', 'currency'],
     'docId',
   );
+  public myVideoGrants = new SearchableSet<'docId', VideoGrant>(
+    ['videoId', 'videoTitle', 'orderId'],
+    'docId',
+  );
   public videos = new SearchableSet<'docId', VideoItem>(
     ['title', 'description', 'instructorName', 'tags', 'location', 'eventTitle'],
     'docId',
@@ -493,6 +497,16 @@ export class DataManagerService {
       }
     });
 
+    // Reactive effect for My Video Grants
+    effect(() => {
+      const user = this.firebaseService.user();
+      if (user?.member?.docId) {
+        this.listenToMemberVideoGrants(user.member.docId);
+      } else {
+        this.listenToMemberVideoGrants('');
+      }
+    });
+
     // Reactive effect for System Video Tags
     effect(() => {
       const docMap = this.tagsDoc();
@@ -520,6 +534,7 @@ export class DataManagerService {
   }
 
   private myOrdersUnsubscribe: (() => void) | null = null;
+  private myVideoGrantsUnsubscribe: (() => void) | null = null;
 
   public listenToMemberOrders(memberDocId: string) {
     if (this.myOrdersUnsubscribe) {
@@ -553,6 +568,37 @@ export class DataManagerService {
     );
   }
 
+  public listenToMemberVideoGrants(memberDocId: string) {
+    if (this.myVideoGrantsUnsubscribe) {
+      this.myVideoGrantsUnsubscribe();
+      this.myVideoGrantsUnsubscribe = null;
+    }
+
+    if (!memberDocId) {
+      this.myVideoGrants.setEntries([]);
+      return;
+    }
+
+    const grantsSubcollection = collection(
+      this.db,
+      'members',
+      memberDocId,
+      'videoGrants',
+    );
+
+    this.myVideoGrantsUnsubscribe = onSnapshot(
+      grantsSubcollection,
+      (snapshot) => {
+        const grants = snapshot.docs.map(firestoreDocToVideoGrant);
+        this.myVideoGrants.setEntries(grants);
+      },
+      (error) => {
+        console.error('Error listening to member video grants:', error);
+        this.myVideoGrants.setError(error.message);
+      },
+    );
+  }
+
   unsubscribeSnapshots() {
     this.snapshotsToUnsubscribe.forEach((unsubscribe) => unsubscribe());
     this.snapshotsToUnsubscribe = [];
@@ -563,6 +609,10 @@ export class DataManagerService {
     if (this.myOrdersUnsubscribe) {
       this.myOrdersUnsubscribe();
       this.myOrdersUnsubscribe = null;
+    }
+    if (this.myVideoGrantsUnsubscribe) {
+      this.myVideoGrantsUnsubscribe();
+      this.myVideoGrantsUnsubscribe = null;
     }
     if (this.gradingsUnsubscribe) {
       this.gradingsUnsubscribe();

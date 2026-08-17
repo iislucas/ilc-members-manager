@@ -118,6 +118,9 @@ describe('VideosCatalogComponent', () => {
         search: vi.fn().mockReturnValue([]),
         uniqueEntries: vi.fn().mockReturnValue([]),
       },
+      myVideoGrants: {
+        entries: signal([]),
+      },
       getMyVideoProgressList: vi.fn().mockResolvedValue([]),
       getMyVideoGrants: vi.fn().mockResolvedValue([]),
       getTagMeta: vi.fn().mockReturnValue(null),
@@ -237,7 +240,7 @@ describe('VideosCatalogComponent', () => {
         docId: 'm1',
       },
     });
-    component.myVideoGrantIds.set(new Set(['v2']));
+    mockDataService.myVideoGrants.entries.set([{ docId: 'v2', videoId: 'v2' } as any]);
     const grantedVideo = { ...initVideoItem(), docId: 'v2', accessTier: VodAccessTier.DirectPurchase };
     expect(component.userHasAccess(grantedVideo)).toBe(true);
   });
@@ -262,7 +265,10 @@ describe('VideosCatalogComponent', () => {
     expect(component.myVideosTabLabel()).toBe('My Videos');
 
     // Grant v2 (buyable) and v3 (class video)
-    component.myVideoGrantIds.set(new Set(['v2', 'v3']));
+    mockDataService.myVideoGrants.entries.set([
+      { docId: 'v2', videoId: 'v2' } as any,
+      { docId: 'v3', videoId: 'v3' } as any,
+    ]);
 
     // v2 is purchased, but v3 is a pure class video library item and should be excluded from purchased count
     expect(component.myPurchasedVideosCount()).toBe(1);
