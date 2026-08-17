@@ -573,18 +573,36 @@ A dedicated management console to monitor transcoding pipelines, edit catalog me
 
 ---
 
-## 9. Public Video Catalog & Browse Page (`/videos`)
+## 9. Public Video Catalog, Class Video Library & Browse Pages
 
-### 9.1 Features & Layout
-1. **Hero Spotlight**: Large video banner showing the featured seminar/technique recording with instant playback or trailer view.
-2. **"Continue Watching" Carousel**: Real-time row for logged-in members showing their in-progress videos with percentage bars and 1-click resume.
-3. **Filter & Search Toolbar**:
-   - **Search Bar**: Instant client-side search indexing title, description, tags, instructor name, and location.
-   - **Category Tabs**: *All*, *Seminars*, *Technique Breakdowns*, *Grading Preparation*, *Form Demonstrations*, *Class Archive*.
-   - **Tag Chips**: Filter by popular tags (`#spinning-hands`, `#sticky-hands`, `#level-3`, `#applications`).
-   - **Access Tier Filter**: *All*, *Free / Public*, *Included in My Plan*, *Class Library*, *Purchasable*.
-   - **Instructor Filter**: Dropdown/autocomplete of featured instructors.
-4. **Video Grid Cards**:
+The streaming platform provides two distinct, tailored browse experiences sharing a unified high-performance catalog component (`VideosCatalogComponent`):
+
+```mermaid
+graph TD
+    A[VideosCatalogComponent] -->|mode='vod'| B["Video on Demand (/videos)"]
+    A -->|mode='class_library'| C["Class Video Library (/class-video-library)"]
+
+    B --> B1["Tab: 'Search & Buy' (tab=all) - Purchasable VOD"]
+    B --> B2["Tab: 'My Videos' (tab=my-videos) - Member's Unlocked Content"]
+
+    C --> C1["Filtered: Class Video Subscribers Tier"]
+    C --> C2["Sorted: Recorded Date (Newest Saturday Classes First)"]
+    C --> C3["Subscription Status: Active Expiry or Subscription Callout"]
+```
+
+### 9.1 Video on Demand Hub (`/videos`)
+1. **Top-Level Pill-Bar Tabs**:
+   - **`Search & Buy`** (`tab=all`): Displays all purchasable VOD items with prices and buy buttons.
+   - **`My Videos`** (`tab=my-videos`): Filtered view showing only videos the member has access to (via direct purchase video grants, active membership, instructor license, or class subscription).
+2. **Hero Spotlight**: Large video banner spotlighting the featured masterclass recording with instant playback or trailer view.
+3. **"Continue Watching" Carousel**: Real-time row for logged-in members showing their in-progress videos with percentage bars and 1-click resume.
+4. **Filter, Search & Sort Toolbar**:
+   - **Search Bar**: Instant fuzzy search across title, description, tags, instructor name, and location.
+   - **Tag Chips & Autocomplete**: Filter by tags (`#spinning-hands`, `#sticky-hands`, `#level-3`, `#applications`).
+   - **Instructor Filter**: Autocomplete selector for instructor masterclasses.
+   - **Sort Dropdown**: Sort by `Recorded Date`, `Title`, `Duration`, or `Price` with ascending/descending toggle.
+5. **Standalone Trailers Excluded**: Videos flagged with `isTrailer: true` are hidden from the catalog list and linked directly within parent video entries (`trailerVideoId`).
+6. **Video Grid Cards**:
    - High-res thumbnail with duration badge (`1h 24m`) and resolution badge (`1080p HD`).
    - Category pill and date/location tags.
    - Dynamic Call-to-Action / Status Badge:
@@ -592,10 +610,20 @@ A dedicated management console to monitor transcoding pipelines, edit catalog me
      - **"Members Only — Join to Watch"** (Links to membership checkout).
      - **"Class Video Subscribers — Subscribe"** (Links to Class Library subscription).
      - **"Unlock for $15.00"** (Launches Stripe one-off checkout).
-5. **Video Detail / Watch Page (`/videos/:id`)**:
-   - Theater mode with `<app-video-player>`.
-   - Chapter timestamps (clicking a timestamp seeks the player directly).
-   - Instructor biography card and related video recommendations.
+### 9.2 Dedicated Class Video Library Page (`/class-video-library`)
+1. **Curated Class Archives**: Pre-filtered to Saturday online class recordings (`VodAccessTier.ClassVideoSubscribers`).
+2. **Chronological Sorting**: Default sort is by `recordedDate` descending (newest Saturday classes first).
+3. **Subscription Status Card**:
+   - For active subscribers: Displays active subscription badge with renewal/expiration date and link to manage orders.
+   - For non-subscribers: Displays a prominent subscription callout banner linking to `/class-video-library-subscription`.
+
+### 9.3 Video Detail, Trailer Playback & Stripe Purchase (`/videos/:id`)
+1. **Dual Playback Modes**:
+   - **Unauthorized Viewers with Trailer**: If the user is unauthorized for the full video and a trailer exists (`trailerVideoId` / `trailerManifestUrl`), the player automatically loads and streams the trailer preview, displaying a `🎬 Preview Trailer` banner and a prominent `Buy Full Video ($XX.XX)` button.
+   - **Authorized Viewers**: Plays the full video by default and provides a mode switcher (`[ ▶ Full Video ]` / `[ 🎬 Watch Trailer ]`) so the trailer can still be watched at any time.
+   - **Unauthorized Viewers without Trailer**: Shows locked screen gating card with purchase/subscribe actions.
+2. **Instant Stripe Checkout**: Direct checkout session with `videoId` and `orderType: 'vod'` in metadata, redirecting the user back to the video page for immediate unlock upon webhook fulfillment.
+3. **Smart Breadcrumb**: Dynamically routes back to `Class Video Library` for Saturday class recordings, or `Video Catalog` for general VOD recordings.
 
 ---
 
@@ -977,3 +1005,29 @@ gantt
 2. Build the Public Video Catalog (`/videos`) with instant text search, tag filtering, category navigation, and dynamic call-to-action badges (*"Watch Now"*, *"Included in Membership"*, *"Subscribe"*, *"Unlock for $15"*).
 3. Connect real-time playback position sync to `/members/{id}/videoProgress/{videoId}`.
 4. Verify all flows with Vitest unit tests and Firestore emulator security rule tests.
+
+---
+
+## 13. Stripe Product & Price Synchronization CLI Tool
+
+To automate the creation and synchronization of Stripe Products and Prices for purchasable VOD items, an idempotent CLI tool is available:
+
+```bash
+# Dry run: check which videos will have products/prices created or verified
+pnpm sync:video-products -- --dry-run
+
+# Sync test mode Stripe products for all purchasable videos:
+pnpm sync:video-products
+
+# Target a specific video ID:
+pnpm sync:video-products -- --videoId vimeo_1189216257
+
+# Run in live mode with explicit GCP project:
+pnpm sync:video-products -- --live --project ilc-paris-class-tracker
+```
+
+### Key Behaviors:
+- **Filtering**: Automatically scans Firestore `/videos` for published videos where `priceCents > 0` or `isBuyable === true` or `direct_purchase` tier is active, excluding standalone trailers (`!isTrailer`).
+- **Idempotency**: Searches Stripe for existing active products matching `metadata['videoId']` or `stripeProductId`, and active matching one-time prices.
+- **Database Linking**: Updates `stripeProductId` and `stripePriceId` back onto the Firestore `/videos/{videoId}` document.
+
