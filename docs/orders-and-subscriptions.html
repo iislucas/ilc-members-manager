@@ -566,12 +566,13 @@
         <a href="#journey-cancellation" class="nav-link">9. Auto-Renewal Cancellation</a>
         <a href="#journey-resumption" class="nav-link">10. Auto-Renewal Resumption</a>
         <a href="#journey-portal" class="nav-link">11. Stripe Customer Portal</a>
+        <a href="#journey-vod" class="nav-link">12. Video on Demand (VOD) & Video Grants</a>
       </div>
 
       <div class="nav-group">
         <div class="nav-heading">Security & Reference</div>
-        <a href="#security-rules" class="nav-link">12. Security & Authorization</a>
-        <a href="#code-map" class="nav-link">13. Source Code Reference Map</a>
+        <a href="#security-rules" class="nav-link">13. Security & Authorization</a>
+        <a href="#code-map" class="nav-link">14. Source Code Reference Map</a>
       </div>
     </nav>
 
@@ -583,7 +584,7 @@
         <h1 class="hero-title">Orders & Subscriptions</h1>
         <p class="hero-lead">
           Comprehensive documentation of the ILC Members Manager self-service orders and subscriptions system,
-          Stripe billing integration, Firestore data mirroring, and automated webhook fulfillment engine.
+          Stripe billing integration, Video-on-Demand (VOD) streaming access control, Firestore data mirroring, and automated webhook fulfillment engine.
         </p>
       </header>
 
@@ -592,12 +593,13 @@
         <h2>1. System Overview</h2>
         <p>
           The Orders and Subscriptions subsystem empowers I Liq Chuan members to manage their memberships, instructor licenses,
-          and digital video subscriptions directly through the <strong>Me</strong> tab (<code>/my-orders</code>).
+          Class Video Library passes, and standalone Video on Demand (VOD) purchases directly through the <strong>Me</strong> tab (<code>/my-orders</code>)
+          and public video catalog (<code>/videos</code>).
           The architecture transitions manual and third-party renewals into an automated, self-service Stripe ecosystem
           while maintaining complete historical compatibility with legacy Squarespace orders and Google Sheets imports.
         </p>
 
-        <div class="grid-3">
+        <div class="grid-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
           <div class="card">
             <div class="card-title">
               <span>Member Self-Service</span>
@@ -628,6 +630,17 @@
             <div class="card-subtitle">Subcollections & Fast Summaries</div>
             <p style="font-size: 0.85rem; margin: 0;">
               Dual-layer storage: member document summary for synchronous client routing, plus private subcollection for granular order history.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>VOD & Video Grants</span>
+              <span class="badge badge-accent">Streaming</span>
+            </div>
+            <div class="card-subtitle">Subscriptions & Standalone Buys</div>
+            <p style="font-size: 0.85rem; margin: 0;">
+              Dual access models: all-inclusive Class Video Library subscriptions plus standalone Stripe purchases creating durable <code>VideoGrant</code> records.
             </p>
           </div>
         </div>
@@ -789,6 +802,7 @@
           <button class="tab-btn" onclick="switchTab(event, 'tab-member')">Member Document</button>
           <button class="tab-btn" onclick="switchTab(event, 'tab-order')">MemberOrder Document</button>
           <button class="tab-btn" onclick="switchTab(event, 'tab-sub-item')">MemberSubscriptionItem</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-vod')">VOD &amp; Video Grants</button>
         </div>
 
         <!-- Tab 1: Enums -->
@@ -796,7 +810,7 @@
           <div class="grid-2">
             <div class="card">
               <div class="card-title">
-                <span>Order Categories & Statuses</span>
+                <span>Order Categories &amp; Statuses</span>
                 <span class="badge badge-purple">data-model.ts</span>
               </div>
               <pre><code><span class="code-keyword">export enum</span> <span class="code-type">OrderItemCategory</span> {
@@ -804,6 +818,7 @@
   InstructorLicense = <span class="code-string">'instructor_license'</span>,
   Grading = <span class="code-string">'grading'</span>,
   VideoLibrary = <span class="code-string">'video_library'</span>,
+  Vod = <span class="code-string">'vod'</span>,                     <span class="code-comment">// Direct one-off video purchase</span>
   Event = <span class="code-string">'event'</span>,
   Other = <span class="code-string">'other'</span>,
 }
@@ -824,20 +839,22 @@
 
             <div class="card">
               <div class="card-title">
-                <span>Payment & Fulfillment Enums</span>
+                <span>Payment &amp; VOD Enums</span>
                 <span class="badge badge-purple">data-model.ts</span>
               </div>
-              <pre><code><span class="code-keyword">export enum</span> <span class="code-type">MemberOrderPaymentStatus</span> {
-  Paid = <span class="code-string">'paid'</span>,
-  Unpaid = <span class="code-string">'unpaid'</span>,
-  NoPaymentRequired = <span class="code-string">'no_payment_required'</span>,
-  Refunded = <span class="code-string">'refunded'</span>,
+              <pre><code><span class="code-keyword">export enum</span> <span class="code-type">VodAccessTier</span> {
+  Public = <span class="code-string">'public'</span>,
+  MembersOnly = <span class="code-string">'members_only'</span>,
+  InstructorsOnly = <span class="code-string">'instructors_only'</span>,
+  ClassVideoSubscribers = <span class="code-string">'class_video_subscribers'</span>,
+  DirectPurchase = <span class="code-string">'direct_purchase'</span>,
 }
 
-<span class="code-keyword">export enum</span> <span class="code-type">MemberOrderFulfillmentStatus</span> {
-  Fulfilled = <span class="code-string">'fulfilled'</span>,
-  Pending = <span class="code-string">'pending'</span>,
-  Cancelled = <span class="code-string">'cancelled'</span>,
+<span class="code-keyword">export enum</span> <span class="code-type">VideoGrantKind</span> {
+  StripePurchase = <span class="code-string">'stripe_purchase'</span>,
+  AdminGrant = <span class="code-string">'admin_grant'</span>,
+  SubscriptionIncluded = <span class="code-string">'subscription_included'</span>,
+  Promotion = <span class="code-string">'promotion'</span>,
 }
 
 <span class="code-keyword">export enum</span> <span class="code-type">SubscriptionStatus</span> {
@@ -846,7 +863,6 @@
   PastDue = <span class="code-string">'past_due'</span>,
   Canceled = <span class="code-string">'canceled'</span>,
   Unpaid = <span class="code-string">'unpaid'</span>,
-  Incomplete = <span class="code-string">'incomplete'</span>,
 }</code></pre>
             </div>
           </div>
@@ -860,27 +876,28 @@
   name: <span class="code-type">string</span>;
   emails: <span class="code-type">string</span>[];
 
-  <span class="code-comment">// Stripe Integration</span>
+  <span class="code-comment">// Stripe Customer Integration</span>
   stripeCustomerId: <span class="code-type">string</span>; <span class="code-comment">// e.g. 'cus_...'</span>
 
-  <span class="code-comment">// Membership & Renewals</span>
+  <span class="code-comment">// Membership &amp; Renewals</span>
   membershipType: <span class="code-type">MembershipType</span>;
   currentMembershipExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (access expiration)</span>
   membershipNextAutoRenewDate: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD or '' (empty if cancelled/off)</span>
   membershipSubscriptionId: <span class="code-type">string</span>;      <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
-  <span class="code-comment">// Instructor License & Renewals</span>
+  <span class="code-comment">// Instructor License &amp; Renewals</span>
   instructorId: <span class="code-type">string</span>;
   instructorLicenseType: <span class="code-type">InstructorLicenseType</span>;
   instructorLicenseExpires: <span class="code-type">string</span>;      <span class="code-comment">// YYYY-MM-DD (license expiration)</span>
   instructorLicenseNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
   instructorLicenseSubscriptionId: <span class="code-type">string</span>;  <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
-  <span class="code-comment">// Class Video Library</span>
+  <span class="code-comment">// Class Video Library Subscription</span>
   classVideoLibrarySubscription: <span class="code-type">boolean</span>;
-  classVideoLibraryExpirationDate: <span class="code-type">string</span>;  <span class="code-comment">// YYYY-MM-DD (video access expiration)</span>
+  classVideoLibraryLastRenewalDate: <span class="code-type">string</span>;  <span class="code-comment">// YYYY-MM-DD</span>
+  classVideoLibraryExpirationDate: <span class="code-type">string</span>;   <span class="code-comment">// YYYY-MM-DD (video access expiration)</span>
   classVideoLibraryNextAutoRenewDate: <span class="code-type">string</span>; <span class="code-comment">// YYYY-MM-DD or ''</span>
-  classVideoLibrarySubscriptionId: <span class="code-type">string</span>;  <span class="code-comment">// Active Stripe sub_... ID or ''</span>
+  classVideoLibrarySubscriptionId: <span class="code-type">string</span>;   <span class="code-comment">// Active Stripe sub_... ID or ''</span>
 
   <span class="code-comment">// Full Subscriptions Map (keyed by subscriptionId)</span>
   stripeSubscriptions?: <span class="code-type">Record</span>&lt;<span class="code-type">string</span>, <span class="code-type">MemberSubscriptionItem</span>&gt;;
@@ -938,6 +955,49 @@
   stripePriceId?: <span class="code-type">string</span>;
   stripeProductId?: <span class="code-type">string</span>;
 }</code></pre>
+        </div>
+
+        <!-- Tab 5: VOD & Video Grants -->
+        <div id="tab-vod" class="tab-pane">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">
+                <span>VideoGrant Schema</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
+  videoId: <span class="code-type">string</span>;              <span class="code-comment">// Matches VideoItem docId</span>
+  memberDocId: <span class="code-type">string</span>;          <span class="code-comment">// Member Firestore ID</span>
+  memberEmail: <span class="code-type">string</span>;
+  grantKind: <span class="code-type">VideoGrantKind</span>;    <span class="code-comment">// StripePurchase, AdminGrant</span>
+  orderDocId?: <span class="code-type">string</span>;          <span class="code-comment">// Linked order in /orders</span>
+  stripeSessionId?: <span class="code-type">string</span>;     <span class="code-comment">// Stripe checkout session</span>
+  amountPaidCents?: <span class="code-type">number</span>;
+  grantedAt: <span class="code-type">string</span>;            <span class="code-comment">// ISO timestamp</span>
+  expiresAt?: <span class="code-type">string</span>;           <span class="code-comment">// ISO timestamp (or undefined for lifetime)</span>
+};</code></pre>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>VideoItem Catalog Schema</span>
+                <span class="badge badge-purple">data-model.ts</span>
+              </div>
+              <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoItem</span> = {
+  docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches uploadDocId</span>
+  title: <span class="code-type">string</span>;
+  accessTiers: <span class="code-type">VodAccessTier</span>[]; <span class="code-comment">// [MembersOnly, ClassVideoSubscribers, ...]</span>
+  isBuyable: <span class="code-type">boolean</span>;           <span class="code-comment">// Standalone purchase enabled</span>
+  priceCents?: <span class="code-type">number</span>;          <span class="code-comment">// e.g. 2500 ($25.00)</span>
+  stripeProductId?: <span class="code-type">string</span>;
+  stripePriceId?: <span class="code-type">string</span>;
+  vodStatus: <span class="code-type">VodStatus</span>;         <span class="code-comment">// Ready, Transcoding, Queued</span>
+  manifestUrl: <span class="code-type">string</span>;          <span class="code-comment">// gs:// or HLS master playlist URL</span>
+  durationSeconds: <span class="code-type">number</span>;
+};</code></pre>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1016,22 +1076,45 @@
 │   │   ├── currentMembershipExpires: "2027-05-15"
 │   │   ├── membershipNextAutoRenewDate: "2027-05-15"
 │   │   ├── membershipSubscriptionId: "sub_1001"
+│   │   ├── classVideoLibrarySubscription: true
+│   │   ├── classVideoLibraryExpirationDate: "2027-05-15"
 │   │   └── stripeSubscriptions: { "sub_1001": { ... } }
 │   │
-│   └── /orders/{orderDocId}                   <span class="code-comment">&lt;-- Subcollection: Private to memberDocId</span>
-│           ├── docId: "order_stripe_in_101"
-│           ├── orderDocId: "order_stripe_in_101"
-│           ├── orderKind: "stripe"
-│           ├── orderType: "renewal"
-│           ├── amountTotal: 8500
-│           ├── date: "2026-05-15"
-│           └── lineItems: [...]
+│   ├── /orders/{orderDocId}                   <span class="code-comment">&lt;-- Subcollection: Private order history for member</span>
+│   │       ├── docId: "order_stripe_in_101"
+│   │       ├── orderDocId: "order_stripe_in_101"
+│   │       ├── orderKind: "stripe"
+│   │       ├── amountTotal: 8500
+│   │       └── lineItems: [...]
+│   │
+│   ├── /videoGrants/{videoId}                 <span class="code-comment">&lt;-- Subcollection: Purchased/granted standalone videos</span>
+│   │       ├── videoId: "vod_seminar_2026"
+│   │       ├── grantKind: "stripe_purchase"
+│   │       ├── orderDocId: "order_stripe_in_102"
+│   │       └── grantedAt: "2026-08-15T12:00:00Z"
+│   │
+│   └── /videoProgress/{videoId}               <span class="code-comment">&lt;-- Subcollection: Playback position &amp; watch resume</span>
+│           ├── positionSeconds: 1420
+│           ├── durationSeconds: 3600
+│           └── lastWatchedAt: "2026-08-16T19:30:00Z"
 │
 ├── /orders/{orderDocId}                       <span class="code-comment">&lt;-- Global Orders Store (Admin only)</span>
 │       ├── docId: "order_stripe_in_101"
 │       ├── memberDocId: "mem_abc123"
-│       ├── ilcAppOrderStatus: "processed"
-│       └── ...
+│       └── ilcAppOrderStatus: "processed"
+│
+├── /video_grants/{memberDocId_videoId}        <span class="code-comment">&lt;-- Global Indexed Grants (Fast lookup for gating)</span>
+│       ├── videoId: "vod_seminar_2026"
+│       ├── memberEmail: "bruce@example.com"
+│       └── grantKind: "stripe_purchase"
+│
+├── /videos/{videoId}                          <span class="code-comment">&lt;-- Public Video Catalog Metadata</span>
+│       ├── title: "2026 International Seminar Day 1"
+│       ├── accessTiers: ["class_video_subscribers", "direct_purchase"]
+│       ├── isBuyable: true
+│       ├── priceCents: 2500
+│       ├── stripePriceId: "price_vod_101"
+│       └── vodStatus: "ready"
 │
 └── /gradings/{gradingDocId}                   <span class="code-comment">&lt;-- Auto-created on Grading checkout</span>
         ├── memberDocId: "mem_abc123"
@@ -1060,11 +1143,13 @@
             <tbody>
               <tr>
                 <td><code>checkout.session.completed</code></td>
-                <td>Initial product purchase or first-time subscription</td>
+                <td>Initial product purchase, first-time subscription, or standalone VOD purchase</td>
                 <td>
                   1. Upserts <code>/orders/{orderDocId}</code> and mirrors to <code>/members/{memberDocId}/orders/{orderDocId}</code>.<br>
-                  2. Invokes appropriate product fulfillment handler.<br>
-                  3. If grading purchased: creates <code>/gradings/{docId}</code> and links to member.
+                  2. Invokes appropriate product fulfillment handler in <code>stripe-fulfillment.ts</code>.<br>
+                  3. If membership / instructor / class video library: extends dates &amp; records subscription.<br>
+                  4. If grading purchased: creates <code>/gradings/{docId}</code> and links to member.<br>
+                  5. If VOD purchased (<code>category === 'vod'</code> or <code>metadata.videoId</code>): creates <code>VideoGrant</code> in <code>/members/{memberDocId}/videoGrants/{videoId}</code> and mirrors to <code>/video_grants/</code>.
                 </td>
               </tr>
               <tr>
@@ -1302,9 +1387,113 @@
         </div>
       </section>
 
-      <!-- Section 12: Security & Rules -->
+      <!-- Section 12: Video on Demand (VOD) & Video Grants -->
+      <section id="journey-vod">
+        <h2>12. Video on Demand (VOD) &amp; Streaming Grants Flow</h2>
+        <p>
+          The platform integrates digital video monetization through two complementary access models:
+          <strong>All-Access Class Video Library Subscriptions</strong> and <strong>Direct Single-Video Grants</strong>.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>Class Video Library Subscription</span>
+              <span class="badge badge-purple">Recurring Sub</span>
+            </div>
+            <p style="font-size: 0.9rem; line-height: 1.5; margin: 8px 0;">
+              A recurring monthly or annual subscription (<code>SubscriptionItemType.VideoLibrary</code>) unlocking streaming access to the entire recorded class archive.
+            </p>
+            <ul style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 1.2rem;">
+              <li>Managed via <code>member.classVideoLibrarySubscription</code></li>
+              <li>Auto-extended on <code>invoice.paid</code> webhook</li>
+              <li>Cancels cleanly at period end while preserving access</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>Direct Video Purchases &amp; Grants</span>
+              <span class="badge badge-accent">One-Time Grant</span>
+            </div>
+            <p style="font-size: 0.9rem; line-height: 1.5; margin: 8px 0;">
+              Standalone Stripe purchase (<code>OrderItemCategory.Vod</code>) or admin grant providing permanent or time-bound access to individual premium seminar recordings.
+            </p>
+            <ul style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 1.2rem;">
+              <li>Persisted as <code>VideoGrant</code> in <code>/members/{id}/videoGrants/{videoId}</code></li>
+              <li>Indexed globally in <code>/video_grants/{memberDocId_videoId}</code></li>
+              <li>Permits non-members and non-subscribers to buy standalone videos</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="diagram-container" style="margin-top: 24px;">
+          <div class="diagram-header">
+            <div class="diagram-title">Playback Session Authorization Cascade (getVideoPlaybackSession)</div>
+            <span class="badge badge-success">Security Cascade</span>
+          </div>
+
+          <pre><code>User requests playback -> Client calls getVideoPlaybackSession({ videoId })
+│
+├── 1. Admin Verification: member.isAdmin == true?
+│       └── YES -> Grant Full Streaming Access
+│
+├── 2. Public Tier: video.accessTiers.includes('public')?
+│       └── YES -> Grant Full Streaming Access
+│
+├── 3. Individual Video Grant: /members/{id}/videoGrants/{videoId} exists &amp; active?
+│       └── YES -> Grant Full Streaming Access (Overrides membership/subscription requirements)
+│
+├── 4. Instructor License: accessTiers.includes('instructors_only') &amp;&amp; instructorLicenseExpires &gt;= today?
+│       └── YES -> Grant Full Streaming Access
+│
+├── 5. Active Membership: accessTiers.includes('members_only') &amp;&amp; currentMembershipExpires &gt;= today?
+│       └── YES -> Grant Full Streaming Access
+│
+├── 6. Class Video Subscriber: accessTiers.includes('class_video_subscribers') &amp;&amp; classVideoLibrarySubscription?
+│       └── YES -> Grant Full Streaming Access
+│
+└── 7. Denied -> Return { authorized: false, reason: 'purchase_required' | 'class_sub_required', priceCents, stripePriceId }
+        └── Client displays dynamic CTA: "Unlock Video for $25" or "Subscribe to Class Library"</code></pre>
+        </div>
+
+        <div class="journey-step" style="margin-top: 24px;">
+          <div class="journey-marker">1</div>
+          <div class="journey-content">
+            <strong>Catalog Browsing &amp; Dynamic Entitlement Badging</strong>
+            <p>
+              Visitors browse the public catalog at <code>/videos</code>. The client compares the video's <code>accessTiers</code> against the user's active membership and grants:
+              rendering <strong>"Watch Now"</strong> for authorized videos, <strong>"Included in Class Library"</strong> for subscribers, or <strong>"Unlock for $X"</strong> for buyable titles.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">2</div>
+          <div class="journey-content">
+            <strong>One-Click Checkout &amp; Instant Webhook Grant</strong>
+            <p>
+              Clicking "Unlock" launches a Stripe Checkout session with <code>metadata.videoId</code>. Upon completion, <code>stripeWebhook</code> calls <code>fulfillOrder()</code>:
+              instantiating a typed <code>VideoGrant</code>, recording the order in <code>/members/{id}/orders</code>, and immediately unlocking playback.
+            </p>
+          </div>
+        </div>
+
+        <div class="journey-step">
+          <div class="journey-marker">3</div>
+          <div class="journey-content">
+            <strong>Adaptive HLS Playback &amp; Position Synchronization</strong>
+            <p>
+              The Angular <code>&lt;app-video-player&gt;</code> streams multi-bitrate HLS (1080p, 720p, 480p, 360p) via Hls.js with thumbnail scrub previews.
+              Every 5 seconds, watch progress is saved to <code>/members/{id}/videoProgress/{videoId}</code> for seamless "Continue Watching" across devices.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 13: Security & Rules -->
       <section id="security-rules">
-        <h2>12. Security &amp; Authorization Architecture</h2>
+        <h2>13. Security &amp; Authorization Architecture</h2>
         <p>
           The system implements defense-in-depth across Firestore Security Rules and Cloud Function authorization layers.
         </p>
@@ -1315,46 +1504,49 @@
               <span>Firestore Security Rules</span>
               <span class="badge badge-success">firestore.rules</span>
             </div>
-            <pre><code><span class="code-comment">// Private member subcollection</span>
+            <pre><code><span class="code-comment">// Private member subcollections</span>
 <span class="code-keyword">match</span> /members/{memberDocId}/orders/{orderDocId} {
-  <span class="code-keyword">function</span> isOrderOwner() {
-    <span class="code-keyword">return</span> (request.auth.token.email <span class="code-keyword">in</span> 
-            get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
-           (memberDocId <span class="code-keyword">in</span> getUserMemberDocIds());
-  }
-
-  <span class="code-comment">// Members read their own; Admins read all</span>
   <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isOrderOwner() || isAdmin();
-
-  <span class="code-comment">// Direct client writes prohibited</span>
   <span class="code-keyword">allow write</span>: <span class="code-keyword">if</span> isAdmin();
+}
+
+<span class="code-keyword">match</span> /members/{memberDocId}/videoGrants/{grantId} {
+  <span class="code-keyword">allow read</span>: <span class="code-keyword">if</span> isMemberOwner(memberDocId) || isAdmin();
+  <span class="code-keyword">allow write</span>: <span class="code-keyword">if</span> isAdmin();
+}
+
+<span class="code-keyword">match</span> /members/{memberDocId}/videoProgress/{videoId} {
+  <span class="code-keyword">allow read, write</span>: <span class="code-keyword">if</span> isMemberOwner(memberDocId) || isAdmin();
 }</code></pre>
           </div>
 
           <div class="card">
             <div class="card-title">
               <span>Callable Function Ownership Guards</span>
-              <span class="badge badge-purple">stripe-subscriptions.ts</span>
+              <span class="badge badge-purple">stripe-subscriptions.ts &amp; get-playback-session.ts</span>
             </div>
-            <pre><code><span class="code-comment">// Verification in Cloud Functions</span>
+            <pre><code><span class="code-comment">// Playback session verification in Cloud Functions</span>
 <span class="code-keyword">const</span> callerEmail = request.auth?.token.email;
-<span class="code-keyword">const</span> memberDoc = <span class="code-keyword">await</span> getMemberByEmail(callerEmail);
+<span class="code-keyword">const</span> member = <span class="code-keyword">await</span> getMemberByEmail(callerEmail, db);
 
-<span class="code-keyword">if</span> (!memberDoc || memberDoc.stripeCustomerId !== sub.customer) {
-  <span class="code-keyword">if</span> (!isAdmin(callerEmail)) {
-    <span class="code-keyword">throw new</span> HttpsError(
-      <span class="code-string">'permission-denied'</span>,
-      <span class="code-string">'You do not own this subscription.'</span>
-    );
-  }
+<span class="code-comment">// Verify explicit grant in member subcollection</span>
+<span class="code-keyword">const</span> grantSnap = <span class="code-keyword">await</span> db
+  .collection(<span class="code-string">'members'</span>)
+  .doc(member.docId)
+  .collection(<span class="code-string">'videoGrants'</span>)
+  .doc(video.docId)
+  .get();
+
+<span class="code-keyword">if</span> (grantSnap.exists) {
+  <span class="code-keyword">return</span> { authorized: <span class="code-keyword">true</span>, manifestUrl: video.manifestUrl };
 }</code></pre>
           </div>
         </div>
       </section>
 
-      <!-- Section 13: Source Code Map -->
+      <!-- Section 14: Source Code Map -->
       <section id="code-map">
-        <h2>13. Source Code Reference Map</h2>
+        <h2>14. Source Code Reference Map</h2>
         <div class="table-container">
           <table>
             <thead>
@@ -1368,7 +1560,7 @@
               <tr>
                 <td><code>functions/src/data-model.ts</code></td>
                 <td>Data Model</td>
-                <td>Definitions for <code>Member</code>, <code>MemberOrder</code>, <code>MemberSubscriptionItem</code>, and all TypeScript enums.</td>
+                <td>Definitions for <code>Member</code>, <code>MemberOrder</code>, <code>VideoGrant</code>, <code>VideoItem</code>, and all TypeScript enums.</td>
               </tr>
               <tr>
                 <td><code>functions/src/stripe-subscriptions.ts</code></td>
@@ -1383,7 +1575,12 @@
               <tr>
                 <td><code>functions/src/stripe-fulfillment.ts</code></td>
                 <td>Functions</td>
-                <td>Business fulfillment logic for memberships, instructor licenses, class video libraries, and gradings.</td>
+                <td>Business fulfillment logic for memberships, instructor licenses, class video libraries, gradings, and <code>VideoGrant</code> provisioning.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/vod/get-playback-session.ts</code></td>
+                <td>Functions</td>
+                <td>Callable function evaluating 7-tier playback authorization cascade and returning HLS stream URLs.</td>
               </tr>
               <tr>
                 <td><code>src/app/member-orders/member-orders.ts</code></td>
@@ -1391,19 +1588,39 @@
                 <td>Component managing active subscription cards, cancellation modals, and the order history table.</td>
               </tr>
               <tr>
+                <td><code>src/app/videos-catalog/videos-catalog.ts</code></td>
+                <td>Angular UI</td>
+                <td>Searchable public video catalog with dynamic access entitlement badges.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/video-player/video-player.ts</code></td>
+                <td>Angular UI</td>
+                <td>Custom Hls.js streaming player with quality selector, speed controls, and scrub thumbnail previews.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/manage-vod/manage-vod.ts</code></td>
+                <td>Angular UI</td>
+                <td>Admin VOD curation workspace: configuring access tiers, pricing, metadata, and triggering transcoding jobs.</td>
+              </tr>
+              <tr>
+                <td><code>src/app/class-video-library-purchase/</code></td>
+                <td>Angular UI</td>
+                <td>Dedicated purchase flow for Class Video Library monthly and annual subscriptions.</td>
+              </tr>
+              <tr>
                 <td><code>src/app/stripe.service.ts</code></td>
                 <td>Angular Service</td>
-                <td>Client SDK wrapper calling Firebase subscription management functions.</td>
+                <td>Client SDK wrapper calling Firebase subscription management and checkout functions.</td>
               </tr>
               <tr>
                 <td><code>src/app/app.config.ts</code></td>
                 <td>Routing</td>
-                <td>Route definitions mapping <code>Views.MyOrders</code> to URL <code>/my-orders</code>.</td>
+                <td>Route definitions mapping <code>Views.MyOrders</code>, <code>Views.VideosCatalog</code>, <code>Views.ManageVod</code>.</td>
               </tr>
               <tr>
                 <td><code>firestore.rules</code></td>
                 <td>Security</td>
-                <td>Granular read/write rules protecting <code>/members/{memberDocId}/orders/{orderDocId}</code>.</td>
+                <td>Granular read/write rules protecting <code>/members/{memberDocId}/orders/</code> and <code>/members/{memberDocId}/videoGrants/</code>.</td>
               </tr>
             </tbody>
           </table>
