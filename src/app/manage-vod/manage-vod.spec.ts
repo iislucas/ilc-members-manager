@@ -39,6 +39,9 @@ describe('ManageVodComponent', () => {
         urlParams: {
           q: WritableSignal<string | null>;
           status: WritableSignal<string | null>;
+          featured: WritableSignal<string | null>;
+          accessTier: WritableSignal<string | null>;
+          instructorId: WritableSignal<string | null>;
           videoId: WritableSignal<string | null>;
           editVideoId: WritableSignal<string | null>;
         };
@@ -56,6 +59,7 @@ describe('ManageVodComponent', () => {
         vodStatus: VodStatus.Ready,
         accessTier: VodAccessTier.Public,
         isPublished: true,
+        featured: true,
         durationSeconds: 3600,
         tags: ['basics', 'spinning'],
         lastUpdated: '2026-01-01',
@@ -68,9 +72,22 @@ describe('ManageVodComponent', () => {
         accessTier: VodAccessTier.DirectPurchase,
         priceCents: 1500,
         isPublished: false,
+        featured: false,
         durationSeconds: 1800,
         tags: ['partner'],
         lastUpdated: '2026-01-02',
+      },
+      {
+        ...initVideoItem(),
+        docId: 'v3',
+        title: 'Saturday Class Stream',
+        vodStatus: VodStatus.Ready,
+        accessTier: VodAccessTier.ClassVideoSubscribers,
+        isPublished: true,
+        featured: false,
+        durationSeconds: 5400,
+        tags: ['saturday'],
+        lastUpdated: '2026-01-03',
       },
     ];
 
@@ -115,6 +132,9 @@ describe('ManageVodComponent', () => {
           urlParams: {
             q: signal(null),
             status: signal(null),
+            featured: signal(null),
+            accessTier: signal(null),
+            instructorId: signal(null),
             videoId: signal(null),
             editVideoId: signal(null),
           },
@@ -140,11 +160,65 @@ describe('ManageVodComponent', () => {
   it('should create and calculate catalog stats', () => {
     expect(component).toBeTruthy();
     const stats = component.stats();
-    expect(stats.total).toBe(2);
-    expect(stats.published).toBe(1);
-    expect(stats.ready).toBe(1);
+    expect(stats.total).toBe(3);
+    expect(stats.published).toBe(2);
+    expect(stats.ready).toBe(2);
     expect(stats.processing).toBe(1);
-    expect(stats.totalHours).toBe('1.5');
+    expect(stats.totalHours).toBe('3.0');
+  });
+
+  it('should filter by featured status', () => {
+    // All
+    expect(component.filteredVideos().length).toBe(3);
+
+    // Featured only
+    component.setFeaturedFilter('featured');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v1');
+
+    // Not featured
+    component.setFeaturedFilter('not_featured');
+    expect(component.filteredVideos().length).toBe(2);
+    expect(component.filteredVideos().map((v) => v.docId)).toEqual(['v3', 'v2']);
+  });
+
+  it('should filter by access / permissions tier', () => {
+    // Class library
+    component.setAccessTierFilter('class_library');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v3');
+
+    // Direct purchase
+    component.setAccessTierFilter('direct_purchase');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v2');
+
+    // Public
+    component.setAccessTierFilter('public');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v1');
+  });
+
+  it('should match featured keyword in search query', () => {
+    component.setSearchQuery('featured');
+    expect(component.filteredVideos().length).toBe(1);
+    expect(component.filteredVideos()[0].docId).toBe('v1');
+  });
+
+  it('should clear all filters', () => {
+    component.setSearchQuery('sample');
+    component.setStatus('ready');
+    component.setFeaturedFilter('featured');
+    component.setAccessTierFilter('public');
+    component.selectedTagFilter.set('basics');
+
+    component.clearAllFilters();
+
+    expect(component.searchQuery()).toBe('');
+    expect(component.selectedStatus()).toBe('all');
+    expect(component.selectedFeatured()).toBe('all');
+    expect(component.selectedAccessTier()).toBe('all');
+    expect(component.selectedTagFilter()).toBe('');
   });
 
   it('should open and close edit modal with URL parameter sync', () => {
@@ -244,7 +318,7 @@ describe('ManageVodComponent', () => {
 
     component.clearTagFilter();
     expect(component.selectedTagFilter()).toBe('');
-    expect(component.filteredVideos().length).toBe(2);
+    expect(component.filteredVideos().length).toBe(3);
   });
 
   it('should format access tier labels correctly', () => {
@@ -259,10 +333,10 @@ describe('ManageVodComponent', () => {
   });
 
   it('should toggle featured status', async () => {
-    const video = mockDataService.videos.entries()[0];
+    const video = mockDataService.videos.entries()[1]; // v2 has featured: false
     component.openDrawer(video);
     await component.toggleFeatured(video);
-    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v1', {
+    expect(mockDataService.updateVideoMetadata).toHaveBeenCalledWith('v2', {
       featured: true,
     });
     expect(component.drawerVideo()?.featured).toBe(true);

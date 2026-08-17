@@ -47,6 +47,7 @@ const ENABLED_EVENTS: Stripe.WebhookEndpointCreateParams.EnabledEvent[] = [
   'checkout.session.completed',
   'checkout.session.async_payment_succeeded',
   'invoice.paid',
+  'customer.subscription.updated',
   'customer.subscription.deleted',
 ];
 

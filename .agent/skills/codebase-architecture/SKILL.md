@@ -32,6 +32,19 @@ to the relevant files instead of re-exploring.
 | Event detail / edit / calendar UI | `src/app/event-view/`, `src/app/event-edit/`, `src/app/events-calendar/` |
 | Event search + `getEventById` | [src/app/data-manager.service.ts](../../src/app/data-manager.service.ts) |
 
+### Video on Demand (VOD) & Class Video Library
+| Aspect | Where |
+|---|---|
+| `VideoItem`, `VideoGrant`, `VideoProgress`, `VodAccessTier`, `VodStatus` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| Streaming Session & Access Verification (`getVideoPlaybackSession`) | [functions/src/vod/get-playback-session.ts](../../functions/src/vod/get-playback-session.ts) |
+| Transcoding Pipeline (GCP Transcoder API, Cloud Pub/Sub) | [functions/src/vod/transcode-video.ts](../../functions/src/vod/transcode-video.ts), [functions/src/vod/on-transcode-finished.ts](../../functions/src/vod/on-transcode-finished.ts) |
+| Unified Catalog Component (`mode="vod"` \| `"class_library"`) | [src/app/videos-catalog/](../../src/app/videos-catalog/) |
+| Dedicated Class Video Library Page (`/class-video-library`) | [src/app/class-video-library/](../../src/app/class-video-library/) |
+| Video Playback & Trailer Preview Page (`/videos/:videoId`) | [src/app/video-view/](../../src/app/video-view/) |
+| Modern HLS Player + Controls + Offline Storage | [src/app/video-player/](../../src/app/video-player/), [src/app/vod-offline-storage.service.ts](../../src/app/vod-offline-storage.service.ts) |
+| Admin VOD Curation (`/manage-vod`) | [src/app/manage-vod/](../../src/app/manage-vod/) |
+| Stripe Product & Price Sync Tool (`pnpm sync:video-products`) | [functions/scripts/sync-video-stripe-products.ts](../../functions/scripts/sync-video-stripe-products.ts) |
+
 ### Associations between concepts
 | Association | How it is represented |
 |---|---|
@@ -40,6 +53,8 @@ to the relevant files instead of re-exploring.
 | Grading ↔ Student | `Member.gradingDocIds` (maintained by the trigger) and `Grading.studentMemberDocId`. |
 | Who accepted / who last changed status | Two pairs (member docId + name snapshot): `acceptedByMemberDocId`/`acceptedByName` (the acceptance milestone; cleared on decline; shown as "Accepted by X" and used to tell co-managers who accepted) and `statusChangedByMemberDocId`/`statusChangedByName` (the latest status transition of any kind. Set client-side in [grading-progress.ts](../../src/app/grading-progress/grading-progress.ts). Backfill: `pnpm --prefix functions run backfill-grading-status-actor`. |
 | Login email ↔ members/schools/instructor licences | `/acl/{email}` caches `memberDocIds`, `schoolDocIds`, `instructorIds`, expiry dates (built by member/school triggers; read by rules). |
+| Video ↔ Trailer | `VideoItem.trailerVideoId` references a preview clip (which has `isTrailer: true`). Trailed videos are automatically playable on `/videos/:id` for unauthorized users. Standalone trailers (`isTrailer: true`) are excluded from top-level catalog listings. |
+| Video ↔ Stripe Product & Price | `VideoItem.stripeProductId` and `VideoItem.stripePriceId` link purchasable videos to Stripe for instant one-click Checkout sessions. |
 
 ---
 
@@ -54,7 +69,8 @@ Firestore collections and their TypeScript types (all defined in [functions/src/
 | `/instructors/{docId}` | `InstructorPublicData` | Public profile, mirrored from Member |
 | `/gradings/{docId}` | `Grading` | One per grading purchase |
 | `/events/{docId}` | `IlcEvent` | Calendar-synced + member-proposed |
-| `/orders/{docId}` | `SheetsImportOrder \| SquareSpaceOrder` | |
+| `/videos/{docId}` | `VideoItem` | Published & curated VOD catalog items |
+| `/orders/{docId}` | `SheetsImportOrder \| SquareSpaceOrder` | Order history & subscriptions |
 | `/acl/{email}` | `ACL` | Permissions per login email |
 | `/system/{doc}` | various | Counters, country codes, cache metadata |
 
@@ -64,6 +80,8 @@ Firestore collections and their TypeScript types (all defined in [functions/src/
 - `/schools/{id}/members/{memberDocId}` — cached school members
 - `/schools/{id}/gradings/{gradingDocId}` — cached school gradings
 - `/members/{id}/notifications/{notifId}` — `MemberNotification`
+- `/members/{id}/videoGrants/{videoId}` — `VideoGrant` (individual video purchases/grants)
+- `/members/{id}/videoProgress/{videoId}` — `VideoProgress` (per-user playback positions)
 
 ### Data model conventions
 - Every type has `initXxx()` (all-defaults object) and `firestoreDocToXxx()` (merge over defaults).

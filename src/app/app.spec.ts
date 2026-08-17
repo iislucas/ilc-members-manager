@@ -22,9 +22,12 @@ describe('App', () => {
       loadingState: signal(DataServiceState.Loaded) as any,
       members: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
       schools: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
-      instructors: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      instructors: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]), search: vi.fn().mockReturnValue([]) } as any,
       myStudents: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]) } as any,
+      videos: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]), search: vi.fn().mockReturnValue([]) } as any,
+      tagsSet: { loaded: signal(true), loading: signal(false), error: signal(null), get: vi.fn().mockReturnValue(undefined), entries: signal([]), search: vi.fn().mockReturnValue([]), uniqueEntries: signal([]) } as any,
       getMember: vi.fn(),
+      getTagMeta: vi.fn().mockReturnValue(null),
     };
 
 
@@ -186,7 +189,7 @@ describe('App', () => {
     const app = fixture.componentInstance;
 
     firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
-    app.routingService.matchedPatternId.set(Views.ClassVideoLibrary);
+    app.routingService.matchedPatternId.set(Views.MembersArea);
 
     fixture.detectChanges();
     await fixture.whenStable();

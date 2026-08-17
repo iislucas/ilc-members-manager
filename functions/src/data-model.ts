@@ -8,7 +8,7 @@ import {
   membershipActivatedBody,
   instructorLicenseActivatedSubject,
   instructorLicenseActivatedBody,
-} from './email-templates.js';
+} from './email-templates';
 
 export type FsTimestamp = Timestamp | FieldValue | AdminFieldValue;
 
@@ -2489,6 +2489,8 @@ export type VideoItem = {
   accessTier: VodAccessTier;         // Primary access tier (for backward compatibility)
   accessTiers: VodAccessTier[];      // Multiple allowed access tiers (e.g. [InstructorsOnly, ClassVideoSubscribers])
   isBuyable: boolean;                // Whether one-off purchase is available
+  isTrailer: boolean;                // Whether this item is a standalone trailer/preview
+  trailerVideoId: string;            // Linked trailer VideoItem docId (e.g. 'vimeo_1189216257' or '')
   minLevel?: number;                 // Optional minimum student level requirement (e.g. Level 3+)
   priceCents?: number;               // Direct purchase price in cents (e.g. 1500 for $15.00)
   currency?: string;                 // e.g. 'usd'
@@ -2505,6 +2507,10 @@ export type VideoItem = {
   vodStatus: VodStatus;              // Enum transcoding status
   vodJobId?: string;                 // GCP Transcoder Job ID
   vodError?: string;                 // Transcoding error log if failed
+  forVodPageId?: string;             // Optional linked VOD series page ID
+  forVodSeriesTitle?: string;        // Optional linked VOD series title
+  vimeoSourceId?: string;            // Original Vimeo video ID if imported
+  vimeoLink?: string;                // Original Vimeo URL if imported
 
   // Media Endpoints
   manifestUrl: string;               // HLS master manifest (protected/CDN URL)
@@ -2543,6 +2549,8 @@ export function initVideoItem(): VideoItem {
     accessTier: VodAccessTier.MembersOnly,
     accessTiers: [VodAccessTier.MembersOnly],
     isBuyable: false,
+    isTrailer: false,
+    trailerVideoId: '',
     isPublished: false,
     featured: false,
     publishedAt: '',
@@ -2586,6 +2594,12 @@ export function firestoreDocToVideoItem(doc: GenericFsDoc): VideoItem {
     accessTier: data.accessTier || rawAccessTiers[0] || VodAccessTier.MembersOnly,
     accessTiers: rawAccessTiers,
     isBuyable,
+    isTrailer: Boolean(data.isTrailer),
+    trailerVideoId: data.trailerVideoId || '',
+    forVodPageId: data.forVodPageId || '',
+    forVodSeriesTitle: data.forVodSeriesTitle || '',
+    vimeoSourceId: data.vimeoSourceId || '',
+    vimeoLink: data.vimeoLink || '',
     vodStatus: data.vodStatus || VodStatus.None,
     createdAt,
     lastUpdated,

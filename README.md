@@ -92,10 +92,22 @@ This will compile your project and store the build artifacts in the `dist/` dire
 
 ### Running unit tests
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+To execute unit tests with Vitest, run:
 
 ```bash
 pnpm test
+```
+
+### Video on Demand (VOD) & Stripe Synchronization
+
+To sync purchasable VOD videos with Stripe Products and one-time Prices:
+
+```bash
+# Dry run:
+pnpm sync:video-products -- --dry-run
+
+# Run sync against active project:
+pnpm sync:video-products
 ```
 
 ### Firestore indexes

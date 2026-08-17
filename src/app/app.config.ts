@@ -98,6 +98,7 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.OrderComplete,
   Views.Videos,
   Views.VideoView,
+  Views.ClassVideoLibrary,
   Views.BecomeAMember,
   Views.NextGrading,
   Views.InstructorLicensePurchase,
@@ -201,7 +202,11 @@ export const initPathPatterns = {
   [Views.Settings]: addUrlParams(pathPattern`settings`, ['tab']),
   [Views.NotificationSettings]: pathPattern`settings/notifications`,
   [Views.Notifications]: addUrlParams(pathPattern`notifications`, ['filter', 'style']),
-  [Views.ClassVideoLibrary]: pathPattern`class-video-library`,
+  [Views.ClassVideoLibrary]: addUrlParams(pathPattern`class-video-library`, [
+    'q', 'tag', 'instructorId',
+    { name: 'sortBy', default: 'recordedDate' },
+    { name: 'sortDir', default: 'desc' },
+  ]),
   [Views.ManageOrders]: addUrlParams(pathPattern`orders`, [
     'orderId', 'q', 'startDate', 'endDate', 'status', 'kind',
     { name: 'searchMode', default: 'recent' },
@@ -260,11 +265,14 @@ export const initPathPatterns = {
     { name: 'session_id', ephemeral: true },
   ]),
   [Views.Videos]: addUrlParams(pathPattern`videos`, [
+    { name: 'tab', default: 'all' },
     'q', 'tag', 'instructorId', 'tier',
+    { name: 'sortBy', default: 'recordedDate' },
+    { name: 'sortDir', default: 'desc' },
   ]),
   [Views.VideoView]: addUrlParams(pathPattern`videos/${pv('videoId')}`, []),
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
-    'q', 'status', 'instructorId', 'videoId', 'editVideoId',
+    'q', 'status', 'featured', 'accessTier', 'instructorId', 'videoId', 'editVideoId',
   ]),
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
 };

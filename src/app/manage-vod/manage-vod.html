@@ -110,6 +110,38 @@
         </div>
       </div>
 
+      <!-- Featured Filter -->
+      <div class="filter-item">
+        <label>Featured:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedFeatured()"
+          (ngModelChange)="setFeaturedFilter($event)"
+        >
+          <option value="all">All</option>
+          <option value="featured">Featured Only</option>
+          <option value="not_featured">Not Featured</option>
+        </select>
+      </div>
+
+      <!-- Access / Permission Filter -->
+      <div class="filter-item">
+        <label>Access:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedAccessTier()"
+          (ngModelChange)="setAccessTierFilter($event)"
+        >
+          <option value="all">All Permissions</option>
+          <option value="class_library">Class Video Library</option>
+          <option value="members">Members Only</option>
+          <option value="instructors">Instructors Only</option>
+          <option value="public">Public / Free</option>
+          <option value="direct_purchase">Direct Purchase / Paid</option>
+          <option value="admin_only">Admin Only</option>
+        </select>
+      </div>
+
       <!-- Status Filter -->
       <div class="status-filter-item">
         <label>Status:</label>
@@ -126,6 +158,19 @@
           <option value="draft">Hidden / Draft</option>
         </select>
       </div>
+
+      <!-- Active Filters Reset -->
+      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all') {
+        <button
+          type="button"
+          class="subtle-btn clear-all-btn"
+          (click)="clearAllFilters()"
+          title="Reset all filters"
+        >
+          <app-icon name="close"></app-icon>
+          <span>Clear Filters</span>
+        </button>
+      }
     </div>
   </div>
 

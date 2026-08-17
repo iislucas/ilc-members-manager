@@ -50,6 +50,8 @@ export interface PlaybackSessionState {
     | 'purchase_required';
   priceCents?: number;
   stripePriceId?: string;
+  trailerVideoId?: string;
+  trailerManifestUrl?: string;
 }
 
 @Component({
@@ -74,7 +76,10 @@ export class VideoViewComponent implements OnInit {
 
   // State Signals
   video = signal<VideoItem | null>(null);
+  trailerVideo = signal<VideoItem | null>(null);
   sessionState = signal<PlaybackSessionState | null>(null);
+  trailerSessionState = signal<PlaybackSessionState | null>(null);
+  isPlayingTrailer = signal(false);
   isLoading = signal(true);
   isPurchasing = signal(false);
   initialPositionSeconds = signal(0);
@@ -84,13 +89,53 @@ export class VideoViewComponent implements OnInit {
   streamingStats = signal<StreamingStats | null>(null);
   showDebugDetails = signal(false);
 
+  // Computed Active Video & Manifest
+  hasTrailer = computed(() => {
+    const v = this.video();
+    const s = this.sessionState();
+    return Boolean(v?.trailerVideoId || v?.trailerUrl || s?.trailerVideoId || s?.trailerManifestUrl);
+  });
+
+  activeManifestUrl = computed(() => {
+    if (this.isPlayingTrailer()) {
+      return (
+        this.trailerSessionState()?.manifestUrl ||
+        this.sessionState()?.trailerManifestUrl ||
+        this.trailerVideo()?.manifestUrl ||
+        ''
+      );
+    }
+    return this.sessionState()?.manifestUrl || '';
+  });
+
+  activeVideoData = computed<VideoItem | null>(() => {
+    if (this.isPlayingTrailer() && this.trailerVideo()) {
+      return this.trailerVideo();
+    }
+    return this.video();
+  });
+
+  activePosterUrl = computed(() => {
+    if (this.isPlayingTrailer() && this.trailerVideo()?.thumbnailUrl) {
+      return this.trailerVideo()!.thumbnailUrl;
+    }
+    return this.video()?.thumbnailUrl || '';
+  });
+
+  canStreamActiveVideo = computed(() => {
+    if (this.isPlayingTrailer()) {
+      return Boolean(this.activeManifestUrl());
+    }
+    return Boolean(this.sessionState()?.authorized && this.sessionState()?.manifestUrl);
+  });
+
   // Related Videos
   relatedVideos = computed<VideoItem[]>(() => {
     const curr = this.video();
     if (!curr) return [];
     return this.dataService.videos
       .entries()
-      .filter((v) => v.isPublished && v.docId !== curr.docId)
+      .filter((v) => v.isPublished && !v.isTrailer && v.docId !== curr.docId)
       .slice(0, 4);
   });
 
@@ -108,6 +153,8 @@ export class VideoViewComponent implements OnInit {
   async loadVideo(id: string): Promise<void> {
     this.isLoading.set(true);
     this.errorMessage.set(null);
+    this.trailerVideo.set(null);
+    this.trailerSessionState.set(null);
 
     try {
       // 1. Fetch Video Metadata
@@ -136,6 +183,28 @@ export class VideoViewComponent implements OnInit {
       // 3. Request Playback Session
       const session = await this.dataService.getVideoPlaybackSession(id);
       this.sessionState.set(session);
+
+      // 4. Load Trailer Metadata & Session if present
+      const trailerId = videoData.trailerVideoId || session.trailerVideoId;
+      if (trailerId) {
+        try {
+          const [tVideo, tSession] = await Promise.all([
+            this.dataService.getVideoById(trailerId),
+            this.dataService.getVideoPlaybackSession(trailerId),
+          ]);
+          this.trailerVideo.set(tVideo);
+          this.trailerSessionState.set(tSession);
+        } catch (tErr) {
+          console.warn('Could not load trailer session:', tErr);
+        }
+      }
+
+      // 5. Initial Playback State
+      if (!session.authorized && (trailerId || session.trailerManifestUrl)) {
+        this.isPlayingTrailer.set(true);
+      } else {
+        this.isPlayingTrailer.set(false);
+      }
     } catch (err: any) {
       console.error('Failed to load video or playback session:', err);
       this.errorMessage.set(
@@ -144,6 +213,14 @@ export class VideoViewComponent implements OnInit {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  playTrailer(): void {
+    this.isPlayingTrailer.set(true);
+  }
+
+  playFullVideo(): void {
+    this.isPlayingTrailer.set(false);
   }
 
   onTimeUpdated(currentSeconds: number): void {
@@ -163,8 +240,9 @@ export class VideoViewComponent implements OnInit {
   }
 
   async startPurchase(): Promise<void> {
+    const v = this.video();
     const session = this.sessionState();
-    const priceId = session?.stripePriceId || this.video()?.stripePriceId;
+    const priceId = session?.stripePriceId || v?.stripePriceId;
     if (!priceId) {
       alert('This video is not currently available for individual purchase.');
       return;
@@ -177,6 +255,14 @@ export class VideoViewComponent implements OnInit {
         priceId,
         origin,
         1,
+        {
+          metadata: {
+            videoId: v?.docId || '',
+            orderType: 'vod',
+          },
+          successUrl: `${origin}/videos/${v?.docId}`,
+          cancelUrl: `${origin}/videos/${v?.docId}`,
+        },
       );
       if (checkout.checkoutUrl) {
         window.location.href = checkout.checkoutUrl;
@@ -242,8 +328,27 @@ export class VideoViewComponent implements OnInit {
     });
   }
 
+  isClassLibraryVideo = computed(() => {
+    const v = this.video();
+    if (!v) return false;
+    return (
+      v.accessTier === VodAccessTier.ClassVideoSubscribers ||
+      (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.ClassVideoSubscribers))
+    );
+  });
+
   getCatalogHref(): string {
-    return this.routingService.hrefForView(Views.Videos, {});
+    if (this.isClassLibraryVideo()) {
+      return this.routingService.hrefForView(Views.ClassVideoLibrary);
+    }
+    return this.routingService.hrefForView(Views.Videos);
+  }
+
+  getCatalogLabel(): string {
+    if (this.isClassLibraryVideo()) {
+      return 'Back to Class Video Library';
+    }
+    return 'Back to Video Catalog';
   }
 
   getLoginHref(): string {
@@ -251,6 +356,9 @@ export class VideoViewComponent implements OnInit {
   }
 
   getMembershipHref(): string {
+    if (this.isClassLibraryVideo()) {
+      return this.routingService.hrefForView(Views.ClassVideoLibraryPurchase);
+    }
     return this.routingService.hrefForView(Views.MyOrders, {});
   }
 
@@ -380,5 +488,26 @@ export class VideoViewComponent implements OnInit {
 
   async clearAllDeviceCache(): Promise<void> {
     await this.offlineStorage.clearAllCache();
+  }
+
+  formatVideoDate(video: VideoItem): string {
+    const raw = video.recordedDate || video.createdAt || video.publishedAt || '';
+    if (!raw) return '';
+    const dateStr = raw.split('T')[0];
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+    }
+    return dateStr;
   }
 }

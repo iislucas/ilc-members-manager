@@ -1,15 +1,14 @@
 /* videos-catalog.ts
  *
- * Public Video Catalog page for browsing, searching, and filtering
- * Video on Demand (VOD) recordings.
- *
- * Features:
- * - Search bar with instant fuzzy search
- * - Tag filter chips
- * - Instructor filter autocomplete
- * - Hero spotlight for featured video
- * - "Continue Watching" carousel for logged-in members
- * - Responsive card grid with dynamic entitlement badges
+ * Unified Video Catalog component supporting:
+ * 1. Video on Demand (VOD) Catalog:
+ *    - Top-level pill bar: "Search & Buy" vs "My Videos"
+ *    - Filtered to purchasable VOD items (excluding standalone trailers)
+ * 2. Class Video Library:
+ *    - Filtered to Class Video Library subscribers
+ *    - Chronological sorting (newest classes first)
+ *    - Subscriber status and subscription callout banner
+ * 3. Search, tag filters, instructor autocomplete, sorting, and responsive cards.
  */
 
 import {
@@ -18,6 +17,7 @@ import {
   inject,
   signal,
   computed,
+  input,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -36,6 +36,8 @@ import { RoutingService } from '../routing.service';
 import { IconComponent } from '../icons/icon.component';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 
+export type CatalogMode = 'vod' | 'class_library' | 'auto';
+
 @Component({
   selector: 'app-videos-catalog',
   standalone: true,
@@ -53,19 +55,82 @@ export class VideosCatalogComponent implements OnInit {
   public firebaseState = inject(FirebaseStateService);
   public routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
 
-  private viewSignals = this.routingService.signals[Views.Videos];
+  readonly Views = Views;
+
+  // Optional mode input (defaults to 'auto' which resolves from route)
+  mode = input<CatalogMode>('auto');
+
+  isClassLibrary = computed(() => {
+    const m = this.mode();
+    if (m === 'class_library') return true;
+    if (m === 'vod') return false;
+    const match = typeof this.routingService?.matchedPatternId === 'function'
+      ? this.routingService.matchedPatternId()
+      : undefined;
+    return match === Views.ClassVideoLibrary;
+  });
+
+  // Dynamic route signals dispatch
+  private viewSignals = computed(() => {
+    const match = typeof this.routingService?.matchedPatternId === 'function'
+      ? this.routingService.matchedPatternId()
+      : undefined;
+    if (match === Views.ClassVideoLibrary && this.routingService?.signals?.[Views.ClassVideoLibrary]) {
+      return this.routingService.signals[Views.ClassVideoLibrary];
+    }
+    return (
+      this.routingService?.signals?.[Views.Videos] ||
+      this.routingService?.signals?.[Views.ClassVideoLibrary] || {
+        urlParams: {
+          tab: signal('all'),
+          q: signal(''),
+          tag: signal(''),
+          instructorId: signal(''),
+          sortBy: signal('recordedDate'),
+          sortDir: signal('desc'),
+        },
+      }
+    );
+  });
 
   // URL Parameter Signals
-  searchQuery = computed(() => this.viewSignals.urlParams.q() || '');
-  selectedTag = computed(() => this.viewSignals.urlParams.tag() || '');
-  selectedInstructor = computed(() => this.viewSignals.urlParams.instructorId() || '');
-  selectedTier = computed(() => this.viewSignals.urlParams.tier() || 'all');
+  activeTab = computed(() => {
+    if (this.isClassLibrary()) return 'all';
+    return this.routingService?.signals?.[Views.Videos]?.urlParams?.tab?.() || 'all';
+  });
+
+  searchQuery = computed(() => this.viewSignals()?.urlParams?.q?.() || '');
+  selectedTag = computed(() => this.viewSignals()?.urlParams?.tag?.() || '');
+  selectedInstructor = computed(() => this.viewSignals()?.urlParams?.instructorId?.() || '');
+  sortField = computed(() => this.viewSignals()?.urlParams?.sortBy?.() || 'recordedDate');
+  sortDirection = computed(() => this.viewSignals()?.urlParams?.sortDir?.() || 'desc');
 
   // Local state signals
   isLoading = signal(false);
   instructorSearchInput = signal('');
   tagSearchInput = signal('');
   continueWatchingList = signal<VideoProgress[]>([]);
+  myVideoGrantIds = signal<Set<string>>(new Set());
+
+  // Subscription state for Class Video Library
+  todayDateString = new Date().toISOString().split('T')[0];
+
+  isClassSubscriber = computed(() => {
+    const user = this.firebaseState.user();
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const m = user.member;
+    if (!m) return false;
+    return Boolean(
+      m.classVideoLibrarySubscription &&
+      (!m.classVideoLibraryExpirationDate || m.classVideoLibraryExpirationDate >= this.todayDateString),
+    );
+  });
+
+  classSubscriptionExpiry = computed(() => {
+    const m = this.firebaseState.user()?.member;
+    return m?.classVideoLibraryExpirationDate || '';
+  });
 
   // Autocomplete display helper for tags
   tagDisplayFns: DisplayFns<TagItem> = {
@@ -74,7 +139,7 @@ export class VideosCatalogComponent implements OnInit {
   };
 
   getTagTooltip(tag: string): string {
-    const meta = this.dataService.getTagMeta(tag);
+    const meta = this.dataService?.getTagMeta?.(tag);
     if (meta?.description) {
       return `#${tag}: ${meta.description}`;
     }
@@ -91,27 +156,33 @@ export class VideosCatalogComponent implements OnInit {
   selectedInstructorDisplay = computed(() => {
     const id = this.selectedInstructor();
     if (!id) return this.instructorSearchInput();
-    const inst = this.dataService.instructors
-      .entries()
-      .find((i) => i.docId === id || i.instructorId === id);
+    const inst = (this.dataService?.instructors?.entries?.() || []).find(
+      (i) => i.docId === id || i.instructorId === id,
+    );
     return (
       this.instructorSearchInput() ||
       (inst ? this.instructorDisplayFns.toName(inst) : id)
     );
   });
 
-  // Featured video in the hero banner
-  featuredVideo = computed<VideoItem | null>(() => {
-    const list = this.dataService.videos.entries().filter((v) => v.isPublished);
-    const featured = list.find((v) => v.featured);
-    return featured || list[0] || null;
-  });
+  private getVideosList(): VideoItem[] {
+    return this.dataService?.videos?.entries?.() || [];
+  }
 
-  // Unique tags across all published videos
+  // Unique tags across relevant published videos
   availableTags = computed<string[]>(() => {
     const tagSet = new Set<string>();
-    for (const v of this.dataService.videos.entries()) {
-      if (v.isPublished && Array.isArray(v.tags)) {
+    const isClass = this.isClassLibrary();
+
+    for (const v of this.getVideosList()) {
+      if (!v.isPublished || v.isTrailer) continue;
+      if (isClass) {
+        const isClassVideo =
+          v.accessTier === VodAccessTier.ClassVideoSubscribers ||
+          (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.ClassVideoSubscribers));
+        if (!isClassVideo) continue;
+      }
+      if (Array.isArray(v.tags)) {
         for (const t of v.tags) {
           if (t) tagSet.add(t);
         }
@@ -120,17 +191,91 @@ export class VideosCatalogComponent implements OnInit {
     return Array.from(tagSet).sort();
   });
 
-  // Filtered catalog
+  // Counts for tabs
+  allBuyableCount = computed(() => {
+    return this.getVideosList().filter(
+      (v) =>
+        v.isPublished &&
+        !v.isTrailer &&
+        (v.isBuyable ||
+          (v.priceCents && v.priceCents > 0) ||
+          (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.DirectPurchase))),
+    ).length;
+  });
+
+  isPurchasedVideo(video: VideoItem): boolean {
+    if (!this.myVideoGrantIds().has(video.docId)) {
+      return false;
+    }
+    // Exclude pure class video library videos
+    const isClassOnly =
+      (video.accessTier === VodAccessTier.ClassVideoSubscribers ||
+        (Array.isArray(video.accessTiers) &&
+          video.accessTiers.includes(VodAccessTier.ClassVideoSubscribers))) &&
+      !video.isBuyable &&
+      (!video.priceCents || video.priceCents <= 0);
+    return !isClassOnly;
+  }
+
+  myPurchasedVideosCount = computed(() => {
+    return this.getVideosList().filter(
+      (v) => v.isPublished && !v.isTrailer && this.isPurchasedVideo(v),
+    ).length;
+  });
+
+  myVideosTabLabel = computed(() => {
+    const count = this.myPurchasedVideosCount();
+    return count > 0 ? `My Videos (${count})` : 'My Videos';
+  });
+
+  classVideosCount = computed(() => {
+    return this.getVideosList().filter(
+      (v) =>
+        v.isPublished &&
+        !v.isTrailer &&
+        (v.accessTier === VodAccessTier.ClassVideoSubscribers ||
+          (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.ClassVideoSubscribers))),
+    ).length;
+  });
+
+  // Filtered & Sorted catalog
   filteredVideos = computed<VideoItem[]>(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const tag = this.selectedTag().toLowerCase().trim();
     const instId = this.selectedInstructor();
-    const tier = this.selectedTier();
+    const isClass = this.isClassLibrary();
+    const tab = this.activeTab();
+    const sort = this.sortField();
+    const dir = this.sortDirection() === 'asc' ? 1 : -1;
 
-    let items = this.dataService.videos.entries().filter((v) => v.isPublished);
+    let items = this.getVideosList().filter((v) => v.isPublished && !v.isTrailer);
 
+    // 1. Base Scope Filter
+    if (isClass) {
+      items = items.filter(
+        (v) =>
+          v.accessTier === VodAccessTier.ClassVideoSubscribers ||
+          (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.ClassVideoSubscribers)),
+      );
+    } else {
+      if (tab === 'my-videos') {
+        items = items.filter((v) => this.isPurchasedVideo(v));
+      } else {
+        // "Search & Buy"
+        items = items.filter(
+          (v) =>
+            v.isBuyable ||
+            (v.priceCents && v.priceCents > 0) ||
+            (Array.isArray(v.accessTiers) && v.accessTiers.includes(VodAccessTier.DirectPurchase)),
+        );
+      }
+    }
+
+    // 2. Search Text
     if (q) {
-      const matchItems = this.dataService.videos.search(q);
+      const matchItems = typeof this.dataService?.videos?.search === 'function'
+        ? this.dataService.videos.search(q)
+        : [];
       const matchIds = new Set(matchItems.map((item) => item.docId));
       items = items.filter(
         (v) =>
@@ -138,16 +283,19 @@ export class VideosCatalogComponent implements OnInit {
           v.title.toLowerCase().includes(q) ||
           v.description.toLowerCase().includes(q) ||
           v.instructorName.toLowerCase().includes(q) ||
+          (v.location && v.location.toLowerCase().includes(q)) ||
           (v.tags && v.tags.some((t) => t.toLowerCase().includes(q))),
       );
     }
 
+    // 3. Tag Filter
     if (tag) {
       items = items.filter(
         (v) => v.tags && v.tags.some((t) => t.toLowerCase() === tag),
       );
     }
 
+    // 4. Instructor Filter
     if (instId) {
       items = items.filter(
         (v) =>
@@ -157,31 +305,63 @@ export class VideosCatalogComponent implements OnInit {
       );
     }
 
-    if (tier && tier !== 'all') {
-      items = items.filter((v) => v.accessTier === tier);
-    }
+    // 5. Sorting
+    return items.sort((a, b) => {
+      if (sort === 'title') {
+        return dir * a.title.localeCompare(b.title);
+      }
+      if (sort === 'duration') {
+        return dir * ((a.durationSeconds || 0) - (b.durationSeconds || 0));
+      }
+      if (sort === 'price') {
+        return dir * ((a.priceCents || 0) - (b.priceCents || 0));
+      }
+      // Default: 'recordedDate'
+      const dateA = a.recordedDate || a.createdAt || '';
+      const dateB = b.recordedDate || b.createdAt || '';
+      if (dateA !== dateB) {
+        return dir * dateA.localeCompare(dateB);
+      }
+      return dir * (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+  });
 
-    return items;
+  // Featured video in the hero banner (only shown if a video is explicitly marked as featured)
+  featuredVideo = computed<VideoItem | null>(() => {
+    const list = this.filteredVideos();
+    const featured = list.find((v) => Boolean(v.featured));
+    return featured || null;
   });
 
   async ngOnInit(): Promise<void> {
     if (this.firebaseState.user()?.member?.docId) {
       try {
-        const progress = await this.dataService.getMyVideoProgressList();
+        const [progress, grants] = await Promise.all([
+          this.dataService.getMyVideoProgressList(),
+          this.dataService.getMyVideoGrants(),
+        ]);
         this.continueWatchingList.set(progress);
+        const grantSet = new Set(grants.map((g) => g.videoId || g.docId));
+        this.myVideoGrantIds.set(grantSet);
       } catch {
-        // Continue watching is non-blocking
+        // Non-blocking
       }
     }
   }
 
+  setTab(tab: 'all' | 'my-videos'): void {
+    if (this.routingService.matchedPatternId() === Views.Videos) {
+      this.routingService.signals[Views.Videos].urlParams.tab.set(tab);
+    }
+  }
+
   setSearchQuery(q: string): void {
-    this.viewSignals.urlParams.q.set(q || '');
+    this.viewSignals().urlParams.q.set(q || '');
   }
 
   setTag(tag: string): void {
     const current = this.selectedTag();
-    this.viewSignals.urlParams.tag.set(current === tag ? '' : tag);
+    this.viewSignals().urlParams.tag.set(current === tag ? '' : tag);
     this.tagSearchInput.set(current === tag ? '' : tag);
   }
 
@@ -192,18 +372,18 @@ export class VideosCatalogComponent implements OnInit {
   onTagTextUpdated(text: string): void {
     this.tagSearchInput.set(text);
     if (!text.trim()) {
-      this.viewSignals.urlParams.tag.set('');
+      this.viewSignals().urlParams.tag.set('');
     }
   }
 
   clearTagFilter(): void {
     this.tagSearchInput.set('');
-    this.viewSignals.urlParams.tag.set('');
+    this.viewSignals().urlParams.tag.set('');
   }
 
   onInstructorSelected(inst: InstructorPublicData | null): void {
     this.instructorSearchInput.set('');
-    this.viewSignals.urlParams.instructorId.set(inst ? inst.docId : '');
+    this.viewSignals().urlParams.instructorId.set(inst ? inst.docId : '');
   }
 
   onInstructorTextUpdated(text: string): void {
@@ -212,14 +392,22 @@ export class VideosCatalogComponent implements OnInit {
 
   clearInstructorFilter(): void {
     this.instructorSearchInput.set('');
-    this.viewSignals.urlParams.instructorId.set('');
+    this.viewSignals().urlParams.instructorId.set('');
+  }
+
+  setSortField(field: string): void {
+    this.viewSignals().urlParams.sortBy.set(field);
+  }
+
+  toggleSortDirection(): void {
+    const current = this.sortDirection();
+    this.viewSignals().urlParams.sortDir.set(current === 'asc' ? 'desc' : 'asc');
   }
 
   clearAllFilters(): void {
-    this.viewSignals.urlParams.q.set('');
-    this.viewSignals.urlParams.tag.set('');
-    this.viewSignals.urlParams.instructorId.set('');
-    this.viewSignals.urlParams.tier.set('');
+    this.viewSignals().urlParams.q.set('');
+    this.viewSignals().urlParams.tag.set('');
+    this.viewSignals().urlParams.instructorId.set('');
     this.instructorSearchInput.set('');
     this.tagSearchInput.set('');
   }
@@ -282,14 +470,14 @@ export class VideosCatalogComponent implements OnInit {
     if (tiers.includes(VodAccessTier.Public)) {
       return { label: this.getAccessTiersSummary(video), cssClass: 'badge-public' };
     }
+    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
+      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-class' };
+    }
     if (tiers.includes(VodAccessTier.MembersOnly)) {
       return { label: this.getAccessTiersSummary(video), cssClass: 'badge-members' };
     }
     if (tiers.includes(VodAccessTier.InstructorsOnly)) {
       return { label: this.getAccessTiersSummary(video), cssClass: 'badge-instructors' };
-    }
-    if (tiers.includes(VodAccessTier.ClassVideoSubscribers)) {
-      return { label: this.getAccessTiersSummary(video), cssClass: 'badge-class' };
     }
     return { label: this.getAccessTiersSummary(video), cssClass: 'badge-purchase' };
   }
@@ -309,10 +497,15 @@ export class VideosCatalogComponent implements OnInit {
     }
     if (user.isAdmin) return true;
 
+    // Check individual purchased video grant
+    if (this.myVideoGrantIds().has(video.docId)) {
+      return true;
+    }
+
     const member = user.member;
     if (!member) return false;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.todayDateString;
     const isInstructor = Boolean(
       member.instructorLicenseExpires &&
       member.instructorLicenseExpires >= today,
@@ -323,8 +516,7 @@ export class VideosCatalogComponent implements OnInit {
     );
     const isClassSubscriber = Boolean(
       member.classVideoLibrarySubscription &&
-      member.classVideoLibraryExpirationDate &&
-      member.classVideoLibraryExpirationDate >= today,
+      (!member.classVideoLibraryExpirationDate || member.classVideoLibraryExpirationDate >= today),
     );
 
     if (tiers.includes(VodAccessTier.MembersOnly) && isMember) return true;
@@ -332,5 +524,26 @@ export class VideosCatalogComponent implements OnInit {
     if (tiers.includes(VodAccessTier.ClassVideoSubscribers) && isClassSubscriber) return true;
 
     return false;
+  }
+
+  formatVideoDate(video: VideoItem): string {
+    const raw = video.recordedDate || video.createdAt || video.publishedAt || '';
+    if (!raw) return '';
+    const dateStr = raw.split('T')[0];
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+    }
+    return dateStr;
   }
 }

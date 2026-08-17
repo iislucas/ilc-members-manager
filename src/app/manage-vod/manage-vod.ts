@@ -59,6 +59,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   // URL Parameter Signals
   searchQuery = computed(() => this.viewSignals.urlParams.q() || '');
   selectedStatus = computed(() => this.viewSignals.urlParams.status() || 'all');
+  selectedFeatured = computed(() => this.viewSignals.urlParams.featured() || 'all');
+  selectedAccessTier = computed(() => this.viewSignals.urlParams.accessTier() || 'all');
   selectedVideoIdParam = computed(() => this.viewSignals.urlParams.videoId() || '');
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   selectedTagFilter = signal<string>('');
@@ -190,6 +192,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   filteredVideos = computed<VideoItem[]>(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const status = this.selectedStatus();
+    const featured = this.selectedFeatured();
+    const accessTier = this.selectedAccessTier();
     const tagFilter = this.selectedTagFilter().toLowerCase().trim();
 
     let items = this.dataService.videos.entries();
@@ -200,6 +204,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           v.title.toLowerCase().includes(q) ||
           v.description.toLowerCase().includes(q) ||
           v.instructorName.toLowerCase().includes(q) ||
+          (v.location && v.location.toLowerCase().includes(q)) ||
+          (v.featured && ('featured'.includes(q) || 'spotlight'.includes(q))) ||
           (v.tags && v.tags.some((t) => t.toLowerCase().includes(q))),
       );
     }
@@ -210,6 +216,50 @@ export class ManageVodComponent implements OnInit, OnDestroy {
           v.tags &&
           v.tags.some((t) => t.toLowerCase() === tagFilter),
       );
+    }
+
+    if (featured !== 'all') {
+      if (featured === 'featured') {
+        items = items.filter((v) => Boolean(v.featured));
+      } else if (featured === 'not_featured') {
+        items = items.filter((v) => !v.featured);
+      }
+    }
+
+    if (accessTier !== 'all') {
+      items = items.filter((v) => {
+        const tiers = Array.isArray(v.accessTiers) && v.accessTiers.length > 0
+          ? v.accessTiers
+          : (v.accessTier ? [v.accessTier] : []);
+
+        switch (accessTier) {
+          case 'class_library':
+          case VodAccessTier.ClassVideoSubscribers:
+            return tiers.includes(VodAccessTier.ClassVideoSubscribers) || v.accessTier === VodAccessTier.ClassVideoSubscribers;
+          case 'members':
+          case VodAccessTier.MembersOnly:
+            return tiers.includes(VodAccessTier.MembersOnly) || v.accessTier === VodAccessTier.MembersOnly;
+          case 'instructors':
+          case VodAccessTier.InstructorsOnly:
+            return tiers.includes(VodAccessTier.InstructorsOnly) || v.accessTier === VodAccessTier.InstructorsOnly;
+          case 'public':
+          case VodAccessTier.Public:
+            return tiers.includes(VodAccessTier.Public) || v.accessTier === VodAccessTier.Public;
+          case 'direct_purchase':
+          case VodAccessTier.DirectPurchase:
+            return (
+              tiers.includes(VodAccessTier.DirectPurchase) ||
+              v.accessTier === VodAccessTier.DirectPurchase ||
+              Boolean(v.isBuyable) ||
+              Boolean(v.priceCents && v.priceCents > 0)
+            );
+          case 'admin_only':
+          case VodAccessTier.AdminOnly:
+            return tiers.includes(VodAccessTier.AdminOnly) || v.accessTier === VodAccessTier.AdminOnly;
+          default:
+            return true;
+        }
+      });
     }
 
     if (status !== 'all') {
@@ -297,6 +347,23 @@ export class ManageVodComponent implements OnInit, OnDestroy {
 
   setStatus(status: string): void {
     this.viewSignals.urlParams.status.set(status === 'all' ? '' : status);
+  }
+
+  setFeaturedFilter(featured: string): void {
+    this.viewSignals.urlParams.featured.set(featured === 'all' ? '' : featured);
+  }
+
+  setAccessTierFilter(tier: string): void {
+    this.viewSignals.urlParams.accessTier.set(tier === 'all' ? '' : tier);
+  }
+
+  clearAllFilters(): void {
+    this.viewSignals.urlParams.q.set('');
+    this.viewSignals.urlParams.status.set('');
+    this.viewSignals.urlParams.featured.set('');
+    this.viewSignals.urlParams.accessTier.set('');
+    this.selectedTagFilter.set('');
+    this.selectedTagSearchTerm.set('');
   }
 
   onTagSelected(item: TagItem): void {

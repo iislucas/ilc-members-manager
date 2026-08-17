@@ -3,14 +3,15 @@
   <div class="breadcrumb-row">
     <a class="back-link" [href]="getCatalogHref()">
       <app-icon name="arrow_back"></app-icon>
-      <span>Back to Catalog</span>
+      <span>{{ getCatalogLabel() }}</span>
     </a>
   </div>
 
   @if (isLoading()) {
     <div class="loading-state-theater">
-      <span class="loading-text">Loading video session...</span>
-      <app-spinner></app-spinner>
+      <app-spinner>
+        <span class="loading-text">Loading video session...</span>
+      </app-spinner>
     </div>
   } @else if (errorMessage()) {
     <div class="error-banner">
@@ -21,19 +22,108 @@
   } @else if (video(); as v) {
     <!-- Main Player Area -->
     <div class="player-theater-wrapper">
-      @if (sessionState()?.authorized && sessionState()?.manifestUrl) {
+      @if (canStreamActiveVideo()) {
+        <!-- Trailer Mode Notice & Switcher Banner -->
+        @if (isPlayingTrailer()) {
+          <div class="trailer-active-banner">
+            <div class="banner-left">
+              <span class="trailer-pill">🎬 Preview Trailer</span>
+              <span class="banner-msg">
+                You are watching the preview trailer ({{ formatDuration(trailerVideo()?.durationSeconds || 0) }}).
+              </span>
+            </div>
+            <div class="banner-actions">
+              @if (sessionState()?.authorized) {
+                <button type="button" class="subtle-btn switch-video-btn" (click)="playFullVideo()">
+                  <app-icon name="play_arrow"></app-icon>
+                  <span>Switch to Full Video</span>
+                </button>
+              }
+            </div>
+          </div>
+        } @else if (hasTrailer()) {
+          <!-- Full Video Active with Trailer Available -->
+          <div class="video-mode-switcher-bar">
+            <span class="mode-pill active">
+              <app-icon name="play_arrow"></app-icon>
+              <span>Full Video</span>
+            </span>
+            <button type="button" class="mode-switcher-btn" (click)="playTrailer()">
+              <app-icon name="live_tv"></app-icon>
+              <span>Watch Trailer</span>
+            </button>
+          </div>
+        }
+
+        <!-- Active Video Player (Full Video or Trailer) -->
         <app-video-player
-          [videoData]="v"
-          [manifestUrl]="sessionState()!.manifestUrl!"
-          [posterUrl]="v.thumbnailUrl"
-          [initialPositionSeconds]="initialPositionSeconds()"
+          [videoData]="activeVideoData()!"
+          [manifestUrl]="activeManifestUrl()"
+          [posterUrl]="activePosterUrl()"
+          [initialPositionSeconds]="isPlayingTrailer() ? 0 : initialPositionSeconds()"
           [autoplay]="false"
-          (timeUpdated)="onTimeUpdated($event)"
-          (videoCompleted)="onVideoCompleted()"
+          (timeUpdated)="isPlayingTrailer() ? null : onTimeUpdated($event)"
+          (videoCompleted)="isPlayingTrailer() ? null : onVideoCompleted()"
           (statsUpdated)="streamingStats.set($event)"
         ></app-video-player>
+
+        <!-- Unauthorized Purchase Callout underneath Trailer Player -->
+        @if (isPlayingTrailer() && !sessionState()?.authorized) {
+          <div class="trailer-unlock-card">
+            <div class="unlock-icon-wrap">
+              <app-icon name="shopping_cart"></app-icon>
+            </div>
+            <div class="unlock-info">
+              <div class="unlock-title">Enjoying the preview?</div>
+              <div class="unlock-desc">
+                @if (isBuyable(v) && v.priceCents) {
+                  Unlock full lifetime on-demand streaming access to this recording.
+                } @else if (sessionState()?.reason === 'class_sub_required') {
+                  Subscribe to the Class Video Library to access the full recording and weekly Saturday class archives.
+                } @else if (sessionState()?.reason === 'subscription_required') {
+                  ILC Members enjoy full access to this masterclass recording.
+                } @else {
+                  Sign in or purchase to unlock the complete recording.
+                }
+              </div>
+            </div>
+            <div class="unlock-cta-actions">
+              @if (isBuyable(v) && v.priceCents) {
+                <button
+                  type="button"
+                  class="primary-btn unlock-buy-btn"
+                  [disabled]="isPurchasing()"
+                  (click)="startPurchase()"
+                >
+                  @if (isPurchasing()) {
+                    <app-spinner></app-spinner>
+                    <span>Processing...</span>
+                  } @else {
+                    <app-icon name="shopping_cart"></app-icon>
+                    <span>Buy Full Video (${{ (v.priceCents / 100).toFixed(2) }})</span>
+                  }
+                </button>
+              } @else if (sessionState()?.reason === 'class_sub_required') {
+                <a class="primary-btn" [href]="getMembershipHref()">
+                  <app-icon name="shopping_cart"></app-icon>
+                  <span>Subscribe to Video Library</span>
+                </a>
+              } @else if (sessionState()?.reason === 'subscription_required') {
+                <a class="primary-btn" [href]="getMembershipHref()">
+                  <app-icon name="person"></app-icon>
+                  <span>Join / Renew Membership</span>
+                </a>
+              } @else if (sessionState()?.reason === 'unauthenticated') {
+                <a class="primary-btn" [href]="getLoginHref()">
+                  <app-icon name="person"></app-icon>
+                  <span>Sign In to Access</span>
+                </a>
+              }
+            </div>
+          </div>
+        }
       } @else {
-        <!-- Locked Video Gating Screen -->
+        <!-- Locked Video Gating Screen (when no trailer is playable) -->
         <div class="locked-video-screen">
           @if (v.thumbnailUrl) {
             <img [src]="v.thumbnailUrl" [alt]="v.title" class="lock-backdrop" />
@@ -164,7 +254,7 @@
             <span class="metric-val highlight-green">{{ formatBytes(stats.bytesAheadCached) }} ({{ stats.bufferAheadSeconds.toFixed(1) }}s)</span>
           </div>
           <div class="metric-cell">
-            <span class="metric-label">Quality & Bitrate</span>
+            <span class="metric-label">Quality &amp; Bitrate</span>
             <span class="metric-val">{{ stats.activeQualityLabel }} &bull; {{ stats.currentBitrateMbps > 0 ? stats.currentBitrateMbps.toFixed(2) + ' Mbps' : 'ABR' }}</span>
           </div>
           <div class="metric-cell">
@@ -310,6 +400,12 @@
         <div class="title-header">
           <div class="badge-row">
             <span class="duration-badge">{{ formatDuration(v.durationSeconds) }}</span>
+            @if (formatVideoDate(v); as vDate) {
+              <span class="date-badge">
+                <app-icon name="calendar_today" width="14px" height="14px"></app-icon>
+                <span>{{ vDate }}</span>
+              </span>
+            }
             <span class="access-badge">{{ getAccessSummary(v) }}</span>
           </div>
 

@@ -1,18 +1,89 @@
 <div class="videos-catalog-container">
+  @if (!isClassLibrary()) {
+    <div class="header-extension-tabs">
+      <div class="pill-tabs">
+        <button
+          type="button"
+          class="pill-tab"
+          data-label="Search & Buy"
+          [class.active]="activeTab() === 'all'"
+          (click)="setTab('all')"
+        >
+          Search &amp; Buy
+        </button>
+        <button
+          type="button"
+          class="pill-tab"
+          [attr.data-label]="myVideosTabLabel()"
+          [class.active]="activeTab() === 'my-videos'"
+          (click)="setTab('my-videos')"
+        >
+          {{ myVideosTabLabel() }}
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- Page Header -->
   <div class="catalog-header">
     <div class="header-content">
-      <h1>Video on Demand</h1>
-      <p class="subtitle">
-        Watch full seminar recordings, technique breakdowns, form demonstrations,
-        and workshop archives from master instructors worldwide.
-      </p>
+      @if (isClassLibrary()) {
+        <h1>Class Video Library</h1>
+        <p class="subtitle">
+          Watch weekly Saturday classes, training archives, and masterclasses led by
+          Grandmaster Sam Chin and senior instructors worldwide.
+        </p>
+
+        <!-- Subscription Status Callout for Class Video Library -->
+        @if (isClassSubscriber()) {
+          <div class="subscription-status-card active">
+            <div class="status-icon-wrap">
+              <app-icon name="check" width="24px" height="24px"></app-icon>
+            </div>
+            <div class="status-info">
+              <div class="status-title">Active Class Video Library Subscription</div>
+              <div class="status-details">
+                @if (classSubscriptionExpiry(); as expiry) {
+                  <span>Valid through {{ expiry }}</span>
+                } @else {
+                  <span>Active subscription</span>
+                }
+              </div>
+            </div>
+            <a class="subtle-btn manage-sub-btn" [href]="routingService.hrefForView(Views.MyOrders)">
+              Manage Subscription
+            </a>
+          </div>
+        } @else {
+          <div class="subscription-status-card callout">
+            <div class="status-icon-wrap">
+              <app-icon name="video_library" width="28px" height="28px"></app-icon>
+            </div>
+            <div class="status-info">
+              <div class="status-title">Subscribe to the Class Video Library</div>
+              <div class="status-details">
+                Subscribe for unlimited streaming access to all recorded weekly Saturday classes and library archives.
+              </div>
+            </div>
+            <a class="primary-btn subscribe-cta-btn" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
+              <app-icon name="shopping_cart"></app-icon>
+              <span>Subscribe Now</span>
+            </a>
+          </div>
+        }
+      } @else {
+        <h1>Video on Demand</h1>
+        <p class="subtitle">
+          Watch full seminar recordings, technique breakdowns, form demonstrations,
+          and workshop archives available for on-demand streaming.
+        </p>
+      }
     </div>
   </div>
 
   <!-- Hero Featured Spotlight Banner -->
   @if (featuredVideo(); as feat) {
-    @if (!searchQuery() && !selectedTag() && !selectedInstructor()) {
+    @if (!searchQuery() && !selectedTag() && activeTab() !== 'my-videos') {
       <div class="featured-hero-banner">
         <div class="hero-poster-wrapper">
           @if (feat.thumbnailUrl) {
@@ -23,11 +94,23 @@
             </div>
           }
           <div class="hero-badge">Featured</div>
+          @if (feat.trailerVideoId) {
+            <div class="hero-trailer-badge">
+              <app-icon name="play_arrow"></app-icon>
+              <span>Trailer Available</span>
+            </div>
+          }
         </div>
 
         <div class="hero-info">
           <div class="hero-meta-row">
             <span class="duration-pill">{{ formatDuration(feat.durationSeconds) }}</span>
+            @if (formatVideoDate(feat); as vDate) {
+              <span class="date-pill">
+                <app-icon name="calendar_today" width="14px" height="14px"></app-icon>
+                <span>{{ vDate }}</span>
+              </span>
+            }
             <span class="access-pill" [class]="getAccessTierBadge(feat).cssClass">
               {{ getAccessTierBadge(feat).label }}
             </span>
@@ -46,7 +129,7 @@
           <div class="hero-actions">
             <a class="primary-btn hero-watch-btn" [href]="getVideoHref(feat)">
               <app-icon name="play_arrow"></app-icon>
-              <span>Watch Now</span>
+              <span>{{ userHasAccess(feat) ? 'Watch Now' : (feat.trailerVideoId ? 'Watch Trailer / Details' : 'View Details') }}</span>
             </a>
           </div>
         </div>
@@ -61,7 +144,7 @@
       <app-icon name="search"></app-icon>
       <input
         type="text"
-        placeholder="Search videos by title, description, instructor, tags..."
+        placeholder="Search videos by title, description, location, tags..."
         [ngModel]="searchQuery()"
         (ngModelChange)="setSearchQuery($event)"
       />
@@ -77,7 +160,7 @@
       }
     </div>
 
-    <!-- Secondary Filters Row (Tag Autocomplete, Instructor Autocomplete, Clear) -->
+    <!-- Secondary Filters Row (Tag Autocomplete, Sort Dropdown) -->
     <div class="secondary-filters-row">
       <!-- Tag Filter Autocomplete -->
       <div class="filter-item">
@@ -106,42 +189,41 @@
         </div>
       </div>
 
-      <!-- Instructor Filter Autocomplete -->
-      <div class="filter-item">
-        <label>Instructor:</label>
-        <div class="autocomplete-wrapper">
-          <app-autocomplete
-            name="Filter Instructor"
-            [searchableSet]="dataService.instructors"
-            [displayFns]="instructorDisplayFns"
-            [inputBoxIsChip]="false"
-            [initSearchTerm]="selectedInstructorDisplay()"
-            placeholder="All Instructors (type to search)..."
-            (itemSelected)="onInstructorSelected($event)"
-            (textUpdated)="onInstructorTextUpdated($event)"
-          ></app-autocomplete>
-          @if (selectedInstructor()) {
-            <button
-              type="button"
-              class="icon-only-button clear-filter-btn"
-              (click)="clearInstructorFilter()"
-              title="Clear instructor"
-            >
-              <app-icon name="close"></app-icon>
-            </button>
-          }
+      <!-- Sort Controls -->
+      <div class="filter-item sort-item">
+        <label>Sort:</label>
+        <div class="sort-select-wrapper">
+          <select
+            [ngModel]="sortField()"
+            (ngModelChange)="setSortField($event)"
+          >
+            <option value="recordedDate">Recorded Date</option>
+            <option value="title">Title (A-Z)</option>
+            <option value="duration">Duration</option>
+            @if (!isClassLibrary()) {
+              <option value="price">Price</option>
+            }
+          </select>
+          <button
+            type="button"
+            class="icon-only-button sort-dir-btn"
+            (click)="toggleSortDirection()"
+            [title]="sortDirection() === 'asc' ? 'Ascending (oldest/lowest first)' : 'Descending (newest/highest first)'"
+          >
+            <app-icon [name]="sortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward'"></app-icon>
+          </button>
         </div>
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedTag() || selectedInstructor() || selectedTier() !== 'all') {
+      @if (searchQuery() || selectedTag()) {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
           (click)="clearAllFilters()"
         >
           <app-icon name="close"></app-icon>
-          <span>Clear All Filters</span>
+          <span>Clear Filters</span>
         </button>
       }
     </div>
@@ -171,10 +253,14 @@
   <div class="catalog-content">
     <div class="section-title-row">
       <h3>
-        @if (selectedTag()) {
+        @if (isClassLibrary()) {
+          Saturday Class Recordings
+        } @else if (activeTab() === 'my-videos') {
+          My Purchased Videos
+        } @else if (selectedTag()) {
           #{{ selectedTag() }} Recordings
         } @else {
-          All Recordings
+          All Purchasable Recordings
         }
         <span class="count-badge">({{ filteredVideos().length }})</span>
       </h3>
@@ -204,6 +290,14 @@
                 {{ formatDuration(video.durationSeconds) }}
               </span>
 
+              <!-- Trailer Badge if available -->
+              @if (video.trailerVideoId) {
+                <span class="card-trailer-badge" title="Trailer preview available">
+                  <app-icon name="play_arrow"></app-icon>
+                  <span>Trailer</span>
+                </span>
+              }
+
               <!-- Hover Play Overlay -->
               <div class="play-hover-overlay">
                 <app-icon name="play_arrow"></app-icon>
@@ -230,14 +324,19 @@
                 </div>
               }
 
-              @if (video.recordedDate || video.location) {
+              @if (formatVideoDate(video); as vDate) {
                 <div class="card-meta">
-                  @if (video.recordedDate) {
-                    <span>{{ video.recordedDate }}</span>
-                  }
+                  <span class="meta-date">
+                    <app-icon name="calendar_today" width="13px" height="13px"></app-icon>
+                    <span>{{ vDate }}</span>
+                  </span>
                   @if (video.location) {
-                    <span>&bull; {{ video.location }}</span>
+                    <span class="meta-location">&bull; {{ video.location }}</span>
                   }
+                </div>
+              } @else if (video.location) {
+                <div class="card-meta">
+                  <span class="meta-location">{{ video.location }}</span>
                 </div>
               }
 
@@ -264,7 +363,8 @@
                   </span>
                 } @else if (video.priceCents) {
                   <span class="access-cta unlock-price">
-                    <span>Unlock for ${{ (video.priceCents / 100).toFixed(2) }}</span>
+                    <app-icon name="shopping_cart"></app-icon>
+                    <span>Unlock ${{ (video.priceCents / 100).toFixed(2) }}</span>
                   </span>
                 } @else {
                   <span class="access-cta locked">
@@ -280,13 +380,20 @@
     } @else {
       <div class="empty-state">
         <app-icon name="video_library"></app-icon>
-        <h4>No videos found</h4>
-        <p>No video recordings match your current filters or search criteria.</p>
-        <button type="button" class="primary-btn" (click)="clearAllFilters()">
-          Clear Filters
-        </button>
+        @if (activeTab() === 'my-videos') {
+          <h4>No videos purchased yet</h4>
+          <p>You have not purchased any on-demand videos. Browse the "Search &amp; Buy" catalog to unlock masterclasses.</p>
+          <button type="button" class="primary-btn" (click)="setTab('all')">
+            Browse Buyable Videos
+          </button>
+        } @else {
+          <h4>No videos found</h4>
+          <p>No video recordings match your current filters or search criteria.</p>
+          <button type="button" class="primary-btn" (click)="clearAllFilters()">
+            Clear Filters
+          </button>
+        }
       </div>
     }
   </div>
 </div>
-

@@ -36,6 +36,8 @@ export interface GetPlaybackSessionResponse {
   reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
   priceCents?: number;
   stripePriceId?: string;
+  trailerVideoId?: string;
+  trailerManifestUrl?: string;
 }
 
 export const getVideoPlaybackSession = onCall(
@@ -63,6 +65,20 @@ export const getVideoPlaybackSession = onCall(
       );
     }
 
+    // Optional trailer lookup
+    let trailerManifestUrl: string | undefined = undefined;
+    if (video.trailerVideoId) {
+      try {
+        const trailerSnap = await db.collection('videos').doc(video.trailerVideoId).get();
+        if (trailerSnap.exists) {
+          const trailerItem = firestoreDocToVideoItem(trailerSnap);
+          trailerManifestUrl = trailerItem.manifestUrl || undefined;
+        }
+      } catch {
+        // Trailer lookup is non-blocking
+      }
+    }
+
     // 1. Collect all enabled access tiers
     const tiers: VodAccessTier[] = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers
@@ -81,6 +97,8 @@ export const getVideoPlaybackSession = onCall(
         manifestUrl: video.manifestUrl,
         title: video.title,
         durationSeconds: video.durationSeconds,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -91,6 +109,8 @@ export const getVideoPlaybackSession = onCall(
         reason: 'unauthenticated',
         priceCents: video.priceCents,
         stripePriceId: video.stripePriceId,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -110,6 +130,8 @@ export const getVideoPlaybackSession = onCall(
         manifestUrl: video.manifestUrl,
         title: video.title,
         durationSeconds: video.durationSeconds,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -130,6 +152,8 @@ export const getVideoPlaybackSession = onCall(
             manifestUrl: video.manifestUrl,
             title: video.title,
             durationSeconds: video.durationSeconds,
+            trailerVideoId: video.trailerVideoId || undefined,
+            trailerManifestUrl,
           };
         }
       }
@@ -152,6 +176,8 @@ export const getVideoPlaybackSession = onCall(
           manifestUrl: video.manifestUrl,
           title: video.title,
           durationSeconds: video.durationSeconds,
+          trailerVideoId: video.trailerVideoId || undefined,
+          trailerManifestUrl,
         };
       }
     }
@@ -180,6 +206,8 @@ export const getVideoPlaybackSession = onCall(
         manifestUrl: video.manifestUrl,
         title: video.title,
         durationSeconds: video.durationSeconds,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -189,6 +217,8 @@ export const getVideoPlaybackSession = onCall(
         manifestUrl: video.manifestUrl,
         title: video.title,
         durationSeconds: video.durationSeconds,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -198,6 +228,8 @@ export const getVideoPlaybackSession = onCall(
         manifestUrl: video.manifestUrl,
         title: video.title,
         durationSeconds: video.durationSeconds,
+        trailerVideoId: video.trailerVideoId || undefined,
+        trailerManifestUrl,
       };
     }
 
@@ -218,6 +250,8 @@ export const getVideoPlaybackSession = onCall(
       reason,
       priceCents: video.priceCents,
       stripePriceId: video.stripePriceId,
+      trailerVideoId: video.trailerVideoId || undefined,
+      trailerManifestUrl,
     };
   },
 );

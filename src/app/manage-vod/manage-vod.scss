@@ -210,6 +210,7 @@
     flex-wrap: wrap;
 
     .tag-filter-item,
+    .filter-item,
     .status-filter-item {
       display: flex;
       align-items: center;
@@ -219,6 +220,19 @@
         font-size: 0.85rem;
         font-weight: 600;
         color: v.$text-secondary;
+      }
+    }
+
+    .clear-all-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      color: v.$text-muted;
+
+      &:hover {
+        color: v.$heading-accent-color;
       }
     }
 

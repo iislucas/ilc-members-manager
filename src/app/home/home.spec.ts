@@ -212,34 +212,13 @@ describe('HomeComponent', () => {
     expect(orderLink).toBeTruthy();
   });
 
-  it('hides Video on Demand card on Learn tab for non-admin users', async () => {
-    component.setActiveTab('learn');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    const element: HTMLElement = fixture.nativeElement;
-    expect(element.textContent).not.toContain('Video on Demand');
-  });
-
-  it('shows Video on Demand card with In Testing tag for admin users', async () => {
-    (firebaseService.user as any).set({
-      isAdmin: true,
-      schoolsManaged: [],
-      memberProfiles: [],
-      member: {
-        name: 'Admin Member',
-        membershipType: 'Life',
-      },
-      firebaseUser: { email: 'admin@example.com' },
-    });
-
+  it('shows Video on Demand card on Learn tab for members', async () => {
     component.setActiveTab('learn');
     fixture.detectChanges();
     await fixture.whenStable();
 
     const element: HTMLElement = fixture.nativeElement;
     expect(element.textContent).toContain('Video on Demand');
-    expect(element.textContent).toContain('In Testing');
   });
 
   it('shows Manage VOD card with In Testing tag on Admin tab for admin users', async () => {

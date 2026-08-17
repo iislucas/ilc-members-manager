@@ -2607,6 +2607,8 @@ export class DataManagerService {
     reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
     priceCents?: number;
     stripePriceId?: string;
+    trailerVideoId?: string;
+    trailerManifestUrl?: string;
   }> {
     const fn = httpsCallable<{ videoId: string }, {
       authorized: boolean;
@@ -2616,6 +2618,8 @@ export class DataManagerService {
       reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
       priceCents?: number;
       stripePriceId?: string;
+      trailerVideoId?: string;
+      trailerManifestUrl?: string;
     }>(getFunctions(this.firebaseService.app), 'getVideoPlaybackSession');
     const result = await fn({ videoId });
     return result.data;
@@ -2683,6 +2687,18 @@ export class DataManagerService {
     const q = query(colRef, orderBy('lastWatchedAt', 'desc'), limit(20));
     const snap = await getDocs(q);
     return snap.docs.map(firestoreDocToVideoProgress);
+  }
+
+  /**
+   * Retrieves all individual video grants purchased or assigned to the member.
+   */
+  async getMyVideoGrants(): Promise<VideoGrant[]> {
+    const user = this.firebaseService.user();
+    if (!user?.member?.docId) return [];
+
+    const grantsRef = collection(this.db, 'members', user.member.docId, 'videoGrants');
+    const snap = await getDocs(grantsRef);
+    return snap.docs.map(firestoreDocToVideoGrant);
   }
 
   async clearAllLocalCaches(): Promise<void> {
