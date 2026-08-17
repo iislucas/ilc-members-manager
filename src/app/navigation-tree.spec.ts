@@ -302,6 +302,20 @@ describe('NavigationTreeService', () => {
     expect(crumbs[crumbs.length - 1].isLoading).toBe(false);
   });
 
+  it('updates VideoView breadcrumb and title when video title loads', () => {
+    user.set(null);
+    goTo(Views.VideoView, { videoId: 'v100' });
+
+    expect(navTree.currentTitleIsLoading()).toBe(true);
+    expect(navTree.currentTitle()).toBe('Watch Video');
+
+    navTree.loadedVideoTitle.set('Mastering Zhong Xin Dao');
+    expect(navTree.currentTitleIsLoading()).toBe(false);
+    expect(navTree.currentTitle()).toBe('Mastering Zhong Xin Dao');
+    const crumbs = navTree.breadcrumbs();
+    expect(crumbs[crumbs.length - 1].label).toBe('Mastering Zhong Xin Dao');
+  });
+
   it('titles Home and Login as Welcome when logged out', () => {
     user.set(null);
     const appRoot = {

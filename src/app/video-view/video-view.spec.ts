@@ -109,10 +109,12 @@ describe('VideoViewComponent', () => {
   });
 
   it('should load video and authorize playback session on init', async () => {
+    const titleSpy = vi.spyOn(component.titleLoaded, 'emit');
     await component.ngOnInit();
     expect(mockDataService.getVideoById).toHaveBeenCalledWith('v100');
     expect(mockDataService.getVideoPlaybackSession).toHaveBeenCalledWith('v100');
     expect(component.video()?.title).toBe('Mastering Zhong Xin Dao');
+    expect(titleSpy).toHaveBeenCalledWith('Mastering Zhong Xin Dao');
     expect(component.sessionState()?.authorized).toBe(true);
     expect(component.isLoading()).toBe(false);
   });

@@ -79,7 +79,9 @@
           <app-videos-catalog></app-videos-catalog>
         }
         @case (Views.VideoView) {
-          <app-video-view></app-video-view>
+          <app-video-view
+            (titleLoaded)="onVideoTitleLoaded($event)"
+          ></app-video-view>
         }
         @case (Views.ClassVideoLibrary) {
           <app-class-video-library></app-class-video-library>
@@ -425,7 +427,9 @@
           <app-videos-catalog></app-videos-catalog>
         }
         @case (Views.VideoView) {
-          <app-video-view></app-video-view>
+          <app-video-view
+            (titleLoaded)="onVideoTitleLoaded($event)"
+          ></app-video-view>
         }
         @case (Views.BecomeAMember) {
           <app-become-a-member></app-become-a-member>

@@ -60,6 +60,7 @@ export class NavigationTreeService {
   public loadedSchoolTitle = signal<string | null>(null);
   public loadedGradingTitle = signal<string | null>(null);
   public loadedInstructorTitle = signal<string | null>(null);
+  public loadedVideoTitle = signal<string | null>(null);
 
   /** The matched route, with the two "index" routes mapped to what they render. */
   public currentView = computed(() => {
@@ -79,6 +80,7 @@ export class NavigationTreeService {
       if (!view || !SCHOOL_TITLE_VIEWS.has(view)) this.loadedSchoolTitle.set(null);
       if (view !== Views.GradingView) this.loadedGradingTitle.set(null);
       if (view !== Views.InstructorView) this.loadedInstructorTitle.set(null);
+      if (view !== Views.VideoView) this.loadedVideoTitle.set(null);
     });
   }
 
@@ -144,6 +146,7 @@ export class NavigationTreeService {
     }
     if (view === Views.InstructorView) return !this.loadedInstructorTitle();
     if (view === Views.GradingView) return !this.loadedGradingTitle();
+    if (view === Views.VideoView) return !this.loadedVideoTitle();
     return false;
   });
 
@@ -698,7 +701,7 @@ export class NavigationTreeService {
       case Views.Videos:
         return 'Video on Demand';
       case Views.VideoView:
-        return 'Watch Video';
+        return this.loadedVideoTitle() || 'Watch Video';
       case Views.ManageVod:
         return 'Manage VOD';
       case Views.ManageVideoTags:

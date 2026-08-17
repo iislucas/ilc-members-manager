@@ -18,6 +18,7 @@ import {
   inject,
   signal,
   computed,
+  output,
   ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
@@ -73,6 +74,9 @@ export class VideoViewComponent implements OnInit {
 
   // Path Variable
   videoId = computed(() => this.viewSignals.pathVars.videoId());
+
+  // Outputs
+  public titleLoaded = output<string>();
 
   // State Signals
   video = signal<VideoItem | null>(null);
@@ -143,6 +147,7 @@ export class VideoViewComponent implements OnInit {
     const id = this.videoId();
     if (!id) {
       this.errorMessage.set('No video ID provided.');
+      this.titleLoaded.emit('Video Not Found');
       this.isLoading.set(false);
       return;
     }
@@ -161,10 +166,12 @@ export class VideoViewComponent implements OnInit {
       const videoData = await this.dataService.getVideoById(id);
       if (!videoData) {
         this.errorMessage.set('Video not found in catalog.');
+        this.titleLoaded.emit('Video Not Found');
         this.isLoading.set(false);
         return;
       }
       this.video.set(videoData);
+      this.titleLoaded.emit(videoData.title);
 
       // 2. Fetch Saved Progress
       try {
@@ -210,6 +217,7 @@ export class VideoViewComponent implements OnInit {
       this.errorMessage.set(
         err.message || 'Could not load video playback session.',
       );
+      this.titleLoaded.emit('Error Loading Video');
     } finally {
       this.isLoading.set(false);
     }

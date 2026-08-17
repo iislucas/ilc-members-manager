@@ -213,6 +213,9 @@ export class App {
   onInstructorTitleLoaded(title: string) {
     this.navTree.loadedInstructorTitle.set(title);
   }
+  onVideoTitleLoaded(title: string) {
+    this.navTree.loadedVideoTitle.set(title);
+  }
   // Breadcrumbs, the current view and its title all come from the navigation
   // tree, which the in-page back links are derived from too — see
   // NavigationTreeService. That is what keeps the two in step.
