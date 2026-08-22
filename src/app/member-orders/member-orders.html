@@ -242,6 +242,14 @@
                 }
               </span>
               @let rawId = getOrderDisplayId(order);
+              <!-- Short order number, the one quoted on gradings and to support.
+                   The full Stripe/Squarespace reference stays below it. -->
+              @let orderNum = getOrderNumber(order);
+              @if (orderNum) {
+                <div class="order-number" title="Order number">
+                  #{{ orderNum }}
+                </div>
+              }
               @if (rawId) {
                 <div class="order-num-row">
                   <span class="order-num" [title]="rawId">
@@ -280,7 +288,10 @@
               <span class="main-desc">{{
                 order.description ||
                   "Order #" +
-                    (order.orderNumber || order.orderDocId || order.docId)
+                    (getOrderNumber(order) ||
+                      order.orderNumber ||
+                      order.orderDocId ||
+                      order.docId)
               }}</span>
               <div class="badge-group">
                 <span class="badge qty-badge">

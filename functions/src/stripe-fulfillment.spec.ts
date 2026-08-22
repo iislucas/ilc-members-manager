@@ -17,6 +17,7 @@ import {
   PaymentStatus,
   OrderStatus,
   NotificationKind,
+  orderDisplayNumber,
 } from './data-model';
 import {
   fulfillStripeOrder,
@@ -568,6 +569,49 @@ describe('stripe-fulfillment', () => {
       'unrecognised level',
     );
     expect(mockNotificationSet.mock.calls[0][0].markdown).toContain(supportEmail);
+  });
+
+  it('stamps a human-friendly order number onto the grading it creates', async () => {
+    mockMemberGradings([]);
+    const order = gradingOrder('GRADING : Student Level 2', 'cs_live_number_test');
+
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_num');
+
+    // Instructors can read the grading but not the order, so the number has to
+    // live on the grading itself.
+    const created = mockGradingsCollection.add.mock.calls[0][0];
+    expect(created.orderNumber).toBe(
+      orderDisplayNumber(order.created, 'cs_live_number_test'),
+    );
+    expect(created.orderNumber).toMatch(/^202605-\d{4}$/);
+  });
+
+  it('stamps the order number when settling an existing unpaid grading', async () => {
+    const unpaidUpdate = vi.fn().mockResolvedValue({});
+    mockMemberGradings([
+      {
+        id: 'existing_unpaid_grading',
+        update: unpaidUpdate,
+        data: {
+          level: 'Student 2',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      },
+    ]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_live_settle_num'),
+      'order_doc_settle_num',
+    );
+
+    expect(unpaidUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderNumber: expect.stringMatching(/^202605-\d{4}$/),
+      }),
+    );
   });
 
   it('trusts the level recorded in the order metadata over the line-item text', async () => {

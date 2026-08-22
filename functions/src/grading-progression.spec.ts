@@ -8,6 +8,7 @@ import {
   levelAfter,
   nextGradingPayment,
   unpaidGradingsInProgressionOrder,
+  orderDisplayNumber,
   notificationStyle,
   isGradingPaid,
   NotificationKind,
@@ -221,6 +222,51 @@ describe('grading progression helpers', () => {
         'Student 2',
         'Bogus 9',
       ]);
+    });
+  });
+
+  describe('orderDisplayNumber', () => {
+    it('is the order year and month plus four digits from the reference', () => {
+      expect(orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2')).toMatch(
+        /^202608-\d{4}$/,
+      );
+    });
+
+    it('is stable for the same reference and differs between references', () => {
+      const a = orderDisplayNumber('2026-08-13', 'cs_live_a1b2');
+      expect(orderDisplayNumber('2026-08-13', 'cs_live_a1b2')).toBe(a);
+      expect(orderDisplayNumber('2026-08-13', 'cs_live_a1b3')).not.toBe(a);
+    });
+
+    it('takes the month from the order date, not today', () => {
+      expect(orderDisplayNumber('2024-01-31T23:59:59Z', 'ref').slice(0, 6)).toBe('202401');
+      expect(orderDisplayNumber('2026-12-01', 'ref').slice(0, 6)).toBe('202612');
+    });
+
+    it('accepts a plain YYYY-MM-DD date as well as a full timestamp', () => {
+      expect(orderDisplayNumber('2026-08-13', 'ref')).toBe(
+        orderDisplayNumber('2026-08-13T05:35:27Z', 'ref'),
+      );
+    });
+
+    it('returns "" when there is no source reference (e.g. a manual grading)', () => {
+      expect(orderDisplayNumber('2026-08-13', '')).toBe('');
+      expect(orderDisplayNumber('2026-08-13', '   ')).toBe('');
+    });
+
+    it('falls back to a zeroed year/month when the date is unusable', () => {
+      expect(orderDisplayNumber('', 'ref')).toMatch(/^000000-\d{4}$/);
+      expect(orderDisplayNumber('not a date', 'ref')).toMatch(/^000000-\d{4}$/);
+    });
+
+    it('spreads references over the four digits without collapsing', () => {
+      const numbers = new Set(
+        Array.from({ length: 500 }, (_, i) =>
+          orderDisplayNumber('2026-08-13', `cs_live_${i}`),
+        ),
+      );
+      // Some collisions are expected in 10k slots; a broken hash would give one.
+      expect(numbers.size).toBeGreaterThan(450);
     });
   });
 

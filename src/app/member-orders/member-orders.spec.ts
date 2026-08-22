@@ -11,7 +11,7 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType } from '../../../functions/src/data-model';
+import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType, orderDisplayNumber } from '../../../functions/src/data-model';
 
 describe('MemberOrdersComponent', () => {
   let fixture: ComponentFixture<MemberOrdersComponent>;
@@ -355,6 +355,37 @@ describe('MemberOrdersComponent', () => {
       stripeInvoiceId: 'in_9999',
     };
     expect(component.getOrderDisplayId(invoiceOrder)).toBe('in_9999');
+  });
+
+  it('shows a short order number alongside the full reference', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const shown = element.querySelectorAll('.order-number');
+    expect(shown.length).toBe(2);
+    expect(shown[0].textContent?.trim()).toBe(
+      '#' + component.getOrderNumber(sampleOrders[0]),
+    );
+    // Year and month of the order, then four digits.
+    expect(component.getOrderNumber(sampleOrders[0])).toMatch(/^\d{6}-\d{4}$/);
+
+    // The full reference is still in the DOM for click-to-select.
+    expect(element.querySelectorAll('.order-id-text').length).toBe(2);
+  });
+
+  it('matches the order number the server stamps onto a grading', async () => {
+    const order = sampleOrders[0];
+    expect(component.getOrderNumber(order)).toBe(
+      orderDisplayNumber(order.created || order.date, order.orderNumber || ''),
+    );
+  });
+
+  it('finds an order by its short order number', async () => {
+    const number = component.getOrderNumber(sampleOrders[0]);
+    component.searchQuery.set(number);
+    await fixture.whenStable();
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].docId).toBe(sampleOrders[0].docId);
   });
 
   it('copies order ID to clipboard and sets copiedOrderId state', async () => {

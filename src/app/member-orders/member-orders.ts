@@ -12,6 +12,7 @@ import {
   InstructorLicenseType,
   MemberOrder,
   MembershipType,
+  orderDisplayNumber,
 } from '../../../functions/src/data-model';
 
 export enum SubscriptionCardCategory {
@@ -359,12 +360,19 @@ export class MemberOrdersComponent {
     return raw.filter((o) => {
       const matchDocId = (o.orderDocId || o.docId || '').toLowerCase().includes(query);
       const matchNum = (o.orderNumber || '').toLowerCase().includes(query);
+      const matchOrderNumber = this.getOrderNumber(o).toLowerCase().includes(query);
       const matchDesc = (o.description || '').toLowerCase().includes(query);
       const matchDate = (o.date || '').toLowerCase().includes(query);
       const matchType = (o.orderType || '').toLowerCase().includes(query);
       const matchStatus = (o.paymentStatus || '').toLowerCase().includes(query);
       return (
-        matchDocId || matchNum || matchDesc || matchDate || matchType || matchStatus
+        matchDocId ||
+        matchNum ||
+        matchOrderNumber ||
+        matchDesc ||
+        matchDate ||
+        matchType ||
+        matchStatus
       );
     });
   });
@@ -438,6 +446,16 @@ export class MemberOrdersComponent {
   }
 
   copiedOrderId = signal<string | null>(null);
+
+  // The short, human-friendly order number (e.g. '202608-4713'). Derived from
+  // the same inputs the server uses when stamping it onto a grading, so the
+  // number here matches the one shown on the grading progress page.
+  getOrderNumber(order: MemberOrder): string {
+    return orderDisplayNumber(
+      order.created || order.date || '',
+      order.orderNumber || this.getOrderDisplayId(order),
+    );
+  }
 
   getOrderDisplayId(order: MemberOrder): string {
     // If order has an invoice ID and orderNumber is a checkout session, prefer invoice ID
