@@ -330,11 +330,6 @@ function formatOrderAmount(lineItem: StripeOrderLineItem): string {
   return `${currency} ${(amount / 100).toFixed(2)}`;
 }
 
-/** The address a member is asked to write to when a purchase needs a human. */
-function supportContactEmail(): string {
-  return environment.email?.from || 'web-helper-team@iliqchuan.com';
-}
-
 /**
  * Flags an order for the admin team. Admin clients surface orders whose
  * `ilcAppOrderStatus` needs attention (see NotificationService.syncOrderIssueNotifications),
@@ -411,7 +406,7 @@ async function reportGradingPaymentProblem(
   amountPaid: string,
   gradingDocId: string,
 ): Promise<void> {
-  const contactEmail = supportContactEmail();
+  const contactEmail = environment.email.from;
   const who = member.memberId || member.docId;
   const { issue, explanation } = describeGradingPaymentProblem(problem, who, amountPaid);
 
@@ -871,7 +866,7 @@ export async function fulfillStripeOrder(
             });
           }
         } else {
-          const contactEmail = environment.email?.from || 'web-helper-team@iliqchuan.com';
+          const contactEmail = environment.email.from;
           const errorMsg = `Could not resolve country "${countryInput}" to a valid country code in countryCodeList to assign member ID for member ${member.docId}. Please contact ${contactEmail}.`;
           logger.error(errorMsg, {
             memberDocId: member.docId,
