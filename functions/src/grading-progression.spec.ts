@@ -9,6 +9,7 @@ import {
   nextGradingPayment,
   unpaidGradingsInProgressionOrder,
   orderDisplayNumber,
+  gradingDisplayId,
   notificationStyle,
   isGradingPaid,
   NotificationKind,
@@ -267,6 +268,51 @@ describe('grading progression helpers', () => {
       );
       // Some collisions are expected in 10k slots; a broken hash would give one.
       expect(numbers.size).toBeGreaterThan(450);
+    });
+  });
+
+  describe('gradingDisplayId', () => {
+    it('is the purchase year and month plus the last four characters of the docId', () => {
+      expect(
+        gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingPurchaseDate: '2026-08-13' }),
+      ).toBe('202608-A5b1');
+    });
+
+    it('works without an order, so a cash-paid grading still has an id', () => {
+      expect(
+        gradingDisplayId({ docId: 'manualGradingXyz9', gradingPurchaseDate: '2026-02-01' }),
+      ).toBe('202602-Xyz9');
+    });
+
+    it('uses the purchase date, not the date the grading takes place', () => {
+      expect(
+        gradingDisplayId({
+          docId: 'abcdWXYZ',
+          gradingPurchaseDate: '2026-08-13',
+          gradingEventDate: '2027-01-20',
+        }),
+      ).toBe('202608-WXYZ');
+    });
+
+    it('falls back to the event date when there is no purchase date', () => {
+      expect(
+        gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: '2027-01-20' }),
+      ).toBe('202701-WXYZ');
+    });
+
+    it('keeps the docId characters exactly, so the grading can be found from the id', () => {
+      const docId = 'SomeDocIdWith-Mix3';
+      expect(gradingDisplayId({ docId, gradingPurchaseDate: '2026-08-13' })).toBe(
+        `202608-${docId.slice(-4)}`,
+      );
+    });
+
+    it('returns "" without a docId, and zeroes an unusable date', () => {
+      expect(gradingDisplayId({ docId: '', gradingPurchaseDate: '2026-08-13' })).toBe('');
+      expect(gradingDisplayId({ docId: 'abcdWXYZ' })).toBe('000000-WXYZ');
+      expect(
+        gradingDisplayId({ docId: 'abcdWXYZ', gradingPurchaseDate: 'not a date' }),
+      ).toBe('000000-WXYZ');
     });
   });
 

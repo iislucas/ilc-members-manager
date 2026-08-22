@@ -462,6 +462,16 @@
         cursor: text;
       }
 
+      // Id of the grading an order paid for; matches the grading page.
+      .grading-id {
+        font-size: 0.78em;
+        font-family: monospace;
+        color: v.$text-muted;
+        margin-top: 1px;
+        user-select: all;
+        cursor: text;
+      }
+
       .order-num-row {
         display: inline-flex;
         align-items: center;

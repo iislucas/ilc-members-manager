@@ -88,44 +88,47 @@ back to parsing the line-item description for orders that come from elsewhere:
 Purchases are de-duplicated by `orderId`, so re-processing an order never
 creates a second grading.
 
-### Order numbers
+### Grading IDs and order numbers
 
-Every purchase gets a short, human-friendly order number: the year and month of
-the order, then four digits hashed from the real reference (the Stripe invoice
-or session id, or the Squarespace order number).
+Every grading has a short, human-friendly id: the year and month it was
+purchased or created, then the last four characters of its document id.
 
 ```
-202608-4713
+202608-A5b1
 └────┘ └──┘
- YYYYMM  hash of the real order reference
+ YYYYMM  last 4 characters of the grading's docId
 ```
 
-`orderDisplayNumber(orderDate, sourceRef)` in `data-model.ts` computes it. It is
-stable for a given order, short enough to read out loud, and carries nothing
-about the underlying account — so it is safe to show to a student's instructors.
-The four digits are not unique on their own; the year and month are what
-separate two orders that would otherwise collide.
+`gradingDisplayId(grading)` in `data-model.ts` computes it. Because it comes
+from the grading document itself rather than from an order, a grading paid for
+in **cash** — or created by an admin — has an id just like a purchased one. The
+last four characters are lifted straight from the document id, so an admin can
+find the grading from an id a student quotes. They are not unique on their own;
+the year and month are what separate two gradings whose ids end the same way.
+
+The date is the **purchase/creation** date, not the date the grading takes
+place, so the id is fixed from the moment the grading exists and does not change
+when an event is scheduled later.
+
+Nothing is stored for this: every viewer of a grading can read its `docId` and
+`gradingPurchaseDate`, so instructors and school managers see the same id as the
+student without being able to read the order behind it.
 
 Where it appears:
 
-- **My Orders** (`/my-orders`) computes it from the member's own order record,
-  and shows the full Stripe reference underneath it as before. The search box
-  matches on it.
-- **The grading progress page** shows it beside the grading level, to everyone
-  who can see the grading. Instructors and school managers cannot read the order
-  document, so the number is stored on the grading itself, in `orderNumber` —
-  the same denormalization used for `studentName`. It is stamped on at purchase
-  time; gradings bought before that need
-  [`backfill-grading-order-numbers.ts`](../functions/scripts/data-migrations/backfill-grading-order-numbers.ts):
+- **The grading progress page**, beside the grading level, for everyone.
+- **My Orders** (`/my-orders`), on the order that paid for the grading. The page
+  finds it among the member's own gradings by matching the grading's `orderId`
+  to the order, and derives the id the same way — so both pages always agree.
 
-```bash
-cd functions
-pnpm exec ts-node scripts/data-migrations/backfill-grading-order-numbers.ts --project <projectId> --dry-run
-```
+Separately, each order on **My Orders** shows an **order number**:
+`orderDisplayNumber(orderDate, sourceRef)` — the order's year and month plus
+four digits hashed from the real reference (the Stripe invoice or session id, or
+the Squarespace order number). It identifies the *purchase* rather than the
+grading, and applies to memberships and licenses too. The full Stripe reference
+stays on the row beneath it, and the search box matches all three.
 
-Manually created gradings have no order, so they have no order number.
-
-### When a payment needs a human
+### When a payment needs a human### When a payment needs a human
 
 Two cases cannot be fulfilled as above, plus a level that cannot be recognised:
 
@@ -158,7 +161,6 @@ Key fields on a `Grading` (see `data-model.ts` for the full list and comments):
 |---|---|
 | `gradingPurchaseDate` | Date the grading was purchased (or manually created). |
 | `orderId` | Order that created it, or `''` if manual. |
-| `orderNumber` | Human-friendly order number for that purchase, e.g. `202608-4713` — see [Order numbers](#order-numbers). `''` if manual. |
 | `level` | The level being graded for, e.g. `Student 3`, `Application 2`. |
 | `gradingInstructorId` | Human-readable instructorId of the **primary** grading instructor. |
 | `assistantInstructorIds` | Human-readable instructorIds of additional **grading managers**. (Legacy field name; the UI labels these "Grading Managers". They have the same edit/accept rights as the primary instructor.) |
