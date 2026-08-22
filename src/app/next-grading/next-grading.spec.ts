@@ -16,6 +16,7 @@ import {
   initMember,
   MembershipType,
   GradingStatus,
+  PaymentStatus,
   StudentLevel,
   ApplicationLevel,
 } from '../../../functions/src/data-model';
@@ -82,6 +83,28 @@ describe('NextGradingComponent', () => {
           recurringIntervalCount: null,
           nickname: 'Student Level 2',
           created: 1003,
+        },
+        {
+          id: 'price_stu_4',
+          active: true,
+          currency: 'usd',
+          unitAmount: 9000,
+          type: StripePriceType.OneTime,
+          recurringInterval: null,
+          recurringIntervalCount: null,
+          nickname: 'Student Level 4',
+          created: 1004,
+        },
+        {
+          id: 'price_app_1',
+          active: true,
+          currency: 'usd',
+          unitAmount: 12000,
+          type: StripePriceType.OneTime,
+          recurringInterval: null,
+          recurringIntervalCount: null,
+          nickname: 'Application Level 1',
+          created: 1005,
         },
       ],
     },
@@ -227,6 +250,71 @@ describe('NextGradingComponent', () => {
     expect(el.textContent).toContain('Your next active grading is Student 2');
     expect(el.querySelector('.open-grading-banner .link-btn')?.textContent).toContain('Go to Student 2 Grading');
     expect(el.textContent).toContain('Next level to purchase');
+  });
+
+  describe('student level 3 progression (Application 1 comes after Student 3)', () => {
+    beforeEach(() => {
+      userSignal.set({
+        ...sampleUser,
+        member: { ...sampleMember, studentLevel: StudentLevel.Level3 },
+      });
+    });
+
+    it('offers Application 1 after Student 3 when there are no other gradings', async () => {
+      await createComponent();
+      expect(component.immediateNextLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.matchingGradingPrice()?.price.id).toBe('price_app_1');
+    });
+
+    it('still offers Application 1 when the member holds an unpaid Application 1 grading', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_unpaid',
+          level: 'Application 1',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.unpaidPendingLevel()).toBe('Application 1');
+      expect(component.nextPurchasableLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.isPayingForExistingGrading()).toBe(true);
+      expect(component.selectableLevels()[0].description).toContain(
+        'Outstanding fee for your existing Application 1 grading',
+      );
+    });
+
+    it('moves on to Student 4 only once the Application 1 grading is paid for', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_paid',
+          level: 'Application 1',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.nextPurchasableLevel()).toBe('Student 4');
+      expect(component.targetLevel()).toBe('Student 4');
+      expect(component.isPayingForExistingGrading()).toBe(false);
+    });
+
+    it('offers Student 4 once Application 1 has been achieved', async () => {
+      userSignal.set({
+        ...sampleUser,
+        member: {
+          ...sampleMember,
+          studentLevel: StudentLevel.Level3,
+          applicationLevel: ApplicationLevel.Level1,
+        },
+      });
+      await createComponent();
+      expect(component.targetLevel()).toBe('Student 4');
+    });
   });
 
   it('should identify free retake eligibility when member only has NotPassed grading and initiate retake', async () => {

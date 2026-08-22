@@ -26,6 +26,8 @@ import {
   PaymentStatus,
   firestoreDocToMember,
   initGrading,
+  isGradingPaid,
+  normalizeGradingLevel,
   initMember,
   initSchool,
   School,
@@ -337,6 +339,39 @@ async function autoCreateGradingForMember(
     .get();
   if (!existingQuery.empty) {
     return existingQuery.docs[0].id;
+  }
+
+  // A member can already hold an unpaid grading record for this level (created
+  // by `requestGrading`, which is how they plan a grading before paying). The
+  // purchase settles that record rather than creating a second one for the same
+  // level.
+  const memberGradings = await db
+    .collection('gradings')
+    .where('studentMemberDocId', '==', member.docId)
+    .get();
+  const unpaidExisting = memberGradings.docs.find((doc) => {
+    const g = doc.data() as Grading;
+    return (
+      normalizeGradingLevel(g.level) === normalizeGradingLevel(level) &&
+      !isGradingPaid(g) &&
+      g.status !== GradingStatus.Passed &&
+      g.status !== GradingStatus.NotPassed
+    );
+  });
+  if (unpaidExisting) {
+    await unpaidExisting.ref.update({
+      orderId: orderDocId,
+      gradingPurchaseDate: purchaseDate,
+      paymentStatus: PaymentStatus.PaidByStripe,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    logger.info('Marked existing unpaid grading as paid from Stripe order', {
+      memberDocId: member.docId,
+      gradingDocId: unpaidExisting.id,
+      level,
+      orderDocId,
+    });
+    return unpaidExisting.id;
   }
 
   const newGrading: Grading = {

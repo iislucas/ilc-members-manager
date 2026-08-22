@@ -4,6 +4,8 @@ import {
   initMember,
   initMemberOrder,
   MembershipType,
+  GradingStatus,
+  PaymentStatus,
   OrderKind,
   MemberOrderKind,
   MemberOrderPaymentStatus,
@@ -274,6 +276,68 @@ describe('stripe-fulfillment', () => {
         studentMemberId: 'US123',
         orderId: 'order_doc_123',
         level: 'Student 2',
+      }),
+    );
+  });
+
+  it('settles an existing unpaid grading instead of creating a duplicate', async () => {
+    const unpaidUpdate = vi.fn().mockResolvedValue({});
+    // The orderId de-duplication query finds nothing; the per-member query finds
+    // the unpaid Application 1 grading the member requested earlier.
+    mockGradingsCollection.where = vi.fn((field: string) => {
+      if (field === 'studentMemberDocId') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            empty: false,
+            docs: [
+              {
+                id: 'existing_unpaid_grading',
+                ref: { update: unpaidUpdate },
+                data: () => ({
+                  level: 'Application 1',
+                  status: GradingStatus.AwaitingRequest,
+                  paymentStatus: PaymentStatus.NotYetPaid,
+                }),
+              },
+            ],
+          }),
+        };
+      }
+      return {
+        limit: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+        }),
+      };
+    });
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_124',
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 5000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_grading',
+          priceId: 'price_grading',
+          description: 'GRADING : Application Level 1',
+          quantity: 1,
+          amountTotal: 5000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_doc_124');
+
+    expect(mockGradingsCollection.add).not.toHaveBeenCalled();
+    expect(unpaidUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order_doc_124',
+        paymentStatus: PaymentStatus.PaidByStripe,
       }),
     );
   });
