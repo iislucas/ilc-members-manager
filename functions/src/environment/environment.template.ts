@@ -34,9 +34,12 @@ export const environment: FunctionsEnvironment = {
     appBase: 'https://app.iliqchuan.com',
     instructorSopPath: '/instructors-area/post/instructor-packet',
   },
-  // Outbound email address configuration. If `from` is empty, email notifications are disabled.
+  // Email addresses. `from` is the sender — leave it empty to disable outbound
+  // email. `contact` is only displayed, so members always have somewhere to
+  // write even when sending is off.
   email: {
     from: '', // e.g. 'web-helper-team@iliqchuan.com'
+    contact: 'web-helper-team@iliqchuan.com',
   },
   // Stripe integration. The secret key is provided via the STRIPE_SECRET_KEY
   // secret (defineSecret), not stored here. Only non-secret config lives here.

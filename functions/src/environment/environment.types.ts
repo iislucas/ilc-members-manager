@@ -56,11 +56,17 @@ export interface FunctionsEnvironment {
     // without a code change.
     instructorSopPath: string;
   };
-  // Outbound email notification settings
+  // Email addresses. `from` controls sending; `contact` is only ever displayed.
+  // They are separate so outbound email can be switched off without also
+  // removing the address members are told to write to.
   email: {
     // Default 'From' email sender address (e.g. 'info@iliqchuan.com').
     // If left empty (''), outbound email notifications are disabled and only in-app alerts are created.
     from: string;
+    // Address shown to members when something needs a human — e.g. a grading
+    // payment that could not be applied. Displayed in notifications, never used
+    // to send. Required: it is the only route a member is given.
+    contact: string;
   };
   // Stripe API integration parameters
   stripe: {

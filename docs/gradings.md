@@ -158,7 +158,10 @@ being presented to the student as their next step. Two alerts are raised:
 
 - **The student** gets an `OrderNeedsAttention` notification saying what they
   paid, why it needs checking, that admins have been alerted, and the address to
-  contact if they don't hear back. That address is `environment.email.from`.
+  contact if they don't hear back. That address is `environment.email.contact`,
+  which is only ever displayed — it is deliberately separate from
+  `environment.email.from`, so outbound email can be switched off without
+  leaving members with nowhere to write.
 - **The admins** get it through the existing order-issue pipeline: the order is
   set to `needs-manual-processing` with the detail appended to
   `ilcAppOrderIssues`, which admin clients surface in their notification feed

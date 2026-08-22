@@ -94,7 +94,7 @@ describe('on-member-update triggers logic', () => {
   });
 
   beforeEach(() => {
-    environment.email = { from: 'info@iliqchuan.com' };
+    environment.email = { from: 'info@iliqchuan.com', contact: 'help@iliqchuan.com' };
     mockSet = vi.fn().mockResolvedValue({});
     mockAdd = vi.fn().mockResolvedValue({});
     mockDelete = vi.fn();
@@ -227,7 +227,9 @@ describe('on-member-update triggers logic', () => {
     });
 
     it('should NOT enqueue an email if environment.email.from is not configured', async () => {
-      environment.email = { from: '' };
+      // A contact address is still configured: it is only displayed, and does
+      // not make outbound email possible.
+      environment.email = { from: '', contact: 'help@iliqchuan.com' };
 
       const member = {
         docId: 'member-123',

@@ -29,7 +29,7 @@ import {
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
 
-// The contact address members are pointed at when a purchase needs a human is
+// The address members are pointed at when a purchase needs a human is
 // deployment configuration, and `environment.ts` is gitignored — so pin it here
 // rather than asserting against whatever this machine happens to have. The
 // literal is repeated inside the factory because vi.mock is hoisted above it.
@@ -37,7 +37,11 @@ const supportEmail = 'support@example.test';
 vi.mock('./environment/environment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./environment/environment')>();
   return {
-    environment: { ...actual.environment, email: { from: 'support@example.test' } },
+    environment: {
+      ...actual.environment,
+      // Sending is off; the displayed contact address is what members get.
+      email: { from: '', contact: 'support@example.test' },
+    },
   };
 });
 
