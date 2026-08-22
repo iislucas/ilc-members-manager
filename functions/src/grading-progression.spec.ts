@@ -6,7 +6,7 @@ import {
   previousGradingLevel,
   normalizeGradingLevel,
   levelAfter,
-  earliestUnpaidGrading,
+  nextGradingPayment,
   unpaidGradingsInProgressionOrder,
   notificationStyle,
   isGradingPaid,
@@ -134,60 +134,85 @@ describe('grading progression helpers', () => {
     });
   });
 
-  describe('earliestUnpaidGrading', () => {
+  describe('nextGradingPayment', () => {
     const unpaid = (level: string, status = GradingStatus.AwaitingRequest) => ({
       level,
       status,
       paymentStatus: PaymentStatus.NotYetPaid,
     });
-    const paid = (level: string) => ({
+    const paid = (level: string, status = GradingStatus.AwaitingRequest) => ({
       level,
-      status: GradingStatus.AwaitingRequest,
+      status,
       paymentStatus: PaymentStatus.PaidByStripe,
     });
 
-    it('applies a payment to the earliest unpaid grading in the progression', () => {
-      // Listed out of order, and Student 4 comes after Application 1.
-      const gradings = [unpaid('Student 4'), paid('Student 3'), unpaid('Application 1')];
-      expect(earliestUnpaidGrading(gradings)?.level).toBe('Application 1');
+    it('offers the next level in the progression when nothing is owed', () => {
+      // Student 3 achieved, no application levels: Application 1 comes next.
+      expect(nextGradingPayment('3', '', [])).toEqual({
+        level: 'Application 1',
+        grading: null,
+      });
     });
 
-    it('settles a conducted-but-unpaid grading ahead of a later open one', () => {
-      const gradings = [
-        unpaid('Student 4'),
-        unpaid('Application 1', GradingStatus.Passed),
-      ];
-      expect(earliestUnpaidGrading(gradings)?.level).toBe('Application 1');
+    it('settles an unpaid grading rather than moving past it', () => {
+      const g = unpaid('Application 1');
+      const result = nextGradingPayment('3', '', [g]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(g);
     });
 
-    it('never skips forward past the level that was purchased', () => {
-      // Only an unpaid Application 1 exists, but the member paid for Student 3:
-      // the payment must not jump onto the later Application 1 grading.
-      const gradings = [unpaid('Application 1')];
-      expect(earliestUnpaidGrading(gradings, 'Student 3')).toBe(null);
-      expect(earliestUnpaidGrading(gradings, 'Application 1')?.level).toBe(
-        'Application 1',
-      );
-      expect(earliestUnpaidGrading(gradings, 'Student 4')?.level).toBe(
-        'Application 1',
-      );
+    it('takes the earliest unpaid level when several are owed', () => {
+      const app1 = unpaid('Application 1');
+      const result = nextGradingPayment('3', '', [unpaid('Student 4'), app1]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(app1);
     });
 
-    it('ignores paid and NotPassed gradings', () => {
-      expect(earliestUnpaidGrading([paid('Student 1')])).toBe(null);
-      expect(
-        earliestUnpaidGrading([unpaid('Student 1', GradingStatus.NotPassed)]),
-      ).toBe(null);
-      // An absent paymentStatus counts as paid.
-      expect(
-        earliestUnpaidGrading([
-          { level: 'Student 1', status: GradingStatus.AwaitingRequest },
-        ]),
-      ).toBe(null);
+    it('settles a grading that was conducted but never paid for', () => {
+      const passedUnpaid = unpaid('Application 1', GradingStatus.Passed);
+      const result = nextGradingPayment('3', '', [passedUnpaid]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(passedUnpaid);
     });
 
-    it('returns null when nothing is owed', () => {
-      expect(earliestUnpaidGrading([])).toBe(null);
+    it('steps over a paid, still-open grading so a level can be bought ahead', () => {
+      expect(nextGradingPayment('3', '', [paid('Application 1')])).toEqual({
+        level: 'Student 4',
+        grading: null,
+      });
+    });
+
+    it('does not step over an out-of-order unpaid grading at a later level', () => {
+      // Student 2 achieved and an unpaid Application 1 exists (only reachable by
+      // an admin edit or import). Student 3 is still owed first.
+      const result = nextGradingPayment('2', '', [unpaid('Application 1')]);
+      expect(result.level).toBe('Student 3');
+      expect(result.grading).toBe(null);
+    });
+
+    it('skips the level the caller is handling as a free retake', () => {
+      const result = nextGradingPayment('3', '', [], 'Application 1');
+      expect(result.level).toBe('Student 4');
+    });
+
+    it('ignores NotPassed attempts, which the free-retake flow governs', () => {
+      const result = nextGradingPayment('3', '', [
+        unpaid('Application 1', GradingStatus.NotPassed),
+      ]);
+      expect(result.grading).toBe(null);
+      expect(result.level).toBe('Application 1');
+    });
+
+    it('treats a missing paymentStatus as paid', () => {
+      const result = nextGradingPayment('3', '', [
+        { level: 'Application 1', status: GradingStatus.AwaitingRequest },
+      ]);
+      expect(result.grading).toBe(null);
+      expect(result.level).toBe('Student 4');
+    });
+
+    it('returns an empty level once the whole progression is achieved', () => {
+      expect(nextGradingPayment('11', '6', [])).toEqual({ level: '', grading: null });
     });
 
     it('sorts unknown levels last rather than dropping them', () => {

@@ -490,10 +490,8 @@ export type UnpaidGradingCandidate = {
 };
 
 // The gradings a member still owes the HQ fee for, earliest in
-// `gradingProgression` first. A grading payment always settles the first of
-// these (see `earliestUnpaidGrading`), so the student pays off their
-// progression in order rather than by whichever level the receipt happens to
-// name.
+// `gradingProgression` first. See `nextGradingPayment` for how a payment picks
+// among them.
 //
 // `NotPassed` attempts are excluded: that level is governed by the free-retake
 // flow, and a payment must never be swallowed by a closed, failed attempt.
@@ -513,24 +511,65 @@ export function unpaidGradingsInProgressionOrder<T extends UnpaidGradingCandidat
     });
 }
 
-// The single grading a payment should be applied to: the member's earliest
-// unpaid grading in progression order. When `atOrBeforeLevel` is given, only
-// gradings at or before that level in the progression are considered, so a
-// payment can never skip forward onto a level the student has not reached yet.
-// Returns null when the member owes nothing.
-export function earliestUnpaidGrading<T extends UnpaidGradingCandidate>(
+/** What a grading payment applies to: a level, and the unpaid grading record at
+ * that level when one already exists (otherwise the record must be created). */
+export type NextGradingPayment<T> = {
+  /** The level being paid for. '' when the whole progression is complete. */
+  level: string;
+  /** The existing unpaid grading this payment settles, or null if none exists. */
+  grading: T | null;
+};
+
+// The next grading a member owes a fee for, walking `gradingProgression` in
+// order. This is the single rule behind both what the purchase page offers and
+// what an incoming payment is applied to, so the level on the receipt and the
+// grading that gets paid can never disagree.
+//
+// At each level, in order:
+//   - an unpaid grading record means the fee is still owed → settle that record;
+//   - an achieved level is done and paid for → keep walking;
+//   - a paid, still-open grading has been bought already → keep walking, which
+//     is what lets a student buy their following level in advance;
+//   - `skipLevel` (a free retake the caller handles separately) → keep walking;
+//   - otherwise this is the next level to buy, and no record exists for it yet.
+//
+// Returns `{ level: '', grading: null }` once every level has been achieved.
+export function nextGradingPayment<T extends UnpaidGradingCandidate>(
+  studentLevel: string,
+  applicationLevel: string,
   gradings: T[],
-  atOrBeforeLevel?: string,
-): T | null {
-  const unpaid = unpaidGradingsInProgressionOrder(gradings);
-  if (!atOrBeforeLevel) return unpaid[0] ?? null;
-  const limit = gradingProgression.indexOf(normalizeGradingLevel(atOrBeforeLevel));
-  if (limit === -1) return unpaid[0] ?? null;
-  const withinLimit = unpaid.filter((g) => {
-    const idx = gradingProgression.indexOf(normalizeGradingLevel(g.level));
-    return idx !== -1 && idx <= limit;
-  });
-  return withinLimit[0] ?? null;
+  skipLevel = '',
+): NextGradingPayment<T> {
+  const achieved = achievedGradingLevels(studentLevel, applicationLevel);
+
+  // Earliest-first, so a level with several unpaid records settles the oldest.
+  const unpaidByLevel = new Map<string, T>();
+  for (const g of unpaidGradingsInProgressionOrder(gradings)) {
+    const lvl = normalizeGradingLevel(g.level);
+    if (!unpaidByLevel.has(lvl)) unpaidByLevel.set(lvl, g);
+  }
+
+  const paidAndOpen = new Set(
+    gradings
+      .filter(
+        (g) =>
+          !!g.level &&
+          isGradingPaid(g) &&
+          g.status !== GradingStatus.Passed &&
+          g.status !== GradingStatus.NotPassed,
+      )
+      .map((g) => normalizeGradingLevel(g.level)),
+  );
+
+  for (const level of gradingProgression) {
+    const unpaid = unpaidByLevel.get(level);
+    if (unpaid) return { level, grading: unpaid };
+    if (achieved.has(level)) continue;
+    if (paidAndOpen.has(level)) continue;
+    if (level === skipLevel) continue;
+    return { level, grading: null };
+  }
+  return { level: '', grading: null };
 }
 
 export function getPrettyGradingStatus(status: GradingStatus): string {
