@@ -262,8 +262,10 @@ describe('NextGradingComponent', () => {
 
     it('offers Application 1 after Student 3 when there are no other gradings', async () => {
       await createComponent();
+      expect(component.unpaidPendingGradings()).toEqual([]);
       expect(component.immediateNextLevel()).toBe('Application 1');
       expect(component.targetLevel()).toBe('Application 1');
+      expect(component.isPayingForExistingGrading()).toBe(false);
       expect(component.matchingGradingPrice()?.price.id).toBe('price_app_1');
     });
 
@@ -298,9 +300,62 @@ describe('NextGradingComponent', () => {
       ]);
       await createComponent();
 
+      expect(component.unpaidPendingGradings()).toEqual([]);
+      expect(component.unpaidPendingLevel()).toBe('');
       expect(component.nextPurchasableLevel()).toBe('Student 4');
       expect(component.targetLevel()).toBe('Student 4');
       expect(component.isPayingForExistingGrading()).toBe(false);
+      expect(component.matchingGradingPrice()?.price.id).toBe('price_stu_4');
+    });
+
+    it('offers the earliest unpaid level first when the member holds two unpaid gradings', async () => {
+      // Listed out of progression order to check they are sorted before use.
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_stu_4_unpaid',
+          level: 'Student 4',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+        {
+          docId: 'g_app_1_unpaid',
+          level: 'Application 1',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(
+        component.unpaidPendingGradings().map((g) => g.level),
+      ).toEqual(['Application 1', 'Student 4']);
+      expect(component.unpaidPendingLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.isPayingForExistingGrading()).toBe(true);
+      expect(component.selectableLevels().length).toBe(1);
+      expect(component.selectableLevels()[0].level).toBe('Application 1');
+    });
+
+    it('moves to the remaining unpaid level once the earlier one is paid for', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_paid',
+          level: 'Application 1',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+        {
+          docId: 'g_stu_4_unpaid',
+          level: 'Student 4',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.unpaidPendingLevel()).toBe('Student 4');
+      expect(component.targetLevel()).toBe('Student 4');
+      expect(component.isPayingForExistingGrading()).toBe(true);
     });
 
     it('offers Student 4 once Application 1 has been achieved', async () => {
