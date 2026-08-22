@@ -11,7 +11,7 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType, orderDisplayNumber } from '../../../functions/src/data-model';
+import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType, Grading, GradingStatus, initGrading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model';
 
 describe('MemberOrdersComponent', () => {
   let fixture: ComponentFixture<MemberOrdersComponent>;
@@ -24,6 +24,9 @@ describe('MemberOrdersComponent', () => {
   let mockDataManagerService: {
     myOrders: {
       entries: ReturnType<typeof signal<MemberOrder[]>>;
+    };
+    myGradings: {
+      entries: ReturnType<typeof signal<Grading[]>>;
     };
   };
 
@@ -103,6 +106,15 @@ describe('MemberOrdersComponent', () => {
     },
   ];
 
+  const sampleGrading: Grading = {
+    ...initGrading(),
+    docId: 'grading-doc-Ab12',
+    orderId: 'order-2',
+    level: 'Student 3',
+    status: GradingStatus.AwaitingRequest,
+    gradingPurchaseDate: '2026-06-01',
+  };
+
   beforeEach(() => {
     mockFirebaseStateService = {
       user: signal<UserDetails | null>({
@@ -117,6 +129,11 @@ describe('MemberOrdersComponent', () => {
     mockDataManagerService = {
       myOrders: {
         entries: signal<MemberOrder[]>(sampleOrders),
+      },
+      // The second order paid for a grading; fulfillment sets the grading's
+      // orderId to the order's document id.
+      myGradings: {
+        entries: signal<Grading[]>([sampleGrading]),
       },
     };
 
@@ -386,6 +403,32 @@ describe('MemberOrdersComponent', () => {
     await fixture.whenStable();
     expect(component.orders().length).toBe(1);
     expect(component.orders()[0].docId).toBe(sampleOrders[0].docId);
+  });
+
+  it('shows the grading id on the order that paid for a grading', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const gradingIds = element.querySelectorAll('.grading-id');
+    // Only the grading order carries one.
+    expect(gradingIds.length).toBe(1);
+    expect(gradingIds[0].textContent?.trim()).toBe('Grading #202606-Ab12');
+
+    expect(component.getGradingId(sampleOrders[1])).toBe('202606-Ab12');
+    expect(component.getGradingId(sampleOrders[0])).toBe('');
+  });
+
+  it('shows the same grading id the grading page derives', async () => {
+    expect(component.getGradingId(sampleOrders[1])).toBe(
+      gradingDisplayId(sampleGrading),
+    );
+  });
+
+  it('finds an order by the grading id it paid for', async () => {
+    component.searchQuery.set('202606-Ab12');
+    await fixture.whenStable();
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].docId).toBe('order-2');
   });
 
   it('copies order ID to clipboard and sets copiedOrderId state', async () => {

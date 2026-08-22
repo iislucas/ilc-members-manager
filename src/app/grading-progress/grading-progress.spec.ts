@@ -81,36 +81,55 @@ describe('GradingProgressComponent', () => {
 
 
 
-  it('shows the order number to everyone who can see the grading', async () => {
+  it('shows the grading id to everyone who can see the grading', async () => {
     // Not logged in at all: instructors and school managers who cannot read the
-    // order document still need to see which purchase this grading came from.
+    // order document still need an id to quote for this grading.
     componentRef.setInput('grading', {
       ...initGrading(),
-      docId: 'g1',
+      docId: 'k3Bq7ZmA5b1',
       level: 'Student 3',
       status: GradingStatus.AwaitingRequest,
-      orderNumber: '202608-4713',
+      gradingPurchaseDate: '2026-08-13',
     });
     await fixture.whenStable();
 
+    expect(component.gradingId()).toBe('202608-A5b1');
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.grading-order-number')?.textContent).toContain(
-      'Order #202608-4713',
+    expect(el.querySelector('.grading-id')?.textContent).toContain(
+      'Grading #202608-A5b1',
     );
   });
 
-  it('omits the order number for a manually created grading', async () => {
+  it('gives a cash-paid grading an id, since it is derived from the grading', async () => {
     componentRef.setInput('grading', {
       ...initGrading(),
-      docId: 'g1',
+      docId: 'manualGradingXyz9',
+      orderId: '',
       level: 'Student 3',
       status: GradingStatus.AwaitingRequest,
-      orderNumber: '',
+      paymentStatus: PaymentStatus.PaidByCash,
+      gradingPurchaseDate: '2026-02-01',
     });
     await fixture.whenStable();
 
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.grading-order-number')).toBe(null);
+    expect(component.gradingId()).toBe('202602-Xyz9');
+  });
+
+  it('keeps the id fixed when the grading event date is set later', async () => {
+    const base = {
+      ...initGrading(),
+      docId: 'k3Bq7ZmA5b1',
+      level: 'Student 3',
+      status: GradingStatus.AwaitingRequest,
+      gradingPurchaseDate: '2026-08-13',
+    };
+    componentRef.setInput('grading', base);
+    await fixture.whenStable();
+    const before = component.gradingId();
+
+    componentRef.setInput('grading', { ...base, gradingEventDate: '2027-01-20' });
+    await fixture.whenStable();
+    expect(component.gradingId()).toBe(before);
   });
 
   it('should not show user as student when not logged in', () => {

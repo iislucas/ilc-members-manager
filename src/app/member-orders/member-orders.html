@@ -242,12 +242,20 @@
                 }
               </span>
               @let rawId = getOrderDisplayId(order);
-              <!-- Short order number, the one quoted on gradings and to support.
-                   The full Stripe/Squarespace reference stays below it. -->
+              <!-- Short order number, the one to quote to support. The full
+                   Stripe/Squarespace reference stays below it. -->
               @let orderNum = getOrderNumber(order);
               @if (orderNum) {
                 <div class="order-number" title="Order number">
                   #{{ orderNum }}
+                </div>
+              }
+              <!-- When this order bought a grading, the grading's own id — the
+                   same one shown on the grading page. -->
+              @let gradingId = getGradingId(order);
+              @if (gradingId) {
+                <div class="grading-id" title="Grading ID for the grading this order paid for">
+                  Grading #{{ gradingId }}
                 </div>
               }
               @if (rawId) {

@@ -609,6 +609,38 @@ export function orderDisplayNumber(orderDate: string, sourceRef: string): string
   return `${yearMonth}-${digits}`;
 }
 
+/** The minimum shape needed to derive a grading's display id. */
+export type GradingIdCandidate = {
+  docId: string;
+  gradingPurchaseDate?: string;
+  gradingEventDate?: string;
+};
+
+// A short, human-friendly id for a grading: the year and month it was
+// purchased or created, then the last four characters of its document id.
+//
+//   gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingPurchaseDate: '2026-08-13' })
+//     → '202608-A5b1'
+//
+// Unlike an order number this needs no order, so a grading paid for in cash or
+// created by an admin still has an id. The last four characters come straight
+// from the document id, so an admin can find the grading from the id. They are
+// not unique on their own; the year and month are what separate two gradings
+// whose ids happen to end the same way.
+//
+// The date is the purchase/creation date rather than the date the grading takes
+// place, so the id is fixed from the moment the grading exists and does not
+// change when an event is later scheduled.
+export function gradingDisplayId(grading: GradingIdCandidate): string {
+  const docId = (grading.docId || '').trim();
+  if (!docId) return '';
+  const date = (grading.gradingPurchaseDate || grading.gradingEventDate || '').trim();
+  const yearMonth = /^\d{4}-\d{2}/.test(date)
+    ? date.substring(0, 7).replace('-', '')
+    : '000000';
+  return `${yearMonth}-${docId.slice(-4)}`;
+}
+
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
@@ -1840,11 +1872,6 @@ export type Grading = {
 
   gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
   orderId: string; // The order ID that created this grading, or '' if manual.
-  // Human-friendly order number for the purchase (see `orderDisplayNumber`),
-  // e.g. '202608-4713'. Denormalized onto the grading — like `studentName` below
-  // — because instructors and school managers can read a grading but not the
-  // order document it came from. '' for manually created gradings.
-  orderNumber: string;
   level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   // The instructorIds (human readable) of the grading managers. Grading managers
@@ -1937,7 +1964,6 @@ export function initGrading(): Grading {
     lastUpdated: new Date().toISOString(),
     gradingPurchaseDate: '',
     orderId: '',
-    orderNumber: '',
     level: '',
     gradingInstructorId: '',
     gradingManagerIds: [],

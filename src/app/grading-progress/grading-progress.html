@@ -112,12 +112,12 @@
       @if (isActiveNextGrading() && fromLevelsDisplay()) {
         <span class="grading-target-from">({{ fromLevelsDisplay() }})</span>
       }
-      <!-- Order number for the purchase. Shown to everyone who can see the
-           grading — instructors and school managers cannot read the order
-           document, so it is denormalized onto the grading. -->
-      @if (g.orderNumber) {
-        <span class="grading-order-number" title="Order number for this grading purchase">
-          Order #{{ g.orderNumber }}
+      <!-- The grading's id, shown to everyone who can see the grading. Derived
+           from the grading itself rather than an order, so a grading paid for
+           in cash has one too. -->
+      @if (gradingId()) {
+        <span class="grading-id" title="Grading ID — quote this when asking about this grading">
+          Grading #{{ gradingId() }}
         </span>
       }
     </div>

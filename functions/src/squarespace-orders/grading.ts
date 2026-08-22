@@ -7,7 +7,7 @@ through Squarespace.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, orderDisplayNumber, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Member, Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
 import { GradingResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
@@ -81,12 +81,6 @@ export function parseGradingOrderInfo(
       reviewIssue: providedMemberId ? '' : 'Missing member ID in order customizations.',
       gradingPurchaseDate: purchaseDate,
       orderId: orderId || orderData.docId || '',
-      // Human-friendly number shown wherever the grading is, including to
-      // instructors who cannot read the order itself.
-      orderNumber: orderDisplayNumber(
-        orderData.createdOn || purchaseDate,
-        orderData.orderNumber || orderData.id || '',
-      ),
       level,
       gradingInstructorId,
       studentMemberId: providedMemberId,
@@ -211,7 +205,6 @@ export async function processGradingOrder(
     const update: Record<string, unknown> = {
       paymentStatus: PaymentStatus.PaidBySquarespace,
       orderId,
-      orderNumber: gradingInfo.orderNumber,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (!reusable.g.gradingPurchaseDate) {
