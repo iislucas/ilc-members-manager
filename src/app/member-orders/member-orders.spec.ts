@@ -11,7 +11,7 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType } from '../../../functions/src/data-model';
+import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType, Grading, GradingStatus, initGrading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model';
 
 describe('MemberOrdersComponent', () => {
   let fixture: ComponentFixture<MemberOrdersComponent>;
@@ -24,6 +24,9 @@ describe('MemberOrdersComponent', () => {
   let mockDataManagerService: {
     myOrders: {
       entries: ReturnType<typeof signal<MemberOrder[]>>;
+    };
+    myGradings: {
+      entries: ReturnType<typeof signal<Grading[]>>;
     };
   };
 
@@ -103,6 +106,15 @@ describe('MemberOrdersComponent', () => {
     },
   ];
 
+  const sampleGrading: Grading = {
+    ...initGrading(),
+    docId: 'grading-doc-Ab12',
+    orderId: 'order-2',
+    level: 'Student 3',
+    status: GradingStatus.AwaitingRequest,
+    gradingEventDate: '2026-06-01',
+  };
+
   beforeEach(() => {
     mockFirebaseStateService = {
       user: signal<UserDetails | null>({
@@ -117,6 +129,11 @@ describe('MemberOrdersComponent', () => {
     mockDataManagerService = {
       myOrders: {
         entries: signal<MemberOrder[]>(sampleOrders),
+      },
+      // The second order paid for a grading; fulfillment sets the grading's
+      // orderId to the order's document id.
+      myGradings: {
+        entries: signal<Grading[]>([sampleGrading]),
       },
     };
 
@@ -355,6 +372,82 @@ describe('MemberOrdersComponent', () => {
       stripeInvoiceId: 'in_9999',
     };
     expect(component.getOrderDisplayId(invoiceOrder)).toBe('in_9999');
+  });
+
+  it('shows an order reference alongside the full reference', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const shown = element.querySelectorAll('.order-number');
+    // Every order has one, whatever it bought.
+    expect(shown.length).toBe(2);
+    expect(shown[0].textContent?.trim()).toBe(
+      'Order Ref #' + component.getOrderNumber(sampleOrders[0]),
+    );
+    // Date of the order, then four digits.
+    expect(component.getOrderNumber(sampleOrders[0])).toMatch(/^\d{8}-\d{4}$/);
+
+    // The full Stripe reference is still in the DOM for click-to-select.
+    expect(element.querySelectorAll('.order-id-text').length).toBe(2);
+  });
+
+  it('matches the order number the server stamps onto a grading', async () => {
+    const order = sampleOrders[0];
+    expect(component.getOrderNumber(order)).toBe(
+      orderDisplayNumber(order.created || order.date, order.orderNumber || ''),
+    );
+  });
+
+  it('finds an order by its short order number', async () => {
+    const number = component.getOrderNumber(sampleOrders[0]);
+    component.searchQuery.set(number);
+    await fixture.whenStable();
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].docId).toBe(sampleOrders[0].docId);
+  });
+
+  it('shows both references on the order that paid for a grading', async () => {
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const refs = element.querySelectorAll('.grading-id');
+    // Only the grading order carries a grading reference...
+    expect(refs.length).toBe(1);
+    expect(refs[0].textContent?.trim()).toBe('Grading Ref #202606-Ab12');
+
+    // ...and it carries an order reference as well.
+    const gradingCard = refs[0].closest('.col-date');
+    expect(gradingCard?.querySelector('.order-number')?.textContent).toContain(
+      'Order Ref #',
+    );
+
+    expect(component.getGradingId(sampleOrders[1])).toBe('202606-Ab12');
+    expect(component.getGradingId(sampleOrders[0])).toBe('');
+  });
+
+  it('shows the same reference the grading page derives', async () => {
+    expect(component.getGradingId(sampleOrders[1])).toBe(
+      gradingDisplayId(sampleGrading),
+    );
+  });
+
+  it('asks for the grading event date when the grading has no reference yet', async () => {
+    mockDataManagerService.myGradings.entries.set([
+      { ...sampleGrading, gradingEventDate: '' },
+    ]);
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const ref = element.querySelector('.grading-id');
+    expect(ref?.textContent).toContain('Please set the grading event date');
+    expect(ref?.classList.contains('needs-date')).toBe(true);
+  });
+
+  it('finds an order by the grading reference it paid for', async () => {
+    component.searchQuery.set('202606-Ab12');
+    await fixture.whenStable();
+    expect(component.orders().length).toBe(1);
+    expect(component.orders()[0].docId).toBe('order-2');
   });
 
   it('copies order ID to clipboard and sets copiedOrderId state', async () => {

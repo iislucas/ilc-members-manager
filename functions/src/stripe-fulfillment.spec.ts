@@ -11,6 +11,13 @@ import {
   StripeOrderType,
   StripeCheckoutMode,
   StripePaymentStatus,
+  StudentLevel,
+  ApplicationLevel,
+  GradingStatus,
+  PaymentStatus,
+  OrderStatus,
+  NotificationKind,
+  gradingDisplayId,
 } from './data-model';
 import {
   fulfillStripeOrder,
@@ -22,11 +29,17 @@ import {
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
 
+import { environment } from './environment/environment';
+
 describe('stripe-fulfillment', () => {
+  // The contact address members are pointed at when a purchase needs a human.
+  const supportEmail = environment.email?.from || 'web-helper-team@iliqchuan.com';
   let mockDb: any;
   let mockMemberRef: any;
   let mockOrdersCollection: any;
   let mockGradingsCollection: any;
+  let mockOrderDocSet: any;
+  let mockNotificationSet: any;
 
   const sampleMember = {
     ...initMember(),
@@ -45,12 +58,13 @@ describe('stripe-fulfillment', () => {
   };
 
   beforeEach(() => {
+    mockNotificationSet = vi.fn().mockResolvedValue({});
     mockMemberRef = {
       update: vi.fn().mockResolvedValue({}),
       collection: vi.fn().mockReturnValue({
         doc: vi.fn().mockReturnValue({
           id: 'mock_doc_id',
-          set: vi.fn().mockResolvedValue({}),
+          set: mockNotificationSet,
         }),
         where: vi.fn().mockReturnValue({
           get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
@@ -58,11 +72,13 @@ describe('stripe-fulfillment', () => {
       }),
     };
 
+    mockOrderDocSet = vi.fn().mockResolvedValue({});
     mockOrdersCollection = {
       where: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
       add: vi.fn().mockResolvedValue({ id: 'new_order_id' }),
+      doc: vi.fn().mockReturnValue({ set: mockOrderDocSet }),
     };
 
     mockGradingsCollection = {
@@ -244,6 +260,13 @@ describe('stripe-fulfillment', () => {
     );
   });
 
+  // A member at Student 1: their next owed level is Student 2.
+  const gradingMember = {
+    ...sampleMember,
+    studentLevel: StudentLevel.Level1,
+    applicationLevel: ApplicationLevel.None,
+  };
+
   it('auto-provisions a grading document when a member purchases a grading', async () => {
     const order: StripeOrder = {
       docId: '',
@@ -266,7 +289,7 @@ describe('stripe-fulfillment', () => {
       ],
     };
 
-    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_doc_123');
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_123');
 
     expect(mockGradingsCollection.add).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -276,6 +299,313 @@ describe('stripe-fulfillment', () => {
         level: 'Student 2',
       }),
     );
+    // Receipt and progression agree, so nobody is alerted.
+    expect(mockOrderDocSet).not.toHaveBeenCalled();
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  // Builds a gradings collection mock: the orderId de-duplication query finds
+  // nothing, and the per-member query returns `docs`.
+  function mockMemberGradings(
+    docs: Array<{ id: string; update: any; data: Record<string, unknown> }>,
+  ): void {
+    mockGradingsCollection.where = vi.fn((field: string) => {
+      if (field === 'studentMemberDocId') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            empty: docs.length === 0,
+            docs: docs.map((d) => ({
+              id: d.id,
+              ref: { update: d.update },
+              data: () => d.data,
+            })),
+          }),
+        };
+      }
+      return {
+        limit: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+        }),
+      };
+    });
+  }
+
+  function gradingOrder(description: string, stripeObjectId: string): StripeOrder {
+    return {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId,
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 5000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_grading',
+          priceId: 'price_grading',
+          description,
+          quantity: 1,
+          amountTotal: 8000,
+          currency: 'usd',
+        },
+      ],
+    };
+  }
+
+  it('settles an existing unpaid grading instead of creating a duplicate', async () => {
+    const unpaidUpdate = vi.fn().mockResolvedValue({});
+    mockMemberGradings([
+      {
+        id: 'existing_unpaid_grading',
+        update: unpaidUpdate,
+        data: {
+          level: 'Student 2',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      },
+    ]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_124'),
+      'order_doc_124',
+    );
+
+    expect(mockGradingsCollection.add).not.toHaveBeenCalled();
+    expect(unpaidUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order_doc_124',
+        paymentStatus: PaymentStatus.PaidByStripe,
+      }),
+    );
+    // Receipt and progression agree, so nobody is alerted.
+    expect(mockOrderDocSet).not.toHaveBeenCalled();
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('does not step over an out-of-order unpaid grading at a later level', async () => {
+    // Application 1 comes after Student 2, and Student 2 is what is owed next.
+    const laterUpdate = vi.fn().mockResolvedValue({});
+    mockMemberGradings([
+      {
+        id: 'unpaid_later_level',
+        update: laterUpdate,
+        data: {
+          level: 'Application 1',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      },
+    ]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_125'),
+      'order_doc_125',
+    );
+
+    expect(laterUpdate).not.toHaveBeenCalled();
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'Student 2', orderId: 'order_doc_125' }),
+    );
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('creates the grading when a student buys a level above their current one', async () => {
+    // Member is at Student 1 and buys Student 4. Booking ahead is allowed and
+    // raises nothing.
+    mockMemberGradings([]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 4', 'cs_126'),
+      'order_doc_126',
+    );
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 4',
+        status: GradingStatus.AwaitingRequest,
+        paymentStatus: PaymentStatus.PaidByStripe,
+      }),
+    );
+    expect(mockOrderDocSet).not.toHaveBeenCalled();
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('flags a payment for a level the student has already achieved', async () => {
+    mockMemberGradings([]);
+
+    // Member is at Student 3, so Student 2 is behind them.
+    await fulfillStripeOrder(
+      mockDb,
+      {
+        ...sampleMember,
+        studentLevel: StudentLevel.Level3,
+        applicationLevel: ApplicationLevel.None,
+      },
+      gradingOrder('GRADING : Student Level 2', 'cs_127'),
+      'order_doc_127',
+    );
+
+    // The payment is never lost: the grading is created, held for review.
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 2',
+        status: GradingStatus.RequiresReview,
+        paymentStatus: PaymentStatus.PaidByStripe,
+        // The reason is stored on the grading for the admin who picks it up.
+        reviewIssue: expect.stringContaining('at or below their current level'),
+      }),
+    );
+
+    // Admins: flagging the order is what surfaces it in their feed.
+    expect(mockOrderDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ilcAppOrderStatus: OrderStatus.NeedsManualProcessing,
+      }),
+      { merge: true },
+    );
+    expect(JSON.stringify(mockOrderDocSet.mock.calls[0][0].ilcAppOrderIssues)).toContain(
+      'at or below their current level',
+    );
+
+    // The member: what they paid, why it needs checking, and where to write.
+    const notification = mockNotificationSet.mock.calls[0][0];
+    expect(notification.kind).toBe(NotificationKind.OrderNeedsAttention);
+    expect(notification.markdown).toContain('Student 2');
+    expect(notification.markdown).toContain('USD 80.00');
+    expect(notification.markdown).toContain('already shows');
+    expect(notification.markdown).toContain(supportEmail);
+    expect(notification.markdown).toContain('order_doc_127');
+  });
+
+  it('flags a payment for a level the student has already paid for', async () => {
+    mockMemberGradings([
+      {
+        id: 'already_paid_grading',
+        update: vi.fn().mockResolvedValue({}),
+        data: {
+          level: 'Student 2',
+          status: GradingStatus.AwaitingRequest,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      },
+    ]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_128'),
+      'order_doc_128',
+    );
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 2',
+        status: GradingStatus.RequiresReview,
+      }),
+    );
+    expect(JSON.stringify(mockOrderDocSet.mock.calls[0][0].ilcAppOrderIssues)).toContain(
+      'Duplicate grading payment',
+    );
+    expect(mockNotificationSet.mock.calls[0][0].markdown).toContain(
+      'already paid for',
+    );
+  });
+
+  it('books a fresh grading when paying after an unpaid failed attempt', async () => {
+    // A NotPassed record is a closed attempt, so it is not settled by the
+    // payment — the student is buying another go at that level.
+    const failedUpdate = vi.fn().mockResolvedValue({});
+    mockMemberGradings([
+      {
+        id: 'failed_unpaid',
+        update: failedUpdate,
+        data: {
+          level: 'Student 2',
+          status: GradingStatus.NotPassed,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      },
+    ]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_129'),
+      'order_doc_129',
+    );
+
+    expect(failedUpdate).not.toHaveBeenCalled();
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'Student 2',
+        status: GradingStatus.AwaitingRequest,
+      }),
+    );
+    expect(mockNotificationSet).not.toHaveBeenCalled();
+  });
+
+  it('flags a payment whose level cannot be recognised', async () => {
+    mockMemberGradings([]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Mystery Item', 'cs_130'),
+      'order_doc_130',
+    );
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ status: GradingStatus.RequiresReview }),
+    );
+    expect(JSON.stringify(mockOrderDocSet.mock.calls[0][0].ilcAppOrderIssues)).toContain(
+      'unrecognised level',
+    );
+    expect(mockNotificationSet.mock.calls[0][0].markdown).toContain(supportEmail);
+  });
+
+  it('does not stamp an order number onto the grading', async () => {
+    // A grading's id comes from its own document (see gradingDisplayId), so
+    // there is nothing order-derived to denormalize onto it.
+    mockMemberGradings([]);
+
+    await fulfillStripeOrder(
+      mockDb,
+      gradingMember,
+      gradingOrder('GRADING : Student Level 2', 'cs_live_number_test'),
+      'order_doc_num',
+    );
+
+    const created = mockGradingsCollection.add.mock.calls[0][0];
+    expect(created.orderNumber).toBeUndefined();
+    expect(created.orderId).toBe('order_doc_num');
+    // Its reference is issued later, from the grading event date and its own
+    // document id — nothing the purchase can supply.
+    expect(gradingDisplayId({ ...created, docId: 'new_grading_doc_id' })).toBe('');
+    expect(
+      gradingDisplayId({ docId: 'new_grading_doc_id', gradingEventDate: '2026-09-01' }),
+    ).toBe('202609-c_id');
+  });
+
+  it('trusts the level recorded in the order metadata over the line-item text', async () => {
+    mockMemberGradings([]);
+    const order = gradingOrder('GRADING : Some Renamed Product', 'cs_128');
+    order.metadata = { orderType: 'grading', gradingLevel: 'Student 2' };
+
+    await fulfillStripeOrder(mockDb, gradingMember, order, 'order_doc_128');
+
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'Student 2' }),
+    );
+    // Metadata level matches what is owed, so the odd description raises nothing.
+    expect(mockNotificationSet).not.toHaveBeenCalled();
   });
 
   it('fulfills monthly Class Video Library subscription on member doc', async () => {

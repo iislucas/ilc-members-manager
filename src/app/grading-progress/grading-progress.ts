@@ -36,6 +36,7 @@ import {
   instructorCanAssessLevel,
   gradingManagerIdsOf,
   isGradingPaid,
+  gradingDisplayId,
   PaymentStatus,
   PAYMENT_STATUSES,
   PAYMENT_STATUS_LABELS,
@@ -511,6 +512,11 @@ export class GradingProgressComponent {
   protected paymentStatuses = PAYMENT_STATUSES;
   paymentStatusLabel = (s: string) =>
     PAYMENT_STATUS_LABELS[s as PaymentStatus] ?? s;
+
+  // Short, human-friendly id for this grading (e.g. '202608-A5b1'). Derived
+  // from the grading document, so everyone who can see the grading can see the
+  // id — including instructors, who cannot read the order behind it.
+  gradingId = computed(() => gradingDisplayId(this.grading()));
 
   // The grading's current payment status label + whether it counts as unpaid.
   currentPaymentLabel = computed(() => this.paymentStatusLabel(this.grading().paymentStatus));

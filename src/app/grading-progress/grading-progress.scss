@@ -32,6 +32,21 @@
     font-size: 0.9em;
     color: v.$text-secondary;
   }
+
+  .grading-id {
+    margin-left: auto;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: v.$text-secondary;
+    white-space: nowrap;
+
+    // No reference yet: prompt for the date that produces one.
+    &.needs-date {
+      font-family: inherit;
+      font-style: italic;
+      color: v.$text-muted;
+    }
+  }
 }
 
 // Standard warning callout: amber background, left accent, warning icon.

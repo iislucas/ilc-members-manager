@@ -31,6 +31,9 @@ import {
   gradingProgression,
   normalizeGradingLevel,
   achievedGradingLevels,
+  isGradingPaid,
+  unpaidGradingsInProgressionOrder,
+  nextGradingPayment,
   StudentLevel,
   ApplicationLevel,
 } from '../../../functions/src/data-model';
@@ -153,6 +156,24 @@ export class NextGradingComponent {
     );
   });
 
+  // Gradings the member still owes the HQ fee for, earliest in the progression
+  // first. These are exactly what they still need to buy, so they must never be
+  // skipped over when working out the next level to purchase. This deliberately
+  // covers gradings that were already conducted but never paid for, not just
+  // open ones — a payment settles them too.
+  unpaidGradings = computed<Grading[]>(() => {
+    const user = this.user();
+    if (!user) return [];
+    return unpaidGradingsInProgressionOrder(this.dataService.myGradings.entries());
+  });
+
+  // The earliest level (in progression order) with an unpaid grading record.
+  // This is the grading a payment will be applied to.
+  unpaidPendingLevel = computed(() => {
+    const g = this.unpaidGradings()[0];
+    return g ? normalizeGradingLevel(g.level) : '';
+  });
+
   // Formatted list of all pending grading levels in progression order (e.g. "Student 2, Student 3")
   pendingLevelsList = computed(() => {
     return this.pendingGradings()
@@ -178,12 +199,16 @@ export class NextGradingComponent {
       if (achieved.has(lvl)) continue;
       if (pending.has(lvl)) continue;
 
-      const hasNotPassed = gradings.some(
+      // Only a paid failed attempt earns a free retake. An unpaid one still
+      // owes its fee; paying it creates the follow-up grading automatically
+      // (see onGradingUpdated), so it is offered as a purchase instead.
+      const hasPaidNotPassed = gradings.some(
         (g) =>
           normalizeGradingLevel(g.level) === lvl &&
-          g.status === GradingStatus.NotPassed,
+          g.status === GradingStatus.NotPassed &&
+          isGradingPaid(g),
       );
-      if (hasNotPassed) {
+      if (hasPaidNotPassed) {
         return lvl;
       }
     }
@@ -192,20 +217,32 @@ export class NextGradingComponent {
 
   retakeEligible = computed(() => !!this.retakeEligibleLevel());
 
-  // Next level available for Stripe purchase:
-  // First level along progression that is NOT achieved, NOT pending, and NOT a free retake
-  nextPurchasableLevel = computed(() => {
-    const achieved = this.achievedLevels();
-    const pending = this.pendingLevelSet();
-    const retakeLvl = this.retakeEligibleLevel();
+  // Next level available for Stripe purchase: the first level along the
+  // progression that is NOT achieved, NOT already paid for, and NOT a free
+  // retake. A level with an unpaid grading record is still purchasable — that
+  // outstanding fee is what the member came here to pay.
+  // What the member's next grading payment applies to. This is the same
+  // `nextGradingPayment` rule Stripe fulfillment uses to decide which grading a
+  // payment settles, so the level offered here is always the level that gets
+  // paid. A free retake is handled separately, so it is skipped.
+  nextPayment = computed(() => {
+    const m = this.user()?.member;
+    if (!m) return { level: '', grading: null };
+    return nextGradingPayment(
+      m.studentLevel,
+      m.applicationLevel,
+      this.dataService.myGradings.entries(),
+      this.retakeEligibleLevel(),
+    );
+  });
 
-    for (const lvl of gradingProgression) {
-      if (achieved.has(lvl)) continue;
-      if (pending.has(lvl)) continue;
-      if (lvl === retakeLvl) continue;
-      return lvl;
-    }
-    return '';
+  nextPurchasableLevel = computed(() => this.nextPayment().level);
+
+  // True when the level being purchased settles an existing unpaid grading
+  // record rather than starting a brand-new one.
+  isPayingForExistingGrading = computed(() => {
+    const target = this.targetLevel();
+    return !!target && target === this.nextPayment().level && !!this.nextPayment().grading;
   });
 
   // Selectable grading levels to purchase via Stripe
@@ -214,13 +251,16 @@ export class NextGradingComponent {
     if (!purchasable) return [];
 
     const retake = this.retakeEligibleLevel();
-    const pending = this.pendingGradings();
+    const paidPending = this.pendingGradings().filter((g) => isGradingPaid(g));
+
 
     let desc = 'Next target grading level in the curriculum';
-    if (retake) {
+    if (purchasable === this.unpaidPendingLevel()) {
+      desc = `Outstanding fee for your existing ${purchasable} grading`;
+    } else if (retake) {
       desc = `Subsequent progression level (in advance, after your ${retake} retake)`;
-    } else if (pending.length > 0) {
-      desc = `Subsequent progression level (after your pending ${pending[0].level} grading)`;
+    } else if (paidPending.length > 0) {
+      desc = `Subsequent progression level (after your pending ${paidPending[0].level} grading)`;
     }
 
     return [{ level: purchasable, description: desc }];

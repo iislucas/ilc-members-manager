@@ -242,6 +242,29 @@
                 }
               </span>
               @let rawId = getOrderDisplayId(order);
+              <!-- Short order number, the one to quote to support. The full
+                   Stripe/Squarespace reference stays below it. -->
+              @let orderNum = getOrderNumber(order);
+              @if (orderNum) {
+                <div class="order-number" title="Order reference">
+                  Order Ref #{{ orderNum }}
+                </div>
+              }
+              <!-- When this order bought a grading, that grading's reference —
+                   the same one shown on the grading page. It is issued once the
+                   grading event date is set. -->
+              @if (getOrderGrading(order)) {
+                @let gradingId = getGradingId(order);
+                @if (gradingId) {
+                  <div class="grading-id" title="Reference of the grading this order paid for">
+                    Grading Ref #{{ gradingId }}
+                  </div>
+                } @else {
+                  <div class="grading-id needs-date" title="A grading reference is issued once the grading event date is set">
+                    Please set the grading event date
+                  </div>
+                }
+              }
               @if (rawId) {
                 <div class="order-num-row">
                   <span class="order-num" [title]="rawId">
@@ -280,7 +303,10 @@
               <span class="main-desc">{{
                 order.description ||
                   "Order #" +
-                    (order.orderNumber || order.orderDocId || order.docId)
+                    (getOrderNumber(order) ||
+                      order.orderNumber ||
+                      order.orderDocId ||
+                      order.docId)
               }}</span>
               <div class="badge-group">
                 <span class="badge qty-badge">

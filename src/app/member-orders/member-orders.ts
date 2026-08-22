@@ -9,9 +9,12 @@ import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import {
+  Grading,
   InstructorLicenseType,
   MemberOrder,
   MembershipType,
+  gradingDisplayId,
+  orderDisplayNumber,
 } from '../../../functions/src/data-model';
 
 export enum SubscriptionCardCategory {
@@ -359,12 +362,21 @@ export class MemberOrdersComponent {
     return raw.filter((o) => {
       const matchDocId = (o.orderDocId || o.docId || '').toLowerCase().includes(query);
       const matchNum = (o.orderNumber || '').toLowerCase().includes(query);
+      const matchOrderNumber = this.getOrderNumber(o).toLowerCase().includes(query);
+      const matchGradingId = this.getGradingId(o).toLowerCase().includes(query);
       const matchDesc = (o.description || '').toLowerCase().includes(query);
       const matchDate = (o.date || '').toLowerCase().includes(query);
       const matchType = (o.orderType || '').toLowerCase().includes(query);
       const matchStatus = (o.paymentStatus || '').toLowerCase().includes(query);
       return (
-        matchDocId || matchNum || matchDesc || matchDate || matchType || matchStatus
+        matchDocId ||
+        matchNum ||
+        matchOrderNumber ||
+        matchGradingId ||
+        matchDesc ||
+        matchDate ||
+        matchType ||
+        matchStatus
       );
     });
   });
@@ -438,6 +450,40 @@ export class MemberOrdersComponent {
   }
 
   copiedOrderId = signal<string | null>(null);
+
+  // The member's gradings, keyed by the order that bought them, so an order row
+  // can show the id of the grading it paid for.
+  private gradingsByOrderId = computed(() => {
+    const byOrder = new Map<string, Grading>();
+    for (const g of this.dataService.myGradings.entries()) {
+      if (g.orderId) byOrder.set(g.orderId, g);
+    }
+    return byOrder;
+  });
+
+  // The grading this order paid for, or null. Matched on the grading's
+  // `orderId`, which fulfillment sets to the order's document id.
+  getOrderGrading(order: MemberOrder): Grading | null {
+    const byOrder = this.gradingsByOrderId();
+    return byOrder.get(order.orderDocId) || byOrder.get(order.docId) || null;
+  }
+
+  // The grading id to quote for this order (e.g. '202608-A5b1'), or '' when the
+  // order did not buy a grading. Identical to the id on the grading page: both
+  // derive it from the grading document.
+  getGradingId(order: MemberOrder): string {
+    const grading = this.getOrderGrading(order);
+    return grading ? gradingDisplayId(grading) : '';
+  }
+
+  // The short, human-friendly order number (e.g. '202608-4713'). Derived from
+  // the same inputs the server uses, so the number is stable for an order.
+  getOrderNumber(order: MemberOrder): string {
+    return orderDisplayNumber(
+      order.created || order.date || '',
+      order.orderNumber || this.getOrderDisplayId(order),
+    );
+  }
 
   getOrderDisplayId(order: MemberOrder): string {
     // If order has an invoice ID and orderNumber is a checkout session, prefer invoice ID

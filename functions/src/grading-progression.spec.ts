@@ -6,10 +6,15 @@ import {
   previousGradingLevel,
   normalizeGradingLevel,
   levelAfter,
+  nextGradingPayment,
+  unpaidGradingsInProgressionOrder,
+  orderDisplayNumber,
+  gradingDisplayId,
   notificationStyle,
   isGradingPaid,
   NotificationKind,
   PaymentStatus,
+  GradingStatus,
 } from './data-model';
 
 describe('grading progression helpers', () => {
@@ -128,6 +133,188 @@ describe('grading progression helpers', () => {
     it('treats Entry/unset instructor level as unqualified for application gradings', () => {
       expect(instructorCanAssessLevel('Entry', 'Application 1')).toBe(false);
       expect(instructorCanAssessLevel('', 'Application 1')).toBe(false);
+    });
+  });
+
+  describe('nextGradingPayment', () => {
+    const unpaid = (level: string, status = GradingStatus.AwaitingRequest) => ({
+      level,
+      status,
+      paymentStatus: PaymentStatus.NotYetPaid,
+    });
+    const paid = (level: string, status = GradingStatus.AwaitingRequest) => ({
+      level,
+      status,
+      paymentStatus: PaymentStatus.PaidByStripe,
+    });
+
+    it('offers the next level in the progression when nothing is owed', () => {
+      // Student 3 achieved, no application levels: Application 1 comes next.
+      expect(nextGradingPayment('3', '', [])).toEqual({
+        level: 'Application 1',
+        grading: null,
+      });
+    });
+
+    it('settles an unpaid grading rather than moving past it', () => {
+      const g = unpaid('Application 1');
+      const result = nextGradingPayment('3', '', [g]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(g);
+    });
+
+    it('takes the earliest unpaid level when several are owed', () => {
+      const app1 = unpaid('Application 1');
+      const result = nextGradingPayment('3', '', [unpaid('Student 4'), app1]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(app1);
+    });
+
+    it('settles a grading that was conducted but never paid for', () => {
+      const passedUnpaid = unpaid('Application 1', GradingStatus.Passed);
+      const result = nextGradingPayment('3', '', [passedUnpaid]);
+      expect(result.level).toBe('Application 1');
+      expect(result.grading).toBe(passedUnpaid);
+    });
+
+    it('steps over a paid, still-open grading so a level can be bought ahead', () => {
+      expect(nextGradingPayment('3', '', [paid('Application 1')])).toEqual({
+        level: 'Student 4',
+        grading: null,
+      });
+    });
+
+    it('does not step over an out-of-order unpaid grading at a later level', () => {
+      // Student 2 achieved and an unpaid Application 1 exists (only reachable by
+      // an admin edit or import). Student 3 is still owed first.
+      const result = nextGradingPayment('2', '', [unpaid('Application 1')]);
+      expect(result.level).toBe('Student 3');
+      expect(result.grading).toBe(null);
+    });
+
+    it('skips the level the caller is handling as a free retake', () => {
+      const result = nextGradingPayment('3', '', [], 'Application 1');
+      expect(result.level).toBe('Student 4');
+    });
+
+    it('ignores NotPassed attempts, which the free-retake flow governs', () => {
+      const result = nextGradingPayment('3', '', [
+        unpaid('Application 1', GradingStatus.NotPassed),
+      ]);
+      expect(result.grading).toBe(null);
+      expect(result.level).toBe('Application 1');
+    });
+
+    it('treats a missing paymentStatus as paid', () => {
+      const result = nextGradingPayment('3', '', [
+        { level: 'Application 1', status: GradingStatus.AwaitingRequest },
+      ]);
+      expect(result.grading).toBe(null);
+      expect(result.level).toBe('Student 4');
+    });
+
+    it('returns an empty level once the whole progression is achieved', () => {
+      expect(nextGradingPayment('11', '6', [])).toEqual({ level: '', grading: null });
+    });
+
+    it('sorts unknown levels last rather than dropping them', () => {
+      const gradings = [unpaid('Bogus 9'), unpaid('Student 2')];
+      expect(unpaidGradingsInProgressionOrder(gradings).map((g) => g.level)).toEqual([
+        'Student 2',
+        'Bogus 9',
+      ]);
+    });
+  });
+
+  describe('orderDisplayNumber', () => {
+    it('is the order date plus four digits from the reference', () => {
+      expect(orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2')).toMatch(
+        /^20260813-\d{4}$/,
+      );
+    });
+
+    it('is stable for the same reference and differs between references', () => {
+      const a = orderDisplayNumber('2026-08-13', 'cs_live_a1b2');
+      expect(orderDisplayNumber('2026-08-13', 'cs_live_a1b2')).toBe(a);
+      expect(orderDisplayNumber('2026-08-13', 'cs_live_a1b3')).not.toBe(a);
+    });
+
+    it('takes the date from the order, not today, and keeps the day', () => {
+      expect(orderDisplayNumber('2024-01-31T23:59:59Z', 'ref').slice(0, 8)).toBe(
+        '20240131',
+      );
+      expect(orderDisplayNumber('2026-12-01', 'ref').slice(0, 8)).toBe('20261201');
+      // Two orders one day apart differ even with the same reference.
+      expect(orderDisplayNumber('2026-12-01', 'ref')).not.toBe(
+        orderDisplayNumber('2026-12-02', 'ref'),
+      );
+    });
+
+    it('accepts a plain YYYY-MM-DD date as well as a full timestamp', () => {
+      expect(orderDisplayNumber('2026-08-13', 'ref')).toBe(
+        orderDisplayNumber('2026-08-13T05:35:27Z', 'ref'),
+      );
+    });
+
+    it('returns "" when there is no source reference (e.g. a manual grading)', () => {
+      expect(orderDisplayNumber('2026-08-13', '')).toBe('');
+      expect(orderDisplayNumber('2026-08-13', '   ')).toBe('');
+    });
+
+    it('falls back to a zeroed date when the date is unusable', () => {
+      expect(orderDisplayNumber('', 'ref')).toMatch(/^00000000-\d{4}$/);
+      expect(orderDisplayNumber('not a date', 'ref')).toMatch(/^00000000-\d{4}$/);
+      // A year and month with no day is not enough for a dated reference.
+      expect(orderDisplayNumber('2026-08', 'ref')).toMatch(/^00000000-\d{4}$/);
+    });
+
+    it('spreads references over the four digits without collapsing', () => {
+      const numbers = new Set(
+        Array.from({ length: 500 }, (_, i) =>
+          orderDisplayNumber('2026-08-13', `cs_live_${i}`),
+        ),
+      );
+      // Some collisions are expected in 10k slots; a broken hash would give one.
+      expect(numbers.size).toBeGreaterThan(450);
+    });
+  });
+
+  describe('gradingDisplayId', () => {
+    it('is the grading event year and month plus the last four characters of the docId', () => {
+      expect(
+        gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingEventDate: '2026-08-13' }),
+      ).toBe('202608-A5b1');
+    });
+
+    it('works without an order, so a cash-paid grading still has a reference', () => {
+      expect(
+        gradingDisplayId({ docId: 'manualGradingXyz9', gradingEventDate: '2026-02-01' }),
+      ).toBe('202602-Xyz9');
+    });
+
+    it('tracks the grading event date when it is changed', () => {
+      expect(
+        gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: '2027-01-20' }),
+      ).toBe('202701-WXYZ');
+    });
+
+    it('keeps the docId characters exactly, so the grading can be found from it', () => {
+      const docId = 'SomeDocIdWith-Mix3';
+      expect(gradingDisplayId({ docId, gradingEventDate: '2026-08-13' })).toBe(
+        `202608-${docId.slice(-4)}`,
+      );
+    });
+
+    it('returns "" until the grading event date is set', () => {
+      expect(gradingDisplayId({ docId: 'abcdWXYZ' })).toBe('');
+      expect(gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: '' })).toBe('');
+      expect(
+        gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: 'not a date' }),
+      ).toBe('');
+    });
+
+    it('returns "" without a docId', () => {
+      expect(gradingDisplayId({ docId: '', gradingEventDate: '2026-08-13' })).toBe('');
     });
   });
 
