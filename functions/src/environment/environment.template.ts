@@ -36,7 +36,9 @@ export const environment: FunctionsEnvironment = {
   },
   // Email addresses. `from` is the sender — leave it empty to disable outbound
   // email. `contact` is only displayed, so members always have somewhere to
-  // write even when sending is off.
+  // write even when sending is off. Keep `contact` in step with `adminEmail` in
+  // src/environments: the browser app shows the same address, and the two
+  // bundles cannot share config.
   email: {
     from: '', // e.g. 'web-helper-team@iliqchuan.com'
     contact: 'web-helper-team@iliqchuan.com',
