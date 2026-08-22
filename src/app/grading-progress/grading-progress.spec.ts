@@ -81,6 +81,38 @@ describe('GradingProgressComponent', () => {
 
 
 
+  it('shows the order number to everyone who can see the grading', async () => {
+    // Not logged in at all: instructors and school managers who cannot read the
+    // order document still need to see which purchase this grading came from.
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      level: 'Student 3',
+      status: GradingStatus.AwaitingRequest,
+      orderNumber: '202608-4713',
+    });
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.grading-order-number')?.textContent).toContain(
+      'Order #202608-4713',
+    );
+  });
+
+  it('omits the order number for a manually created grading', async () => {
+    componentRef.setInput('grading', {
+      ...initGrading(),
+      docId: 'g1',
+      level: 'Student 3',
+      status: GradingStatus.AwaitingRequest,
+      orderNumber: '',
+    });
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.grading-order-number')).toBe(null);
+  });
+
   it('should not show user as student when not logged in', () => {
     expect(component.userIsStudent()).toBe(false);
   });

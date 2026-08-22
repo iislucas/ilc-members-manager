@@ -31,6 +31,7 @@ import {
   achievedGradingLevels,
   unpaidGradingsInProgressionOrder,
   normalizeGradingLevel,
+  orderDisplayNumber,
   initMember,
   initSchool,
   School,
@@ -471,11 +472,18 @@ async function reportGradingPaymentProblem(
 async function fulfillGradingForMember(
   db: admin.firestore.Firestore,
   member: Member,
+  order: StripeOrder,
   lineItem: StripeOrderLineItem,
   orderDocId: string,
   metadataLevel = '',
 ): Promise<string> {
   const purchaseDate = new Date().toISOString().split('T')[0];
+  // Shown on the grading to everyone who can see it, including instructors who
+  // cannot read the order document.
+  const orderNumber = orderDisplayNumber(
+    order.created || purchaseDate,
+    order.invoiceId || order.stripeObjectId || '',
+  );
   // The purchase page records the level it charged for in the order metadata;
   // trust that over parsing the line-item description when it is present.
   const rawLevel = metadataLevel.trim()
@@ -514,6 +522,7 @@ async function fulfillGradingForMember(
   if (unpaidExisting) {
     await unpaidExisting.ref.update({
       orderId: orderDocId,
+      orderNumber,
       gradingPurchaseDate: purchaseDate,
       paymentStatus: PaymentStatus.PaidByStripe,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
@@ -546,6 +555,7 @@ async function fulfillGradingForMember(
     schoolDocId: member.primarySchoolDocId || '',
     schoolId: member.primarySchoolId || '',
     orderId: orderDocId,
+    orderNumber,
     gradingPurchaseDate: purchaseDate,
     level: level || rawLevel,
     // A flagged grading is held for admin review rather than presented to the
@@ -1099,6 +1109,7 @@ export async function fulfillStripeOrder(
       await fulfillGradingForMember(
         db,
         member,
+        order,
         item,
         orderDocId,
         order.metadata?.['gradingLevel'] || '',

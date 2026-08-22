@@ -450,6 +450,18 @@
         color: v.$text-primary;
       }
 
+      // Short, human-friendly order number (e.g. #202608-4713) — the one also
+      // shown on the grading progress page.
+      .order-number {
+        font-size: 0.82em;
+        font-family: monospace;
+        font-weight: 600;
+        color: v.$text-secondary;
+        margin-top: 2px;
+        user-select: all;
+        cursor: text;
+      }
+
       .order-num-row {
         display: inline-flex;
         align-items: center;

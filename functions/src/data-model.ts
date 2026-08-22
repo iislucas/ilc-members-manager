@@ -572,6 +572,43 @@ export function nextGradingPayment<T extends UnpaidGradingCandidate>(
   return { level: '', grading: null };
 }
 
+// 32-bit FNV-1a. Deterministic across node and the browser, and good enough to
+// spread order references evenly over the four digits below.
+function fnv1aHash(input: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    // hash * 16777619, kept in 32-bit range without overflowing to a float.
+    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+// A short, human-friendly order number: the year and month the order was placed,
+// then four digits derived from the real order reference (the Stripe invoice or
+// session id, or the Squarespace order number).
+//
+//   orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2') → '202608-4713'
+//
+// It is stable for a given order, short enough to read out loud, and carries no
+// information about the underlying account — so it can be shown to people (e.g.
+// a student's instructors) who cannot read the order document itself. The four
+// digits are not unique on their own; the year and month are what separate two
+// orders that happen to collide.
+//
+// Returns '' when there is no source reference, i.e. nothing was purchased —
+// for example a grading an admin created by hand.
+export function orderDisplayNumber(orderDate: string, sourceRef: string): string {
+  const ref = (sourceRef || '').trim();
+  if (!ref) return '';
+  const date = (orderDate || '').trim();
+  const yearMonth = /^\d{4}-\d{2}/.test(date)
+    ? date.substring(0, 7).replace('-', '')
+    : '000000';
+  const digits = String(fnv1aHash(ref) % 10000).padStart(4, '0');
+  return `${yearMonth}-${digits}`;
+}
+
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:
@@ -1803,6 +1840,11 @@ export type Grading = {
 
   gradingPurchaseDate: string; // YYYY-MM-DD, the date the grading was purchased.
   orderId: string; // The order ID that created this grading, or '' if manual.
+  // Human-friendly order number for the purchase (see `orderDisplayNumber`),
+  // e.g. '202608-4713'. Denormalized onto the grading — like `studentName` below
+  // — because instructors and school managers can read a grading but not the
+  // order document it came from. '' for manually created gradings.
+  orderNumber: string;
   level: string; // The level the grading is aimed for ('Student X' or 'Application X').
   gradingInstructorId: string; // The instructorId (human readable) of the grading instructor.
   // The instructorIds (human readable) of the grading managers. Grading managers
@@ -1895,6 +1937,7 @@ export function initGrading(): Grading {
     lastUpdated: new Date().toISOString(),
     gradingPurchaseDate: '',
     orderId: '',
+    orderNumber: '',
     level: '',
     gradingInstructorId: '',
     gradingManagerIds: [],
