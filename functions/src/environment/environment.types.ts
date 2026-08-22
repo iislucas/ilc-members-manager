@@ -66,6 +66,15 @@ export interface FunctionsEnvironment {
     // Address shown to members when something needs a human — e.g. a grading
     // payment that could not be applied. Displayed in notifications, never used
     // to send. Required: it is the only route a member is given.
+    //
+    // The browser app carries the same address as `adminEmail` in
+    // src/environments. The two are deliberately not shared: the functions build
+    // compiles only functions/src (see functions/tsconfig.json `rootDir`), and
+    // pointing the browser at this file instead would ship server config —
+    // calendar ids, VAPID keys — in the client bundle. Server-side messages like
+    // the grading-payment alert are composed in the Cloud Function and stored as
+    // markdown, so the address must be resolved here, not at render time.
+    // Changing the address means changing it in both places.
     contact: string;
   };
   // Stripe API integration parameters

@@ -50,6 +50,11 @@ export interface AppEnvironment {
   // Public support/help contact address. Displayed to users (not emailed
   // automatically) on the login and unauthorized pages, in the footer, and in
   // error dialogs (e.g. firebase-state) inviting them to get in touch.
+  //
+  // Server-side messages carry the same address as `email.contact` in
+  // functions/src/environment. The duplication is deliberate — the two bundles
+  // are built and deployed separately, and neither can import the other's config
+  // (see the note on `email.contact`) — so keep them in step by hand.
   adminEmail: string;
   // The 'From' address that password-reset emails are sent from. Display-only:
   // shown to the user in the login page's reset-confirmation message so they
