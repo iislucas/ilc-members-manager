@@ -227,9 +227,9 @@ describe('grading progression helpers', () => {
   });
 
   describe('orderDisplayNumber', () => {
-    it('is the order year and month plus four digits from the reference', () => {
+    it('is the order date plus four digits from the reference', () => {
       expect(orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2')).toMatch(
-        /^202608-\d{4}$/,
+        /^20260813-\d{4}$/,
       );
     });
 
@@ -239,9 +239,15 @@ describe('grading progression helpers', () => {
       expect(orderDisplayNumber('2026-08-13', 'cs_live_a1b3')).not.toBe(a);
     });
 
-    it('takes the month from the order date, not today', () => {
-      expect(orderDisplayNumber('2024-01-31T23:59:59Z', 'ref').slice(0, 6)).toBe('202401');
-      expect(orderDisplayNumber('2026-12-01', 'ref').slice(0, 6)).toBe('202612');
+    it('takes the date from the order, not today, and keeps the day', () => {
+      expect(orderDisplayNumber('2024-01-31T23:59:59Z', 'ref').slice(0, 8)).toBe(
+        '20240131',
+      );
+      expect(orderDisplayNumber('2026-12-01', 'ref').slice(0, 8)).toBe('20261201');
+      // Two orders one day apart differ even with the same reference.
+      expect(orderDisplayNumber('2026-12-01', 'ref')).not.toBe(
+        orderDisplayNumber('2026-12-02', 'ref'),
+      );
     });
 
     it('accepts a plain YYYY-MM-DD date as well as a full timestamp', () => {
@@ -255,9 +261,11 @@ describe('grading progression helpers', () => {
       expect(orderDisplayNumber('2026-08-13', '   ')).toBe('');
     });
 
-    it('falls back to a zeroed year/month when the date is unusable', () => {
-      expect(orderDisplayNumber('', 'ref')).toMatch(/^000000-\d{4}$/);
-      expect(orderDisplayNumber('not a date', 'ref')).toMatch(/^000000-\d{4}$/);
+    it('falls back to a zeroed date when the date is unusable', () => {
+      expect(orderDisplayNumber('', 'ref')).toMatch(/^00000000-\d{4}$/);
+      expect(orderDisplayNumber('not a date', 'ref')).toMatch(/^00000000-\d{4}$/);
+      // A year and month with no day is not enough for a dated reference.
+      expect(orderDisplayNumber('2026-08', 'ref')).toMatch(/^00000000-\d{4}$/);
     });
 
     it('spreads references over the four digits without collapsing', () => {

@@ -584,17 +584,15 @@ function fnv1aHash(input: string): number {
   return hash >>> 0;
 }
 
-// A short, human-friendly order number: the year and month the order was placed,
+// An order's reference ("Order Ref #" in the UI): the date the order was placed,
 // then four digits derived from the real order reference (the Stripe invoice or
 // session id, or the Squarespace order number).
 //
-//   orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2') → '202608-4713'
+//   orderDisplayNumber('2026-08-13T05:35:27Z', 'cs_live_a1b2') → '20260813-4713'
 //
 // It is stable for a given order, short enough to read out loud, and carries no
-// information about the underlying account — so it can be shown to people (e.g.
-// a student's instructors) who cannot read the order document itself. The four
-// digits are not unique on their own; the year and month are what separate two
-// orders that happen to collide.
+// information about the underlying account. The four digits are not unique on
+// their own; the date is what separates two orders that happen to collide.
 //
 // Returns '' when there is no source reference, i.e. nothing was purchased —
 // for example a grading an admin created by hand.
@@ -602,11 +600,11 @@ export function orderDisplayNumber(orderDate: string, sourceRef: string): string
   const ref = (sourceRef || '').trim();
   if (!ref) return '';
   const date = (orderDate || '').trim();
-  const yearMonth = /^\d{4}-\d{2}/.test(date)
-    ? date.substring(0, 7).replace('-', '')
-    : '000000';
+  const day = /^\d{4}-\d{2}-\d{2}/.test(date)
+    ? date.substring(0, 10).replace(/-/g, '')
+    : '00000000';
   const digits = String(fnv1aHash(ref) % 10000).padStart(4, '0');
-  return `${yearMonth}-${digits}`;
+  return `${day}-${digits}`;
 }
 
 /** The minimum shape needed to derive a grading's reference. */

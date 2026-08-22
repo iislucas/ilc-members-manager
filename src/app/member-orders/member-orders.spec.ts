@@ -374,19 +374,20 @@ describe('MemberOrdersComponent', () => {
     expect(component.getOrderDisplayId(invoiceOrder)).toBe('in_9999');
   });
 
-  it('shows a short order number alongside the full reference', async () => {
+  it('shows an order reference alongside the full reference', async () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     const shown = element.querySelectorAll('.order-number');
+    // Every order has one, whatever it bought.
     expect(shown.length).toBe(2);
     expect(shown[0].textContent?.trim()).toBe(
-      '#' + component.getOrderNumber(sampleOrders[0]),
+      'Order Ref #' + component.getOrderNumber(sampleOrders[0]),
     );
-    // Year and month of the order, then four digits.
-    expect(component.getOrderNumber(sampleOrders[0])).toMatch(/^\d{6}-\d{4}$/);
+    // Date of the order, then four digits.
+    expect(component.getOrderNumber(sampleOrders[0])).toMatch(/^\d{8}-\d{4}$/);
 
-    // The full reference is still in the DOM for click-to-select.
+    // The full Stripe reference is still in the DOM for click-to-select.
     expect(element.querySelectorAll('.order-id-text').length).toBe(2);
   });
 
@@ -405,14 +406,20 @@ describe('MemberOrdersComponent', () => {
     expect(component.orders()[0].docId).toBe(sampleOrders[0].docId);
   });
 
-  it('shows the grading reference on the order that paid for a grading', async () => {
+  it('shows both references on the order that paid for a grading', async () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     const refs = element.querySelectorAll('.grading-id');
-    // Only the grading order carries one.
+    // Only the grading order carries a grading reference...
     expect(refs.length).toBe(1);
-    expect(refs[0].textContent?.trim()).toBe('Ref #202606-Ab12');
+    expect(refs[0].textContent?.trim()).toBe('Grading Ref #202606-Ab12');
+
+    // ...and it carries an order reference as well.
+    const gradingCard = refs[0].closest('.col-date');
+    expect(gradingCard?.querySelector('.order-number')?.textContent).toContain(
+      'Order Ref #',
+    );
 
     expect(component.getGradingId(sampleOrders[1])).toBe('202606-Ab12');
     expect(component.getGradingId(sampleOrders[0])).toBe('');
