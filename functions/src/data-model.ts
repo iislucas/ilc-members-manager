@@ -482,6 +482,57 @@ export function isGradingPaid(g: { paymentStatus?: PaymentStatus | string }): bo
   return (g.paymentStatus ?? '') !== PaymentStatus.NotYetPaid;
 }
 
+/** The minimum shape needed to decide whether a grading still owes its HQ fee. */
+export type UnpaidGradingCandidate = {
+  level: string;
+  status: GradingStatus | string;
+  paymentStatus?: PaymentStatus | string;
+};
+
+// The gradings a member still owes the HQ fee for, earliest in
+// `gradingProgression` first. A grading payment always settles the first of
+// these (see `earliestUnpaidGrading`), so the student pays off their
+// progression in order rather than by whichever level the receipt happens to
+// name.
+//
+// `NotPassed` attempts are excluded: that level is governed by the free-retake
+// flow, and a payment must never be swallowed by a closed, failed attempt.
+// Levels missing from `gradingProgression` sort last.
+export function unpaidGradingsInProgressionOrder<T extends UnpaidGradingCandidate>(
+  gradings: T[],
+): T[] {
+  return gradings
+    .filter(
+      (g) =>
+        !!g.level && !isGradingPaid(g) && g.status !== GradingStatus.NotPassed,
+    )
+    .sort((a, b) => {
+      const idxA = gradingProgression.indexOf(normalizeGradingLevel(a.level));
+      const idxB = gradingProgression.indexOf(normalizeGradingLevel(b.level));
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+}
+
+// The single grading a payment should be applied to: the member's earliest
+// unpaid grading in progression order. When `atOrBeforeLevel` is given, only
+// gradings at or before that level in the progression are considered, so a
+// payment can never skip forward onto a level the student has not reached yet.
+// Returns null when the member owes nothing.
+export function earliestUnpaidGrading<T extends UnpaidGradingCandidate>(
+  gradings: T[],
+  atOrBeforeLevel?: string,
+): T | null {
+  const unpaid = unpaidGradingsInProgressionOrder(gradings);
+  if (!atOrBeforeLevel) return unpaid[0] ?? null;
+  const limit = gradingProgression.indexOf(normalizeGradingLevel(atOrBeforeLevel));
+  if (limit === -1) return unpaid[0] ?? null;
+  const withinLimit = unpaid.filter((g) => {
+    const idx = gradingProgression.indexOf(normalizeGradingLevel(g.level));
+    return idx !== -1 && idx <= limit;
+  });
+  return withinLimit[0] ?? null;
+}
+
 export function getPrettyGradingStatus(status: GradingStatus): string {
   switch (status) {
     case GradingStatus.AwaitingRequest:

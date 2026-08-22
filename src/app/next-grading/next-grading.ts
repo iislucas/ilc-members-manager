@@ -32,6 +32,7 @@ import {
   normalizeGradingLevel,
   achievedGradingLevels,
   isGradingPaid,
+  unpaidGradingsInProgressionOrder,
   StudentLevel,
   ApplicationLevel,
 } from '../../../functions/src/data-model';
@@ -154,16 +155,21 @@ export class NextGradingComponent {
     );
   });
 
-  // Pending gradings the member has not paid for yet. These are exactly what
-  // they still need to buy, so they must never be skipped over when working out
-  // the next level to purchase.
-  unpaidPendingGradings = computed<Grading[]>(() => {
-    return this.pendingGradings().filter((g) => !isGradingPaid(g));
+  // Gradings the member still owes the HQ fee for, earliest in the progression
+  // first. These are exactly what they still need to buy, so they must never be
+  // skipped over when working out the next level to purchase. This deliberately
+  // covers gradings that were already conducted but never paid for, not just
+  // open ones — a payment settles them too.
+  unpaidGradings = computed<Grading[]>(() => {
+    const user = this.user();
+    if (!user) return [];
+    return unpaidGradingsInProgressionOrder(this.dataService.myGradings.entries());
   });
 
   // The earliest level (in progression order) with an unpaid grading record.
+  // This is the grading a payment will be applied to.
   unpaidPendingLevel = computed(() => {
-    const g = this.unpaidPendingGradings()[0];
+    const g = this.unpaidGradings()[0];
     return g ? normalizeGradingLevel(g.level) : '';
   });
 
@@ -221,6 +227,12 @@ export class NextGradingComponent {
   // retake. A level with an unpaid grading record is still purchasable — that
   // outstanding fee is what the member came here to pay.
   nextPurchasableLevel = computed(() => {
+    // A payment always settles the earliest unpaid grading, so that level is
+    // what the page must offer — otherwise the receipt would name one level
+    // while the money landed on another.
+    const owed = this.unpaidPendingLevel();
+    if (owed) return owed;
+
     const achieved = this.achievedLevels();
     const paidPending = this.paidPendingLevelSet();
     const retakeLvl = this.retakeEligibleLevel();
@@ -248,6 +260,7 @@ export class NextGradingComponent {
 
     const retake = this.retakeEligibleLevel();
     const paidPending = this.pendingGradings().filter((g) => isGradingPaid(g));
+
 
     let desc = 'Next target grading level in the curriculum';
     if (purchasable === this.unpaidPendingLevel()) {

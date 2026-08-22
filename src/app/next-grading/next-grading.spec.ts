@@ -262,7 +262,7 @@ describe('NextGradingComponent', () => {
 
     it('offers Application 1 after Student 3 when there are no other gradings', async () => {
       await createComponent();
-      expect(component.unpaidPendingGradings()).toEqual([]);
+      expect(component.unpaidGradings()).toEqual([]);
       expect(component.immediateNextLevel()).toBe('Application 1');
       expect(component.targetLevel()).toBe('Application 1');
       expect(component.isPayingForExistingGrading()).toBe(false);
@@ -300,7 +300,7 @@ describe('NextGradingComponent', () => {
       ]);
       await createComponent();
 
-      expect(component.unpaidPendingGradings()).toEqual([]);
+      expect(component.unpaidGradings()).toEqual([]);
       expect(component.unpaidPendingLevel()).toBe('');
       expect(component.nextPurchasableLevel()).toBe('Student 4');
       expect(component.targetLevel()).toBe('Student 4');
@@ -327,7 +327,7 @@ describe('NextGradingComponent', () => {
       await createComponent();
 
       expect(
-        component.unpaidPendingGradings().map((g) => g.level),
+        component.unpaidGradings().map((g) => g.level),
       ).toEqual(['Application 1', 'Student 4']);
       expect(component.unpaidPendingLevel()).toBe('Application 1');
       expect(component.targetLevel()).toBe('Application 1');
@@ -356,6 +356,41 @@ describe('NextGradingComponent', () => {
       expect(component.unpaidPendingLevel()).toBe('Student 4');
       expect(component.targetLevel()).toBe('Student 4');
       expect(component.isPayingForExistingGrading()).toBe(true);
+    });
+
+    it('targets an already-conducted but unpaid earlier grading', async () => {
+      // Passed but never paid for, so the member's level was never raised. The
+      // fee is still owed, and a payment settles this record.
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_passed_unpaid',
+          level: 'Application 1',
+          status: GradingStatus.Passed,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.unpaidPendingLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.isPayingForExistingGrading()).toBe(true);
+    });
+
+    it('ignores a NotPassed unpaid attempt, which the free-retake flow governs', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_failed_unpaid',
+          level: 'Application 1',
+          status: GradingStatus.NotPassed,
+          paymentStatus: PaymentStatus.NotYetPaid,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.unpaidGradings()).toEqual([]);
+      expect(component.retakeEligibleLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
+      expect(component.isPayingForExistingGrading()).toBe(false);
     });
 
     it('offers Student 4 once Application 1 has been achieved', async () => {
