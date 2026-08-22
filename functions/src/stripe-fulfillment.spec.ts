@@ -342,7 +342,9 @@ describe('stripe-fulfillment', () => {
     );
   });
 
-  it('creates a new grading when the member only has an unpaid grading at a different level', async () => {
+  it('leaves a later unpaid grading alone and creates the purchased one', async () => {
+    // Student 4 comes after Application 1, so a payment for Application 1 must
+    // not jump forward onto it.
     const otherUpdate = vi.fn().mockResolvedValue({});
     mockGradingsCollection.where = vi.fn((field: string) => {
       if (field === 'studentMemberDocId') {
@@ -351,7 +353,7 @@ describe('stripe-fulfillment', () => {
             empty: false,
             docs: [
               {
-                id: 'unpaid_other_level',
+                id: 'unpaid_later_level',
                 ref: { update: otherUpdate },
                 data: () => ({
                   level: 'Student 4',
@@ -397,6 +399,78 @@ describe('stripe-fulfillment', () => {
     expect(mockGradingsCollection.add).toHaveBeenCalledWith(
       expect.objectContaining({ level: 'Application 1', orderId: 'order_doc_125' }),
     );
+  });
+
+  it('applies the payment to the earliest unpaid grading, not the level on the receipt', async () => {
+    const app1Update = vi.fn().mockResolvedValue({});
+    const stu4Update = vi.fn().mockResolvedValue({});
+    mockGradingsCollection.where = vi.fn((field: string) => {
+      if (field === 'studentMemberDocId') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            empty: false,
+            docs: [
+              {
+                id: 'unpaid_student_4',
+                ref: { update: stu4Update },
+                data: () => ({
+                  level: 'Student 4',
+                  status: GradingStatus.AwaitingRequest,
+                  paymentStatus: PaymentStatus.NotYetPaid,
+                }),
+              },
+              {
+                id: 'unpaid_application_1',
+                ref: { update: app1Update },
+                data: () => ({
+                  level: 'Application 1',
+                  status: GradingStatus.Passed,
+                  paymentStatus: PaymentStatus.NotYetPaid,
+                }),
+              },
+            ],
+          }),
+        };
+      }
+      return {
+        limit: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+        }),
+      };
+    });
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_126',
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 5000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_grading',
+          priceId: 'price_grading',
+          // Receipt names Student 4, but Application 1 is owed first.
+          description: 'GRADING : Student Level 4',
+          quantity: 1,
+          amountTotal: 5000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_doc_126');
+
+    expect(app1Update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order_doc_126',
+        paymentStatus: PaymentStatus.PaidByStripe,
+      }),
+    );
+    expect(stu4Update).not.toHaveBeenCalled();
+    expect(mockGradingsCollection.add).not.toHaveBeenCalled();
   });
 
   it('fulfills monthly Class Video Library subscription on member doc', async () => {

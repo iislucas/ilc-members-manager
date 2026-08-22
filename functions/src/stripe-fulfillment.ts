@@ -26,8 +26,7 @@ import {
   PaymentStatus,
   firestoreDocToMember,
   initGrading,
-  isGradingPaid,
-  normalizeGradingLevel,
+  earliestUnpaidGrading,
   initMember,
   initSchool,
   School,
@@ -341,23 +340,25 @@ async function autoCreateGradingForMember(
     return existingQuery.docs[0].id;
   }
 
-  // A member can already hold an unpaid grading record for this level (created
-  // by `requestGrading`, which is how they plan a grading before paying). The
-  // purchase settles that record rather than creating a second one for the same
-  // level.
+  // A member can already hold unpaid grading records (from `requestGrading`,
+  // which is how they plan a grading before paying, or from a grading that was
+  // conducted before the fee was settled). A payment always applies to the
+  // earliest such grading in the progression, not to whichever level the
+  // receipt names, so students pay off their progression in order. The
+  // purchased level bounds the search: a payment never skips forward onto a
+  // level the student has not reached yet.
   const memberGradings = await db
     .collection('gradings')
     .where('studentMemberDocId', '==', member.docId)
     .get();
-  const unpaidExisting = memberGradings.docs.find((doc) => {
-    const g = doc.data() as Grading;
-    return (
-      normalizeGradingLevel(g.level) === normalizeGradingLevel(level) &&
-      !isGradingPaid(g) &&
-      g.status !== GradingStatus.Passed &&
-      g.status !== GradingStatus.NotPassed
-    );
-  });
+  const unpaidExisting = earliestUnpaidGrading(
+    memberGradings.docs.map((doc) => ({
+      id: doc.id,
+      ref: doc.ref,
+      ...(doc.data() as Grading),
+    })),
+    level,
+  );
   if (unpaidExisting) {
     await unpaidExisting.ref.update({
       orderId: orderDocId,
@@ -365,10 +366,11 @@ async function autoCreateGradingForMember(
       paymentStatus: PaymentStatus.PaidByStripe,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     });
-    logger.info('Marked existing unpaid grading as paid from Stripe order', {
+    logger.info('Applied grading payment to earliest unpaid grading', {
       memberDocId: member.docId,
       gradingDocId: unpaidExisting.id,
-      level,
+      settledLevel: unpaidExisting.level,
+      purchasedLevel: level,
       orderDocId,
     });
     return unpaidExisting.id;
