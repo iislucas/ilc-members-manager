@@ -26,7 +26,10 @@ import {
   PaymentStatus,
   firestoreDocToMember,
   initGrading,
-  nextGradingPayment,
+  isGradingPaid,
+  gradingProgression,
+  achievedGradingLevels,
+  unpaidGradingsInProgressionOrder,
   normalizeGradingLevel,
   initMember,
   initSchool,
@@ -358,52 +361,71 @@ async function flagOrderForAdmins(
   }
 }
 
+/** Why a grading payment could not be applied normally. */
+type GradingPaymentProblem =
+  | { kind: 'already-achieved'; level: string }
+  | { kind: 'already-purchased'; level: string }
+  | { kind: 'unknown-level'; level: string };
+
 /**
- * Raises the mismatch alert for a grading payment that did not land on the
- * level named on the receipt: one notification for the student, and the order
- * flagged so it reaches the admin team's feed.
+ * Raises the alert for a grading payment that could not be applied normally:
+ * one notification for the student, and the order flagged so it reaches the
+ * admin team's feed (admin clients surface orders needing attention — see
+ * NotificationService.syncOrderIssueNotifications).
  */
-async function reportGradingLevelMismatch(
+function describeGradingPaymentProblem(
+  problem: GradingPaymentProblem,
+  who: string,
+  amountPaid: string,
+): { issue: string; explanation: string } {
+  switch (problem.kind) {
+    case 'already-achieved':
+      return {
+        issue:
+          `Grading payment for a level already achieved: member ${who} paid ${amountPaid} for ` +
+          `"${problem.level}", which is at or below their current level.`,
+        explanation: `your record already shows **${problem.level}** as achieved, so this payment may be a duplicate`,
+      };
+    case 'already-purchased':
+      return {
+        issue:
+          `Duplicate grading payment: member ${who} paid ${amountPaid} for "${problem.level}", ` +
+          `which they have already paid for.`,
+        explanation: `you have already paid for your **${problem.level}** grading`,
+      };
+    case 'unknown-level':
+      return {
+        issue:
+          `Grading payment for an unrecognised level: member ${who} paid ${amountPaid} for ` +
+          `"${problem.level || 'an unnamed item'}", which is not a level in the grading progression.`,
+        explanation: `we could not match "${problem.level || 'the item purchased'}" to a level in the grading progression`,
+      };
+  }
+}
+
+async function reportGradingPaymentProblem(
   db: admin.firestore.Firestore,
   member: Member,
   orderDocId: string,
-  details: {
-    purchasedLevel: string;
-    appliedLevel: string;
-    amountPaid: string;
-    settledExisting: boolean;
-  },
+  problem: GradingPaymentProblem,
+  amountPaid: string,
+  gradingDocId: string,
 ): Promise<void> {
-  const { purchasedLevel, appliedLevel, amountPaid, settledExisting } = details;
   const contactEmail = supportContactEmail();
-  const applied = appliedLevel
-    ? `it has been applied to your **${appliedLevel}** grading, which is the next level you owe in the grading progression`
-    : 'we could not work out which grading level it should apply to';
-  // "an Application 2 grading" / "a Student 4 grading"
-  const article = /^[AEIOU]/i.test(appliedLevel) ? 'an' : 'a';
-  const outcome = appliedLevel
-    ? settledExisting
-      ? ` Your existing ${appliedLevel} grading is now marked as paid.`
-      : ` We have set up ${article} ${appliedLevel} grading for you.`
+  const who = member.memberId || member.docId;
+  const { issue, explanation } = describeGradingPaymentProblem(problem, who, amountPaid);
+
+  const held = gradingDocId
+    ? ' We have recorded the payment against a grading held for review, so nothing is lost.'
     : '';
 
-  const issue =
-    `Grading payment mismatch for member ${member.memberId || member.docId}: ` +
-    `paid for "${purchasedLevel || 'an unrecognised level'}" (${amountPaid}) but the next level owed is ` +
-    `"${appliedLevel || 'unknown'}". ` +
-    (appliedLevel
-      ? settledExisting
-        ? `The existing ${appliedLevel} grading was marked paid.`
-        : `A ${appliedLevel} grading was created.`
-      : 'No grading could be created — needs manual resolution.');
-
-  logger.error('Grading payment level mismatch', {
+  logger.error('Grading payment needs review', {
     memberDocId: member.docId,
     memberId: member.memberId,
     orderDocId,
-    purchasedLevel,
-    appliedLevel,
-    settledExisting,
+    gradingDocId,
+    problem: problem.kind,
+    level: problem.level,
   });
 
   await flagOrderForAdmins(db, orderDocId, issue);
@@ -413,7 +435,7 @@ async function reportGradingLevelMismatch(
       kind: NotificationKind.OrderNeedsAttention,
       markdown:
         `⚠️ **Your grading payment needs checking.** You paid ${amountPaid} for ` +
-        `**${purchasedLevel || 'a grading'}**, but ${applied}.${outcome} ` +
+        `**${problem.level || 'a grading'}**, but ${explanation}.${held} ` +
         `Our admin team has been alerted and will be in touch. ` +
         `If you do not hear back, or this does not look right, please contact ` +
         `[${contactEmail}](mailto:${contactEmail}) quoting order ${orderDocId}.`,
@@ -427,7 +449,7 @@ async function reportGradingLevelMismatch(
       },
     });
   } catch (notifErr) {
-    logger.error('Failed to notify member of grading level mismatch', {
+    logger.error('Failed to notify member of grading payment problem', {
       notifErr,
       memberDocId: member.docId,
       orderDocId,
@@ -436,10 +458,15 @@ async function reportGradingLevelMismatch(
 }
 
 /**
- * Fulfills a grading purchase: the payment is applied to the next grading the
- * member owes a fee for, per `nextGradingPayment`. If a record for that level
- * already exists it is marked paid; otherwise one is created. When that level
- * is not the one named on the receipt, both the member and the admins are told.
+ * Fulfills a grading purchase. The payment applies to the level that was
+ * bought: an unpaid grading record for that level is marked paid, and when no
+ * record exists one is created. Buying a level above the student's current one
+ * is normal — that is how a grading is booked in advance.
+ *
+ * Two cases cannot be fulfilled that way and raise an alert to both the student
+ * and the admins instead: paying for a level already achieved, and paying for a
+ * level already paid for. The grading is still created in those cases, flagged
+ * `RequiresReview` so the payment is never lost and an admin can resolve it.
  */
 async function fulfillGradingForMember(
   db: admin.firestore.Firestore,
@@ -451,9 +478,11 @@ async function fulfillGradingForMember(
   const purchaseDate = new Date().toISOString().split('T')[0];
   // The purchase page records the level it charged for in the order metadata;
   // trust that over parsing the line-item description when it is present.
-  const purchasedLevel = metadataLevel.trim()
+  const rawLevel = metadataLevel.trim()
     ? canonicalizeGradingLevel(metadataLevel.trim())
     : extractGradingLevel(lineItem.description);
+  const level = normalizeGradingLevel(rawLevel);
+  const amountPaid = formatOrderAmount(lineItem);
 
   // Check if a grading was already created for this order to prevent duplicates
   const existingQuery = await db
@@ -469,52 +498,46 @@ async function fulfillGradingForMember(
     .collection('gradings')
     .where('studentMemberDocId', '==', member.docId)
     .get();
-  const owed = nextGradingPayment(
-    member.studentLevel,
-    member.applicationLevel,
-    memberGradings.docs.map((doc) => ({
-      id: doc.id,
-      ref: doc.ref,
-      ...(doc.data() as Grading),
-    })),
+  const gradings = memberGradings.docs.map((doc) => ({
+    id: doc.id,
+    ref: doc.ref,
+    ...(doc.data() as Grading),
+  }));
+  const atPurchasedLevel = gradings.filter(
+    (g) => normalizeGradingLevel(g.level) === level,
   );
 
-  // Every level is already achieved, so nothing is owed. Fall back to the level
-  // that was actually bought so the payment still produces a record.
-  const level = owed.level || purchasedLevel;
-  const amountPaid = formatOrderAmount(lineItem);
-  const mismatch =
-    !!purchasedLevel &&
-    !!level &&
-    normalizeGradingLevel(purchasedLevel) !== normalizeGradingLevel(level);
-
-  // The level is owed and a record already exists: mark that record paid.
-  if (owed.grading) {
-    await owed.grading.ref.update({
+  // The student already has a grading for this level that they had not paid
+  // for: this payment settles it. (Failed attempts are excluded — that level is
+  // governed by the free-retake flow — so paying again books a fresh grading.)
+  const unpaidExisting = unpaidGradingsInProgressionOrder(atPurchasedLevel)[0];
+  if (unpaidExisting) {
+    await unpaidExisting.ref.update({
       orderId: orderDocId,
       gradingPurchaseDate: purchaseDate,
       paymentStatus: PaymentStatus.PaidByStripe,
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     });
-    logger.info('Applied grading payment to existing unpaid grading', {
+    logger.info('Grading payment settled an existing unpaid grading', {
       memberDocId: member.docId,
-      gradingDocId: owed.grading.id,
+      gradingDocId: unpaidExisting.id,
       level,
-      purchasedLevel,
       orderDocId,
     });
-    if (mismatch) {
-      await reportGradingLevelMismatch(db, member, orderDocId, {
-        purchasedLevel,
-        appliedLevel: level,
-        amountPaid,
-        settledExisting: true,
-      });
-    }
-    return owed.grading.id;
+    return unpaidExisting.id;
   }
 
-  // Nothing exists for the level owed, so create it.
+  // Otherwise a grading is created for the level bought. Buying ahead of the
+  // current level is fine; only these cases need a human to look.
+  let problem: GradingPaymentProblem | null = null;
+  if (!level || !gradingProgression.includes(level)) {
+    problem = { kind: 'unknown-level', level: rawLevel };
+  } else if (achievedGradingLevels(member.studentLevel, member.applicationLevel).has(level)) {
+    problem = { kind: 'already-achieved', level };
+  } else if (atPurchasedLevel.some((g) => isGradingPaid(g))) {
+    problem = { kind: 'already-purchased', level };
+  }
+
   const newGrading: Grading = {
     ...initGrading(),
     studentMemberDocId: member.docId,
@@ -524,8 +547,18 @@ async function fulfillGradingForMember(
     schoolId: member.primarySchoolId || '',
     orderId: orderDocId,
     gradingPurchaseDate: purchaseDate,
-    level,
-    status: GradingStatus.AwaitingRequest,
+    level: level || rawLevel,
+    // A flagged grading is held for admin review rather than presented to the
+    // student as their next step (see onGradingCreated, which skips the
+    // "grading purchased" notification for RequiresReview).
+    status: problem ? GradingStatus.RequiresReview : GradingStatus.AwaitingRequest,
+    reviewIssue: problem
+      ? describeGradingPaymentProblem(
+          problem,
+          member.memberId || member.docId,
+          amountPaid,
+        ).issue
+      : '',
     paymentStatus: PaymentStatus.PaidByStripe,
     lastUpdated: new Date().toISOString(),
   };
@@ -541,21 +574,23 @@ async function fulfillGradingForMember(
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-  logger.info('Created grading for member from grading payment', {
+  logger.info('Created grading from grading payment', {
     memberDocId: member.docId,
     gradingDocId: createdRef.id,
     level,
-    purchasedLevel,
     orderDocId,
+    heldForReview: !!problem,
   });
 
-  if (mismatch) {
-    await reportGradingLevelMismatch(db, member, orderDocId, {
-      purchasedLevel,
-      appliedLevel: level,
+  if (problem) {
+    await reportGradingPaymentProblem(
+      db,
+      member,
+      orderDocId,
+      problem,
       amountPaid,
-      settledExisting: false,
-    });
+      createdRef.id,
+    );
   }
 
   return createdRef.id;

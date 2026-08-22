@@ -257,8 +257,8 @@ Stripe Products and Prices will map to digital products in ILC:
 | **Lead Instructor License** | `prod_license_li` | Recurring | 1 Year | Extends `instructorLicenseExpires` by +1 year; sets `instructorLicenseNextAutoRenewDate = instructorLicenseExpires`; sets `instructorLicenseType = LeadInstructor`. |
 | **School License (Annual)** | `prod_license_school` | Recurring | 1 Year | Extends school license expiry date in `/schools/{schoolDocId}`. |
 | **Class Video Library** | `prod_video_library` | Recurring | 1 Month / 1 Year | Sets `classVideoLibrarySubscription = true`, extends `classVideoLibraryExpirationDate`, sets `classVideoLibraryNextAutoRenewDate = classVideoLibraryExpirationDate`. |
-| **Grading (Student Levels 1–11)** | `prod_grading_student` | One-Time | N/A | Creates new `/gradings/{gradingDocId}` doc linked to student, updates student's `gradingDocIds`. |
-| **Grading (Application 1–6)** | `prod_grading_app` | One-Time | N/A | Creates new `/gradings/{gradingDocId}` doc linked to student, updates student's `gradingDocIds`. |
+| **Grading (Student Levels 1–11)** | `prod_grading_student` | One-Time | N/A | Marks the student's unpaid grading for that level as paid, or creates a new `/gradings/{gradingDocId}` doc and updates `gradingDocIds`. Paying for a level already achieved or already paid for creates the grading `in-review` and alerts the student and admins — see [gradings.md](../gradings.md#when-a-payment-needs-a-human). |
+| **Grading (Application 1–6)** | `prod_grading_app` | One-Time | N/A | As above; Application levels interleave with Student levels in the grading progression (Application 1 follows Student 3). |
 | **Video On Demand (Future)** | `prod_vod_<slug>` | One-Time / Rental | N/A | Adds VOD grant record to member's purchased materials library. |
 
 ### 4.2 Linking Authenticated Members to Stripe Customers
