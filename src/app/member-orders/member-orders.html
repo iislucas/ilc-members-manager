@@ -246,8 +246,8 @@
                    Stripe/Squarespace reference stays below it. -->
               @let orderNum = getOrderNumber(order);
               @if (orderNum) {
-                <div class="order-number" title="Order number">
-                  #{{ orderNum }}
+                <div class="order-number" title="Order reference">
+                  Order Ref #{{ orderNum }}
                 </div>
               }
               <!-- When this order bought a grading, that grading's reference —
@@ -257,7 +257,7 @@
                 @let gradingId = getGradingId(order);
                 @if (gradingId) {
                   <div class="grading-id" title="Reference of the grading this order paid for">
-                    Ref #{{ gradingId }}
+                    Grading Ref #{{ gradingId }}
                   </div>
                 } @else {
                   <div class="grading-id needs-date" title="A grading reference is issued once the grading event date is set">

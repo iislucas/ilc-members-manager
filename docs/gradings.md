@@ -88,10 +88,11 @@ back to parsing the line-item description for orders that come from elsewhere:
 Purchases are de-duplicated by `orderId`, so re-processing an order never
 creates a second grading.
 
-### Grading references and order numbers
+### Grading and order references
 
-Every grading has a short reference, shown as **Ref #** in the UI: the year and
-month the grading takes place, then the last four characters of its document id.
+Every grading has a short reference, shown as **Grading Ref #** in the UI: the
+year and month the grading takes place, then the last four characters of its
+document id.
 
 ```
 202608-A5b1
@@ -124,12 +125,22 @@ Where it appears:
   finds it among the member's own gradings by matching the grading's `orderId`
   to the order, and derives the reference the same way — so both pages agree.
 
-Separately, each order on **My Orders** shows an **order number**:
-`orderDisplayNumber(orderDate, sourceRef)` — the order's year and month plus
-four digits hashed from the real reference (the Stripe invoice or session id, or
-the Squarespace order number). It identifies the *purchase* rather than the
-grading, and applies to memberships and licenses too. The full Stripe reference
-stays on the row beneath it, and the search box matches all three.
+Separately, **every** order on My Orders shows an **Order Ref #**:
+`orderDisplayNumber(orderDate, sourceRef)` — the date of the order plus four
+digits hashed from the real reference (the Stripe invoice or session id, or the
+Squarespace order number).
+
+```
+20260813-4713
+└──────┘ └──┘
+ YYYYMMDD hash of the real order reference
+```
+
+It identifies the *purchase* rather than the grading, so it is there for
+memberships, licenses and video subscriptions too. An order that bought a
+grading shows **both**: its own Order Ref # and the Grading Ref # of what it
+paid for. The full Stripe reference stays on the row beneath them, and the
+search box matches all three.
 
 ### When a payment needs a human
 
@@ -201,7 +212,7 @@ Statuses are defined by the `GradingStatus` enum:
    recorded with notes. Passing updates the student's level (once paid).
 
 **A result cannot be recorded without `gradingEventDate`.** The date is half the
-grading's [reference](#grading-references-and-order-numbers), and a result with
+grading's [reference](#grading-and-order-references), and a result with
 no date cannot be placed in the student's history. The client disables the two
 result buttons until the date is set; `onGradingUpdated` is the authoritative
 check and reverts a result saved without one, notifying whoever recorded it
