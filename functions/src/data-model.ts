@@ -609,36 +609,32 @@ export function orderDisplayNumber(orderDate: string, sourceRef: string): string
   return `${yearMonth}-${digits}`;
 }
 
-/** The minimum shape needed to derive a grading's display id. */
+/** The minimum shape needed to derive a grading's reference. */
 export type GradingIdCandidate = {
   docId: string;
-  gradingPurchaseDate?: string;
   gradingEventDate?: string;
 };
 
-// A short, human-friendly id for a grading: the year and month it was
-// purchased or created, then the last four characters of its document id.
+// A grading's reference ("Ref #" in the UI): the year and month the grading
+// takes place, then the last four characters of its document id.
 //
-//   gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingPurchaseDate: '2026-08-13' })
+//   gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingEventDate: '2026-08-13' })
 //     → '202608-A5b1'
 //
-// Unlike an order number this needs no order, so a grading paid for in cash or
-// created by an admin still has an id. The last four characters come straight
-// from the document id, so an admin can find the grading from the id. They are
-// not unique on their own; the year and month are what separate two gradings
-// whose ids happen to end the same way.
+// It needs no order, so a grading paid for in cash — or created by an admin —
+// has a reference like any other. The last four characters are lifted straight
+// from the document id, so an admin can find the grading from a reference a
+// student quotes. They are not unique on their own; the year and month are what
+// separate two gradings whose ids end the same way.
 //
-// The date is the purchase/creation date rather than the date the grading takes
-// place, so the id is fixed from the moment the grading exists and does not
-// change when an event is later scheduled.
+// Returns '' until the grading event date is set, since the date is half the
+// reference. A grading cannot be marked passed or not-passed without that date
+// (see `onGradingUpdated`), so every finished grading has a reference.
 export function gradingDisplayId(grading: GradingIdCandidate): string {
   const docId = (grading.docId || '').trim();
-  if (!docId) return '';
-  const date = (grading.gradingPurchaseDate || grading.gradingEventDate || '').trim();
-  const yearMonth = /^\d{4}-\d{2}/.test(date)
-    ? date.substring(0, 7).replace('-', '')
-    : '000000';
-  return `${yearMonth}-${docId.slice(-4)}`;
+  const date = (grading.gradingEventDate || '').trim();
+  if (!docId || !/^\d{4}-\d{2}/.test(date)) return '';
+  return `${date.substring(0, 7).replace('-', '')}-${docId.slice(-4)}`;
 }
 
 export function getPrettyGradingStatus(status: GradingStatus): string {
@@ -746,6 +742,10 @@ export enum NotificationKind {
   // Sent to the student when a grading result is recorded.
   GradingPassed = 'GradingPassed',
   GradingNotPassed = 'GradingNotPassed',
+  // Sent to whoever tried to record a grading result without the grading event
+  // date set. The result is reverted until the date is filled in, since the date
+  // is part of the grading's reference (see `gradingDisplayId`).
+  GradingNeedsEventDate = 'GradingNeedsEventDate',
   // A TODO surfaced (client-driven, on login) when a grading is completed
   // (passed/not-passed) but not yet paid. Shown to the student and to the
   // instructors responsible for that student's grading.
@@ -815,6 +815,7 @@ const ACTION_NOTIFICATION_KINDS: ReadonlySet<NotificationKind> = new Set([
   NotificationKind.GradingManagerAdded,
   NotificationKind.GradingPurchased,
   NotificationKind.GradingUnpaid,
+  NotificationKind.GradingNeedsEventDate,
   NotificationKind.UnpaidGradingsSummary,
   NotificationKind.PendingEventApproval,
   NotificationKind.PendingEventsSummary,
@@ -994,6 +995,10 @@ export type MemberNotification = MemberNotificationCommon & (
   }
   | {
     kind: NotificationKind.GradingPassed;
+    data: NotificationGradingData;
+  }
+  | {
+    kind: NotificationKind.GradingNeedsEventDate;
     data: NotificationGradingData;
   }
   | {

@@ -94,6 +94,8 @@ describe('story: grading level updates only once paid', () => {
       studentMemberId: memberId,
       studentMemberDocId: studentDocId,
       status: GradingStatus.AwaitingGrading,
+      // A result can only be recorded once the grading has a date.
+      gradingEventDate: '2026-08-13',
       paymentStatus: PaymentStatus.NotYetPaid,
     });
   });
@@ -312,5 +314,187 @@ describe('story: new grading requests blocked while a grading is unpaid', () => 
     await new Promise((r) => setTimeout(r, 3000));
     const g = await gradingDoc(newDocId)();
     expect(g!.status).toBe(GradingStatus.AwaitingAcceptance);
+  });
+});
+
+describe('story: a result cannot be recorded without a grading event date', () => {
+  const suffix = Date.now().toString(36);
+  const studentDocId = `nd-student-${suffix}`;
+  let gradingDocId = '';
+
+  beforeAll(async () => {
+    await seedMember(studentDocId, {
+      name: 'No Date Student',
+      memberId: `ND-${suffix}`,
+      studentLevel: '',
+      gradingDocIds: [],
+    });
+    const ref = db.collection('gradings').doc();
+    gradingDocId = ref.id;
+    await ref.set({
+      ...initGrading(),
+      level: 'Student 1',
+      studentMemberId: `ND-${suffix}`,
+      studentMemberDocId: studentDocId,
+      status: GradingStatus.AwaitingGrading,
+      gradingEventDate: '',
+      paymentStatus: PaymentStatus.PaidByCash,
+    });
+  });
+
+  it('reverts the result and asks for the date', async () => {
+    await db.collection('gradings').doc(gradingDocId).update({
+      status: GradingStatus.Passed,
+      statusChangedByMemberDocId: studentDocId,
+      lastUpdated: ts(),
+    });
+
+    const reverted = await waitFor(
+      gradingDoc(gradingDocId),
+      (g) => g?.status === GradingStatus.AwaitingGrading,
+    );
+    expect(reverted?.status).toBe(GradingStatus.AwaitingGrading);
+
+    const notes = await waitFor(
+      async () =>
+        (
+          await db
+            .collection('members')
+            .doc(studentDocId)
+            .collection('notifications')
+            .where('kind', '==', NotificationKind.GradingNeedsEventDate)
+            .get()
+        ).docs.map((d) => d.data() as MemberNotification),
+      (n) => n.length > 0,
+    );
+    expect(notes[0].markdown).toContain('grading event date is missing');
+
+    // The student's level is untouched by the reverted result.
+    const { studentLevel } = await memberLevel(studentDocId)();
+    expect(studentLevel).toBe('');
+  });
+
+  it('accepts the result once the date is set', async () => {
+    await db.collection('gradings').doc(gradingDocId).update({
+      gradingEventDate: '2026-09-01',
+      lastUpdated: ts(),
+    });
+    await db.collection('gradings').doc(gradingDocId).update({
+      status: GradingStatus.Passed,
+      lastUpdated: ts(),
+    });
+
+    const { studentLevel } = await waitFor(
+      memberLevel(studentDocId),
+      (v) => v.studentLevel === '1',
+    );
+    expect(studentLevel).toBe('1');
+  });
+});
+
+describe('story: a not-passed grading creates a follow-up once it is paid', () => {
+  const suffix = Date.now().toString(36);
+  const paidStudentDocId = `nf-paid-${suffix}`;
+  const unpaidStudentDocId = `nf-unpaid-${suffix}`;
+  let paidGradingDocId = '';
+  let unpaidGradingDocId = '';
+
+  const openGradingsForLevel = (studentDocId: string, level: string) => async () =>
+    (
+      await db
+        .collection('gradings')
+        .where('studentMemberDocId', '==', studentDocId)
+        .get()
+    ).docs
+      .map((d) => ({ ...(d.data() as Grading), docId: d.id }))
+      .filter(
+        (g) =>
+          g.level === level &&
+          g.status !== GradingStatus.Passed &&
+          g.status !== GradingStatus.NotPassed,
+      );
+
+  beforeAll(async () => {
+    for (const [docId, name] of [
+      [paidStudentDocId, 'Retake Paid Student'],
+      [unpaidStudentDocId, 'Retake Unpaid Student'],
+    ] as const) {
+      await seedMember(docId, { name, memberId: docId, gradingDocIds: [] });
+    }
+
+    const paidRef = db.collection('gradings').doc();
+    paidGradingDocId = paidRef.id;
+    await paidRef.set({
+      ...initGrading(),
+      level: 'Student 2',
+      studentMemberId: paidStudentDocId,
+      studentMemberDocId: paidStudentDocId,
+      status: GradingStatus.AwaitingGrading,
+      gradingEventDate: '2026-08-13',
+      paymentStatus: PaymentStatus.PaidByCash,
+    });
+
+    const unpaidRef = db.collection('gradings').doc();
+    unpaidGradingDocId = unpaidRef.id;
+    await unpaidRef.set({
+      ...initGrading(),
+      level: 'Student 2',
+      studentMemberId: unpaidStudentDocId,
+      studentMemberDocId: unpaidStudentDocId,
+      status: GradingStatus.AwaitingGrading,
+      gradingEventDate: '2026-08-13',
+      paymentStatus: PaymentStatus.NotYetPaid,
+    });
+  });
+
+  it('creates a fresh grading for the same level, with no fee to pay', async () => {
+    await db.collection('gradings').doc(paidGradingDocId).update({
+      status: GradingStatus.NotPassed,
+      lastUpdated: ts(),
+    });
+
+    const open = await waitFor(
+      openGradingsForLevel(paidStudentDocId, 'Student 2'),
+      (gs) => gs.length === 1,
+    );
+    expect(open[0].docId).not.toBe(paidGradingDocId);
+    expect(open[0].status).toBe(GradingStatus.AwaitingRequest);
+    expect(open[0].paymentStatus).toBe(PaymentStatus.PaidOther);
+    expect(open[0].paymentNote).toContain('Free retake');
+    expect(open[0].gradingInstructorId).toBe('');
+  });
+
+  it('does not create a second follow-up if the trigger fires again', async () => {
+    await db.collection('gradings').doc(paidGradingDocId).update({
+      resultNotes: 'Keep practising the spiral.',
+      lastUpdated: ts(),
+    });
+    await new Promise((r) => setTimeout(r, 3000));
+    const open = await openGradingsForLevel(paidStudentDocId, 'Student 2')();
+    expect(open.length).toBe(1);
+  });
+
+  it('defers the follow-up while the failed grading is unpaid', async () => {
+    await db.collection('gradings').doc(unpaidGradingDocId).update({
+      status: GradingStatus.NotPassed,
+      lastUpdated: ts(),
+    });
+    await new Promise((r) => setTimeout(r, 3000));
+    const open = await openGradingsForLevel(unpaidStudentDocId, 'Student 2')();
+    expect(open.length).toBe(0);
+  });
+
+  it('creates the follow-up when the failed grading is later paid', async () => {
+    await db.collection('gradings').doc(unpaidGradingDocId).update({
+      paymentStatus: PaymentStatus.PaidByCash,
+      lastUpdated: ts(),
+    });
+
+    const open = await waitFor(
+      openGradingsForLevel(unpaidStudentDocId, 'Student 2'),
+      (gs) => gs.length === 1,
+    );
+    expect(open[0].status).toBe(GradingStatus.AwaitingRequest);
+    expect(open[0].paymentStatus).toBe(PaymentStatus.PaidOther);
   });
 });

@@ -112,7 +112,7 @@ describe('MemberOrdersComponent', () => {
     orderId: 'order-2',
     level: 'Student 3',
     status: GradingStatus.AwaitingRequest,
-    gradingPurchaseDate: '2026-06-01',
+    gradingEventDate: '2026-06-01',
   };
 
   beforeEach(() => {
@@ -405,26 +405,38 @@ describe('MemberOrdersComponent', () => {
     expect(component.orders()[0].docId).toBe(sampleOrders[0].docId);
   });
 
-  it('shows the grading id on the order that paid for a grading', async () => {
+  it('shows the grading reference on the order that paid for a grading', async () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
-    const gradingIds = element.querySelectorAll('.grading-id');
+    const refs = element.querySelectorAll('.grading-id');
     // Only the grading order carries one.
-    expect(gradingIds.length).toBe(1);
-    expect(gradingIds[0].textContent?.trim()).toBe('Grading #202606-Ab12');
+    expect(refs.length).toBe(1);
+    expect(refs[0].textContent?.trim()).toBe('Ref #202606-Ab12');
 
     expect(component.getGradingId(sampleOrders[1])).toBe('202606-Ab12');
     expect(component.getGradingId(sampleOrders[0])).toBe('');
   });
 
-  it('shows the same grading id the grading page derives', async () => {
+  it('shows the same reference the grading page derives', async () => {
     expect(component.getGradingId(sampleOrders[1])).toBe(
       gradingDisplayId(sampleGrading),
     );
   });
 
-  it('finds an order by the grading id it paid for', async () => {
+  it('asks for the grading event date when the grading has no reference yet', async () => {
+    mockDataManagerService.myGradings.entries.set([
+      { ...sampleGrading, gradingEventDate: '' },
+    ]);
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const ref = element.querySelector('.grading-id');
+    expect(ref?.textContent).toContain('Please set the grading event date');
+    expect(ref?.classList.contains('needs-date')).toBe(true);
+  });
+
+  it('finds an order by the grading reference it paid for', async () => {
     component.searchQuery.set('202606-Ab12');
     await fixture.whenStable();
     expect(component.orders().length).toBe(1);

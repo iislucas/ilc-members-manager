@@ -272,47 +272,41 @@ describe('grading progression helpers', () => {
   });
 
   describe('gradingDisplayId', () => {
-    it('is the purchase year and month plus the last four characters of the docId', () => {
+    it('is the grading event year and month plus the last four characters of the docId', () => {
       expect(
-        gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingPurchaseDate: '2026-08-13' }),
+        gradingDisplayId({ docId: 'k3Bq7ZmA5b1', gradingEventDate: '2026-08-13' }),
       ).toBe('202608-A5b1');
     });
 
-    it('works without an order, so a cash-paid grading still has an id', () => {
+    it('works without an order, so a cash-paid grading still has a reference', () => {
       expect(
-        gradingDisplayId({ docId: 'manualGradingXyz9', gradingPurchaseDate: '2026-02-01' }),
+        gradingDisplayId({ docId: 'manualGradingXyz9', gradingEventDate: '2026-02-01' }),
       ).toBe('202602-Xyz9');
     });
 
-    it('uses the purchase date, not the date the grading takes place', () => {
-      expect(
-        gradingDisplayId({
-          docId: 'abcdWXYZ',
-          gradingPurchaseDate: '2026-08-13',
-          gradingEventDate: '2027-01-20',
-        }),
-      ).toBe('202608-WXYZ');
-    });
-
-    it('falls back to the event date when there is no purchase date', () => {
+    it('tracks the grading event date when it is changed', () => {
       expect(
         gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: '2027-01-20' }),
       ).toBe('202701-WXYZ');
     });
 
-    it('keeps the docId characters exactly, so the grading can be found from the id', () => {
+    it('keeps the docId characters exactly, so the grading can be found from it', () => {
       const docId = 'SomeDocIdWith-Mix3';
-      expect(gradingDisplayId({ docId, gradingPurchaseDate: '2026-08-13' })).toBe(
+      expect(gradingDisplayId({ docId, gradingEventDate: '2026-08-13' })).toBe(
         `202608-${docId.slice(-4)}`,
       );
     });
 
-    it('returns "" without a docId, and zeroes an unusable date', () => {
-      expect(gradingDisplayId({ docId: '', gradingPurchaseDate: '2026-08-13' })).toBe('');
-      expect(gradingDisplayId({ docId: 'abcdWXYZ' })).toBe('000000-WXYZ');
+    it('returns "" until the grading event date is set', () => {
+      expect(gradingDisplayId({ docId: 'abcdWXYZ' })).toBe('');
+      expect(gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: '' })).toBe('');
       expect(
-        gradingDisplayId({ docId: 'abcdWXYZ', gradingPurchaseDate: 'not a date' }),
-      ).toBe('000000-WXYZ');
+        gradingDisplayId({ docId: 'abcdWXYZ', gradingEventDate: 'not a date' }),
+      ).toBe('');
+    });
+
+    it('returns "" without a docId', () => {
+      expect(gradingDisplayId({ docId: '', gradingEventDate: '2026-08-13' })).toBe('');
     });
   });
 

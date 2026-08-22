@@ -161,6 +161,8 @@ export class NotificationSettingsComponent implements OnInit {
         return 'Grading Result (Not Passed)';
       case NotificationKind.GradingUnpaid:
         return 'Grading Completed but Unpaid';
+      case NotificationKind.GradingNeedsEventDate:
+        return 'Grading Result Needs an Event Date';
       case NotificationKind.BlogPost:
         return 'New Blog Post / Update';
       case NotificationKind.NewEventPosted:

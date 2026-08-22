@@ -88,38 +88,41 @@ back to parsing the line-item description for orders that come from elsewhere:
 Purchases are de-duplicated by `orderId`, so re-processing an order never
 creates a second grading.
 
-### Grading IDs and order numbers
+### Grading references and order numbers
 
-Every grading has a short, human-friendly id: the year and month it was
-purchased or created, then the last four characters of its document id.
+Every grading has a short reference, shown as **Ref #** in the UI: the year and
+month the grading takes place, then the last four characters of its document id.
 
 ```
 202608-A5b1
 └────┘ └──┘
  YYYYMM  last 4 characters of the grading's docId
+   from gradingEventDate
 ```
 
 `gradingDisplayId(grading)` in `data-model.ts` computes it. Because it comes
 from the grading document itself rather than from an order, a grading paid for
-in **cash** — or created by an admin — has an id just like a purchased one. The
-last four characters are lifted straight from the document id, so an admin can
-find the grading from an id a student quotes. They are not unique on their own;
-the year and month are what separate two gradings whose ids end the same way.
+in **cash** — or created by an admin — has a reference just like a purchased
+one. The last four characters are lifted straight from the document id, so an
+admin can find the grading from a reference a student quotes. They are not
+unique on their own; the year and month are what separate two gradings whose ids
+end the same way.
 
-The date is the **purchase/creation** date, not the date the grading takes
-place, so the id is fixed from the moment the grading exists and does not change
-when an event is scheduled later.
+The reference needs `gradingEventDate`, so a grading has none until the date is
+set — both pages below say *"Please set the grading event date"* until then. A
+result cannot be recorded without that date either (see [The
+workflow](#the-workflow)), so every finished grading has a reference.
 
 Nothing is stored for this: every viewer of a grading can read its `docId` and
-`gradingPurchaseDate`, so instructors and school managers see the same id as the
-student without being able to read the order behind it.
+`gradingEventDate`, so instructors and school managers see the same reference as
+the student without being able to read the order behind it.
 
 Where it appears:
 
 - **The grading progress page**, beside the grading level, for everyone.
 - **My Orders** (`/my-orders`), on the order that paid for the grading. The page
   finds it among the member's own gradings by matching the grading's `orderId`
-  to the order, and derives the id the same way — so both pages always agree.
+  to the order, and derives the reference the same way — so both pages agree.
 
 Separately, each order on **My Orders** shows an **order number**:
 `orderDisplayNumber(orderDate, sourceRef)` — the order's year and month plus
@@ -128,7 +131,7 @@ the Squarespace order number). It identifies the *purchase* rather than the
 grading, and applies to memberships and licenses too. The full Stripe reference
 stays on the row beneath it, and the search box matches all three.
 
-### When a payment needs a human### When a payment needs a human
+### When a payment needs a human
 
 Two cases cannot be fulfilled as above, plus a level that cannot be recognised:
 
@@ -195,7 +198,31 @@ Statuses are defined by the `GradingStatus` enum:
 3. **Awaiting grading** (`awaiting-instructor-grading`) — accepted; waiting for
    the grading to happen and the result to be recorded.
 4. **Passed** (`passed`) / **Not passed** (`not-passed`) — the result is
-   recorded with notes. Passing updates the student's level.
+   recorded with notes. Passing updates the student's level (once paid).
+
+**A result cannot be recorded without `gradingEventDate`.** The date is half the
+grading's [reference](#grading-references-and-order-numbers), and a result with
+no date cannot be placed in the student's history. The client disables the two
+result buttons until the date is set; `onGradingUpdated` is the authoritative
+check and reverts a result saved without one, notifying whoever recorded it
+(`GradingNeedsEventDate`). This applies to admins too.
+
+### Trying again after a not-passed result
+
+The headquarters fee is charged once per level, so a student who does not pass
+may sit that level again without paying it twice. `onGradingUpdated` creates
+that follow-up grading automatically: same level, awaiting instructor selection,
+`paid-other` with the note "Free retake after Not-Passed grading".
+
+It is only created once the failed grading is **paid for** — an unpaid attempt
+still owes its fee, so the follow-up appears when the payment is recorded rather
+than when the result is. Until then the purchase page sells that level again
+(paying it produces the follow-up), and `requestGradingRetake` refuses: a free
+retake is free precisely because the level's fee was already paid.
+
+The creation is idempotent: if the student already has an open grading for that
+level — including one they made themselves through the retake flow — no second
+one is created.
 
 Other states: **Declined** (`declined`, the student should pick a different
 instructor) and **Requires review** (`in-review`, flagged for an admin when an
