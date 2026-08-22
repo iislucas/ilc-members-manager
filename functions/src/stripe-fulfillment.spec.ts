@@ -342,6 +342,63 @@ describe('stripe-fulfillment', () => {
     );
   });
 
+  it('creates a new grading when the member only has an unpaid grading at a different level', async () => {
+    const otherUpdate = vi.fn().mockResolvedValue({});
+    mockGradingsCollection.where = vi.fn((field: string) => {
+      if (field === 'studentMemberDocId') {
+        return {
+          get: vi.fn().mockResolvedValue({
+            empty: false,
+            docs: [
+              {
+                id: 'unpaid_other_level',
+                ref: { update: otherUpdate },
+                data: () => ({
+                  level: 'Student 4',
+                  status: GradingStatus.AwaitingRequest,
+                  paymentStatus: PaymentStatus.NotYetPaid,
+                }),
+              },
+            ],
+          }),
+        };
+      }
+      return {
+        limit: vi.fn().mockReturnValue({
+          get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+        }),
+      };
+    });
+
+    const order: StripeOrder = {
+      docId: '',
+      lastUpdated: '2026-05-15T00:00:00Z',
+      ilcAppOrderKind: OrderKind.Stripe,
+      stripeOrderType: StripeOrderType.Checkout,
+      stripeObjectId: 'cs_125',
+      created: '2026-05-15T00:00:00Z',
+      amountTotal: 5000,
+      currency: 'usd',
+      lineItems: [
+        {
+          productId: 'prod_grading',
+          priceId: 'price_grading',
+          description: 'GRADING : Application Level 1',
+          quantity: 1,
+          amountTotal: 5000,
+          currency: 'usd',
+        },
+      ],
+    };
+
+    await fulfillStripeOrder(mockDb, sampleMember, order, 'order_doc_125');
+
+    expect(otherUpdate).not.toHaveBeenCalled();
+    expect(mockGradingsCollection.add).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'Application 1', orderId: 'order_doc_125' }),
+    );
+  });
+
   it('fulfills monthly Class Video Library subscription on member doc', async () => {
     const order: StripeOrder = {
       docId: '',
