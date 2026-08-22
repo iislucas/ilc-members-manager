@@ -307,6 +307,11 @@
               </div>
               <div class="rate-desc">
                 One-time examination fee for {{ targetLevel() }}.
+                @if (isPayingForExistingGrading()) {
+                  <span class="option-subtext">
+                    This settles the outstanding fee on the {{ targetLevel() }} grading you already have — no extra grading record is created.
+                  </span>
+                }
               </div>
             </div>
           </div>
