@@ -376,7 +376,9 @@ describe('NextGradingComponent', () => {
       expect(component.isPayingForExistingGrading()).toBe(true);
     });
 
-    it('ignores a NotPassed unpaid attempt, which the free-retake flow governs', async () => {
+    it('sells the level again after an unpaid failed attempt, rather than offering a free retake', async () => {
+      // The fee for that level was never paid, so there is nothing to retake for
+      // free. Paying creates the follow-up grading automatically.
       mockDataManager.myGradings.entries.mockReturnValue([
         {
           docId: 'g_app_1_failed_unpaid',
@@ -387,10 +389,24 @@ describe('NextGradingComponent', () => {
       ]);
       await createComponent();
 
-      expect(component.unpaidGradings()).toEqual([]);
-      expect(component.retakeEligibleLevel()).toBe('Application 1');
+      expect(component.retakeEligibleLevel()).toBe('');
       expect(component.targetLevel()).toBe('Application 1');
       expect(component.isPayingForExistingGrading()).toBe(false);
+    });
+
+    it('offers a free retake after a paid failed attempt', async () => {
+      mockDataManager.myGradings.entries.mockReturnValue([
+        {
+          docId: 'g_app_1_failed_paid',
+          level: 'Application 1',
+          status: GradingStatus.NotPassed,
+          paymentStatus: PaymentStatus.PaidByStripe,
+        },
+      ]);
+      await createComponent();
+
+      expect(component.retakeEligibleLevel()).toBe('Application 1');
+      expect(component.targetLevel()).toBe('Application 1');
     });
 
     it('offers Student 4 once Application 1 has been achieved', async () => {

@@ -112,12 +112,17 @@
       @if (isActiveNextGrading() && fromLevelsDisplay()) {
         <span class="grading-target-from">({{ fromLevelsDisplay() }})</span>
       }
-      <!-- The grading's id, shown to everyone who can see the grading. Derived
-           from the grading itself rather than an order, so a grading paid for
-           in cash has one too. -->
+      <!-- The grading's reference, shown to everyone who can see the grading.
+           Derived from the grading itself rather than an order, so a grading
+           paid for in cash has one too. It needs the grading event date, so
+           until that is set we ask for it instead. -->
       @if (gradingId()) {
-        <span class="grading-id" title="Grading ID — quote this when asking about this grading">
-          Grading #{{ gradingId() }}
+        <span class="grading-id" title="Grading reference — quote this when asking about this grading">
+          Ref #{{ gradingId() }}
+        </span>
+      } @else {
+        <span class="grading-id needs-date" title="A grading reference is issued once the grading event date is set">
+          Please set the grading event date
         </span>
       }
     </div>

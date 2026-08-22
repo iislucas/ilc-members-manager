@@ -462,7 +462,7 @@
         cursor: text;
       }
 
-      // Id of the grading an order paid for; matches the grading page.
+      // Reference of the grading an order paid for; matches the grading page.
       .grading-id {
         font-size: 0.78em;
         font-family: monospace;
@@ -470,6 +470,11 @@
         margin-top: 1px;
         user-select: all;
         cursor: text;
+
+        &.needs-date {
+          font-family: inherit;
+          font-style: italic;
+        }
       }
 
       .order-num-row {

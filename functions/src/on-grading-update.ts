@@ -9,7 +9,7 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { Grading, GradingStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf, isGradingPaid } from './data-model';
+import { Grading, GradingStatus, PaymentStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone } from './common';
@@ -75,6 +75,78 @@ async function findInstructorMemberDocId(
     return undefined;
   }
   return snap.docs[0].id;
+}
+
+/**
+ * After a grading is not passed, the student may sit that level again without
+ * paying the headquarters fee a second time, so a fresh grading is created for
+ * them automatically. It is only created once the failed grading is paid for:
+ * an unpaid attempt still owes its fee, and the follow-up appears when that is
+ * settled (this function runs again on the payment).
+ *
+ * Idempotent: does nothing if the student already has an open grading for the
+ * level, so re-firing the trigger — or a manually created retake — never
+ * produces a duplicate.
+ */
+async function createFollowUpGradingAfterNotPassed(
+  grading: Grading,
+  gradingDocId: string,
+): Promise<void> {
+  if (!grading.studentMemberDocId || !grading.level) return;
+
+  const existing = await db
+    .collection('gradings')
+    .where('studentMemberDocId', '==', grading.studentMemberDocId)
+    .get();
+  const alreadyOpen = existing.docs.some((doc) => {
+    const g = doc.data() as Grading;
+    return (
+      doc.id !== gradingDocId &&
+      canonicalizeGradingLevel(g.level) === canonicalizeGradingLevel(grading.level) &&
+      g.status !== GradingStatus.Passed &&
+      g.status !== GradingStatus.NotPassed
+    );
+  });
+  if (alreadyOpen) {
+    logger.info(
+      `Grading ${gradingDocId}: student already has an open ${grading.level} grading; ` +
+        `no follow-up created.`,
+    );
+    return;
+  }
+
+  const followUp: Grading = {
+    ...initGrading(),
+    studentMemberId: grading.studentMemberId,
+    studentMemberDocId: grading.studentMemberDocId,
+    level: grading.level,
+    status: GradingStatus.AwaitingRequest,
+    // The fee was paid for the failed attempt and is charged once per level.
+    paymentStatus: PaymentStatus.PaidOther,
+    paymentNote: 'Free retake after Not-Passed grading',
+    orderId: '',
+    gradingPurchaseDate: new Date().toISOString().split('T')[0],
+  };
+
+  const ref = db.collection('gradings').doc();
+  followUp.docId = ref.id;
+  await ref.set({ ...followUp, lastUpdated: FieldValue.serverTimestamp() });
+
+  logger.info(
+    `Grading ${gradingDocId} not passed and paid: created follow-up grading ${ref.id} ` +
+      `for ${grading.level}.`,
+  );
+
+  await createNotification(grading.studentMemberDocId, {
+    markdown:
+      `🥋 A new **${grading.level}** grading is ready for you to try again — no ` +
+      `headquarters fee to pay. [Open your grading](/gradings/${ref.id}) to choose ` +
+      `your instructor when you are ready.`,
+    createdAt: new Date().toISOString(),
+    dismissed: false,
+    kind: NotificationKind.GradingPurchased,
+    data: { gradingDocId: ref.id, level: grading.level },
+  });
 }
 
 /**
@@ -598,6 +670,40 @@ export const onGradingUpdated = onDocumentUpdated(
       }
     }
 
+    // A result cannot be recorded without the date the grading took place: that
+    // date is half the grading's reference (see `gradingDisplayId`), and a
+    // result with no date cannot be placed in the student's history. Revert and
+    // tell whoever tried. The revert re-fires this trigger with a non-final
+    // status, so it does not loop.
+    const becameFinalised =
+      (grading.status === GradingStatus.Passed ||
+        grading.status === GradingStatus.NotPassed) &&
+      previous.status !== grading.status;
+    if (becameFinalised && !grading.gradingEventDate) {
+      await snap.after.ref.update({
+        status: previous.status,
+        lastUpdated: FieldValue.serverTimestamp(),
+      });
+      const actorDocId =
+        grading.statusChangedByMemberDocId || grading.studentMemberDocId;
+      if (actorDocId) {
+        await createNotification(actorDocId, {
+          markdown:
+            `The result for the **${grading.level}** grading could not be saved: ` +
+            `the grading event date is missing. Please set the date the grading ` +
+            `took place, then record the result again.`,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.GradingNeedsEventDate,
+          data: { gradingDocId, level: grading.level },
+        });
+      }
+      logger.info(
+        `Grading ${gradingDocId} result reverted to ${previous.status}: no gradingEventDate set.`,
+      );
+      return;
+    }
+
     // Re-resolve the cached display names from the current student/instructor so
     // they stay in sync on every update. Set on the in-memory grading first so
     // the sub-collection mirrors below carry the fresh names. Captured stored
@@ -758,6 +864,23 @@ export const onGradingUpdated = onDocumentUpdated(
       logger.info(
         `Grading ${gradingDocId} passed but not paid (status ${grading.paymentStatus}); ` +
           `student ${grading.studentMemberId} level NOT updated until payment is recorded.`,
+      );
+    }
+
+    // Not passed: give the student a fresh grading for the same level so they
+    // can try again. Only once the failed attempt is paid for — either it was
+    // already paid when the result was recorded, or the payment lands later.
+    const becameNotPassed =
+      grading.status === GradingStatus.NotPassed &&
+      previous.status !== GradingStatus.NotPassed;
+    const becamePaidWhileNotPassed =
+      grading.status === GradingStatus.NotPassed && isPaid && !isGradingPaid(previous);
+    if (isPaid && (becameNotPassed || becamePaidWhileNotPassed)) {
+      await createFollowUpGradingAfterNotPassed(grading, gradingDocId);
+    } else if (becameNotPassed && !isPaid) {
+      logger.info(
+        `Grading ${gradingDocId} not passed but not paid (status ${grading.paymentStatus}); ` +
+          `follow-up grading for ${grading.level} deferred until payment is recorded.`,
       );
     }
 

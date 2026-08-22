@@ -586,11 +586,12 @@ describe('stripe-fulfillment', () => {
     const created = mockGradingsCollection.add.mock.calls[0][0];
     expect(created.orderNumber).toBeUndefined();
     expect(created.orderId).toBe('order_doc_num');
-    // The id an admin or student would quote for it: the purchase year and
-    // month, then the last four characters of the grading's document id.
-    expect(gradingDisplayId({ ...created, docId: 'new_grading_doc_id' })).toBe(
-      created.gradingPurchaseDate.substring(0, 7).replace('-', '') + '-c_id',
-    );
+    // Its reference is issued later, from the grading event date and its own
+    // document id — nothing the purchase can supply.
+    expect(gradingDisplayId({ ...created, docId: 'new_grading_doc_id' })).toBe('');
+    expect(
+      gradingDisplayId({ docId: 'new_grading_doc_id', gradingEventDate: '2026-09-01' }),
+    ).toBe('202609-c_id');
   });
 
   it('trusts the level recorded in the order metadata over the line-item text', async () => {

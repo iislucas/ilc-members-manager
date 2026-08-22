@@ -199,12 +199,16 @@ export class NextGradingComponent {
       if (achieved.has(lvl)) continue;
       if (pending.has(lvl)) continue;
 
-      const hasNotPassed = gradings.some(
+      // Only a paid failed attempt earns a free retake. An unpaid one still
+      // owes its fee; paying it creates the follow-up grading automatically
+      // (see onGradingUpdated), so it is offered as a purchase instead.
+      const hasPaidNotPassed = gradings.some(
         (g) =>
           normalizeGradingLevel(g.level) === lvl &&
-          g.status === GradingStatus.NotPassed,
+          g.status === GradingStatus.NotPassed &&
+          isGradingPaid(g),
       );
-      if (hasNotPassed) {
+      if (hasPaidNotPassed) {
         return lvl;
       }
     }

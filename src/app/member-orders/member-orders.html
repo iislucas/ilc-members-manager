@@ -250,13 +250,20 @@
                   #{{ orderNum }}
                 </div>
               }
-              <!-- When this order bought a grading, the grading's own id — the
-                   same one shown on the grading page. -->
-              @let gradingId = getGradingId(order);
-              @if (gradingId) {
-                <div class="grading-id" title="Grading ID for the grading this order paid for">
-                  Grading #{{ gradingId }}
-                </div>
+              <!-- When this order bought a grading, that grading's reference —
+                   the same one shown on the grading page. It is issued once the
+                   grading event date is set. -->
+              @if (getOrderGrading(order)) {
+                @let gradingId = getGradingId(order);
+                @if (gradingId) {
+                  <div class="grading-id" title="Reference of the grading this order paid for">
+                    Ref #{{ gradingId }}
+                  </div>
+                } @else {
+                  <div class="grading-id needs-date" title="A grading reference is issued once the grading event date is set">
+                    Please set the grading event date
+                  </div>
+                }
               }
               @if (rawId) {
                 <div class="order-num-row">

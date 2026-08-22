@@ -171,13 +171,23 @@ export const requestGradingRetake = onCall(
     let targetLevel = request.data?.level ? normalizeGradingLevel(request.data.level) : '';
 
     if (targetLevel) {
-      const hasNotPassed = allGradings.some(
+      const notPassedAtLevel = allGradings.filter(
         (g) => normalizeGradingLevel(g.level) === targetLevel && g.status === GradingStatus.NotPassed,
       );
-      if (!hasNotPassed) {
+      if (notPassedAtLevel.length === 0) {
         throw new HttpsError(
           'failed-precondition',
           `No previous Not-Passed grading found for level ${targetLevel}. Free retakes are only available for levels you did not pass.`,
+        );
+      }
+      // The retake is free because the level's fee was already paid. If the
+      // failed attempt was never paid for, that fee is still owed — paying it
+      // creates the follow-up grading automatically (see onGradingUpdated).
+      if (!notPassedAtLevel.some((g) => isGradingPaid(g))) {
+        throw new HttpsError(
+          'failed-precondition',
+          `Your ${targetLevel} grading has not been paid for yet. Once it is paid, ` +
+            `a new ${targetLevel} grading will be created for you automatically.`,
         );
       }
     } else {
@@ -185,8 +195,13 @@ export const requestGradingRetake = onCall(
       const achieved = achievedGradingLevels(member.studentLevel, member.applicationLevel);
       for (const lvl of gradingProgression) {
         if (achieved.has(lvl)) continue;
+        // Only a paid failed attempt earns a free retake; an unpaid one still
+        // owes its fee, and paying it creates the follow-up automatically.
         const matchingNotPassed = allGradings.some(
-          (g) => normalizeGradingLevel(g.level) === lvl && g.status === GradingStatus.NotPassed,
+          (g) =>
+            normalizeGradingLevel(g.level) === lvl &&
+            g.status === GradingStatus.NotPassed &&
+            isGradingPaid(g),
         );
         const hasOpen = allGradings.some(
           (g) =>
