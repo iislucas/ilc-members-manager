@@ -1,3 +1,18 @@
+<!-- The email, as a button back to email entry. Shown on every step past the
+     first so a wrong address is always one tap from being corrected. -->
+<ng-template #emailChip>
+  <button
+    type="button"
+    id="change-email-btn"
+    class="email-chip"
+    (click)="goBackToEmail()"
+    title="Use a different email address"
+  >
+    <span class="email-chip-text">{{ email() }}</span>
+    <app-icon name="edit" width="14px" height="14px"></app-icon>
+  </button>
+</ng-template>
+
 @if (isLoggedIn()) {
   <div class="logged-in-box">
     <div class="user-info">
@@ -69,11 +84,7 @@
       >
         Resend Email
       </button>
-      <button
-        type="button"
-        class="back-link"
-        (click)="logout()"
-      >
+      <button type="button" class="back-link" (click)="logout()">
         Use a different email
       </button>
     </div>
@@ -82,7 +93,7 @@
   <div class="inline-auth-form">
     @if (firebaseService.loginStatus() === LoginStatus.LoggingIn || authLoading()) {
       <div class="spinner-row">
-        <app-spinner>Signing in…</app-spinner>
+        <app-spinner>{{ progressMessage() }}</app-spinner>
       </div>
     } @else {
       @switch (step()) {
@@ -130,7 +141,7 @@
         <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
         @case (InlineAuthStep.GoogleSignin) {
           <div class="google-signin-step">
-            <div class="email-display">{{ email() }}</div>
+            <ng-container *ngTemplateOutlet="emailChip"></ng-container>
             @if (loginWithGoogleError(); as message) {
               <div class="error-container">
                 <span class="error-message">{{ message }}</span>
@@ -139,48 +150,34 @@
                 </button>
               </div>
             }
-            <div class="action-row-with-menu">
+            <div class="step-actions">
               <button id="google-signin-btn" (click)="loginWithGoogle()">
-                Sign in with Google
+                {{
+                  hasKnownAuthAccount()
+                    ? "Sign in with Google"
+                    : "Sign up with Google"
+                }}
               </button>
-              <div class="menu-container">
-                <button
-                  type="button"
-                  class="icon-only-button more-options-btn"
-                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
-                  title="More options"
-                >
-                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
-                </button>
-                @if (optionsMenuOpen()) {
-                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
-                  <div class="menu right-aligned">
-                    <button
-                      type="button"
-                      id="use-password-btn"
-                      class="menu-item"
-                      (click)="usePasswordInstead(); optionsMenuOpen.set(false)"
-                    >
-                      <span>Use password instead</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
-                    >
-                      <span>Use a different email</span>
-                    </button>
-                  </div>
-                }
-              </div>
+              <!-- A password is always a route from here: the account has one,
+                   or one can be created, or one can be reset. -->
+              <button
+                type="button"
+                id="use-password-btn"
+                class="secondary-action"
+                (click)="usePasswordInstead()"
+              >
+                {{ hasKnownAuthAccount() ? "Use a password" : "Set a password" }}
+              </button>
             </div>
           </div>
         }
 
         <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
         @case (InlineAuthStep.PasswordLogin) {
+          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+
           <div class="input-field">
-            <label for="password-input">Password for <strong>{{ email() }}</strong></label>
+            <label for="password-input">Password</label>
             <div class="password-input-row">
               <input
                 id="password-input"
@@ -230,60 +227,41 @@
           }
 
           <div class="step-actions">
-            <div class="action-row-with-menu">
+            <button
+              id="login-btn"
+              (click)="loginWithEmail()"
+              [disabled]="!password()"
+            >
+              Sign In
+            </button>
+            <!-- Unlike a password, Google is not always a route: it shows only
+                 when the account is known to have it. -->
+            @if (canUseGoogle()) {
               <button
-                id="login-btn"
-                (click)="loginWithEmail()"
-                [disabled]="!password()"
+                type="button"
+                id="use-google-btn"
+                class="secondary-action"
+                (click)="useGoogleInstead()"
               >
-                Sign In
+                Sign in with Google
               </button>
-              <div class="menu-container">
-                <button
-                  type="button"
-                  class="icon-only-button more-options-btn"
-                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
-                  title="More options"
-                >
-                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
-                </button>
-                @if (optionsMenuOpen()) {
-                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
-                  <div class="menu right-aligned">
-                    @if (emailStatus()?.isGoogleManaged || emailStatus()?.hasGoogleProvider) {
-                      <button
-                        type="button"
-                        id="use-google-btn"
-                        class="menu-item"
-                        (click)="useGoogleInstead(); optionsMenuOpen.set(false)"
-                      >
-                        <span>Sign in with Google instead</span>
-                      </button>
-                    }
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
-                    >
-                      <span>Use a different email</span>
-                    </button>
-                  </div>
-                }
-              </div>
-            </div>
+            }
           </div>
         }
 
         <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
         @case (InlineAuthStep.CreateAccount) {
+          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+
           <p class="step-guidance">
             @if (emailStatus()?.hasMemberRecord) {
-              We found your membership record for
-              <strong>{{ email() }}</strong>. Create a password to get started.
+              We found your membership record. Create a password to get started.
             } @else {
-              Create a password for <strong>{{ email() }}</strong> (minimum 6 characters).
+              Create a password to finish setting up your account (minimum 6
+              characters).
             }
           </p>
+
           <div class="input-field">
             <label for="new-password-input">Password</label>
             <div class="password-input-row">
@@ -320,45 +298,24 @@
           }
 
           <div class="step-actions">
-            <div class="action-row-with-menu">
-              <button
-                id="create-account-btn"
-                (click)="signupWithEmail()"
-                [disabled]="!password() || password().length < 6"
-              >
-                Create Account
-              </button>
-              <div class="menu-container">
-                <button
-                  type="button"
-                  class="icon-only-button more-options-btn"
-                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
-                  title="More options"
-                >
-                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
-                </button>
-                @if (optionsMenuOpen()) {
-                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
-                  <div class="menu right-aligned">
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
-                    >
-                      <span>Use a different email</span>
-                    </button>
-                  </div>
-                }
-              </div>
-            </div>
+            <button
+              id="create-account-btn"
+              (click)="signupWithEmail()"
+              [disabled]="!password() || password().length < 6"
+            >
+              Create Account
+            </button>
           </div>
         }
 
         <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
         @case (InlineAuthStep.GuestCreateAccount) {
+          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+
           <p class="step-guidance">
-            You are creating an account for <strong>{{ email() }}</strong> without a linked membership.
+            You are creating an account without a linked membership.
           </p>
+
           <div class="input-field">
             <label for="guest-password-input">Password</label>
             <div class="password-input-row">
@@ -395,55 +352,25 @@
           }
 
           <div class="step-actions">
-            <div class="action-row-with-menu">
-              <button
-                id="create-guest-account-submit-btn"
-                (click)="signupWithEmail()"
-                [disabled]="!password() || password().length < 6"
-              >
-                Create Account
-              </button>
-              <div class="menu-container">
-                <button
-                  type="button"
-                  class="icon-only-button more-options-btn"
-                  (click)="optionsMenuOpen.set(!optionsMenuOpen()); $event.stopPropagation()"
-                  title="More options"
-                >
-                  <app-icon name="more_vert" width="1.2em" height="1.2em"></app-icon>
-                </button>
-                @if (optionsMenuOpen()) {
-                  <div class="menu-overlay transparent" (click)="optionsMenuOpen.set(false); $event.stopPropagation()"></div>
-                  <div class="menu right-aligned">
-                    <button
-                      type="button"
-                      class="menu-item"
-                      (click)="goBackToEmail(); optionsMenuOpen.set(false)"
-                    >
-                      <span>Use a different email</span>
-                    </button>
-                  </div>
-                }
-              </div>
-            </div>
+            <button
+              id="create-guest-account-submit-btn"
+              (click)="signupWithEmail()"
+              [disabled]="!password() || password().length < 6"
+            >
+              Create Account
+            </button>
           </div>
         }
 
         <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
         @case (InlineAuthStep.NoMember) {
+          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+
           <div class="step-guidance">
-            <p>
-              We don't have a membership record linked to
-              <strong>{{ email() }}</strong>.
-            </p>
+            <p>We don't have a membership record linked to this email.</p>
             <p>
               This could mean you used a different email address when
               registering, or your membership hasn't been set up yet.
-            </p>
-            <p>
-              Please try another email, or contact
-              <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
-              for help. To help us verify your membership, please include a picture of your passbook.
             </p>
           </div>
           <div class="step-actions">
@@ -460,14 +387,16 @@
             >
               Create account without membership
             </button>
-            <button
-              id="try-different-email-btn"
-              class="secondary-action"
-              (click)="goBackToEmail()"
-            >
-              Try a different email
-            </button>
           </div>
+          <!-- After the actions: this is the path for someone who believes
+               they are already a member, not the expected next step. -->
+          <p class="step-guidance step-footnote">
+            If you think you already have an account, you can try another email,
+            or contact
+            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
+            for help. To help us verify your past membership, please include a
+            picture of your passbook.
+          </p>
         }
       }
     }
