@@ -31,11 +31,21 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { StepTrackComponent } from '../step-track/step-track';
+import { StepFlow } from '../step-track/step-flow';
+import { StepCardComponent } from '../step-card/step-card';
 
 @Component({
   selector: 'app-instructor-license-purchase',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
+  imports: [
+    CommonModule,
+    IconComponent,
+    SpinnerComponent,
+    InlineAuthComponent,
+    StepTrackComponent,
+    StepCardComponent,
+  ],
   templateUrl: './instructor-license-purchase.html',
   styleUrl: './instructor-license-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -76,6 +86,46 @@ export class InstructorLicensePurchaseComponent {
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLoggedIn = computed(() => !!this.user());
+
+  // ── Guided flow. See step-flow.ts. Step 2 shows the licence status the user
+  //    should read before paying, so it waits for an explicit Continue. ──
+  readonly StepAccount = 1;
+  readonly StepEligibility = 2;
+  readonly StepPayment = 3;
+
+  private eligibilityStepAcknowledged = signal(false);
+
+  flow = new StepFlow(
+    computed(() => {
+      if (!this.isLoggedIn()) return this.StepAccount;
+      if (!this.isActiveMember()) return this.StepEligibility;
+      if (!this.isEligibleForLicense()) return this.StepEligibility;
+      if (!this.eligibilityStepAcknowledged()) return this.StepEligibility;
+      return this.StepPayment;
+    }),
+    ['Account', 'Eligibility', 'Payment'],
+  );
+
+  /** "Continue" on step 2: the user has read their status, move on to payment. */
+  continueFromEligibilityStep(): void {
+    this.eligibilityStepAcknowledged.set(true);
+    this.flow.resume();
+  }
+
+  accountSummary = computed(() => {
+    const u = this.user();
+    return u?.member?.emails?.[0] || u?.firebaseUser?.email || '';
+  });
+
+  eligibilitySummary = computed(() => {
+    if (!this.isActiveMember()) return 'Active membership required';
+    if (!this.isEligibleForLicense()) return 'Not currently eligible';
+    const expires = this.licenseExpires();
+    if (!expires) return 'Eligible — no licence on record yet';
+    return this.isLicenseActive()
+      ? `Licence active until ${expires}`
+      : `Licence expired ${expires}`;
+  });
 
   async onLogout(): Promise<void> {
     await this.firebaseService.logout();

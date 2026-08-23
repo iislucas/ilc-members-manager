@@ -167,28 +167,32 @@
 
         @if (isSubscribeFoldOpen()) {
           <div class="fold-body">
+            <app-step-track
+              [steps]="flow.steps()"
+              [navigable]="true"
+              (stepSelected)="flow.goTo($event + 1)"
+            ></app-step-track>
+
             <!-- Step 1: Sign in / Account -->
-            <div class="form-step-section">
-              <div class="step-header-row">
-                <div class="step-header-left">
-                  <h2>1. Your Account</h2>
-                  @if (isLoggedIn()) {
-                    <span class="step-completed-badge" title="Account verified">
-                      <app-icon name="check"></app-icon>
-                    </span>
-                  }
-                </div>
-              </div>
+            <app-step-card
+              [number]="StepAccount"
+              title="Your Account"
+              [state]="flow.stateOf(StepAccount)"
+              [expanded]="flow.current() === StepAccount"
+              (editRequested)="flow.goTo(StepAccount)"
+            >
+              <span stepSummary>{{ accountSummary() }}</span>
               <app-inline-auth></app-inline-auth>
-            </div>
+            </app-step-card>
 
             <!-- Step 2: Choose Subscription Option -->
-            <div class="form-step-section">
-              <div class="step-header-row">
-                <div class="step-header-left">
-                  <h2>2. Subscription Plan</h2>
-                </div>
-              </div>
+            <app-step-card
+              [number]="StepPlan"
+              title="Subscription Plan"
+              [state]="flow.stateOf(StepPlan)"
+              [expanded]="flow.current() === StepPlan"
+              [editable]="false"
+            >
 
               @if (productsLoading()) {
                 <app-spinner>Loading subscription rates...</app-spinner>
@@ -252,24 +256,27 @@
                   <p>Video library subscription is currently being configured. Please check back shortly.</p>
                 </div>
               }
-            </div>
+            </app-step-card>
           </div>
         }
       </div>
     } @else {
       <!-- No active access: Normal unfolded form -->
+      <app-step-track
+        [steps]="flow.steps()"
+        [navigable]="true"
+        (stepSelected)="flow.goTo($event + 1)"
+      ></app-step-track>
+
       <!-- Step 1: Sign in / Account -->
-      <div class="form-card card">
-        <div class="step-header-row">
-          <div class="step-header-left">
-            <h2>1. Your Account</h2>
-            @if (isLoggedIn()) {
-              <span class="step-completed-badge" title="Account verified">
-                <app-icon name="check"></app-icon>
-              </span>
-            }
-          </div>
-        </div>
+      <app-step-card
+        [number]="StepAccount"
+        title="Your Account"
+        [state]="flow.stateOf(StepAccount)"
+        [expanded]="flow.current() === StepAccount"
+        (editRequested)="flow.goTo(StepAccount)"
+      >
+        <span stepSummary>{{ accountSummary() }}</span>
 
         @if (!isLoggedIn()) {
           <p class="step-guidance">
@@ -278,15 +285,16 @@
         }
 
         <app-inline-auth></app-inline-auth>
-      </div>
+      </app-step-card>
 
       <!-- Step 2: Choose Subscription Option -->
-      <div class="form-card card">
-        <div class="step-header-row">
-          <div class="step-header-left">
-            <h2>2. Subscription Plan</h2>
-          </div>
-        </div>
+      <app-step-card
+        [number]="StepPlan"
+        title="Subscription Plan"
+        [state]="flow.stateOf(StepPlan)"
+        [expanded]="flow.current() === StepPlan"
+        [editable]="false"
+      >
 
         @if (productsLoading()) {
           <app-spinner>Loading subscription rates...</app-spinner>
@@ -350,7 +358,7 @@
             <p>Video library subscription is currently being configured. Please check back shortly.</p>
           </div>
         }
-      </div>
+      </app-step-card>
     }
   }
 </div>

@@ -119,197 +119,191 @@
   </div>
 
   @if (!isLifeMember()) {
+    <!-- ── Guided flow ─────────────────────────────────────────────────────
+         Only the current step is expanded: finished steps collapse to a
+         summary the user can reopen, and steps not yet reached stay closed so
+         nobody tries to fill in a form that is not ready for them. -->
+    <app-step-track
+      [steps]="flow.steps()"
+      [navigable]="true"
+      (stepSelected)="flow.goTo($event + 1)"
+    ></app-step-track>
+
     <!-- Step 1: Sign in / Account -->
-    <div class="form-card card">
-      <div class="step-header-row">
-        <h2>1. Your Account</h2>
-        @if (isLoggedIn()) {
-          <span class="step-completed-badge" title="Account verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
+    <app-step-card
+      [number]="StepAccount"
+      title="Sign In or Create an Account"
+      [state]="flow.stateOf(StepAccount)"
+      [expanded]="flow.current() === StepAccount"
+      (editRequested)="flow.goTo(StepAccount)"
+    >
+      <span stepSummary>{{ accountSummary() }}</span>
 
       @if (!isLoggedIn()) {
         <p class="step-guidance">
-          Please sign in or create an account to link your new membership.
+          Your new membership will be linked to this account. The rest of the
+          form opens as soon as you are signed in.
         </p>
       }
 
       <app-inline-auth>
         @if (!user()?.member?.memberId) {
           <p class="account-welcome-note">
-            Welcome, you do not have a previous membership, please complete the
-            information below.
+            Welcome, you do not have a previous membership. Continue to fill in
+            your details.
           </p>
         }
       </app-inline-auth>
-    </div>
 
-    <!-- Step 2: Personal Information -->
-    <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
-      <div
-        class="step-header-row"
-        [class.clickable]="isExistingActiveMember()"
-        (click)="isExistingActiveMember() ? toggleBasicInfoCollapse() : null"
-      >
-        <div class="step-header-left">
-          <h2>2. Basic Information</h2>
-          @if (hasCompletedBasicInfo()) {
-            <span class="step-completed-badge" title="Basic information complete">
-              <app-icon name="check"></app-icon>
-            </span>
-          }
-        </div>
-        @if (isExistingActiveMember()) {
-          <button
-            type="button"
-            class="icon-only-button fold-toggle-btn"
-            (click)="$event.stopPropagation(); toggleBasicInfoCollapse()"
-            [title]="
-              isBasicInfoCollapsed()
-                ? 'Unfold basic information'
-                : 'Fold basic information'
-            "
-          >
-            <app-icon
-              [name]="isBasicInfoCollapsed() ? 'expand_more' : 'expand_less'"
-            ></app-icon>
+      @if (isLoggedIn()) {
+        <div class="step-footer">
+          <button type="button" class="next-btn" (click)="flow.next()">
+            <span>Continue</span>
+            <app-icon name="arrow_forward"></app-icon>
           </button>
-        }
-      </div>
-
-      @if (isBasicInfoCollapsed()) {
-        <div class="collapsed-summary">
-          <span class="summary-text">
-            <strong>{{ name() }}</strong> • {{ dateOfBirth() }} • {{ country() }}
-          </span>
-          <button
-            type="button"
-            class="subtle-button edit-link-btn"
-            (click)="toggleBasicInfoCollapse()"
-          >
-            <app-icon name="edit"></app-icon>
-            <span>Edit</span>
-          </button>
-        </div>
-      } @else {
-        <div class="fields-grid">
-          <div class="field-item full-width">
-            <label for="fullName">Full Name <span class="required">*</span></label>
-            <input
-              id="fullName"
-              type="text"
-              placeholder="e.g. Jane Doe"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="name()"
-              (ngModelChange)="name.set($event)"
-            />
-          </div>
-
-          <div class="field-item">
-            <label for="dob">Date of Birth <span class="required">*</span></label>
-            <input
-              id="dob"
-              type="date"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="dateOfBirth()"
-              (ngModelChange)="dateOfBirth.set($event)"
-            />
-          </div>
-
-          <div class="field-item">
-            <label for="genderInput">Gender</label>
-            <input
-              id="genderInput"
-              type="text"
-              placeholder="Optional"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="gender()"
-              (ngModelChange)="gender.set($event)"
-            />
-          </div>
-
-          <div class="field-item full-width">
-            <label>Country of Residence <span class="required">*</span></label>
-            <app-autocomplete
-              [searchableSet]="dataService.countries"
-              [displayFns]="countryDisplayFns"
-              [inputBoxIsChip]="false"
-              [placeholder]="'Search for a country...'"
-              [initSearchTerm]="country()"
-              (textUpdated)="country.set($event)"
-              (itemSelected)="country.set($event.name)"
-            ></app-autocomplete>
-            @if (countryWithCode(); as cc) {
-              <span class="identifier-chip country-chip">{{ cc.id }}</span>
-            } @else if (country().trim()) {
-              <div class="error-message">
-                Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
-                <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
-              </div>
-            }
-          </div>
-
-          <div class="field-item">
-            <label for="phoneNum">Phone Number</label>
-            <input
-              id="phoneNum"
-              type="tel"
-              placeholder="+1 555 0199"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="phone()"
-              (ngModelChange)="phone.set($event)"
-            />
-          </div>
-
-          <div class="field-item full-width">
-            <label for="addressInput">Street Address</label>
-            <input
-              id="addressInput"
-              type="text"
-              placeholder="Street address line"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="address()"
-              (ngModelChange)="address.set($event)"
-            />
-          </div>
-
-          <div class="field-item">
-            <label for="cityInput">City</label>
-            <input
-              id="cityInput"
-              type="text"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="city()"
-              (ngModelChange)="city.set($event)"
-            />
-          </div>
-
-          <div class="field-item">
-            <label for="zipInput">Zip / Postal Code</label>
-            <input
-              id="zipInput"
-              type="text"
-              [disabled]="!isLoggedIn()"
-              [ngModel]="zipCode()"
-              (ngModelChange)="zipCode.set($event)"
-            />
-          </div>
         </div>
       }
-    </div>
+    </app-step-card>
+
+    <!-- Step 2: Personal Information -->
+    <app-step-card
+      [number]="StepDetails"
+      title="Enter or verify your contact details"
+      [state]="flow.stateOf(StepDetails)"
+      [expanded]="flow.current() === StepDetails"
+      (editRequested)="flow.goTo(StepDetails)"
+    >
+      <span stepSummary>{{ detailsSummary() }}</span>
+
+      <div class="fields-grid">
+        <div class="field-item full-width">
+          <label for="fullName">Full Name <span class="required">*</span></label>
+          <input
+            id="fullName"
+            type="text"
+            placeholder="e.g. Jane Doe"
+            [ngModel]="name()"
+            (ngModelChange)="name.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="dob">Date of Birth <span class="required">*</span></label>
+          <input
+            id="dob"
+            type="date"
+            [ngModel]="dateOfBirth()"
+            (ngModelChange)="dateOfBirth.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="genderInput">Gender</label>
+          <input
+            id="genderInput"
+            type="text"
+            placeholder="Optional"
+            [ngModel]="gender()"
+            (ngModelChange)="gender.set($event)"
+          />
+        </div>
+
+        <div class="field-item full-width">
+          <label>Country of Residence <span class="required">*</span></label>
+          <app-autocomplete
+            [searchableSet]="dataService.countries"
+            [displayFns]="countryDisplayFns"
+            [inputBoxIsChip]="false"
+            [placeholder]="'Search for a country...'"
+            [initSearchTerm]="country()"
+            (textUpdated)="country.set($event)"
+            (itemSelected)="country.set($event.name)"
+          ></app-autocomplete>
+          @if (countryWithCode(); as cc) {
+            <span class="identifier-chip country-chip">{{ cc.id }}</span>
+          } @else if (country().trim()) {
+            <div class="error-message">
+              Unrecognized country "{{ country() }}". Please select a valid country from the list, or contact
+              <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+            </div>
+          }
+        </div>
+
+        <div class="field-item">
+          <label for="phoneNum">Phone Number</label>
+          <input
+            id="phoneNum"
+            type="tel"
+            placeholder="+1 555 0199"
+            [ngModel]="phone()"
+            (ngModelChange)="phone.set($event)"
+          />
+        </div>
+
+        <div class="field-item full-width">
+          <label for="addressInput">Street Address</label>
+          <input
+            id="addressInput"
+            type="text"
+            placeholder="Street address line"
+            [ngModel]="address()"
+            (ngModelChange)="address.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="cityInput">City</label>
+          <input
+            id="cityInput"
+            type="text"
+            [ngModel]="city()"
+            (ngModelChange)="city.set($event)"
+          />
+        </div>
+
+        <div class="field-item">
+          <label for="zipInput">Zip / Postal Code</label>
+          <input
+            id="zipInput"
+            type="text"
+            [ngModel]="zipCode()"
+            (ngModelChange)="zipCode.set($event)"
+          />
+        </div>
+      </div>
+
+      <div class="step-footer">
+        @if (!hasCompletedBasicInfo()) {
+          <p class="step-todo-hint">
+            Full name, date of birth and country are needed before you can
+            continue.
+          </p>
+        }
+        <button
+          type="button"
+          class="next-btn"
+          [disabled]="!hasCompletedBasicInfo()"
+          (click)="flow.next()"
+        >
+          <span>Continue</span>
+          <app-icon name="arrow_forward"></app-icon>
+        </button>
+      </div>
+    </app-step-card>
 
     <!-- Step 3: Choose Membership Option -->
-    <div class="form-card card" [class.disabled-section]="!isLoggedIn()">
-      <div class="step-header-row">
-        <h2>3. Choose Membership Option</h2>
-        @if (isExistingActiveMember()) {
-          <span class="step-completed-badge" title="Active membership">
-            <app-icon name="check"></app-icon>
-          </span>
+    <app-step-card
+      [number]="StepMembership"
+      title="Choose Membership Option"
+      [state]="flow.stateOf(StepMembership)"
+      [expanded]="flow.current() === StepMembership"
+      (editRequested)="flow.goTo(StepMembership)"
+    >
+      <span stepSummary>
+        @if (selectedOptionDetails(); as opt) {
+          {{ opt.title }} — {{ formatPrice(opt.price) }}
         }
-      </div>
+      </span>
 
       @if (productsLoading()) {
         <app-spinner>Loading membership options...</app-spinner>
@@ -333,7 +327,7 @@
                 }
                 <span class="option-subtext"> — Auto-renews annually. (Regular rate $85/yr; $55/yr for Senior 65+ or Youth under 21).</span>
               } @else {
-                $85.00/year (Regular adult rate; $55.00/year for Youth under 21 & Senior 65+)
+                $85.00/year (Regular adult rate; $55.00/year for Youth under 21 &amp; Senior 65+)
               }
             </li>
             @if (lifeIndividualOption().price; as lp) {
@@ -409,7 +403,6 @@
                   id="spouseFullName"
                   type="text"
                   placeholder="e.g. John Doe"
-                  [disabled]="!isLoggedIn()"
                   [ngModel]="spouseName()"
                   (ngModelChange)="spouseName.set($event)"
                 />
@@ -421,7 +414,6 @@
                   id="spouseEmailInput"
                   type="email"
                   placeholder="spouse@example.com"
-                  [disabled]="!isLoggedIn()"
                   [ngModel]="spouseEmail()"
                   (ngModelChange)="spouseEmail.set($event)"
                 />
@@ -432,7 +424,6 @@
                 <input
                   id="spouseDobInput"
                   type="date"
-                  [disabled]="!isLoggedIn()"
                   [ngModel]="spouseDateOfBirth()"
                   (ngModelChange)="spouseDateOfBirth.set($event)"
                 />
@@ -440,44 +431,68 @@
             </div>
           </div>
         }
-      }
-    </div>
 
-    <!-- Step 4: Checkout Action -->
-    @if (checkoutError()) {
-      <div class="error-container">
-        <span class="error-message">{{ checkoutError() }}</span>
-        <button class="icon-only-button" (click)="checkoutError.set(null)">
-          <app-icon name="close"></app-icon>
-        </button>
+        <div class="step-footer">
+          @if (!membershipSelectionComplete()) {
+            <p class="step-todo-hint">
+              @if (isSpouseOptionSelected()) {
+                Your spouse's name, email and date of birth are needed before you
+                can continue.
+              } @else {
+                Choose a membership option to continue.
+              }
+            </p>
+          }
+          <button
+            type="button"
+            class="next-btn"
+            [disabled]="!membershipSelectionComplete()"
+            (click)="continueFromMembershipStep()"
+          >
+            <span>Continue</span>
+            <app-icon name="arrow_forward"></app-icon>
+          </button>
+        </div>
+      }
+    </app-step-card>
+
+    <!-- Step 4: Checkout -->
+    <app-step-card
+      [number]="StepPayment"
+      title="Payment"
+      [state]="flow.stateOf(StepPayment)"
+      [expanded]="flow.current() === StepPayment"
+      [editable]="false"
+    >
+      @if (selectedOptionDetails(); as opt) {
+        <div class="payment-recap">
+          <div class="payment-recap-row">
+            <span class="payment-recap-label">{{ opt.title }}</span>
+            <span class="payment-recap-value">{{ formatPrice(opt.price) }}</span>
+          </div>
+          <p class="payment-recap-note">{{ opt.note }}</p>
+        </div>
+      }
+
+      @if (checkoutError()) {
+        <div class="error-container">
+          <span class="error-message">{{ checkoutError() }}</span>
+          <button class="icon-only-button" (click)="checkoutError.set(null)">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+      }
+
+      <div class="checkout-actions">
+        @if (isRedirecting()) {
+          <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+        } @else {
+          <button type="button" class="pay-btn" (click)="onProceedToPayment()">
+            <app-icon name="link"></app-icon>
+            <span>Proceed to Secure Payment</span>
+          </button>
+        }
       </div>
-    }
-
-    <div class="checkout-actions">
-      @if (isRedirecting()) {
-        <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-      } @else {
-        <button
-          type="button"
-          class="pay-btn"
-          [disabled]="
-            !isLoggedIn() ||
-            !selectedPriceId() ||
-            !name() ||
-            !dateOfBirth() ||
-            !country() ||
-            (isSpouseOptionSelected() && (
-              !spouseName().trim() ||
-              !spouseEmail().trim() ||
-              !spouseDateOfBirth().trim()
-            ))
-          "
-          (click)="onProceedToPayment()"
-        >
-          <app-icon name="link"></app-icon>
-          <span>Proceed to Secure Payment</span>
-        </button>
-      }
-    </div>
+    </app-step-card>
   }
 </div>

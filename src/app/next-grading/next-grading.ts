@@ -44,11 +44,21 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { StepTrackComponent } from '../step-track/step-track';
+import { StepFlow } from '../step-track/step-flow';
+import { StepCardComponent } from '../step-card/step-card';
 
 @Component({
   selector: 'app-next-grading',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
+  imports: [
+    CommonModule,
+    IconComponent,
+    SpinnerComponent,
+    InlineAuthComponent,
+    StepTrackComponent,
+    StepCardComponent,
+  ],
   templateUrl: './next-grading.html',
   styleUrl: './next-grading.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,6 +88,50 @@ export class NextGradingComponent {
 
   // Whether user explicitly chose to buy advance subsequent level while retake is available
   buyingAdvanceLevel = signal(false);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Wizard state — see become-a-member.ts for the same pattern.
+  //
+  //  Step 2 is informational but carries a real choice (free retake vs. buying
+  //  the next level in advance), so it waits for an explicit Continue rather
+  //  than collapsing the moment membership is confirmed.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  readonly StepAccount = 1;
+  readonly StepLevel = 2;
+  readonly StepPayment = 3;
+
+  private levelStepAcknowledged = signal(false);
+
+  flow = new StepFlow(
+    computed(() => {
+      if (!this.isLoggedIn()) return this.StepAccount;
+      if (!this.isActiveMember()) return this.StepLevel;
+      if (!this.targetLevel()) return this.StepLevel;
+      if (!this.levelStepAcknowledged()) return this.StepLevel;
+      return this.StepPayment;
+    }),
+    ['Account', 'Your Level', 'Payment'],
+  );
+
+  /** "Continue" on step 2: accept the shown level and move on to payment. */
+  continueFromLevelStep(): void {
+    this.levelStepAcknowledged.set(true);
+    this.flow.resume();
+  }
+
+  accountSummary = computed(() => {
+    const u = this.user();
+    return u?.member?.emails?.[0] || u?.firebaseUser?.email || '';
+  });
+
+  levelSummary = computed(() => {
+    const target = this.targetLevel();
+    const from = `Student ${this.currentStudentLevel()}`;
+    if (!target) return `${from} — highest level achieved`;
+    const isFreeRetake = this.retakeEligible() && !this.buyingAdvanceLevel();
+    return `${from} → ${target}${isFreeRetake ? ' (free retake)' : ''}`;
+  });
 
   // Return landing state
   sessionId = computed(() => {

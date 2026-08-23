@@ -29,11 +29,21 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { StepTrackComponent } from '../step-track/step-track';
+import { StepFlow } from '../step-track/step-flow';
+import { StepCardComponent } from '../step-card/step-card';
 
 @Component({
   selector: 'app-class-video-library-purchase',
   standalone: true,
-  imports: [CommonModule, IconComponent, SpinnerComponent, InlineAuthComponent],
+  imports: [
+    CommonModule,
+    IconComponent,
+    SpinnerComponent,
+    InlineAuthComponent,
+    StepTrackComponent,
+    StepCardComponent,
+  ],
   templateUrl: './class-video-library-purchase.html',
   styleUrl: './class-video-library-purchase.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,6 +84,20 @@ export class ClassVideoLibraryPurchaseComponent {
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLoggedIn = computed(() => !!this.user());
+
+  // ── Guided flow: sign in, then choose the plan. See step-flow.ts. ──
+  readonly StepAccount = 1;
+  readonly StepPlan = 2;
+
+  flow = new StepFlow(
+    computed(() => (this.isLoggedIn() ? this.StepPlan : this.StepAccount)),
+    ['Account', 'Subscription'],
+  );
+
+  accountSummary = computed(() => {
+    const u = this.user();
+    return u?.member?.emails?.[0] || u?.firebaseUser?.email || '';
+  });
 
   async onLogout(): Promise<void> {
     await this.firebaseService.logout();

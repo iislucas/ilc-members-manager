@@ -1,0 +1,29 @@
+<div class="steps-track">
+  @for (step of steps(); track $index; let i = $index, isLast = $last) {
+    <button
+      type="button"
+      class="step"
+      [class.todo]="step.state === 'todo'"
+      [class.current]="step.state === 'current'"
+      [class.done]="step.state === 'done'"
+      [class.review]="step.state === 'review'"
+      [class.clickable]="isClickable(step)"
+      [disabled]="!isClickable(step)"
+      [attr.aria-current]="step.state === 'current' ? 'step' : null"
+      (click)="onStepClick(step, i)"
+    >
+      <span class="step-marker">
+        @if (step.state === 'done') {
+          <app-icon name="check" width="16px" height="16px"></app-icon>
+        } @else {
+          <span class="step-number">{{ i + 1 }}</span>
+        }
+      </span>
+      <span class="step-label">{{ step.label }}</span>
+    </button>
+
+    @if (!isLast) {
+      <span class="step-connector" [class.done]="step.state === 'done'"></span>
+    }
+  }
+</div>

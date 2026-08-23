@@ -35,6 +35,9 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { StepTrackComponent } from '../step-track/step-track';
+import { StepFlow } from '../step-track/step-flow';
+import { StepCardComponent } from '../step-card/step-card';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 export type SchoolLicenseAction = 'renew' | 'new';
@@ -49,6 +52,8 @@ export type SchoolLicenseAction = 'renew' | 'new';
     SpinnerComponent,
     InlineAuthComponent,
     AutocompleteComponent,
+    StepTrackComponent,
+    StepCardComponent,
   ],
   templateUrl: './school-license-purchase.html',
   styleUrl: './school-license-purchase.scss',
@@ -130,6 +135,66 @@ export class SchoolLicensePurchaseComponent {
   today = computed(() => new Date().toISOString().split('T')[0]);
 
   isLoggedIn = computed(() => !!this.user());
+
+  // ── Guided flow. See step-flow.ts. ──
+  readonly StepAccount = 1;
+  readonly StepSchool = 2;
+  readonly StepPayment = 3;
+
+  /**
+   * Step 2 is complete once there is a school to charge for: either one picked
+   * to renew, or enough detail to register a new one. This is the single source
+   * of truth for both the step gate and the checkout button.
+   */
+  schoolDetailsComplete = computed(() => {
+    if (this.licenseAction() === 'renew') {
+      return !!this.selectedSchoolDocId() || this.mySchools().length === 0;
+    }
+    return !!(
+      this.newSchoolName().trim() &&
+      this.newSchoolCountry().trim() &&
+      this.newSchoolCity().trim()
+    );
+  });
+
+  /**
+   * Renewing with no schools on record counts as "complete" for the checkout
+   * button, so without an explicit Continue the school step could be skipped
+   * before the user has chosen or described the school being licensed.
+   */
+  private schoolStepAcknowledged = signal(false);
+
+  flow = new StepFlow(
+    computed(() => {
+      if (!this.isLoggedIn()) return this.StepAccount;
+      if (!this.isActiveMember()) return this.StepSchool;
+      if (!this.schoolDetailsComplete()) return this.StepSchool;
+      if (!this.schoolStepAcknowledged()) return this.StepSchool;
+      return this.StepPayment;
+    }),
+    ['Account', 'School', 'Payment'],
+  );
+
+  /** "Continue" on the school step: accept the school and go to payment. */
+  continueFromSchoolStep(): void {
+    this.schoolStepAcknowledged.set(true);
+    this.flow.resume();
+  }
+
+  accountSummary = computed(() => {
+    const u = this.user();
+    return u?.member?.emails?.[0] || u?.firebaseUser?.email || '';
+  });
+
+  schoolSummary = computed(() => {
+    if (this.licenseAction() !== 'renew') {
+      const parts = [this.newSchoolName(), this.newSchoolCity(), this.newSchoolCountry()];
+      return parts.filter((part) => !!part.trim()).join(' • ');
+    }
+    const docId = this.selectedSchoolDocId();
+    const school = this.mySchools().find((s) => s.docId === docId);
+    return school?.schoolName || '';
+  });
 
   async onLogout(): Promise<void> {
     await this.firebaseService.logout();

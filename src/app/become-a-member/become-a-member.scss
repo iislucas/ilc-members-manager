@@ -17,6 +17,13 @@
   width: 100%;
 }
 
+// The container's 1.75em gap is what spaces the step cards apart, but the
+// track belongs with the steps it labels rather than standing off from them.
+// Trimming 0.75em leaves about 1em between the markers and the first card.
+app-step-track {
+  margin-bottom: -0.75em;
+}
+
 .page-header {
   text-align: center;
   h1 {
@@ -46,78 +53,7 @@
   }
 }
 
-.step-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5em;
-  margin-bottom: 1.25em;
 
-  &.clickable {
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .step-header-left {
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-  }
-
-  .step-completed-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: v.$highlight-tag-bg;
-    color: v.$highlight-tag-text;
-    border: 1px solid v.$highlight-tag-border;
-
-    app-icon {
-      width: 15px;
-      height: 15px;
-    }
-  }
-
-  .fold-toggle-btn {
-    color: v.$text-muted;
-    cursor: pointer;
-
-    &:hover {
-      color: v.$text-primary;
-    }
-  }
-}
-
-.collapsed-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: v.$separator-color;
-  border-radius: 6px;
-  border: 1px solid v.$border-color-light;
-
-  .summary-text {
-    font-size: 0.95em;
-    color: v.$text-secondary;
-  }
-
-  .edit-link-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35em;
-    padding: 0.35em 0.75em;
-    font-size: 0.85em;
-    background: #fff;
-    border: 1px solid v.$border-color-light;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-}
 
 .current-membership-banner {
   border: 1px solid v.$border-color-light;
@@ -207,6 +143,42 @@
   }
 }
 
+.payment-recap {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: v.$separator-color;
+  border: 1px solid v.$border-color-light;
+  border-left: 4px solid v.$primary-color;
+  border-radius: 6px;
+
+  .payment-recap-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .payment-recap-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+
+  .payment-recap-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: v.$text-primary;
+  }
+
+  .payment-recap-note {
+    margin: 0.4rem 0 0;
+    font-size: 0.9rem;
+    color: v.$text-secondary;
+    line-height: 1.45;
+  }
+}
+
 .account-welcome-note {
   margin: 1em 0 0;
   color: v.$text-muted;
@@ -214,40 +186,6 @@
   line-height: 1.5;
 }
 
-.auth-prompt {
-  p {
-    margin: 0 0 1.25em;
-    color: v.$text-muted;
-    line-height: 1.4;
-  }
-  .auth-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25em;
-    @media (max-width: 600px) {
-      grid-template-columns: 1fr;
-      gap: 1em;
-    }
-  }
-  .password-row {
-    display: flex;
-    gap: 0.35em;
-    align-items: center;
-    input {
-      flex: 1;
-    }
-  }
-  .error-container {
-    margin-top: 1.25em;
-  }
-  .auth-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75em;
-    margin-top: 1.25em;
-    align-items: center;
-  }
-}
 
 .fields-grid {
   display: grid;
@@ -330,10 +268,6 @@ app-autocomplete {
   }
 }
 
-.disabled-section {
-  opacity: 0.6;
-  pointer-events: none;
-}
 
 .country-chip {
   align-self: flex-start;

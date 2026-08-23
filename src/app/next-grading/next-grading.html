@@ -88,18 +88,22 @@
     </ul>
   </div>
 
+  <!-- ── Guided flow: only the current step is expanded ── -->
+  <app-step-track
+    [steps]="flow.steps()"
+    [navigable]="true"
+    (stepSelected)="flow.goTo($event + 1)"
+  ></app-step-track>
+
   <!-- Step 1: Sign in / Account -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>1. Your Account</h2>
-        @if (isLoggedIn()) {
-          <span class="step-completed-badge" title="Account verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
-    </div>
+  <app-step-card
+    [number]="StepAccount"
+    title="Your Account"
+    [state]="flow.stateOf(StepAccount)"
+    [expanded]="flow.current() === StepAccount"
+    (editRequested)="flow.goTo(StepAccount)"
+  >
+    <span stepSummary>{{ accountSummary() }}</span>
 
     @if (!isLoggedIn()) {
       <p class="step-guidance">
@@ -108,20 +112,17 @@
     }
 
     <app-inline-auth></app-inline-auth>
-  </div>
+  </app-step-card>
 
   <!-- Step 2: Progression & Eligibility -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>2. Next Grading Level</h2>
-        @if (isLoggedIn() && isActiveMember()) {
-          <span class="step-completed-badge" title="Eligible for grading">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
-    </div>
+  <app-step-card
+    [number]="StepLevel"
+    title="Next Grading Level"
+    [state]="flow.stateOf(StepLevel)"
+    [expanded]="flow.current() === StepLevel"
+    (editRequested)="flow.goTo(StepLevel)"
+  >
+    <span stepSummary>{{ levelSummary() }}</span>
 
     @if (!isLoggedIn()) {
       <p class="muted-note">Please sign in to view your current level and eligible gradings.</p>
@@ -254,102 +255,118 @@
           }
         </div>
       }
+
+      <div class="step-footer">
+        @if (!targetLevel()) {
+          <p class="step-todo-hint">
+            You have reached the highest level, so there is no grading to
+            purchase.
+          </p>
+        }
+        <button
+          type="button"
+          class="next-btn"
+          [disabled]="!targetLevel()"
+          (click)="continueFromLevelStep()"
+        >
+          <span>Continue</span>
+          <app-icon name="arrow_forward"></app-icon>
+        </button>
+      </div>
     }
-  </div>
+  </app-step-card>
 
   <!-- Step 3: Grading Fee & Purchase Action -->
-  @if (isLoggedIn() && isActiveMember() && targetLevel()) {
-    <div class="form-card card">
-      <div class="step-header-row">
-        <div class="step-header-left">
-          <h2>3. Zhong Xin Dao / I Liq Chuan HQ Grading Fee</h2>
+  <app-step-card
+    [number]="StepPayment"
+    title="HQ Grading Fee"
+    [state]="flow.stateOf(StepPayment)"
+    [expanded]="flow.current() === StepPayment"
+    [editable]="false"
+  >
+    @if (retakeEligible() && !buyingAdvanceLevel()) {
+      <div class="retake-fee-notice">
+        <app-icon name="check" width="24px" height="24px" fill="#155724"></app-icon>
+        <div>
+          <h3>No Headquarters Fee Required</h3>
+          <p>
+            Because you are retaking <strong>{{ retakeEligibleLevel() }}</strong>, no headquarters grading registration fee is required.
+          </p>
+          @if (isCreatingRetake()) {
+            <app-spinner>Creating your retake grading...</app-spinner>
+          } @else {
+            <button
+              type="button"
+              class="button pay-btn"
+              (click)="onStartRetake()"
+            >
+              <span>Start Free Retake for {{ retakeEligibleLevel() }}</span>
+              <app-icon name="arrow_forward"></app-icon>
+            </button>
+          }
         </div>
       </div>
+    } @else {
+      @if (productsLoading()) {
+        <app-spinner>Looking up grading fee...</app-spinner>
+      } @else if (productsError()) {
+        <div class="error-container">
+          <span class="error-message">{{ productsError() }}</span>
+          <button class="icon-only-button" (click)="loadProducts()">
+            <app-icon name="refresh"></app-icon>
+          </button>
+        </div>
+      } @else if (matchingGradingPrice(); as match) {
+        <div class="membership-options-grid">
+          <div class="option-card selected">
+            <div class="option-title">{{ targetLevel() }}</div>
+            <div class="rate-price">
+              {{ formatPrice(match.price.unitAmount, match.price.currency) }}
+            </div>
+            <div class="rate-desc">
+              One-time examination fee for {{ targetLevel() }}.
+              @if (isPayingForExistingGrading()) {
+                <span class="option-subtext">
+                  This settles the outstanding fee on the {{ targetLevel() }} grading you already have — no extra grading record is created.
+                </span>
+              }
+            </div>
+          </div>
+        </div>
 
-      @if (retakeEligible() && !buyingAdvanceLevel()) {
-        <div class="retake-fee-notice">
-          <app-icon name="check" width="24px" height="24px" fill="#155724"></app-icon>
-          <div>
-            <h3>No Headquarters Fee Required</h3>
-            <p>
-              Because you are retaking <strong>{{ retakeEligibleLevel() }}</strong>, no headquarters grading registration fee is required.
-            </p>
-            @if (isCreatingRetake()) {
-              <app-spinner>Creating your retake grading...</app-spinner>
+        <div class="checkout-section">
+          @if (checkoutError()) {
+            <div class="error-container">
+              <span class="error-message">{{ checkoutError() }}</span>
+              <button class="icon-only-button" (click)="checkoutError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="checkout-actions">
+            @if (isRedirecting()) {
+              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
             } @else {
               <button
                 type="button"
                 class="button pay-btn"
-                (click)="onStartRetake()"
+                (click)="onPurchaseNextGrading()"
               >
-                <span>Start Free Retake for {{ retakeEligibleLevel() }}</span>
+                <span>Purchase {{ targetLevel() }} Grading</span>
                 <app-icon name="arrow_forward"></app-icon>
               </button>
             }
           </div>
         </div>
       } @else {
-        @if (productsLoading()) {
-          <app-spinner>Looking up grading fee...</app-spinner>
-        } @else if (productsError()) {
-          <div class="error-container">
-            <span class="error-message">{{ productsError() }}</span>
-            <button class="icon-only-button" (click)="loadProducts()">
-              <app-icon name="refresh"></app-icon>
-            </button>
-          </div>
-        } @else if (matchingGradingPrice(); as match) {
-          <div class="membership-options-grid">
-            <div class="option-card selected">
-              <div class="option-title">{{ targetLevel() }}</div>
-              <div class="rate-price">
-                {{ formatPrice(match.price.unitAmount, match.price.currency) }}
-              </div>
-              <div class="rate-desc">
-                One-time examination fee for {{ targetLevel() }}.
-                @if (isPayingForExistingGrading()) {
-                  <span class="option-subtext">
-                    This settles the outstanding fee on the {{ targetLevel() }} grading you already have — no extra grading record is created.
-                  </span>
-                }
-              </div>
-            </div>
-          </div>
-
-          <div class="checkout-section">
-            @if (checkoutError()) {
-              <div class="error-container">
-                <span class="error-message">{{ checkoutError() }}</span>
-                <button class="icon-only-button" (click)="checkoutError.set(null)">
-                  <app-icon name="close"></app-icon>
-                </button>
-              </div>
-            }
-
-            <div class="checkout-actions">
-              @if (isRedirecting()) {
-                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-              } @else {
-                <button
-                  type="button"
-                  class="button pay-btn"
-                  (click)="onPurchaseNextGrading()"
-                >
-                  <span>Purchase {{ targetLevel() }} Grading</span>
-                  <app-icon name="arrow_forward"></app-icon>
-                </button>
-              }
-            </div>
-          </div>
-        } @else {
-          <div class="empty-notice">
-            <p>
-              Grading fee information for <strong>{{ targetLevel() }}</strong> is currently being updated.
-              Please contact your instructor or headquarters.
-            </p>
-          </div>
-        }
+        <div class="empty-notice">
+          <p>
+            Grading fee information for <strong>{{ targetLevel() }}</strong> is currently being updated.
+            Please contact your instructor or headquarters.
+          </p>
+        </div>
       }
-    </div>
-  }
+    }
+  </app-step-card>
 </div>
