@@ -45,16 +45,59 @@
   }
 }
 
-.email-display {
-  font-family: monospace;
-  color: $text-primary;
-  white-space: nowrap;
-  font-size: 0.92em;
-  padding: 0.25em 0.5em;
+// The email as a control rather than a caption: it previously rendered as an
+// inert div styled to look like a field, and the only way to change it was a
+// "Use a different email" item buried in the overflow menu.
+.email-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.35em 0.65em;
   background: #fff;
   border: 1px solid $border-color-light;
   border-radius: 4px;
-  width: fit-content;
+  box-shadow: none;
+  color: $text-primary;
+  font-size: 0.92em;
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  .email-chip-text {
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  app-icon {
+    flex-shrink: 0;
+    color: $text-muted;
+  }
+
+  &:hover {
+    background: $menu-item-hover-color;
+    border-color: $focus-ring-color;
+    box-shadow: none;
+
+    app-icon {
+      color: $focus-ring-color;
+    }
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-ring-color;
+    outline-offset: 2px;
+  }
 }
 
 .checking-step {
@@ -71,81 +114,11 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  margin: 0 auto;
-  width: fit-content;
   max-width: 100%;
   gap: 0.6em;
 
-  .email-display {
-    text-align: left;
-    width: fit-content;
-  }
-
   .error-container {
     width: 100%;
-  }
-
-  .action-row-with-menu {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25em;
-  }
-}
-
-.action-row-with-menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-}
-
-.more-options-btn {
-  background: none;
-  border: none;
-  box-shadow: none;
-  cursor: pointer;
-  padding: 0.35em;
-  color: $text-secondary;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s ease, color 0.15s ease;
-
-  &:hover {
-    background: #f4f4f5;
-    color: $text-primary;
-    box-shadow: none;
-  }
-
-  &:active {
-    background: #e4e4e7;
-    box-shadow: none;
-  }
-}
-
-.menu-container {
-  position: relative;
-  display: inline-flex;
-
-  .menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    min-width: 190px;
-    background-color: white;
-    border: 1px solid $border-color-light;
-    border-radius: 6px;
-    padding: 0.35em;
-    z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    display: flex;
-    flex-direction: column;
-    gap: 0.15em;
-
-    &.right-aligned {
-      left: auto;
-      right: 0;
-    }
   }
 }
 
@@ -170,6 +143,17 @@
   }
 }
 
+// A trailing aside after the primary actions, rather than guidance leading
+// into them. `.step-guidance` zeroes its own margin, so the separation from
+// the buttons is set here.
+.step-footnote {
+  margin-top: 1em;
+  padding-top: 0.85em;
+  border-top: 1px solid $separator-color;
+  color: $text-muted;
+  font-size: 0.88em;
+}
+
 .input-field {
   display: flex;
   flex-direction: column;
@@ -190,6 +174,21 @@
     background-color: #fff;
     box-sizing: border-box;
     width: 100%;
+    // The global input rule caps every text field at 30em, which against the
+    // browser's 13.3px default input font-size is only 400px — far narrower
+    // than the cards this component sits in. Match the surrounding text size
+    // and let the container decide the width instead.
+    max-width: 100%;
+    font-size: 1em;
+    padding: 0.6em 0.75em;
+    border: 1px solid $border-color-light;
+    border-radius: 4px;
+
+    &:focus {
+      outline: none;
+      border-color: $focus-ring-color;
+      box-shadow: 0 0 0 2px rgba(149, 0, 0, 0.12);
+    }
   }
 }
 
