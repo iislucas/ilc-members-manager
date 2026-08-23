@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ILC Members Portal — Authentication &amp; Sign-in</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">ILC</div>
+        <div>
+          <div class="brand-title">ILC Portal</div>
+          <div class="brand-subtitle">Authentication</div>
+        </div>
+      </div>
+
+      <div class="nav-search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="docSearch" placeholder="Search this page..." oninput="filterNav(this.value)" />
+      </div>
+
+      <nav id="sidebarNav">
+        <div class="nav-group">
+          <div class="nav-group-title">Overview</div>
+          <a href="#overview" class="nav-link">One Component, Everywhere</a>
+          <a href="#steps" class="nav-link">The Steps</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Decisions</div>
+          <a href="#providers" class="nav-link">Provider Preference</a>
+          <a href="#switching" class="nav-link">Switching Provider</a>
+          <a href="#wording" class="nav-link">Wording</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">State</div>
+          <a href="#changing-email" class="nav-link">Changing the Email</a>
+          <a href="#remembered" class="nav-link">What Is Remembered</a>
+          <a href="#in-progress" class="nav-link">Attempts In Progress</a>
+          <a href="#precedence" class="nav-link">Precedence</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Verification</div>
+          <a href="#tests" class="nav-link">Tests</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <nav class="doc-switcher" aria-label="Documentation">
+        <span class="doc-switcher-label">Docs</span>
+        <a href="README.html">Architecture</a>
+        <a href="orders-and-subscriptions.html">Orders &amp; Subscriptions</a>
+        <a href="authentication.html" aria-current="page">Authentication</a>
+        <a href="guided-purchase-flows.html">Purchase Flows</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">Gradings</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/materials-management.md">Materials</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/push-notifications.md">Push</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/README.md">User Stories</a>
+      </nav>
+
+      <span class="badge badge-primary">Component &amp; State Specification</span>
+      <h1>Authentication &amp; Sign-in</h1>
+      <p class="lead-text">
+        How members sign in: the one component that implements it, what the flow decides at each step,
+        and — the part most likely to surprise you — what the browser remembers between visits, and when.
+      </p>
+
+      <section id="overview">
+        <h2>One component, everywhere</h2>
+        <p>
+          There is a single sign-in implementation:
+          <code>InlineAuthComponent</code> in
+          <code>src/app/inline-auth/inline-auth.component.ts</code>. Transient state that outlives a
+          single page lives in <code>SignInFlowService</code>. The server-side lookup is the
+          <code>checkEmailStatus</code> callable, whose result type <code>CheckEmailStatusResult</code>
+          is defined in <code>functions/src/data-model.ts</code>.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🔑 The login page</span>
+              <span class="badge badge-primary">/login</span>
+            </div>
+            <div class="card-description">
+              <code>LoginComponent</code> is a thin wrapper — its template is one element.
+              It sets <code>showNoMemberOption</code> to <code>true</code>.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🛒 Five purchase flows</span>
+              <span class="badge badge-accent">Step 1</span>
+            </div>
+            <div class="card-description">
+              Become a Member, Next Grading, Class Video Library, Instructor License, School License —
+              each embeds it as the first step. <code>showNoMemberOption</code> defaults to
+              <code>false</code>.
+            </div>
+          </div>
+        </div>
+
+        <p>That single input is the <em>only</em> difference between the two uses:</p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>showNoMemberOption</th><th>An email matching no membership record…</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>true</code> <span class="badge badge-primary">login page</span></td>
+                <td>reaches a dead-end step offering "Become a Member" and "create an account without a membership".</td>
+              </tr>
+              <tr>
+                <td><code>false</code> <span class="badge badge-accent">purchase pages</span></td>
+                <td>is offered account creation directly. On a purchase page that prompt would be circular — those pages are already where an account gets created.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">The same lookup routes differently per page</div>
+          <p>
+            Whenever a step is derived it is derived from the status <em>plus the page's own policy</em>,
+            never copied from another page's decision. This matters when an attempt is
+            <a href="#in-progress">carried between pages</a>.
+          </p>
+        </div>
+      </section>
+
+      <section id="steps">
+        <h2>The steps</h2>
+        <p><code>InlineAuthStep</code> is the state machine:</p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Step</th><th>Shown when</th></tr></thead>
+            <tbody>
+              <tr><td><code>Email</code></td><td>Nothing known yet; the user types an address.</td></tr>
+              <tr><td><code>Checking</code></td><td><code>checkEmailStatus</code> is in flight.</td></tr>
+              <tr><td><code>GoogleSignin</code></td><td>Google is the route for this address.</td></tr>
+              <tr><td><code>PasswordLogin</code></td><td>A password is the route for this address.</td></tr>
+              <tr><td><code>CreateAccount</code></td><td>No auth account exists; one will be made.</td></tr>
+              <tr><td><code>GuestCreateAccount</code></td><td>Creating an account with no membership behind it.</td></tr>
+              <tr><td><code>NoMember</code></td><td>Login page only; nothing matched this address.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Two states pre-empt the machine entirely: if the user is signed in, the signed-in badge and
+          Log Out action render instead; if the address is unverified, the "verify your email" panel
+          renders instead.
+        </p>
+      </section>
+
+      <section id="providers">
+        <h2>Which provider is offered first</h2>
+        <p><code>stepForStatus</code> decides, in this order:</p>
+
+        <div class="diagram-container">
+          <div class="diagram-header"><span class="diagram-title">Routing a looked-up email</span></div>
+          <svg class="diagram-svg" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Decision order: Google provider, then password provider, then the managed-domain hint">
+            <defs>
+              <marker id="authArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+              </marker>
+            </defs>
+            <style>
+              .at { font: 12.5px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; }
+              .at-b { font: 12.5px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; font-weight: 600; }
+              .at-s { font: 11px ui-monospace, Menlo, monospace; fill: #475569; }
+              .abox { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+              .aline { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#authArrow); }
+            </style>
+
+            <rect x="16" y="16" width="200" height="44" class="abox" fill="#eff6ff" stroke="#2563eb"/>
+            <text x="116" y="34" class="at-b" text-anchor="middle">checkEmailStatus result</text>
+            <text x="116" y="50" class="at-s" text-anchor="middle">hasAuthAccount = true</text>
+
+            <rect x="16" y="84" width="200" height="40" class="abox"/>
+            <text x="116" y="109" class="at" text-anchor="middle">hasGoogleProvider?</text>
+            <rect x="16" y="150" width="200" height="40" class="abox"/>
+            <text x="116" y="175" class="at" text-anchor="middle">hasPasswordProvider?</text>
+            <rect x="16" y="216" width="200" height="52" class="abox" fill="#fffbeb" stroke="#d97706"/>
+            <text x="116" y="236" class="at" text-anchor="middle">isGoogleManaged?</text>
+            <text x="116" y="253" class="at-s" text-anchor="middle">last resort only</text>
+
+            <path d="M 116 60 L 116 84" class="aline"/>
+            <path d="M 116 124 L 116 150" class="aline"/>
+            <path d="M 116 190 L 116 216" class="aline"/>
+
+            <rect x="330" y="84" width="180" height="40" class="abox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="420" y="109" class="at-b" text-anchor="middle">GoogleSignin</text>
+            <rect x="330" y="150" width="180" height="40" class="abox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="420" y="175" class="at-b" text-anchor="middle">PasswordLogin</text>
+            <rect x="330" y="216" width="180" height="52" class="abox"/>
+            <text x="420" y="236" class="at" text-anchor="middle">Google if true,</text>
+            <text x="420" y="253" class="at" text-anchor="middle">otherwise password</text>
+
+            <path d="M 216 104 L 330 104" class="aline"/>
+            <text x="273" y="98" class="at-s" text-anchor="middle">yes</text>
+            <path d="M 216 170 L 330 170" class="aline"/>
+            <text x="273" y="164" class="at-s" text-anchor="middle">yes</text>
+            <path d="M 216 242 L 330 242" class="aline"/>
+
+            <rect x="560" y="150" width="224" height="118" class="abox" fill="#fef2f2" stroke="#dc2626"/>
+            <text x="672" y="174" class="at-b" text-anchor="middle">Why the order matters</text>
+            <text x="672" y="196" class="at-s" text-anchor="middle">isGoogleManaged is true for</text>
+            <text x="672" y="212" class="at-s" text-anchor="middle">ANY gmail.com address —</text>
+            <text x="672" y="228" class="at-s" text-anchor="middle">including accounts whose</text>
+            <text x="672" y="244" class="at-s" text-anchor="middle">only provider is a password.</text>
+            <text x="672" y="260" class="at-s" text-anchor="middle">It cannot outrank the list.</text>
+          </svg>
+        </div>
+
+        <ol>
+          <li><code>hasGoogleProvider</code> → <strong>Google</strong>. One click beats recalling a password.</li>
+          <li><code>hasPasswordProvider</code> → <strong>password</strong>. Confirmed password, no Google linked.</li>
+          <li>Neither flag known → fall back to <code>isGoogleManaged</code>.</li>
+        </ol>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">The trap in the third field</div>
+          <p>
+            <code>isGoogleManaged</code> is true for any <code>gmail.com</code> /
+            <code>googlemail.com</code> address, <strong>not</strong> only for accounts with Google
+            actually linked. If it outranked the provider list, a gmail address whose account has
+            nothing but a password would be sent to a Google sign-in that cannot work. It is therefore
+            only a last-resort hint.
+          </p>
+        </div>
+      </section>
+
+      <section id="switching">
+        <h2>Switching provider</h2>
+        <p>Both routes are plain buttons — a primary and a secondary — not a hidden menu:</p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Step</th><th>Primary</th><th>Secondary</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>PasswordLogin</code></td>
+                <td>Sign In</td>
+                <td>Sign in with Google — <strong>only if <code>canUseGoogle()</code></strong></td>
+              </tr>
+              <tr>
+                <td><code>GoogleSignin</code></td>
+                <td>Sign in / Sign up with Google</td>
+                <td>Use / Set a password — <strong>always</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout callout-success">
+          <div class="callout-title">The asymmetry is deliberate</div>
+          <p>
+            Google is not always a route: an account may simply have no Google link, and offering it
+            would be a dead end. A password always is — the account has one, or one can be created, or
+            one can be reset. That last case is the recovery path for someone locked out of their Google
+            account, so the button stays even for a Google-only account.
+          </p>
+        </div>
+      </section>
+
+      <section id="wording">
+        <h2>Wording</h2>
+        <p>
+          Labels and progress messages both follow <code>hasKnownAuthAccount()</code>, so a button and
+          the spinner that follows it can never contradict each other:
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Situation</th><th>Button</th><th>While in flight</th></tr></thead>
+            <tbody>
+              <tr><td>Google, account exists</td><td>Sign in with Google</td><td>Signing in with Google…</td></tr>
+              <tr><td>Google, no account</td><td>Sign up with Google</td><td>Creating your account with Google…</td></tr>
+              <tr><td>Password, account exists</td><td>Sign In</td><td>Signing in…</td></tr>
+              <tr><td>Password, no account</td><td>Create Account</td><td>Creating your account…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The progress message comes from a <code>pendingAuth</code> signal each auth method sets and
+          clears, rather than being inferred from the current step, which can be stale by the time the
+          request lands. When the service reports <code>LoggingIn</code> without the component having
+          started anything — a session being restored on page load — the message falls back to
+          "Signing in…".
+        </p>
+      </section>
+
+      <section id="changing-email">
+        <h2>Changing the email</h2>
+        <p>
+          Past the first step the address renders as a <strong>button</strong>
+          (<code>#change-email-btn</code>), not a caption. Tapping it returns to email entry with the
+          address kept, so a typo can be corrected rather than retyped, and discards everything derived
+          from it: the lookup result, any remembered login, and any attempt in progress.
+        </p>
+        <div class="callout">
+          <div class="callout-title">It used to be a dead end</div>
+          <p>
+            The address previously rendered as an inert <code>&lt;div&gt;</code> styled to look like a
+            field, and the only way to change it was a "Use a different email" item buried in an
+            overflow menu.
+          </p>
+        </div>
+      </section>
+
+      <section id="remembered">
+        <h2>What the browser remembers</h2>
+        <p>
+          This is the part with the sharpest rules, because getting it wrong leaks one person's email
+          address to the next person at the same computer.
+        </p>
+
+        <h3>RememberedLogin — persistent, post-authentication only</h3>
+        <p>Stored in <code>localStorage</code> under <code>ilc-remembered-login</code>:</p>
+        <pre><code>type RememberedLogin = {
+  email: string;
+  method: 'password' | 'google';  // the provider that actually worked
+  canUseGoogle: boolean;          // whether Google was available when last checked
+};</code></pre>
+
+        <p>The rules that make it trustworthy:</p>
+        <ul>
+          <li><strong>Written only after a sign-in succeeds</strong> — never when an email is merely looked up. Every field therefore records something observed, so nothing has to be guessed when it is read back.</li>
+          <li><strong>Cleared on logout</strong>, along with the email field. Signed out means empty.</li>
+          <li><strong>Cleared when the user changes the email.</strong></li>
+          <li><strong>Validated on read.</strong> Anything not written by the current code — malformed JSON, a missing email, an unrecognised <code>method</code> — is discarded rather than half-trusted. The cost is one extra email entry.</li>
+        </ul>
+        <p>
+          On restore the flow resumes at <code>PasswordLogin</code> or <code>GoogleSignin</code> per
+          <code>method</code>. <code>emailStatus</code> stays <code>null</code>, because no lookup has
+          run this visit; <code>hasKnownAuthAccount()</code> is still true, since an account was used
+          here before.
+        </p>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">History — the bug this replaced</div>
+          <p>
+            An earlier version cached the email inside <code>checkEmail()</code>, i.e. as soon as
+            Continue was pressed, and rebuilt a full <code>CheckEmailStatusResult</code> from it with
+            <code>hasMemberRecord: true</code> hardcoded. That pinned typos permanently, survived
+            logout, and made the create-account step claim a membership record that had never been
+            checked. The old key <code>ilc-login-info</code> is actively deleted on init wherever it
+            lingers.
+          </p>
+        </div>
+      </section>
+
+      <section id="in-progress">
+        <h2>Attempts in progress</h2>
+        <p>
+          <code>SignInFlowService</code> holds the attempt in progress: the email entered and the lookup
+          for it. Someone who types their address on the login page, is told there is no membership for
+          it, and follows "Become a Member" has already answered the question the next page would
+          otherwise ask again.
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header"><span class="diagram-title">Carrying an attempt across a navigation</span></div>
+          <svg class="diagram-svg" viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="An email looked up on the login page is reused on the become-a-member page">
+            <style>
+              .ct { font: 12.5px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; }
+              .ct-b { font: 12.5px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; font-weight: 600; }
+              .ct-s { font: 11px ui-monospace, Menlo, monospace; fill: #475569; }
+              .cbox { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+              .cline { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#authArrow2); }
+            </style>
+            <defs>
+              <marker id="authArrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+              </marker>
+            </defs>
+
+            <rect x="16" y="20" width="220" height="70" class="cbox" fill="#eff6ff" stroke="#2563eb"/>
+            <text x="126" y="44" class="ct-b" text-anchor="middle">/login</text>
+            <text x="126" y="62" class="ct-s" text-anchor="middle">email typed → lookup</text>
+            <text x="126" y="79" class="ct-s" text-anchor="middle">step = NoMember</text>
+
+            <rect x="300" y="20" width="220" height="70" class="cbox" fill="#f5f3ff" stroke="#7c3aed"/>
+            <text x="410" y="44" class="ct-b" text-anchor="middle">SignInFlowService</text>
+            <text x="410" y="62" class="ct-s" text-anchor="middle">email + status</text>
+            <text x="410" y="79" class="ct-s" text-anchor="middle">in memory only</text>
+
+            <rect x="584" y="20" width="220" height="70" class="cbox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="694" y="44" class="ct-b" text-anchor="middle">/become-a-member</text>
+            <text x="694" y="62" class="ct-s" text-anchor="middle">email prefilled</text>
+            <text x="694" y="79" class="ct-s" text-anchor="middle">step = CreateAccount</text>
+
+            <path d="M 236 55 L 300 55" class="cline"/>
+            <path d="M 520 55 L 584 55" class="cline"/>
+
+            <rect x="160" y="130" width="500" height="76" class="cbox" fill="#f8fafc"/>
+            <text x="410" y="154" class="ct-b" text-anchor="middle">One checkEmailStatus call for the whole journey</text>
+            <text x="410" y="176" class="ct-s" text-anchor="middle">The step is re-derived per page: the same result is a dead end</text>
+            <text x="410" y="193" class="ct-s" text-anchor="middle">on /login and an invitation to sign up on /become-a-member.</text>
+          </svg>
+        </div>
+
+        <p>It is deliberately <strong>not</strong> persisted:</p>
+        <ul>
+          <li>it survives an in-app navigation — <code>RoutingService.navigateTo</code> uses <code>history.pushState</code>, so the root injector is not rebuilt — and nothing more;</li>
+          <li>a reload or a new tab starts clean;</li>
+          <li>nothing is written to storage, so this does not reintroduce the pre-authentication caching described above.</li>
+        </ul>
+        <p>It is cleared when the user changes the email and on logout.</p>
+      </section>
+
+      <section id="precedence">
+        <h2>Precedence</h2>
+        <p>
+          An attempt in progress reflects what the user just did, so it is adopted ahead of a login
+          remembered from an earlier visit.
+        </p>
+        <div class="callout">
+          <div class="callout-title">Why this runs in ngOnInit, not the constructor</div>
+          <p>
+            The opening step depends on <code>showNoMemberOption</code>, and Angular does not set inputs
+            until after construction. Deriving it in the constructor would read the input's
+            <code>false</code> default and send the login page to Create Account instead of its
+            no-member guidance.
+          </p>
+        </div>
+      </section>
+
+      <section id="tests">
+        <h2>Tests</h2>
+        <p>
+          <code>inline-auth.component.spec.ts</code> covers this against the in-memory mock from
+          <code>createFirebaseStateServiceMock()</code>, grouped by concern: startup and malformed
+          storage, lookup routing, what may be remembered and when, logout, changing the email, carrying
+          an attempt between pages, provider switching, progress wording, errors, and the no-member dead
+          end.
+        </p>
+        <p>Two habits worth keeping when adding to it:</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Carrying between pages</span></div>
+            <div class="card-description">
+              Simulated by creating a second component against the same TestBed injector — a fresh
+              component, the same root-provided service.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">In-flight UI</span></div>
+            <div class="card-description">
+              Progress messages are inspected by holding the auth call open with an unresolved promise,
+              rendering, then releasing it. A test that simply awaits the call can never see the message.
+            </div>
+          </div>
+        </div>
+        <p>
+          <code>login.spec.ts</code> only checks that the page renders the shared flow with
+          <code>showNoMemberOption</code> on; everything else belongs to the component's own spec.
+        </p>
+      </section>
+
+      <footer>
+        <span>ILC Members Portal — Authentication &amp; Sign-in</span>
+        <span>See also: <a href="guided-purchase-flows.html">Purchase Flows</a> · <a href="README.html#public-vs-gated">Public vs Gated Views</a></span>
+      </footer>
+    </main>
+  </div>
+  <script src="doc-scripts.js"></script>
+</body>
+</html>
