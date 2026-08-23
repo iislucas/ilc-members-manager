@@ -112,6 +112,18 @@
     }
 
     <app-inline-auth></app-inline-auth>
+
+    @if (isLoggedIn()) {
+      <!-- Signed in already: the step is satisfied, so offer the way forward.
+           Without this, reopening this step from the track stranded the user on
+           a card whose only action was Log Out. -->
+      <div class="step-footer">
+        <button type="button" class="next-btn" (click)="flow.next()">
+          <span>Continue</span>
+          <app-icon name="arrow_forward"></app-icon>
+        </button>
+      </div>
+    }
   </app-step-card>
 
   <!-- Step 2: Progression & Eligibility -->
