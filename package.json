@@ -20,7 +20,7 @@
     "import:stripe-products": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/import-stripe-products.ts",
     "mcp": "ng mcp",
     "ng": "ng",
-    "postinstall": "pnpm --prefix functions install",
+    "postinstall": "cd functions && pnpm install",
     "prebuild": "pnpm run stamp-version",
     "register:stripe-webhook": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/register-stripe-webhook.ts",
     "seed:emulator": "pnpm --prefix functions exec ts-node scripts/seed-emulator.ts",
@@ -46,16 +46,6 @@
     "vimeo:inventory": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' ../scripts/vimeo-inventory.ts",
     "vimeo:migrate": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' ../scripts/vimeo-migrate-to-gcs.ts",
     "watch": "ng build --watch --configuration development --project ilc-members-manager"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@firebase/util",
-      "@parcel/watcher",
-      "esbuild",
-      "lmdb",
-      "msgpackr-extract",
-      "protobufjs"
-    ]
   },
   "prettier": {
     "overrides": [
