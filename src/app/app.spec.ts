@@ -96,6 +96,21 @@ describe('App', () => {
     expect(compiled.querySelector('.title')?.textContent).toContain('ILC Portal');
   });
 
+  it('should keep the sign-in box mounted while a sign-in is in flight', async () => {
+    // Tearing it down destroyed <app-inline-auth> on every failed attempt: the
+    // page flashed and took the "that password didn't work" message with it.
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    firebaseStateServiceMock.loginStatus!.set(LoginStatus.LoggingIn);
+    app.routingService.matchedPatternId.set(Views.Login);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-login')).not.toBeNull();
+  });
+
   it('should not redirect logged-out users on Home to login', async () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;

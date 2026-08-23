@@ -21,7 +21,13 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
-import { AuthErrorCodes } from 'firebase/auth';
+import {
+  googleSignInErrorMessage,
+  isPasswordResettable,
+  passwordResetErrorMessage,
+  signInErrorMessage,
+  signUpErrorMessage,
+} from './auth-error-messages';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { environment } from '../../environments/environment';
@@ -162,6 +168,18 @@ export class InlineAuthComponent implements OnInit {
    */
   private pendingAuth = signal<{ creating: boolean; google: boolean } | null>(null);
 
+  /**
+   * Whether an auth request is in flight — ours, or a session the service is
+   * restoring. Only the messages and buttons of the current step give way to
+   * the spinner: what the user typed stays on screen, and the component itself
+   * is never torn down, so an error has somewhere to land afterwards.
+   */
+  busy = computed(
+    () =>
+      this.firebaseService.loginStatus() === LoginStatus.LoggingIn ||
+      this.authLoading(),
+  );
+
   progressMessage = computed(() => {
     const pending = this.pendingAuth();
     // No pending action of ours: the session is being restored on load.
@@ -177,12 +195,25 @@ export class InlineAuthComponent implements OnInit {
   // Error & message signals
   checkEmailError = signal<string | null>(null);
   loginError = signal<string | null>(null);
-  invalidLoginCredentials = signal<boolean>(false);
   loginWithGoogleError = signal<string | null>(null);
   signupError = signal<string | null>(null);
   resetPasswordError = signal<string | null>(null);
   resetPasswordSuccess = signal<string | null>(null);
   resendSuccess = signal<string | null>(null);
+  /** True while a reset email is being requested, so the link can say so. */
+  resetPasswordSending = signal<boolean>(false);
+  /**
+   * Whether the failure the user just hit is one a password reset would fix.
+   * The reset link is always on the password step; this only draws the eye to
+   * it when it is the actual next step.
+   */
+  highlightPasswordReset = signal<boolean>(false);
+  /**
+   * Set when account creation reported that the account already exists — a
+   * lookup that said otherwise is out of date, and the user needs signing in,
+   * not signing up.
+   */
+  signupFoundExistingAccount = signal<boolean>(false);
 
   /**
    * Whether an auth account is known to exist: either a lookup said so, or the
@@ -242,6 +273,7 @@ export class InlineAuthComponent implements OnInit {
 
     this.dismissMessages();
     // A fresh lookup supersedes anything remembered from a previous visit.
+    this.signupFoundExistingAccount.set(false);
     this.remembered.set(null);
     this.emailStatus.set(null);
     this.step.set(InlineAuthStep.Checking);
@@ -306,7 +338,7 @@ export class InlineAuthComponent implements OnInit {
       if (result.success) {
         this.rememberSuccessfulLogin('google');
       } else if (result.errorCode !== 'auth/cancelled-popup-request') {
-        this.loginWithGoogleError.set(result.errorCode);
+        this.loginWithGoogleError.set(googleSignInErrorMessage(result.errorCode));
       }
     } finally {
       this.authLoading.set(false);
@@ -326,12 +358,11 @@ export class InlineAuthComponent implements OnInit {
       const result = await this.firebaseService.loginWithEmail(passVal, emailVal);
       if (result.success) {
         this.rememberSuccessfulLogin('password');
-      } else if (result.errorCode === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
-        this.invalidLoginCredentials.set(true);
       } else {
-        this.loginError.set(
-          `${result.errorCode}: please check your connection and credentials.`,
-        );
+        this.loginError.set(signInErrorMessage(result.errorCode));
+        // A rejected password is the common case, and the reset link below is
+        // the way out of it; make it unmissable rather than merely present.
+        this.highlightPasswordReset.set(isPasswordResettable(result.errorCode));
       }
     } finally {
       this.authLoading.set(false);
@@ -351,12 +382,11 @@ export class InlineAuthComponent implements OnInit {
       const result = await this.firebaseService.signupWithEmail(passVal, emailVal);
       if (result.success) {
         this.rememberSuccessfulLogin('password');
-      } else if (result.errorCode === 'auth/email-already-in-use') {
-        this.signupError.set(
-          'An account already exists for this email. Please sign in with your password, or reset it below.',
-        );
       } else {
-        this.signupError.set(result.errorCode);
+        this.signupError.set(signUpErrorMessage(result.errorCode));
+        this.signupFoundExistingAccount.set(
+          result.errorCode === 'auth/email-already-in-use',
+        );
       }
     } finally {
       this.authLoading.set(false);
@@ -371,14 +401,33 @@ export class InlineAuthComponent implements OnInit {
       this.resetPasswordError.set('Please enter your email address.');
       return;
     }
-    const result = await this.firebaseService.resetPassword(emailVal);
-    if (result.success) {
-      this.resetPasswordSuccess.set(
-        `A password reset link has been sent to ${emailVal} from ${environment.passwordResetEmailSender}.`,
-      );
-    } else {
-      this.resetPasswordError.set(result.errorMessage);
+    this.resetPasswordSending.set(true);
+    try {
+      const result = await this.firebaseService.resetPassword(emailVal);
+      if (result.success) {
+        this.resetPasswordSuccess.set(
+          `A password reset link has been sent to ${emailVal} from ` +
+          `${environment.passwordResetEmailSender}. It can take a minute to ` +
+          `arrive — please check your spam folder too.`,
+        );
+      } else {
+        this.resetPasswordError.set(passwordResetErrorMessage(result.errorMessage));
+      }
+    } finally {
+      this.resetPasswordSending.set(false);
     }
+  }
+
+  /**
+   * Go to the password step after account creation found an existing account.
+   * Unlike `usePasswordInstead` this does not consult the email lookup, which
+   * we now know was out of date, and it keeps the typed password: it may well
+   * be the account's real one.
+   */
+  signInInstead(): void {
+    this.dismissMessages();
+    this.signupFoundExistingAccount.set(false);
+    this.step.set(InlineAuthStep.PasswordLogin);
   }
 
   usePasswordInstead(): void {
@@ -402,6 +451,7 @@ export class InlineAuthComponent implements OnInit {
   goBackToEmail(): void {
     this.password.set('');
     this.emailStatus.set(null);
+    this.signupFoundExistingAccount.set(false);
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);
@@ -415,6 +465,7 @@ export class InlineAuthComponent implements OnInit {
     this.email.set('');
     this.password.set('');
     this.emailStatus.set(null);
+    this.signupFoundExistingAccount.set(false);
     this.remembered.set(null);
     this.signInFlow.clear();
     this.step.set(InlineAuthStep.Email);
@@ -450,7 +501,7 @@ export class InlineAuthComponent implements OnInit {
   dismissMessages(): void {
     this.checkEmailError.set(null);
     this.loginError.set(null);
-    this.invalidLoginCredentials.set(false);
+    this.highlightPasswordReset.set(false);
     this.loginWithGoogleError.set(null);
     this.signupError.set(null);
     this.resetPasswordError.set(null);

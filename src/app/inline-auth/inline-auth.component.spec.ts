@@ -389,7 +389,7 @@ describe('InlineAuthComponent', () => {
       await component.loginWithEmail();
 
       expect(readRemembered()).toBeNull();
-      expect(component.invalidLoginCredentials()).toBe(true);
+      expect(component.highlightPasswordReset()).toBe(true);
     });
 
     it('should remember a successful password sign-in', async () => {
@@ -730,6 +730,32 @@ describe('InlineAuthComponent', () => {
       expect(text).toContain('Signing in…');
     });
 
+    it('should keep the typed password on screen while signing in', async () => {
+      // The spinner replaces the messages and buttons of the step, not the
+      // step itself: a page that blinks out mid-sign-in loses the user's place
+      // and, when it comes back, whatever the attempt had to say.
+      remember({ email: 'jane@example.com', method: 'password' });
+      await createComponent();
+      component.password.set('correct-horse');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const held = suspend('loginWithEmail');
+      const inFlight = component.loginWithEmail();
+      fixture.detectChanges();
+      // NgModel applies a disabled binding in a microtask.
+      await Promise.resolve();
+
+      const field = html().querySelector<HTMLInputElement>('#password-input');
+      expect(field).not.toBeNull();
+      expect(field!.value).toBe('correct-horse');
+      expect(field!.disabled).toBe(true);
+      // ...while the action it replaced is gone for the duration.
+      expect(html().querySelector('#login-btn')).toBeNull();
+
+      await held.finish(inFlight);
+    });
+
     it('should name Google while its popup is open', async () => {
       remember({ email: 'jane@gmail.com', method: 'google', canUseGoogle: true });
       await createComponent();
@@ -776,7 +802,7 @@ describe('InlineAuthComponent', () => {
   //  Errors surfaced to the user
   // ---------------------------------------------------------------------------
   describe('error handling', () => {
-    it('should offer a password reset after a rejected password', async () => {
+    it('should explain a rejected password and point at the reset link', async () => {
       vi.spyOn(mockService, 'loginWithEmail').mockResolvedValue({
         success: false,
         errorCode: AuthErrorCodes.INVALID_LOGIN_CREDENTIALS,
@@ -786,11 +812,41 @@ describe('InlineAuthComponent', () => {
       component.password.set('nope');
       await component.loginWithEmail();
 
-      expect(component.invalidLoginCredentials()).toBe(true);
-      expect(component.loginError()).toBeNull();
+      // The raw code says nothing to a member; the message must.
+      expect(component.loginError()).toContain("don't match an account");
+      expect(component.loginError()).not.toContain('auth/');
+      expect(component.highlightPasswordReset()).toBe(true);
     });
 
-    it('should report other sign-in failures verbatim', async () => {
+    it('should send a rate-limited user to the reset link too', async () => {
+      vi.spyOn(mockService, 'loginWithEmail').mockResolvedValue({
+        success: false,
+        errorCode: 'auth/too-many-requests',
+      });
+      await createComponent();
+      component.email.set('jane@example.com');
+      component.password.set('nope');
+      await component.loginWithEmail();
+
+      expect(component.loginError()).toContain('Too many sign-in attempts');
+      expect(component.highlightPasswordReset()).toBe(true);
+    });
+
+    it('should offer the reset link even before a failed attempt', async () => {
+      vi.spyOn(mockService, 'checkEmailStatus').mockResolvedValue(
+        status({ hasAuthAccount: true, hasPasswordProvider: true }),
+      );
+      await createComponent();
+      component.email.set('jane@example.com');
+      await component.checkEmail();
+      fixture.detectChanges();
+
+      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      expect(html().querySelector('#reset-password-btn')).not.toBeNull();
+      expect(component.highlightPasswordReset()).toBe(false);
+    });
+
+    it('should explain failures a reset cannot fix, without offering one', async () => {
       vi.spyOn(mockService, 'loginWithEmail').mockResolvedValue({
         success: false,
         errorCode: 'auth/network-request-failed',
@@ -800,8 +856,8 @@ describe('InlineAuthComponent', () => {
       component.password.set('whatever');
       await component.loginWithEmail();
 
-      expect(component.loginError()).toContain('auth/network-request-failed');
-      expect(component.invalidLoginCredentials()).toBe(false);
+      expect(component.loginError()).toContain('could not reach the server');
+      expect(component.highlightPasswordReset()).toBe(false);
     });
 
     it('should point an existing account at signing in instead', async () => {
@@ -815,6 +871,12 @@ describe('InlineAuthComponent', () => {
       await component.signupWithEmail();
 
       expect(component.signupError()).toContain('An account already exists');
+      expect(component.signupFoundExistingAccount()).toBe(true);
+
+      // ...and the way there keeps the password already typed.
+      component.signInInstead();
+      expect(component.step()).toBe(InlineAuthStep.PasswordLogin);
+      expect(component.password()).toBe('abcdef');
     });
 
     it('should confirm where a reset link was sent', async () => {
