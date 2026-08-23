@@ -1,0 +1,136 @@
+/* step-card.scss
+ *
+ * Matches <app-step-track>: the current step is outlined in $brand-red so the
+ * work still to do is unmistakable, completed steps carry the standard blue
+ * $highlight-tag-* tick, and steps not yet reached stay muted and inert.
+ */
+
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+}
+
+.step-card {
+  background: v.$theme-bg-color;
+  border: 1px solid v.$border-color-light;
+  border-radius: 8px;
+  padding: 1.25em 1.5em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.step-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+
+  &.clickable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.15em;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+}
+
+.step-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-width: 0;
+}
+
+.step-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: v.$theme-bg-color;
+  border: 2px dashed v.$border-color-light;
+}
+
+.step-card-number {
+  font-size: 0.8em;
+  font-weight: 700;
+  line-height: 1;
+  color: v.$text-muted;
+}
+
+.step-edit-btn {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  padding: 0.35em 0.75em;
+  border: 1px solid v.$border-color-light;
+  color: v.$text-secondary;
+
+  app-icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+// The step's own content. The margin only appears when there is a body, so a
+// collapsed step stays a single tight row.
+.step-card-body {
+  margin-top: 1.15em;
+}
+
+.step-card-summary:not(:empty) {
+  margin-top: 0.75em;
+  font-size: 0.92em;
+  color: v.$text-secondary;
+  line-height: 1.5;
+}
+
+// ── Current: what the user has to do now ──
+.step-card.current {
+  border: 2px solid v.$brand-red;
+  padding: calc(1.25em - 1px) calc(1.5em - 1px);
+  box-shadow: 0 1px 6px rgba(149, 0, 0, 0.1);
+
+  .step-card-badge {
+    background: v.$separator-color;
+    border: 2px solid v.$brand-red;
+  }
+
+  .step-card-number {
+    color: v.$brand-red;
+  }
+}
+
+// ── Done: the app's standard blue "stage complete" tint ──
+.step-card.done {
+  .step-card-badge {
+    background: v.$highlight-tag-bg;
+    border: 2px solid v.$highlight-tag-border;
+    color: v.$highlight-tag-text;
+  }
+}
+
+// ── Todo: visible so the user knows what is coming, but plainly inactive ──
+.step-card.todo {
+  background: v.$separator-color;
+
+  .step-card-header h2 {
+    color: v.$text-muted;
+    font-weight: 500;
+  }
+}
+
+.step-card.review {
+  .step-card-badge {
+    border: 2px solid v.$border-color-light;
+  }
+}

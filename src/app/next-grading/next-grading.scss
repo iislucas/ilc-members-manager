@@ -17,6 +17,13 @@
   width: 100%;
 }
 
+// The container's 1.75em gap is what spaces the step cards apart, but the
+// track belongs with the steps it labels rather than standing off from them.
+// Trimming 0.75em leaves about 1em between the markers and the first card.
+app-step-track {
+  margin-bottom: -0.75em;
+}
+
 .page-header {
   text-align: center;
   h1 {
@@ -46,36 +53,6 @@
   }
 }
 
-.step-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5em;
-  margin-bottom: 1.25em;
-
-  .step-header-left {
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-  }
-
-  .step-completed-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: v.$highlight-tag-bg;
-    color: v.$highlight-tag-text;
-    border: 1px solid v.$highlight-tag-border;
-
-    app-icon {
-      width: 15px;
-      height: 15px;
-    }
-  }
-}
 
 .logged-in-box {
   display: flex;
@@ -143,28 +120,6 @@
   }
 }
 
-.auth-prompt-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem 1rem;
-  text-align: center;
-
-  p {
-    margin: 0;
-    color: v.$text-secondary;
-    font-size: 0.95em;
-  }
-
-  .auth-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5em;
-    padding: 0.6em 1.4em;
-    font-weight: 600;
-  }
-}
 
 .guard-notice-box {
   display: flex;

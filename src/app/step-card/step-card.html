@@ -1,0 +1,48 @@
+<section
+  class="step-card"
+  [class.current]="state() === 'current'"
+  [class.done]="state() === 'done'"
+  [class.todo]="state() === 'todo'"
+  [class.review]="state() === 'review'"
+  [attr.aria-current]="state() === 'current' ? 'step' : null"
+>
+  <div
+    class="step-card-header"
+    [class.clickable]="canReopen()"
+    (click)="onHeaderClick()"
+  >
+    <div class="step-card-header-left">
+      <span class="step-card-badge">
+        @if (state() === 'done') {
+          <app-icon name="check" width="15px" height="15px"></app-icon>
+        } @else {
+          <span class="step-card-number">{{ number() }}</span>
+        }
+      </span>
+      <h2>{{ title() }}</h2>
+    </div>
+
+    @if (canReopen()) {
+      <button
+        type="button"
+        class="subtle-button step-edit-btn"
+        (click)="$event.stopPropagation(); editRequested.emit()"
+      >
+        <app-icon name="edit"></app-icon>
+        <span>Edit</span>
+      </button>
+    }
+  </div>
+
+  @if (expanded()) {
+    <div class="step-card-body">
+      <ng-content></ng-content>
+    </div>
+  } @else if (state() !== 'todo') {
+    <!-- A step not yet reached has nothing to recap, so its summary is
+         withheld rather than showing a placeholder derived from empty data. -->
+    <div class="step-card-summary">
+      <ng-content select="[stepSummary]"></ng-content>
+    </div>
+  }
+</section>

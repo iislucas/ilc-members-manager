@@ -472,19 +472,42 @@ describe('BecomeAMemberComponent', () => {
     expect(component.hasExpiredMembership()).toBe(true);
   });
 
-  it('should collapse basic information for existing active members with complete profile and allow toggling', async () => {
+  it('should skip the completed account and details steps for a returning member', async () => {
     await createComponent();
     expect(component.hasCompletedBasicInfo()).toBe(true);
-    expect(component.isBasicInfoCollapsed()).toBe(true);
 
-    component.toggleBasicInfoCollapse();
-    expect(component.isBasicInfoCollapsed()).toBe(false);
-
-    component.toggleBasicInfoCollapse();
-    expect(component.isBasicInfoCollapsed()).toBe(true);
+    expect(component.flow.current()).toBe(component.StepMembership);
+    expect(component.flow.stateOf(component.StepAccount)).toBe('done');
+    expect(component.flow.stateOf(component.StepDetails)).toBe('done');
+    expect(component.flow.stateOf(component.StepMembership)).toBe('current');
+    expect(component.flow.stateOf(component.StepPayment)).toBe('todo');
   });
 
-  it('should not collapse basic information if profile info is missing', async () => {
+  it('should not send the user to pay for a membership they never confirmed', async () => {
+    await createComponent();
+    // The annual option is preselected and valid on its own...
+    expect(component.membershipSelectionComplete()).toBe(true);
+    // ...but the payment step stays out of reach until it is confirmed.
+    expect(component.flow.current()).toBe(component.StepMembership);
+
+    component.continueFromMembershipStep();
+    expect(component.flow.current()).toBe(component.StepPayment);
+  });
+
+  it('should reopen an earlier step on request and step forward again', async () => {
+    await createComponent();
+
+    component.flow.goTo(component.StepDetails);
+    expect(component.flow.current()).toBe(component.StepDetails);
+    expect(component.flow.stateOf(component.StepDetails)).toBe('current');
+    // The membership step is still outstanding, just not the expanded one.
+    expect(component.flow.stateOf(component.StepMembership)).toBe('todo');
+
+    component.flow.next();
+    expect(component.flow.current()).toBe(component.StepMembership);
+  });
+
+  it('should stop on the details step while required profile info is missing', async () => {
     userSignal.set({
       ...sampleUser,
       member: {
@@ -494,7 +517,19 @@ describe('BecomeAMemberComponent', () => {
     });
     await createComponent();
     expect(component.hasCompletedBasicInfo()).toBe(false);
-    expect(component.isBasicInfoCollapsed()).toBe(false);
+    expect(component.flow.current()).toBe(component.StepDetails);
+    expect(component.flow.stateOf(component.StepAccount)).toBe('done');
+    expect(component.flow.stateOf(component.StepMembership)).toBe('todo');
+  });
+
+  it('should pull the user back when an earlier step stops being complete', async () => {
+    await createComponent();
+    component.continueFromMembershipStep();
+    expect(component.flow.current()).toBe(component.StepPayment);
+
+    // Clearing a required field must not strand the user further along.
+    component.name.set('');
+    expect(component.flow.current()).toBe(component.StepDetails);
   });
 
   it('should handle cancel auto renewal', async () => {

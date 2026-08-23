@@ -243,18 +243,22 @@
   </div>
 
   @if (!isLifeInstructor()) {
+    <!-- ── Guided flow: only the current step is expanded ── -->
+    <app-step-track
+      [steps]="flow.steps()"
+      [navigable]="true"
+      (stepSelected)="flow.goTo($event + 1)"
+    ></app-step-track>
+
     <!-- Step 1: Sign in / Account -->
-    <div class="form-card card">
-      <div class="step-header-row">
-        <div class="step-header-left">
-          <h2>1. Your Account</h2>
-          @if (isLoggedIn()) {
-            <span class="step-completed-badge" title="Account verified">
-              <app-icon name="check"></app-icon>
-            </span>
-          }
-        </div>
-      </div>
+    <app-step-card
+      [number]="StepAccount"
+      title="Your Account"
+      [state]="flow.stateOf(StepAccount)"
+      [expanded]="flow.current() === StepAccount"
+      (editRequested)="flow.goTo(StepAccount)"
+    >
+      <span stepSummary>{{ accountSummary() }}</span>
 
       @if (!isLoggedIn()) {
         <p class="step-guidance">
@@ -264,20 +268,17 @@
       }
 
       <app-inline-auth></app-inline-auth>
-    </div>
+    </app-step-card>
 
     <!-- Step 2: Instructor / Group Leader Qualifications & Status -->
-    <div class="form-card card">
-      <div class="step-header-row">
-        <div class="step-header-left">
-          <h2>2. License Qualifications &amp; Status</h2>
-          @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
-            <span class="step-completed-badge" title="Prerequisites met">
-              <app-icon name="check"></app-icon>
-            </span>
-          }
-        </div>
-      </div>
+    <app-step-card
+      [number]="StepEligibility"
+      title="License Qualifications & Status"
+      [state]="flow.stateOf(StepEligibility)"
+      [expanded]="flow.current() === StepEligibility"
+      (editRequested)="flow.goTo(StepEligibility)"
+    >
+      <span stepSummary>{{ eligibilitySummary() }}</span>
 
       @if (!isLoggedIn()) {
         <p class="muted-note">
@@ -384,19 +385,33 @@
           }
         </div>
       }
-    </div>
+
+      @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
+        <div class="step-footer">
+          <button
+            type="button"
+            class="next-btn"
+            (click)="continueFromEligibilityStep()"
+          >
+            <span>Continue</span>
+            <app-icon name="arrow_forward"></app-icon>
+          </button>
+        </div>
+      }
+    </app-step-card>
 
     <!-- Step 3: Annual License Fee & Checkout -->
-    @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
-      <div class="form-card card">
-        <div class="step-header-row">
-          <div class="step-header-left">
-            <h2>
-              3. Annual
-              {{ isGroupLeaderTier() ? "Group Leader" : "Instructor" }} License
-            </h2>
-          </div>
-        </div>
+    <app-step-card
+      [number]="StepPayment"
+      [title]="
+        'Annual ' +
+        (isGroupLeaderTier() ? 'Group Leader' : 'Instructor') +
+        ' License'
+      "
+      [state]="flow.stateOf(StepPayment)"
+      [expanded]="flow.current() === StepPayment"
+      [editable]="false"
+    >
 
         @if (productsLoading()) {
           <app-spinner>Loading license rates...</app-spinner>
@@ -456,7 +471,6 @@
             </p>
           </div>
         }
-      </div>
-    }
+    </app-step-card>
   }
 </div>

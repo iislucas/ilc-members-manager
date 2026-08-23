@@ -286,8 +286,8 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
     // Fold should NOT be present; intro info section and form cards should be rendered directly
     expect(compiled.querySelector('.subscribe-fold-card')).toBeNull();
     expect(compiled.querySelector('.intro-info-section')).toBeTruthy();
-    const formCards = compiled.querySelectorAll('.form-card');
-    expect(formCards.length).toBe(2); // Step 1 + Step 2
+    const stepCards = compiled.querySelectorAll('app-step-card');
+    expect(stepCards.length).toBe(2); // Step 1 + Step 2
     expect(compiled.querySelector('.checkout-section')).toBeTruthy();
   });
 

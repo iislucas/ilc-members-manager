@@ -216,87 +216,13 @@
   background: transparent;
 }
 
+// Not a flex container, so the track's spacing below it is set here.
+app-step-track {
+  display: block;
+  margin-bottom: 1.5em;
+}
+
 // ── Step indicator track ──
-.steps-track {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  margin-bottom: 2em;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3em;
-  min-width: 5em;
-}
-
-.step-marker {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px dashed v.$border-color-light; /* Incomplete: dashed */
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease-in-out;
-}
-
-.step-number {
-  font-size: 0.85em;
-  font-weight: 600;
-  color: v.$text-muted;
-}
-
-.step-label {
-  font-size: 0.8em;
-  color: v.$text-muted;
-  font-weight: 500;
-}
-
-// Active step
-.step.active .step-marker {
-  border: 2px dashed v.$focus-ring-color; /* Active: dashed blue */
-  background: #e8f0fe;
-}
-
-.step.active .step-number {
-  color: v.$focus-ring-color;
-}
-
-.step.active .step-label {
-  color: v.$text-primary;
-  font-weight: 600;
-}
-
-// Done step
-.step.done .step-marker {
-  border: 2px solid #28a745; /* Done: solid green */
-  background: #d4edda;
-}
-
-.step.review .step-marker {
-  border: 2px solid v.$border-color-light; /* Review: solid grey */
-  background: #fff;
-}
-
-.step.done .step-label {
-  color: #155724;
-  font-weight: 600;
-}
-
-// Connector line between steps
-.step-connector {
-  flex: 1;
-  height: 2px;
-  background: v.$border-color-light;
-  margin: 0 0.3em;
-  margin-bottom: 1.5em; // aligns with the marker center
-}
-
 // ── Action panel ──
 .action-panel {
   padding-top: 1em;
@@ -710,14 +636,7 @@
 
 // ── Responsive ──
 @media (max-width: 600px) {
-  .step {
-    min-width: 3.5em;
-  }
-
-  .step-label {
-    font-size: 0.7em;
-  }
-
+  // The step markers are <app-step-track>'s own responsibility now.
   .action-buttons {
     flex-direction: column;
   }

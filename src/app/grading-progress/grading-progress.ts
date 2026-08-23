@@ -43,6 +43,11 @@ import {
 } from '../../../functions/src/data-model';
 import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
+import {
+  StepTrackComponent,
+  StepState,
+  StepTrackItem,
+} from '../step-track/step-track';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
@@ -65,6 +70,7 @@ import { environment } from '../../environments/environment';
     SpinnerComponent,
     InstructorSelectorComponent,
     GradingEventInputComponent,
+    StepTrackComponent,
   ],
   templateUrl: './grading-progress.html',
   styleUrl: './grading-progress.scss',
@@ -80,6 +86,47 @@ export class GradingProgressComponent {
   gradingUpdated = output<Partial<Grading>>();
 
   GradingStatus = GradingStatus;
+
+  /**
+   * The 1—2—3 track at the top of the workflow. A step already completed stays
+   * "done" even while a later one is stalled; a status flagged for admin review
+   * shows every unfinished step as "review" rather than inviting action on it.
+   */
+  gradingSteps = computed<StepTrackItem[]>(() => {
+    const status = this.grading().status;
+    const requiresReview = status === GradingStatus.RequiresReview;
+    const stateOf = (done: boolean, current: boolean): StepState => {
+      if (done) return 'done';
+      if (requiresReview) return 'review';
+      return current ? 'current' : 'todo';
+    };
+
+    const accepted =
+      status === GradingStatus.AwaitingGrading ||
+      status === GradingStatus.Passed ||
+      status === GradingStatus.NotPassed;
+    const graded =
+      status === GradingStatus.Passed || status === GradingStatus.NotPassed;
+
+    return [
+      {
+        label: 'Request',
+        state: stateOf(
+          accepted || status === GradingStatus.AwaitingAcceptance,
+          status === GradingStatus.AwaitingRequest ||
+            status === GradingStatus.Declined,
+        ),
+      },
+      {
+        label: 'Accepted',
+        state: stateOf(accepted, status === GradingStatus.AwaitingAcceptance),
+      },
+      {
+        label: 'Grading',
+        state: stateOf(graded, status === GradingStatus.AwaitingGrading),
+      },
+    ];
+  });
 
 
 

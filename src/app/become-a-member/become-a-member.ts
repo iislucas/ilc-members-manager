@@ -1,11 +1,18 @@
 /* become-a-member.ts
  *
- * Guided page walking a new or returning user through becoming an ILC member:
- *  1. Ensures the user is signed in (or prompts email/password/Google sign-in).
- *  2. Collects basic member information (name, date of birth, country, phone, address).
- *  3. Offers membership options (Annual vs Lifetime, with Senior & Under 21 rates) fetched from Stripe.
- *  4. Shows existing subscription details and cancel/resume auto-renewal if already subscribed.
- *  5. Redirects to Stripe Checkout, returning to the Home page with a welcome notification on success.
+ * Guided page walking a new or returning user through becoming an ILC member.
+ * It is a wizard: only the step the user has to do now is expanded, earlier
+ * steps collapse to a summary they can reopen, and later steps stay closed so
+ * nobody tries to type into a field that is not ready for them yet.
+ *
+ *  1. Account   — sign in, or create an account, to link the new membership.
+ *  2. Details   — name, date of birth, country, phone, address.
+ *  3. Membership— Annual vs Lifetime (with Senior & Under 21 rates) from Stripe.
+ *  4. Payment   — redirect to Stripe Checkout, returning to the Home page with a
+ *                 welcome notification on success.
+ *
+ * Members who already have a membership see their status banner instead, along
+ * with cancel/resume auto-renewal.
  */
 
 import {
@@ -34,6 +41,9 @@ import {
 import { environment } from '../../environments/environment';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { StepTrackComponent } from '../step-track/step-track';
+import { StepFlow } from '../step-track/step-flow';
+import { StepCardComponent } from '../step-card/step-card';
 
 export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
 
@@ -47,6 +57,8 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
     SpinnerComponent,
     AutocompleteComponent,
     InlineAuthComponent,
+    StepTrackComponent,
+    StepCardComponent,
   ],
   templateUrl: './become-a-member.html',
   styleUrl: './become-a-member.scss',
@@ -183,13 +195,65 @@ export class BecomeAMemberComponent {
     );
   });
 
-  isBasicInfoCollapsed = linkedSignal(() => {
-    return this.isExistingActiveMember() && this.hasCompletedBasicInfo();
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Wizard state
+  //
+  //  The page shows one step at a time. `firstIncompleteStep` is derived purely
+  //  from the data, so a step re-opens by itself the moment its answer stops
+  //  being valid; `revisitedStep` only layers an explicit "Edit" jump on top.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  readonly StepAccount = 1;
+  readonly StepDetails = 2;
+  readonly StepMembership = 3;
+  readonly StepPayment = 4;
+
+  membershipSelectionComplete = computed(() => {
+    if (!this.selectedPriceId()) return false;
+    if (!this.isSpouseOptionSelected()) return true;
+    return !!(
+      this.spouseName().trim() &&
+      this.spouseEmail().trim() &&
+      this.spouseDateOfBirth().trim()
+    );
   });
 
-  toggleBasicInfoCollapse(): void {
-    this.isBasicInfoCollapsed.set(!this.isBasicInfoCollapsed());
+  /**
+   * The annual option is preselected and immediately valid, so without an
+   * explicit Continue the membership step would be skipped and the user would
+   * be sent to pay for something they never chose.
+   */
+  private membershipStepAcknowledged = signal(false);
+
+  flow = new StepFlow(
+    computed(() => {
+      if (!this.isLoggedIn()) return this.StepAccount;
+      if (!this.hasCompletedBasicInfo()) return this.StepDetails;
+      if (!this.membershipSelectionComplete()) return this.StepMembership;
+      if (!this.membershipStepAcknowledged()) return this.StepMembership;
+      return this.StepPayment;
+    }),
+    ['Account', 'Details', 'Membership', 'Payment'],
+  );
+
+  /** "Continue" on the membership step: lock in the choice and go to payment. */
+  continueFromMembershipStep(): void {
+    this.membershipStepAcknowledged.set(true);
+    this.flow.resume();
   }
+
+  /** One-line recap of the signed-in account, shown when step 1 is collapsed. */
+  accountSummary = computed(() => {
+    const u = this.user();
+    return u?.member?.emails?.[0] || u?.firebaseUser?.email || '';
+  });
+
+  /** One-line recap of the member details, shown when step 2 is collapsed. */
+  detailsSummary = computed(() =>
+    [this.name(), this.dateOfBirth(), this.countryWithCode()?.name]
+      .filter((part) => !!part)
+      .join(' • '),
+  );
 
   hasActiveSubscription = computed(() => {
     const m = this.user()?.member;

@@ -92,18 +92,22 @@
     </ul>
   </div>
 
+  <!-- ── Guided flow: only the current step is expanded ── -->
+  <app-step-track
+    [steps]="flow.steps()"
+    [navigable]="true"
+    (stepSelected)="flow.goTo($event + 1)"
+  ></app-step-track>
+
   <!-- Step 1: Sign in / Account -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>1. Your Account</h2>
-        @if (isLoggedIn()) {
-          <span class="step-completed-badge" title="Account verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
-    </div>
+  <app-step-card
+    [number]="StepAccount"
+    title="Your Account"
+    [state]="flow.stateOf(StepAccount)"
+    [expanded]="flow.current() === StepAccount"
+    (editRequested)="flow.goTo(StepAccount)"
+  >
+    <span stepSummary>{{ accountSummary() }}</span>
 
     @if (!isLoggedIn()) {
       <p class="step-guidance">
@@ -112,20 +116,17 @@
     }
 
     <app-inline-auth></app-inline-auth>
-  </div>
+  </app-step-card>
 
   <!-- Step 2: School Selection & Affiliation -->
-  <div class="form-card card">
-    <div class="step-header-row">
-      <div class="step-header-left">
-        <h2>2. School Affiliation Details</h2>
-        @if (isLoggedIn() && isActiveMember()) {
-          <span class="step-completed-badge" title="Member verified">
-            <app-icon name="check"></app-icon>
-          </span>
-        }
-      </div>
-    </div>
+  <app-step-card
+    [number]="StepSchool"
+    title="School Affiliation Details"
+    [state]="flow.stateOf(StepSchool)"
+    [expanded]="flow.current() === StepSchool"
+    (editRequested)="flow.goTo(StepSchool)"
+  >
+    <span stepSummary>{{ schoolSummary() }}</span>
 
     @if (!isLoggedIn()) {
       <p class="muted-note">Please sign in to view your schools and renewal options.</p>
@@ -388,17 +389,39 @@
           </div>
         </div>
       }
+
+      <div class="step-footer">
+        @if (!schoolDetailsComplete()) {
+          <p class="step-todo-hint">
+            @if (licenseAction() === 'renew') {
+              Choose the school whose license you are renewing.
+            } @else {
+              The school's name, city and country are needed before you can
+              continue.
+            }
+          </p>
+        }
+        <button
+          type="button"
+          class="next-btn"
+          [disabled]="!schoolDetailsComplete()"
+          (click)="continueFromSchoolStep()"
+        >
+          <span>Continue</span>
+          <app-icon name="arrow_forward"></app-icon>
+        </button>
+      </div>
     }
-  </div>
+  </app-step-card>
 
   <!-- Step 3: School Affiliation Fee & Checkout -->
-  @if (isLoggedIn() && isActiveMember()) {
-    <div class="form-card card">
-      <div class="step-header-row">
-        <div class="step-header-left">
-          <h2>3. School License Fee</h2>
-        </div>
-      </div>
+  <app-step-card
+    [number]="StepPayment"
+    title="School License Fee"
+    [state]="flow.stateOf(StepPayment)"
+    [expanded]="flow.current() === StepPayment"
+    [editable]="false"
+  >
 
       @if (productsLoading()) {
         <app-spinner>Loading school license rates...</app-spinner>
@@ -439,7 +462,7 @@
               <button
                 type="button"
                 class="button pay-btn"
-                [disabled]="licenseAction() === 'renew' ? (!selectedSchoolDocId() && mySchools().length > 0) : (!newSchoolName().trim() || !newSchoolCountry().trim() || !newSchoolCity().trim())"
+                [disabled]="!schoolDetailsComplete()"
                 (click)="onPurchaseSchoolLicense()"
               >
                 <span>
@@ -455,6 +478,5 @@
           <p>School license rates are currently being configured. Please check back shortly.</p>
         </div>
       }
-    </div>
-  }
+  </app-step-card>
 </div>
