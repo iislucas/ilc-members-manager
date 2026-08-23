@@ -1,0 +1,9 @@
+# Marks this mini-tool as its own pnpm root.
+#
+# Without this, pnpm walks up looking for a pnpm-workspace.yaml, finds the
+# repo root's, and treats logo-maker as part of that workspace — so
+# `pnpm install` here installs the whole Angular app and the Cloud Functions
+# instead of these three devDependencies.
+#
+# No members are listed: this tool has its own lockfile and no sub-packages.
+packages: []
