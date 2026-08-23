@@ -206,14 +206,6 @@
 // Event status chip styles are now defined globally in styles.scss.
 // See: .event-status-chip and .status-proposed / .status-listed / etc.
 
-.kind-label {
-  font-size: 0.75em;
-  color: #999;
-  text-align: right;
-  padding-right: 0.5em;
-  padding-bottom: 0.25em;
-}
-
 .event-cards {
   display: flex;
   flex-direction: column;

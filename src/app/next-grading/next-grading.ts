@@ -92,33 +92,18 @@ export class NextGradingComponent {
   // ──────────────────────────────────────────────────────────────────────────
   //  Wizard state — see become-a-member.ts for the same pattern.
   //
-  //  Step 2 is informational but carries a real choice (free retake vs. buying
-  //  the next level in advance), so it waits for an explicit Continue rather
-  //  than collapsing the moment membership is confirmed.
+  //  Step 2 carries a real choice (free retake vs. buying the next level in
+  //  advance) and the fee for it, so the grading is chosen and paid for in the
+  //  one place.
   // ──────────────────────────────────────────────────────────────────────────
 
   readonly StepAccount = 1;
   readonly StepLevel = 2;
-  readonly StepPayment = 3;
-
-  private levelStepAcknowledged = signal(false);
 
   flow = new StepFlow(
-    computed(() => {
-      if (!this.isLoggedIn()) return this.StepAccount;
-      if (!this.isActiveMember()) return this.StepLevel;
-      if (!this.targetLevel()) return this.StepLevel;
-      if (!this.levelStepAcknowledged()) return this.StepLevel;
-      return this.StepPayment;
-    }),
-    ['Account', 'Your Level', 'Payment'],
+    computed(() => (this.isLoggedIn() ? this.StepLevel : this.StepAccount)),
+    ['Account', 'Your Level'],
   );
-
-  /** "Continue" on step 2: accept the shown level and move on to payment. */
-  continueFromLevelStep(): void {
-    this.levelStepAcknowledged.set(true);
-    this.flow.resume();
-  }
 
   accountSummary = computed(() => {
     const u = this.user();

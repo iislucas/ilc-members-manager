@@ -7,9 +7,9 @@
  *
  *  1. Account   — sign in, or create an account, to link the new membership.
  *  2. Details   — name, date of birth, country, phone, address.
- *  3. Membership— Annual vs Lifetime (with Senior & Under 21 rates) from Stripe.
- *  4. Payment   — redirect to Stripe Checkout, returning to the Home page with a
- *                 welcome notification on success.
+ *  3. Membership— Annual vs Lifetime (with Senior & Under 21 rates) from Stripe,
+ *                 then straight on to Stripe Checkout, returning to the Home
+ *                 page with a welcome notification on success.
  *
  * Members who already have a membership see their status banner instead, along
  * with cancel/resume auto-renewal.
@@ -206,7 +206,6 @@ export class BecomeAMemberComponent {
   readonly StepAccount = 1;
   readonly StepDetails = 2;
   readonly StepMembership = 3;
-  readonly StepPayment = 4;
 
   membershipSelectionComplete = computed(() => {
     if (!this.selectedPriceId()) return false;
@@ -218,29 +217,14 @@ export class BecomeAMemberComponent {
     );
   });
 
-  /**
-   * The annual option is preselected and immediately valid, so without an
-   * explicit Continue the membership step would be skipped and the user would
-   * be sent to pay for something they never chose.
-   */
-  private membershipStepAcknowledged = signal(false);
-
   flow = new StepFlow(
     computed(() => {
       if (!this.isLoggedIn()) return this.StepAccount;
       if (!this.hasCompletedBasicInfo()) return this.StepDetails;
-      if (!this.membershipSelectionComplete()) return this.StepMembership;
-      if (!this.membershipStepAcknowledged()) return this.StepMembership;
-      return this.StepPayment;
+      return this.StepMembership;
     }),
-    ['Account', 'Details', 'Membership', 'Payment'],
+    ['Account', 'Details', 'Membership'],
   );
-
-  /** "Continue" on the membership step: lock in the choice and go to payment. */
-  continueFromMembershipStep(): void {
-    this.membershipStepAcknowledged.set(true);
-    this.flow.resume();
-  }
 
   /** One-line recap of the signed-in account, shown when step 1 is collapsed. */
   accountSummary = computed(() => {

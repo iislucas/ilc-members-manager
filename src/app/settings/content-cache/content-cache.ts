@@ -108,12 +108,18 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
         try {
             const clearFn = httpsCallable<
                 void,
-                { success: boolean; deletedCount: number }
+                { success: boolean; deletedCount: number; keptCount: number }
             >(this.functions, 'clearContentCache');
 
             const result = await clearFn();
+            // Only Squarespace-sourced posts are cache; any posts authored in
+            // the app are kept, so report both numbers.
+            const { deletedCount, keptCount } = result.data;
             this.resultMessage.set(
-                `Cache cleared: ${result.data.deletedCount} items deleted.`,
+                `Cache cleared: ${deletedCount} cached items deleted.` +
+                (keptCount
+                    ? ` ${keptCount} authored item(s) kept.`
+                    : ''),
             );
         } catch (error) {
             console.error('Cache clear failed:', error);

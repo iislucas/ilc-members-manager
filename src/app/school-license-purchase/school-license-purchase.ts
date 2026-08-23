@@ -139,7 +139,6 @@ export class SchoolLicensePurchaseComponent {
   // ── Guided flow. See step-flow.ts. ──
   readonly StepAccount = 1;
   readonly StepSchool = 2;
-  readonly StepPayment = 3;
 
   /**
    * Step 2 is complete once there is a school to charge for: either one picked
@@ -157,29 +156,13 @@ export class SchoolLicensePurchaseComponent {
     );
   });
 
-  /**
-   * Renewing with no schools on record counts as "complete" for the checkout
-   * button, so without an explicit Continue the school step could be skipped
-   * before the user has chosen or described the school being licensed.
-   */
-  private schoolStepAcknowledged = signal(false);
-
   flow = new StepFlow(
     computed(() => {
       if (!this.isLoggedIn()) return this.StepAccount;
-      if (!this.isActiveMember()) return this.StepSchool;
-      if (!this.schoolDetailsComplete()) return this.StepSchool;
-      if (!this.schoolStepAcknowledged()) return this.StepSchool;
-      return this.StepPayment;
+      return this.StepSchool;
     }),
-    ['Account', 'School', 'Payment'],
+    ['Account', 'School'],
   );
-
-  /** "Continue" on the school step: accept the school and go to payment. */
-  continueFromSchoolStep(): void {
-    this.schoolStepAcknowledged.set(true);
-    this.flow.resume();
-  }
 
   accountSummary = computed(() => {
     const u = this.user();

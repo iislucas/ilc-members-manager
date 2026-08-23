@@ -1238,6 +1238,15 @@ button.menu-item {
   }
 }
 
+// A step that ends in payment rather than a Continue button: the fee card,
+// any error, and the pay action stack down the card instead of competing for
+// one right-aligned row.
+.step-footer.checkout {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
 .step-todo-hint {
   margin: 0;
   margin-right: auto;

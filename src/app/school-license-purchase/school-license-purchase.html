@@ -130,10 +130,10 @@
     }
   </app-step-card>
 
-  <!-- Step 2: School Selection & Affiliation -->
+  <!-- Step 2: School selection, affiliation details, and checkout -->
   <app-step-card
     [number]="StepSchool"
-    title="School Affiliation Details"
+    title="School Details & License Purchase"
     [state]="flow.stateOf(StepSchool)"
     [expanded]="flow.current() === StepSchool"
     (editRequested)="flow.goTo(StepSchool)"
@@ -402,93 +402,74 @@
         </div>
       }
 
-      <div class="step-footer">
+      <div class="step-footer checkout">
         @if (!schoolDetailsComplete()) {
           <p class="step-todo-hint">
             @if (licenseAction() === 'renew') {
               Choose the school whose license you are renewing.
             } @else {
               The school's name, city and country are needed before you can
-              continue.
+              pay.
             }
           </p>
         }
-        <button
-          type="button"
-          class="next-btn"
-          [disabled]="!schoolDetailsComplete()"
-          (click)="continueFromSchoolStep()"
-        >
-          <span>Continue</span>
-          <app-icon name="arrow_forward"></app-icon>
-        </button>
+
+        @if (productsLoading()) {
+          <app-spinner>Loading school license rates...</app-spinner>
+        } @else if (productsError()) {
+          <div class="error-container">
+            <span class="error-message">{{ productsError() }}</span>
+            <button class="icon-only-button" (click)="loadProducts()">
+              <app-icon name="refresh"></app-icon>
+            </button>
+          </div>
+        } @else if (selectedPrice(); as price) {
+          <div class="membership-options-grid">
+            <div class="option-card selected">
+              <div class="option-title">1-Year School Affiliation License</div>
+              <div class="rate-price">
+                {{ formatPrice(price) }}
+              </div>
+              <div class="rate-desc">
+                Annual school affiliation fee. Valid for 1 full year from current expiration date (or starting today for new schools).
+              </div>
+            </div>
+          </div>
+
+          <div class="checkout-section">
+            @if (checkoutError()) {
+              <div class="error-container">
+                <span class="error-message">{{ checkoutError() }}</span>
+                <button class="icon-only-button" (click)="checkoutError.set(null)">
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            }
+
+            <div class="checkout-actions">
+              @if (isRedirecting()) {
+                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+              } @else {
+                <button
+                  type="button"
+                  class="button pay-btn"
+                  [disabled]="!schoolDetailsComplete()"
+                  (click)="onPurchaseSchoolLicense()"
+                >
+                  <span>
+                    {{ licenseAction() === 'renew' && selectedSchoolDocId() ? 'Renew Selected School License' : 'Register School & Pay License Fee' }}
+                  </span>
+                  <app-icon name="arrow_forward"></app-icon>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-notice">
+            <p>School license rates are currently being configured. Please check back shortly.</p>
+          </div>
+        }
       </div>
     }
-  </app-step-card>
-
-  <!-- Step 3: School Affiliation Fee & Checkout -->
-  <app-step-card
-    [number]="StepPayment"
-    title="School License Fee"
-    [state]="flow.stateOf(StepPayment)"
-    [expanded]="flow.current() === StepPayment"
-    [editable]="false"
-  >
-
-      @if (productsLoading()) {
-        <app-spinner>Loading school license rates...</app-spinner>
-      } @else if (productsError()) {
-        <div class="error-container">
-          <span class="error-message">{{ productsError() }}</span>
-          <button class="icon-only-button" (click)="loadProducts()">
-            <app-icon name="refresh"></app-icon>
-          </button>
-        </div>
-      } @else if (selectedPrice(); as price) {
-        <div class="membership-options-grid">
-          <div class="option-card selected">
-            <div class="option-title">1-Year School Affiliation License</div>
-            <div class="rate-price">
-              {{ formatPrice(price) }}
-            </div>
-            <div class="rate-desc">
-              Annual school affiliation fee. Valid for 1 full year from current expiration date (or starting today for new schools).
-            </div>
-          </div>
-        </div>
-
-        <div class="checkout-section">
-          @if (checkoutError()) {
-            <div class="error-container">
-              <span class="error-message">{{ checkoutError() }}</span>
-              <button class="icon-only-button" (click)="checkoutError.set(null)">
-                <app-icon name="close"></app-icon>
-              </button>
-            </div>
-          }
-
-          <div class="checkout-actions">
-            @if (isRedirecting()) {
-              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-            } @else {
-              <button
-                type="button"
-                class="button pay-btn"
-                [disabled]="!schoolDetailsComplete()"
-                (click)="onPurchaseSchoolLicense()"
-              >
-                <span>
-                  {{ licenseAction() === 'renew' && selectedSchoolDocId() ? 'Renew Selected School License' : 'Register School & Pay License Fee' }}
-                </span>
-                <app-icon name="arrow_forward"></app-icon>
-              </button>
-            }
-          </div>
-        </div>
-      } @else {
-        <div class="empty-notice">
-          <p>School license rates are currently being configured. Please check back shortly.</p>
-        </div>
-      }
   </app-step-card>
 </div>
