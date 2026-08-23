@@ -470,4 +470,27 @@ describe('NextGradingComponent', () => {
       'https://checkout.stripe.com/pay/cs_test_grading',
     );
   });
+
+  it('should offer a way forward when the account step is reopened while signed in', async () => {
+    await createComponent();
+    expect(component.isLoggedIn()).toBe(true);
+
+    // The user clicks back to step 1 from the track to check which account
+    // they are on. Nothing has changed, so they must be able to go forward.
+    component.flow.goTo(component.StepAccount);
+    fixture.detectChanges();
+    expect(component.flow.current()).toBe(component.StepAccount);
+
+    const card = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-step-card .step-card.current',
+    )!;
+    const forward = card.querySelector<HTMLButtonElement>('.next-btn');
+    // Previously a dead end: the only action was inline-auth's Log Out.
+    expect(forward).toBeTruthy();
+    expect(forward!.textContent).toContain('Continue');
+
+    forward!.click();
+    fixture.detectChanges();
+    expect(component.flow.current()).not.toBe(component.StepAccount);
+  });
 });
