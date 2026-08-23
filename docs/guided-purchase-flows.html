@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ILC Members Portal — Guided Purchase Flows</title>
+  <link rel="stylesheet" href="doc-style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">ILC</div>
+        <div>
+          <div class="brand-title">ILC Portal</div>
+          <div class="brand-subtitle">Purchase Flows</div>
+        </div>
+      </div>
+
+      <div class="nav-search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="docSearch" placeholder="Search this page..." oninput="filterNav(this.value)" />
+      </div>
+
+      <nav id="sidebarNav">
+        <div class="nav-group">
+          <div class="nav-group-title">Overview</div>
+          <a href="#pieces" class="nav-link">The Three Pieces</a>
+          <a href="#users" class="nav-link">Who Uses It</a>
+          <a href="#idea" class="nav-link">The Idea</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Building a Flow</div>
+          <a href="#driving" class="nav-link">Driving It</a>
+          <a href="#acknowledged" class="nav-link">Steps Not To Skip</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Presentation</div>
+          <a href="#states" class="nav-link">States &amp; Colours</a>
+          <a href="#styles" class="nav-link">Shared Styles</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Verification</div>
+          <a href="#tests" class="nav-link">Tests</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <nav class="doc-switcher" aria-label="Documentation">
+        <span class="doc-switcher-label">Docs</span>
+        <a href="README.html">Architecture</a>
+        <a href="orders-and-subscriptions.html">Orders &amp; Subscriptions</a>
+        <a href="authentication.html">Authentication</a>
+        <a href="guided-purchase-flows.html" aria-current="page">Purchase Flows</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">Gradings</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/materials-management.md">Materials</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/push-notifications.md">Push</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/README.md">User Stories</a>
+      </nav>
+
+      <span class="badge badge-accent">UI Pattern Specification</span>
+      <h1>Guided Purchase Flows</h1>
+      <p class="lead-text">
+        Five pages walk a member through buying something, and the grading workflow shows progress
+        through a similar sequence. They share three pieces rather than each rolling their own numbered
+        sections.
+      </p>
+
+      <section id="pieces">
+        <h2>The three pieces</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Piece</th><th>File</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>&lt;app-step-track&gt;</code></td>
+                <td><code>src/app/step-track/step-track.ts</code></td>
+                <td>The <code>1 — 2 — 3</code> line at the top.</td>
+              </tr>
+              <tr>
+                <td><code>&lt;app-step-card&gt;</code></td>
+                <td><code>src/app/step-card/step-card.ts</code></td>
+                <td>One numbered stage: expanded, collapsed, or not yet reached.</td>
+              </tr>
+              <tr>
+                <td><code>StepFlow</code></td>
+                <td><code>src/app/step-track/step-flow.ts</code></td>
+                <td>The bookkeeping that decides which is which.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="users">
+        <h2>Who uses it</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Page</th><th>Steps</th></tr></thead>
+            <tbody>
+              <tr><td><code>become-a-member</code></td><td>Account · Details · Membership · Payment</td></tr>
+              <tr><td><code>next-grading</code></td><td>Account · Your Level · Payment</td></tr>
+              <tr><td><code>class-video-library-purchase</code></td><td>Account · Subscription</td></tr>
+              <tr><td><code>instructor-license-purchase</code></td><td>Account · Eligibility · Payment</td></tr>
+              <tr><td><code>school-license-purchase</code></td><td>Account · School · Payment</td></tr>
+              <tr><td><code>grading-progress</code></td><td>Request · Accepted · Grading <span class="badge badge-warning">track only</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Step 1 of every purchase flow is <code>&lt;app-inline-auth&gt;</code> — see
+          <a href="authentication.html">Authentication</a>. All five are public routes; see
+          <a href="README.html#public-vs-gated">Public vs Gated Views</a> for why.
+        </p>
+      </section>
+
+      <section id="idea">
+        <h2>The idea</h2>
+        <p>
+          Only the step the user has to do now is expanded. Steps already done collapse to a one-line
+          summary they can reopen; steps not yet reached render a muted header so the sequence is
+          visible, but <strong>their content is not in the DOM at all</strong>.
+        </p>
+        <div class="callout callout-warning">
+          <div class="callout-title">Why the pattern exists</div>
+          <p>
+            The pages previously rendered every form at once and disabled the ones that were not ready
+            (<code>opacity: 0.6; pointer-events: none</code>). Fields looked like fields, clicked like
+            nothing, and never said why — people reported being unable to type into the form.
+          </p>
+        </div>
+      </section>
+
+      <section id="driving">
+        <h2>Driving it</h2>
+        <p>
+          A page states only which step is the first one still needing work. <code>StepFlow</code> turns
+          that into per-step states and handles the user jumping back:
+        </p>
+        <pre><code>readonly StepAccount = 1;
+readonly StepDetails = 2;
+readonly StepPayment = 3;
+
+flow = new StepFlow(
+  computed(() =&gt; {
+    if (!this.isLoggedIn()) return this.StepAccount;
+    if (!this.hasCompletedDetails()) return this.StepDetails;
+    return this.StepPayment;
+  }),
+  ['Account', 'Details', 'Payment'],
+);</code></pre>
+
+        <p>The template then needs no step logic of its own:</p>
+        <pre><code>&lt;app-step-track
+  [steps]="flow.steps()"
+  [navigable]="true"
+  (stepSelected)="flow.goTo($event + 1)"
+&gt;&lt;/app-step-track&gt;
+
+&lt;app-step-card
+  [number]="StepDetails"
+  title="Your Details"
+  [state]="flow.stateOf(StepDetails)"
+  [expanded]="flow.current() === StepDetails"
+  (editRequested)="flow.goTo(StepDetails)"
+&gt;
+  &lt;span stepSummary&gt;{{ detailsSummary() }}&lt;/span&gt;
+  …fields…
+&lt;/app-step-card&gt;</code></pre>
+
+        <div class="callout callout-success">
+          <div class="callout-title">Steps re-open themselves</div>
+          <p>
+            Because "first incomplete" is <strong>derived from the data</strong>, a step re-opens by
+            itself the moment its answer stops being valid. Clearing a required field on step 2 pulls
+            the user back to it rather than stranding them on step 4. <code>flow.goTo()</code> layers an
+            explicit jump on top, honoured only while everything before it is still complete.
+          </p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Member</th><th>Does</th></tr></thead>
+            <tbody>
+              <tr><td><code>flow.current()</code></td><td>The one expanded step (1-based, matching the numbers shown).</td></tr>
+              <tr><td><code>flow.steps()</code></td><td>Per-step states for the track.</td></tr>
+              <tr><td><code>flow.stateOf(n)</code></td><td><code>todo</code> | <code>current</code> | <code>done</code> | <code>review</code>.</td></tr>
+              <tr><td><code>flow.goTo(n)</code></td><td>Jump to a step, e.g. from an Edit button.</td></tr>
+              <tr><td><code>flow.next()</code></td><td>Move on — never skips past unfinished work.</td></tr>
+              <tr><td><code>flow.resume()</code></td><td>Drop a jump and return to the outstanding step.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="acknowledged">
+        <h2>Steps that must not be skipped</h2>
+        <p>
+          A step whose answer is <em>already valid</em> would be stepped straight over. That is right for
+          details a returning member has given before; it is wrong when the step carries a choice.
+        </p>
+        <div class="callout callout-warning">
+          <div class="callout-title">The bug this prevents</div>
+          <p>
+            On Become a Member the annual option is preselected and immediately valid, so without an
+            explicit acknowledgement the flow would carry the user to Payment for something they never
+            chose.
+          </p>
+        </div>
+        <pre><code>private membershipStepAcknowledged = signal(false);
+// …in the firstIncomplete computed:
+if (!this.membershipStepAcknowledged()) return this.StepMembership;</code></pre>
+        <p>Such steps gate on a <code>…Acknowledged</code> signal that their <strong>Continue</strong> button sets. The same applies to:</p>
+        <ul>
+          <li><strong>Next Grading</strong> — free retake vs. buying the next level in advance.</li>
+          <li><strong>Instructor License</strong> — licence status worth reading before paying.</li>
+          <li><strong>School License</strong> — renewing with no schools on record otherwise counts as complete.</li>
+        </ul>
+      </section>
+
+      <section id="states">
+        <h2>States and colours</h2>
+        <p>
+          All four come from the standard palette in <code>src/scss_variables.scss</code> — no
+          component-local colours.
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>State</th><th>Marker</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>todo</code></td><td>White, dashed neutral border</td><td>Not reached; content not rendered.</td></tr>
+              <tr><td><code>current</code></td><td><code>$separator-color</code> grey with a solid <code>$brand-red</code> outline</td><td>The work to do now.</td></tr>
+              <tr><td><code>done</code></td><td><code>$highlight-tag-*</code> light blue with a tick</td><td>Complete; collapsed to a summary.</td></tr>
+              <tr><td><code>review</code></td><td>Solid neutral</td><td>Reached, but waiting on someone else (grading workflow).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Red marks <em>where your attention goes</em>, which is consistent with its use for errors.
+          Blue for "done" is the palette's documented role for stage checkmarks —
+          <code>grading-progress</code> previously used a hardcoded green <code>#28a745</code> here and
+          was brought into line.
+        </p>
+        <div class="callout">
+          <div class="callout-title">Greens that stayed green</div>
+          <p>
+            Greens elsewhere in the grading UI mean <strong>passed</strong> or <strong>saved</strong>,
+            not "stage complete", and are deliberately left alone.
+          </p>
+        </div>
+      </section>
+
+      <section id="styles">
+        <h2>Shared styles</h2>
+        <p>
+          <code>.step-guidance</code>, <code>.step-footer</code> and <code>.step-todo-hint</code> live in
+          the global <code>src/styles.scss</code>, not in <code>step-card</code>. Content projected into
+          <code>&lt;app-step-card&gt;</code> keeps its <em>own</em> page's style scope, so
+          component-scoped rules there would not reach it.
+        </p>
+        <p>
+          <code>&lt;app-step-track&gt;</code> sets no bottom margin: the flow containers are flex with a
+          <code>1.75em</code> gap, and a margin on the track stacked on top of it into a ~52px void.
+          Spacing below the track is the consuming page's business.
+        </p>
+      </section>
+
+      <section id="tests">
+        <h2>Tests</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Spec</th><th>Covers</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>step-flow.spec.ts</code></td>
+                <td>The state machine in isolation, including that <code>next()</code> cannot skip unfinished work and that invalidating an earlier step pulls the user back.</td>
+              </tr>
+              <tr>
+                <td><code>step-track.spec.ts</code></td>
+                <td>Tick vs. number, <code>aria-current</code>, connector fill, and click-to-return.</td>
+              </tr>
+              <tr>
+                <td>Each page's own spec</td>
+                <td>Its gating — e.g. <code>become-a-member.spec.ts</code> asserts the user is never sent to pay for a membership they did not confirm.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer>
+        <span>ILC Members Portal — Guided Purchase Flows</span>
+        <span>See also: <a href="authentication.html">Authentication</a> · <a href="README.html#stripe-orders">Stripe &amp; Order Fulfillment</a></span>
+      </footer>
+    </main>
+  </div>
+  <script src="doc-scripts.js"></script>
+</body>
+</html>

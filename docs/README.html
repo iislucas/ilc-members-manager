@@ -4,531 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ILC Members Portal — System Architecture & Documentation</title>
-  <style>
-    :root {
-      --bg-main: #f8fafc;
-      --bg-surface: #ffffff;
-      --bg-subtle: #f1f5f9;
-      --bg-card: #ffffff;
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-muted: #64748b;
-      --border-color: #e2e8f0;
-      --border-focus: #2563eb;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-light: #eff6ff;
-      --accent: #0d9488;
-      --accent-light: #f0fdfa;
-      --success: #16a34a;
-      --success-light: #f0fdf4;
-      --warning: #d97706;
-      --warning-light: #fffbeb;
-      --danger: #dc2626;
-      --danger-light: #fef2f2;
-      --purple: #7c3aed;
-      --purple-light: #f5f3ff;
-      --amber: #b45309;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: var(--font-sans);
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* Layout */
-    .app-layout {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    /* Sidebar Navigation */
-    .sidebar {
-      width: 290px;
-      background: var(--bg-surface);
-      border-right: 1px solid var(--border-color);
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      padding: 24px 16px;
-      flex-shrink: 0;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .brand-logo {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #2563eb, #0d9488);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 800;
-      font-size: 20px;
-      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-    }
-
-    .brand-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1.2;
-    }
-
-    .brand-subtitle {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 600;
-    }
-
-    .nav-search {
-      margin-bottom: 16px;
-      position: relative;
-    }
-
-    .nav-search input {
-      width: 100%;
-      padding: 8px 12px 8px 32px;
-      font-size: 0.85rem;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-      outline: none;
-      transition: all 0.2s ease;
-    }
-
-    .nav-search input:focus {
-      background: var(--bg-surface);
-      border-color: var(--border-focus);
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-
-    .nav-search svg {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 14px;
-      height: 14px;
-      fill: var(--text-muted);
-    }
-
-    .nav-group {
-      margin-bottom: 20px;
-    }
-
-    .nav-group-title {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: 0.08em;
-      padding: 4px 10px;
-      margin-bottom: 4px;
-    }
-
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 7px 10px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 500;
-      border-radius: 6px;
-      transition: all 0.15s ease;
-    }
-
-    .nav-link:hover {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-    }
-
-    .nav-link.active {
-      background: var(--primary-light);
-      color: var(--primary);
-      font-weight: 600;
-    }
-
-    .nav-link svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-      fill: currentColor;
-    }
-
-    /* Main Content Area */
-    .main-content {
-      flex: 1;
-      max-width: 1100px;
-      padding: 40px 48px 80px;
-      overflow-x: hidden;
-    }
-
-    /* Typography & Core Content */
-    h1 {
-      font-size: 2.25rem;
-      font-weight: 800;
-      color: var(--text-primary);
-      margin-bottom: 12px;
-      letter-spacing: -0.025em;
-    }
-
-    .lead-text {
-      font-size: 1.125rem;
-      color: var(--text-secondary);
-      margin-bottom: 32px;
-      line-height: 1.6;
-    }
-
-    h2 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 48px 0 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    h3 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin: 28px 0 12px;
-    }
-
-    p, ul, ol {
-      margin-bottom: 16px;
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-    }
-
-    ul, ol {
-      padding-left: 24px;
-    }
-
-    li {
-      margin-bottom: 6px;
-    }
-
-    a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* Badges & Chips */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border-radius: 9999px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .badge-primary { background: var(--primary-light); color: var(--primary); }
-    .badge-accent { background: var(--accent-light); color: var(--accent); }
-    .badge-success { background: var(--success-light); color: var(--success); }
-    .badge-warning { background: var(--warning-light); color: var(--warning); }
-    .badge-danger { background: var(--danger-light); color: var(--danger); }
-    .badge-purple { background: var(--purple-light); color: var(--purple); }
-
-    /* Cards & Grids */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 20px;
-      margin: 20px 0;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-      margin: 20px 0;
-    }
-
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .card:hover {
-      box-shadow: var(--shadow-md);
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .card-title {
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .card-description {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      margin-bottom: 12px;
-    }
-
-    /* Callouts / Alerts */
-    .callout {
-      border-left: 4px solid var(--primary);
-      background: var(--primary-light);
-      padding: 16px 20px;
-      border-radius: 0 8px 8px 0;
-      margin: 20px 0;
-    }
-
-    .callout-warning {
-      border-left-color: var(--warning);
-      background: var(--warning-light);
-    }
-
-    .callout-success {
-      border-left-color: var(--success);
-      background: var(--success-light);
-    }
-
-    .callout-title {
-      font-weight: 700;
-      font-size: 0.95rem;
-      margin-bottom: 4px;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .callout p {
-      margin-bottom: 0;
-      font-size: 0.875rem;
-    }
-
-    /* Tables */
-    .table-wrapper {
-      overflow-x: auto;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      margin: 20px 0;
-      box-shadow: var(--shadow-sm);
-      background: var(--bg-surface);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.875rem;
-    }
-
-    th {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-      font-weight: 600;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      vertical-align: top;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background-color: var(--bg-subtle);
-    }
-
-    /* Code & Pre */
-    code {
-      font-family: var(--font-mono);
-      font-size: 0.825rem;
-      background: var(--bg-subtle);
-      color: #b91c1c;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    pre {
-      background: #1e293b;
-      color: #f8fafc;
-      padding: 16px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      margin: 16px 0;
-      position: relative;
-    }
-
-    pre code {
-      background: transparent;
-      color: inherit;
-      padding: 0;
-      border: none;
-      font-size: 0.85rem;
-    }
-
-    /* Architecture Diagram Canvas */
-    .diagram-container {
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 24px;
-      margin: 24px 0;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .diagram-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .diagram-title {
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--text-primary);
-    }
-
-    .diagram-svg {
-      width: 100%;
-      height: auto;
-      min-height: 480px;
-      background: #fbfcfe;
-      border-radius: 8px;
-      border: 1px dashed var(--border-color);
-    }
-
-    /* Interactive tabs */
-    .tab-container {
-      margin: 24px 0;
-    }
-
-    .tab-nav {
-      display: flex;
-      gap: 4px;
-      border-bottom: 2px solid var(--border-color);
-      margin-bottom: 16px;
-    }
-
-    .tab-button {
-      padding: 8px 16px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .tab-button:hover {
-      color: var(--text-primary);
-    }
-
-    .tab-button.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
-    }
-
-    .tab-pane {
-      display: none;
-    }
-
-    .tab-pane.active {
-      display: block;
-    }
-
-    /* Footer */
-    footer {
-      margin-top: 60px;
-      padding-top: 24px;
-      border-top: 1px solid var(--border-color);
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    @media (max-width: 900px) {
-      .app-layout {
-        flex-direction: column;
-      }
-      .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-      }
-      .main-content {
-        padding: 24px 16px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="doc-style.css" />
 </head>
 <body>
   <div class="app-layout">
@@ -628,6 +104,18 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
+      <nav class="doc-switcher" aria-label="Documentation">
+        <span class="doc-switcher-label">Docs</span>
+        <a href="README.html" aria-current="page">Architecture</a>
+        <a href="orders-and-subscriptions.html">Orders &amp; Subscriptions</a>
+        <a href="authentication.html">Authentication</a>
+        <a href="guided-purchase-flows.html">Purchase Flows</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">Gradings</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/materials-management.md">Materials</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/push-notifications.md">Push</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/user-stories/README.md">User Stories</a>
+      </nav>
+
       <!-- Section: Overview -->
       <section id="overview">
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
@@ -817,7 +305,7 @@
       <!-- Section: User Roles -->
       <section id="user-roles">
         <h2>User Roles & Access Control Matrix</h2>
-        <p>The system uses an explicit Role-Based Access Control (RBAC) model cached in Firestore <code>/acl/{email}</code> and evaluated in Firestore Security Rules:</p>
+        <p>The system uses an explicit Role-Based Access Control (RBAC) model cached in Firestore <code>/acl/{email}</code> and evaluated in Firestore Security Rules. This table is the summary; <a href="#security-rules">Security Rules &amp; ACL</a> covers how the rules actually evaluate it, and <a href="#public-vs-gated">Public vs Gated Views</a> covers what the client does or does not enforce.</p>
 
         <div class="table-wrapper">
           <table>
@@ -840,13 +328,13 @@
                 <td><strong>Registered User</strong></td>
                 <td>Authenticated via Email / Google</td>
                 <td>Create member application profile, complete profile details, view personal dashboard.</td>
-                <td>Read/write own <code>/members/{ownId}</code> and <code>/acl/{ownEmail}</code>.</td>
+                <td>Read/update own <code>/members/{ownId}</code> (field whitelist only); <strong>read</strong> own <code>/acl/{ownEmail}</code> — ACL writes are admin-only, applied by Cloud Function triggers.</td>
               </tr>
               <tr>
                 <td><strong>Active Member</strong></td>
                 <td>Current paid member (Annual / Life)</td>
                 <td>Access digital passbook, read members-only articles & videos, request gradings, propose workshops, receive push notifications.</td>
-                <td>Read <code>/members-area</code> content, read/write own <code>/gradings</code>, write <code>/events</code> proposals.</td>
+                <td>Read <code>/members-post</code> content; update own <code>/gradings</code> within stage-dependent field whitelists. Event proposals go through the <code>submitProposedEvent</code> callable — <code>/events</code> creation is admin-only in the rules.</td>
               </tr>
               <tr>
                 <td><strong>Certified Instructor</strong></td>
@@ -911,7 +399,7 @@
               <span class="badge badge-purple">School</span>
             </div>
             <p class="card-description">
-              Official school branches worldwide with geographic coordinates, owner instructor IDs, manager emails, and class schedules.
+              Official school branches worldwide with geographic coordinates, owner and manager instructor IDs, licence expiry, and class schedules. Ownership for <a href="#security-rules">security rules</a> is resolved from the ACL's <code>schoolDocIds</code>; the document's <code>ownerEmails</code> / <code>managerEmails</code> arrays are deprecated and no longer consulted by the rules.
             </p>
             <code>schoolId: string, schoolName: string, ownerInstructorId: string, lat: number</code>
           </div>
@@ -1036,11 +524,267 @@
         </div>
       </section>
 
+      <!-- Section: Security Rules -->
+      <section id="security-rules">
+        <h2>Security Rules &amp; ACL</h2>
+        <p class="lead-text">
+          Authorization lives in two rule files — <code>firestore.rules</code> (368 lines) and
+          <code>storage.rules</code> (186 lines). Both deny everything by default and both answer every
+          question by reading one document: <code>/acl/{email}</code>.
+        </p>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">These rules are the only real boundary</div>
+          <p>
+            The Angular app hides controls a user cannot use, but it does <strong>not</strong> guard
+            routes by role — an admin URL entered by a non-admin renders, and then every read it
+            attempts fails. Client-side gating is a usability feature; these rules are the security.
+            See <a href="#public-vs-gated">Public vs Gated Views</a>.
+          </p>
+        </div>
+
+        <h3>The ACL document is the index</h3>
+        <p>
+          Rules cannot run queries, and each <code>get()</code> costs a document read against a hard
+          per-request limit. So rather than walking from a user to their memberships, schools and
+          instructor records at evaluation time, Cloud Function triggers <strong>denormalise those
+          answers into <code>/acl/{email}</code> ahead of time</strong>. Nearly every rule is then a
+          single lookup plus an array membership test.
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>ACL field</th><th>Type</th><th>Answers the question</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>isAdmin</code></td><td>boolean</td><td>Is this an HQ administrator?</td></tr>
+              <tr><td><code>memberDocIds</code></td><td>string[]</td><td>Which member documents is this login linked to?</td></tr>
+              <tr><td><code>instructorIds</code></td><td>string[]</td><td>Which instructor identities does it hold?</td></tr>
+              <tr><td><code>schoolDocIds</code></td><td>string[]</td><td>Which schools does it own or manage?</td></tr>
+              <tr><td><code>notYetLinkedToMember</code></td><td>boolean</td><td>Is this a bare account with no membership behind it?</td></tr>
+              <tr><td><code>membershipExpires</code></td><td>string</td><td><code>"life"</code>, <code>"YYYY-MM-DD"</code>, or empty — used by Storage only.</td></tr>
+              <tr><td><code>instructorLicenseExpires</code></td><td>string</td><td>Same encoding, for instructor resources.</td></tr>
+              <tr><td><code>schoolLicenseExpires</code></td><td>string</td><td>Same encoding; the latest expiry across all schools managed.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">Why expiry dates are strings</div>
+          <p>
+            Storage rules have no date type to compare against, so expiry is stored as a sortable
+            <code>YYYY-MM-DD</code> string and compared lexicographically with a
+            <code>todayStr()</code> helper built from <code>request.time</code>. Lifetime membership
+            is the literal <code>"life"</code>, which works because <code>'l' &gt; '9'</code> in
+            ASCII — so it compares as later than any real date. Empty or missing means no access.
+          </p>
+        </div>
+
+        <h3>Firestore: five recurring patterns</h3>
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-button active" onclick="switchTab('rules-deny', this)">1. Deny by default</button>
+            <button class="tab-button" onclick="switchTab('rules-owner', this)">2. Ownership</button>
+            <button class="tab-button" onclick="switchTab('rules-fields', this)">3. Field whitelists</button>
+            <button class="tab-button" onclick="switchTab('rules-derived', this)">4. Live derivation</button>
+            <button class="tab-button" onclick="switchTab('rules-stage', this)">5. Stage guards</button>
+          </div>
+
+          <div id="rules-deny" class="tab-pane active">
+            <p>The first match in the file refuses everything; every later rule is an explicit grant.</p>
+            <pre><code>match /{document=**} {
+  allow read, write: if false;
+}</code></pre>
+            <p>
+              A collection with no rule of its own is therefore unreachable from any client, including
+              for admins. Server code uses the Admin SDK, which bypasses rules entirely — that is why
+              collections written only by Cloud Functions (<code>/orders</code>,
+              <code>/instructors</code>, the mirrored subcollections) can be
+              <code>allow write: if false</code> and still be written.
+            </p>
+          </div>
+
+          <div id="rules-owner" class="tab-pane">
+            <p>
+              Ownership is checked two ways, because a member document can be reached either by the
+              email on it or by the ACL link:
+            </p>
+            <pre><code>function isOwner() {
+  return (request.auth.token.email in resource.data.emails) ||
+         (memberDocId in getUserMemberDocIds());
+}</code></pre>
+            <p>
+              The same pair appears in each subcollection (<code>/orders</code>,
+              <code>/notifications</code>, <code>/videoGrants</code>, <code>/uploads</code>,
+              <code>/pushSubscriptions</code>, <code>/videoProgress</code>), where the parent member
+              document has to be fetched to read its <code>emails</code> array.
+            </p>
+          </div>
+
+          <div id="rules-fields" class="tab-pane">
+            <p>
+              Where a user may edit their own document, the rule pins down <em>which fields</em> —
+              so a member can change their address but not their membership expiry, level or member ID.
+            </p>
+            <pre><code>allow update: if hasValidEditUpdate() &amp;&amp; isOwner() &amp;&amp;
+  request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+    ['lastUpdated', 'name', 'phone', 'address', 'city', 'country',
+     'emails', 'gender', 'dateOfBirth', 'notificationSettings', /* … */]);</code></pre>
+            <p>
+              <code>hasValidEditUpdate()</code> additionally requires
+              <code>request.resource.data.lastUpdated == request.time</code>, so every accepted write
+              carries a server-stamped timestamp rather than one the client chose. The same
+              whitelist-plus-timestamp pattern guards <code>/schools</code> and <code>/gradings</code>.
+            </p>
+          </div>
+
+          <div id="rules-derived" class="tab-pane">
+            <p>
+              Some access is <em>not</em> cached in the ACL, because it must follow a relationship that
+              can change. Event-manager access to a grading is read live from the linked event:
+            </p>
+            <pre><code>function isGradingEventManager() {
+  let eventDocId = resource.data.get('gradingEventDocId', '');
+  let eventPath = /databases/$(database)/documents/events/$(eventDocId);
+  return eventDocId != '' &amp;&amp; exists(eventPath) &amp;&amp; (
+    get(eventPath).data.ownerDocId in getUserMemberDocIds() ||
+    getUserMemberDocIds().hasAny(get(eventPath).data.get('managerDocIds', []))
+  );
+}</code></pre>
+            <p>
+              Unlinking the grading from the event therefore revokes access immediately, with no
+              trigger to run. Note the <code>eventDocId != ''</code> guard before
+              <code>exists()</code>: it keeps the extra document read off the common path where no
+              event is linked.
+            </p>
+          </div>
+
+          <div id="rules-stage" class="tab-pane">
+            <p>
+              Gradings change hands partway through their workflow. Before a manager accepts, the
+              student owns the request and the linked event; after acceptance the event belongs to the
+              grading manager and the student's whitelist shrinks.
+            </p>
+            <pre><code>function gradingIsAccepted() {
+  let status = resource.data.status;
+  return status == 'awaiting-instructor-grading' || status == 'passed' ||
+         status == 'not-passed' || status == 'in-review';
+}</code></pre>
+            <p>
+              This is expressed as two separate <code>allow update</code> rules for the student — one
+              gated on <code>!gradingIsAccepted()</code> including the event fields, one gated on
+              <code>gradingIsAccepted()</code> without them. Firestore ORs all matching
+              <code>allow</code> rules, so writing them as alternatives is the idiom for
+              "different permissions in different states". See
+              <a href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">docs/gradings.md</a>.
+            </p>
+          </div>
+        </div>
+
+        <h3>Firestore: collection reference</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Path</th><th>Read</th><th>Write</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/members/{id}</code></td><td>Owner, admin, or manager of the member's school</td><td>Admin / school manager freely; owner limited to a field whitelist</td></tr>
+              <tr><td><code>/members/{id}/orders</code>, <code>/videoGrants</code></td><td>Owner or admin</td><td>Admin only (written by fulfillment)</td></tr>
+              <tr><td><code>/members/{id}/notifications</code></td><td>Owner or admin</td><td>Owner may create, delete, and update <code>dismissed</code>/<code>markdown</code>/<code>data</code>/<code>kind</code></td></tr>
+              <tr><td><code>/members/{id}/uploads</code></td><td>Owner, admin, or manager of a linked event</td><td>Owner or admin</td></tr>
+              <tr><td><code>/members/{id}/videoProgress</code>, <code>/pushSubscriptions</code></td><td>Owner or admin</td><td>Owner or admin</td></tr>
+              <tr><td><code>/instructors/{id}</code></td><td><span class="badge badge-success">Public</span></td><td>Nobody — Cloud Functions only</td></tr>
+              <tr><td><code>/schools/{id}</code></td><td><span class="badge badge-success">Public</span></td><td>Admin freely; school manager limited to a field whitelist</td></tr>
+              <tr><td><code>/events/{id}</code></td><td><span class="badge badge-success">Public</span></td><td>Create: admin. Owner/manager may update if status is unchanged or <code>cancelled</code>, and may delete only while <code>proposed</code></td></tr>
+              <tr><td><code>/gradings/{id}</code></td><td>Student, grading manager, school manager, event manager, or admin</td><td>Stage-dependent whitelists (see tab 5)</td></tr>
+              <tr><td><code>/videos/{id}</code></td><td>Admin, or anyone when <code>isPublished</code></td><td>Admin</td></tr>
+              <tr><td><code>/video_grants/{id}</code></td><td>The granted member or admin</td><td>Admin</td></tr>
+              <tr><td><code>/acl/{email}</code></td><td>That email, or admin</td><td>Admin</td></tr>
+              <tr><td><code>/members-post/{id}</code></td><td>Admin or <code>isFullMember()</code></td><td>Admin</td></tr>
+              <tr><td><code>/instructors-post/{id}</code></td><td>Admin or <code>isInstructor()</code></td><td>Admin</td></tr>
+              <tr><td><code>/orders</code>, <code>/statistics</code>, <code>/system/**</code></td><td>Admin <span class="badge badge-primary">exceptions below</span></td><td>Admin</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The <code>/system</code> exceptions are deliberate: <code>country-codes</code> and
+          <code>video-tags</code> are world-readable because sign-up forms need them before login, and
+          <code>/system/deletions/{instructors|schools|events}</code> is readable by anyone so that
+          clients doing an incremental sync can learn what was deleted.
+        </p>
+
+        <div class="callout">
+          <div class="callout-title">Collection-group queries need their own rule</div>
+          <p>
+            A rule under <code>/members/{id}/uploads</code> does not authorize a collection-group query
+            across every <code>uploads</code> subcollection. That needs a separate
+            <code>match /{path=**}/uploads/{uploadDocId}</code> block, which the file provides for
+            admins and linked event managers.
+          </p>
+        </div>
+
+        <h3>Cloud Storage: the same ACL, a different question</h3>
+        <p>
+          Storage rules reach into Firestore with <code>firestore.get()</code> and read the same
+          <code>/acl/{email}</code> document. Where Firestore mostly asks <em>"do you own this?"</em>,
+          Storage mostly asks <em>"is your entitlement still in date?"</em>
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Path</th><th>Read</th><th>Write</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>/resources/public/**</code></td><td><span class="badge badge-success">Public</span></td><td>Admin</td></tr>
+              <tr><td><code>/resources/members/**</code></td><td><code>hasActiveMembership()</code></td><td>Admin</td></tr>
+              <tr><td><code>/resources/instructors/**</code></td><td><code>hasActiveInstructorLicense()</code></td><td>Admin</td></tr>
+              <tr><td><code>/resources/school-owners/**</code></td><td><code>hasActiveSchoolLicense()</code></td><td>Admin</td></tr>
+              <tr><td><code>/resources/admins/**</code></td><td>Admin</td><td>Admin</td></tr>
+              <tr><td><code>/vod/{videoId}/**</code></td><td><span class="badge badge-success">Public</span> <span class="badge badge-warning">see note</span></td><td>Admin</td></tr>
+              <tr><td><code>/events/{id}/images/**</code>, <code>/documents/**</code></td><td><span class="badge badge-success">Public</span></td><td>Admin or the event's owner/managers</td></tr>
+              <tr><td><code>/events/{id}/materials/**</code></td><td>Admin or the event's owner/managers</td><td>Same</td></tr>
+              <tr><td><code>/members/{id}/materials/**</code></td><td>Admin or the owning member</td><td>Same</td></tr>
+              <tr><td><code>/instructors/{id}/images/**</code></td><td><span class="badge badge-success">Public</span></td><td>Admin or that instructor</td></tr>
+              <tr><td><code>/schools/{id}/images/**</code></td><td><span class="badge badge-success">Public</span></td><td>Admin or an owner/manager of that school</td></tr>
+              <tr><td><code>/backups/**</code></td><td>Admin</td><td>Admin</td></tr>
+              <tr><td><code>/{allPaths=**}</code></td><td colspan="2">Deny — the default that catches everything else</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">VOD chunks are readable by URL</div>
+          <p>
+            <code>/vod/**</code> is <code>allow read: if true</code>. Streaming is not protected at the
+            storage layer — entitlement is enforced by the
+            <code>getVideoPlaybackSession</code> callable, which evaluates the access cascade and
+            hands back a time-limited signed URL. Anyone holding a chunk URL can fetch it, so the
+            protection is the difficulty of obtaining one, not the bucket rule.
+          </p>
+        </div>
+
+        <h3>Testing the rules</h3>
+        <p>
+          Rules are executable, so they are tested against the emulator rather than reasoned about:
+        </p>
+        <pre><code>pnpm test:rules   # Firestore rules tests against the emulator
+pnpm test:e2e     # story-driven tests through real Cloud Function triggers</code></pre>
+        <p>
+          For the persona-oriented view of the same model — what each role sees across the whole
+          product — see section 14 of
+          <a href="orders-and-subscriptions.html#security-rules">Orders &amp; Subscriptions</a>.
+        </p>
+      </section>
+
       <!-- Section: Routing System -->
       <section id="routing-system">
         <h2>Routing System & Views Catalog</h2>
         <p>
           The application uses a custom, lightweight, signal-driven router (<code>RoutingService</code> in <code>src/app/routing.service.ts</code>) parameterized by <code>AppPathPatterns</code> in <code>src/app/app.config.ts</code>.
+          The six public sign-in and purchase routes below share one guided step pattern (<code>&lt;app-step-track&gt;</code>, <code>&lt;app-step-card&gt;</code>, <code>StepFlow</code>) and one sign-in component (<code>&lt;app-inline-auth&gt;</code>); see <a href="guided-purchase-flows.html">Guided Purchase Flows</a> and <a href="authentication.html">Authentication</a>.
         </p>
 
         <div class="tab-container">
@@ -1121,6 +865,42 @@
                     <td><code>Views.OrderComplete</code></td>
                     <td><code>OrderCompleteComponent</code></td>
                     <td>Stripe checkout confirmation and onboarding next steps.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/login</code></td>
+                    <td><code>Views.Login</code></td>
+                    <td><code>LoginComponent</code></td>
+                    <td>Sign-in page. A thin wrapper around <code>&lt;app-inline-auth&gt;</code>, the flow every purchase page also embeds — see <a href="authentication.html">Authentication</a>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/become-a-member</code></td>
+                    <td><code>Views.BecomeAMember</code></td>
+                    <td><code>BecomeAMemberComponent</code></td>
+                    <td>Guided 4-step join/renew flow: account, details, membership option, payment.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/next-grading</code></td>
+                    <td><code>Views.NextGrading</code></td>
+                    <td><code>NextGradingComponent</code></td>
+                    <td>Guided 3-step purchase of the next grading level, including the free-retake path.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/instructor-license</code></td>
+                    <td><code>Views.InstructorLicensePurchase</code></td>
+                    <td><code>InstructorLicensePurchaseComponent</code></td>
+                    <td>Guided 3-step instructor / group-leader annual licence purchase and renewal.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/school-license</code></td>
+                    <td><code>Views.SchoolLicensePurchase</code></td>
+                    <td><code>SchoolLicensePurchaseComponent</code></td>
+                    <td>Guided 3-step school affiliation licence purchase and renewal.</td>
+                  </tr>
+                  <tr>
+                    <td><code>/class-video-library-subscription</code></td>
+                    <td><code>Views.ClassVideoLibraryPurchase</code></td>
+                    <td><code>ClassVideoLibraryPurchaseComponent</code></td>
+                    <td>Guided 2-step monthly Class Video Library subscription.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1277,6 +1057,215 @@
         </div>
       </section>
 
+      <!-- Section: Public vs Gated Views -->
+      <section id="public-vs-gated">
+        <h2>Public vs Gated Views</h2>
+        <p class="lead-text">
+          One set in <code>app.config.ts</code> decides which routes render without a login, and one
+          ladder of conditions in <code>app.html</code> decides what a visitor sees instead when they
+          are not entitled to a page.
+        </p>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">Gating is UX, not security</div>
+          <p>
+            There is <strong>no role guard on any route</strong>. A non-admin who types an admin URL
+            gets the admin component, which then fails every read it attempts because
+            <a href="#security-rules">the security rules</a> reject them. The admin section is merely
+            hidden from the navigation menu. Treat everything in this section as "what the user is
+            shown", never as "what the user is prevented from reaching".
+          </p>
+        </div>
+
+        <h3>PUBLIC_VIEWS</h3>
+        <p>
+          <code>PUBLIC_VIEWS</code> in
+          <code>src/app/app.config.ts</code> is the single source of truth for routes that render
+          without authentication. It currently holds 19 views in three groups:
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Directory &amp; calendars</span></div>
+            <div class="card-description">
+              <code>FindAnInstructor</code>, <code>InstructorView</code>, <code>FindSchool</code>,
+              <code>SchoolView</code>, <code>EventsCalendar</code>, <code>EventView</code>,
+              <code>ClassCalendarView</code>, <code>SchoolCalendarView</code>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Catalog &amp; resources</span></div>
+            <div class="card-description">
+              <code>Videos</code>, <code>VideoView</code>, <code>ClassVideoLibrary</code>,
+              <code>Products</code>, <code>DownloadResource</code>, <code>OrderComplete</code>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Purchase flows</span></div>
+            <div class="card-description">
+              <code>BecomeAMember</code>, <code>NextGrading</code>,
+              <code>InstructorLicensePurchase</code>, <code>SchoolLicensePurchase</code>,
+              <code>ClassVideoLibraryPurchase</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-title">Why the purchase flows are public</div>
+          <p>
+            You cannot require a login to reach the page whose <em>job</em> is to create your account.
+            Each of these five pages embeds <code>&lt;app-inline-auth&gt;</code> as step 1 and signs
+            the visitor in on the spot — so the page works signed out, signed in, or halfway through.
+            See
+            <a href="guided-purchase-flows.html">Guided Purchase Flows</a>
+            and
+            <a href="authentication.html">Authentication</a>.
+          </p>
+        </div>
+
+        <h3>The rendering ladder</h3>
+        <p>
+          <code>app.html</code> tests these conditions in order and renders the first that matches.
+          Order is the whole design: a public page is resolved <em>before</em> auth is consulted, which
+          is why a visitor never sees a login flash on a public route.
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-header"><span class="diagram-title">Which branch renders</span></div>
+          <svg class="diagram-svg" viewBox="0 0 820 430" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Decision ladder from an incoming route to the rendered view">
+            <defs>
+              <marker id="gateArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+              </marker>
+            </defs>
+            <style>
+              .gt { font: 13px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; }
+              .gt-s { font: 11px ui-monospace, Menlo, monospace; fill: #475569; }
+              .gt-w { font: 12px -apple-system, "Segoe UI", sans-serif; fill: #ffffff; font-weight: 600; }
+              .gbox { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+              .gline { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#gateArrow); }
+            </style>
+
+            <rect x="20" y="16" width="180" height="42" class="gbox" fill="#eff6ff" stroke="#2563eb"/>
+            <text x="110" y="35" class="gt" text-anchor="middle" font-weight="600">Route matched</text>
+            <text x="110" y="50" class="gt-s" text-anchor="middle">currentView()</text>
+
+            <rect x="20" y="80" width="180" height="38" class="gbox"/>
+            <text x="110" y="104" class="gt" text-anchor="middle">1. isNotFound()</text>
+            <rect x="20" y="134" width="180" height="38" class="gbox"/>
+            <text x="110" y="158" class="gt" text-anchor="middle">2. isPublicPage()</text>
+            <rect x="20" y="188" width="180" height="38" class="gbox"/>
+            <text x="110" y="212" class="gt" text-anchor="middle">3. no user</text>
+            <rect x="20" y="242" width="180" height="38" class="gbox"/>
+            <text x="110" y="266" class="gt" text-anchor="middle">4. data still loading</text>
+            <rect x="20" y="296" width="180" height="38" class="gbox"/>
+            <text x="110" y="320" class="gt" text-anchor="middle">5. incompleteProfile()</text>
+            <rect x="20" y="350" width="180" height="42" class="gbox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="110" y="369" class="gt" text-anchor="middle" font-weight="600">6. otherwise</text>
+            <text x="110" y="384" class="gt-s" text-anchor="middle">member + admin views</text>
+
+            <path d="M 110 58 L 110 80" class="gline"/>
+            <path d="M 110 118 L 110 134" class="gline"/>
+            <path d="M 110 172 L 110 188" class="gline"/>
+            <path d="M 110 226 L 110 242" class="gline"/>
+            <path d="M 110 280 L 110 296" class="gline"/>
+            <path d="M 110 334 L 110 350" class="gline"/>
+
+            <rect x="330" y="80" width="230" height="38" class="gbox" fill="#f8fafc"/>
+            <text x="445" y="104" class="gt" text-anchor="middle">&lt;app-not-found&gt;</text>
+            <rect x="330" y="134" width="230" height="38" class="gbox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="445" y="158" class="gt" text-anchor="middle">The public view — no auth wait</text>
+            <rect x="330" y="182" width="230" height="50" class="gbox" fill="#fffbeb" stroke="#d97706"/>
+            <text x="445" y="201" class="gt" text-anchor="middle">Login prompt</text>
+            <text x="445" y="217" class="gt-s" text-anchor="middle">landing vs "requires login"</text>
+            <rect x="330" y="242" width="230" height="38" class="gbox" fill="#f8fafc"/>
+            <text x="445" y="266" class="gt" text-anchor="middle">Loading spinner</text>
+            <rect x="330" y="296" width="230" height="38" class="gbox" fill="#f8fafc"/>
+            <text x="445" y="320" class="gt" text-anchor="middle">&lt;app-complete-profile&gt;</text>
+
+            <path d="M 200 99 L 330 99" class="gline"/>
+            <path d="M 200 153 L 330 153" class="gline"/>
+            <path d="M 200 207 L 330 207" class="gline"/>
+            <path d="M 200 261 L 330 261" class="gline"/>
+            <path d="M 200 315 L 330 315" class="gline"/>
+
+            <rect x="610" y="182" width="190" height="140" class="gbox" fill="#f8fafc"/>
+            <text x="705" y="204" class="gt" text-anchor="middle" font-weight="600">Step 3 in detail</text>
+            <text x="705" y="228" class="gt-s" text-anchor="middle">isLoginPage()  →  landing</text>
+            <text x="705" y="246" class="gt-s" text-anchor="middle">(Login or Home)</text>
+            <text x="705" y="272" class="gt-s" text-anchor="middle">otherwise  →  "This page</text>
+            <text x="705" y="290" class="gt-s" text-anchor="middle">requires you to be</text>
+            <text x="705" y="308" class="gt-s" text-anchor="middle">logged in" + sign-in</text>
+            <path d="M 560 207 L 610 207" class="gline"/>
+          </svg>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Condition</th><th>Renders</th><th>Why it sits here</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td><td><code>isNotFound()</code></td><td><code>&lt;app-not-found&gt;</code></td>
+                <td>An unmatched URL is not an auth problem, so it is answered before anything else.</td>
+              </tr>
+              <tr>
+                <td>2</td><td><code>isPublicPage()</code></td><td>The view itself</td>
+                <td>Rendered <em>regardless</em> of auth or data-loading state. This one block replaced duplicate public cases in both the logged-in and logged-out branches, which used to cause a visible re-load flash on auto-login.</td>
+              </tr>
+              <tr>
+                <td>3</td><td>No <code>user</code></td><td>Sign-in prompt</td>
+                <td>Two variants — see below.</td>
+              </tr>
+              <tr>
+                <td>4</td><td><code>loadingState() !== Loaded</code></td><td>Spinner</td>
+                <td>Signed in, but member data has not arrived; components below assume it.</td>
+              </tr>
+              <tr>
+                <td>5</td><td><code>incompleteProfile()</code></td><td><code>&lt;app-complete-profile&gt;</code></td>
+                <td>A soft wall: finish the profile before using member features.</td>
+              </tr>
+              <tr>
+                <td>6</td><td>—</td><td>Member <strong>and admin</strong> views</td>
+                <td>One <code>@switch</code>, no role branch. Admin protection is the rules layer.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Two flavours of "please sign in"</h3>
+        <p>
+          Step 3 splits on <code>isLoginPage()</code>, which is true for <code>Views.Login</code>
+          <em>and</em> <code>Views.Home</code> — the root path doubles as the signed-out landing page:
+        </p>
+        <ul>
+          <li><strong>Landing</strong> — the sign-in box beside a welcome blurb and discovery cards for the public areas. No URL rewrite happens; <code>/</code> stays <code>/</code>.</li>
+          <li><strong>Interception</strong> — "This page requires you to be logged in", the same sign-in box, and links to other pages the visitor might have wanted.</li>
+        </ul>
+        <p>
+          Both render the same <code>&lt;app-login&gt;</code>, which is itself a thin wrapper around the
+          shared <code>&lt;app-inline-auth&gt;</code> flow.
+        </p>
+
+        <h3>Returning to where you were</h3>
+        <p>
+          <code>Views.Login</code> carries an ephemeral <code>returnUrl</code> URL parameter. An effect
+          in <code>app.ts</code> watches login status and, once signed in, navigates to
+          <code>returnUrl</code> if present and Home otherwise.
+        </p>
+        <div class="callout">
+          <div class="callout-title">Why returnUrl is not cleared</div>
+          <p>
+            Clearing the signal inside the effect would re-trigger the effect before the navigation
+            completed, falling through to the Home redirect and dropping the user's destination. It is
+            left to be overwritten naturally the next time the login route is visited — the reasoning
+            is recorded in a comment at the redirect.
+          </p>
+        </div>
+      </section>
+
       <!-- Section: Cloud Functions -->
       <section id="cloud-functions">
         <h2>Cloud Functions & Microservices</h2>
@@ -1317,6 +1306,232 @@
             </ul>
           </div>
         </div>
+      </section>
+
+      <!-- Section: Stripe & Order Fulfillment -->
+      <section id="stripe-orders">
+        <h2>Stripe &amp; Order Fulfillment</h2>
+        <p class="lead-text">
+          Money is never taken by this app. A callable creates a Stripe Checkout Session, Stripe hosts
+          the payment, and a signed webhook tells us what happened — at which point fulfillment turns a
+          payment into membership, a licence, a grading, or video access.
+        </p>
+
+        <div class="callout">
+          <div class="callout-title">This is the orientation; the reference is elsewhere</div>
+          <p>
+            Schemas, the subscription state machine, expiry and auto-renew semantics, and the
+            self-service journeys are documented in depth in
+            <a href="orders-and-subscriptions.html">Orders &amp; Subscriptions</a> (sections 4–13).
+            This section covers how the pieces fit together and where each one lives.
+          </p>
+        </div>
+
+        <h3>End-to-end</h3>
+        <div class="diagram-container">
+          <div class="diagram-header"><span class="diagram-title">From button press to entitlement</span></div>
+          <svg class="diagram-svg" viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg" role="img"
+               aria-label="Checkout session creation, hosted payment, webhook delivery, and fulfillment">
+            <defs>
+              <marker id="payArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+              </marker>
+            </defs>
+            <style>
+              .pt { font: 12px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; }
+              .pt-b { font: 12px -apple-system, "Segoe UI", sans-serif; fill: #0f172a; font-weight: 600; }
+              .pt-s { font: 10.5px ui-monospace, Menlo, monospace; fill: #475569; }
+              .pbox { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 8; }
+              .pline { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#payArrow); }
+            </style>
+
+            <rect x="14" y="24" width="150" height="62" class="pbox" fill="#eff6ff" stroke="#2563eb"/>
+            <text x="89" y="46" class="pt-b" text-anchor="middle">Purchase page</text>
+            <text x="89" y="62" class="pt-s" text-anchor="middle">stripe.service.ts</text>
+            <text x="89" y="76" class="pt-s" text-anchor="middle">+ orderType metadata</text>
+
+            <rect x="196" y="24" width="160" height="62" class="pbox"/>
+            <text x="276" y="46" class="pt-b" text-anchor="middle">createStripe</text>
+            <text x="276" y="60" class="pt-b" text-anchor="middle">CheckoutSession</text>
+            <text x="276" y="76" class="pt-s" text-anchor="middle">onCall</text>
+
+            <rect x="388" y="24" width="150" height="62" class="pbox" fill="#f5f3ff" stroke="#7c3aed"/>
+            <text x="463" y="46" class="pt-b" text-anchor="middle">Stripe Checkout</text>
+            <text x="463" y="62" class="pt-s" text-anchor="middle">hosted — card data</text>
+            <text x="463" y="76" class="pt-s" text-anchor="middle">never touches us</text>
+
+            <rect x="570" y="24" width="160" height="62" class="pbox" fill="#fffbeb" stroke="#d97706"/>
+            <text x="650" y="46" class="pt-b" text-anchor="middle">stripeWebhook</text>
+            <text x="650" y="62" class="pt-s" text-anchor="middle">onRequest</text>
+            <text x="650" y="76" class="pt-s" text-anchor="middle">signature verified</text>
+
+            <path d="M 164 55 L 196 55" class="pline"/>
+            <path d="M 356 55 L 388 55" class="pline"/>
+            <path d="M 538 55 L 570 55" class="pline"/>
+
+            <rect x="570" y="132" width="160" height="48" class="pbox"/>
+            <text x="650" y="152" class="pt-b" text-anchor="middle">resolveMember</text>
+            <text x="650" y="168" class="pt-s" text-anchor="middle">4-step cascade</text>
+            <path d="M 650 86 L 650 132" class="pline"/>
+
+            <rect x="570" y="212" width="160" height="48" class="pbox"/>
+            <text x="650" y="232" class="pt-b" text-anchor="middle">categorizeLineItem</text>
+            <text x="650" y="248" class="pt-s" text-anchor="middle">metadata, then text</text>
+            <path d="M 650 180 L 650 212" class="pline"/>
+
+            <rect x="300" y="212" width="230" height="48" class="pbox" fill="#f0fdf4" stroke="#16a34a"/>
+            <text x="415" y="232" class="pt-b" text-anchor="middle">fulfillStripeOrder</text>
+            <text x="415" y="248" class="pt-s" text-anchor="middle">member + ACL updated</text>
+            <path d="M 570 236 L 530 236" class="pline"/>
+
+            <rect x="60" y="212" width="196" height="48" class="pbox"/>
+            <text x="158" y="232" class="pt-b" text-anchor="middle">Order records written</text>
+            <text x="158" y="248" class="pt-s" text-anchor="middle">/orders + member mirror</text>
+            <path d="M 300 236 L 256 236" class="pline"/>
+          </svg>
+        </div>
+
+        <h3>The four moving parts</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>File</th><th>Entry point</th><th>Responsibility</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>functions/src/stripe-checkout.ts</code></td>
+                <td><code>createStripeCheckoutSession</code>, <code>getStripeCheckoutSession</code></td>
+                <td>Builds the Checkout Session, stamping <code>orderType</code> and <code>memberDocId</code> into metadata. The second callable lets the return page show a confirmation before the webhook has necessarily landed.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-webhook.ts</code></td>
+                <td><code>stripeWebhook</code></td>
+                <td>Verifies the signature, normalises the Stripe object into a <code>StripeOrder</code>, and dispatches. Unknown event types are acknowledged so Stripe stops retrying them.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-fulfillment.ts</code></td>
+                <td><code>fulfillStripeOrder</code></td>
+                <td>The business end: resolve the member, categorise what was bought, extend the right expiry date, create gradings or video grants, and mirror the order.</td>
+              </tr>
+              <tr>
+                <td><code>functions/src/stripe-subscriptions.ts</code></td>
+                <td><code>cancelSubscriptionRenewal</code>, <code>resumeSubscriptionRenewal</code>, <code>createCustomerPortalSession</code></td>
+                <td>Member self-service over an existing subscription.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Webhook events handled</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Event</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><code>checkout.session.completed</code></td><td rowspan="2"><code>handleCheckoutSession</code> — the main purchase path</td></tr>
+              <tr><td><code>checkout.session.async_payment_succeeded</code></td></tr>
+              <tr><td><code>invoice.paid</code></td><td><code>handleInvoicePaid</code> — subscription renewals</td></tr>
+              <tr><td><code>customer.subscription.updated</code></td><td><code>syncSubscriptionStatusToMember</code></td></tr>
+              <tr><td><code>customer.subscription.deleted</code></td><td>Writes a cancellation order, then syncs status</td></tr>
+              <tr><td>anything else</td><td>Acknowledged and ignored</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">Failures must return 500</div>
+          <p>
+            The handler deliberately returns <code>500</code> when fulfillment throws, so Stripe retries
+            with backoff. Swallowing the error and returning <code>200</code> would lose the payment's
+            effect permanently — the money is taken but the membership never arrives. Signature
+            verification failures return <code>400</code>, because retrying those cannot help.
+          </p>
+        </div>
+
+        <h3>Finding the member</h3>
+        <p>
+          A payment carries whatever identity Stripe happened to have. <code>resolveMemberForStripeOrder</code>
+          tries four routes in descending order of reliability:
+        </p>
+        <ol>
+          <li><code>metadata.memberDocId</code> or <code>clientReferenceId</code> — set by our own checkout callable, so exact.</li>
+          <li><code>stripeCustomerId</code> matched against <code>members</code>.</li>
+          <li>The customer email looked up in <code>/acl/{email}</code>, taking its first <code>memberDocIds</code> entry.</li>
+          <li>The customer email matched against the <code>emails</code> array on <code>members</code>.</li>
+        </ol>
+        <p>
+          Returning <code>null</code> is a real outcome — payments do arrive from outside the app — and
+          the order is still recorded for an admin to reconcile.
+        </p>
+
+        <h3>Deciding what was bought</h3>
+        <p>
+          <code>categorizeLineItem</code> checks <code>orderMetadata.orderType</code> first, and only
+          falls back to substring matching on the line-item description and product ID:
+        </p>
+        <pre><code>const metaType = (orderMetadata?.['orderType'] || '').toLowerCase();
+if (metaType === 'membership') return OrderItemCategory.Membership;
+// …then, only if no metadata matched:
+if (desc.includes('video library') || prod.includes('video_library')) {
+  return OrderItemCategory.VideoLibrary;
+}</code></pre>
+        <div class="callout">
+          <div class="callout-title">The text matching is a legacy bridge, not the design</div>
+          <p>
+            Orders created by this app always carry <code>orderType</code> and take the first branch.
+            The description heuristics exist for orders imported from elsewhere — historically
+            Squarespace — where no metadata was ever set. When adding a product, set the metadata:
+            relying on the product name puts the fulfillment behaviour at the mercy of a copy edit.
+          </p>
+        </div>
+
+        <h3>What fulfillment writes</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Category</th><th>Effect on the member</th></tr></thead>
+            <tbody>
+              <tr><td><code>Membership</code></td><td>Extends <code>currentMembershipExpires</code> (or sets Life), assigns a <code>memberId</code> if the member has none, and records the subscription for auto-renewal. A spouse lifetime purchase provisions the second member too.</td></tr>
+              <tr><td><code>InstructorLicense</code></td><td>Extends the instructor licence expiry.</td></tr>
+              <tr><td><code>SchoolLicense</code></td><td>Extends the school's licence expiry.</td></tr>
+              <tr><td><code>VideoLibrary</code></td><td>Grants or extends the Class Video Library subscription.</td></tr>
+              <tr><td><code>Vod</code></td><td>Creates a <code>VideoGrant</code> for a single title.</td></tr>
+              <tr><td><code>Grading</code></td><td>Creates the grading record — or marks an existing unpaid one paid. Duplicate protection queries for a grading already created from this order.</td></tr>
+              <tr><td><code>Event</code>, <code>Other</code></td><td>Recorded only; no automatic entitlement.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Every change lands on the member document, and Cloud Function triggers then propagate the
+          expiry dates into <code>/acl/{email}</code> — which is what
+          <a href="#security-rules">the Storage rules</a> read to decide whether a member may download
+          tiered resources. Fulfillment is therefore the step that actually grants access, not just the
+          step that records a sale.
+        </p>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">Grading payments that cannot be honoured</div>
+          <p>
+            Two cases are refused rather than applied: paying for a level already achieved, and paying
+            for a level already paid for. The grading is still created and flagged for review, and both
+            the student and the admins are notified with an explanation. See
+            <a href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">docs/gradings.md</a>.
+          </p>
+        </div>
+
+        <h3>Order records</h3>
+        <p>
+          Every processed payment is written twice: canonically to <code>/orders/{orderId}</code>
+          (admin-only), and mirrored into
+          <code>/members/{memberDocId}/orders/{orderDocId}</code> so a member can read their own
+          history without being able to read anyone else's. Both are written with the Admin SDK;
+          <a href="#security-rules">the rules</a> forbid all client writes to either.
+        </p>
+
+        <h3>Buying from the app</h3>
+        <p>
+          The five purchase pages that create these sessions all share one guided step pattern; see
+          <a href="guided-purchase-flows.html">Guided Purchase Flows</a>
+          and the <a href="#routing-system">routes catalog</a>.
+        </p>
       </section>
 
       <!-- Section: VOD Streaming -->
@@ -1469,47 +1684,6 @@ pnpm test:rules        # Firestore Rules Tests in Emulator</code></pre>
     </main>
   </div>
 
-  <script>
-    // Tab switching logic
-    function switchTab(paneId, buttonEl) {
-      const container = buttonEl.closest('.tab-container');
-      container.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      container.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-      
-      buttonEl.classList.add('active');
-      const targetPane = document.getElementById(paneId);
-      if (targetPane) {
-        targetPane.classList.add('active');
-      }
-    }
-
-    // Sidebar search filter
-    function filterNav(query) {
-      const q = query.toLowerCase().trim();
-      const links = document.querySelectorAll('#sidebarNav .nav-link');
-      links.forEach(link => {
-        const text = link.textContent.toLowerCase();
-        if (text.includes(q)) {
-          link.style.display = 'flex';
-        } else {
-          link.style.display = 'none';
-        }
-      });
-    }
-
-    // Smooth scroll for anchors
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function(e) {
-        e.preventDefault();
-        const targetId = this.getAttribute('href').substring(1);
-        const targetEl = document.getElementById(targetId);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-          document.querySelectorAll('#sidebarNav .nav-link').forEach(l => l.classList.remove('active'));
-          this.classList.add('active');
-        }
-      });
-    });
-  </script>
+  <script src="doc-scripts.js"></script>
 </body>
 </html>

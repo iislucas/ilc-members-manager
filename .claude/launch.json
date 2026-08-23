@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "start:emulator"],
       "port": 4200
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "docs"],
+      "port": 8123
     }
   ]
 }
