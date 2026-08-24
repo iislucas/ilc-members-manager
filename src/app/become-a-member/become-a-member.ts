@@ -25,7 +25,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FirebaseStateService, LoginStatus } from '../firebase-state.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
@@ -73,7 +73,6 @@ export class BecomeAMemberComponent {
 
   environment = environment;
   Views = Views;
-  LoginStatus = LoginStatus;
   user = this.firebaseService.user;
 
   // Form fields
@@ -93,14 +92,6 @@ export class BecomeAMemberComponent {
   spouseDateOfBirth = signal('');
 
   isSpouseOptionSelected = computed(() => this.selectedOption() === 'life_spouse');
-
-  // Login form state (if not logged in)
-  loginEmail = signal('');
-  loginPassword = signal('');
-  showPassword = signal(false);
-  isSigningUp = signal(false);
-  authError = signal<string | null>(null);
-  authLoading = signal(false);
 
   // Stripe product state
   productsLoading = signal(true);
@@ -662,49 +653,6 @@ export class BecomeAMemberComponent {
       return `${amount}/${interval}`;
     }
     return `${amount} one-time`;
-  }
-
-  async onLogout(): Promise<void> {
-    await this.firebaseService.logout();
-  }
-
-  // Authentication actions
-  async onLoginWithEmail(): Promise<void> {
-    const email = this.loginEmail().trim();
-    const password = this.loginPassword();
-    if (!email || !password) return;
-
-    this.authLoading.set(true);
-    this.authError.set(null);
-    const result = await this.firebaseService.loginWithEmail(password, email);
-    this.authLoading.set(false);
-    if (!result.success) {
-      this.authError.set(result.errorCode || 'Sign in failed.');
-    }
-  }
-
-  async onSignupWithEmail(): Promise<void> {
-    const email = this.loginEmail().trim();
-    const password = this.loginPassword();
-    if (!email || !password) return;
-
-    this.authLoading.set(true);
-    this.authError.set(null);
-    const result = await this.firebaseService.signupWithEmail(password, email);
-    this.authLoading.set(false);
-    if (!result.success) {
-      this.authError.set(result.errorCode || 'Account creation failed.');
-    }
-  }
-
-  async onLoginWithGoogle(): Promise<void> {
-    this.authLoading.set(true);
-    this.authError.set(null);
-    const result = await this.firebaseService.loginWithGoogle();
-    this.authLoading.set(false);
-    if (!result.success && result.errorCode !== 'auth/cancelled-popup-request') {
-      this.authError.set(result.errorCode || 'Google sign-in failed.');
-    }
   }
 
   // Profile save & Proceed to Stripe checkout
