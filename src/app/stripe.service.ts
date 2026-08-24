@@ -1,7 +1,9 @@
 /* stripe.service.ts
  *
- * Thin client wrapper around the Stripe cloud function callables that power the
- * standalone `/products` purchase flow. Types are imported directly from the
+ * Thin client wrapper around the Stripe cloud function callables used by the
+ * purchase pages: creating checkout sessions, reading a session back, managing
+ * subscription renewal, and fetching the catalogue when the cached copy at
+ * /system/stripe-products is unavailable. Types are imported directly from the
  * functions package so the request/response shapes stay in sync with the
  * server.
  */
@@ -28,7 +30,11 @@ export class StripeService {
   private firebaseService = inject(FirebaseStateService);
   private functions = getFunctions(this.firebaseService.app);
 
-  /** Fetch the catalogue of Stripe products with their prices. */
+  /**
+   * Fetch the catalogue of Stripe products with their prices, straight from
+   * Stripe. Prefer `DataManagerService.stripeProducts`, which reads the cached
+   * copy; this is its fallback for when that document is missing.
+   */
   async listProducts(): Promise<ListStripeProductsResult> {
     const fn = httpsCallable<void, ListStripeProductsResult>(
       this.functions,

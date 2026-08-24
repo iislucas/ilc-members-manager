@@ -83,9 +83,9 @@ import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
 import {
   CachedStripeProducts,
-  ListStripeProductsResult,
   StripeProduct,
 } from '../../functions/src/stripe-types';
+import { StripeService } from './stripe.service';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -208,6 +208,7 @@ export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private findInstructorsService = inject(FindInstructorsService);
   private syncService = inject(IncrementalSyncService);
+  private stripeService = inject(StripeService);
   private db = getFirestore(this.firebaseService.app);
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
@@ -1216,12 +1217,8 @@ export class DataManagerService {
   /** Fallback path for when the cached catalogue document is unavailable. */
   private async loadStripeProductsFromCallable(): Promise<void> {
     try {
-      const fn = httpsCallable<void, ListStripeProductsResult>(
-        this.functions,
-        'listStripeProducts',
-      );
-      const result = await fn();
-      this.stripeProducts.set(result.data.products || []);
+      const { products } = await this.stripeService.listProducts();
+      this.stripeProducts.set(products || []);
       this.stripeProductsError.set(null);
     } catch (err) {
       // This message goes on a public page, so it says what the reader can do

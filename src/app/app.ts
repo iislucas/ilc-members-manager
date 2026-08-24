@@ -46,7 +46,6 @@ import { CompleteProfileComponent } from './complete-profile/complete-profile';
 import { DownloadResourceComponent } from './download-resource/download-resource';
 import { NotificationSettingsComponent } from './settings/notification-settings/notification-settings.component';
 import { NotificationsViewComponent } from './notifications-view/notifications-view';
-import { ProductsComponent } from './products/products';
 import { OrderCompleteComponent } from './order-complete/order-complete';
 import { MyMaterialsComponent } from './my-materials/my-materials';
 import { ManageMaterialsComponent } from './manage-materials/manage-materials';
@@ -111,7 +110,6 @@ import { NavigationTreeService } from './navigation-tree';
     DownloadResourceComponent,
     NotificationSettingsComponent,
     NotificationsViewComponent,
-    ProductsComponent,
     OrderCompleteComponent,
     MyMaterialsComponent,
     ManageMaterialsComponent,

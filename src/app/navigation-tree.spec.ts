@@ -393,19 +393,7 @@ describe('NavigationTreeService', () => {
       'Purchase Next Grading',
     ]);
 
-    // 6. Products
-    goTo(Views.Products);
-    expect(navTree.currentTitle()).toBe('Products');
-    expect(ancestorLabels()).toEqual(['Me', 'Orders']);
-    expect(navTree.parent()?.url).toBe('/my-orders');
-    expect(navTree.breadcrumbs().map((c) => c.label)).toEqual([
-      'ILC Portal',
-      'Me',
-      'Orders',
-      'Products',
-    ]);
-
-    // 7. Order Complete
+    // 6. Order Complete
     goTo(Views.OrderComplete);
     expect(navTree.currentTitle()).toBe('Order Complete');
     expect(ancestorLabels()).toEqual(['Me', 'Orders']);
