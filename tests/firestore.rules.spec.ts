@@ -1420,6 +1420,11 @@ describe('Firestore Rules', () => {
         await db.collection('system').doc('email-templates').set({
           templates: {},
         });
+        await db.collection('system').doc('stripe-products').set({
+          products: [],
+          lastRefreshed: '2026-01-01T00:00:00.000Z',
+          source: 'schedule',
+        });
         await db.collection('system').doc('deletions').collection('schools').doc('deleted-sch-1').set({
           deletedAt: new Date().toISOString(),
         });
@@ -1455,6 +1460,43 @@ describe('Firestore Rules', () => {
       await assertFails(
         memberDb.collection('system').doc('country-codes').update({
           codes: [{ id: 'MX', name: 'Mexico' }],
+        }),
+      );
+    });
+
+    it('should allow anyone (including unauthenticated) to read stripe-products', async () => {
+      // The purchase pages show their price structure before anyone signs in,
+      // so a signed-out visitor must be able to read the cached catalogue.
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(
+        unauthDb.collection('system').doc('stripe-products').get(),
+      );
+
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        memberDb.collection('system').doc('stripe-products').get(),
+      );
+    });
+
+    it('should allow admin to write stripe-products, but deny non-admin', async () => {
+      const adminDb = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(
+        adminDb.collection('system').doc('stripe-products').update({
+          lastRefreshed: '2026-02-01T00:00:00.000Z',
+        }),
+      );
+
+      // A member must not be able to rewrite the prices shown to everyone.
+      const memberDb = testEnv
+        .authenticatedContext('student1', { email: 'student1@ilc.com' })
+        .firestore();
+      await assertFails(
+        memberDb.collection('system').doc('stripe-products').update({
+          products: [],
         }),
       );
     });

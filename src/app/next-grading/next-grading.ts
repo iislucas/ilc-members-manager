@@ -44,6 +44,8 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { PriceTableComponent } from '../price-table/price-table';
+import { formatStripeAmount } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -58,6 +60,7 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    PriceTableComponent,
   ],
   templateUrl: './next-grading.html',
   styleUrl: './next-grading.scss',
@@ -73,10 +76,21 @@ export class NextGradingComponent {
   Views = Views;
   user = this.firebaseService.user;
 
-  // Stripe products loading
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  allProducts = signal<StripeProduct[]>([]);
+  // Stripe catalogue, read from the cached copy so grading fees are on screen
+  // before the visitor signs in.
+  allProducts = this.dataService.stripeProducts;
+  productsLoading = this.dataService.stripeProductsLoading;
+  productsError = this.dataService.stripeProductsError;
+
+  /** The grading fee products, for the price breakdown above the flow. */
+  gradingProducts = computed(() =>
+    this.allProducts().filter(
+      (p) =>
+        p.active &&
+        p.name.toLowerCase().includes('grading') &&
+        p.prices.some((pr) => pr.active && pr.unitAmount !== null),
+    ),
+  );
 
   // Checkout redirecting
   isRedirecting = signal(false);
@@ -415,25 +429,9 @@ export class NextGradingComponent {
   });
 
   constructor() {
-    void this.loadProducts();
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
-    }
-  }
-
-  async loadProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      this.allProducts.set(products);
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error ? err.message : 'Failed to load grading products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
     }
   }
 
@@ -455,11 +453,7 @@ export class NextGradingComponent {
   }
 
   formatPrice(unitAmount?: number | null, currency?: string | null): string {
-    if (unitAmount === null || unitAmount === undefined) return '';
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: (currency || 'usd').toUpperCase(),
-    }).format(unitAmount / 100);
+    return formatStripeAmount(unitAmount, currency);
   }
 
   async onPurchaseNextGrading(): Promise<void> {

@@ -118,6 +118,14 @@
     </ul>
   </div>
 
+  <app-price-table
+    [products]="membershipProducts()"
+    [loading]="productsLoading()"
+    [error]="productsError()"
+    title="Membership Rates"
+    note="Youth and senior rates are applied automatically from your date of birth."
+  ></app-price-table>
+
   @if (!isLifeMember()) {
     <!-- ── Guided flow ─────────────────────────────────────────────────────
          Only the current step is expanded: finished steps collapse to a
@@ -310,9 +318,6 @@
       } @else if (productsError()) {
         <div class="error-container">
           <span class="error-message">{{ productsError() }}</span>
-          <button class="icon-only-button" (click)="loadStripeProducts()">
-            <app-icon name="refresh"></app-icon>
-          </button>
         </div>
       } @else {
         <!-- Bullet list overview of available options -->
@@ -325,9 +330,13 @@
                 @if (applicableAnnualTier().badge) {
                   <span class="age-badge-inline">{{ applicableAnnualTier().badge }}</span>
                 }
-                <span class="option-subtext"> — Auto-renews annually. (Regular rate $85/yr; $55/yr for Senior 65+ or Youth under 21).</span>
-              } @else {
-                $85.00/year (Regular adult rate; $55.00/year for Youth under 21 &amp; Senior 65+)
+                <span class="option-subtext"> — Auto-renews annually.
+                  @if (annualTierSummary(); as tiers) {
+                    ({{ tiers }})
+                  }
+                </span>
+              } @else if (annualTierSummary(); as tiers) {
+                {{ tiers }}
               }
             </li>
             @if (lifeIndividualOption().price; as lp) {
@@ -337,7 +346,11 @@
                 @if (lifeIndividualOption().badge) {
                   <span class="age-badge-inline">{{ lifeIndividualOption().badge }}</span>
                 }
-                <span class="option-subtext"> — One-time payment for individual lifetime access. Never expires. (Regular rate $850; $550 for Senior 65+).</span>
+                <span class="option-subtext"> — One-time payment for individual lifetime access. Never expires.
+                  @if (lifeIndividualTierSummary(); as tiers) {
+                    ({{ tiers }})
+                  }
+                </span>
               </li>
             }
             @if (lifeSpouseOption().price; as lsp) {
@@ -347,7 +360,11 @@
                 @if (lifeSpouseOption().badge) {
                   <span class="age-badge-inline">{{ lifeSpouseOption().badge }}</span>
                 }
-                <span class="option-subtext"> — One-time payment covering both you and your spouse. Never expires. (Regular rate $900; $600 for Senior 65+).</span>
+                <span class="option-subtext"> — One-time payment covering both you and your spouse. Never expires.
+                  @if (lifeSpouseTierSummary(); as tiers) {
+                    ({{ tiers }})
+                  }
+                </span>
               </li>
             }
           </ul>

@@ -1,0 +1,88 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+}
+
+.price-table {
+  // .card lays its children out as a centred-ish column; the table wants the
+  // full width so the leader dots can reach the amounts.
+  align-items: stretch;
+  width: 100%;
+  gap: 0;
+}
+
+.price-table-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: v.$text-primary;
+}
+
+.price-table-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: v.$text-muted;
+  line-height: 1.45;
+}
+
+.price-group {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid v.$separator-color;
+
+  &:first-of-type {
+    margin-top: 0.85rem;
+  }
+}
+
+.price-group-header {
+  h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+}
+
+.price-group-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  color: v.$text-secondary;
+  line-height: 1.45;
+}
+
+.price-rows {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.price-row-label {
+  color: v.$text-secondary;
+}
+
+// Leader dots tie a label to its amount across the gap, so the two stay
+// readable as a pair once the card is wide.
+.price-row-dots {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  align-self: center;
+  border-bottom: 1px dotted v.$border-color-light;
+}
+
+.price-row-amount {
+  font-weight: 600;
+  color: v.$text-primary;
+  white-space: nowrap;
+}

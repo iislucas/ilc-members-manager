@@ -49,6 +49,14 @@ const ENABLED_EVENTS: Stripe.WebhookEndpointCreateParams.EnabledEvent[] = [
   'invoice.paid',
   'customer.subscription.updated',
   'customer.subscription.deleted',
+  // Catalogue changes invalidate the cached product list at
+  // /system/stripe-products that the purchase pages read their prices from.
+  'product.created',
+  'product.updated',
+  'product.deleted',
+  'price.created',
+  'price.updated',
+  'price.deleted',
 ];
 
 type CliOptions = {

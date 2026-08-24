@@ -41,6 +41,11 @@ import {
 import { environment } from '../../environments/environment';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { PriceTableComponent } from '../price-table/price-table';
+import {
+  formatStripePrice,
+  tidyStripeLabel,
+} from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -59,6 +64,7 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    PriceTableComponent,
   ],
   templateUrl: './become-a-member.html',
   styleUrl: './become-a-member.scss',
@@ -93,10 +99,21 @@ export class BecomeAMemberComponent {
 
   isSpouseOptionSelected = computed(() => this.selectedOption() === 'life_spouse');
 
-  // Stripe product state
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  membershipProducts = signal<StripeProduct[]>([]);
+  // Stripe catalogue, read from the cached copy in DataManagerService so the
+  // rates are on screen before the visitor signs in.
+  productsLoading = this.dataService.stripeProductsLoading;
+  productsError = this.dataService.stripeProductsError;
+  membershipProducts = computed(() =>
+    this.dataService.stripeProducts().filter((p) => {
+      const titleLower = p.name.toLowerCase();
+      return (
+        p.active &&
+        (titleLower.includes('membership') ||
+          p.metadata?.['squarespace_categories']?.toLowerCase().includes('membership')) &&
+        p.prices.some((price) => price.active && price.unitAmount !== null)
+      );
+    }),
+  );
   selectedOption = signal<MembershipOptionType>('annual');
 
   // Checkout redirect state
@@ -239,34 +256,6 @@ export class BecomeAMemberComponent {
       m.membershipNextAutoRenewDate >= this.today()
     );
   });
-
-  constructor() {
-    void this.loadStripeProducts();
-  }
-
-  async loadStripeProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      const memProducts = products.filter((p) => {
-        const titleLower = p.name.toLowerCase();
-        return (
-          p.active &&
-          (titleLower.includes('membership') ||
-            p.metadata?.['squarespace_categories']?.toLowerCase().includes('membership')) &&
-          p.prices.some((price) => price.active && price.unitAmount !== null)
-        );
-      });
-      this.membershipProducts.set(memProducts);
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error ? err.message : 'Failed to load membership products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
-    }
-  }
 
   annualProduct = computed(() => {
     return (
@@ -561,6 +550,38 @@ export class BecomeAMemberComponent {
     };
   });
 
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Every rate, not just the applicable one
+  //
+  //  `applicableAnnualTier` and friends collapse a product down to the single
+  //  price this member qualifies for. The overview list instead has to name all
+  //  of them ("Regular $85.00/year; 65+ Senior $55.00/year"), which used to be
+  //  written out by hand in the template and could drift from the catalogue.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** "Regular $85.00/year; 65+ Senior $55.00/year" for one product. */
+  private tierSummaryOf(product: StripeProduct | null): string {
+    if (!product) return '';
+    return product.prices
+      .filter((p) => p.active && p.unitAmount !== null)
+      .map((p) => {
+        const label = tidyStripeLabel(p.nickname);
+        const amount = formatStripePrice(p);
+        return label ? `${label} ${amount}` : amount;
+      })
+      .join('; ');
+  }
+
+  annualTierSummary = computed(() => this.tierSummaryOf(this.annualProduct()));
+
+  lifeIndividualTierSummary = computed(() =>
+    this.tierSummaryOf(this.lifeIndividualOption().product),
+  );
+
+  lifeSpouseTierSummary = computed(() =>
+    this.tierSummaryOf(this.lifeSpouseOption().product),
+  );
+
   membershipOptions = computed(() => {
     const annual = this.applicableAnnualTier();
     const lifeInd = this.lifeIndividualOption();
@@ -635,24 +656,7 @@ export class BecomeAMemberComponent {
   });
 
   formatPrice(price: StripeProductPrice | null | undefined): string {
-    if (!price) return '';
-    const amount =
-      price.unitAmount === null
-        ? ''
-        : new Intl.NumberFormat(undefined, {
-            style: 'currency',
-            currency: price.currency.toUpperCase(),
-          }).format(price.unitAmount / 100);
-
-    if (price.type === 'recurring' && price.recurringInterval) {
-      const count = price.recurringIntervalCount ?? 1;
-      const interval =
-        count > 1
-          ? `${count} ${price.recurringInterval}s`
-          : price.recurringInterval;
-      return `${amount}/${interval}`;
-    }
-    return `${amount} one-time`;
+    return formatStripePrice(price);
   }
 
   // Profile save & Proceed to Stripe checkout

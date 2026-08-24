@@ -34,6 +34,9 @@ describe('BecomeAMemberComponent', () => {
   let mockDataManager: {
     countries: SearchableSet<'name', CountryCode>;
     updateMember: ReturnType<typeof vi.fn>;
+    stripeProducts: ReturnType<typeof signal<StripeProduct[]>>;
+    stripeProductsLoading: ReturnType<typeof signal<boolean>>;
+    stripeProductsError: ReturnType<typeof signal<string | null>>;
   };
 
   const sampleProducts: StripeProduct[] = [
@@ -192,6 +195,11 @@ describe('BecomeAMemberComponent', () => {
     };
 
     mockDataManager = {
+      // The catalogue now reaches the page through DataManagerService's
+      // cached copy rather than a per-page Stripe call.
+      stripeProducts: signal(sampleProducts),
+      stripeProductsLoading: signal(false),
+      stripeProductsError: signal<string | null>(null),
       countries: new SearchableSet<'name', CountryCode>(
         ['name', 'id'],
         'name',
@@ -503,6 +511,34 @@ describe('BecomeAMemberComponent', () => {
     // Clearing a required field must not strand the user further along.
     component.name.set('');
     expect(component.flow.current()).toBe(component.StepDetails);
+  });
+
+  it('should name every annual tier from Stripe rather than hardcoded prose', async () => {
+    await createComponent();
+
+    // The overview list used to spell these rates out in the template, where
+    // they could drift from the catalogue. They now come from the prices.
+    const summary = component.annualTierSummary();
+    expect(summary).toContain('Regular $85.00/year');
+    expect(summary).toContain('65+ Senior $55.00/year');
+    expect(summary).toContain('Under 21 $55.00/year');
+  });
+
+  it('should name every lifetime tier from Stripe', async () => {
+    await createComponent();
+
+    const summary = component.lifeIndividualTierSummary();
+    expect(summary).toContain('Senior $550.00 one-time');
+    expect(summary).toContain('Regular $850.00 one-time');
+  });
+
+  it('should quote no rates at all when the catalogue is unavailable', async () => {
+    mockDataManager.stripeProducts.set([]);
+    await createComponent();
+
+    // Better to say nothing than to show a stale figure someone typed in.
+    expect(component.annualTierSummary()).toBe('');
+    expect(component.lifeIndividualTierSummary()).toBe('');
   });
 
   it('should handle cancel auto renewal', async () => {

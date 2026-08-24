@@ -93,6 +93,13 @@
   </div>
 
   <!-- ── Guided flow: only the current step is expanded ── -->
+  <app-price-table
+    [products]="schoolProducts()"
+    [loading]="productsLoading()"
+    [error]="productsError()"
+    title="School Licence Fee"
+  ></app-price-table>
+
   <app-step-track
     [steps]="flow.steps()"
     [navigable]="true"
@@ -419,9 +426,6 @@
         } @else if (productsError()) {
           <div class="error-container">
             <span class="error-message">{{ productsError() }}</span>
-            <button class="icon-only-button" (click)="loadProducts()">
-              <app-icon name="refresh"></app-icon>
-            </button>
           </div>
         } @else if (selectedPrice(); as price) {
           <div class="membership-options-grid">

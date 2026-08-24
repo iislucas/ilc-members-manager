@@ -37,6 +37,9 @@ describe('NextGradingComponent', () => {
   let mockDataManager: {
     myGradings: { entries: ReturnType<typeof vi.fn> };
     requestGradingRetake: ReturnType<typeof vi.fn>;
+    stripeProducts: ReturnType<typeof signal<StripeProduct[]>>;
+    stripeProductsLoading: ReturnType<typeof signal<boolean>>;
+    stripeProductsError: ReturnType<typeof signal<string | null>>;
   };
 
   const sampleProducts: StripeProduct[] = [
@@ -149,6 +152,11 @@ describe('NextGradingComponent', () => {
     userSignal = signal<UserDetails | null>(sampleUser);
 
     mockDataManager = {
+      // The catalogue now reaches the page through DataManagerService's
+      // cached copy rather than a per-page Stripe call.
+      stripeProducts: signal(sampleProducts),
+      stripeProductsLoading: signal(false),
+      stripeProductsError: signal<string | null>(null),
       myGradings: {
         entries: vi.fn().mockReturnValue([]),
       },

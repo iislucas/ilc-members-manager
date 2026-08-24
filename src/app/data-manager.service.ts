@@ -81,6 +81,11 @@ import {
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
+import {
+  CachedStripeProducts,
+  ListStripeProductsResult,
+  StripeProduct,
+} from '../../functions/src/stripe-types';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -289,6 +294,12 @@ export class DataManagerService {
   public counters = signal<Counters | null>(null);
   public emailTemplates = signal<EmailTemplates | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
+
+  // The Stripe catalogue, cached at /system/stripe-products. Publicly readable
+  // so the purchase pages can show their prices before anyone signs in.
+  public stripeProducts = signal<StripeProduct[]>([]);
+  public stripeProductsLoading = signal(true);
+  public stripeProductsError = signal<string | null>(null);
   public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
@@ -430,6 +441,7 @@ export class DataManagerService {
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
     this.updateSystemTagsSync();
+    this.updateStripeProductsSync();
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
     effect(() => {
@@ -1167,6 +1179,61 @@ export class DataManagerService {
         this.countries.setError(error.message);
       }),
     );
+  }
+
+  /**
+   * Subscribe to the cached Stripe catalogue at /system/stripe-products.
+   *
+   * Set up unconditionally (not behind a signed-in user) because the purchase
+   * pages show their price structure to visitors who have not signed in.
+   * If the document is not there yet — a fresh deployment, before the first
+   * refresh has run — fall back once to the `listStripeProducts` callable so
+   * the pages still have prices regardless of deploy order.
+   */
+  async updateStripeProductsSync() {
+    const productsRef = doc(this.db, 'system', 'stripe-products');
+    this.snapshotsToUnsubscribe.push(
+      onSnapshot(
+        productsRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const cached = docSnap.data() as CachedStripeProducts;
+            this.stripeProducts.set(cached.products || []);
+            this.stripeProductsError.set(null);
+            this.stripeProductsLoading.set(false);
+          } else {
+            void this.loadStripeProductsFromCallable();
+          }
+        },
+        (error) => {
+          console.warn('Error fetching cached Stripe products:', error);
+          void this.loadStripeProductsFromCallable();
+        },
+      ),
+    );
+  }
+
+  /** Fallback path for when the cached catalogue document is unavailable. */
+  private async loadStripeProductsFromCallable(): Promise<void> {
+    try {
+      const fn = httpsCallable<void, ListStripeProductsResult>(
+        this.functions,
+        'listStripeProducts',
+      );
+      const result = await fn();
+      this.stripeProducts.set(result.data.products || []);
+      this.stripeProductsError.set(null);
+    } catch (err) {
+      // This message goes on a public page, so it says what the reader can do
+      // about it; the underlying code goes to the console for whoever is
+      // debugging it.
+      console.warn('Failed to load Stripe products:', err);
+      this.stripeProductsError.set(
+        'Prices are temporarily unavailable. Please try again shortly.',
+      );
+    } finally {
+      this.stripeProductsLoading.set(false);
+    }
   }
 
   async updateSystemTagsSync() {

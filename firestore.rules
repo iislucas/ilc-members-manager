@@ -213,6 +213,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Cached Stripe catalogue. Publicly readable: the purchase pages show
+    // their price structure to visitors who have not signed in yet.
+    match /system/stripe-products {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /system/deletions/{collectionName}/{document=**} {
       allow read: if (collectionName in ['instructors', 'schools', 'events']) || isAdmin();
       allow write: if isAdmin();

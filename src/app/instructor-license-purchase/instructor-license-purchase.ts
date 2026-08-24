@@ -26,11 +26,12 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { InstructorLicenseType, MembershipType } from '../../../functions/src/data-model';
 import {
   CheckoutSessionSummary,
-  StripeProduct,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { PriceTableComponent } from '../price-table/price-table';
+import { formatStripeAmount } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -45,6 +46,7 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    PriceTableComponent,
   ],
   templateUrl: './instructor-license-purchase.html',
   styleUrl: './instructor-license-purchase.scss',
@@ -61,9 +63,22 @@ export class InstructorLicensePurchaseComponent {
   user = this.firebaseService.user;
 
   // Stripe products loading
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  licenseProducts = signal<StripeProduct[]>([]);
+  // Stripe catalogue, read from the cached copy so the licence fee is on
+  // screen before the visitor signs in.
+  productsLoading = this.dataService.stripeProductsLoading;
+  productsError = this.dataService.stripeProductsError;
+  licenseProducts = computed(() =>
+    this.dataService.stripeProducts().filter((p) => {
+      const titleLower = p.name.toLowerCase();
+      return (
+        p.active &&
+        (titleLower.includes('instructor') ||
+          titleLower.includes('group leader') ||
+          (titleLower.includes('license') && !titleLower.includes('school'))) &&
+        p.prices.some((pr) => pr.active && pr.unitAmount !== null)
+      );
+    }),
+  );
 
   // Checkout redirecting
   isRedirecting = signal(false);
@@ -273,37 +288,12 @@ export class InstructorLicensePurchaseComponent {
   });
 
   constructor() {
-    void this.loadProducts();
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
     }
   }
 
-  async loadProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      const licProds = products.filter((p) => {
-        const titleLower = p.name.toLowerCase();
-        return (
-          p.active &&
-          (titleLower.includes('instructor') ||
-            titleLower.includes('group leader') ||
-            (titleLower.includes('license') && !titleLower.includes('school'))) &&
-          p.prices.some((pr) => pr.active && pr.unitAmount !== null)
-        );
-      });
-      this.licenseProducts.set(licProds);
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error ? err.message : 'Failed to load license products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
-    }
-  }
 
   async loadReturnSession(sessionId: string): Promise<void> {
     this.returnSessionLoading.set(true);
@@ -323,11 +313,7 @@ export class InstructorLicensePurchaseComponent {
   }
 
   formatPrice(unitAmount?: number | null, currency?: string | null): string {
-    if (unitAmount === null || unitAmount === undefined) return '';
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: (currency || 'usd').toUpperCase(),
-    }).format(unitAmount / 100);
+    return formatStripeAmount(unitAmount, currency);
   }
 
   async onPurchaseInstructorLicense(): Promise<void> {

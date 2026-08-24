@@ -24,11 +24,12 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import {
   CheckoutSessionSummary,
-  StripeProduct,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { PriceTableComponent } from '../price-table/price-table';
+import { formatStripeAmount } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -43,6 +44,7 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    PriceTableComponent,
   ],
   templateUrl: './class-video-library-purchase.html',
   styleUrl: './class-video-library-purchase.scss',
@@ -59,9 +61,20 @@ export class ClassVideoLibraryPurchaseComponent {
   user = this.firebaseService.user;
 
   // Stripe products loading
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  videoProducts = signal<StripeProduct[]>([]);
+  // Stripe catalogue, read from the cached copy so the subscription rate is
+  // on screen before the visitor signs in.
+  productsLoading = this.dataService.stripeProductsLoading;
+  productsError = this.dataService.stripeProductsError;
+  videoProducts = computed(() =>
+    this.dataService.stripeProducts().filter((p) => {
+      const titleLower = p.name.toLowerCase();
+      return (
+        p.active &&
+        (titleLower.includes('video') || titleLower.includes('library')) &&
+        p.prices.some((pr) => pr.active && pr.unitAmount !== null)
+      );
+    }),
+  );
 
   // Checkout redirecting
   isRedirecting = signal(false);
@@ -164,37 +177,12 @@ export class ClassVideoLibraryPurchaseComponent {
   });
 
   constructor() {
-    void this.loadProducts();
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
     }
   }
 
-  async loadProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      const vidProds = products.filter((p) => {
-        const titleLower = p.name.toLowerCase();
-        return (
-          p.active &&
-          (titleLower.includes('video') || titleLower.includes('library')) &&
-          p.prices.some((pr) => pr.active && pr.unitAmount !== null)
-        );
-      });
-      this.videoProducts.set(vidProds);
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load video library subscription products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
-    }
-  }
 
   async loadReturnSession(sessionId: string): Promise<void> {
     this.returnSessionLoading.set(true);
@@ -214,11 +202,7 @@ export class ClassVideoLibraryPurchaseComponent {
   }
 
   formatPrice(unitAmount?: number | null, currency?: string | null): string {
-    if (unitAmount === null || unitAmount === undefined) return '';
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: (currency || 'usd').toUpperCase(),
-    }).format(unitAmount / 100);
+    return formatStripeAmount(unitAmount, currency);
   }
 
   async onSubscribeVideoLibrary(): Promise<void> {

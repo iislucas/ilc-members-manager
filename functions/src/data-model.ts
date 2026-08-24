@@ -79,8 +79,15 @@ This document contains the sync timestamp for the squarespace orders poller.
 
 ## /system/cache-metadata : CacheMetadata
 
-Metadata about the content cache (events, blog posts). Tracks when each
-cache was last refreshed and the item counts.
+Metadata about the content cache (events, blog posts, Stripe catalogue).
+Tracks when each cache was last refreshed and the item counts.
+
+## /system/stripe-products : CachedStripeProducts
+
+The Stripe product catalogue, cached so the purchase pages can show their
+price structure without a Stripe round trip. Readable by anyone, including
+signed-out visitors deciding whether to buy. Written by the cache refresh
+functions.
 
 ## /events/{docId} : IlcEvent
 
@@ -2498,6 +2505,8 @@ export type CacheMetadata = {
   blogsItemCount: number;
   blogsLastSyncUpdated: number;   // items written (new or changed) in last sync
   blogsLastSyncRemoved: number;   // stale items pruned in last sync
+  stripeLastRefreshed: string;    // ISO date-time
+  stripeProductCount: number;
 };
 
 export function initCacheMetadata(): CacheMetadata {
@@ -2506,6 +2515,8 @@ export function initCacheMetadata(): CacheMetadata {
     blogsItemCount: 0,
     blogsLastSyncUpdated: 0,
     blogsLastSyncRemoved: 0,
+    stripeLastRefreshed: '',
+    stripeProductCount: 0,
   };
 }
 

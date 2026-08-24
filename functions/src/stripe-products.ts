@@ -12,11 +12,15 @@
 
 import Stripe from 'stripe';
 import { onCall } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
-import { allowedOrigins } from './common';
+import * as admin from 'firebase-admin';
+import { assertAdmin, allowedOrigins } from './common';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
+  CachedStripeProducts,
   ListStripeProductsResult,
+  StripeCacheSource,
   StripePriceType,
   StripeProduct,
   StripeProductPrice,
@@ -25,12 +29,17 @@ import {
 
 // Re-export the shared DTOs so existing importers of this module keep working.
 export {
+  CachedStripeProducts,
   ListStripeProductsResult,
+  StripeCacheSource,
   StripePriceType,
   StripeProduct,
   StripeProductPrice,
   StripeRecurringInterval,
 } from './stripe-types';
+
+/** Firestore location of the cached catalogue. */
+export const STRIPE_PRODUCTS_DOC = { collection: 'system', doc: 'stripe-products' };
 
 function mapPrice(price: Stripe.Price): StripeProductPrice {
   return {
@@ -113,4 +122,93 @@ export const listStripeProducts = onCall<
     count: result.products.length,
   });
   return result;
+});
+
+// ------------------------------------------------------------------
+// Firestore cache
+//
+// The purchase pages show their price structure before the visitor has
+// signed in, so the catalogue cannot sit behind a callable: it is cached
+// at /system/stripe-products and read straight from Firestore. The
+// catalogue changes a few times a year, so a scheduled refresh plus
+// webhook invalidation keeps it fresh at negligible cost.
+// ------------------------------------------------------------------
+
+/**
+ * Fetch the catalogue from Stripe and write it to /system/stripe-products,
+ * recording the refresh in /system/cache-metadata. Returns the snapshot
+ * written so callers can report on it.
+ */
+export async function refreshStripeProductCache(
+  stripe: Stripe,
+  db: admin.firestore.Firestore,
+  source: StripeCacheSource,
+): Promise<CachedStripeProducts> {
+  const { products } = await fetchStripeProducts(stripe);
+  const cached: CachedStripeProducts = {
+    products,
+    lastRefreshed: new Date().toISOString(),
+    source,
+  };
+
+  // The whole catalogue is replaced in one write, so readers never observe a
+  // half-updated price list.
+  await db
+    .collection(STRIPE_PRODUCTS_DOC.collection)
+    .doc(STRIPE_PRODUCTS_DOC.doc)
+    .set(cached);
+
+  await db
+    .collection('system')
+    .doc('cache-metadata')
+    .set(
+      {
+        stripeLastRefreshed: cached.lastRefreshed,
+        stripeProductCount: products.length,
+      },
+      { merge: true },
+    );
+
+  logger.info('Stripe product cache refreshed', {
+    source,
+    count: products.length,
+  });
+  return cached;
+}
+
+// Scheduled backstop: webhooks carry most refreshes, this catches anything
+// missed (a dropped delivery, a change made while the endpoint was down).
+export const refreshStripeProducts = onSchedule(
+  { schedule: 'every 6 hours', secrets: [stripeSecretKey] },
+  async () => {
+    try {
+      await refreshStripeProductCache(
+        getStripeClient(),
+        admin.firestore(),
+        StripeCacheSource.Schedule,
+      );
+    } catch (error) {
+      logger.error('Scheduled Stripe product cache refresh failed:', error);
+    }
+  },
+);
+
+// Admin-callable: refresh the catalogue on demand from the settings page.
+export const manualRefreshStripeProducts = onCall<
+  void,
+  Promise<{ success: boolean; productCount: number; lastRefreshed: string }>
+>({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async (request) => {
+  logger.info('manualRefreshStripeProducts called.');
+  await assertAdmin(request);
+
+  const cached = await refreshStripeProductCache(
+    getStripeClient(),
+    admin.firestore(),
+    StripeCacheSource.Manual,
+  );
+  return {
+    success: true,
+    productCount: cached.products.length,
+    lastRefreshed: cached.lastRefreshed,
+  };
 });
