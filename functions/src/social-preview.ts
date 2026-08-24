@@ -158,7 +158,8 @@ async function loadPreview(path: string, host: string): Promise<Preview | null> 
   if (route === 'events') {
     const db = admin.firestore();
     const byId = await db.collection('events').doc(id).get();
-    const data = byId.exists ? byId.data() : await firstWhere('events', 'sourceId', id);
+    if (!byId.exists) return null;
+    const data = byId.data();
     if (!data) return null;
     return buildEventPreview(data, host);
   }

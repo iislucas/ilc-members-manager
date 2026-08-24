@@ -13,6 +13,45 @@
   </button>
 </ng-template>
 
+<!-- The way out of a forgotten password, plus whatever the last reset attempt
+     had to say. Offered wherever a password is the obstacle: the sign-in step
+     always, and the create-account steps once we know the account exists. -->
+<ng-template #passwordResetOffer>
+  <p
+    class="help-text reset-password-offer"
+    [class.emphasised]="highlightPasswordReset()"
+  >
+    Forgotten your password?
+    <button
+      id="reset-password-btn"
+      class="inline-link-button"
+      [disabled]="resetPasswordSending()"
+      (click)="resetPassword()"
+    >
+      {{
+        resetPasswordSending() ? "Sending…" : "Email me a password reset link"
+      }}</button
+    >.
+  </p>
+  @if (resetPasswordSuccess(); as message) {
+    <div class="success-message">{{ message }}</div>
+  }
+  @if (resetPasswordError(); as message) {
+    <div class="error-container">
+      <span class="error-message">{{ message }}</span>
+    </div>
+  }
+</ng-template>
+
+<!-- Progress for an auth request in flight. It replaces only the messages and
+     the buttons of the current step, so the email and password the user typed
+     stay on screen and in place instead of the whole box blinking out. -->
+<ng-template #busySpinner>
+  <div class="spinner-row">
+    <app-spinner>{{ progressMessage() }}</app-spinner>
+  </div>
+</ng-template>
+
 @if (isLoggedIn()) {
   <div class="logged-in-box">
     <div class="user-info">
@@ -91,27 +130,26 @@
   </div>
 } @else {
   <div class="inline-auth-form">
-    @if (firebaseService.loginStatus() === LoginStatus.LoggingIn || authLoading()) {
-      <div class="spinner-row">
-        <app-spinner>{{ progressMessage() }}</app-spinner>
-      </div>
-    } @else {
-      @switch (step()) {
-        <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
-        @case (InlineAuthStep.Email) {
-          <div class="input-field">
-            <label for="email-input">Login with Email:</label>
-            <input
-              id="email-input"
-              autocomplete="email"
-              type="email"
-              name="email"
-              [ngModel]="email()"
-              (ngModelChange)="email.set($event)"
-              (keyup.enter)="checkEmail()"
-              placeholder="you@example.com"
-            />
-          </div>
+    @switch (step()) {
+      <!-- ──────────── STEP: ENTER EMAIL ──────────── -->
+      @case (InlineAuthStep.Email) {
+        <div class="input-field">
+          <label for="email-input">Login with Email:</label>
+          <input
+            id="email-input"
+            autocomplete="email"
+            type="email"
+            name="email"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)"
+            (keyup.enter)="checkEmail()"
+            [disabled]="busy()"
+            placeholder="you@example.com"
+          />
+        </div>
+        @if (busy()) {
+          <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
+        } @else {
           @if (checkEmailError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -130,18 +168,22 @@
             </button>
           </div>
         }
+      }
 
-        <!-- ──────────── STEP: CHECKING ──────────── -->
-        @case (InlineAuthStep.Checking) {
-          <div class="checking-step">
-            <app-spinner>Checking your email…</app-spinner>
-          </div>
-        }
+      <!-- ──────────── STEP: CHECKING ──────────── -->
+      @case (InlineAuthStep.Checking) {
+        <div class="checking-step">
+          <app-spinner>Checking your email…</app-spinner>
+        </div>
+      }
 
-        <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
-        @case (InlineAuthStep.GoogleSignin) {
-          <div class="google-signin-step">
-            <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+      <!-- ──────────── STEP: GOOGLE SIGN-IN ──────────── -->
+      @case (InlineAuthStep.GoogleSignin) {
+        <div class="google-signin-step">
+          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+          @if (busy()) {
+            <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
+          } @else {
             @if (loginWithGoogleError(); as message) {
               <div class="error-container">
                 <span class="error-message">{{ message }}</span>
@@ -169,39 +211,44 @@
                 {{ hasKnownAuthAccount() ? "Use a password" : "Set a password" }}
               </button>
             </div>
+          }
+        </div>
+      }
+
+      <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
+      @case (InlineAuthStep.PasswordLogin) {
+        <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+
+        <div class="input-field">
+          <label for="password-input">Password</label>
+          <div class="password-input-row">
+            <input
+              id="password-input"
+              autocomplete="current-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              (keyup.enter)="loginWithEmail()"
+              [disabled]="busy()"
+              placeholder="Password"
+            />
+            <button
+              class="icon-only-button"
+              type="button"
+              (click)="showPassword.set(!showPassword())"
+              [title]="showPassword() ? 'Hide password' : 'Show password'"
+            >
+              <app-icon
+                [name]="showPassword() ? 'visibility_off' : 'visibility'"
+              ></app-icon>
+            </button>
           </div>
-        }
+        </div>
 
-        <!-- ──────────── STEP: PASSWORD LOGIN ──────────── -->
-        @case (InlineAuthStep.PasswordLogin) {
-          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
-
-          <div class="input-field">
-            <label for="password-input">Password</label>
-            <div class="password-input-row">
-              <input
-                id="password-input"
-                autocomplete="current-password"
-                [type]="showPassword() ? 'text' : 'password'"
-                name="password"
-                [ngModel]="password()"
-                (ngModelChange)="password.set($event)"
-                (keyup.enter)="loginWithEmail()"
-                placeholder="Password"
-              />
-              <button
-                class="icon-only-button"
-                type="button"
-                (click)="showPassword.set(!showPassword())"
-                [title]="showPassword() ? 'Hide password' : 'Show password'"
-              >
-                <app-icon
-                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
-                ></app-icon>
-              </button>
-            </div>
-          </div>
-
+        @if (busy()) {
+          <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
+        } @else {
           @if (loginError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -210,21 +257,7 @@
               </button>
             </div>
           }
-          @if (invalidLoginCredentials()) {
-            <p class="help-text">
-              That password didn't work. Would you like to
-              <button class="inline-link-button" (click)="resetPassword()">
-                reset your password</button>?
-            </p>
-          }
-          @if (resetPasswordSuccess(); as message) {
-            <div class="success-message">{{ message }}</div>
-          }
-          @if (resetPasswordError(); as message) {
-            <div class="error-container">
-              <span class="error-message">{{ message }}</span>
-            </div>
-          }
+          <ng-container *ngTemplateOutlet="passwordResetOffer"></ng-container>
 
           <div class="step-actions">
             <button
@@ -248,46 +281,51 @@
             }
           </div>
         }
+      }
 
-        <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
-        @case (InlineAuthStep.CreateAccount) {
-          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+      <!-- ──────────── STEP: CREATE ACCOUNT ──────────── -->
+      @case (InlineAuthStep.CreateAccount) {
+        <ng-container *ngTemplateOutlet="emailChip"></ng-container>
 
-          <p class="step-guidance">
-            @if (emailStatus()?.hasMemberRecord) {
-              We found your membership record. Create a password to get started.
-            } @else {
-              Create a password to finish setting up your account (minimum 6
-              characters).
-            }
-          </p>
+        <p class="step-guidance">
+          @if (emailStatus()?.hasMemberRecord) {
+            We found your membership record. Create a password to get started.
+          } @else {
+            Create a password to finish setting up your account (minimum 6
+            characters).
+          }
+        </p>
 
-          <div class="input-field">
-            <label for="new-password-input">Password</label>
-            <div class="password-input-row">
-              <input
-                id="new-password-input"
-                autocomplete="new-password"
-                [type]="showPassword() ? 'text' : 'password'"
-                name="password"
-                [ngModel]="password()"
-                (ngModelChange)="password.set($event)"
-                (keyup.enter)="signupWithEmail()"
-                placeholder="Create a password (min. 6 characters)"
-              />
-              <button
-                class="icon-only-button"
-                type="button"
-                (click)="showPassword.set(!showPassword())"
-                [title]="showPassword() ? 'Hide password' : 'Show password'"
-              >
-                <app-icon
-                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
-                ></app-icon>
-              </button>
-            </div>
+        <div class="input-field">
+          <label for="new-password-input">Password</label>
+          <div class="password-input-row">
+            <input
+              id="new-password-input"
+              autocomplete="new-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              (keyup.enter)="signupWithEmail()"
+              [disabled]="busy()"
+              placeholder="Create a password (min. 6 characters)"
+            />
+            <button
+              class="icon-only-button"
+              type="button"
+              (click)="showPassword.set(!showPassword())"
+              [title]="showPassword() ? 'Hide password' : 'Show password'"
+            >
+              <app-icon
+                [name]="showPassword() ? 'visibility_off' : 'visibility'"
+              ></app-icon>
+            </button>
           </div>
+        </div>
 
+        @if (busy()) {
+          <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
+        } @else {
           @if (signupError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -295,6 +333,18 @@
                 <app-icon name="close"></app-icon>
               </button>
             </div>
+          }
+          <!-- "An account already exists" is only useful next to the two ways
+               of getting into it. -->
+          @if (signupFoundExistingAccount()) {
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="signInInstead()"
+            >
+              Sign in with your password
+            </button>
+            <ng-container *ngTemplateOutlet="passwordResetOffer"></ng-container>
           }
 
           <div class="step-actions">
@@ -307,41 +357,46 @@
             </button>
           </div>
         }
+      }
 
-        <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
-        @case (InlineAuthStep.GuestCreateAccount) {
-          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+      <!-- ──────────── STEP: GUEST CREATE ACCOUNT ──────────── -->
+      @case (InlineAuthStep.GuestCreateAccount) {
+        <ng-container *ngTemplateOutlet="emailChip"></ng-container>
 
-          <p class="step-guidance">
-            You are creating an account without a linked membership.
-          </p>
+        <p class="step-guidance">
+          You are creating an account without a linked membership.
+        </p>
 
-          <div class="input-field">
-            <label for="guest-password-input">Password</label>
-            <div class="password-input-row">
-              <input
-                id="guest-password-input"
-                autocomplete="new-password"
-                [type]="showPassword() ? 'text' : 'password'"
-                name="password"
-                [ngModel]="password()"
-                (ngModelChange)="password.set($event)"
-                (keyup.enter)="signupWithEmail()"
-                placeholder="Create a password (min. 6 characters)"
-              />
-              <button
-                class="icon-only-button"
-                type="button"
-                (click)="showPassword.set(!showPassword())"
-                [title]="showPassword() ? 'Hide password' : 'Show password'"
-              >
-                <app-icon
-                  [name]="showPassword() ? 'visibility_off' : 'visibility'"
-                ></app-icon>
-              </button>
-            </div>
+        <div class="input-field">
+          <label for="guest-password-input">Password</label>
+          <div class="password-input-row">
+            <input
+              id="guest-password-input"
+              autocomplete="new-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              name="password"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              (keyup.enter)="signupWithEmail()"
+              [disabled]="busy()"
+              placeholder="Create a password (min. 6 characters)"
+            />
+            <button
+              class="icon-only-button"
+              type="button"
+              (click)="showPassword.set(!showPassword())"
+              [title]="showPassword() ? 'Hide password' : 'Show password'"
+            >
+              <app-icon
+                [name]="showPassword() ? 'visibility_off' : 'visibility'"
+              ></app-icon>
+            </button>
           </div>
+        </div>
 
+        @if (busy()) {
+          <ng-container *ngTemplateOutlet="busySpinner"></ng-container>
+        } @else {
           @if (signupError(); as message) {
             <div class="error-container">
               <span class="error-message">{{ message }}</span>
@@ -349,6 +404,18 @@
                 <app-icon name="close"></app-icon>
               </button>
             </div>
+          }
+          <!-- "An account already exists" is only useful next to the two ways
+               of getting into it. -->
+          @if (signupFoundExistingAccount()) {
+            <button
+              type="button"
+              class="secondary-action"
+              (click)="signInInstead()"
+            >
+              Sign in with your password
+            </button>
+            <ng-container *ngTemplateOutlet="passwordResetOffer"></ng-container>
           }
 
           <div class="step-actions">
@@ -361,43 +428,43 @@
             </button>
           </div>
         }
+      }
 
-        <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
-        @case (InlineAuthStep.NoMember) {
-          <ng-container *ngTemplateOutlet="emailChip"></ng-container>
+      <!-- ──────────── STEP: NO MEMBER RECORD ──────────── -->
+      @case (InlineAuthStep.NoMember) {
+        <ng-container *ngTemplateOutlet="emailChip"></ng-container>
 
-          <div class="step-guidance">
-            <p>We don't have a membership record linked to this email.</p>
-            <p>
-              This could mean you used a different email address when
-              registering, or your membership hasn't been set up yet.
-            </p>
-          </div>
-          <div class="step-actions">
-            <button
-              id="become-member-btn"
-              (click)="routingService.navigateToParts(['become-a-member'])"
-            >
-              Become a Member
-            </button>
-            <button
-              id="create-guest-account-btn"
-              class="secondary-action"
-              (click)="step.set(InlineAuthStep.GuestCreateAccount)"
-            >
-              Create account without membership
-            </button>
-          </div>
-          <!-- After the actions: this is the path for someone who believes
-               they are already a member, not the expected next step. -->
-          <p class="step-guidance step-footnote">
-            If you think you already have an account, you can try another email,
-            or contact
-            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
-            for help. To help us verify your past membership, please include a
-            picture of your passbook.
+        <div class="step-guidance">
+          <p>We don't have a membership record linked to this email.</p>
+          <p>
+            This could mean you used a different email address when
+            registering, or your membership hasn't been set up yet.
           </p>
-        }
+        </div>
+        <div class="step-actions">
+          <button
+            id="become-member-btn"
+            (click)="routingService.navigateToParts(['become-a-member'])"
+          >
+            Become a Member
+          </button>
+          <button
+            id="create-guest-account-btn"
+            class="secondary-action"
+            (click)="step.set(InlineAuthStep.GuestCreateAccount)"
+          >
+            Create account without membership
+          </button>
+        </div>
+        <!-- After the actions: this is the path for someone who believes
+             they are already a member, not the expected next step. -->
+        <p class="step-guidance step-footnote">
+          If you think you already have an account, you can try another email,
+          or contact
+          <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>
+          for help. To help us verify your past membership, please include a
+          picture of your passbook.
+        </p>
       }
     }
 

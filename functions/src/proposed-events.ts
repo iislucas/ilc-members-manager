@@ -12,7 +12,7 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, EventSourceKind, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
+import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
@@ -266,7 +266,6 @@ export const submitProposedEvent = onCall(
       description: data.description || '',
       location: data.location || '',
       status: EventStatus.Proposed,
-      kind: EventSourceKind.FirebaseSourced,
       createdAt: new Date().toISOString(),
       ownerDocId,
       managerDocIds,
@@ -401,10 +400,6 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     logger.info(`Cleaning up ${removedUrls.length} removed document(s) for event ${event.params.docId}.`);
     await deleteStorageFiles(removedUrls);
   }
-  // Legacy events imported from Google Calendar before that sync was removed
-  // are left untouched; only app-authored events are processed here.
-  if (after.kind === EventSourceKind.CalendarSourced) return;
-
   const becameListed = before.status !== EventStatus.Listed && after.status === EventStatus.Listed;
   const contentFieldsChanged = contentChanged(
     before as unknown as Record<string, unknown>,

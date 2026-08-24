@@ -19,7 +19,7 @@
  *   carries a `lastUpdated` timestamp set only when content
  *   meaningfully changes.
  *
- *   Blog posts carry a `kind` field (e.g. 'squarespace') so that
+ *   Blog posts carry a `kind` field (BlogPostSourceKind) so that
  *   pruning only removes posts from the same source, allowing other
  *   kinds of posts to coexist safely in the same collection.
  *
@@ -40,7 +40,12 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
 import { assertAdmin, allowedOrigins } from './common';
-import { EventSourceKind, CachedBlogPost, CacheMetadata } from './data-model';
+import {
+  BlogPostSourceKind,
+  blogPostSourceKind,
+  CachedBlogPost,
+  CacheMetadata,
+} from './data-model';
 
 // Squarespace configuration
 const SQUARESPACE_BASE_URL = 'https://lute-denim-99n2.squarespace.com';
@@ -132,7 +137,7 @@ export function cleanAssetUrl(assetUrl: string | undefined, baseUrl: string): st
 
 // Map a raw Squarespace blog item (from their JSON API) to our lean
 // CachedBlogPost format. The `baseUrl` is used to resolve relative
-// asset/image URLs. Sets `kind` to 'squarespace' to identify the source.
+// asset/image URLs. Stamps `kind` with the source that produced it.
 // Note: `lastUpdated` is NOT set here — it is managed by the sync logic.
 export function mapToCachedBlogPost(
   item: Record<string, unknown>,
@@ -153,7 +158,7 @@ export function mapToCachedBlogPost(
     categories: (item.categories as string[]) || [],
     tags: (item.tags as string[]) || [],
     author: ((item.author as Record<string, unknown>)?.displayName as string) || '',
-    kind: 'squarespace',
+    kind: BlogPostSourceKind.Squarespace,
   };
 }
 
@@ -178,10 +183,25 @@ export function contentChanged(
   return false;
 }
 
+// Whether a stored blog post came from `source`, and is therefore that
+// source's to prune or clear. A post from any other source was authored
+// elsewhere and must be left alone.
+//
+// This is the single definition of "disposable" in this module: prune and
+// clearContentCache both go through it, so they cannot disagree about what is
+// safe to delete. An undefined `source` means the caller opted out entirely.
+function isFromSource(
+  data: Partial<Record<'kind', unknown>>,
+  source: BlogPostSourceKind | undefined,
+): boolean {
+  if (!source) return true;
+  return blogPostSourceKind(data) === source;
+}
+
 // Sync a Firestore collection with fresh source data using
 // upsert-and-prune. Firestore document IDs remain auto-generated;
 // items are matched by a designated source ID field within each
-// document (e.g. `sourceId` for calendar events, `id` for blog posts).
+// document (`id` for blog posts, the only content synced today).
 //
 //   1. Write items that are new or whose content has changed
 //      (bumping `lastUpdated` only on actual changes).
@@ -194,12 +214,13 @@ export function contentChanged(
 // field matches the filter (or have no `kind` at all, treating them
 // as legacy entries from the same source). This allows documents
 // from other sources to coexist safely in the same collection.
+
 async function syncCollection(
   db: admin.firestore.Firestore,
   collectionPath: string,
   freshItems: Record<string, unknown>[],
   sourceIdField: string,
-  options?: { kindFilter?: string },
+  options?: { kindFilter?: BlogPostSourceKind },
 ): Promise<SyncResult> {
   const colRef = db.collection(collectionPath);
   const now = new Date().toISOString();
@@ -244,7 +265,10 @@ async function syncCollection(
       const newData = freshMap.get(sourceId)!;
       const existing = existingBySourceId.get(sourceId);
 
-      if (existing && existing.data.kind === EventSourceKind.FirebaseSourced) {
+      if (
+        existing &&
+        blogPostSourceKind(existing.data) === BlogPostSourceKind.FirebaseSourced
+      ) {
         unchanged++;
         continue;
       }
@@ -276,27 +300,16 @@ async function syncCollection(
   for (const [sourceId, existing] of existingBySourceId) {
     if (freshMap.has(sourceId)) continue;
 
-    // If kindFilter is specified, only prune docs from the same source.
-    // Documents with no `kind` are treated as legacy entries from the
-    // filtered source (safe for initial migration).
-    if (options?.kindFilter) {
-      const docKind = existing.data.kind as string | undefined;
-      if (docKind && docKind !== options.kindFilter) {
-        continue; // Different source — leave untouched.
-      }
-    }
+    // Only prune docs from the same source; anything authored elsewhere is
+    // left untouched.
+    if (!isFromSource(existing.data, options?.kindFilter)) continue;
 
     staleIds.push(existing.docId);
   }
 
   // Legacy orphan docs without a source ID are also pruned (respecting kindFilter).
   for (const orphan of orphans) {
-    if (options?.kindFilter) {
-      const docKind = orphan.data.kind as string | undefined;
-      if (docKind && docKind !== options.kindFilter) {
-        continue;
-      }
-    }
+    if (!isFromSource(orphan.data, options?.kindFilter)) continue;
     staleIds.push(orphan.docId);
   }
 
@@ -314,26 +327,37 @@ async function syncCollection(
   return { total: freshMap.size, updated, removed, unchanged };
 }
 
-// Delete all documents in a collection. Used only by the explicit
+// Delete the cached documents in a collection. Used only by the explicit
 // "clear cache" admin action, not during normal sync.
+//
+// `kindFilter` names the source whose content is being cleared. Only documents
+// that source owns are deleted — posts authored elsewhere live in the same
+// collection and are not cache, so clearing the cache must not destroy them.
+// Returns the number deleted and the number left in place.
 async function deleteCollection(
   db: admin.firestore.Firestore,
   collectionPath: string,
-): Promise<number> {
+  kindFilter: BlogPostSourceKind,
+): Promise<{ deleted: number; kept: number }> {
   const colRef = db.collection(collectionPath);
-  const docs = await colRef.listDocuments();
+  // Read the documents rather than listDocuments(), because deciding what is
+  // disposable requires each document's `kind` field.
+  const snapshot = await colRef.get();
+  const disposable = snapshot.docs.filter((doc) =>
+    isFromSource(doc.data(), kindFilter),
+  );
   let deleted = 0;
 
-  for (let i = 0; i < docs.length; i += 400) {
+  for (let i = 0; i < disposable.length; i += 400) {
     const batch = db.batch();
-    const chunk = docs.slice(i, i + 400);
-    for (const docRef of chunk) {
-      batch.delete(docRef);
+    const chunk = disposable.slice(i, i + 400);
+    for (const doc of chunk) {
+      batch.delete(doc.ref);
     }
     await batch.commit();
     deleted += chunk.length;
   }
-  return deleted;
+  return { deleted, kept: snapshot.size - deleted };
 }
 
 // ------------------------------------------------------------------
@@ -368,7 +392,7 @@ async function refreshBlogCache(db: admin.firestore.Firestore): Promise<SyncResu
 
       // Sync with kindFilter so only squarespace-sourced posts are pruned.
       const result = await syncCollection(db, blogConfig.collection, freshItems, 'id', {
-        kindFilter: 'squarespace',
+        kindFilter: BlogPostSourceKind.Squarespace,
       });
 
       totalResult = {
@@ -470,10 +494,21 @@ export const clearContentCache = onCall(
     const collectionsToDelete = BLOG_CONFIGS.map((c) => c.collection);
 
     let totalDeleted = 0;
+    let totalKept = 0;
     for (const collection of collectionsToDelete) {
-      const deleted = await deleteCollection(db, collection);
+      // Scoped to Squarespace-sourced posts: these collections may also hold
+      // posts authored in the app, which are not cache and must survive.
+      const { deleted, kept } = await deleteCollection(
+        db,
+        collection,
+        BlogPostSourceKind.Squarespace,
+      );
       totalDeleted += deleted;
-      logger.info(`Cleared ${deleted} documents from ${collection}.`);
+      totalKept += kept;
+      logger.info(
+        `Cleared ${deleted} cached documents from ${collection} ` +
+          `(kept ${kept} authored).`,
+      );
     }
 
     await updateCacheMetadata(db, {
@@ -483,7 +518,10 @@ export const clearContentCache = onCall(
       blogsLastSyncRemoved: 0,
     });
 
-    logger.info(`Cache cleared: ${totalDeleted} total documents deleted.`);
-    return { success: true, deletedCount: totalDeleted };
+    logger.info(
+      `Cache cleared: ${totalDeleted} cached documents deleted, ` +
+        `${totalKept} authored documents kept.`,
+    );
+    return { success: true, deletedCount: totalDeleted, keptCount: totalKept };
   },
 );

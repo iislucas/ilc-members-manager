@@ -2219,13 +2219,6 @@ export function eventStatusLabel(status: EventStatus | undefined): string {
   }
 }
 
-// Event source kind — used by sync pruning so that calendar-sourced
-// events can be pruned without deleting Firebase-sourced events.
-export enum EventSourceKind {
-  CalendarSourced = 'calendar-sourced',
-  FirebaseSourced = 'firebase-sourced',
-}
-
 // A document attached to an event (e.g. flyer, schedule, waiver).
 export type EventDocument = {
   name: string;   // Display name for the document
@@ -2260,8 +2253,13 @@ export function initEventContact(): EventContact {
 }
 
 // A single unified event type. All events live in /events/{docId}.
-// Calendar-synced events have kind='calendar-sourced' and status='listed'.
-// Member-proposed events have kind='firebase-sourced' and status='proposed'.
+// Every event is authored in the app; member-proposed events start at
+// status='proposed'.
+//
+// Events predating the removal of the Google Calendar sync still carry a
+// `kind` field in Firestore ('calendar-sourced' or 'firebase-sourced'). It is
+// deliberately not modelled here: nothing reads it, and all events are now
+// treated identically regardless of how they originally arrived.
 export type IlcEvent = {
   docId: string;          // Firestore document ID (not stored in doc, added on read)
   title: string;
@@ -2275,11 +2273,8 @@ export type IlcEvent = {
   heroImageOriginalUrl?: string; // URL of the original uncropped image
   location: string;
   status: EventStatus;
-  // Google Calendar sync fields
-  sourceId?: string;       // Google Calendar event ID; used by sync for upsert matching
   googleMapsUrl?: string;
   googleCalEventLink?: string;
-  kind: EventSourceKind;  // used by sync pruning
   createdAt?: string;      // ISO date-time
   // The event creator (historically called the owner; the field names are kept).
   // `ownerDocId` is the member's Firestore doc ID and stays the authoritative
@@ -2327,7 +2322,6 @@ export function initEvent(): IlcEvent {
     heroImageThumbUrl: '',
     heroImageOriginalUrl: '',
     location: '',
-    kind: EventSourceKind.FirebaseSourced,
     status: EventStatus.Proposed,
     ownerDocId: '',
     ownerEmails: [],
@@ -2430,6 +2424,38 @@ export function eventContacts(event: EventContactFields): EventContact[] {
 // The `body` and `excerpt` fields contain pre-processed HTML where
 // Squarespace-specific quirks (lazy images, protocol-relative URLs,
 // video embeds) have already been resolved.
+// Which source wrote a blog post in /members-post or /instructors-post.
+//
+// The two collections mix cached and authored content, so this is what lets
+// the Squarespace sync tell them apart: it only prunes and clears posts it
+// wrote itself, leaving app-authored posts alone.
+export enum BlogPostSourceKind {
+  // Written in the app. Never pruned or cleared by the Squarespace sync.
+  FirebaseSourced = 'firebase-sourced',
+  // Mirrored from the Squarespace blog; regenerable on the next sync.
+  Squarespace = 'squarespace',
+}
+
+// Read a post's source kind from a raw Firestore document.
+//
+// This is the single place where an untyped stored value becomes a
+// BlogPostSourceKind, so CachedBlogPost.kind can be non-optional everywhere
+// else. Documents written before the field existed have no `kind`; they came
+// from the Squarespace sync, which is the only writer these collections had
+// at the time, so that is what they are reported as. An unrecognised value is
+// reported as FirebaseSourced: the sync must never delete content it cannot
+// identify.
+export function blogPostSourceKind(
+  data: Partial<Record<'kind', unknown>>,
+): BlogPostSourceKind {
+  if (data.kind === undefined || data.kind === null || data.kind === '') {
+    return BlogPostSourceKind.Squarespace;
+  }
+  return data.kind === BlogPostSourceKind.Squarespace
+    ? BlogPostSourceKind.Squarespace
+    : BlogPostSourceKind.FirebaseSourced;
+}
+
 export type CachedBlogPost = {
   id: string;            // Squarespace item ID
   urlId: string;         // URL-friendly slug for routing
@@ -2442,7 +2468,9 @@ export type CachedBlogPost = {
   categories: string[];
   tags: string[];
   author: string;        // display name
-  kind: string;          // source identifier, e.g. 'squarespace'
+  // Which source wrote this post. Always set; read stored documents through
+  // blogPostSourceKind so legacy documents without the field are normalised.
+  kind: BlogPostSourceKind;
   lastUpdated?: string;  // ISO date-time; managed by sync logic
 };
 
@@ -2459,7 +2487,8 @@ export function initCachedBlogPost(): CachedBlogPost {
     categories: [],
     tags: [],
     author: '',
-    kind: '',
+    // These collections had no other writer when the field was introduced.
+    kind: BlogPostSourceKind.Squarespace,
   };
 }
 

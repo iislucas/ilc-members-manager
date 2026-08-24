@@ -256,6 +256,16 @@
   margin: 0;
 }
 
+// The standing "forgotten your password?" offer. It is quiet until the sign-in
+// actually failed for a reason a reset would fix, at which point it becomes the
+// obvious next step rather than one more line of grey help text.
+.reset-password-offer {
+  &.emphasised {
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
 .success-message {
   color: #2e7d32;
   background-color: #e8f5e9;

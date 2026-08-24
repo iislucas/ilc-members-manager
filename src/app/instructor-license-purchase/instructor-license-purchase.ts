@@ -88,29 +88,17 @@ export class InstructorLicensePurchaseComponent {
   isLoggedIn = computed(() => !!this.user());
 
   // ── Guided flow. See step-flow.ts. Step 2 shows the licence status the user
-  //    should read before paying, so it waits for an explicit Continue. ──
+  //    should read, and the fee and payment button for it. ──
   readonly StepAccount = 1;
   readonly StepEligibility = 2;
-  readonly StepPayment = 3;
-
-  private eligibilityStepAcknowledged = signal(false);
 
   flow = new StepFlow(
     computed(() => {
       if (!this.isLoggedIn()) return this.StepAccount;
-      if (!this.isActiveMember()) return this.StepEligibility;
-      if (!this.isEligibleForLicense()) return this.StepEligibility;
-      if (!this.eligibilityStepAcknowledged()) return this.StepEligibility;
-      return this.StepPayment;
+      return this.StepEligibility;
     }),
-    ['Account', 'Eligibility', 'Payment'],
+    ['Account', 'Eligibility'],
   );
-
-  /** "Continue" on step 2: the user has read their status, move on to payment. */
-  continueFromEligibilityStep(): void {
-    this.eligibilityStepAcknowledged.set(true);
-    this.flow.resume();
-  }
 
   accountSummary = computed(() => {
     const u = this.user();

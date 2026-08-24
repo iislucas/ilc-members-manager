@@ -2,8 +2,8 @@
  *
  * Component for editing an event's details. Used by admins to edit
  * any event (both proposed and listed). Loads the event from Firestore
- * by docId or sourceId, then presents an edit form following the
- * same pattern as member-details.
+ * by docId, then presents an edit form following the same pattern as
+ * member-details.
  */
 
 import {
@@ -26,7 +26,7 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, EventSourceKind, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
@@ -1230,7 +1230,6 @@ export class EventEditComponent implements OnInit {
         schoolId: formData.schoolId,
         schoolDocId: formData.schoolDocId,
         documents: formData.documents,
-        kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
@@ -1251,7 +1250,6 @@ export class EventEditComponent implements OnInit {
         heroImageThumbUrl: formData.heroImageThumbUrl,
         heroImageOriginalUrl: formData.heroImageOriginalUrl,
         documents: formData.documents,
-        kind: EventSourceKind.FirebaseSourced,
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });

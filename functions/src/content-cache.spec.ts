@@ -5,6 +5,7 @@ import {
   mapToCachedBlogPost,
   contentChanged,
 } from './content-cache';
+import { BlogPostSourceKind, blogPostSourceKind } from './data-model';
 import {
   squarespaceBaseUrl,
   memberBlogItem,
@@ -282,5 +283,56 @@ describe('contentChanged', () => {
     const existing = { publishOn: 1000 };
     const incoming = { publishOn: 2000 };
     expect(contentChanged(existing, incoming)).toBe(true);
+  });
+});
+
+// ==================================================================
+// blogPostSourceKind
+// ==================================================================
+// This is the only place an untyped stored `kind` becomes a typed one, and it
+// decides what the sync may delete: prune, clearContentCache, and the backup's
+// cached/authored split all read through it. Getting it wrong either destroys
+// authored posts or silently omits them from backups, so the boundary is
+// pinned down here.
+describe('blogPostSourceKind', () => {
+  it('reads an explicit squarespace kind', () => {
+    expect(blogPostSourceKind({ kind: 'squarespace' }))
+      .toBe(BlogPostSourceKind.Squarespace);
+  });
+
+  it('reads an explicit firebase-sourced kind', () => {
+    expect(blogPostSourceKind({ kind: 'firebase-sourced' }))
+      .toBe(BlogPostSourceKind.FirebaseSourced);
+  });
+
+  it('treats a legacy post with no kind as squarespace-sourced', () => {
+    // These collections had no other writer before the field existed.
+    expect(blogPostSourceKind({})).toBe(BlogPostSourceKind.Squarespace);
+    expect(blogPostSourceKind({ kind: undefined }))
+      .toBe(BlogPostSourceKind.Squarespace);
+    expect(blogPostSourceKind({ kind: null }))
+      .toBe(BlogPostSourceKind.Squarespace);
+    expect(blogPostSourceKind({ kind: '' }))
+      .toBe(BlogPostSourceKind.Squarespace);
+  });
+
+  it('reports an unrecognised kind as firebase-sourced, so it is never deleted', () => {
+    expect(blogPostSourceKind({ kind: 'some-future-source' }))
+      .toBe(BlogPostSourceKind.FirebaseSourced);
+    expect(blogPostSourceKind({ kind: 42 }))
+      .toBe(BlogPostSourceKind.FirebaseSourced);
+  });
+
+  it('always returns a defined kind', () => {
+    for (const data of [{}, { kind: 'squarespace' }, { kind: 'nonsense' }]) {
+      expect(Object.values(BlogPostSourceKind)).toContain(blogPostSourceKind(data));
+    }
+  });
+});
+
+describe('mapToCachedBlogPost source kind', () => {
+  it('stamps posts it maps as squarespace-sourced', () => {
+    const post = mapToCachedBlogPost(memberBlogItem, squarespaceBaseUrl);
+    expect(post.kind).toBe(BlogPostSourceKind.Squarespace);
   });
 });

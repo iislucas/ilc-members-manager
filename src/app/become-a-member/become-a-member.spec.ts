@@ -480,18 +480,6 @@ describe('BecomeAMemberComponent', () => {
     expect(component.flow.stateOf(component.StepAccount)).toBe('done');
     expect(component.flow.stateOf(component.StepDetails)).toBe('done');
     expect(component.flow.stateOf(component.StepMembership)).toBe('current');
-    expect(component.flow.stateOf(component.StepPayment)).toBe('todo');
-  });
-
-  it('should not send the user to pay for a membership they never confirmed', async () => {
-    await createComponent();
-    // The annual option is preselected and valid on its own...
-    expect(component.membershipSelectionComplete()).toBe(true);
-    // ...but the payment step stays out of reach until it is confirmed.
-    expect(component.flow.current()).toBe(component.StepMembership);
-
-    component.continueFromMembershipStep();
-    expect(component.flow.current()).toBe(component.StepPayment);
   });
 
   it('should reopen an earlier step on request and step forward again', async () => {
@@ -524,8 +512,7 @@ describe('BecomeAMemberComponent', () => {
 
   it('should pull the user back when an earlier step stops being complete', async () => {
     await createComponent();
-    component.continueFromMembershipStep();
-    expect(component.flow.current()).toBe(component.StepPayment);
+    expect(component.flow.current()).toBe(component.StepMembership);
 
     // Clearing a required field must not strand the user further along.
     component.name.set('');

@@ -285,7 +285,7 @@
     <!-- Step 2: Instructor / Group Leader Qualifications & Status -->
     <app-step-card
       [number]="StepEligibility"
-      title="License Qualifications & Status"
+      title="License Qualifications &amp; Purchase"
       [state]="flow.stateOf(StepEligibility)"
       [expanded]="flow.current() === StepEligibility"
       (editRequested)="flow.goTo(StepEligibility)"
@@ -399,90 +399,67 @@
       }
 
       @if (isLoggedIn() && isActiveMember() && isEligibleForLicense()) {
-        <div class="step-footer">
-          <button
-            type="button"
-            class="next-btn"
-            (click)="continueFromEligibilityStep()"
-          >
-            <span>Continue</span>
-            <app-icon name="arrow_forward"></app-icon>
-          </button>
+        <div class="step-footer checkout">
+          @if (productsLoading()) {
+            <app-spinner>Loading license rates...</app-spinner>
+          } @else if (productsError()) {
+            <div class="error-container">
+              <span class="error-message">{{ productsError() }}</span>
+              <button class="icon-only-button" (click)="loadProducts()">
+                <app-icon name="refresh"></app-icon>
+              </button>
+            </div>
+          } @else if (selectedPrice(); as price) {
+            <div class="membership-options-grid">
+              <div class="option-card selected">
+                <div class="option-title">{{ productOptionTitle() }}</div>
+                <div class="rate-price">
+                  {{ formatPrice(price.unitAmount, price.currency) }} / year
+                </div>
+                <div class="rate-desc">
+                  {{ productOptionDescription() }}
+                </div>
+              </div>
+            </div>
+
+            <div class="checkout-section">
+              @if (checkoutError()) {
+                <div class="error-container">
+                  <span class="error-message">{{ checkoutError() }}</span>
+                  <button
+                    class="icon-only-button"
+                    (click)="checkoutError.set(null)"
+                  >
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
+              }
+
+              <div class="checkout-actions">
+                @if (isRedirecting()) {
+                  <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+                } @else {
+                  <button
+                    type="button"
+                    class="button pay-btn"
+                    (click)="onPurchaseInstructorLicense()"
+                  >
+                    <span>{{ checkoutButtonText() }}</span>
+                    <app-icon name="arrow_forward"></app-icon>
+                  </button>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty-notice">
+              <p>
+                License rates are currently being configured. Please check back
+                shortly.
+              </p>
+            </div>
+          }
         </div>
       }
-    </app-step-card>
-
-    <!-- Step 3: Annual License Fee & Checkout -->
-    <app-step-card
-      [number]="StepPayment"
-      [title]="
-        'Annual ' +
-        (isGroupLeaderTier() ? 'Group Leader' : 'Instructor') +
-        ' License'
-      "
-      [state]="flow.stateOf(StepPayment)"
-      [expanded]="flow.current() === StepPayment"
-      [editable]="false"
-    >
-
-        @if (productsLoading()) {
-          <app-spinner>Loading license rates...</app-spinner>
-        } @else if (productsError()) {
-          <div class="error-container">
-            <span class="error-message">{{ productsError() }}</span>
-            <button class="icon-only-button" (click)="loadProducts()">
-              <app-icon name="refresh"></app-icon>
-            </button>
-          </div>
-        } @else if (selectedPrice(); as price) {
-          <div class="membership-options-grid">
-            <div class="option-card selected">
-              <div class="option-title">{{ productOptionTitle() }}</div>
-              <div class="rate-price">
-                {{ formatPrice(price.unitAmount, price.currency) }} / year
-              </div>
-              <div class="rate-desc">
-                {{ productOptionDescription() }}
-              </div>
-            </div>
-          </div>
-
-          <div class="checkout-section">
-            @if (checkoutError()) {
-              <div class="error-container">
-                <span class="error-message">{{ checkoutError() }}</span>
-                <button
-                  class="icon-only-button"
-                  (click)="checkoutError.set(null)"
-                >
-                  <app-icon name="close"></app-icon>
-                </button>
-              </div>
-            }
-
-            <div class="checkout-actions">
-              @if (isRedirecting()) {
-                <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-              } @else {
-                <button
-                  type="button"
-                  class="button pay-btn"
-                  (click)="onPurchaseInstructorLicense()"
-                >
-                  <span>{{ checkoutButtonText() }}</span>
-                  <app-icon name="arrow_forward"></app-icon>
-                </button>
-              }
-            </div>
-          </div>
-        } @else {
-          <div class="empty-notice">
-            <p>
-              License rates are currently being configured. Please check back
-              shortly.
-            </p>
-          </div>
-        }
     </app-step-card>
   }
 </div>

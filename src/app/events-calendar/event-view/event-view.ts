@@ -1,7 +1,7 @@
 /* event-view.ts
  *
  * Component for viewing the full details of a single event.
- * Loads the event by sourceId or docId from the /events collection.
+ * Loads the event by docId from the /events collection.
  */
 
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';

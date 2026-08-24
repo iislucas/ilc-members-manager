@@ -6,7 +6,7 @@ import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { EventEditComponent } from './event-edit';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
-import { IlcEvent, EventStatus, EventSourceKind } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus } from '../../../functions/src/data-model';
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
@@ -129,7 +129,6 @@ describe('EventEditComponent', () => {
       expect.anything(),
       expect.objectContaining({
         heroImageUrl: 'http://example.com/image.jpg',
-        kind: EventSourceKind.FirebaseSourced
       })
     );
   });
@@ -565,7 +564,6 @@ describe('EventEditComponent', () => {
   it('does not render Kind or Doc ID fields at the bottom', async () => {
     await renderEvent({
       docId: 'test-doc-id',
-      kind: EventSourceKind.FirebaseSourced,
     });
 
     const labels = Array.from(fixture.nativeElement.querySelectorAll('label')).map(

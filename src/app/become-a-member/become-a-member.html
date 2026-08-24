@@ -291,10 +291,10 @@
       </div>
     </app-step-card>
 
-    <!-- Step 3: Choose Membership Option -->
+    <!-- Step 3: Choose a membership option and pay for it -->
     <app-step-card
       [number]="StepMembership"
-      title="Choose Membership Option"
+      title="Select and Purchase Membership"
       [state]="flow.stateOf(StepMembership)"
       [expanded]="flow.current() === StepMembership"
       (editRequested)="flow.goTo(StepMembership)"
@@ -432,67 +432,44 @@
           </div>
         }
 
-        <div class="step-footer">
+        <div class="step-footer checkout">
           @if (!membershipSelectionComplete()) {
             <p class="step-todo-hint">
               @if (isSpouseOptionSelected()) {
                 Your spouse's name, email and date of birth are needed before you
-                can continue.
+                can pay.
               } @else {
                 Choose a membership option to continue.
               }
             </p>
           }
-          <button
-            type="button"
-            class="next-btn"
-            [disabled]="!membershipSelectionComplete()"
-            (click)="continueFromMembershipStep()"
-          >
-            <span>Continue</span>
-            <app-icon name="arrow_forward"></app-icon>
-          </button>
-        </div>
-      }
-    </app-step-card>
 
-    <!-- Step 4: Checkout -->
-    <app-step-card
-      [number]="StepPayment"
-      title="Payment"
-      [state]="flow.stateOf(StepPayment)"
-      [expanded]="flow.current() === StepPayment"
-      [editable]="false"
-    >
-      @if (selectedOptionDetails(); as opt) {
-        <div class="payment-recap">
-          <div class="payment-recap-row">
-            <span class="payment-recap-label">{{ opt.title }}</span>
-            <span class="payment-recap-value">{{ formatPrice(opt.price) }}</span>
+          @if (checkoutError()) {
+            <div class="error-container">
+              <span class="error-message">{{ checkoutError() }}</span>
+              <button class="icon-only-button" (click)="checkoutError.set(null)">
+                <app-icon name="close"></app-icon>
+              </button>
+            </div>
+          }
+
+          <div class="checkout-actions">
+            @if (isRedirecting()) {
+              <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
+            } @else {
+              <button
+                type="button"
+                class="pay-btn"
+                [disabled]="!membershipSelectionComplete()"
+                (click)="onProceedToPayment()"
+              >
+                <app-icon name="link"></app-icon>
+                <span>Proceed to Secure Payment</span>
+              </button>
+            }
           </div>
-          <p class="payment-recap-note">{{ opt.note }}</p>
         </div>
       }
-
-      @if (checkoutError()) {
-        <div class="error-container">
-          <span class="error-message">{{ checkoutError() }}</span>
-          <button class="icon-only-button" (click)="checkoutError.set(null)">
-            <app-icon name="close"></app-icon>
-          </button>
-        </div>
-      }
-
-      <div class="checkout-actions">
-        @if (isRedirecting()) {
-          <app-spinner>Redirecting to secure Stripe Checkout…</app-spinner>
-        } @else {
-          <button type="button" class="pay-btn" (click)="onProceedToPayment()">
-            <app-icon name="link"></app-icon>
-            <span>Proceed to Secure Payment</span>
-          </button>
-        }
-      </div>
     </app-step-card>
   }
 </div>

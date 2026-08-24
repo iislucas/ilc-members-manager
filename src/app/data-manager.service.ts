@@ -977,17 +977,6 @@ export class DataManagerService {
       if (docSnap.exists()) {
         return { ...initEvent(), ...docSnap.data(), docId: docSnap.id } as IlcEvent;
       }
-
-      const q = query(
-        this.eventsCollection,
-        where('sourceId', '==', id)
-      );
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        const d = querySnap.docs[0];
-        return { ...initEvent(), ...d.data(), docId: d.id } as IlcEvent;
-      }
       return undefined;
     } catch (error) {
       console.error('Error getting event by ID:', error);
