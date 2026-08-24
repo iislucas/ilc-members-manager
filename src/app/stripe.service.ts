@@ -1,11 +1,15 @@
 /* stripe.service.ts
  *
  * Thin client wrapper around the Stripe cloud function callables used by the
- * purchase pages: creating checkout sessions, reading a session back, managing
- * subscription renewal, and fetching the catalogue when the cached copy at
- * /system/stripe-products is unavailable. Types are imported directly from the
+ * purchase pages: creating checkout sessions, reading a session back, and
+ * managing subscription renewal. Types are imported directly from the
  * functions package so the request/response shapes stay in sync with the
  * server.
+ *
+ * Note there is no method for listing products. The client reads prices from
+ * the cached catalogue at /system/stripe-products (see
+ * DataManagerService.stripeProducts); no endpoint will hand out the whole
+ * Stripe catalogue on request.
  */
 
 import { inject, Injectable } from '@angular/core';
@@ -20,7 +24,6 @@ import {
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
   GetCheckoutSessionRequest,
-  ListStripeProductsResult,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
 } from '../../functions/src/stripe-types';
@@ -29,20 +32,6 @@ import {
 export class StripeService {
   private firebaseService = inject(FirebaseStateService);
   private functions = getFunctions(this.firebaseService.app);
-
-  /**
-   * Fetch the catalogue of Stripe products with their prices, straight from
-   * Stripe. Prefer `DataManagerService.stripeProducts`, which reads the cached
-   * copy; this is its fallback for when that document is missing.
-   */
-  async listProducts(): Promise<ListStripeProductsResult> {
-    const fn = httpsCallable<void, ListStripeProductsResult>(
-      this.functions,
-      'listStripeProducts',
-    );
-    const result = await fn();
-    return result.data;
-  }
 
   /**
    * Create a hosted Stripe Checkout Session for the given price and return the

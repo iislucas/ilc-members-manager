@@ -23,7 +23,6 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
   let fixture: ComponentFixture<ClassVideoLibraryPurchaseComponent>;
   let component: ClassVideoLibraryPurchaseComponent;
   let mockStripeService: {
-    listProducts: ReturnType<typeof vi.fn>;
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
@@ -86,7 +85,6 @@ describe('ClassVideoLibraryPurchaseComponent', () => {
 
   beforeEach(async () => {
     mockStripeService = {
-      listProducts: vi.fn().mockResolvedValue({ products: sampleProducts }),
       createCheckoutSession: vi.fn().mockResolvedValue({
         checkoutUrl: 'https://checkout.stripe.com/pay/cs_test_video',
         sessionId: 'cs_test_video',

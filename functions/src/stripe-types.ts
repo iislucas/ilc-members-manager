@@ -65,7 +65,7 @@ export interface StripeProduct {
   prices: StripeProductPrice[];
 }
 
-/** Response returned by the `listStripeProducts` callable. */
+/** The mapped catalogue returned by `fetchStripeProducts`. */
 export interface ListStripeProductsResult {
   products: StripeProduct[];
 }
@@ -80,10 +80,10 @@ export enum StripeCacheSource {
 /**
  * The Stripe catalogue as cached at /system/stripe-products.
  *
- * The purchase pages read their price structure from here rather than calling
- * `listStripeProducts`, so prices render for signed-out visitors without a
- * Stripe round trip. Refreshed on a schedule and whenever Stripe reports a
- * product or price change.
+ * The purchase pages read their price structure from here, so prices render
+ * for signed-out visitors without a Stripe round trip — and no endpoint hands
+ * out the catalogue on demand. Refreshed on a schedule and whenever Stripe
+ * reports a product or price change.
  */
 export interface CachedStripeProducts {
   products: StripeProduct[];

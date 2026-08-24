@@ -29,7 +29,6 @@ describe('NextGradingComponent', () => {
   let fixture: ComponentFixture<NextGradingComponent>;
   let component: NextGradingComponent;
   let mockStripeService: {
-    listProducts: ReturnType<typeof vi.fn>;
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
   };
@@ -133,7 +132,6 @@ describe('NextGradingComponent', () => {
 
   beforeEach(async () => {
     mockStripeService = {
-      listProducts: vi.fn().mockResolvedValue({ products: sampleProducts }),
       createCheckoutSession: vi.fn().mockResolvedValue({
         checkoutUrl: 'https://checkout.stripe.com/pay/cs_test_grading',
         sessionId: 'cs_test_grading',

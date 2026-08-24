@@ -85,7 +85,6 @@ import {
   CachedStripeProducts,
   StripeProduct,
 } from '../../functions/src/stripe-types';
-import { StripeService } from './stripe.service';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -208,7 +207,6 @@ export class DataManagerService {
   private firebaseService = inject(FirebaseStateService);
   private findInstructorsService = inject(FindInstructorsService);
   private syncService = inject(IncrementalSyncService);
-  private stripeService = inject(StripeService);
   private db = getFirestore(this.firebaseService.app);
   private functions = getFunctions(this.firebaseService.app);
   private schoolsCollection = collection(this.db, 'schools');
@@ -1187,9 +1185,13 @@ export class DataManagerService {
    *
    * Set up unconditionally (not behind a signed-in user) because the purchase
    * pages show their price structure to visitors who have not signed in.
-   * If the document is not there yet — a fresh deployment, before the first
-   * refresh has run — fall back once to the `listStripeProducts` callable so
-   * the pages still have prices regardless of deploy order.
+   *
+   * This document is the only source of prices the client has — there is no
+   * callable to fall back on, deliberately, so that nothing can ask the server
+   * for the whole Stripe catalogue on demand. If it is missing, the purchase
+   * pages say so rather than quoting a price they cannot stand behind. An
+   * admin can repopulate it from Settings, and the scheduled refresh will do
+   * so on its own within a few hours.
    */
   async updateStripeProductsSync() {
     const productsRef = doc(this.db, 'system', 'stripe-products');
@@ -1201,37 +1203,29 @@ export class DataManagerService {
             const cached = docSnap.data() as CachedStripeProducts;
             this.stripeProducts.set(cached.products || []);
             this.stripeProductsError.set(null);
-            this.stripeProductsLoading.set(false);
           } else {
-            void this.loadStripeProductsFromCallable();
+            console.warn(
+              'No cached Stripe catalogue at /system/stripe-products.',
+            );
+            this.stripeProducts.set([]);
+            this.stripeProductsError.set(this.pricesUnavailableMessage);
           }
+          this.stripeProductsLoading.set(false);
         },
         (error) => {
+          // This message goes on a public page, so it says what the reader can
+          // do about it; the cause goes to the console for whoever is
+          // debugging it.
           console.warn('Error fetching cached Stripe products:', error);
-          void this.loadStripeProductsFromCallable();
+          this.stripeProductsError.set(this.pricesUnavailableMessage);
+          this.stripeProductsLoading.set(false);
         },
       ),
     );
   }
 
-  /** Fallback path for when the cached catalogue document is unavailable. */
-  private async loadStripeProductsFromCallable(): Promise<void> {
-    try {
-      const { products } = await this.stripeService.listProducts();
-      this.stripeProducts.set(products || []);
-      this.stripeProductsError.set(null);
-    } catch (err) {
-      // This message goes on a public page, so it says what the reader can do
-      // about it; the underlying code goes to the console for whoever is
-      // debugging it.
-      console.warn('Failed to load Stripe products:', err);
-      this.stripeProductsError.set(
-        'Prices are temporarily unavailable. Please try again shortly.',
-      );
-    } finally {
-      this.stripeProductsLoading.set(false);
-    }
-  }
+  private readonly pricesUnavailableMessage =
+    'Prices are temporarily unavailable. Please try again shortly.';
 
   async updateSystemTagsSync() {
     const tagsRef = doc(this.db, 'system', 'video-tags');

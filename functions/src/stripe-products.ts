@@ -1,10 +1,16 @@
 /**
- * Callable cloud function that returns the catalogue of Stripe products.
+ * Fetching the Stripe product catalogue and caching it for the client.
  *
  * It fetches every product from the connected Stripe account together with
- * their prices, and returns a plain, strongly-typed JSON structure (no `any`).
- * The raw Stripe objects are intentionally not returned — we map only the
- * fields the app needs into stable, self-documenting shapes.
+ * their prices, and maps them into a plain, strongly-typed JSON structure (no
+ * `any`). The raw Stripe objects are intentionally not returned — we map only
+ * the fields the app needs into stable, self-documenting shapes.
+ *
+ * There is deliberately no callable that hands the catalogue to the client on
+ * request: the client reads the cached copy at /system/stripe-products, so
+ * nothing can make the server enumerate Stripe's catalogue on demand. The
+ * cache is refreshed on a schedule and on Stripe product/price webhooks, and
+ * admins can force a refresh.
  *
  * The Stripe secret key is supplied at runtime via the STRIPE_SECRET_KEY
  * secret; the (non-secret) API version is pinned in environment.ts.
@@ -56,7 +62,7 @@ function mapPrice(price: Stripe.Price): StripeProductPrice {
 }
 
 /**
- * Core logic, decoupled from the callable wrapper so it can be unit/integration
+ * Core logic, decoupled from the cache wrapper so it can be unit/integration
  * tested directly with a Stripe client built from a test key.
  */
 export async function fetchStripeProducts(
@@ -112,26 +118,15 @@ export async function fetchStripeProducts(
   return { products: mapped };
 }
 
-export const listStripeProducts = onCall<
-  void,
-  Promise<ListStripeProductsResult>
->({ cors: allowedOrigins, secrets: [stripeSecretKey] }, async () => {
-  const stripe = getStripeClient();
-  const result = await fetchStripeProducts(stripe);
-  logger.info('listStripeProducts returned products', {
-    count: result.products.length,
-  });
-  return result;
-});
-
 // ------------------------------------------------------------------
 // Firestore cache
 //
 // The purchase pages show their price structure before the visitor has
 // signed in, so the catalogue cannot sit behind a callable: it is cached
-// at /system/stripe-products and read straight from Firestore. The
-// catalogue changes a few times a year, so a scheduled refresh plus
-// webhook invalidation keeps it fresh at negligible cost.
+// at /system/stripe-products and read straight from Firestore. That is
+// also the only way the client can see prices — nothing asks the server
+// to enumerate the catalogue. It changes a few times a year, so a
+// scheduled refresh plus webhook invalidation keeps it fresh cheaply.
 // ------------------------------------------------------------------
 
 /**

@@ -56,7 +56,6 @@ export { listResources, deleteResource, getResourceDownloadUrl } from './resourc
 export { socialPreview } from './social-preview';
 
 export {
-  listStripeProducts,
   refreshStripeProducts,
   manualRefreshStripeProducts,
 } from './stripe-products';
