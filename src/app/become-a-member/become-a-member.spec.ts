@@ -164,10 +164,6 @@ describe('BecomeAMemberComponent', () => {
 
   let mockFirebaseService: {
     user: typeof userSignal;
-    loginWithEmail: ReturnType<typeof vi.fn>;
-    signupWithEmail: ReturnType<typeof vi.fn>;
-    loginWithGoogle: ReturnType<typeof vi.fn>;
-    logout: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -193,10 +189,6 @@ describe('BecomeAMemberComponent', () => {
 
     mockFirebaseService = {
       user: userSignal,
-      loginWithEmail: vi.fn(),
-      signupWithEmail: vi.fn(),
-      loginWithGoogle: vi.fn(),
-      logout: vi.fn().mockResolvedValue({ success: true }),
     };
 
     mockDataManager = {
@@ -349,12 +341,6 @@ describe('BecomeAMemberComponent', () => {
     expect(component.lifeSpouseOption().badge).toBe('Senior Rate (65+)');
     expect(component.lifeSpouseOption().note).toContain('spouse’s date of birth');
     expect(component.selectedPriceId()).toBe('price_life_spouse_sen');
-  });
-
-  it('should handle logout click', async () => {
-    await createComponent();
-    await component.onLogout();
-    expect(mockFirebaseService.logout).toHaveBeenCalled();
   });
 
   it('should update member profile and initiate stripe checkout on proceed', async () => {
