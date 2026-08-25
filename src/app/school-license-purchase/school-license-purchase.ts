@@ -12,6 +12,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  linkedSignal,
   inject,
   signal,
 } from '@angular/core';
@@ -19,6 +20,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -30,11 +32,14 @@ import {
 } from '../../../functions/src/data-model';
 import {
   CheckoutSessionSummary,
-  StripeProduct,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import {
+  formatStripeAmount,
+  formatStripePrice,
+} from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -62,6 +67,7 @@ export type SchoolLicenseAction = 'renew' | 'new';
 export class SchoolLicensePurchaseComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -69,11 +75,30 @@ export class SchoolLicensePurchaseComponent {
   Views = Views;
   user = this.firebaseService.user;
 
-  // Stripe products loading
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  schoolProducts = signal<StripeProduct[]>([]);
-  selectedPriceId = signal<string | null>(null);
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // licence fee is on screen before the visitor signs in.
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
+  schoolProducts = computed(() =>
+    this.stripeProductsService.products().filter((p) => {
+      const titleLower = p.name.toLowerCase();
+      return (
+        p.active &&
+        titleLower.includes('school') &&
+        p.prices.some((pr) => pr.active && pr.unitAmount !== null)
+      );
+    }),
+  );
+
+  // Defaults to the first active licence price, and re-derives if the
+  // catalogue changes underneath it.
+  selectedPriceId = linkedSignal<string | null>(() => {
+    for (const prod of this.schoolProducts()) {
+      const pr = prod.prices.find((p) => p.active && p.unitAmount !== null);
+      if (pr) return pr.id;
+    }
+    return null;
+  });
 
   selectedPrice = computed<StripeProductPrice | null>(() => {
     const id = this.selectedPriceId();
@@ -216,8 +241,6 @@ export class SchoolLicensePurchaseComponent {
   });
 
   constructor() {
-    void this.loadProducts();
-
     // Auto-select first school if available
     const firstSchool = this.mySchools()[0];
     if (firstSchool) {
@@ -234,38 +257,6 @@ export class SchoolLicensePurchaseComponent {
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
-    }
-  }
-
-  async loadProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      const schProds = products.filter((p) => {
-        const titleLower = p.name.toLowerCase();
-        return (
-          p.active &&
-          titleLower.includes('school') &&
-          p.prices.some((pr) => pr.active && pr.unitAmount !== null)
-        );
-      });
-      this.schoolProducts.set(schProds);
-
-      // Select default price (e.g. yearly or first active)
-      for (const p of schProds) {
-        const pr = p.prices.find((pr) => pr.active && pr.unitAmount !== null);
-        if (pr) {
-          this.selectedPriceId.set(pr.id);
-          break;
-        }
-      }
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error ? err.message : 'Failed to load school license products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
     }
   }
 
@@ -287,31 +278,18 @@ export class SchoolLicensePurchaseComponent {
   }
 
   formatPrice(price: StripeProductPrice): string {
-    const amount =
-      price.unitAmount === null
-        ? ''
-        : new Intl.NumberFormat(undefined, {
-            style: 'currency',
-            currency: price.currency.toUpperCase(),
-          }).format(price.unitAmount / 100);
-
-    if (price.type === 'recurring' && price.recurringInterval) {
-      const count = price.recurringIntervalCount ?? 1;
-      const interval =
-        count > 1
-          ? `${count} ${price.recurringInterval}s`
-          : price.recurringInterval;
-      return `${amount} / ${interval}`;
-    }
-    return `${amount} one-time`;
+    return formatStripePrice(price);
   }
 
+  /**
+   * The licence fee, for the page subtitle. There is only one rate, so it
+   * belongs in the sentence describing what you get rather than in a table of
+   * its own.
+   */
+  headlinePrice = computed(() => formatStripePrice(this.selectedPrice()));
+
   formatAmount(unitAmount?: number | null, currency?: string | null): string {
-    if (unitAmount === null || unitAmount === undefined) return '';
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: (currency || 'usd').toUpperCase(),
-    }).format(unitAmount / 100);
+    return formatStripeAmount(unitAmount, currency);
   }
 
   isSchoolActive(school: School): boolean {

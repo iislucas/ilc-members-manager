@@ -1247,6 +1247,14 @@ button.menu-item {
   justify-content: flex-start;
 }
 
+// A single-rate page states its price in the subtitle rather than in a table.
+// It reads as part of that sentence, so it inherits the subtitle's colour and
+// weight and is set apart only by being italic.
+.headline-price {
+  font-style: italic;
+  white-space: nowrap;
+}
+
 .step-todo-hint {
   margin: 0;
   margin-right: auto;

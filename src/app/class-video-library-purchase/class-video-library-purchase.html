@@ -2,6 +2,9 @@
   <div class="page-header">
     <p class="subtitle">
       Access our curated collection of weekly online class recordings, guided drills, and special workshop highlights taught by Grandmaster Sam Chin and senior instructors.
+      @if (headlinePrice(); as fee) {
+        <span class="headline-price">{{ fee }}.</span>
+      }
     </p>
   </div>
 
@@ -211,9 +214,6 @@
               } @else if (productsError()) {
                 <div class="error-container">
                   <span class="error-message">{{ productsError() }}</span>
-                  <button class="icon-only-button" (click)="loadProducts()">
-                    <app-icon name="refresh"></app-icon>
-                  </button>
                 </div>
               } @else if (selectedPrice(); as price) {
                 <div class="membership-options-grid">
@@ -325,9 +325,6 @@
         } @else if (productsError()) {
           <div class="error-container">
             <span class="error-message">{{ productsError() }}</span>
-            <button class="icon-only-button" (click)="loadProducts()">
-              <app-icon name="refresh"></app-icon>
-            </button>
           </div>
         } @else if (selectedPrice(); as price) {
           <div class="membership-options-grid">

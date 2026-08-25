@@ -1,0 +1,104 @@
+@use "../../scss_variables" as v;
+
+:host {
+  display: block;
+}
+
+.price-table {
+  // .card lays its children out as a centred-ish column; the table wants the
+  // full width so the leader dots can reach the amounts.
+  align-items: stretch;
+  width: 100%;
+  gap: 0;
+}
+
+.price-table-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: v.$text-primary;
+}
+
+// Folded, this is a plain show/hide toggle like the ones elsewhere in the app:
+// .subtle-button supplies the transparent background, borderless frame and
+// hover, so nothing here reintroduces a card, a border or a shadow.
+.price-table-toggle {
+  .price-table-title {
+    font-weight: 500;
+  }
+}
+
+.price-table-count {
+  color: v.$text-muted;
+  font-size: 0.9em;
+}
+
+.price-table-body {
+  padding: 0 0.8rem 0.25rem;
+}
+
+.price-table-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: v.$text-muted;
+  line-height: 1.45;
+}
+
+// Only as wide as the longest "label — amount" pair needs, so the list reads
+// as a compact block rather than a rule stretched across the page.
+.price-rates {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.price-group {
+  margin-top: 1.25rem;
+
+  &:first-of-type {
+    margin-top: 0.85rem;
+  }
+}
+
+.price-group-header {
+  h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: v.$text-primary;
+  }
+}
+
+.price-rows {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font-size: 0.95rem;
+}
+
+.price-row-label {
+  color: v.$text-secondary;
+}
+
+// Leader dots carry the eye from a name to its figure. Their min-width sets
+// the gap — with the flanking 0.5em, the pair sits about 2em apart — and
+// because they only grow, the block still shrink-wraps to its content.
+.price-row-dots {
+  flex: 1 1 auto;
+  min-width: 1em;
+  align-self: center;
+  border-bottom: 1px dotted v.$border-color-light;
+}
+
+.price-row-amount {
+  color: v.$text-primary;
+  white-space: nowrap;
+}

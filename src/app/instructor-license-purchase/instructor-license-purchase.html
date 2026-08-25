@@ -4,6 +4,9 @@
       Maintain your certified teaching credentials, lead study groups, list
       classes, conduct workshops, and certify students within the Chin Family I
       Liq Chuan Association.
+      @if (headlinePrice(); as fee) {
+        <span class="headline-price">{{ fee }}.</span>
+      }
     </p>
   </div>
 
@@ -405,9 +408,6 @@
           } @else if (productsError()) {
             <div class="error-container">
               <span class="error-message">{{ productsError() }}</span>
-              <button class="icon-only-button" (click)="loadProducts()">
-                <app-icon name="refresh"></app-icon>
-              </button>
             </div>
           } @else if (selectedPrice(); as price) {
             <div class="membership-options-grid">

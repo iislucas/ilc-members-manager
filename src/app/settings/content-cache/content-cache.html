@@ -1,7 +1,7 @@
 <div class="control-panel">
   <div class="panel-header">
     <h2>Content Cache</h2>
-    <p class="subtitle">Manage cached blog posts from external sources</p>
+    <p class="subtitle">Manage content cached from external sources</p>
   </div>
 
   <!-- Cache Status -->
@@ -30,13 +30,29 @@
         </div>
       </div>
     </div>
+
+    <div class="status-card">
+      <div class="status-icon blogs-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"></line>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div class="status-details">
+        <h3>Stripe Catalogue</h3>
+        <div class="status-meta">
+          <span class="item-count">{{ metadata().stripeProductCount }} products</span>
+          <span class="refresh-time">Last refreshed: {{ formatDate(metadata().stripeLastRefreshed) }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="refresh-all-section">
     <button
       class="action-button primary-action"
       (click)="refreshBlogs()"
-      [disabled]="isRefreshing() || isClearing()"
+      [disabled]="isRefreshing() || isRefreshingStripe() || isClearing()"
     >
       @if (isRefreshing()) {
         <span class="button-spinner"></span> Refreshing...
@@ -45,9 +61,20 @@
       }
     </button>
     <button
+      class="action-button primary-action"
+      (click)="refreshStripeProducts()"
+      [disabled]="isRefreshing() || isRefreshingStripe() || isClearing()"
+    >
+      @if (isRefreshingStripe()) {
+        <span class="button-spinner"></span> Refreshing...
+      } @else {
+        Refresh Stripe Catalogue
+      }
+    </button>
+    <button
       class="action-button danger-action"
       (click)="clearCache()"
-      [disabled]="isRefreshing() || isClearing()"
+      [disabled]="isRefreshing() || isRefreshingStripe() || isClearing()"
     >
       @if (isClearing()) {
         <span class="button-spinner"></span> Clearing...
@@ -55,7 +82,11 @@
         Clear Blog Cache
       }
     </button>
-    <p class="helper-text">The cache is automatically refreshed every 30 minutes by a scheduled function.</p>
+    <p class="helper-text">
+      Blog posts refresh on a schedule. The Stripe catalogue refreshes every 6 hours
+      and immediately whenever a product or price changes in Stripe, so a manual
+      refresh is rarely needed.
+    </p>
   </div>
   }
 

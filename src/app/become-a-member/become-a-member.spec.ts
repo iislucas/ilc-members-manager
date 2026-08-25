@@ -10,6 +10,7 @@ import { BecomeAMemberComponent } from './become-a-member';
 import { StripeService } from '../stripe.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { initMember, MembershipType } from '../../../functions/src/data-model';
 import {
@@ -25,12 +26,16 @@ describe('BecomeAMemberComponent', () => {
   let fixture: ComponentFixture<BecomeAMemberComponent>;
   let component: BecomeAMemberComponent;
   let mockStripeService: {
-    listProducts: ReturnType<typeof vi.fn>;
     createCheckoutSession: ReturnType<typeof vi.fn>;
     cancelSubscriptionRenewal: ReturnType<typeof vi.fn>;
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let mockStripeProducts: {
+    products: ReturnType<typeof signal<StripeProduct[]>>;
+    loading: ReturnType<typeof signal<boolean>>;
+    error: ReturnType<typeof signal<string | null>>;
+  };
   let mockDataManager: {
     countries: SearchableSet<'name', CountryCode>;
     updateMember: ReturnType<typeof vi.fn>;
@@ -168,7 +173,6 @@ describe('BecomeAMemberComponent', () => {
 
   beforeEach(async () => {
     mockStripeService = {
-      listProducts: vi.fn().mockResolvedValue({ products: sampleProducts }),
       createCheckoutSession: vi.fn().mockResolvedValue({
         checkoutUrl: 'https://checkout.stripe.com/pay/cs_test_123',
         sessionId: 'cs_test_123',
@@ -189,6 +193,12 @@ describe('BecomeAMemberComponent', () => {
 
     mockFirebaseService = {
       user: userSignal,
+    };
+
+    mockStripeProducts = {
+      products: signal(sampleProducts),
+      loading: signal(false),
+      error: signal<string | null>(null),
     };
 
     mockDataManager = {
@@ -213,6 +223,12 @@ describe('BecomeAMemberComponent', () => {
           useValue: mockFirebaseService,
         },
         { provide: DataManagerService, useValue: mockDataManager },
+        {
+          // The catalogue loads only for pages that sell something, so it
+          // comes from StripeProductsService rather than DataManagerService.
+          provide: StripeProductsService,
+          useValue: mockStripeProducts,
+        },
         {
           provide: RoutingService,
           useValue: {
@@ -503,6 +519,34 @@ describe('BecomeAMemberComponent', () => {
     // Clearing a required field must not strand the user further along.
     component.name.set('');
     expect(component.flow.current()).toBe(component.StepDetails);
+  });
+
+  it('should name every annual tier from Stripe rather than hardcoded prose', async () => {
+    await createComponent();
+
+    // The overview list used to spell these rates out in the template, where
+    // they could drift from the catalogue. They now come from the prices.
+    const summary = component.annualTierSummary();
+    expect(summary).toContain('Regular $85.00/year');
+    expect(summary).toContain('65+ Senior $55.00/year');
+    expect(summary).toContain('Under 21 $55.00/year');
+  });
+
+  it('should name every lifetime tier from Stripe', async () => {
+    await createComponent();
+
+    const summary = component.lifeIndividualTierSummary();
+    expect(summary).toContain('Senior $550.00 one-time');
+    expect(summary).toContain('Regular $850.00 one-time');
+  });
+
+  it('should quote no rates at all when the catalogue is unavailable', async () => {
+    mockStripeProducts.products.set([]);
+    await createComponent();
+
+    // Better to say nothing than to show a stale figure someone typed in.
+    expect(component.annualTierSummary()).toBe('');
+    expect(component.lifeIndividualTierSummary()).toBe('');
   });
 
   it('should handle cancel auto renewal', async () => {

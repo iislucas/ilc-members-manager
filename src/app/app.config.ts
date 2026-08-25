@@ -67,7 +67,6 @@ export enum Views {
   DownloadResource = 'downloadResource',
   NotificationSettings = 'notificationSettings',
   Notifications = 'notifications',
-  Products = 'products',
   OrderComplete = 'orderComplete',
   MyOrders = 'myOrders',
   MyMaterials = 'myMaterials',
@@ -94,7 +93,6 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.ClassCalendarView,
   Views.SchoolCalendarView,
   Views.DownloadResource,
-  Views.Products,
   Views.OrderComplete,
   Views.Videos,
   Views.VideoView,
@@ -238,7 +236,6 @@ export const initPathPatterns = {
   [Views.DownloadResource]: pathPattern`resources/${pv('accessLevel')}/${pv('fileName')}`,
   // Standalone Stripe purchase flow. Intentionally not linked from the home
   // page or navigation — reachable directly via its URL.
-  [Views.Products]: pathPattern`products`,
   [Views.OrderComplete]: addUrlParams(pathPattern`order-complete`, [{ name: 'session_id', ephemeral: true }]),
   [Views.MyOrders]: addUrlParams(pathPattern`my-orders`, ['tab']),
   [Views.MyMaterials]: addUrlParams(pathPattern`my-materials`, [

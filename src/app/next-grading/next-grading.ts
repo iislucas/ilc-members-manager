@@ -18,6 +18,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -44,6 +45,8 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
+import { PriceTableComponent } from '../price-table/price-table';
+import { formatStripeAmount } from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -58,6 +61,7 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
+    PriceTableComponent,
   ],
   templateUrl: './next-grading.html',
   styleUrl: './next-grading.scss',
@@ -66,6 +70,7 @@ import { StepCardComponent } from '../step-card/step-card';
 export class NextGradingComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -73,10 +78,97 @@ export class NextGradingComponent {
   Views = Views;
   user = this.firebaseService.user;
 
-  // Stripe products loading
-  productsLoading = signal(true);
-  productsError = signal<string | null>(null);
-  allProducts = signal<StripeProduct[]>([]);
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // grading fees are on screen before the visitor signs in.
+  allProducts = this.stripeProductsService.products;
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
+
+  /**
+   * The rate for a grading the member can buy: on sale, and priced.
+   */
+  private static isSellable(price: StripeProductPrice): boolean {
+    return price.active && price.unitAmount !== null;
+  }
+
+  /**
+   * The catalogue names a rate "Student Level 4" or "Entry Level"; the syllabus
+   * calls the same things "Student 4" and "Student Entry". Translate so a rate
+   * can be checked against `gradingProgression`.
+   */
+  private static progressionEntryFor(nickname: string): string {
+    const name = (nickname || '').trim();
+    if (/^entry level$/i.test(name)) return 'Student Entry';
+
+    const numbered = /^(student|application)\s+level\s+(\d+)$/i.exec(name);
+    if (numbered) {
+      const track =
+        numbered[1].toLowerCase() === 'student' ? 'Student' : 'Application';
+      return `${track} ${numbered[2]}`;
+    }
+    return normalizeGradingLevel(name);
+  }
+
+  /** True when the rate is one of the syllabus levels rather than an extra. */
+  private static isSyllabusLevel(price: StripeProductPrice): boolean {
+    return gradingProgression.includes(
+      NextGradingComponent.progressionEntryFor(price.nickname || ''),
+    );
+  }
+
+  /**
+   * The grading fees, for the price breakdown above the flow.
+   *
+   * Grouped by what the reader is looking at rather than by how Stripe files
+   * it: the student and application levels are the syllabus, and anything else
+   * the catalogue carries — Meditation & Philosophy today, more later — is a
+   * grading you can take but not a rung on the ladder, so it is gathered under
+   * its own heading at the end. Display only; what a member actually buys is
+   * resolved by `matchingGradingPrice` from the full catalogue.
+   */
+  gradingProducts = computed<StripeProduct[]>(() => {
+    const gradingCatalogue = this.allProducts().filter(
+      (p) =>
+        p.active &&
+        p.name.toLowerCase().includes('grading') &&
+        p.prices.some(NextGradingComponent.isSellable),
+    );
+
+    const levelProducts: StripeProduct[] = [];
+    const additional: StripeProductPrice[] = [];
+
+    for (const product of gradingCatalogue) {
+      const sellable = product.prices.filter(NextGradingComponent.isSellable);
+      const levels = sellable.filter(NextGradingComponent.isSyllabusLevel);
+      additional.push(
+        ...sellable.filter((pr) => !NextGradingComponent.isSyllabusLevel(pr)),
+      );
+      if (levels.length) {
+        levelProducts.push({ ...product, prices: levels });
+      }
+    }
+
+    // Students work through the student levels before the application levels,
+    // so the fee schedule reads in that order. Stripe returns them in the
+    // order the products happened to be created.
+    levelProducts.sort(
+      (a, b) =>
+        Number(b.name.toLowerCase().includes('student')) -
+        Number(a.name.toLowerCase().includes('student')),
+    );
+
+    if (additional.length && gradingCatalogue[0]) {
+      levelProducts.push({
+        ...gradingCatalogue[0],
+        id: 'grading-additional',
+        name: 'GRADING : Additional Gradings',
+        description: null,
+        prices: additional,
+      });
+    }
+
+    return levelProducts;
+  });
 
   // Checkout redirecting
   isRedirecting = signal(false);
@@ -415,25 +507,9 @@ export class NextGradingComponent {
   });
 
   constructor() {
-    void this.loadProducts();
     const sId = this.sessionId();
     if (sId) {
       void this.loadReturnSession(sId);
-    }
-  }
-
-  async loadProducts(): Promise<void> {
-    this.productsLoading.set(true);
-    this.productsError.set(null);
-    try {
-      const { products } = await this.stripeService.listProducts();
-      this.allProducts.set(products);
-    } catch (err) {
-      this.productsError.set(
-        err instanceof Error ? err.message : 'Failed to load grading products.',
-      );
-    } finally {
-      this.productsLoading.set(false);
     }
   }
 
@@ -455,11 +531,7 @@ export class NextGradingComponent {
   }
 
   formatPrice(unitAmount?: number | null, currency?: string | null): string {
-    if (unitAmount === null || unitAmount === undefined) return '';
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: (currency || 'usd').toUpperCase(),
-    }).format(unitAmount / 100);
+    return formatStripeAmount(unitAmount, currency);
   }
 
   async onPurchaseNextGrading(): Promise<void> {

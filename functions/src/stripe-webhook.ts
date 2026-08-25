@@ -43,6 +43,8 @@ import {
   resolveMemberForStripeOrder,
   syncSubscriptionStatusToMember,
 } from './stripe-fulfillment';
+import { refreshStripeProductCache } from './stripe-products';
+import { StripeCacheSource } from './stripe-types';
 
 function unixSecondsToIso(seconds: number | null | undefined): string {
   return new Date((seconds ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
@@ -397,6 +399,21 @@ export const stripeWebhook = onRequest(
           await syncSubscriptionStatusToMember(db, sub);
           break;
         }
+        // A price edited in the Stripe dashboard must reach the purchase
+        // pages promptly, so any catalogue change re-caches it immediately.
+        // The scheduled refresh is only a backstop for missed deliveries.
+        case 'product.created':
+        case 'product.updated':
+        case 'product.deleted':
+        case 'price.created':
+        case 'price.updated':
+        case 'price.deleted':
+          await refreshStripeProductCache(
+            stripe,
+            db,
+            StripeCacheSource.Webhook,
+          );
+          break;
         default:
           // Acknowledge unhandled events so Stripe stops retrying them.
           break;

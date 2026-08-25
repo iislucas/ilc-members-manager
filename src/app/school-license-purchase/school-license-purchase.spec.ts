@@ -10,6 +10,7 @@ import { SchoolLicensePurchaseComponent } from './school-license-purchase';
 import { StripeService } from '../stripe.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import {
@@ -30,11 +31,15 @@ describe('SchoolLicensePurchaseComponent', () => {
   let fixture: ComponentFixture<SchoolLicensePurchaseComponent>;
   let component: SchoolLicensePurchaseComponent;
   let mockStripeService: {
-    listProducts: ReturnType<typeof vi.fn>;
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let mockStripeProducts: {
+    products: ReturnType<typeof signal<StripeProduct[]>>;
+    loading: ReturnType<typeof signal<boolean>>;
+    error: ReturnType<typeof signal<string | null>>;
+  };
   let mockDataManager: {
     schools: { entries: ReturnType<typeof vi.fn> };
     myOrders: { entries: ReturnType<typeof vi.fn> };
@@ -124,7 +129,6 @@ describe('SchoolLicensePurchaseComponent', () => {
 
   beforeEach(async () => {
     mockStripeService = {
-      listProducts: vi.fn().mockResolvedValue({ products: sampleProducts }),
       createCheckoutSession: vi.fn().mockResolvedValue({
         checkoutUrl: 'https://checkout.stripe.com/pay/cs_test_school',
         sessionId: 'cs_test_school',
@@ -141,6 +145,12 @@ describe('SchoolLicensePurchaseComponent', () => {
     };
 
     userSignal = signal<UserDetails | null>(sampleUser);
+
+    mockStripeProducts = {
+      products: signal(sampleProducts),
+      loading: signal(false),
+      error: signal<string | null>(null),
+    };
 
     mockDataManager = {
       schools: {
@@ -171,6 +181,12 @@ describe('SchoolLicensePurchaseComponent', () => {
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },
+        {
+          // The catalogue loads only for pages that sell something, so it
+          // comes from StripeProductsService rather than DataManagerService.
+          provide: StripeProductsService,
+          useValue: mockStripeProducts,
+        },
         {
           provide: RoutingService,
           useValue: {

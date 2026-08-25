@@ -28,6 +28,7 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
     metadataLoading = signal(true);
 
     isRefreshing = signal(false);
+    isRefreshingStripe = signal(false);
     isClearing = signal(false);
     resultMessage = signal('');
     errorMessage = signal('');
@@ -97,6 +98,30 @@ export class ContentCacheComponent implements OnInit, OnDestroy {
             this.errorMessage.set(`Cache refresh failed: ${msg}`);
         } finally {
             this.isRefreshing.set(false);
+        }
+    }
+
+    async refreshStripeProducts() {
+        this.isRefreshingStripe.set(true);
+        this.resultMessage.set('');
+        this.errorMessage.set('');
+
+        try {
+            const refreshFn = httpsCallable<
+                void,
+                { success: boolean; productCount: number; lastRefreshed: string }
+            >(this.functions, 'manualRefreshStripeProducts');
+
+            const result = await refreshFn();
+            this.resultMessage.set(
+                `Stripe catalogue synced: ${result.data.productCount} products.`,
+            );
+        } catch (error) {
+            console.error('Stripe catalogue refresh failed:', error);
+            const msg = error instanceof Error ? error.message : String(error);
+            this.errorMessage.set(`Stripe catalogue refresh failed: ${msg}`);
+        } finally {
+            this.isRefreshingStripe.set(false);
         }
     }
 

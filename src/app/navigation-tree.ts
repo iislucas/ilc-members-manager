@@ -238,7 +238,6 @@ export class NavigationTreeService {
       view === Views.InstructorLicensePurchase ||
       view === Views.SchoolLicensePurchase ||
       view === Views.ClassVideoLibraryPurchase ||
-      view === Views.Products ||
       view === Views.OrderComplete ||
       view === Views.MyEvents ||
       view === Views.MyEventView ||
@@ -409,7 +408,6 @@ export class NavigationTreeService {
       case Views.SchoolLicensePurchase:
       case Views.ClassVideoLibraryPurchase:
       case Views.NextGrading:
-      case Views.Products:
       case Views.OrderComplete:
         return [this.node(Views.MyOrders, 'Orders')];
 
@@ -680,8 +678,6 @@ export class NavigationTreeService {
         return 'Article';
       case Views.DownloadResource:
         return 'Download Resource';
-      case Views.Products:
-        return 'Products';
       case Views.OrderComplete:
         return 'Order Complete';
       case Views.BecomeAMember:

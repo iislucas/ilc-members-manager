@@ -10,6 +10,7 @@ import { NextGradingComponent } from './next-grading';
 import { StripeService } from '../stripe.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import {
@@ -29,11 +30,15 @@ describe('NextGradingComponent', () => {
   let fixture: ComponentFixture<NextGradingComponent>;
   let component: NextGradingComponent;
   let mockStripeService: {
-    listProducts: ReturnType<typeof vi.fn>;
     createCheckoutSession: ReturnType<typeof vi.fn>;
     getCheckoutSession: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let mockStripeProducts: {
+    products: ReturnType<typeof signal<StripeProduct[]>>;
+    loading: ReturnType<typeof signal<boolean>>;
+    error: ReturnType<typeof signal<string | null>>;
+  };
   let mockDataManager: {
     myGradings: { entries: ReturnType<typeof vi.fn> };
     requestGradingRetake: ReturnType<typeof vi.fn>;
@@ -96,6 +101,19 @@ describe('NextGradingComponent', () => {
           created: 1004,
         },
         {
+          // Filed under the student levels product in Stripe, but not a rung
+          // on the syllabus ladder.
+          id: 'price_meditation',
+          active: true,
+          currency: 'usd',
+          unitAmount: 10000,
+          type: StripePriceType.OneTime,
+          recurringInterval: null,
+          recurringIntervalCount: null,
+          nickname: 'Meditation & Philosophy',
+          created: 1005,
+        },
+        {
           id: 'price_app_1',
           active: true,
           currency: 'usd',
@@ -130,7 +148,6 @@ describe('NextGradingComponent', () => {
 
   beforeEach(async () => {
     mockStripeService = {
-      listProducts: vi.fn().mockResolvedValue({ products: sampleProducts }),
       createCheckoutSession: vi.fn().mockResolvedValue({
         checkoutUrl: 'https://checkout.stripe.com/pay/cs_test_grading',
         sessionId: 'cs_test_grading',
@@ -147,6 +164,12 @@ describe('NextGradingComponent', () => {
     };
 
     userSignal = signal<UserDetails | null>(sampleUser);
+
+    mockStripeProducts = {
+      products: signal(sampleProducts),
+      loading: signal(false),
+      error: signal<string | null>(null),
+    };
 
     mockDataManager = {
       myGradings: {
@@ -167,6 +190,12 @@ describe('NextGradingComponent', () => {
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },
+        {
+          // The catalogue loads only for pages that sell something, so it
+          // comes from StripeProductsService rather than DataManagerService.
+          provide: StripeProductsService,
+          useValue: mockStripeProducts,
+        },
         {
           provide: RoutingService,
           useValue: {
@@ -492,5 +521,29 @@ describe('NextGradingComponent', () => {
     forward!.click();
     fixture.detectChanges();
     expect(component.flow.current()).not.toBe(component.StepAccount);
+  });
+
+  it('should file gradings that are not syllabus levels under their own heading', async () => {
+    await createComponent();
+
+    const groups = component.gradingProducts().map((p) => p.name);
+    // Student levels first, then application levels, extras last.
+    expect(groups[groups.length - 1]).toBe('GRADING : Additional Gradings');
+
+    const additional = component.gradingProducts().find(
+      (p) => p.name === 'GRADING : Additional Gradings',
+    )!;
+    expect(additional.prices.map((pr) => pr.nickname)).toEqual([
+      'Meditation & Philosophy',
+    ]);
+
+    // The syllabus levels stay where they belong, and are not duplicated.
+    const studentLevels = component.gradingProducts().find((p) =>
+      p.name.toLowerCase().includes('student'),
+    )!;
+    const studentNicknames = studentLevels.prices.map((pr) => pr.nickname);
+    expect(studentNicknames).toContain('Entry Level');
+    expect(studentNicknames).toContain('Student Level 1');
+    expect(studentNicknames).not.toContain('Meditation & Philosophy');
   });
 });

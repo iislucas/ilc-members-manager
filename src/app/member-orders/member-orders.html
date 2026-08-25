@@ -184,10 +184,7 @@
               @if (sub.canSubscribe) {
                 <a
                   class="sub-btn renew-link"
-                  [href]="
-                    sub.subscribeUrl ||
-                    routingService.hrefForView(Views.Products)
-                  "
+                  [href]="sub.subscribeUrl"
                 >
                   Renew Now
                 </a>
