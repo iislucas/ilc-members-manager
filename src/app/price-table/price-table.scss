@@ -19,11 +19,47 @@
   color: v.$text-primary;
 }
 
+// A folded table is only a heading, so the whole heading is the control.
+.price-table-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+
+  &:hover .price-table-title {
+    color: v.$primary-color;
+  }
+}
+
+.price-table-toggle-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: v.$text-muted;
+}
+
+.price-table-count {
+  font-size: 0.85rem;
+}
+
 .price-table-note {
   margin: 0.35rem 0 0;
   font-size: 0.88rem;
   color: v.$text-muted;
   line-height: 1.45;
+}
+
+// Folded, the card is a single heading row and needs no inner spacing.
+.price-table.collapsible:not(:has(.price-group)) {
+  gap: 0;
 }
 
 .price-group {

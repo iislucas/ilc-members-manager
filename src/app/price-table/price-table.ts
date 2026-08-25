@@ -19,8 +19,15 @@
  *   ></app-price-table>
  */
 
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  signal,
+} from '@angular/core';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { IconComponent } from '../icons/icon.component';
 import { StripeProduct } from '../../../functions/src/stripe-types';
 import { formatStripePrice, tidyStripeLabel } from '../stripe-price-format';
 
@@ -50,7 +57,7 @@ const rateOrder = new Intl.Collator(undefined, {
 @Component({
   selector: 'app-price-table',
   standalone: true,
-  imports: [SpinnerComponent],
+  imports: [SpinnerComponent, IconComponent],
   templateUrl: './price-table.html',
   styleUrl: './price-table.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -91,6 +98,27 @@ export class PriceTableComponent {
       // A product whose prices were all filtered out would render as an empty
       // heading, which reads as something failing to load.
       .filter((group) => group.rows.length > 0),
+  );
+
+  /**
+   * Start folded, with the heading as the control that opens it. For a long
+   * rate card — the gradings run to 19 rows — the full list pushes the page's
+   * actual purpose off the screen, so it is offered rather than imposed.
+   */
+  collapsible = input(false);
+
+  private readonly userOpened = signal(false);
+
+  /** A non-collapsible table is simply always open. */
+  isOpen = computed(() => !this.collapsible() || this.userOpened());
+
+  toggle(): void {
+    this.userOpened.update((open) => !open);
+  }
+
+  /** How many rates the fold is hiding, so the closed state says what it holds. */
+  rateCount = computed(() =>
+    this.groups().reduce((total, group) => total + group.rows.length, 0),
   );
 
   /** True once loading finished and there is genuinely nothing to show. */

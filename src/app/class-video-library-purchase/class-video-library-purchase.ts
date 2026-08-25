@@ -24,12 +24,15 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import {
   CheckoutSessionSummary,
+  StripePriceType,
   StripeProductPrice,
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
-import { PriceTableComponent } from '../price-table/price-table';
-import { formatStripeAmount } from '../stripe-price-format';
+import {
+  formatStripeAmount,
+  formatStripePrice,
+} from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -44,7 +47,6 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
-    PriceTableComponent,
   ],
   templateUrl: './class-video-library-purchase.html',
   styleUrl: './class-video-library-purchase.scss',
@@ -65,13 +67,22 @@ export class ClassVideoLibraryPurchaseComponent {
   // on screen before the visitor signs in.
   productsLoading = this.dataService.stripeProductsLoading;
   productsError = this.dataService.stripeProductsError;
+  // Matching on 'video' alone also caught the one-off "I Liq Chuan 21 Form
+  // Instructional Video", whose $5.99 one-time price sat one Stripe creation
+  // date away from becoming what the Subscribe button charged. This page sells
+  // one thing: a recurring subscription to the library.
   videoProducts = computed(() =>
     this.dataService.stripeProducts().filter((p) => {
       const titleLower = p.name.toLowerCase();
       return (
         p.active &&
-        (titleLower.includes('video') || titleLower.includes('library')) &&
-        p.prices.some((pr) => pr.active && pr.unitAmount !== null)
+        titleLower.includes('library') &&
+        p.prices.some(
+          (pr) =>
+            pr.active &&
+            pr.unitAmount !== null &&
+            pr.type === StripePriceType.Recurring,
+        )
       );
     }),
   );
@@ -156,11 +167,25 @@ export class ClassVideoLibraryPurchaseComponent {
 
   selectedPrice = computed<StripeProductPrice | null>(() => {
     for (const prod of this.videoProducts()) {
-      const p = prod.prices.find((pr) => pr.active && pr.unitAmount !== null);
+      // Recurring only: a one-time price here would silently turn the
+      // subscription into a single charge.
+      const p = prod.prices.find(
+        (pr) =>
+          pr.active &&
+          pr.unitAmount !== null &&
+          pr.type === StripePriceType.Recurring,
+      );
       if (p) return p;
     }
     return null;
   });
+
+  /**
+   * The subscription rate, for the page subtitle. There is only one, so it
+   * belongs in the sentence describing what you get rather than in a table of
+   * its own.
+   */
+  headlinePrice = computed(() => formatStripePrice(this.selectedPrice()));
 
   // Recent video library order
   recentVideoOrder = computed(() => {

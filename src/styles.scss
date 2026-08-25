@@ -1247,6 +1247,12 @@ button.menu-item {
   justify-content: flex-start;
 }
 
+// A single-rate page states its price in the subtitle rather than in a table.
+.headline-price {
+  color: $primary-color;
+  white-space: nowrap;
+}
+
 .step-todo-hint {
   margin: 0;
   margin-right: auto;

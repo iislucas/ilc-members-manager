@@ -2,6 +2,9 @@
   <div class="page-header">
     <p class="subtitle">
       Establish and operate an official I Liq Chuan school, host certified group classes, list your branch publicly, and issue certificates.
+      @if (headlinePrice(); as fee) {
+        <strong class="headline-price">{{ fee }}.</strong>
+      }
     </p>
   </div>
 
@@ -93,13 +96,6 @@
   </div>
 
   <!-- ── Guided flow: only the current step is expanded ── -->
-  <app-price-table
-    [products]="schoolProducts()"
-    [loading]="productsLoading()"
-    [error]="productsError()"
-    title="School Licence Fee"
-  ></app-price-table>
-
   <app-step-track
     [steps]="flow.steps()"
     [navigable]="true"

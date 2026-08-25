@@ -10,28 +10,50 @@
     </div>
   </div>
 } @else if (!isEmpty()) {
-  <div class="price-table card">
-    <h2 class="price-table-title">{{ title() }}</h2>
-    @if (note()) {
-      <p class="price-table-note">{{ note() }}</p>
+  <div class="price-table card" [class.collapsible]="collapsible()">
+    @if (collapsible()) {
+      <button
+        type="button"
+        class="price-table-toggle"
+        [attr.aria-expanded]="isOpen()"
+        (click)="toggle()"
+      >
+        <span class="price-table-title">{{ title() }}</span>
+        <span class="price-table-toggle-hint">
+          @if (!isOpen()) {
+            <span class="price-table-count">{{ rateCount() }} rates</span>
+          }
+          <app-icon
+            [name]="isOpen() ? 'expand_less' : 'chevron_right'"
+          ></app-icon>
+        </span>
+      </button>
+    } @else {
+      <h2 class="price-table-title">{{ title() }}</h2>
     }
 
-    @for (group of groups(); track group.title) {
-      <div class="price-group">
-        <div class="price-group-header">
-          <h3>{{ group.title }}</h3>
-        </div>
+    @if (isOpen()) {
+      @if (note()) {
+        <p class="price-table-note">{{ note() }}</p>
+      }
 
-        <ul class="price-rows">
-          @for (row of group.rows; track row.label) {
-            <li class="price-row">
-              <span class="price-row-label">{{ row.label }}</span>
-              <span class="price-row-dots" aria-hidden="true"></span>
-              <span class="price-row-amount">{{ row.amount }}</span>
-            </li>
-          }
-        </ul>
-      </div>
+      @for (group of groups(); track group.title) {
+        <div class="price-group">
+          <div class="price-group-header">
+            <h3>{{ group.title }}</h3>
+          </div>
+
+          <ul class="price-rows">
+            @for (row of group.rows; track row.label) {
+              <li class="price-row">
+                <span class="price-row-label">{{ row.label }}</span>
+                <span class="price-row-dots" aria-hidden="true"></span>
+                <span class="price-row-amount">{{ row.amount }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
     }
   </div>
 }

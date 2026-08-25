@@ -2,6 +2,9 @@
   <div class="page-header">
     <p class="subtitle">
       Access our curated collection of weekly online class recordings, guided drills, and special workshop highlights taught by Grandmaster Sam Chin and senior instructors.
+      @if (headlinePrice(); as fee) {
+        <strong class="headline-price">{{ fee }}.</strong>
+      }
     </p>
   </div>
 
@@ -150,13 +153,6 @@
       </li>
     </ul>
   </div>
-
-  <app-price-table
-    [products]="videoProducts()"
-    [loading]="productsLoading()"
-    [error]="productsError()"
-    title="Subscription Rate"
-  ></app-price-table>
 
   @if (!hasActiveStripeSubscription()) {
     @if (hasVideoAccess()) {

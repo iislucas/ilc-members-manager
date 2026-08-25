@@ -30,8 +30,10 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
-import { PriceTableComponent } from '../price-table/price-table';
-import { formatStripeAmount } from '../stripe-price-format';
+import {
+  formatStripeAmount,
+  formatStripePrice,
+} from '../stripe-price-format';
 import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
@@ -46,7 +48,6 @@ import { StepCardComponent } from '../step-card/step-card';
     InlineAuthComponent,
     StepTrackComponent,
     StepCardComponent,
-    PriceTableComponent,
   ],
   templateUrl: './instructor-license-purchase.html',
   styleUrl: './instructor-license-purchase.scss',
@@ -315,6 +316,13 @@ export class InstructorLicensePurchaseComponent {
   formatPrice(unitAmount?: number | null, currency?: string | null): string {
     return formatStripeAmount(unitAmount, currency);
   }
+
+  /**
+   * The licence fee, for the page subtitle. There is only one rate, so it
+   * belongs in the sentence describing what you get rather than in a table of
+   * its own.
+   */
+  headlinePrice = computed(() => formatStripePrice(this.selectedPrice()));
 
   async onPurchaseInstructorLicense(): Promise<void> {
     const price = this.selectedPrice();

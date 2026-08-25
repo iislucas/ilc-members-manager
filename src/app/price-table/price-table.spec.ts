@@ -52,11 +52,16 @@ describe('PriceTableComponent', () => {
 
   function render(
     products: StripeProduct[],
-    opts: { loading?: boolean; error?: string | null } = {},
+    opts: {
+      loading?: boolean;
+      error?: string | null;
+      collapsible?: boolean;
+    } = {},
   ) {
     fixture.componentRef.setInput('products', products);
     fixture.componentRef.setInput('loading', opts.loading ?? false);
     fixture.componentRef.setInput('error', opts.error ?? null);
+    fixture.componentRef.setInput('collapsible', opts.collapsible ?? false);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -186,6 +191,33 @@ describe('PriceTableComponent', () => {
     ]);
 
     expect(el.textContent).not.toContain('Cultivate inner peace');
+  });
+
+  it('should start folded when collapsible, and open on click', () => {
+    const el = render(
+      [product({ prices: [price({ nickname: 'Regular' })] })],
+      { collapsible: true },
+    );
+
+    // Folded: the heading and a count of what is hidden, but no rates.
+    expect(el.querySelector('.price-row')).toBeNull();
+    const toggle = el.querySelector<HTMLButtonElement>('.price-table-toggle');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(el.querySelector('.price-table-count')?.textContent).toContain('1');
+
+    toggle!.click();
+    fixture.detectChanges();
+
+    expect(el.querySelectorAll('.price-row').length).toBe(1);
+    expect(
+      el.querySelector('.price-table-toggle')?.getAttribute('aria-expanded'),
+    ).toBe('true');
+  });
+
+  it('should stay open with no toggle when not collapsible', () => {
+    const el = render([product({ prices: [price({ nickname: 'Regular' })] })]);
+    expect(el.querySelector('.price-table-toggle')).toBeNull();
+    expect(el.querySelectorAll('.price-row').length).toBe(1);
   });
 
   it('should show a spinner while the catalogue is loading', () => {

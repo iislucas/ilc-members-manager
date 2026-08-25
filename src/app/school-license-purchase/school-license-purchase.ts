@@ -35,7 +35,6 @@ import {
 } from '../../../functions/src/stripe-types';
 
 import { InlineAuthComponent } from '../inline-auth/inline-auth.component';
-import { PriceTableComponent } from '../price-table/price-table';
 import {
   formatStripeAmount,
   formatStripePrice,
@@ -59,7 +58,6 @@ export type SchoolLicenseAction = 'renew' | 'new';
     AutocompleteComponent,
     StepTrackComponent,
     StepCardComponent,
-    PriceTableComponent,
   ],
   templateUrl: './school-license-purchase.html',
   styleUrl: './school-license-purchase.scss',
@@ -280,6 +278,13 @@ export class SchoolLicensePurchaseComponent {
   formatPrice(price: StripeProductPrice): string {
     return formatStripePrice(price);
   }
+
+  /**
+   * The licence fee, for the page subtitle. There is only one rate, so it
+   * belongs in the sentence describing what you get rather than in a table of
+   * its own.
+   */
+  headlinePrice = computed(() => formatStripePrice(this.selectedPrice()));
 
   formatAmount(unitAmount?: number | null, currency?: string | null): string {
     return formatStripeAmount(unitAmount, currency);
