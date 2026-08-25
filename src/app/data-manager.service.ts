@@ -81,10 +81,6 @@ import {
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';
-import {
-  CachedStripeProducts,
-  StripeProduct,
-} from '../../functions/src/stripe-types';
 import * as Papa from 'papaparse';
 import { SearchableSet } from './searchable-set';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -293,12 +289,6 @@ export class DataManagerService {
   public counters = signal<Counters | null>(null);
   public emailTemplates = signal<EmailTemplates | null>(null);
   public countries = new SearchableSet<'id', CountryCode>(['name', 'id'], 'id');
-
-  // The Stripe catalogue, cached at /system/stripe-products. Publicly readable
-  // so the purchase pages can show their prices before anyone signs in.
-  public stripeProducts = signal<StripeProduct[]>([]);
-  public stripeProductsLoading = signal(true);
-  public stripeProductsError = signal<string | null>(null);
   public gradings = new SearchableSet<'docId', Grading>(
     ['studentMemberId', 'gradingInstructorId', 'schoolId', 'status', 'level', 'notes', 'gradingEvent'],
     'docId',
@@ -440,7 +430,6 @@ export class DataManagerService {
     // 2. Setup public system listeners
     this.updateCountryCodesSync();
     this.updateSystemTagsSync();
-    this.updateStripeProductsSync();
 
     // 3. Reactively sync user-dependent collections whenever authenticated user changes
     effect(() => {
@@ -1179,53 +1168,6 @@ export class DataManagerService {
       }),
     );
   }
-
-  /**
-   * Subscribe to the cached Stripe catalogue at /system/stripe-products.
-   *
-   * Set up unconditionally (not behind a signed-in user) because the purchase
-   * pages show their price structure to visitors who have not signed in.
-   *
-   * This document is the only source of prices the client has — there is no
-   * callable to fall back on, deliberately, so that nothing can ask the server
-   * for the whole Stripe catalogue on demand. If it is missing, the purchase
-   * pages say so rather than quoting a price they cannot stand behind. An
-   * admin can repopulate it from Settings, and the scheduled refresh will do
-   * so on its own within a few hours.
-   */
-  async updateStripeProductsSync() {
-    const productsRef = doc(this.db, 'system', 'stripe-products');
-    this.snapshotsToUnsubscribe.push(
-      onSnapshot(
-        productsRef,
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const cached = docSnap.data() as CachedStripeProducts;
-            this.stripeProducts.set(cached.products || []);
-            this.stripeProductsError.set(null);
-          } else {
-            console.warn(
-              'No cached Stripe catalogue at /system/stripe-products.',
-            );
-            this.stripeProducts.set([]);
-            this.stripeProductsError.set(this.pricesUnavailableMessage);
-          }
-          this.stripeProductsLoading.set(false);
-        },
-        (error) => {
-          // This message goes on a public page, so it says what the reader can
-          // do about it; the cause goes to the console for whoever is
-          // debugging it.
-          console.warn('Error fetching cached Stripe products:', error);
-          this.stripeProductsError.set(this.pricesUnavailableMessage);
-          this.stripeProductsLoading.set(false);
-        },
-      ),
-    );
-  }
-
-  private readonly pricesUnavailableMessage =
-    'Prices are temporarily unavailable. Please try again shortly.';
 
   async updateSystemTagsSync() {
     const tagsRef = doc(this.db, 'system', 'video-tags');

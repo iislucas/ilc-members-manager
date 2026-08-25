@@ -10,6 +10,7 @@ import { InstructorLicensePurchaseComponent } from './instructor-license-purchas
 import { StripeService } from '../stripe.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
 import {
@@ -34,11 +35,13 @@ describe('InstructorLicensePurchaseComponent', () => {
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let mockStripeProducts: {
+    products: ReturnType<typeof signal<StripeProduct[]>>;
+    loading: ReturnType<typeof signal<boolean>>;
+    error: ReturnType<typeof signal<string | null>>;
+  };
   let mockDataManager: {
     myOrders: { entries: ReturnType<typeof vi.fn> };
-    stripeProducts: ReturnType<typeof signal<StripeProduct[]>>;
-    stripeProductsLoading: ReturnType<typeof signal<boolean>>;
-    stripeProductsError: ReturnType<typeof signal<string | null>>;
   };
 
   const sampleProducts: StripeProduct[] = [
@@ -120,12 +123,13 @@ describe('InstructorLicensePurchaseComponent', () => {
 
     userSignal = signal<UserDetails | null>(sampleUser);
 
+    mockStripeProducts = {
+      products: signal(sampleProducts),
+      loading: signal(false),
+      error: signal<string | null>(null),
+    };
+
     mockDataManager = {
-      // The catalogue now reaches the page through DataManagerService's
-      // cached copy rather than a per-page Stripe call.
-      stripeProducts: signal(sampleProducts),
-      stripeProductsLoading: signal(false),
-      stripeProductsError: signal<string | null>(null),
       myOrders: {
         entries: vi.fn().mockReturnValue([]),
       },
@@ -143,6 +147,12 @@ describe('InstructorLicensePurchaseComponent', () => {
           },
         },
         { provide: DataManagerService, useValue: mockDataManager },
+        {
+          // The catalogue loads only for pages that sell something, so it
+          // comes from StripeProductsService rather than DataManagerService.
+          provide: StripeProductsService,
+          useValue: mockStripeProducts,
+        },
         {
           provide: RoutingService,
           useValue: {

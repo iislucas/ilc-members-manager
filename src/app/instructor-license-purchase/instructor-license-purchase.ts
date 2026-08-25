@@ -18,6 +18,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -56,6 +57,7 @@ import { StepCardComponent } from '../step-card/step-card';
 export class InstructorLicensePurchaseComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -64,12 +66,12 @@ export class InstructorLicensePurchaseComponent {
   user = this.firebaseService.user;
 
   // Stripe products loading
-  // Stripe catalogue, read from the cached copy so the licence fee is on
-  // screen before the visitor signs in.
-  productsLoading = this.dataService.stripeProductsLoading;
-  productsError = this.dataService.stripeProductsError;
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // licence fee is on screen before the visitor signs in.
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
   licenseProducts = computed(() =>
-    this.dataService.stripeProducts().filter((p) => {
+    this.stripeProductsService.products().filter((p) => {
       const titleLower = p.name.toLowerCase();
       return (
         p.active &&

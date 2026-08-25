@@ -27,6 +27,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -73,6 +74,7 @@ export type MembershipOptionType = 'annual' | 'life_individual' | 'life_spouse';
 export class BecomeAMemberComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -99,12 +101,13 @@ export class BecomeAMemberComponent {
 
   isSpouseOptionSelected = computed(() => this.selectedOption() === 'life_spouse');
 
-  // Stripe catalogue, read from the cached copy in DataManagerService so the
-  // rates are on screen before the visitor signs in.
-  productsLoading = this.dataService.stripeProductsLoading;
-  productsError = this.dataService.stripeProductsError;
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // rates are on screen before the visitor signs in, and sessions that never
+  // reach this page never pay for it.
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
   membershipProducts = computed(() =>
-    this.dataService.stripeProducts().filter((p) => {
+    this.stripeProductsService.products().filter((p) => {
       const titleLower = p.name.toLowerCase();
       return (
         p.active &&

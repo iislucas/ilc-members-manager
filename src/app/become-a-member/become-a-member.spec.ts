@@ -10,6 +10,7 @@ import { BecomeAMemberComponent } from './become-a-member';
 import { StripeService } from '../stripe.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { initMember, MembershipType } from '../../../functions/src/data-model';
 import {
@@ -30,12 +31,14 @@ describe('BecomeAMemberComponent', () => {
     resumeSubscriptionRenewal: ReturnType<typeof vi.fn>;
   };
   let userSignal: ReturnType<typeof signal<UserDetails | null>>;
+  let mockStripeProducts: {
+    products: ReturnType<typeof signal<StripeProduct[]>>;
+    loading: ReturnType<typeof signal<boolean>>;
+    error: ReturnType<typeof signal<string | null>>;
+  };
   let mockDataManager: {
     countries: SearchableSet<'name', CountryCode>;
     updateMember: ReturnType<typeof vi.fn>;
-    stripeProducts: ReturnType<typeof signal<StripeProduct[]>>;
-    stripeProductsLoading: ReturnType<typeof signal<boolean>>;
-    stripeProductsError: ReturnType<typeof signal<string | null>>;
   };
 
   const sampleProducts: StripeProduct[] = [
@@ -192,12 +195,13 @@ describe('BecomeAMemberComponent', () => {
       user: userSignal,
     };
 
+    mockStripeProducts = {
+      products: signal(sampleProducts),
+      loading: signal(false),
+      error: signal<string | null>(null),
+    };
+
     mockDataManager = {
-      // The catalogue now reaches the page through DataManagerService's
-      // cached copy rather than a per-page Stripe call.
-      stripeProducts: signal(sampleProducts),
-      stripeProductsLoading: signal(false),
-      stripeProductsError: signal<string | null>(null),
       countries: new SearchableSet<'name', CountryCode>(
         ['name', 'id'],
         'name',
@@ -219,6 +223,12 @@ describe('BecomeAMemberComponent', () => {
           useValue: mockFirebaseService,
         },
         { provide: DataManagerService, useValue: mockDataManager },
+        {
+          // The catalogue loads only for pages that sell something, so it
+          // comes from StripeProductsService rather than DataManagerService.
+          provide: StripeProductsService,
+          useValue: mockStripeProducts,
+        },
         {
           provide: RoutingService,
           useValue: {
@@ -531,7 +541,7 @@ describe('BecomeAMemberComponent', () => {
   });
 
   it('should quote no rates at all when the catalogue is unavailable', async () => {
-    mockDataManager.stripeProducts.set([]);
+    mockStripeProducts.products.set([]);
     await createComponent();
 
     // Better to say nothing than to show a stale figure someone typed in.

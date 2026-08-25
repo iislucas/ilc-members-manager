@@ -13,8 +13,8 @@
  * Usage:
  *   <app-price-table
  *     [products]="membershipProducts()"
- *     [loading]="dataService.stripeProductsLoading()"
- *     [error]="dataService.stripeProductsError()"
+ *     [loading]="stripeProductsService.loading()"
+ *     [error]="stripeProductsService.error()"
  *     title="Membership Rates"
  *   ></app-price-table>
  */

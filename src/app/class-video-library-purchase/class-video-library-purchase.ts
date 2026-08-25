@@ -17,6 +17,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -55,6 +56,7 @@ import { StepCardComponent } from '../step-card/step-card';
 export class ClassVideoLibraryPurchaseComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -63,16 +65,16 @@ export class ClassVideoLibraryPurchaseComponent {
   user = this.firebaseService.user;
 
   // Stripe products loading
-  // Stripe catalogue, read from the cached copy so the subscription rate is
-  // on screen before the visitor signs in.
-  productsLoading = this.dataService.stripeProductsLoading;
-  productsError = this.dataService.stripeProductsError;
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // subscription rate is on screen before the visitor signs in.
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
   // Matching on 'video' alone also caught the one-off "I Liq Chuan 21 Form
   // Instructional Video", whose $5.99 one-time price sat one Stripe creation
   // date away from becoming what the Subscribe button charged. This page sells
   // one thing: a recurring subscription to the library.
   videoProducts = computed(() =>
-    this.dataService.stripeProducts().filter((p) => {
+    this.stripeProductsService.products().filter((p) => {
       const titleLower = p.name.toLowerCase();
       return (
         p.active &&

@@ -18,6 +18,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
+import { StripeProductsService } from '../stripe-products.service';
 import { StripeService } from '../stripe.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
@@ -69,6 +70,7 @@ import { StepCardComponent } from '../step-card/step-card';
 export class NextGradingComponent {
   protected firebaseService = inject(FirebaseStateService);
   protected dataService = inject(DataManagerService);
+  protected stripeProductsService = inject(StripeProductsService);
   protected stripeService = inject(StripeService);
   protected routingService: RoutingService<AppPathPatterns> =
     inject(RoutingService);
@@ -76,11 +78,11 @@ export class NextGradingComponent {
   Views = Views;
   user = this.firebaseService.user;
 
-  // Stripe catalogue, read from the cached copy so grading fees are on screen
-  // before the visitor signs in.
-  allProducts = this.dataService.stripeProducts;
-  productsLoading = this.dataService.stripeProductsLoading;
-  productsError = this.dataService.stripeProductsError;
+  // Stripe catalogue. Injecting StripeProductsService is what loads it, so the
+  // grading fees are on screen before the visitor signs in.
+  allProducts = this.stripeProductsService.products;
+  productsLoading = this.stripeProductsService.loading;
+  productsError = this.stripeProductsService.error;
 
   /**
    * The rate for a grading the member can buy: on sale, and priced.
