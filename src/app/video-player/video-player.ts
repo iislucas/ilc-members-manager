@@ -7,7 +7,7 @@
  * - Custom accessible UI controls (Play/Pause, Rewind/Fast-Forward 10s, Volume, Fullscreen, PiP)
  * - Timeline scrub bar with click-to-seek and buffer indicators
  * - Multi-resolution quality switcher (Auto, 1080p, 720p, 480p, 360p)
- * - Playback rate selector (0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x)
+ * - Playback rate selector (0.25x, 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x)
  * - Keyboard shortcuts (Space/K for play/pause, F for fullscreen, M for mute, Left/Right for seek)
  * - Emits periodic time updates for server-side progress syncing
  */
@@ -639,6 +639,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
   private playDirect(src: string, video: HTMLVideoElement): void {
     video.src = src;
+    // Assigning `src` resets the element's playbackRate to 1 per the HTML
+    // media-load algorithm; reapply the user's chosen rate so it survives
+    // reloads (e.g. the HLS.js fatal-error fallback mid-playback).
+    video.playbackRate = this.playbackRate();
     this.updateQualityLevels();
     if (this.initialPositionSeconds > 0) {
       video.currentTime = this.initialPositionSeconds;
@@ -770,6 +774,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     });
     video.addEventListener('webkitendfullscreen', () => {
       this.isFullscreen.set(false);
+    });
+    // Keep the signal in sync if the rate changes outside of setSpeed()
+    // (e.g. reset by the browser on src reassignment, or changed via
+    // native player controls), so the speed menu never gets stuck showing
+    // a rate the video isn't actually playing at.
+    video.addEventListener('ratechange', () => {
+      if (video.playbackRate !== this.playbackRate()) {
+        this.playbackRate.set(video.playbackRate);
+      }
     });
   }
 
