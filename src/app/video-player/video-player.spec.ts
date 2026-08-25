@@ -63,9 +63,42 @@ describe('VideoPlayerComponent', () => {
     expect(component.isMuted()).toBe(true);
   });
 
-  it('should update playback speed', () => {
+  it('should update playback speed and allow changing it back down', () => {
     component.setSpeed(1.5);
     expect(component.playbackRate()).toBe(1.5);
+    expect(component.videoRef.nativeElement.playbackRate).toBe(1.5);
+
+    component.setSpeed(2);
+    expect(component.playbackRate()).toBe(2);
+    expect(component.videoRef.nativeElement.playbackRate).toBe(2);
+
+    component.setSpeed(1);
+    expect(component.playbackRate()).toBe(1);
+    expect(component.videoRef.nativeElement.playbackRate).toBe(1);
+
+    component.setSpeed(0.25);
+    expect(component.playbackRate()).toBe(0.25);
+    expect(component.videoRef.nativeElement.playbackRate).toBe(0.25);
+  });
+
+  it('should resync the playbackRate signal when the video element changes rate on its own', () => {
+    fixture.detectChanges();
+    const video = component.videoRef.nativeElement;
+
+    component.setSpeed(2);
+    expect(component.playbackRate()).toBe(2);
+
+    // Simulate the browser resetting playbackRate outside of setSpeed()
+    // (e.g. on src reassignment) and firing its native ratechange event.
+    video.playbackRate = 1;
+    video.dispatchEvent(new Event('ratechange'));
+    expect(component.playbackRate()).toBe(1);
+  });
+
+  it('should reapply the current speed after reassigning the video src in playDirect', () => {
+    component.setSpeed(1.5);
+    (component as any).playDirect('https://example.com/video.mp4', component.videoRef.nativeElement);
+    expect(component.videoRef.nativeElement.playbackRate).toBe(1.5);
   });
 
   it('should accept videoData input and update vod signal', () => {
