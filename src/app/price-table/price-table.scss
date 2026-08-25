@@ -44,6 +44,13 @@
   line-height: 1.45;
 }
 
+// Only as wide as the longest "label — amount" pair needs, so the list reads
+// as a compact block rather than a rule stretched across the page.
+.price-rates {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .price-group {
   margin-top: 1.25rem;
 
@@ -73,21 +80,13 @@
 .price-row {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 2em;
   font-size: 0.95rem;
 }
 
 .price-row-label {
   color: v.$text-secondary;
-}
-
-// Leader dots tie a label to its amount across the gap, so the two stay
-// readable as a pair once the card is wide.
-.price-row-dots {
-  flex: 1 1 auto;
-  min-width: 1.5rem;
-  align-self: center;
-  border-bottom: 1px dotted v.$border-color-light;
 }
 
 .price-row-amount {

@@ -47,21 +47,22 @@
     <p class="price-table-note">{{ note() }}</p>
   }
 
-  @for (group of groups(); track group.title) {
-    <div class="price-group">
-      <div class="price-group-header">
-        <h3>{{ group.title }}</h3>
-      </div>
+  <div class="price-rates">
+    @for (group of groups(); track group.title) {
+      <div class="price-group">
+        <div class="price-group-header">
+          <h3>{{ group.title }}</h3>
+        </div>
 
-      <ul class="price-rows">
-        @for (row of group.rows; track row.label) {
-          <li class="price-row">
-            <span class="price-row-label">{{ row.label }}</span>
-            <span class="price-row-dots" aria-hidden="true"></span>
-            <span class="price-row-amount">{{ row.amount }}</span>
-          </li>
-        }
-      </ul>
-    </div>
-  }
+        <ul class="price-rows">
+          @for (row of group.rows; track row.label) {
+            <li class="price-row">
+              <span class="price-row-label">{{ row.label }}</span>
+              <span class="price-row-amount">{{ row.amount }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
 </ng-template>
