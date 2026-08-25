@@ -26,6 +26,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { IconComponent } from '../icons/icon.component';
 import { StripeProduct } from '../../../functions/src/stripe-types';
@@ -57,7 +58,7 @@ const rateOrder = new Intl.Collator(undefined, {
 @Component({
   selector: 'app-price-table',
   standalone: true,
-  imports: [SpinnerComponent, IconComponent],
+  imports: [NgTemplateOutlet, SpinnerComponent, IconComponent],
   templateUrl: './price-table.html',
   styleUrl: './price-table.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

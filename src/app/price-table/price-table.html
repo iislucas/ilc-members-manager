@@ -1,59 +1,67 @@
 @if (loading()) {
-  <div class="price-table card">
+  <div class="price-table" [class.card]="!collapsible()">
     <app-spinner>Loading prices...</app-spinner>
   </div>
 } @else if (error()) {
-  <div class="price-table card">
+  <div class="price-table" [class.card]="!collapsible()">
     <h2 class="price-table-title">{{ title() }}</h2>
     <div class="error-container">
       <span class="error-message">{{ error() }}</span>
     </div>
   </div>
 } @else if (!isEmpty()) {
-  <div class="price-table card" [class.collapsible]="collapsible()">
-    @if (collapsible()) {
+  @if (collapsible()) {
+    <!-- Folded, this is just a line of text you can click, like the other
+         show/hide toggles in the app — no card, border or shadow competing
+         with the step the page actually wants you to take. -->
+    <div class="price-table-fold">
       <button
         type="button"
-        class="price-table-toggle"
+        class="subtle-button price-table-toggle"
         [attr.aria-expanded]="isOpen()"
         (click)="toggle()"
       >
+        <app-icon [name]="isOpen() ? 'expand_less' : 'expand_more'"></app-icon>
         <span class="price-table-title">{{ title() }}</span>
-        <span class="price-table-toggle-hint">
-          @if (!isOpen()) {
-            <span class="price-table-count">{{ rateCount() }} rates</span>
-          }
-          <app-icon
-            [name]="isOpen() ? 'expand_less' : 'chevron_right'"
-          ></app-icon>
-        </span>
+        @if (!isOpen()) {
+          <span class="price-table-count">({{ rateCount() }} rates)</span>
+        }
       </button>
-    } @else {
-      <h2 class="price-table-title">{{ title() }}</h2>
-    }
 
-    @if (isOpen()) {
-      @if (note()) {
-        <p class="price-table-note">{{ note() }}</p>
-      }
-
-      @for (group of groups(); track group.title) {
-        <div class="price-group">
-          <div class="price-group-header">
-            <h3>{{ group.title }}</h3>
-          </div>
-
-          <ul class="price-rows">
-            @for (row of group.rows; track row.label) {
-              <li class="price-row">
-                <span class="price-row-label">{{ row.label }}</span>
-                <span class="price-row-dots" aria-hidden="true"></span>
-                <span class="price-row-amount">{{ row.amount }}</span>
-              </li>
-            }
-          </ul>
+      @if (isOpen()) {
+        <div class="price-table-body">
+          <ng-container *ngTemplateOutlet="rates"></ng-container>
         </div>
       }
-    }
-  </div>
+    </div>
+  } @else {
+    <div class="price-table card">
+      <h2 class="price-table-title">{{ title() }}</h2>
+      <ng-container *ngTemplateOutlet="rates"></ng-container>
+    </div>
+  }
 }
+
+<ng-template #rates>
+  @if (note()) {
+    <p class="price-table-note">{{ note() }}</p>
+  }
+
+  @for (group of groups(); track group.title) {
+    <div class="price-group">
+      <div class="price-group-header">
+        <h3>{{ group.title }}</h3>
+      </div>
+
+      <ul class="price-rows">
+        @for (row of group.rows; track row.label) {
+          <li class="price-row">
+            <span class="price-row-label">{{ row.label }}</span>
+            <span class="price-row-dots" aria-hidden="true"></span>
+            <span class="price-row-amount">{{ row.amount }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</ng-template>
