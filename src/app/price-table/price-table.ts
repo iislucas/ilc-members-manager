@@ -34,9 +34,18 @@ export interface PriceRow {
 export interface PriceGroup {
   /** The product's name, e.g. "Annual". */
   title: string;
-  description: string | null;
   rows: PriceRow[];
 }
+
+/**
+ * Orders rates the way a reader expects rather than the order Stripe happens
+ * to have created them in. Numeric-aware, so "Student Level 10" sorts after
+ * "Student Level 2" instead of before it.
+ */
+const rateOrder = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
 
 @Component({
   selector: 'app-price-table',
@@ -56,7 +65,9 @@ export class PriceTableComponent {
 
   /**
    * Shown under the heading — for anything the amounts alone do not convey,
-   * such as a local instructor fee charged separately.
+   * such as a local instructor fee charged separately. Deliberately supplied
+   * by the page rather than taken from the product's Stripe description, which
+   * holds long-form marketing copy, not a caption for a table of figures.
    */
   note = input<string | null>(null);
 
@@ -65,7 +76,6 @@ export class PriceTableComponent {
       .filter((product) => product.active)
       .map((product) => ({
         title: tidyStripeLabel(product.name),
-        description: product.description,
         rows: product.prices
           // A price with no amount cannot be shown as a figure, and an
           // archived one is not on sale — neither belongs in the breakdown.
@@ -73,7 +83,10 @@ export class PriceTableComponent {
           .map((price) => ({
             label: tidyStripeLabel(price.nickname) || tidyStripeLabel(product.name),
             amount: formatStripePrice(price),
-          })),
+          }))
+          // Stripe returns prices in creation order, which for the grading
+          // fees came out as levels 4, 3, 2, 1, 6, 5.
+          .sort((a, b) => rateOrder.compare(a.label, b.label)),
       }))
       // A product whose prices were all filtered out would render as an empty
       // heading, which reads as something failing to load.

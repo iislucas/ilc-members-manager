@@ -84,12 +84,21 @@ export class NextGradingComponent {
 
   /** The grading fee products, for the price breakdown above the flow. */
   gradingProducts = computed(() =>
-    this.allProducts().filter(
-      (p) =>
-        p.active &&
-        p.name.toLowerCase().includes('grading') &&
-        p.prices.some((pr) => pr.active && pr.unitAmount !== null),
-    ),
+    this.allProducts()
+      .filter(
+        (p) =>
+          p.active &&
+          p.name.toLowerCase().includes('grading') &&
+          p.prices.some((pr) => pr.active && pr.unitAmount !== null),
+      )
+      // Students work through the student levels before the application
+      // levels, so the fee schedule reads in that order. Stripe returns them
+      // in the order the products happened to be created.
+      .sort(
+        (a, b) =>
+          Number(b.name.toLowerCase().includes('student')) -
+          Number(a.name.toLowerCase().includes('student')),
+      ),
   );
 
   // Checkout redirecting

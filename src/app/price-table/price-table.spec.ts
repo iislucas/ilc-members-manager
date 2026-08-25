@@ -83,14 +83,13 @@ describe('PriceTableComponent', () => {
       }),
     ]);
 
-    const rows = el.querySelectorAll('.price-row');
+    const rows = [...el.querySelectorAll('.price-row')].map((r) => ({
+      label: r.querySelector('.price-row-label')?.textContent?.trim(),
+      amount: r.querySelector('.price-row-amount')?.textContent?.trim(),
+    }));
     expect(rows.length).toBe(2);
-    expect(rows[0].querySelector('.price-row-amount')?.textContent).toContain(
-      '$85.00/year',
-    );
-    expect(rows[1].querySelector('.price-row-amount')?.textContent).toContain(
-      '$55.00/year',
-    );
+    expect(rows).toContainEqual({ label: 'Regular', amount: '$85.00/year' });
+    expect(rows).toContainEqual({ label: '65+ Senior', amount: '$55.00/year' });
   });
 
   it('should strip the catalogue namespace from product and rate names', () => {
@@ -149,6 +148,44 @@ describe('PriceTableComponent', () => {
   it('should render nothing rather than an empty shell when there are no rates', () => {
     const el = render([product({ prices: [] })]);
     expect(el.querySelector('.price-table')).toBeNull();
+  });
+
+  it('should order levels numerically, not in Stripe creation order', () => {
+    // The live catalogue returned these in creation order — 4, 3, 2, 1 — which
+    // is not how anyone reads a fee schedule. 10 must also follow 2, which a
+    // plain string sort gets wrong.
+    const el = render([
+      product({
+        name: 'GRADING : Student Levels',
+        prices: [
+          price({ id: 'p4', nickname: 'Student Level 4', unitAmount: 35000 }),
+          price({ id: 'p10', nickname: 'Student Level 10', unitAmount: 90000 }),
+          price({ id: 'p2', nickname: 'Student Level 2', unitAmount: 15000 }),
+          price({ id: 'p1', nickname: 'Student Level 1', unitAmount: 15000 }),
+        ],
+      }),
+    ]);
+
+    const labels = [...el.querySelectorAll('.price-row-label')].map((n) =>
+      n.textContent?.trim(),
+    );
+    expect(labels).toEqual([
+      'Student Level 1',
+      'Student Level 2',
+      'Student Level 4',
+      'Student Level 10',
+    ]);
+  });
+
+  it('should not print the product description, which holds marketing copy', () => {
+    // Live descriptions run to over a thousand characters; they are not a
+    // caption for a table of figures.
+    const blurb = 'Cultivate inner peace and unleash your inner warrior. '.repeat(20);
+    const el = render([
+      product({ description: blurb, prices: [price({ nickname: 'Regular' })] }),
+    ]);
+
+    expect(el.textContent).not.toContain('Cultivate inner peace');
   });
 
   it('should show a spinner while the catalogue is loading', () => {
