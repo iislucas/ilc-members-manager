@@ -90,7 +90,9 @@ export class PriceTableComponent {
           .filter((price) => price.active && price.unitAmount !== null)
           .map((price) => ({
             label: tidyStripeLabel(price.nickname) || tidyStripeLabel(product.name),
-            amount: formatStripePrice(price),
+            amount: formatStripePrice(price, {
+              omitOneTimeSuffix: this.omitOneTimeSuffix(),
+            }),
           }))
           // Stripe returns prices in creation order, which for the grading
           // fees came out as levels 4, 3, 2, 1, 6, 5.
@@ -107,6 +109,13 @@ export class PriceTableComponent {
    * actual purpose off the screen, so it is offered rather than imposed.
    */
   collapsible = input(false);
+
+  /**
+   * Drop the "one-time" wording from the amounts. For a card where every rate
+   * is a single charge — the grading fees — it repeats down every line without
+   * distinguishing anything.
+   */
+  omitOneTimeSuffix = input(false);
 
   private readonly userOpened = signal(false);
 

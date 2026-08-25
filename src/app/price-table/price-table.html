@@ -58,6 +58,7 @@
           @for (row of group.rows; track row.label) {
             <li class="price-row">
               <span class="price-row-label">{{ row.label }}</span>
+              <span class="price-row-dots" aria-hidden="true"></span>
               <span class="price-row-amount">{{ row.amount }}</span>
             </li>
           }

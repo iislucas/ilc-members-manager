@@ -56,12 +56,17 @@ describe('PriceTableComponent', () => {
       loading?: boolean;
       error?: string | null;
       collapsible?: boolean;
+      omitOneTimeSuffix?: boolean;
     } = {},
   ) {
     fixture.componentRef.setInput('products', products);
     fixture.componentRef.setInput('loading', opts.loading ?? false);
     fixture.componentRef.setInput('error', opts.error ?? null);
     fixture.componentRef.setInput('collapsible', opts.collapsible ?? false);
+    fixture.componentRef.setInput(
+      'omitOneTimeSuffix',
+      opts.omitOneTimeSuffix ?? false,
+    );
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -218,6 +223,16 @@ describe('PriceTableComponent', () => {
     const el = render([product({ prices: [price({ nickname: 'Regular' })] })]);
     expect(el.querySelector('.price-table-toggle')).toBeNull();
     expect(el.querySelectorAll('.price-row').length).toBe(1);
+  });
+
+  it('should drop the one-time wording when asked', () => {
+    const el = render(
+      [product({ prices: [price({ nickname: 'Regular', unitAmount: 8000 })] })],
+      { omitOneTimeSuffix: true },
+    );
+    expect(el.querySelector('.price-row-amount')?.textContent?.trim()).toBe(
+      '$80.00',
+    );
   });
 
   it('should show a spinner while the catalogue is loading', () => {

@@ -82,24 +82,91 @@ export class NextGradingComponent {
   productsLoading = this.dataService.stripeProductsLoading;
   productsError = this.dataService.stripeProductsError;
 
-  /** The grading fee products, for the price breakdown above the flow. */
-  gradingProducts = computed(() =>
-    this.allProducts()
-      .filter(
-        (p) =>
-          p.active &&
-          p.name.toLowerCase().includes('grading') &&
-          p.prices.some((pr) => pr.active && pr.unitAmount !== null),
-      )
-      // Students work through the student levels before the application
-      // levels, so the fee schedule reads in that order. Stripe returns them
-      // in the order the products happened to be created.
-      .sort(
-        (a, b) =>
-          Number(b.name.toLowerCase().includes('student')) -
-          Number(a.name.toLowerCase().includes('student')),
-      ),
-  );
+  /**
+   * The rate for a grading the member can buy: on sale, and priced.
+   */
+  private static isSellable(price: StripeProductPrice): boolean {
+    return price.active && price.unitAmount !== null;
+  }
+
+  /**
+   * The catalogue names a rate "Student Level 4" or "Entry Level"; the syllabus
+   * calls the same things "Student 4" and "Student Entry". Translate so a rate
+   * can be checked against `gradingProgression`.
+   */
+  private static progressionEntryFor(nickname: string): string {
+    const name = (nickname || '').trim();
+    if (/^entry level$/i.test(name)) return 'Student Entry';
+
+    const numbered = /^(student|application)\s+level\s+(\d+)$/i.exec(name);
+    if (numbered) {
+      const track =
+        numbered[1].toLowerCase() === 'student' ? 'Student' : 'Application';
+      return `${track} ${numbered[2]}`;
+    }
+    return normalizeGradingLevel(name);
+  }
+
+  /** True when the rate is one of the syllabus levels rather than an extra. */
+  private static isSyllabusLevel(price: StripeProductPrice): boolean {
+    return gradingProgression.includes(
+      NextGradingComponent.progressionEntryFor(price.nickname || ''),
+    );
+  }
+
+  /**
+   * The grading fees, for the price breakdown above the flow.
+   *
+   * Grouped by what the reader is looking at rather than by how Stripe files
+   * it: the student and application levels are the syllabus, and anything else
+   * the catalogue carries — Meditation & Philosophy today, more later — is a
+   * grading you can take but not a rung on the ladder, so it is gathered under
+   * its own heading at the end. Display only; what a member actually buys is
+   * resolved by `matchingGradingPrice` from the full catalogue.
+   */
+  gradingProducts = computed<StripeProduct[]>(() => {
+    const gradingCatalogue = this.allProducts().filter(
+      (p) =>
+        p.active &&
+        p.name.toLowerCase().includes('grading') &&
+        p.prices.some(NextGradingComponent.isSellable),
+    );
+
+    const levelProducts: StripeProduct[] = [];
+    const additional: StripeProductPrice[] = [];
+
+    for (const product of gradingCatalogue) {
+      const sellable = product.prices.filter(NextGradingComponent.isSellable);
+      const levels = sellable.filter(NextGradingComponent.isSyllabusLevel);
+      additional.push(
+        ...sellable.filter((pr) => !NextGradingComponent.isSyllabusLevel(pr)),
+      );
+      if (levels.length) {
+        levelProducts.push({ ...product, prices: levels });
+      }
+    }
+
+    // Students work through the student levels before the application levels,
+    // so the fee schedule reads in that order. Stripe returns them in the
+    // order the products happened to be created.
+    levelProducts.sort(
+      (a, b) =>
+        Number(b.name.toLowerCase().includes('student')) -
+        Number(a.name.toLowerCase().includes('student')),
+    );
+
+    if (additional.length && gradingCatalogue[0]) {
+      levelProducts.push({
+        ...gradingCatalogue[0],
+        id: 'grading-additional',
+        name: 'GRADING : Additional Gradings',
+        description: null,
+        prices: additional,
+      });
+    }
+
+    return levelProducts;
+  });
 
   // Checkout redirecting
   isRedirecting = signal(false);

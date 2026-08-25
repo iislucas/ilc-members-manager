@@ -15,9 +15,13 @@ import { StripeProductPrice } from '../../functions/src/stripe-types';
  * Format a price as an amount plus its billing period, e.g. "$85.00/year" or
  * "$850.00 one-time". Returns '' for a price with no amount, so callers can
  * skip it rather than render a stray currency symbol.
+ *
+ * Pass `omitOneTimeSuffix` where a one-time charge is the only kind on show
+ * and the words would just repeat down the column.
  */
 export function formatStripePrice(
   price: StripeProductPrice | null | undefined,
+  opts: { omitOneTimeSuffix?: boolean } = {},
 ): string {
   if (!price || price.unitAmount === null || price.unitAmount === undefined) {
     return '';
@@ -36,7 +40,9 @@ export function formatStripePrice(
         : price.recurringInterval;
     return `${amount}/${interval}`;
   }
-  return `${amount} one-time`;
+  // On a card where every rate is a single charge, "one-time" on each line
+  // says nothing the reader does not already know.
+  return opts.omitOneTimeSuffix ? amount : `${amount} one-time`;
 }
 
 /**

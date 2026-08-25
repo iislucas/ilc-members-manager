@@ -98,6 +98,19 @@ describe('NextGradingComponent', () => {
           created: 1004,
         },
         {
+          // Filed under the student levels product in Stripe, but not a rung
+          // on the syllabus ladder.
+          id: 'price_meditation',
+          active: true,
+          currency: 'usd',
+          unitAmount: 10000,
+          type: StripePriceType.OneTime,
+          recurringInterval: null,
+          recurringIntervalCount: null,
+          nickname: 'Meditation & Philosophy',
+          created: 1005,
+        },
+        {
           id: 'price_app_1',
           active: true,
           currency: 'usd',
@@ -498,5 +511,29 @@ describe('NextGradingComponent', () => {
     forward!.click();
     fixture.detectChanges();
     expect(component.flow.current()).not.toBe(component.StepAccount);
+  });
+
+  it('should file gradings that are not syllabus levels under their own heading', async () => {
+    await createComponent();
+
+    const groups = component.gradingProducts().map((p) => p.name);
+    // Student levels first, then application levels, extras last.
+    expect(groups[groups.length - 1]).toBe('GRADING : Additional Gradings');
+
+    const additional = component.gradingProducts().find(
+      (p) => p.name === 'GRADING : Additional Gradings',
+    )!;
+    expect(additional.prices.map((pr) => pr.nickname)).toEqual([
+      'Meditation & Philosophy',
+    ]);
+
+    // The syllabus levels stay where they belong, and are not duplicated.
+    const studentLevels = component.gradingProducts().find((p) =>
+      p.name.toLowerCase().includes('student'),
+    )!;
+    const studentNicknames = studentLevels.prices.map((pr) => pr.nickname);
+    expect(studentNicknames).toContain('Entry Level');
+    expect(studentNicknames).toContain('Student Level 1');
+    expect(studentNicknames).not.toContain('Meditation & Philosophy');
   });
 });

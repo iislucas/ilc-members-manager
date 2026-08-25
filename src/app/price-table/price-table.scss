@@ -80,13 +80,22 @@
 .price-row {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 2em;
+  gap: 0.5em;
   font-size: 0.95rem;
 }
 
 .price-row-label {
   color: v.$text-secondary;
+}
+
+// Leader dots carry the eye from a name to its figure. Their min-width sets
+// the gap — with the flanking 0.5em, the pair sits about 2em apart — and
+// because they only grow, the block still shrink-wraps to its content.
+.price-row-dots {
+  flex: 1 1 auto;
+  min-width: 1em;
+  align-self: center;
+  border-bottom: 1px dotted v.$border-color-light;
 }
 
 .price-row-amount {
