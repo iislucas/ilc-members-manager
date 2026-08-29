@@ -6,12 +6,13 @@ import { ContentCacheComponent } from './content-cache/content-cache';
 import { ResourcesComponent } from './resources/resources';
 import { EmailTemplatesComponent } from './email-templates/email-templates';
 import { LocalCacheSettingsComponent } from './local-cache/local-cache';
+import { AppVersionSettingsComponent } from './app-version/app-version';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 
 // Valid tab identifiers for the settings page.
-type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'email-templates' | 'local-cache';
-const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'email-templates', 'local-cache'];
+type SettingsTab = 'counters' | 'country-codes' | 'backups' | 'content-cache' | 'resources' | 'email-templates' | 'local-cache' | 'app-version';
+const VALID_TABS: SettingsTab[] = ['counters', 'country-codes', 'backups', 'content-cache', 'resources', 'email-templates', 'local-cache', 'app-version'];
 const DEFAULT_TAB: SettingsTab = 'counters';
 
 @Component({
@@ -25,6 +26,7 @@ const DEFAULT_TAB: SettingsTab = 'counters';
     ResourcesComponent,
     EmailTemplatesComponent,
     LocalCacheSettingsComponent,
+    AppVersionSettingsComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],

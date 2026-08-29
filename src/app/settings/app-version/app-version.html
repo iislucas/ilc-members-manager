@@ -1,0 +1,76 @@
+<div class="version-settings-container">
+  <h2>Application Version &amp; Updates</h2>
+  <p class="section-description">
+    Information about the current software build, Service Worker caching, and update status.
+  </p>
+
+  <div class="version-card">
+    <div class="info-row">
+      <span class="label">Installed Version</span>
+      <span class="value version-value">{{ updateService.currentVersion() }}</span>
+    </div>
+
+    <div class="info-row">
+      <span class="label">Build Timestamp (UTC)</span>
+      <span class="value">{{ formattedBuildDate() }}</span>
+    </div>
+
+    <div class="info-row">
+      <span class="label">Service Worker PWA Cache</span>
+      <span class="value">
+        @if (updateService.isServiceWorkerEnabled()) {
+          <span class="badge active-badge">
+            <app-icon name="check"></app-icon> Enabled &amp; Active
+          </span>
+        } @else {
+          <span class="badge disabled-badge">
+            <app-icon name="info"></app-icon> Disabled (Development mode)
+          </span>
+        }
+      </span>
+    </div>
+
+    <div class="info-row">
+      <span class="label">Last Checked</span>
+      <span class="value">{{ formattedLastChecked() }}</span>
+    </div>
+
+    @if (updateService.checkError(); as err) {
+      <div class="error-banner">
+        <app-icon name="error"></app-icon>
+        <span>{{ err }}</span>
+      </div>
+    }
+
+    @if (updateService.isUpdateAvailable()) {
+      <div class="update-ready-banner">
+        <div class="update-ready-text">
+          <app-icon name="refresh"></app-icon>
+          <div>
+            <strong>A new version is downloaded and ready to install!</strong>
+            <p>Reloading will immediately switch to the latest version.</p>
+          </div>
+        </div>
+        <button type="button" class="btn update-now-btn" (click)="onApplyUpdate()">
+          Update &amp; Reload Now
+        </button>
+      </div>
+    }
+
+    <div class="actions-row">
+      <button
+        type="button"
+        class="btn check-btn"
+        [disabled]="updateService.isChecking()"
+        (click)="onCheckForUpdates()"
+      >
+        @if (updateService.isChecking()) {
+          <app-spinner>Checking for updates...</app-spinner>
+        } @else {
+          <app-icon name="refresh"></app-icon>
+          <span>Check for Updates Now</span>
+        }
+      </button>
+    </div>
+  </div>
+</div>

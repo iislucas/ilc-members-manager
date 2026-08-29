@@ -64,6 +64,8 @@ import { ClassVideoLibraryPurchaseComponent } from './class-video-library-purcha
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
+import { AppUpdateService } from './app-update.service';
+import { UpdateNotificationComponent } from './update-notification/update-notification.component';
 
 @Component({
   selector: 'app-root',
@@ -125,6 +127,7 @@ import { NavigationTreeService } from './navigation-tree';
     InstructorLicensePurchaseComponent,
     SchoolLicensePurchaseComponent,
     ClassVideoLibraryPurchaseComponent,
+    UpdateNotificationComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -132,6 +135,7 @@ import { NavigationTreeService } from './navigation-tree';
 export class App {
   protected title = 'ilc-members-manager';
   protected readonly appVersion = APP_VERSION;
+  public updateService = inject(AppUpdateService);
   public firebaseService = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
   public findInstructorsService = inject(FindInstructorsService);

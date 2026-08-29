@@ -13,6 +13,8 @@
       (click)="setActiveTab('email-templates')">Email Templates</button>
     <button class="pill-tab" data-label="Local Cache" [class.active]="activeTab() === 'local-cache'"
       (click)="setActiveTab('local-cache')">Local Cache</button>
+    <button class="pill-tab" data-label="Version & Updates" [class.active]="activeTab() === 'app-version'"
+      (click)="setActiveTab('app-version')">Version &amp; Updates</button>
   </div>
 
   @if (activeTab() === 'counters') {
@@ -54,6 +56,12 @@
   @if (activeTab() === 'local-cache') {
   <div class="tab-content">
     <app-local-cache></app-local-cache>
+  </div>
+  }
+
+  @if (activeTab() === 'app-version') {
+  <div class="tab-content">
+    <app-version-settings></app-version-settings>
   </div>
   }
 </div>
