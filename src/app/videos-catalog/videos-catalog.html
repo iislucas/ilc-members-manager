@@ -93,12 +93,6 @@
             </div>
           }
           <div class="hero-badge">Featured</div>
-          @if (feat.trailerVideoId) {
-            <div class="hero-trailer-badge">
-              <app-icon name="play_arrow"></app-icon>
-              <span>Trailer Available</span>
-            </div>
-          }
         </div>
 
         <div class="hero-info">
@@ -130,7 +124,7 @@
           <div class="hero-actions">
             <a class="primary-btn hero-watch-btn" [href]="getVideoHref(feat)">
               <app-icon name="play_arrow"></app-icon>
-              <span>{{ userHasAccess(feat) ? 'Watch Now' : (feat.trailerVideoId ? 'Watch Trailer / Details' : 'View Details') }}</span>
+              <span>{{ userHasAccess(feat) ? 'Watch Now' : 'View Details' }}</span>
             </a>
           </div>
         </div>
@@ -257,45 +251,44 @@
         @if (isClassLibrary()) {
           Saturday Class Recordings
         } @else if (activeTab() === 'my-videos') {
-          My Purchased Videos
+          My Purchased Videos &amp; Series
         } @else if (selectedTag()) {
           #{{ selectedTag() }} Recordings
         } @else {
-          All Purchasable Recordings
+          All Purchasable Recordings &amp; Series
         }
-        <span class="count-badge">({{ filteredVideos().length }})</span>
+        <span class="count-badge">({{ filteredCatalogEntries().length }})</span>
       </h3>
     </div>
 
-    @if (filteredVideos().length > 0) {
+    @if (filteredCatalogEntries().length > 0) {
       <div class="videos-grid">
-        @for (video of filteredVideos(); track video.docId) {
-          <a class="video-card" [href]="getVideoHref(video)">
+        @for (entry of filteredCatalogEntries(); track entry.id) {
+          <a class="video-card" [class.series-card]="entry.kind === 'series'" [href]="getEntryHref(entry)">
             <!-- Thumbnail Poster -->
             <div class="card-thumbnail-wrapper">
-              @if (video.thumbnailUrl) {
+              @if (entry.thumbnailUrl) {
                 <img
-                  [src]="video.thumbnailUrl"
-                  [alt]="video.title"
+                  [src]="entry.thumbnailUrl"
+                  [alt]="entry.title"
                   class="card-thumbnail"
                   loading="lazy"
                 />
               } @else {
                 <div class="thumb-placeholder">
-                  <app-icon name="video_library"></app-icon>
+                  <app-icon [name]="entry.kind === 'series' ? 'collections' : 'video_library'"></app-icon>
                 </div>
               }
 
-              <!-- Duration Badge -->
-              <span class="duration-badge">
-                {{ formatDuration(video.durationSeconds) }}
-              </span>
-
-              <!-- Trailer Badge if available -->
-              @if (video.trailerVideoId) {
-                <span class="card-trailer-badge" title="Trailer preview available">
-                  <app-icon name="play_arrow"></app-icon>
-                  <span>Trailer</span>
+              <!-- Duration / Series Count Badge -->
+              @if (entry.kind === 'series') {
+                <span class="series-badge">
+                  <app-icon name="collections" width="13px" height="13px"></app-icon>
+                  <span>{{ entry.videoCount }} Parts &bull; {{ formatDuration(entry.durationSeconds) }}</span>
+                </span>
+              } @else {
+                <span class="duration-badge">
+                  {{ formatDuration(entry.durationSeconds) }}
                 </span>
               }
 
@@ -307,7 +300,7 @@
 
             <!-- Card Info -->
             <div class="card-info">
-              @if (getTopAccessTierBadge(video); as topBadge) {
+              @if (getEntryTopAccessBadge(entry); as topBadge) {
                 <div class="card-header-row">
                   <span
                     class="access-tier-chip"
@@ -315,38 +308,58 @@
                   >
                     {{ topBadge.label }}
                   </span>
+                  @if (entry.kind === 'series') {
+                    <span class="series-type-pill">Series Bundle</span>
+                  }
                 </div>
               }
 
-              <h4 class="card-title">{{ video.title }}</h4>
+              <h4 class="card-title">{{ entry.title }}</h4>
 
-              @if (video.instructorName) {
+              @if (entry.instructorName) {
                 <div class="card-instructor">
                   <app-icon name="person"></app-icon>
-                  <span>{{ video.instructorName }}</span>
+                  <span>{{ entry.instructorName }}</span>
                 </div>
               }
 
-              @if (formatVideoDate(video); as vDate) {
+              @if (formatEntryDate(entry); as vDate) {
                 <div class="card-meta">
                   <span class="meta-date">
                     <app-icon name="calendar_today" width="13px" height="13px"></app-icon>
                     <span>{{ vDate }}</span>
                   </span>
-                  @if (video.location) {
-                    <span class="meta-location">&bull; {{ video.location }}</span>
+                  @if (entry.location) {
+                    <span class="meta-location">&bull; {{ entry.location }}</span>
                   }
                 </div>
-              } @else if (video.location) {
+              } @else if (entry.location) {
                 <div class="card-meta">
-                  <span class="meta-location">{{ video.location }}</span>
+                  <span class="meta-location">{{ entry.location }}</span>
+                </div>
+              }
+
+              <!-- Series Mini Breakdown (Parts & Lengths) -->
+              @if (entry.kind === 'series' && entry.episodes && entry.episodes.length > 0) {
+                <div class="series-mini-summary">
+                  <div class="mini-summary-header">
+                    <span>Includes {{ entry.videoCount }} Videos:</span>
+                  </div>
+                  <div class="mini-parts-chips-row">
+                    @for (ep of entry.episodes; track ep.docId; let pIdx = $index) {
+                      <div class="mini-part-chip" [title]="ep.title + ' (' + formatDuration(ep.durationSeconds) + ')'">
+                        <span class="part-num">Part {{ ep.seriesPartIndex || (pIdx + 1) }}</span>
+                        <span class="part-dur">{{ formatDuration(ep.durationSeconds) }}</span>
+                      </div>
+                    }
+                  </div>
                 </div>
               }
 
               <!-- Tags -->
-              @if (video.tags && video.tags.length) {
+              @if (entry.tags && entry.tags.length) {
                 <div class="card-tags">
-                  @for (t of video.tags.slice(0, 3); track t) {
+                  @for (t of entry.tags.slice(0, 3); track t) {
                     <span class="mini-tag" [title]="getTagTooltip(t)">#{{ t }}</span>
                   }
                 </div>
@@ -354,27 +367,27 @@
 
               <!-- Dynamic CTA / Access State -->
               <div class="card-footer">
-                @if (userHasAccess(video)) {
+                @if (entryHasAccess(entry)) {
                   <span class="access-cta watch-now">
                     <app-icon name="play_arrow"></app-icon>
-                    <span>Watch Now</span>
+                    <span>{{ entry.kind === 'series' ? 'Watch Series' : 'Watch Now' }}</span>
                   </span>
                   <span class="access-tier-chip badge-purchased">Purchased</span>
-                } @else if (video.accessTier === 'public') {
+                } @else if (entry.accessTier === 'public') {
                   <span class="access-cta watch-free">
                     <app-icon name="play_arrow"></app-icon>
                     <span>Watch Free</span>
                   </span>
-                } @else if (video.priceCents) {
+                } @else if (entry.priceCents) {
                   <span class="access-cta buy-cta">
                     <app-icon name="shopping_cart"></app-icon>
-                    <span>Buy</span>
+                    <span>{{ entry.kind === 'series' ? 'Buy Series' : 'Buy' }}</span>
                   </span>
-                  <span class="footer-price">${{ (video.priceCents / 100).toFixed(2) }}</span>
+                  <span class="footer-price">${{ (entry.priceCents / 100).toFixed(2) }}</span>
                 } @else {
                   <span class="access-cta locked">
                     <app-icon name="lock"></app-icon>
-                    <span>{{ getTopAccessTierBadge(video)?.label || 'Members Only' }}</span>
+                    <span>{{ getEntryTopAccessBadge(entry)?.label || 'Members Only' }}</span>
                   </span>
                 }
               </div>
@@ -387,13 +400,13 @@
         <app-icon name="video_library"></app-icon>
         @if (activeTab() === 'my-videos') {
           <h4>No videos purchased yet</h4>
-          <p>You have not purchased any on-demand videos. Browse the "Search &amp; Buy" catalog to find masterclasses.</p>
+          <p>You have not purchased any on-demand videos or series. Browse the "Search &amp; Buy" catalog to find masterclasses.</p>
           <button type="button" class="primary-btn" (click)="setTab('all')">
             Browse Buyable Videos
           </button>
         } @else {
-          <h4>No videos found</h4>
-          <p>No video recordings match your current filters or search criteria.</p>
+          <h4>No recordings found</h4>
+          <p>No video recordings or series match your current filters or search criteria.</p>
           <button type="button" class="primary-btn" (click)="clearAllFilters()">
             Clear Filters
           </button>

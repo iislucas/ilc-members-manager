@@ -24,6 +24,8 @@ import {
 } from '@angular/core';
 import {
   VideoItem,
+  VideoSeries,
+  groupVideosIntoSeries,
   VodAccessTier,
   VodStatus,
   VideoProgress,
@@ -51,6 +53,10 @@ export interface PlaybackSessionState {
     | 'purchase_required';
   priceCents?: number;
   stripePriceId?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  seriesPriceCents?: number;
+  seriesStripePriceId?: string;
   trailerVideoId?: string;
   trailerManifestUrl?: string;
 }
@@ -131,6 +137,47 @@ export class VideoViewComponent implements OnInit {
       return Boolean(this.activeManifestUrl());
     }
     return Boolean(this.sessionState()?.authorized && this.sessionState()?.manifestUrl);
+  });
+
+  // Series & Episode Navigation
+  series = computed<VideoSeries | null>(() => {
+    const v = this.video();
+    if (!v) return null;
+
+    const allVideos = this.dataService.videos.entries();
+    const { seriesList } = groupVideosIntoSeries(allVideos.filter((item) => item.isPublished && !item.isTrailer));
+
+    const matchedSeries = seriesList.find(
+      (s) =>
+        s.videos.some((item) => item.docId === v.docId) ||
+        (Boolean(v.seriesId) && s.seriesId === v.seriesId) ||
+        (Boolean(v.forVodPageId) && s.seriesId === v.forVodPageId),
+    );
+
+    if (!matchedSeries || matchedSeries.videos.length <= 1) return null;
+    return matchedSeries;
+  });
+
+  currentEpisodeIndex = computed<number>(() => {
+    const s = this.series();
+    const v = this.video();
+    if (!s || !v) return 0;
+    const idx = s.videos.findIndex((item) => item.docId === v.docId);
+    return idx >= 0 ? idx : 0;
+  });
+
+  previousEpisode = computed<VideoItem | null>(() => {
+    const s = this.series();
+    const idx = this.currentEpisodeIndex();
+    if (!s || idx <= 0) return null;
+    return s.videos[idx - 1] || null;
+  });
+
+  nextEpisode = computed<VideoItem | null>(() => {
+    const s = this.series();
+    const idx = this.currentEpisodeIndex();
+    if (!s || idx >= s.videos.length - 1) return null;
+    return s.videos[idx + 1] || null;
   });
 
   // Related Videos
@@ -279,6 +326,47 @@ export class VideoViewComponent implements OnInit {
       }
     } catch (err: any) {
       console.error('Purchase error:', err);
+      alert(err.message || 'Payment initiation failed.');
+    } finally {
+      this.isPurchasing.set(false);
+    }
+  }
+
+  async startSeriesPurchase(): Promise<void> {
+    const s = this.series();
+    const v = this.video();
+    const session = this.sessionState();
+    if (!s) return;
+    const priceId = s.stripePriceId || session?.seriesStripePriceId || v?.seriesStripePriceId || v?.stripePriceId;
+    if (!priceId) {
+      alert('This series is not currently configured with a Stripe price.');
+      return;
+    }
+
+    this.isPurchasing.set(true);
+    try {
+      const origin = window.location.origin;
+      const checkout = await this.stripeService.createCheckoutSession(
+        priceId,
+        origin,
+        1,
+        {
+          metadata: {
+            seriesId: s.seriesId,
+            videoId: v?.docId || '',
+            orderType: 'vod',
+          },
+          successUrl: `${origin}/videos/${v?.docId}`,
+          cancelUrl: `${origin}/videos/${v?.docId}`,
+        },
+      );
+      if (checkout.checkoutUrl) {
+        window.location.href = checkout.checkoutUrl;
+      } else {
+        alert('Could not initialize checkout. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Series purchase error:', err);
       alert(err.message || 'Payment initiation failed.');
     } finally {
       this.isPurchasing.set(false);

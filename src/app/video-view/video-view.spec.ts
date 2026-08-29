@@ -248,4 +248,81 @@ describe('VideoViewComponent', () => {
     await component.clearAllDeviceCache();
     expect(clearSpy).toHaveBeenCalled();
   });
+
+  it('should compute series playlist and episode navigation correctly', () => {
+    const ep1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v100',
+      title: 'Episode 1: Mechanics',
+      seriesId: 'series-sticky-hands',
+      seriesTitle: 'Sticky Hands Series',
+      seriesPartIndex: 1,
+      durationSeconds: 1800,
+      isPublished: true,
+    };
+    const ep2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v101',
+      title: 'Episode 2: Applications',
+      seriesId: 'series-sticky-hands',
+      seriesTitle: 'Sticky Hands Series',
+      seriesPartIndex: 2,
+      durationSeconds: 2400,
+      isPublished: true,
+    };
+
+    mockDataService.videos.entries.set([ep1, ep2]);
+    component.video.set(ep1);
+
+    const series = component.series();
+    expect(series).toBeTruthy();
+    expect(series?.seriesId).toBe('series-sticky-hands');
+    expect(series?.title).toBe('Sticky Hands Series');
+    expect(series?.videos.length).toBe(2);
+    expect(series?.totalDurationSeconds).toBe(4200);
+
+    expect(component.currentEpisodeIndex()).toBe(0);
+    expect(component.previousEpisode()).toBeNull();
+    expect(component.nextEpisode()?.docId).toBe('v101');
+  });
+
+  it('should trigger series checkout when startSeriesPurchase is called', async () => {
+    const ep1: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v100',
+      title: 'Episode 1',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesStripePriceId: 'price_series_1',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+    const ep2: VideoItem = {
+      ...initVideoItem(),
+      docId: 'v101',
+      title: 'Episode 2',
+      seriesId: 'series-1',
+      seriesTitle: 'Complete Series',
+      seriesStripePriceId: 'price_series_1',
+      seriesPriceCents: 4999,
+      isPublished: true,
+    };
+
+    mockDataService.videos.entries.set([ep1, ep2]);
+    component.video.set(ep1);
+
+    await component.startSeriesPurchase();
+    expect(mockStripeService.createCheckoutSession).toHaveBeenCalledWith(
+      'price_series_1',
+      expect.any(String),
+      1,
+      expect.objectContaining({
+        metadata: {
+          seriesId: 'series-1',
+          videoId: 'v100',
+          orderType: 'vod',
+        },
+      }),
+    );
+  });
 });

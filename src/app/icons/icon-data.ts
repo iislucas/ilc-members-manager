@@ -289,6 +289,27 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  collections: {
+    viewbox: '0 0 24 24',
+    fill: 'currentColor',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  cloud_upload: {
+    viewbox: '0 0 24 24',
+    fill: 'currentColor',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
+  place: {
+    viewbox: '0 0 24 24',
+    fill: 'currentColor',
+    html: `<path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 
   visibility_off: {
     viewbox: '0 -960 960 960',

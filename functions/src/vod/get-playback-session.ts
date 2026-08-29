@@ -36,6 +36,10 @@ export interface GetPlaybackSessionResponse {
   reason?: 'unauthenticated' | 'subscription_required' | 'instructor_required' | 'class_sub_required' | 'purchase_required';
   priceCents?: number;
   stripePriceId?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  seriesPriceCents?: number;
+  seriesStripePriceId?: string;
   trailerVideoId?: string;
   trailerManifestUrl?: string;
 }
@@ -109,6 +113,10 @@ export const getVideoPlaybackSession = onCall(
         reason: 'unauthenticated',
         priceCents: video.priceCents,
         stripePriceId: video.stripePriceId,
+        seriesId: video.seriesId || undefined,
+        seriesTitle: video.seriesTitle || undefined,
+        seriesPriceCents: video.seriesPriceCents,
+        seriesStripePriceId: video.seriesStripePriceId || undefined,
         trailerVideoId: video.trailerVideoId || undefined,
         trailerManifestUrl,
       };
@@ -135,16 +143,53 @@ export const getVideoPlaybackSession = onCall(
       };
     }
 
-    // 5. Check individual video grants (if member bought or was granted this specific video)
+    // 5. Check video grants (video docId or parent seriesId)
+    const grantTargetIds = [video.docId];
+    if (video.seriesId && !grantTargetIds.includes(video.seriesId)) {
+      grantTargetIds.push(video.seriesId);
+    }
+    if (video.forVodPageId && !grantTargetIds.includes(video.forVodPageId)) {
+      grantTargetIds.push(video.forVodPageId);
+    }
+
     if (member) {
-      const grantRef = db
-        .collection('members')
-        .doc(member.docId)
-        .collection('videoGrants')
-        .doc(video.docId);
-      const grantSnap = await grantRef.get();
-      if (grantSnap.exists) {
-        const grantData = grantSnap.data();
+      for (const targetId of grantTargetIds) {
+        const grantRef = db
+          .collection('members')
+          .doc(member.docId)
+          .collection('videoGrants')
+          .doc(targetId);
+        const grantSnap = await grantRef.get();
+        if (grantSnap.exists) {
+          const grantData = grantSnap.data();
+          const expiresAt = grantData?.expiresAt;
+          if (!expiresAt || new Date(expiresAt) >= new Date()) {
+            return {
+              authorized: true,
+              manifestUrl: video.manifestUrl,
+              title: video.title,
+              durationSeconds: video.durationSeconds,
+              seriesId: video.seriesId || undefined,
+              seriesTitle: video.seriesTitle || undefined,
+              trailerVideoId: video.trailerVideoId || undefined,
+              trailerManifestUrl,
+            };
+          }
+        }
+      }
+    }
+
+    // Also check global video_grants by email
+    for (const targetId of grantTargetIds) {
+      const globalGrantsQuery = await db
+        .collection('video_grants')
+        .where('videoId', '==', targetId)
+        .where('memberEmail', '==', email)
+        .limit(1)
+        .get();
+
+      if (!globalGrantsQuery.empty) {
+        const grantData = globalGrantsQuery.docs[0].data();
         const expiresAt = grantData?.expiresAt;
         if (!expiresAt || new Date(expiresAt) >= new Date()) {
           return {
@@ -152,33 +197,12 @@ export const getVideoPlaybackSession = onCall(
             manifestUrl: video.manifestUrl,
             title: video.title,
             durationSeconds: video.durationSeconds,
+            seriesId: video.seriesId || undefined,
+            seriesTitle: video.seriesTitle || undefined,
             trailerVideoId: video.trailerVideoId || undefined,
             trailerManifestUrl,
           };
         }
-      }
-    }
-
-    // Also check global video_grants by email
-    const globalGrantsQuery = await db
-      .collection('video_grants')
-      .where('videoId', '==', video.docId)
-      .where('memberEmail', '==', email)
-      .limit(1)
-      .get();
-
-    if (!globalGrantsQuery.empty) {
-      const grantData = globalGrantsQuery.docs[0].data();
-      const expiresAt = grantData?.expiresAt;
-      if (!expiresAt || new Date(expiresAt) >= new Date()) {
-        return {
-          authorized: true,
-          manifestUrl: video.manifestUrl,
-          title: video.title,
-          durationSeconds: video.durationSeconds,
-          trailerVideoId: video.trailerVideoId || undefined,
-          trailerManifestUrl,
-        };
       }
     }
 
@@ -250,6 +274,10 @@ export const getVideoPlaybackSession = onCall(
       reason,
       priceCents: video.priceCents,
       stripePriceId: video.stripePriceId,
+      seriesId: video.seriesId || undefined,
+      seriesTitle: video.seriesTitle || undefined,
+      seriesPriceCents: video.seriesPriceCents,
+      seriesStripePriceId: video.seriesStripePriceId || undefined,
       trailerVideoId: video.trailerVideoId || undefined,
       trailerManifestUrl,
     };

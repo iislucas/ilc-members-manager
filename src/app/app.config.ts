@@ -74,6 +74,7 @@ export enum Views {
   Videos = 'videos',
   VideoView = 'videoView',
   ManageVod = 'manageVod',
+  ManageVodUpload = 'manageVodUpload',
   ManageVideoTags = 'manageVideoTags',
   BecomeAMember = 'becomeAMember',
   NextGrading = 'nextGrading',
@@ -271,6 +272,7 @@ export const initPathPatterns = {
   [Views.ManageVod]: addUrlParams(pathPattern`manage-vod`, [
     'q', 'status', 'featured', 'accessTier', 'instructorId', 'videoId', 'editVideoId',
   ]),
+  [Views.ManageVodUpload]: pathPattern`manage-vod/upload`,
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
 };
 

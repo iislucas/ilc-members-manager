@@ -12,6 +12,31 @@
       <a class="subtle-btn" [href]="getCatalogHref()">Browse All Videos</a>
     </div>
   } @else if (video(); as v) {
+    <!-- Series Navigation Header Bar (if part of a series) -->
+    @if (series(); as s) {
+      <div class="series-nav-bar">
+        <div class="series-nav-left">
+          <app-icon name="collections"></app-icon>
+          <span class="series-nav-title">{{ s.title }}</span>
+          <span class="series-nav-part-badge">Part {{ currentEpisodeIndex() + 1 }} of {{ s.videos.length }}</span>
+        </div>
+        <div class="series-nav-controls">
+          @if (previousEpisode(); as prev) {
+            <a class="nav-prev-btn" [href]="getVideoHref(prev)" title="Previous Part: {{ prev.title }}">
+              <app-icon name="arrow_back"></app-icon>
+              <span>Prev: Part {{ currentEpisodeIndex() }}</span>
+            </a>
+          }
+          @if (nextEpisode(); as next) {
+            <a class="nav-next-btn" [href]="getVideoHref(next)" title="Next Part: {{ next.title }}">
+              <span>Next: Part {{ currentEpisodeIndex() + 2 }}</span>
+              <app-icon name="arrow_forward"></app-icon>
+            </a>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Main Player Area -->
     <div class="player-theater-wrapper">
       @if (canStreamActiveVideo()) {
@@ -68,7 +93,13 @@
             <div class="unlock-info">
               <div class="unlock-title">Enjoying the preview?</div>
               <div class="unlock-desc">
-                @if (isBuyable(v) && v.priceCents) {
+                @if (series(); as s) {
+                  @if (s.priceCents) {
+                    Buy the full series bundle to unlock all {{ s.videos.length }} parts.
+                  } @else {
+                    Sign in or join membership to access all episodes in this series.
+                  }
+                } @else if (isBuyable(v) && v.priceCents) {
                   Buy on-demand lifetime streaming access to this recording.
                 } @else if (sessionState()?.reason === 'class_sub_required') {
                   Subscribe to the Class Video Library to access the full recording and weekly Saturday class archives.
@@ -80,7 +111,24 @@
               </div>
             </div>
             <div class="unlock-cta-actions">
-              @if (isBuyable(v) && v.priceCents) {
+              @if (series(); as s) {
+                @if (s.priceCents) {
+                  <button
+                    type="button"
+                    class="primary-btn unlock-buy-btn"
+                    [disabled]="isPurchasing()"
+                    (click)="startSeriesPurchase()"
+                  >
+                    @if (isPurchasing()) {
+                      <app-spinner></app-spinner>
+                      <span>Processing...</span>
+                    } @else {
+                      <app-icon name="shopping_cart"></app-icon>
+                      <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
+                    }
+                  </button>
+                }
+              } @else if (isBuyable(v) && v.priceCents) {
                 <button
                   type="button"
                   class="primary-btn unlock-buy-btn"
@@ -519,8 +567,60 @@
         }
       </div>
 
-      <!-- Sidebar Column: Related Recordings -->
+      <!-- Sidebar Column: Series Playlist + Related Recordings -->
       <div class="sidebar-col">
+        @if (series(); as s) {
+          <div class="series-playlist-box card">
+            <div class="playlist-header">
+              <div class="playlist-heading-row">
+                <span class="playlist-label">Series Playlist</span>
+                <span class="playlist-count">{{ currentEpisodeIndex() + 1 }} / {{ s.videos.length }}</span>
+              </div>
+              <h4 class="playlist-series-title">{{ s.title }}</h4>
+              @if (s.priceCents && s.priceCents > 0 && !sessionState()?.authorized) {
+                <div class="series-playlist-buy">
+                  <button
+                    type="button"
+                    class="primary-btn series-buy-pill-btn"
+                    [disabled]="isPurchasing()"
+                    (click)="startSeriesPurchase()"
+                  >
+                    <app-icon name="shopping_cart"></app-icon>
+                    <span>Buy Full Series (${{ (s.priceCents / 100).toFixed(2) }})</span>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <div class="playlist-episodes-list">
+              @for (ep of s.videos; track ep.docId; let epIdx = $index) {
+                <a
+                  class="playlist-episode-item"
+                  [class.active]="ep.docId === v.docId"
+                  [href]="getVideoHref(ep)"
+                >
+                  <div class="ep-left">
+                    <span class="ep-num-pill" [class.now-playing]="ep.docId === v.docId">
+                      @if (ep.docId === v.docId) {
+                        <app-icon name="play_arrow"></app-icon>
+                      } @else {
+                        {{ ep.seriesPartIndex || (epIdx + 1) }}
+                      }
+                    </span>
+                    <div class="ep-titles">
+                      <span class="ep-title">{{ ep.title }}</span>
+                      <span class="ep-dur">{{ formatDuration(ep.durationSeconds) }}</span>
+                    </div>
+                  </div>
+                  @if (ep.docId === v.docId) {
+                    <span class="now-playing-tag">Playing</span>
+                  }
+                </a>
+              }
+            </div>
+          </div>
+        }
+
         <h3>Related Recordings</h3>
         <div class="related-list">
           @for (rel of relatedVideos(); track rel.docId) {

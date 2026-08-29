@@ -40,6 +40,7 @@
     "test:watch": "vitest --no-color",
     "test": "pnpm test:once",
     "backfill:timestamps": "ts-node -O '{\"module\": \"commonjs\"}' scripts/backfill-collection-timestamps.ts",
+    "backfill:video-series": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/backfill-video-series.ts",
     "typecheck:tests": "tsc -p tsconfig.spec.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "generate:diagram": "ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' docs/minitools/diagram-router/scripts/generate-architecture-diagram.ts",
     "test:diagram": "vitest run --config docs/minitools/diagram-router/vitest.config.ts --no-color",

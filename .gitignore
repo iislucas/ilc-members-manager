@@ -58,9 +58,14 @@ secret.keys.txt
 # Auto-generated version stamp (scripts/stamp-version.ts)
 src/app/version.ts
 
-# Mini-tools (logo maker)
+# Mini-tools
 mini-tools/logo-maker/build/
 mini-tools/logo-maker/node_modules/
+mini-tools/vod-grants-analyzer/data/
+mini-tools/vod-grants-analyzer/output/
+mini-tools/vod-grants-analyzer/data.js
+mini-tools/vod-grants-analyzer/dist/
+mini-tools/vod-grants-analyzer/__pycache__/
 
 # Scratch git worktrees used by coding agents. These are full checkouts (often
 # with their own node_modules), so committing one would drag a copy of the repo

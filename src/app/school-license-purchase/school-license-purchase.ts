@@ -47,6 +47,8 @@ import { AutocompleteComponent } from '../autocomplete/autocomplete';
 
 export type SchoolLicenseAction = 'renew' | 'new';
 
+import { environment } from '../../environments/environment';
+
 @Component({
   selector: 'app-school-license-purchase',
   standalone: true,
@@ -73,6 +75,8 @@ export class SchoolLicensePurchaseComponent {
     inject(RoutingService);
 
   Views = Views;
+  environment = environment;
+  adminEmail = environment.adminEmail;
   user = this.firebaseService.user;
 
   // Stripe catalogue. Injecting StripeProductsService is what loads it, so the

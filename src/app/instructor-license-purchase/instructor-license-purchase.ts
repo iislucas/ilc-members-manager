@@ -39,6 +39,8 @@ import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
 
+import { environment } from '../../environments/environment';
+
 @Component({
   selector: 'app-instructor-license-purchase',
   standalone: true,
@@ -63,6 +65,8 @@ export class InstructorLicensePurchaseComponent {
     inject(RoutingService);
 
   Views = Views;
+  environment = environment;
+  adminEmail = environment.adminEmail;
   user = this.firebaseService.user;
 
   // Stripe products loading

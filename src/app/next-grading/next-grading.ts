@@ -51,6 +51,8 @@ import { StepTrackComponent } from '../step-track/step-track';
 import { StepFlow } from '../step-track/step-flow';
 import { StepCardComponent } from '../step-card/step-card';
 
+import { environment } from '../../environments/environment';
+
 @Component({
   selector: 'app-next-grading',
   standalone: true,
@@ -76,6 +78,8 @@ export class NextGradingComponent {
     inject(RoutingService);
 
   Views = Views;
+  environment = environment;
+  adminEmail = environment.adminEmail;
   user = this.firebaseService.user;
 
   // Stripe catalogue. Injecting StripeProductsService is what loads it, so the

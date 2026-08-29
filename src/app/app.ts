@@ -52,6 +52,7 @@ import { ManageMaterialsComponent } from './manage-materials/manage-materials';
 import { VideosCatalogComponent } from './videos-catalog/videos-catalog';
 import { VideoViewComponent } from './video-view/video-view';
 import { ManageVodComponent } from './manage-vod/manage-vod';
+import { ManageVodUploadComponent } from './manage-vod-upload/manage-vod-upload';
 import { ManageVideoTagsComponent } from './manage-video-tags/manage-video-tags';
 import { MemberOrdersComponent } from './member-orders/member-orders';
 import { NotFoundComponent } from './not-found/not-found';
@@ -116,6 +117,7 @@ import { NavigationTreeService } from './navigation-tree';
     VideosCatalogComponent,
     VideoViewComponent,
     ManageVodComponent,
+    ManageVodUploadComponent,
     ManageVideoTagsComponent,
     NotFoundComponent,
     BecomeAMemberComponent,
