@@ -28,75 +28,183 @@
            the visible "re-load" flash when the user auto-logs in. -->
       @switch (currentView()) {
         @case (Views.FindAnInstructor) {
-          <app-find-an-instructor></app-find-an-instructor>
+          @defer (prefetch on idle) {
+            <app-find-an-instructor></app-find-an-instructor>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading instructors...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorView) {
-          <app-instructor-view
-            [instructorId]="routingService.signals[Views.InstructorView].pathVars.instructorId()"
-            (titleLoaded)="onInstructorTitleLoaded($event)"
-          ></app-instructor-view>
+          @defer (prefetch on idle) {
+            <app-instructor-view
+              [instructorId]="routingService.signals[Views.InstructorView].pathVars.instructorId()"
+              (titleLoaded)="onInstructorTitleLoaded($event)"
+            ></app-instructor-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading instructor profile...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.FindSchool) {
-          <app-find-school></app-find-school>
+          @defer (prefetch on idle) {
+            <app-find-school></app-find-school>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading schools...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolView) {
-          <app-school-view
-            [schoolId]="routingService.signals[Views.SchoolView].pathVars.schoolId()"
-            (titleLoaded)="onSchoolTitleLoaded($event)"
-          ></app-school-view>
+          @defer (prefetch on idle) {
+            <app-school-view
+              [schoolId]="routingService.signals[Views.SchoolView].pathVars.schoolId()"
+              (titleLoaded)="onSchoolTitleLoaded($event)"
+            ></app-school-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school profile...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ClassCalendarView) {
-          <app-class-calendar
-            [calendarId]="instructorCalendarId()"
-            [calendarOwnerName]="instructorCalendarOwnerName()"
-          ></app-class-calendar>
+          @defer (prefetch on idle) {
+            <app-class-calendar
+              [calendarId]="instructorCalendarId()"
+              [calendarOwnerName]="instructorCalendarOwnerName()"
+            ></app-class-calendar>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading calendar...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolCalendarView) {
-          <app-class-calendar
-            [calendarId]="schoolCalendarId()"
-            [calendarOwnerName]="schoolCalendarOwnerName()"
-          ></app-class-calendar>
+          @defer (prefetch on idle) {
+            <app-class-calendar
+              [calendarId]="schoolCalendarId()"
+              [calendarOwnerName]="schoolCalendarOwnerName()"
+            ></app-class-calendar>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading calendar...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.EventsCalendar) {
-          <app-event-list></app-event-list>
+          @defer (prefetch on idle) {
+            <app-event-list></app-event-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading events...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.EventView) {
-          <app-event-view
-            [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-view>
+          @defer (prefetch on idle) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.EventView].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.DownloadResource) {
-          <app-download-resource></app-download-resource>
+          @defer (prefetch on idle) {
+            <app-download-resource></app-download-resource>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading resource...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.OrderComplete) {
-          <app-order-complete></app-order-complete>
+          @defer (prefetch on idle) {
+            <app-order-complete></app-order-complete>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading order status...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.Videos) {
-          <app-videos-catalog></app-videos-catalog>
+          @defer (prefetch on idle) {
+            <app-videos-catalog></app-videos-catalog>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading videos...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.VideoView) {
-          <app-video-view
-            (titleLoaded)="onVideoTitleLoaded($event)"
-          ></app-video-view>
+          @defer (prefetch on idle) {
+            <app-video-view
+              (titleLoaded)="onVideoTitleLoaded($event)"
+            ></app-video-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading video...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ClassVideoLibrary) {
-          <app-class-video-library></app-class-video-library>
+          @defer (prefetch on idle) {
+            <app-class-video-library></app-class-video-library>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading class video library...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.BecomeAMember) {
-          <app-become-a-member></app-become-a-member>
+          @defer (prefetch on idle) {
+            <app-become-a-member></app-become-a-member>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading membership application...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.NextGrading) {
-          <app-next-grading></app-next-grading>
+          @defer (prefetch on idle) {
+            <app-next-grading></app-next-grading>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading grading registration...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorLicensePurchase) {
-          <app-instructor-license-purchase></app-instructor-license-purchase>
+          @defer (prefetch on idle) {
+            <app-instructor-license-purchase></app-instructor-license-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading license renewal...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolLicensePurchase) {
-          <app-school-license-purchase></app-school-license-purchase>
+          @defer (prefetch on idle) {
+            <app-school-license-purchase></app-school-license-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school license...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ClassVideoLibraryPurchase) {
-          <app-class-video-library-purchase></app-class-video-library-purchase>
+          @defer (prefetch on idle) {
+            <app-class-video-library-purchase></app-class-video-library-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading subscription...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
       }
     } @else if (!user) {
@@ -238,217 +346,505 @@
           ></app-member-details>
         }
         @case (Views.ManageMembers) {
-          <app-filtered-members
-            [memberSet]="dataService.members"
-            basePath="members"
-          ></app-filtered-members>
+          @defer {
+            <app-filtered-members
+              [memberSet]="dataService.members"
+              basePath="members"
+            ></app-filtered-members>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading members...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ImportExport) {
-          <app-import-export></app-import-export>
+          @defer {
+            <app-import-export></app-import-export>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading import/export tools...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageSchools) {
-          <app-school-list></app-school-list>
+          @defer {
+            <app-school-list></app-school-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading schools...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageSchoolEdit) {
-          <app-school-edit
-            [schoolId]="routingService.signals[Views.ManageSchoolEdit].pathVars.schoolId()"
-            (titleLoaded)="onSchoolTitleLoaded($event)"
-          ></app-school-edit>
+          @defer {
+            <app-school-edit
+              [schoolId]="routingService.signals[Views.ManageSchoolEdit].pathVars.schoolId()"
+              (titleLoaded)="onSchoolTitleLoaded($event)"
+            ></app-school-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolMembers) {
-          <app-school-members></app-school-members>
+          @defer (prefetch on idle) {
+            <app-school-members></app-school-members>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school members...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorStudents) {
-          <app-instructor-students></app-instructor-students>
+          @defer (prefetch on idle) {
+            <app-instructor-students></app-instructor-students>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading students...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyEventView) {
-          <app-event-view
-            [eventId]="routingService.signals[Views.MyEventView].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-view>
+          @defer (prefetch on idle) {
+            <app-event-view
+              [eventId]="routingService.signals[Views.MyEventView].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageEventView) {
-          <app-event-view
-            [eventId]="routingService.signals[Views.ManageEventView].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-view>
+          @defer {
+            <app-event-view
+              [eventId]="routingService.signals[Views.ManageEventView].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.EventEdit) {
-          <app-event-edit
-            [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-edit>
+          @defer (prefetch on idle) {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.EventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyEventEdit) {
-          <app-event-edit
-            [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-edit>
+          @defer (prefetch on idle) {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.MyEventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageEventEdit) {
-          <app-event-edit
-            [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
-            (titleLoaded)="onEventTitleLoaded($event)"
-          ></app-event-edit>
+          @defer {
+            <app-event-edit
+              [eventId]="routingService.signals[Views.ManageEventEdit].pathVars.eventId()"
+              (titleLoaded)="onEventTitleLoaded($event)"
+            ></app-event-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ProposeEvent) {
-          <app-organise-event></app-organise-event>
+          @defer (prefetch on idle) {
+            <app-organise-event></app-organise-event>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading event form...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageEvents) {
-          <app-manage-events></app-manage-events>
+          @defer {
+            <app-manage-events></app-manage-events>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading events manager...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyStudents) {
-          <app-filtered-members
-            [memberSet]="dataService.myStudents"
-            basePath="my-students"
-            [hideInactive]="true"
-          ></app-filtered-members>
+          @defer (prefetch on idle) {
+            <app-filtered-members
+              [memberSet]="dataService.myStudents"
+              basePath="my-students"
+              [hideInactive]="true"
+            ></app-filtered-members>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading students...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyEvents) {
-          <app-event-list
-            [collectionPath]="'members/' + user.member.docId + '/events'"
-          ></app-event-list>
+          @defer (prefetch on idle) {
+            <app-event-list
+              [collectionPath]="'members/' + user.member.docId + '/events'"
+            ></app-event-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading events...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MySchools) {
-          <app-school-list
-            [schoolSet]="dataService.mySchools"
-          ></app-school-list>
+          @defer (prefetch on idle) {
+            <app-school-list
+              [schoolSet]="dataService.mySchools"
+            ></app-school-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading schools...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MySchoolEdit) {
-          <app-school-edit
-            [schoolId]="routingService.signals[Views.MySchoolEdit].pathVars.schoolId()"
-            (titleLoaded)="onSchoolTitleLoaded($event)"
-          ></app-school-edit>
+          @defer (prefetch on idle) {
+            <app-school-edit
+              [schoolId]="routingService.signals[Views.MySchoolEdit].pathVars.schoolId()"
+              (titleLoaded)="onSchoolTitleLoaded($event)"
+            ></app-school-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.NewMember) {
-          <app-member-create
-            [basePath]="routingService.signals[Views.NewMember].urlParams.basePath() || 'members'"
-          ></app-member-create>
+          @defer {
+            <app-member-create
+              [basePath]="routingService.signals[Views.NewMember].urlParams.basePath() || 'members'"
+            ></app-member-create>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading member creation...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageMemberView) {
-          <app-member-view
-            [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
-            basePath="members"
-          ></app-member-view>
+          @defer {
+            <app-member-view
+              [memberId]="routingService.signals[Views.ManageMemberView].pathVars.memberId()"
+              basePath="members"
+            ></app-member-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading member...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolMemberView) {
-          <app-member-view
-            [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
-            [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
-          ></app-member-view>
+          @defer (prefetch on idle) {
+            <app-member-view
+              [memberId]="routingService.signals[Views.SchoolMemberView].pathVars.memberId()"
+              [basePath]="'school/' + routingService.signals[Views.SchoolMemberView].pathVars.schoolId() + '/members'"
+            ></app-member-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading member...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorStudentView) {
-          <app-member-view
-            [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
-            [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
-          ></app-member-view>
+          @defer (prefetch on idle) {
+            <app-member-view
+              [memberId]="routingService.signals[Views.InstructorStudentView].pathVars.memberId()"
+              [basePath]="'instructor/' + routingService.signals[Views.InstructorStudentView].pathVars.instructorId() + '/students'"
+            ></app-member-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading student...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyStudentView) {
-          <app-member-view
-            [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
-            basePath="my-students"
-            [allowStudentActions]="true"
-          ></app-member-view>
+          @defer (prefetch on idle) {
+            <app-member-view
+              [memberId]="routingService.signals[Views.MyStudentView].pathVars.memberId()"
+              basePath="my-students"
+              [allowStudentActions]="true"
+            ></app-member-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading student...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MembersAreaCategory) {
-          <app-squarespace-content
-            path="members-post"
-            pageTitle="Active Members Area"
-          ></app-squarespace-content>
+          @defer (prefetch on idle) {
+            <app-squarespace-content
+              path="members-post"
+              pageTitle="Active Members Area"
+            ></app-squarespace-content>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading members area...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorsAreaCategory) {
-          <app-squarespace-content
-            path="instructors-post"
-            pageTitle="Active Instructors Area"
-          ></app-squarespace-content>
+          @defer (prefetch on idle) {
+            <app-squarespace-content
+              path="instructors-post"
+              pageTitle="Active Instructors Area"
+            ></app-squarespace-content>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading instructors area...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MembersAreaPost) {
-          <app-squarespace-article
-            collection="members-post"
-            [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
-          ></app-squarespace-article>
+          @defer (prefetch on idle) {
+            <app-squarespace-article
+              collection="members-post"
+              [blogPostPath]="routingService.signals[Views.MembersAreaPost].pathVars.blogPostPath()"
+            ></app-squarespace-article>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorsAreaPost) {
-          <app-squarespace-article
-            collection="instructors-post"
-            [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
-          ></app-squarespace-article>
+          @defer (prefetch on idle) {
+            <app-squarespace-article
+              collection="instructors-post"
+              [blogPostPath]="routingService.signals[Views.InstructorsAreaPost].pathVars.blogPostPath()"
+            ></app-squarespace-article>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageGradings) {
-          <app-grading-list
-            [gradingSet]="dataService.gradings"
-          ></app-grading-list>
+          @defer {
+            <app-grading-list
+              [gradingSet]="dataService.gradings"
+            ></app-grading-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading gradings...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.GradingView) {
-          <app-grading-view
-            [gradingId]="routingService.signals[Views.GradingView].pathVars.gradingId()"
-            (titleLoaded)="onGradingTitleLoaded($event)"
-          ></app-grading-view>
+          @defer (prefetch on idle) {
+            <app-grading-view
+              [gradingId]="routingService.signals[Views.GradingView].pathVars.gradingId()"
+              (titleLoaded)="onGradingTitleLoaded($event)"
+            ></app-grading-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading grading...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MemberGradings) {
-          <app-member-gradings></app-member-gradings>
+          @defer (prefetch on idle) {
+            <app-member-gradings></app-member-gradings>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading gradings...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.Settings) {
-          <app-settings></app-settings>
+          @defer {
+            <app-settings></app-settings>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading settings...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.NotificationSettings) {
-          <app-notification-settings></app-notification-settings>
+          @defer {
+            <app-notification-settings></app-notification-settings>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading notification settings...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.Notifications) {
-          <app-notifications-view></app-notifications-view>
+          @defer (prefetch on idle) {
+            <app-notifications-view></app-notifications-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading notifications...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.Statistics) {
-          <app-statistics></app-statistics>
+          @defer {
+            <app-statistics></app-statistics>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading statistics...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ClassVideoLibrary) {
-          <app-class-video-library></app-class-video-library>
+          @defer (prefetch on idle) {
+            <app-class-video-library></app-class-video-library>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading class video library...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageOrders) {
-          <app-order-list></app-order-list>
+          @defer {
+            <app-order-list></app-order-list>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading orders...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyOrders) {
-          <app-member-orders></app-member-orders>
+          @defer (prefetch on idle) {
+            <app-member-orders></app-member-orders>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading orders...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.OrderView) {
-          <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
+          @defer {
+            <app-order-view (titleLoaded)="onOrderTitleLoaded($event)"></app-order-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading order details...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.MyMaterials) {
-          <app-my-materials></app-my-materials>
+          @defer (prefetch on idle) {
+            <app-my-materials></app-my-materials>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading materials...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageMaterials) {
-          <app-manage-materials></app-manage-materials>
+          @defer {
+            <app-manage-materials></app-manage-materials>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading materials manager...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageVod) {
-          <app-manage-vod></app-manage-vod>
+          @defer {
+            <app-manage-vod></app-manage-vod>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading VOD manager...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ManageVodUpload) {
           <app-manage-vod-upload></app-manage-vod-upload>
         }
         @case (Views.ManageVideoTags) {
-          <app-manage-video-tags></app-manage-video-tags>
+          @defer {
+            <app-manage-video-tags></app-manage-video-tags>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading video tags...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.Videos) {
-          <app-videos-catalog></app-videos-catalog>
+          @defer (prefetch on idle) {
+            <app-videos-catalog></app-videos-catalog>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading videos...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.VideoView) {
-          <app-video-view
-            (titleLoaded)="onVideoTitleLoaded($event)"
-          ></app-video-view>
+          @defer (prefetch on idle) {
+            <app-video-view
+              (titleLoaded)="onVideoTitleLoaded($event)"
+            ></app-video-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading video...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.BecomeAMember) {
-          <app-become-a-member></app-become-a-member>
+          @defer (prefetch on idle) {
+            <app-become-a-member></app-become-a-member>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading membership application...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.NextGrading) {
-          <app-next-grading></app-next-grading>
+          @defer (prefetch on idle) {
+            <app-next-grading></app-next-grading>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading grading...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.InstructorLicensePurchase) {
-          <app-instructor-license-purchase></app-instructor-license-purchase>
+          @defer (prefetch on idle) {
+            <app-instructor-license-purchase></app-instructor-license-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading license renewal...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.SchoolLicensePurchase) {
-          <app-school-license-purchase></app-school-license-purchase>
+          @defer (prefetch on idle) {
+            <app-school-license-purchase></app-school-license-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading school license...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @case (Views.ClassVideoLibraryPurchase) {
-          <app-class-video-library-purchase></app-class-video-library-purchase>
+          @defer (prefetch on idle) {
+            <app-class-video-library-purchase></app-class-video-library-purchase>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading subscription...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
         }
         @default {
           <app-not-found></app-not-found>

@@ -1,5 +1,5 @@
 import { provideZonelessChangeDetection } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { TestBed, DeferBlockState } from '@angular/core/testing';
 import { App } from './app';
 import {
   FirebaseStateService,
@@ -188,6 +188,12 @@ describe('App', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
+    const deferBlocks = await fixture.getDeferBlocks();
+    for (const block of deferBlocks) {
+      await block.render(DeferBlockState.Complete);
+    }
+    fixture.detectChanges();
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('app-find-an-instructor')).toBeTruthy();
 
@@ -287,6 +293,12 @@ describe('App', () => {
 
     fixture.detectChanges();
     await fixture.whenStable();
+
+    const deferBlocks = await fixture.getDeferBlocks();
+    for (const block of deferBlocks) {
+      await block.render(DeferBlockState.Complete);
+    }
+    fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const articleElem = compiled.querySelector('app-squarespace-article');
