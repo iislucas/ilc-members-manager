@@ -325,4 +325,19 @@ describe('VideoViewComponent', () => {
       }),
     );
   });
+
+  it('should reload video when videoId signal changes', async () => {
+    mockDataService.getVideoById.mockImplementation(async (id: string) => ({
+      ...initVideoItem(),
+      docId: id,
+      title: id === 'v200' ? 'Part 2 Title' : 'Part 1 Title',
+    }));
+
+    mockRoutingService.signals.videoView.pathVars.videoId.set('v200');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(mockDataService.getVideoById).toHaveBeenCalledWith('v200');
+    expect(component.video()?.title).toBe('Part 2 Title');
+  });
 });

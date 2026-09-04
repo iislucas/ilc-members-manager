@@ -158,7 +158,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     this.vod.set(val);
     this.updateQualityLevels();
   }
-  @Input() manifestUrl = '';
+  private _manifestUrl = '';
+  @Input() set manifestUrl(val: string) {
+    const changed = this._manifestUrl !== val;
+    this._manifestUrl = val;
+    if (changed && this.isInitialized) {
+      this.reloadStream();
+    }
+  }
+  get manifestUrl(): string {
+    return this._manifestUrl;
+  }
   @Input() posterUrl = '';
   @Input() initialPositionSeconds = 0;
   @Input() autoplay = false;
@@ -168,6 +178,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   videoCompleted = output<void>();
   statsUpdated = output<StreamingStats>();
 
+  private isInitialized = false;
   private hls: Hls | null = null;
   private saveIntervalId: ReturnType<typeof setInterval> | null = null;
   private hideControlsTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -310,6 +321,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.isInitialized = true;
     const video = this.videoRef.nativeElement;
     const streamUrl = this.manifestUrl || this.vod()?.manifestUrl || '';
 
@@ -325,6 +337,36 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
       }
       this.emitStreamingStats();
     }, 2000);
+  }
+
+  reloadStream(): void {
+    const video = this.videoRef?.nativeElement;
+    if (!video) return;
+
+    if (this.hls) {
+      this.hls.destroy();
+      this.hls = null;
+    }
+
+    this.currentTime.set(0);
+    this.duration.set(0);
+    this.bufferedPercent.set(0);
+    this.bufferAheadSeconds.set(0);
+    this.totalBytesDownloaded.set(0);
+    this.lastChunkBytes.set(0);
+    this.lastChunkDurationMs.set(0);
+    this.currentBitrateMbps.set(0);
+    this.currentQualityId.set(-1);
+    this.currentResolutionLabel.set('Auto');
+    this.isBuffering.set(false);
+    this.isPlaying.set(false);
+    this.pendingSeekPosition =
+      this.initialPositionSeconds > 0 ? this.initialPositionSeconds : null;
+
+    const streamUrl = this.manifestUrl || this.vod()?.manifestUrl || '';
+    if (streamUrl) {
+      this.setupHls(streamUrl, video);
+    }
   }
 
   private updateQualityLevels(rawLevels?: any[]): void {
@@ -520,6 +562,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         fLoader: CachedHlsFragmentLoader as any,
         capLevelToPlayerSize: true,
         autoStartLoad: true,
+        enableInterstitialPlayback: false,
+        enableDateRangeMetadataCues: false,
         startPosition:
           this.initialPositionSeconds > 0 ? this.initialPositionSeconds : -1,
         // Mobile & cellular connection buffering & caching optimizations

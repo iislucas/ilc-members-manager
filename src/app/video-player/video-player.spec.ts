@@ -309,4 +309,12 @@ describe('VideoPlayerComponent', () => {
 
     expect(component.aspectRatio()).toBe('1920 / 960');
   });
+
+  it('should reload stream when manifestUrl changes after initialization', () => {
+    fixture.detectChanges(); // triggers ngOnInit and sets isInitialized = true
+    const reloadSpy = vi.spyOn(component, 'reloadStream');
+
+    component.manifestUrl = 'https://example.com/vod/new.m3u8';
+    expect(reloadSpy).toHaveBeenCalled();
+  });
 });
