@@ -458,6 +458,7 @@
   </main>
   <app-footer></app-footer>
 </div>
+<app-update-notification></app-update-notification>
 <a
   class="share-page-link"
   [class.copied]="shareCopied()"
@@ -469,4 +470,17 @@
   <app-icon [name]="shareCopied() ? 'check' : 'share'"></app-icon>
   <span>{{ shareCopied() ? 'Copied!' : 'Share' }}</span>
 </a>
-<span class="version-badge" [title]="'Build: ' + appVersion">v{{ appVersion }}</span>
+@if (updateService.isUpdateAvailable()) {
+  <button
+    type="button"
+    class="version-badge update-ready"
+    (click)="updateService.applyUpdate()"
+    title="A new version of the app is available! Click to update now."
+    aria-label="Update to latest version"
+  >
+    <app-icon name="refresh"></app-icon>
+    <span>Update ready (v{{ appVersion }})</span>
+  </button>
+} @else {
+  <span class="version-badge" [title]="'Build: ' + appVersion">v{{ appVersion }}</span>
+}

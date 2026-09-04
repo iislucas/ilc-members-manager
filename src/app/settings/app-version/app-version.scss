@@ -1,0 +1,180 @@
+@use "../../../scss_variables" as *;
+
+.version-settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  max-width: 650px;
+  width: 100%;
+
+  h2 {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .section-description {
+    margin: 0;
+    font-size: 0.9em;
+    color: $text-secondary;
+    line-height: 1.5;
+  }
+
+  .version-card {
+    background: #ffffff;
+    border: 1px solid $border-color-light;
+    border-radius: 8px;
+    padding: 1.25em;
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.75em;
+      border-bottom: 1px solid $separator-color;
+      font-size: 0.9em;
+
+      &:last-of-type {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .label {
+        font-weight: 500;
+        color: $text-secondary;
+      }
+
+      .value {
+        font-weight: 500;
+        color: $text-primary;
+
+        &.version-value {
+          font-family: monospace;
+          background: $separator-color;
+          padding: 0.2em 0.5em;
+          border-radius: 4px;
+          font-size: 0.95em;
+        }
+
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35em;
+          padding: 0.2em 0.55em;
+          border-radius: 4px;
+          font-size: 0.85em;
+
+          &.active-badge {
+            background-color: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #86efac;
+          }
+
+          &.disabled-badge {
+            background-color: #f4f4f5;
+            color: $text-muted;
+            border: 1px solid #d4d4d8;
+          }
+        }
+      }
+    }
+
+    .error-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      background: $theme-error-bg-color;
+      border: 1px solid $theme-error-border-color;
+      color: $theme-error-text-color;
+      padding: 0.75em 1em;
+      border-radius: 6px;
+      font-size: 0.85em;
+    }
+
+    .update-ready-banner {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75em;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-left: 4px solid #2563eb;
+      padding: 1em;
+      border-radius: 6px;
+
+      .update-ready-text {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75em;
+        color: #1e3a8a;
+
+        app-icon {
+          font-size: 1.3em;
+          margin-top: 0.1em;
+          color: #2563eb;
+        }
+
+        strong {
+          font-size: 0.95em;
+        }
+
+        p {
+          margin: 0.25em 0 0 0;
+          font-size: 0.85em;
+          color: #3b82f6;
+        }
+      }
+
+      .update-now-btn {
+        align-self: flex-start;
+        background: #2563eb;
+        color: #ffffff;
+        border: 1px solid #1d4ed8;
+        font-weight: 600;
+        padding: 0.45em 1em;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: background-color 0.15s ease;
+
+        &:hover {
+          background: #1d4ed8;
+        }
+      }
+    }
+
+    .actions-row {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 0.5em;
+
+      .check-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.5em 1em;
+        font-size: 0.9em;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 4px;
+        background-color: $button-bg-color;
+        border: 1px solid $button-border-color;
+        color: $button-text-color;
+        transition: background-color 0.15s ease;
+
+        &:hover:not(:disabled) {
+          background-color: $button-hover-bg-color;
+        }
+
+        &:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}

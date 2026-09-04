@@ -1,0 +1,21 @@
+@if (updateService.isUpdateAvailable() && !updateService.updateDismissed()) {
+  <div class="update-toast" role="alert" aria-live="polite">
+    <div class="toast-content">
+      <div class="toast-icon">
+        <app-icon name="refresh"></app-icon>
+      </div>
+      <div class="toast-text">
+        <div class="toast-title">Update Available</div>
+        <div class="toast-sub">A newer version of the ILC app is ready.</div>
+      </div>
+    </div>
+    <div class="toast-actions">
+      <button type="button" class="action-btn update-btn" (click)="onUpdate()">
+        Update Now
+      </button>
+      <button type="button" class="action-btn dismiss-btn" (click)="onDismiss()" aria-label="Dismiss update notification">
+        Later
+      </button>
+    </div>
+  </div>
+}
