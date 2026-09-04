@@ -18,6 +18,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   output,
   ViewChild,
   ChangeDetectionStrategy,
@@ -190,16 +191,29 @@ export class VideoViewComponent implements OnInit {
       .slice(0, 4);
   });
 
+  private lastLoadedVideoId: string | null = null;
+
+  constructor() {
+    effect(() => {
+      const id = this.videoId();
+      if (id && id !== this.lastLoadedVideoId) {
+        this.lastLoadedVideoId = id;
+        this.loadVideo(id);
+      } else if (!id) {
+        this.lastLoadedVideoId = null;
+        this.errorMessage.set('No video ID provided.');
+        this.titleLoaded.emit('Video Not Found');
+        this.isLoading.set(false);
+      }
+    });
+  }
+
   async ngOnInit(): Promise<void> {
     const id = this.videoId();
-    if (!id) {
-      this.errorMessage.set('No video ID provided.');
-      this.titleLoaded.emit('Video Not Found');
-      this.isLoading.set(false);
-      return;
+    if (id && id !== this.lastLoadedVideoId) {
+      this.lastLoadedVideoId = id;
+      await this.loadVideo(id);
     }
-
-    await this.loadVideo(id);
   }
 
   async loadVideo(id: string): Promise<void> {
@@ -207,10 +221,18 @@ export class VideoViewComponent implements OnInit {
     this.errorMessage.set(null);
     this.trailerVideo.set(null);
     this.trailerSessionState.set(null);
+    this.initialPositionSeconds.set(0);
+    this.streamingStats.set(null);
+
+    // Scroll back to top when switching videos
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+    }
 
     try {
       // 1. Fetch Video Metadata
       const videoData = await this.dataService.getVideoById(id);
+      if (this.videoId() !== id) return;
       if (!videoData) {
         this.errorMessage.set('Video not found in catalog.');
         this.titleLoaded.emit('Video Not Found');
@@ -223,6 +245,7 @@ export class VideoViewComponent implements OnInit {
       // 2. Fetch Saved Progress
       try {
         const savedProgress = await this.dataService.getVideoProgress(id);
+        if (this.videoId() !== id) return;
         if (
           savedProgress &&
           !savedProgress.completed &&
@@ -236,6 +259,7 @@ export class VideoViewComponent implements OnInit {
 
       // 3. Request Playback Session
       const session = await this.dataService.getVideoPlaybackSession(id);
+      if (this.videoId() !== id) return;
       this.sessionState.set(session);
 
       // 4. Load Trailer Metadata & Session if present
@@ -246,6 +270,7 @@ export class VideoViewComponent implements OnInit {
             this.dataService.getVideoById(trailerId),
             this.dataService.getVideoPlaybackSession(trailerId),
           ]);
+          if (this.videoId() !== id) return;
           this.trailerVideo.set(tVideo);
           this.trailerSessionState.set(tSession);
         } catch (tErr) {
@@ -260,13 +285,16 @@ export class VideoViewComponent implements OnInit {
         this.isPlayingTrailer.set(false);
       }
     } catch (err: any) {
+      if (this.videoId() !== id) return;
       console.error('Failed to load video or playback session:', err);
       this.errorMessage.set(
         err.message || 'Could not load video playback session.',
       );
       this.titleLoaded.emit('Error Loading Video');
     } finally {
-      this.isLoading.set(false);
+      if (this.videoId() === id) {
+        this.isLoading.set(false);
+      }
     }
   }
 

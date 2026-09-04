@@ -117,7 +117,6 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  overflow: hidden;
 
   &.visible {
     opacity: 1;
@@ -391,15 +390,31 @@
   bottom: 38px;
   right: 0;
   min-width: 170px;
+  max-height: min(280px, calc(100vh - 120px));
+  overflow-y: auto;
   background: rgba(24, 24, 27, 0.95);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
-  padding: 6px 0;
+  padding: 4px 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   z-index: 30;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
 
   .dropdown-header {
+    position: sticky;
+    top: -4px;
+    background: rgba(24, 24, 27, 0.98);
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -408,6 +423,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: white;
+    flex-shrink: 0;
 
     .back-btn {
       background: none;
