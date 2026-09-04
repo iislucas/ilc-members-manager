@@ -29,6 +29,8 @@ import {
   StripeProduct,
 } from '../../functions/src/stripe-types';
 
+import { environment } from '../environments/environment';
+
 @Injectable({ providedIn: 'root' })
 export class StripeProductsService {
   private firebaseService = inject(FirebaseStateService);
@@ -48,7 +50,7 @@ export class StripeProductsService {
    * cause goes to the console for whoever is debugging.
    */
   private static readonly unavailable =
-    'Prices are temporarily unavailable. Please try again shortly.';
+    `Prices are temporarily unavailable. Please try again shortly, or contact ${environment.adminEmail} for assistance.`;
 
   private readonly unsubscribe: () => void;
 

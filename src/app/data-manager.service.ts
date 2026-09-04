@@ -63,6 +63,9 @@ import {
   firestoreDocToMemberOrder,
   OrderKind,
   VideoItem,
+  VideoSeries,
+  groupVideosIntoSeries,
+  getVideoSeriesGroupingKey,
   firestoreDocToVideoItem,
   initVideoItem,
   VideoGrant,
@@ -2566,6 +2569,119 @@ export class DataManagerService {
     if (patch.tags && patch.tags.length > 0) {
       this.saveSystemTags(patch.tags);
     }
+  }
+
+  /**
+   * Extracts and groups all VideoSeries from the active video catalog.
+   */
+  getVideoSeriesList(): VideoSeries[] {
+    const { seriesList } = groupVideosIntoSeries(this.videos.entries());
+    return seriesList.sort((a, b) => (b.recordedDate || '').localeCompare(a.recordedDate || '') || a.title.localeCompare(b.title));
+  }
+
+  /**
+   * Updates metadata for an entire VideoSeries across all constituent videos in Firestore.
+   */
+  async updateVideoSeries(
+    seriesId: string,
+    patch: Partial<VideoSeries>,
+    orderedVideoIds?: string[],
+  ): Promise<void> {
+    const allVideos = this.videos.entries();
+    const targetVideos = allVideos.filter(
+      (v) =>
+        v.seriesId === seriesId ||
+        v.forVodPageId === seriesId ||
+        (orderedVideoIds && orderedVideoIds.includes(v.docId)),
+    );
+
+    if (targetVideos.length === 0 && (!orderedVideoIds || orderedVideoIds.length === 0)) return;
+
+    const batch = writeBatch(this.db);
+    const nowIso = new Date().toISOString();
+
+    const videoIdsToProcess = orderedVideoIds && orderedVideoIds.length > 0
+      ? orderedVideoIds
+      : targetVideos.map((v) => v.docId);
+
+    for (let i = 0; i < videoIdsToProcess.length; i++) {
+      const vId = videoIdsToProcess[i];
+      const videoRef = doc(this.db, 'videos', vId);
+      const updates: Record<string, any> = {
+        lastUpdated: nowIso,
+      };
+
+      if (patch.title !== undefined) updates['seriesTitle'] = patch.title;
+      if (patch.description !== undefined) updates['seriesDescription'] = patch.description;
+      if (patch.priceCents !== undefined) {
+        updates['seriesPriceCents'] = patch.priceCents;
+        updates['priceCents'] = patch.priceCents;
+        updates['isBuyable'] = patch.priceCents > 0;
+      }
+      if (patch.currency !== undefined) updates['currency'] = patch.currency;
+      if (patch.stripePriceId !== undefined) updates['seriesStripePriceId'] = patch.stripePriceId;
+      if (patch.stripeProductId !== undefined) updates['seriesStripeProductId'] = patch.stripeProductId;
+      if (patch.accessTier !== undefined) updates['accessTier'] = patch.accessTier;
+      if (patch.accessTiers !== undefined) updates['accessTiers'] = patch.accessTiers;
+      if (patch.isPublished !== undefined) updates['isPublished'] = patch.isPublished;
+      if (patch.featured !== undefined) updates['featured'] = patch.featured;
+      if (patch.tags !== undefined) updates['tags'] = patch.tags;
+
+      // Assign sequence part index
+      updates['seriesId'] = seriesId;
+      updates['seriesPartIndex'] = i + 1;
+
+      batch.update(videoRef, updates);
+    }
+
+    await batch.commit();
+
+    if (patch.tags && patch.tags.length > 0) {
+      this.saveSystemTags(patch.tags);
+    }
+  }
+
+  /**
+   * Adds specified video IDs into a series with incremental part indices.
+   */
+  async addVideosToSeries(
+    seriesId: string,
+    videoIds: string[],
+    seriesData?: Partial<VideoSeries>,
+  ): Promise<void> {
+    if (!seriesId || videoIds.length === 0) return;
+    const existingSeries = this.getVideoSeriesList().find((s) => s.seriesId === seriesId);
+    const startIndex = existingSeries ? existingSeries.videos.length : 0;
+
+    const batch = writeBatch(this.db);
+    const nowIso = new Date().toISOString();
+
+    for (let i = 0; i < videoIds.length; i++) {
+      const vId = videoIds[i];
+      const videoRef = doc(this.db, 'videos', vId);
+      const updates: Record<string, any> = {
+        seriesId,
+        seriesPartIndex: startIndex + i + 1,
+        lastUpdated: nowIso,
+      };
+
+      if (seriesData?.title || existingSeries?.title) {
+        updates['seriesTitle'] = seriesData?.title || existingSeries?.title;
+      }
+      if (seriesData?.description || existingSeries?.description) {
+        updates['seriesDescription'] = seriesData?.description || existingSeries?.description;
+      }
+      if (seriesData?.priceCents !== undefined || existingSeries?.priceCents !== undefined) {
+        const p = seriesData?.priceCents !== undefined ? seriesData.priceCents : existingSeries?.priceCents;
+        updates['seriesPriceCents'] = p;
+        updates['priceCents'] = p;
+        updates['isBuyable'] = (p || 0) > 0;
+      }
+
+      batch.update(videoRef, updates);
+    }
+
+    await batch.commit();
   }
 
   /**

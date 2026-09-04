@@ -64,7 +64,11 @@
         </div>
       } @else if (returnSessionError()) {
         <div class="error-container">
-          <span class="error-message">{{ returnSessionError() }}</span>
+          <span class="error-message">
+            {{ returnSessionError() }}
+            If you need assistance, please contact
+            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>.
+          </span>
         </div>
       }
     </div>
@@ -121,7 +125,11 @@
       }
       @if (cancelErrorMessage()) {
         <div class="error-container">
-          <span class="error-message">{{ cancelErrorMessage() }}</span>
+          <span class="error-message">
+            {{ cancelErrorMessage() }}
+            Please contact
+            <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a> for assistance.
+          </span>
         </div>
       }
 
@@ -425,7 +433,11 @@
             <div class="checkout-section">
               @if (checkoutError()) {
                 <div class="error-container">
-                  <span class="error-message">{{ checkoutError() }}</span>
+                  <span class="error-message">
+                    {{ checkoutError() }}
+                    If this issue persists, please contact
+                    <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>.
+                  </span>
                   <button
                     class="icon-only-button"
                     (click)="checkoutError.set(null)"
@@ -454,7 +466,8 @@
             <div class="empty-notice">
               <p>
                 License rates are currently being configured. Please check back
-                shortly.
+                shortly, or contact
+                <a [href]="'mailto:' + adminEmail">{{ adminEmail }}</a>.
               </p>
             </div>
           }

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ILC VOD Purchases &amp; Grants Manager</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-title-area">
+      <div class="header-logo">ILC VOD MANAGER</div>
+      <span class="header-badge">MINI-TOOL</span>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="nav-tab-btn" data-tab="orders">📦 Orders Explorer</button>
+      <button class="nav-tab-btn" data-tab="grants">🎟️ Video Grants</button>
+      <button class="nav-tab-btn" data-tab="series">🎬 Library Coverage</button>
+      <button class="nav-tab-btn" data-tab="unmigrated">📜 Unmigrated</button>
+      <button class="nav-tab-btn" data-tab="validation">🛡️ Validation</button>
+    </nav>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="metrics-grid">
+        <div class="metric-card accent">
+          <span class="metric-label">Raw Orders Processed</span>
+          <span id="metric-total-orders" class="metric-value">-</span>
+          <span class="metric-sub">Across 16 source files</span>
+        </div>
+        <div class="metric-card success">
+          <span class="metric-label">Active Video Grants</span>
+          <span id="metric-total-grants" class="metric-value">-</span>
+          <span class="metric-sub">Deduplicated per customer</span>
+        </div>
+        <div class="metric-card info">
+          <span class="metric-label">Series Grants</span>
+          <span id="metric-series-grants" class="metric-value">-</span>
+          <span class="metric-sub">Parent VOD series</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Unique Customers</span>
+          <span id="metric-unique-customers" class="metric-value">-</span>
+          <span class="metric-sub"><span id="metric-registered-members">-</span> registered members</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Unmigrated Purchases</span>
+          <span id="metric-unmigrated" class="metric-value">-</span>
+          <span class="metric-sub">Shaolin I-Jing, Nei Gong, etc.</span>
+        </div>
+      </div>
+
+      <div class="card-grid-2">
+        <div class="content-card">
+          <h2>Top VOD Series by Purchases</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Series Title</th>
+                  <th>Parts</th>
+                  <th>Purchasers</th>
+                </tr>
+              </thead>
+              <tbody id="top-series-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <h2>Top Customers by Video Ownership</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Total Grants</th>
+                </tr>
+              </thead>
+              <tbody id="top-customers-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-grid-2">
+        <div class="content-card">
+          <h2>Order Volume by Source Channel</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Channel / Source File</th>
+                  <th>Orders Processed</th>
+                </tr>
+              </thead>
+              <tbody id="channel-stats-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <h2>Purchase Timeline (Year by Year)</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Year</th>
+                  <th>Transactions</th>
+                </tr>
+              </thead>
+              <tbody id="timeline-stats-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: ORDERS EXPLORER -->
+    <section id="tab-orders" class="tab-panel">
+      <div class="content-card">
+        <h2>
+          <span>Historical Orders &amp; Purchase Explorer</span>
+          <button id="export-orders-btn" class="btn btn-secondary">⬇️ Export Filtered CSV</button>
+        </h2>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <input type="text" id="orders-search" class="search-input" placeholder="Search by email, name, item, order ID...">
+          </div>
+          <div class="filter-group">
+            <select id="orders-category-filter" class="filter-select">
+              <option value="all">All Categories</option>
+              <option value="vod_purchase">VOD Series Purchases</option>
+              <option value="unmigrated_video">Unmigrated Titles (Shaolin I-Jing)</option>
+              <option value="subscription">Subscriptions (Skipped)</option>
+              <option value="non_video">Non-Video (Apparel / Memberships)</option>
+            </select>
+            <select id="orders-source-filter" class="filter-select">
+              <option value="all">All Sources</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Source File</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span id="orders-count-label">Showing records...</span>
+          <div class="pagination-controls">
+            <button id="orders-prev-btn" class="btn btn-secondary">Previous</button>
+            <button id="orders-next-btn" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: GRANTS TABLE -->
+    <section id="tab-grants" class="tab-panel">
+      <div class="content-card">
+        <h2>
+          <span>Individual Video Grants (Ready for Ingestion)</span>
+          <button id="export-grants-btn" class="btn btn-primary">⬇️ Export Grants CSV</button>
+        </h2>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <input type="text" id="grants-search" class="search-input" placeholder="Search by customer email, name, video, series, or ID...">
+          </div>
+          <div class="filter-group">
+            <select id="grants-member-filter" class="filter-select">
+              <option value="all">All Customers</option>
+              <option value="registered">Registered Members Only</option>
+              <option value="unregistered">Unregistered Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Account Link</th>
+                <th>Video Title &amp; Doc ID</th>
+                <th>Series Title</th>
+                <th>Grant Kind</th>
+                <th>Sources / Provenance</th>
+              </tr>
+            </thead>
+            <tbody id="grants-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span id="grants-count-label">Showing grants...</span>
+          <div class="pagination-controls">
+            <button id="grants-prev-btn" class="btn btn-secondary">Previous</button>
+            <button id="grants-next-btn" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SERIES & LIBRARY COVERAGE -->
+    <section id="tab-series" class="tab-panel">
+      <div class="content-card">
+        <h2>VOD Catalog &amp; Series Library Coverage</h2>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Shows all published VOD series in Firestore, their video parts, and the number of historical customers matched.
+        </p>
+        <div id="series-library-grid" class="series-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB 5: UNMIGRATED -->
+    <section id="tab-unmigrated" class="tab-panel">
+      <div class="content-card">
+        <h2>Legacy Unmigrated Purchases (Titles Not in OTT)</h2>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          These historical purchases are for legacy releases (Shaolin I-Jing, Nei Gong, Moscow workshop) that are not currently in the VOD library in Firestore.
+        </p>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Member Status</th>
+                <th>Purchased Title</th>
+                <th>Media Type</th>
+                <th>Sources</th>
+              </tr>
+            </thead>
+            <tbody id="unmigrated-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: VALIDATION -->
+    <section id="tab-validation" class="tab-panel">
+      <div id="validation-status-banner"></div>
+
+      <div class="content-card">
+        <h2>File-by-File Accounting &amp; Row Reconciliation</h2>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Input Data Source</th>
+                <th>Raw Rows Ingested</th>
+                <th>Accounting Status</th>
+              </tr>
+            </thead>
+            <tbody id="validation-files-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="content-card">
+        <h2>Validation Assertions &amp; Checks</h2>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">1. File-by-File Row Conservation</div>
+            <div class="check-desc">Ensures 100% of raw rows across all 16 input files are accounted for with zero dropped entries.</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">2. Category Partitioning &amp; Item Resolution</div>
+            <div class="check-desc">Ensures 100% of purchased items are classified into valid buckets with 0 unmapped items.</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">3. Catalog Video Reference Integrity</div>
+            <div class="check-desc">Validates that every single video docId in the grants table exists in Firestore /videos and is playable.</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">4. Member Reference &amp; Profile Integrity</div>
+            <div class="check-desc">Validates that all memberDocId values point to real documents in Firestore /members.</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">5. Email Syntax &amp; Normalization</div>
+            <div class="check-desc">Validates RFC-compliant email syntax and strict lowercasing across all records.</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="check-icon">✅</div>
+          <div class="check-content">
+            <div class="check-title">6. Grants Deduplication Guarantee</div>
+            <div class="check-desc">Ensures unique (email, videoId) pairs so customers never receive duplicate grants.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    ILC Members Manager &bull; VOD Purchase Analyzer &amp; Grants Manager Mini-Tool
+  </footer>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script type="module" src="dist/app.js"></script>
+</body>
+</html>

@@ -53,7 +53,11 @@
       }
       @if (cancelErrorMessage()) {
         <div class="error-container">
-          <span class="error-message">{{ cancelErrorMessage() }}</span>
+          <span class="error-message">
+            {{ cancelErrorMessage() }}
+            Please contact
+            <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a> for assistance.
+          </span>
         </div>
       }
 
@@ -464,7 +468,11 @@
 
           @if (checkoutError()) {
             <div class="error-container">
-              <span class="error-message">{{ checkoutError() }}</span>
+              <span class="error-message">
+                {{ checkoutError() }}
+                If this issue persists, please contact
+                <a [href]="'mailto:' + environment.adminEmail">{{ environment.adminEmail }}</a>.
+              </span>
               <button class="icon-only-button" (click)="checkoutError.set(null)">
                 <app-icon name="close"></app-icon>
               </button>

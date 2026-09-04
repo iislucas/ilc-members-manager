@@ -1098,12 +1098,17 @@ export async function fulfillStripeOrder(
         orderDocId,
         order.metadata?.['gradingLevel'] || '',
       );
-    } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId']) {
+    } else if (category === OrderItemCategory.Vod || order.metadata?.['videoId'] || order.metadata?.['seriesId']) {
       const videoId = (order.metadata?.['videoId'] || item.productId || '').replace(/^prod_/, '');
-      if (videoId) {
+      const seriesId = (order.metadata?.['seriesId'] || '').replace(/^prod_/, '');
+      const grantTargetIds = new Set<string>();
+      if (videoId) grantTargetIds.add(videoId);
+      if (seriesId) grantTargetIds.add(seriesId);
+
+      for (const targetId of grantTargetIds) {
         const grant: VideoGrant = {
-          docId: videoId,
-          videoId,
+          docId: targetId,
+          videoId: targetId,
           memberDocId: member.docId,
           memberEmail: member.emails?.[0] || order.customerEmail || '',
           grantKind: VideoGrantKind.StripePurchase,
@@ -1116,15 +1121,15 @@ export async function fulfillStripeOrder(
           .collection('members')
           .doc(member.docId)
           .collection('videoGrants')
-          .doc(videoId)
+          .doc(targetId)
           .set(grant);
         await db
           .collection('video_grants')
-          .doc(`${member.docId}_${videoId}`)
+          .doc(`${member.docId}_${targetId}`)
           .set(grant);
         logger.info('Auto-provisioned VideoGrant for member', {
           memberDocId: member.docId,
-          videoId,
+          targetId,
           orderDocId,
         });
       }

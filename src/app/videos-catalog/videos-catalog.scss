@@ -206,28 +206,6 @@
     padding: 4px 8px;
     border-radius: 4px;
   }
-
-  .hero-trailer-badge {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    background: rgba(30, 41, 59, 0.85);
-    backdrop-filter: blur(4px);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-
-    app-icon {
-      font-size: 14px;
-      color: #60a5fa;
-    }
-  }
 }
 
 .hero-info {
@@ -637,25 +615,21 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .card-trailer-badge {
+  .series-badge {
     position: absolute;
     bottom: 8px;
-    left: 8px;
-    background: rgba(15, 23, 42, 0.85);
+    right: 8px;
+    background: rgba(2, 132, 199, 0.9);
     backdrop-filter: blur(2px);
-    color: #93c5fd;
-    font-size: 0.7rem;
+    color: white;
+    font-size: 0.75rem;
     font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid rgba(147, 197, 253, 0.3);
-
-    app-icon {
-      font-size: 11px;
-    }
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
   .play-hover-overlay {
@@ -700,6 +674,61 @@
       color: v.$text-muted;
       text-transform: uppercase;
       letter-spacing: 0.03em;
+    }
+
+    .series-type-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #0369a1;
+      background: #e0f2fe;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid #bae6fd;
+      margin-left: auto;
+    }
+  }
+
+  .series-mini-summary {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 2px 0;
+
+    .mini-summary-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: v.$text-secondary;
+    }
+
+    .mini-parts-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+
+      .mini-part-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 0.72rem;
+
+        .part-num {
+          font-weight: 600;
+          color: #0284c7;
+        }
+
+        .part-dur {
+          color: v.$text-muted;
+          font-size: 0.7rem;
+        }
+      }
     }
   }
 

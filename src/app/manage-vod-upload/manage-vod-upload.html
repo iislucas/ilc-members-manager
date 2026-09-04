@@ -1,0 +1,516 @@
+<div class="manage-vod-upload-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-nav">
+      <a class="subtle-button back-link" [href]="routingService.hrefForView(Views.ManageVod, {})">
+        <app-icon name="arrow_back"></app-icon>
+        <span>Back to Manage VOD</span>
+      </a>
+    </div>
+    <div class="header-titles">
+      <h2>Upload VOD Content &amp; Series</h2>
+      <p class="subtitle">
+        Upload video files directly to Cloud Storage, configure series metadata with single bundle pricing, and queue ABR transcoding.
+      </p>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  @if (errorMessage()) {
+    <div class="error-container">
+      <span class="error-message">{{ errorMessage() }}</span>
+      <button type="button" class="icon-only-button" (click)="errorMessage.set(null)">
+        <app-icon name="close"></app-icon>
+      </button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="success-banner card">
+      <div class="banner-header">
+        <app-icon name="check" width="24px" height="24px"></app-icon>
+        <div>
+          <h3>Upload Completed Successfully</h3>
+          <p>{{ successMessage() }}</p>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVod, {})">
+          <app-icon name="video_library"></app-icon>
+          <span>Go to Manage VOD</span>
+        </a>
+        <a class="subtle-btn" [href]="routingService.hrefForView(Views.Videos, {})">
+          <span>View Public Catalog</span>
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- Upload Content Flow -->
+  <div class="upload-workflow-grid">
+    <!-- Left Column: Series / Video Configuration -->
+    <div class="config-panel card">
+      <!-- Mode Selection Tabs -->
+      <div class="mode-selector-tabs">
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="uploadMode() === 'new_series'"
+          (click)="setUploadMode('new_series')"
+          [disabled]="isProcessing()"
+        >
+          <app-icon name="collections"></app-icon>
+          <span>New Video Series</span>
+        </button>
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="uploadMode() === 'existing_series'"
+          (click)="setUploadMode('existing_series')"
+          [disabled]="isProcessing()"
+        >
+          <app-icon name="video_library"></app-icon>
+          <span>Add to Existing Series</span>
+        </button>
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="uploadMode() === 'standalone'"
+          (click)="setUploadMode('standalone')"
+          [disabled]="isProcessing()"
+        >
+          <app-icon name="play_arrow"></app-icon>
+          <span>Standalone Video</span>
+        </button>
+      </div>
+
+      <!-- Mode Specific Selection -->
+      @if (uploadMode() === 'existing_series') {
+        <div class="form-group">
+          <label class="form-label">Select Existing Video Series: <span class="required">*</span></label>
+          <select
+            class="form-input"
+            [ngModel]="existingSeriesId()"
+            (ngModelChange)="onExistingSeriesSelected($event)"
+            [disabled]="isProcessing()"
+          >
+            <option value="" disabled>-- Choose a Series --</option>
+            @for (series of availableSeries(); track series.seriesId) {
+              <option [value]="series.seriesId">
+                {{ series.title }} ({{ series.videoCount }} videos &bull; {{ formatDuration(series.totalDurationSeconds) }})
+              </option>
+            }
+          </select>
+        </div>
+      }
+
+      <!-- Series / Title & Description -->
+      <div class="form-group">
+        <label class="form-label">
+          @if (uploadMode() === 'standalone') {
+            Video Title:
+          } @else {
+            Series Collection Title: <span class="required">*</span>
+          }
+        </label>
+        <input
+          type="text"
+          class="form-input"
+          [placeholder]="uploadMode() === 'standalone' ? 'e.g. Masterclass on Spinning Hands' : 'e.g. Refinement of Basic Exercises'"
+          [ngModel]="seriesTitle()"
+          (ngModelChange)="seriesTitle.set($event)"
+          [disabled]="isProcessing()"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description &amp; Overview:</label>
+        <textarea
+          class="form-input form-textarea"
+          rows="3"
+          placeholder="Detailed description of what this video or series covers..."
+          [ngModel]="seriesDescription()"
+          (ngModelChange)="seriesDescription.set($event)"
+          [disabled]="isProcessing()"
+        ></textarea>
+      </div>
+
+      <!-- Pricing Section -->
+      <div class="pricing-card-section">
+        <div class="section-subtitle">
+          <app-icon name="shopping_cart"></app-icon>
+          <span>
+            @if (uploadMode() === 'standalone') {
+              Purchase Price (USD)
+            } @else {
+              Single Series Bundle Price (USD)
+            }
+          </span>
+        </div>
+        <p class="field-hint">
+          @if (uploadMode() === 'standalone') {
+            Direct purchase price for this standalone video. Leave empty if included free in membership.
+          } @else {
+            One-off price to purchase and unlock <strong>all videos</strong> in this series collection.
+          }
+        </p>
+
+        <div class="price-input-row">
+          <span class="currency-symbol">$</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            class="form-input price-input"
+            placeholder="49.99"
+            [ngModel]="seriesPriceDollars()"
+            (ngModelChange)="seriesPriceDollars.set($event)"
+            [disabled]="isProcessing()"
+          />
+          <span class="price-tag-label">USD (Single payment for entire set)</span>
+        </div>
+      </div>
+
+      <!-- Access Tiers Permissions -->
+      <div class="form-group access-tiers-group">
+        <label class="form-label">Allowed Access Tiers:</label>
+        <div class="tiers-checkbox-list">
+          @for (tier of availableAccessTiers; track tier.value) {
+            <label class="tier-checkbox-item">
+              <input
+                type="checkbox"
+                [checked]="selectedAccessTiers().includes(tier.value)"
+                (change)="toggleAccessTier(tier.value)"
+                [disabled]="isProcessing()"
+              />
+              <div class="tier-label-box">
+                <span class="tier-name">{{ tier.label }}</span>
+                <span class="tier-desc">{{ tier.description }}</span>
+              </div>
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- Instructor & Event Association -->
+      <div class="form-row-two-col">
+        <div class="form-group">
+          <label class="form-label">Featured Instructor:</label>
+          <app-autocomplete
+            name="Featured Instructor"
+            [searchableSet]="dataService.instructors"
+            [displayFns]="instructorDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="instructorSearchInput()"
+            placeholder="Search instructor name..."
+            (itemSelected)="onInstructorSelected($event)"
+            (textUpdated)="onInstructorTextUpdated($event)"
+          ></app-autocomplete>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Linked Event (Optional):</label>
+          <app-autocomplete
+            name="Linked Event"
+            [searchableSet]="eventsSet"
+            [displayFns]="eventDisplayFns"
+            [inputBoxIsChip]="false"
+            [initSearchTerm]="eventSearchInput()"
+            placeholder="Search workshop / event..."
+            (itemSelected)="onEventSelected($event)"
+            (textUpdated)="onEventTextUpdated($event)"
+          ></app-autocomplete>
+        </div>
+      </div>
+
+      <!-- Date & Location -->
+      <div class="form-row-two-col">
+        <div class="form-group">
+          <label class="form-label">Recorded Date:</label>
+          <input
+            type="date"
+            class="form-input"
+            [ngModel]="recordedDate()"
+            (ngModelChange)="recordedDate.set($event)"
+            [disabled]="isProcessing()"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Location / City:</label>
+          <input
+            type="text"
+            class="form-input"
+            placeholder="e.g. Paris, France"
+            [ngModel]="location()"
+            (ngModelChange)="location.set($event)"
+            [disabled]="isProcessing()"
+          />
+        </div>
+      </div>
+
+      <!-- Tags Input -->
+      <div class="form-group">
+        <label class="form-label">Search Tags:</label>
+        <app-tag-input
+          [tags]="tags()"
+          (tagsChange)="tags.set($event)"
+          placeholder="Add tags (e.g. spinning_hands, basic_exercises)..."
+        ></app-tag-input>
+      </div>
+
+      <!-- Transcoding Preset -->
+      <div class="form-group">
+        <label class="form-label">Transcoding Quality Ladder:</label>
+        <div class="quality-preset-pills">
+          <button
+            type="button"
+            class="preset-pill"
+            [class.active]="selectedQualityPreset() === 'full'"
+            (click)="setQualityPreset('full')"
+            [disabled]="isProcessing()"
+          >
+            Full ABR (1080p-360p)
+          </button>
+          <button
+            type="button"
+            class="preset-pill"
+            [class.active]="selectedQualityPreset() === '4k'"
+            (click)="setQualityPreset('4k')"
+            [disabled]="isProcessing()"
+          >
+            4K Ultra (2160p-480p)
+          </button>
+          <button
+            type="button"
+            class="preset-pill"
+            [class.active]="selectedQualityPreset() === 'hd'"
+            (click)="setQualityPreset('hd')"
+            [disabled]="isProcessing()"
+          >
+            HD Only (1080p, 720p)
+          </button>
+          <button
+            type="button"
+            class="preset-pill"
+            [class.active]="selectedQualityPreset() === 'light'"
+            (click)="setQualityPreset('light')"
+            [disabled]="isProcessing()"
+          >
+            Light (720p-360p)
+          </button>
+        </div>
+      </div>
+
+      <!-- Featured Toggle -->
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            [checked]="isFeatured()"
+            (change)="isFeatured.set(!isFeatured())"
+            [disabled]="isProcessing()"
+          />
+          <span>Feature on Catalog Hero Spotlight Banner</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Right Column: Video Files Uploader & Ordering -->
+    <div class="files-panel card">
+      <div class="files-panel-header">
+        <div>
+          <h3>Video Files &amp; Episode Ordering</h3>
+          <p class="subtitle">
+            Select one or more video files. Reorder parts and customize individual episode titles.
+          </p>
+        </div>
+
+        @if (fileEntries().length > 0) {
+          <div class="files-summary-badge">
+            {{ fileEntries().length }} file(s) &bull; {{ formatDuration(totalSelectedDurationSeconds()) }} &bull; {{ formatBytes(totalSelectedSizeBytes()) }}
+          </div>
+        }
+      </div>
+
+      <!-- Drag and Drop Dropzone -->
+      <div
+        class="dropzone-box"
+        [class.dragging]="isDraggingOver()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onFileDrop($event)"
+      >
+        <app-icon name="cloud_upload" width="48px" height="48px"></app-icon>
+        <p class="dropzone-title">Drag and drop video files here</p>
+        <p class="dropzone-sub">Supports MP4, MOV, MKV, WebM</p>
+
+        <label class="outlined-button file-picker-btn">
+          <app-icon name="upload_file"></app-icon>
+          <span>Choose Video Files</span>
+          <input
+            type="file"
+            multiple
+            accept="video/*,.mp4,.mov,.mkv,.webm"
+            (change)="onFileInputChange($event)"
+            [disabled]="isProcessing()"
+            hidden
+          />
+        </label>
+      </div>
+
+      <!-- Selected Video Items List -->
+      @if (fileEntries().length > 0) {
+        <div class="file-entries-list">
+          @for (entry of fileEntries(); track entry.id; let idx = $index) {
+            <div class="file-entry-item card" [class.item-done]="entry.status === 'done'" [class.item-error]="entry.status === 'error'">
+              <!-- Thumbnail Preview -->
+              <div class="entry-thumbnail-wrapper">
+                @if (entry.previewUrl) {
+                  <img [src]="entry.previewUrl" [alt]="entry.title" class="entry-thumbnail" />
+                } @else {
+                  <div class="entry-thumb-placeholder">
+                    <app-icon name="live_tv"></app-icon>
+                  </div>
+                }
+                @if (entry.durationSeconds > 0) {
+                  <span class="entry-duration-tag">{{ formatDuration(entry.durationSeconds) }}</span>
+                }
+              </div>
+
+              <!-- Content & Metadata -->
+              <div class="entry-content">
+                <div class="entry-part-header">
+                  @if (uploadMode() !== 'standalone') {
+                    <span class="part-badge">Part {{ entry.partIndex }}</span>
+                  }
+                  <span class="file-size-label">{{ formatBytes(entry.file.size) }}</span>
+                  <span class="raw-filename">({{ entry.file.name }})</span>
+                </div>
+
+                <div class="entry-inputs">
+                  <input
+                    type="text"
+                    class="form-input entry-title-input"
+                    placeholder="Episode Title..."
+                    [ngModel]="entry.title"
+                    (ngModelChange)="entry.title = $event"
+                    [disabled]="isProcessing()"
+                  />
+                  <input
+                    type="text"
+                    class="form-input entry-notes-input"
+                    placeholder="Optional episode notes / topics..."
+                    [ngModel]="entry.description"
+                    (ngModelChange)="entry.description = $event"
+                    [disabled]="isProcessing()"
+                  />
+                </div>
+
+                <!-- Progress Bar if active -->
+                @if (entry.status !== 'idle') {
+                  <div class="entry-progress-bar-wrapper">
+                    <div class="progress-bar-track">
+                      <div
+                        class="progress-bar-fill"
+                        [style.width.%]="entry.progressPercent"
+                        [class.progress-error]="entry.status === 'error'"
+                        [class.progress-done]="entry.status === 'done'"
+                      ></div>
+                    </div>
+                    <div class="progress-status-line">
+                      @if (entry.status === 'uploading') {
+                        <span class="status-text text-warn">Uploading original video &bull; {{ entry.progressPercent }}%</span>
+                      } @else if (entry.status === 'transcoding') {
+                        <span class="status-text text-info">Queuing ABR Transcoder pipeline...</span>
+                      } @else if (entry.status === 'done') {
+                        <span class="status-text text-success">
+                          <app-icon name="check" width="14px" height="14px"></app-icon>
+                          Ready in Catalog
+                        </span>
+                      } @else if (entry.status === 'error') {
+                        <span class="status-text text-danger">{{ entry.errorMessage || 'Upload failed' }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <!-- Actions & Reorder -->
+              <div class="entry-actions">
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === 0 || isProcessing()"
+                  (click)="moveFileUp(idx)"
+                  title="Move Part Up"
+                >
+                  <app-icon name="arrow_upward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button"
+                  [disabled]="idx === fileEntries().length - 1 || isProcessing()"
+                  (click)="moveFileDown(idx)"
+                  title="Move Part Down"
+                >
+                  <app-icon name="arrow_downward"></app-icon>
+                </button>
+                <button
+                  type="button"
+                  class="icon-only-button delete-btn"
+                  [disabled]="isProcessing()"
+                  (click)="removeFile(entry.id)"
+                  title="Remove Video"
+                >
+                  <app-icon name="close"></app-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Bottom Submission Bar -->
+      <div class="submission-actions-bar">
+        @if (isProcessing()) {
+          <div class="overall-progress-box">
+            <span class="overall-progress-label">
+              Processing File {{ currentFileIndex() }} of {{ fileEntries().length }} ({{ overallProgressPercent() }}%)
+            </span>
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" [style.width.%]="overallProgressPercent()"></div>
+            </div>
+          </div>
+        }
+
+        <div class="submit-buttons-row">
+          <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVod, {})" [class.disabled]="isProcessing()">
+            Cancel
+          </a>
+
+          <button
+            type="button"
+            class="primary-btn submit-btn"
+            [disabled]="fileEntries().length === 0 || isProcessing()"
+            (click)="startUploadAndTranscode()"
+          >
+            @if (isProcessing()) {
+              <app-spinner size="18px"></app-spinner>
+              <span>Uploading &amp; Transcoding...</span>
+            } @else {
+              <app-icon name="cloud_upload"></app-icon>
+              <span>
+                @if (uploadMode() === 'standalone') {
+                  Upload &amp; Transcode Video
+                } @else {
+                  Upload &amp; Create Series ({{ fileEntries().length }} Videos)
+                }
+              </span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -8,6 +8,10 @@
       </p>
     </div>
     <div class="header-actions">
+      <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVodUpload, {})">
+        <app-icon name="cloud_upload"></app-icon>
+        <span>Upload VOD &amp; Series</span>
+      </a>
       <a class="subtle-btn" [href]="routingService.hrefForView(Views.ManageVideoTags, {})">
         <app-icon name="edit"></app-icon>
         <span>Manage Tags</span>
@@ -110,6 +114,22 @@
         </div>
       </div>
 
+      <!-- Series Filter -->
+      <div class="filter-item">
+        <label>Series:</label>
+        <select
+          class="filter-select"
+          [ngModel]="selectedSeriesFilter()"
+          (ngModelChange)="selectedSeriesFilter.set($event)"
+        >
+          <option value="all">All Videos</option>
+          <option value="no_series">Standalone Only</option>
+          @for (s of allSeries(); track s.seriesId) {
+            <option [value]="s.seriesId">{{ s.title }} ({{ s.videoCount }} parts)</option>
+          }
+        </select>
+      </div>
+
       <!-- Featured Filter -->
       <div class="filter-item">
         <label>Featured:</label>
@@ -155,12 +175,12 @@
           <option value="transcoding">Transcoding</option>
           <option value="queued">Queued</option>
           <option value="failed">Failed</option>
-          <option value="draft">Hidden / Draft</option>
+          <option value="draft">Drafts (Unpublished)</option>
         </select>
       </div>
 
       <!-- Active Filters Reset -->
-      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all') {
+      @if (searchQuery() || selectedTagFilter() || selectedStatus() !== 'all' || selectedFeatured() !== 'all' || selectedAccessTier() !== 'all' || selectedSeriesFilter() !== 'all') {
         <button
           type="button"
           class="subtle-btn clear-all-btn"
@@ -172,56 +192,106 @@
         </button>
       }
     </div>
+
+    <!-- View Mode Selector -->
+    <div class="view-mode-tabs">
+      <button
+        type="button"
+        class="view-mode-btn"
+        [class.active]="viewMode() === 'all_videos'"
+        (click)="viewMode.set('all_videos')"
+      >
+        <app-icon name="video_library"></app-icon>
+        <span>All Videos ({{ filteredVideos().length }})</span>
+      </button>
+      <button
+        type="button"
+        class="view-mode-btn"
+        [class.active]="viewMode() === 'series_collections'"
+        (click)="viewMode.set('series_collections')"
+      >
+        <app-icon name="collections"></app-icon>
+        <span>Series Collections ({{ filteredSeries().length }})</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Videos Table List -->
-  <div class="table-card">
-    <table class="vod-table">
-      <thead>
-        <tr>
-          <th>Preview</th>
-          <th>Title, Instructor & Tags</th>
-          <th>Who Can View</th>
-          <th>Duration</th>
-          <th>Resolutions & Visibility</th>
-          <th>Actions</th>
-        </tr>
-      <tbody>
-        @if (dataService.videos.loading()) {
+  @if (viewMode() === 'all_videos') {
+    <!-- Videos Table List -->
+    <div class="table-card">
+      <table class="vod-table">
+        <thead>
           <tr>
-            <td colspan="6" class="empty-row">
-              <div class="loading-state">
-                <app-spinner size="20px"></app-spinner>
-                <span>Loading VOD catalog...</span>
-              </div>
-            </td>
+            <th>Preview</th>
+            <th>Title, Instructor &amp; Tags</th>
+            <th>Who Can View</th>
+            <th>Duration</th>
+            <th>Resolutions &amp; Visibility</th>
+            <th>Actions</th>
           </tr>
-        } @else {
-          @for (video of filteredVideos(); track video.docId) {
-          <tr [class.deleting-row]="isDeleting(video.docId)">
-            <!-- Thumbnail -->
-            <td class="thumb-cell" (click)="openDrawer(video)">
-              @if (video.thumbnailUrl) {
-                <img [src]="video.thumbnailUrl" [alt]="video.title" class="thumb-img" />
-              } @else {
-                <div class="thumb-placeholder">
-                  <app-icon name="video_library"></app-icon>
+        </thead>
+        <tbody>
+          @if (dataService.videos.loading()) {
+            <tr>
+              <td colspan="6" class="empty-row">
+                <div class="loading-state">
+                  <app-spinner size="20px"></app-spinner>
+                  <span>Loading VOD catalog...</span>
                 </div>
-              }
-            </td>
+              </td>
+            </tr>
+          } @else {
+            @for (video of filteredVideos(); track video.docId) {
+            <tr [class.deleting-row]="isDeleting(video.docId)">
+              <!-- Thumbnail -->
+              <td class="thumb-cell" (click)="openDrawer(video)">
+                @if (video.thumbnailUrl) {
+                  <img [src]="video.thumbnailUrl" [alt]="video.title" class="thumb-img" />
+                } @else {
+                  <div class="thumb-placeholder">
+                    <app-icon name="video_library"></app-icon>
+                  </div>
+                }
+              </td>
 
-            <!-- Title, Instructor & Tags -->
-            <td class="title-cell" (click)="openDrawer(video)">
-              <div class="video-main-info">
-                <span class="table-video-title">{{ video.title }}</span>
-                @if (video.instructorName) {
-                  <span class="table-video-instructor">{{ video.instructorName }}</span>
-                }
-                @if (video.featured) {
-                  <span class="featured-badge">Featured Spotlight</span>
-                }
-                @if (video.tags && video.tags.length) {
-                  <div class="table-tags">
+              <!-- Title, Instructor, Date & Tags -->
+              <td class="meta-cell" (click)="openDrawer(video)">
+                <div class="video-title-row">
+                  <span class="video-title">{{ video.title }}</span>
+                  @if (video.seriesTitle) {
+                    <span class="series-tag-badge">
+                      {{ video.seriesTitle }} @if (video.seriesPartIndex) { &bull; Part {{ video.seriesPartIndex }} }
+                    </span>
+                  }
+                  @if (video.isTrailer) {
+                    <span class="badge-trailer">Trailer</span>
+                  }
+                  @if (video.featured) {
+                    <span class="badge-featured" title="Featured Spotlight">★ Featured</span>
+                  }
+                </div>
+                <div class="video-sub-row">
+                  @if (video.instructorName) {
+                    <span class="instructor-tag">
+                      <app-icon name="person"></app-icon>
+                      {{ video.instructorName }}
+                    </span>
+                  }
+                  @if (video.recordedDate) {
+                    <span class="date-tag">
+                      <app-icon name="calendar_today"></app-icon>
+                      {{ video.recordedDate }}
+                    </span>
+                  }
+                  @if (video.location) {
+                    <span class="location-tag">
+                      <app-icon name="place"></app-icon>
+                      {{ video.location }}
+                    </span>
+                  }
+                </div>
+                @if (video.tags && video.tags.length > 0) {
+                  <div class="video-tags-row">
                     @for (tag of video.tags; track tag) {
                       <span
                         class="tag-chip mini-tag"
@@ -236,7 +306,6 @@
                 @if (formatAddedDate(video); as dateStr) {
                   <span class="table-video-date" title="Date & time added to VOD catalog">{{ dateStr }}</span>
                 }
-              </div>
             </td>
 
             <!-- Who Can View (Access Tier & Price) -->
@@ -395,6 +464,107 @@
       </tbody>
     </table>
   </div>
+} @else {
+  <!-- Series Collections Management Grid -->
+  <div class="series-management-grid">
+    @for (series of filteredSeries(); track series.seriesId) {
+      <div class="series-manage-card card">
+        <div class="series-card-header">
+          <div class="series-info-col">
+            <div class="series-title-row">
+              <h4>{{ series.title }}</h4>
+              @if (series.priceCents && series.priceCents > 0) {
+                <span class="series-price-badge">${{ (series.priceCents / 100).toFixed(2) }} Bundle</span>
+              } @else {
+                <span class="series-free-badge">Included in Membership</span>
+              }
+            </div>
+            @if (series.description) {
+              <p class="series-card-desc">{{ series.description }}</p>
+            }
+
+            <div class="series-meta-row">
+              <span class="meta-item">
+                <app-icon name="video_library"></app-icon>
+                <span>{{ series.videoCount }} Videos</span>
+              </span>
+              <span class="dot-sep">&bull;</span>
+              <span class="meta-item">
+                <app-icon name="schedule"></app-icon>
+                <span>{{ formatDuration(series.totalDurationSeconds) }} Total Runtime</span>
+              </span>
+              @if (series.instructorName) {
+                <span class="dot-sep">&bull;</span>
+                <span class="meta-item">
+                  <app-icon name="person"></app-icon>
+                  <span>{{ series.instructorName }}</span>
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="series-actions-col">
+            <button
+              type="button"
+              class="primary-btn"
+              (click)="openSeriesModal(series)"
+              title="Edit series title, bundle price, and reorder parts"
+            >
+              <app-icon name="edit"></app-icon>
+              <span>Edit Series &amp; Parts</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Series Episodes Mini List -->
+        <div class="series-episodes-table">
+          <div class="episodes-header-row">
+            <span class="col-part">Part</span>
+            <span class="col-title">Episode Title</span>
+            <span class="col-duration">Duration</span>
+            <span class="col-status">Status</span>
+            <span class="col-actions">Actions</span>
+          </div>
+          @for (vid of series.videos; track vid.docId; let pIdx = $index) {
+            <div class="episode-row">
+              <span class="part-number-pill">Part {{ vid.seriesPartIndex || (pIdx + 1) }}</span>
+              <span class="episode-title">{{ vid.title }}</span>
+              <span class="episode-duration">{{ formatDuration(vid.durationSeconds) }}</span>
+              <span class="episode-status">
+                @if (vid.vodStatus === 'ready') {
+                  <span class="status-badge ready">Ready</span>
+                } @else {
+                  <span class="status-badge processing">{{ vid.vodStatus }}</span>
+                }
+              </span>
+              <div class="episode-actions">
+                <button type="button" class="icon-only-button" (click)="openEditModal(vid)" title="Edit episode metadata">
+                  <app-icon name="edit"></app-icon>
+                </button>
+                <button type="button" class="icon-only-button" (click)="openDrawer(vid)" title="View transcoding pipeline">
+                  <app-icon name="info"></app-icon>
+                </button>
+                @if (vid.vodStatus === 'ready') {
+                  <a class="icon-only-button play-link" [href]="getVideoHref(vid)" target="_blank" title="Watch episode">
+                    <app-icon name="play_arrow"></app-icon>
+                  </a>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    } @empty {
+      <div class="empty-series-card card">
+        <app-icon name="collections" width="48px" height="48px"></app-icon>
+        <p>No video series matching the filter criteria.</p>
+        <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageVodUpload, {})">
+          <span>Create a New Series</span>
+        </a>
+      </div>
+    }
+  </div>
+}
 
   <!-- Slide-Over Job Details Drawer -->
   @if (drawerVideo(); as d) {
@@ -812,9 +982,62 @@
             ></app-tag-input>
           </div>
 
+          <!-- Video Series & Collection Configuration -->
+          <div class="form-group series-config-box">
+            <label class="section-heading-label">Video Series / Collection</label>
+            <p class="section-description">Link this video as an episode of a multi-part series collection with bundle pricing.</p>
+
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label>Series Title</label>
+                <input
+                  type="text"
+                  [ngModel]="editSeriesTitle()"
+                  (ngModelChange)="editSeriesTitle.set($event)"
+                  placeholder="e.g. Understanding Spacing"
+                />
+              </div>
+              <div class="form-group flex-1">
+                <label>Part #</label>
+                <input
+                  type="number"
+                  min="1"
+                  [ngModel]="editSeriesPartIndex()"
+                  (ngModelChange)="editSeriesPartIndex.set($event)"
+                  placeholder="1"
+                />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Series Bundle Price ($ USD)</label>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  [ngModel]="editSeriesPriceDollars()"
+                  (ngModelChange)="editSeriesPriceDollars.set($event)"
+                  placeholder="49.99"
+                />
+              </div>
+            </div>
+
+            @if (editSeriesId() || editSeriesTitle()) {
+              <label class="checkbox-label apply-all-series-toggle">
+                <input
+                  type="checkbox"
+                  [ngModel]="editApplyToEntireSeries()"
+                  (ngModelChange)="editApplyToEntireSeries.set($event)"
+                />
+                <span>Apply title, bundle price, access tiers, and visibility to <strong>all videos in this series</strong></span>
+              </label>
+            }
+          </div>
+
           <!-- Catalog Visibility & Spotlight Status -->
           <div class="form-group visibility-toggles-group">
-            <label class="section-heading-label">Catalog Visibility & Spotlight</label>
+            <label class="section-heading-label">Catalog Visibility &amp; Spotlight</label>
             <div class="toggles-row">
               <label class="checkbox-label">
                 <input type="checkbox" [(ngModel)]="edit.isPublished" />
@@ -845,6 +1068,103 @@
               (click)="saveVideoChanges()"
             >
               <span>Save Changes</span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Series Modal -->
+  @if (editingSeries(); as s) {
+    <div class="modal-backdrop">
+      <div class="modal-dialog series-edit-dialog">
+        <div class="modal-header">
+          <h3>Edit Video Series &amp; Parts</h3>
+          <button type="button" class="icon-only-button" (click)="closeSeriesModal()" title="Close">
+            <app-icon name="close"></app-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Series Collection Title <span class="required">*</span></label>
+            <input
+              type="text"
+              [ngModel]="editingSeriesTitle()"
+              (ngModelChange)="editingSeriesTitle.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Series Overview / Description</label>
+            <textarea
+              rows="3"
+              [ngModel]="editingSeriesDescription()"
+              (ngModelChange)="editingSeriesDescription.set($event)"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Single Series Bundle Price ($ USD)</label>
+            <input
+              type="number"
+              step="0.50"
+              min="0"
+              [ngModel]="editingSeriesPriceDollars()"
+              (ngModelChange)="editingSeriesPriceDollars.set($event)"
+              placeholder="49.99"
+            />
+            <p class="field-hint">One-time payment unlocks all constituent episodes for the purchaser.</p>
+          </div>
+
+          <!-- Reorderable Episodes List -->
+          <div class="form-group">
+            <label class="section-heading-label">Episodes &amp; Sequence Ordering</label>
+            <div class="series-modal-episodes-list">
+              @for (vid of editingSeriesVideos(); track vid.docId; let idx = $index) {
+                <div class="series-modal-episode-item card">
+                  <span class="part-badge">Part {{ idx + 1 }}</span>
+                  <span class="item-title">{{ vid.title }}</span>
+                  <span class="item-duration">{{ formatDuration(vid.durationSeconds) }}</span>
+                  <div class="item-reorder-actions">
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      [disabled]="idx === 0"
+                      (click)="moveSeriesVideoUp(idx)"
+                      title="Move Up"
+                    >
+                      <app-icon name="arrow_upward"></app-icon>
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-only-button"
+                      [disabled]="idx === editingSeriesVideos().length - 1"
+                      (click)="moveSeriesVideoDown(idx)"
+                      title="Move Down"
+                    >
+                      <app-icon name="arrow_downward"></app-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          @if (isSavingSeries()) {
+            <div class="publishing-progress-indicator">
+              <div class="inline-spinner"></div>
+              <span>Updating series across all videos...</span>
+            </div>
+          } @else {
+            <button type="button" class="subtle-button" (click)="closeSeriesModal()">
+              Cancel
+            </button>
+            <button type="button" class="primary-btn" (click)="saveSeriesChanges()">
+              <span>Save Series Changes</span>
             </button>
           }
         </div>

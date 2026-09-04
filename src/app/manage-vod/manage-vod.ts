@@ -19,6 +19,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   VideoItem,
+  VideoSeries,
   VodStatus,
   VodAccessTier,
   TagItem,
@@ -65,6 +66,27 @@ export class ManageVodComponent implements OnInit, OnDestroy {
   editVideoIdParam = computed(() => this.viewSignals.urlParams.editVideoId() || '');
   selectedTagFilter = signal<string>('');
   selectedTagSearchTerm = signal<string>('');
+
+  // Series & View Mode Signals
+  viewMode = signal<'all_videos' | 'series_collections'>('all_videos');
+  selectedSeriesFilter = signal<string>('all');
+  allSeries = computed<VideoSeries[]>(() => this.dataService.getVideoSeriesList());
+
+  // Edit Video Modal Series Signals
+  editSeriesId = signal<string>('');
+  editSeriesTitle = signal<string>('');
+  editSeriesDescription = signal<string>('');
+  editSeriesPartIndex = signal<number | null>(null);
+  editSeriesPriceDollars = signal<number | null>(null);
+  editApplyToEntireSeries = signal<boolean>(false);
+
+  // Edit Series Modal State
+  editingSeries = signal<VideoSeries | null>(null);
+  editingSeriesVideos = signal<VideoItem[]>([]);
+  editingSeriesTitle = signal<string>('');
+  editingSeriesDescription = signal<string>('');
+  editingSeriesPriceDollars = signal<number | null>(null);
+  isSavingSeries = signal<boolean>(false);
 
   // Tag autocomplete display helper
   tagDisplayFns: DisplayFns<TagItem> = {
@@ -218,6 +240,17 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       );
     }
 
+    const seriesFilter = this.selectedSeriesFilter();
+    if (seriesFilter !== 'all') {
+      if (seriesFilter === 'no_series') {
+        items = items.filter((v) => !v.seriesId && !v.forVodPageId);
+      } else {
+        items = items.filter(
+          (v) => v.seriesId === seriesFilter || v.forVodPageId === seriesFilter,
+        );
+      }
+    }
+
     if (featured !== 'all') {
       if (featured === 'featured') {
         items = items.filter((v) => Boolean(v.featured));
@@ -273,6 +306,36 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     return [...items].sort((a, b) =>
       (b.lastUpdated || '').localeCompare(a.lastUpdated || ''),
     );
+  });
+
+  filteredSeries = computed<VideoSeries[]>(() => {
+    let list = this.allSeries();
+    const q = this.searchQuery().trim().toLowerCase();
+    const tagFilter = this.selectedTagFilter().trim().toLowerCase();
+    const status = this.selectedStatus();
+
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q) ||
+          (s.instructorName && s.instructorName.toLowerCase().includes(q)) ||
+          (s.tags && s.tags.some((t) => t.toLowerCase().includes(q))) ||
+          s.videos.some((v) => v.title.toLowerCase().includes(q)),
+      );
+    }
+
+    if (tagFilter) {
+      list = list.filter((s) => s.tags && s.tags.some((t) => t.toLowerCase() === tagFilter));
+    }
+
+    if (status === 'draft') {
+      list = list.filter((s) => !s.isPublished);
+    } else if (status === 'ready') {
+      list = list.filter((s) => s.videos.every((v) => v.vodStatus === VodStatus.Ready));
+    }
+
+    return list;
   });
 
   readonly accessTiers = [
@@ -625,6 +688,15 @@ export class ManageVodComponent implements OnInit, OnDestroy {
     );
     this.editTags.set([...(video.tags || [])]);
 
+    this.editSeriesId.set(video.seriesId || video.forVodPageId || '');
+    this.editSeriesTitle.set(video.seriesTitle || video.forVodSeriesTitle || '');
+    this.editSeriesDescription.set(video.seriesDescription || '');
+    this.editSeriesPartIndex.set(typeof video.seriesPartIndex === 'number' ? video.seriesPartIndex : null);
+    this.editSeriesPriceDollars.set(
+      typeof video.seriesPriceCents === 'number' ? video.seriesPriceCents / 100 : null,
+    );
+    this.editApplyToEntireSeries.set(false);
+
     const tiers = Array.isArray(video.accessTiers) && video.accessTiers.length > 0
       ? video.accessTiers
       : (video.accessTier ? [video.accessTier] : [VodAccessTier.MembersOnly]);
@@ -633,7 +705,8 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       Boolean(
         video.isBuyable ||
         tiers.includes(VodAccessTier.DirectPurchase) ||
-        (video.priceCents && video.priceCents > 0),
+        (video.priceCents && video.priceCents > 0) ||
+        (video.seriesPriceCents && video.seriesPriceCents > 0),
       ),
     );
     this.editStripePriceId.set(video.stripePriceId || '');
@@ -678,6 +751,14 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         ? this.editStripePriceId().trim()
         : undefined;
 
+      const seriesId = this.editSeriesId().trim();
+      const seriesTitle = this.editSeriesTitle().trim();
+      const seriesDescription = this.editSeriesDescription().trim();
+      const seriesPartIndex = this.editSeriesPartIndex();
+      const seriesPriceCents = this.editSeriesPriceDollars() !== null
+        ? Math.round(this.editSeriesPriceDollars()! * 100)
+        : undefined;
+
       const patch: Partial<VideoItem> = {
         title: v.title,
         description: v.description,
@@ -689,9 +770,27 @@ export class ManageVodComponent implements OnInit, OnDestroy {
         tags,
         priceCents,
         stripePriceId,
+        seriesId: seriesId || undefined,
+        seriesTitle: seriesTitle || undefined,
+        seriesDescription: seriesDescription || undefined,
+        seriesPartIndex: seriesPartIndex !== null ? seriesPartIndex : undefined,
+        seriesPriceCents,
       };
 
-      await this.dataService.updateVideoMetadata(v.docId, patch);
+      if (this.editApplyToEntireSeries() && seriesId) {
+        await this.dataService.updateVideoSeries(seriesId, {
+          title: seriesTitle,
+          description: seriesDescription,
+          priceCents: seriesPriceCents,
+          accessTier: tiers[0] || VodAccessTier.MembersOnly,
+          accessTiers: tiers,
+          isPublished: v.isPublished,
+          tags,
+        });
+      } else {
+        await this.dataService.updateVideoMetadata(v.docId, patch);
+      }
+
       this.closeEditModal(true);
     } catch (err: unknown) {
       console.error('Error saving video changes:', err);
@@ -699,6 +798,75 @@ export class ManageVodComponent implements OnInit, OnDestroy {
       alert(msg);
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  // --- Series Modal Management ---
+  openSeriesModal(series: VideoSeries): void {
+    this.closeMenu();
+    this.editingSeries.set(series);
+    this.editingSeriesVideos.set([...series.videos]);
+    this.editingSeriesTitle.set(series.title);
+    this.editingSeriesDescription.set(series.description || '');
+    this.editingSeriesPriceDollars.set(
+      typeof series.priceCents === 'number' ? series.priceCents / 100 : null,
+    );
+  }
+
+  closeSeriesModal(): void {
+    this.editingSeries.set(null);
+    this.editingSeriesVideos.set([]);
+  }
+
+  moveSeriesVideoUp(index: number): void {
+    if (index <= 0) return;
+    this.editingSeriesVideos.update((list) => {
+      const copy = [...list];
+      const temp = copy[index - 1];
+      copy[index - 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  }
+
+  moveSeriesVideoDown(index: number): void {
+    if (index >= this.editingSeriesVideos().length - 1) return;
+    this.editingSeriesVideos.update((list) => {
+      const copy = [...list];
+      const temp = copy[index + 1];
+      copy[index + 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  }
+
+  async saveSeriesChanges(): Promise<void> {
+    const s = this.editingSeries();
+    if (!s) return;
+
+    this.isSavingSeries.set(true);
+    try {
+      const orderedIds = this.editingSeriesVideos().map((v) => v.docId);
+      const priceCents =
+        this.editingSeriesPriceDollars() !== null
+          ? Math.round(this.editingSeriesPriceDollars()! * 100)
+          : undefined;
+
+      await this.dataService.updateVideoSeries(
+        s.seriesId,
+        {
+          title: this.editingSeriesTitle(),
+          description: this.editingSeriesDescription(),
+          priceCents,
+        },
+        orderedIds,
+      );
+      this.closeSeriesModal();
+    } catch (err) {
+      console.error('Error updating series:', err);
+      alert(err instanceof Error ? err.message : 'Failed to update series.');
+    } finally {
+      this.isSavingSeries.set(false);
     }
   }
 

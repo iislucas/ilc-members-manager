@@ -36,6 +36,13 @@ export interface TranscodeVideoRequest {
     currency?: string;
     stripeProductId?: string;
     stripePriceId?: string;
+    seriesId?: string;
+    seriesTitle?: string;
+    seriesDescription?: string;
+    seriesPartIndex?: number;
+    seriesPriceCents?: number;
+    seriesStripeProductId?: string;
+    seriesStripePriceId?: string;
     featured?: boolean;
     instructorDocId?: string;
     instructorName?: string;
@@ -131,6 +138,13 @@ export const transcodeVideoForVod = onCall(
       currency: config.currency || 'usd',
       stripeProductId: config.stripeProductId,
       stripePriceId: config.stripePriceId,
+      seriesId: config.seriesId || existingVideo.seriesId || '',
+      seriesTitle: config.seriesTitle || existingVideo.seriesTitle || '',
+      seriesDescription: config.seriesDescription || existingVideo.seriesDescription || '',
+      seriesPartIndex: typeof config.seriesPartIndex === 'number' ? config.seriesPartIndex : existingVideo.seriesPartIndex,
+      seriesPriceCents: typeof config.seriesPriceCents === 'number' ? config.seriesPriceCents : existingVideo.seriesPriceCents,
+      seriesStripeProductId: config.seriesStripeProductId || existingVideo.seriesStripeProductId || '',
+      seriesStripePriceId: config.seriesStripePriceId || existingVideo.seriesStripePriceId || '',
       isPublished: true,
       featured: config.featured ?? false,
       publishedAt: existingVideo.publishedAt || nowIso,

@@ -294,4 +294,34 @@ describe('VideosCatalogComponent', () => {
     expect(component.featuredVideo()).not.toBeNull();
     expect(component.featuredVideo()?.docId).toBe('v2');
   });
+
+  it('should automatically group multi-part videos by title into a single series card', () => {
+    mockDataService.videos.entries.set([
+      {
+        ...initVideoItem(),
+        docId: 'v_part1',
+        title: 'The Foundation of Inner Power : Part 1',
+        isPublished: true,
+        isBuyable: true,
+        priceCents: 4999,
+        durationSeconds: 3600,
+      },
+      {
+        ...initVideoItem(),
+        docId: 'v_part2',
+        title: 'The Foundation of Inner Power : Part 2',
+        isPublished: true,
+        isBuyable: true,
+        priceCents: 4999,
+        durationSeconds: 3600,
+      },
+    ]);
+
+    const entries = component.filteredCatalogEntries();
+    expect(entries.length).toBe(1);
+    expect(entries[0].kind).toBe('series');
+    expect(entries[0].title).toBe('The Foundation of Inner Power');
+    expect(entries[0].videoCount).toBe(2);
+    expect(entries[0].durationSeconds).toBe(7200);
+  });
 });

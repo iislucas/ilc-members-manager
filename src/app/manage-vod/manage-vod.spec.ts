@@ -113,6 +113,8 @@ describe('ManageVodComponent', () => {
         return '';
       }),
       updateVideoMetadata: vi.fn().mockResolvedValue(undefined),
+      getVideoSeriesList: vi.fn().mockReturnValue([]),
+      updateVideoSeries: vi.fn().mockResolvedValue(undefined),
       deleteVideo: vi.fn().mockResolvedValue(undefined),
       transcodeVideoForVod: vi.fn().mockResolvedValue({ success: true }),
       checkVodJobStatus: vi.fn().mockResolvedValue({
