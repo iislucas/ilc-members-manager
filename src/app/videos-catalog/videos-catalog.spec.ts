@@ -203,6 +203,91 @@ describe('VideosCatalogComponent', () => {
     expect(videos[0].title).toContain('Saturday Class');
   });
 
+  describe('Class Video Library header and subscription menu', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('mode', 'class_library');
+      fixture.detectChanges();
+    });
+
+    it('should not render h1 Class Video Library heading', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      const h1 = compiled.querySelector('.catalog-header h1');
+      expect(h1).toBeNull();
+      expect(compiled.querySelector('.catalog-header')?.textContent).not.toContain('Class Video Library');
+    });
+
+    it('should render subtitle and 3-dots menu button to its right', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      const subtitle = compiled.querySelector('.subtitle');
+      expect(subtitle?.textContent).toContain('Watch weekly Saturday classes');
+
+      const menuBtn = compiled.querySelector('.subscription-more-btn') as HTMLButtonElement | null;
+      expect(menuBtn).not.toBeNull();
+      expect(menuBtn?.getAttribute('aria-label')).toBe('Subscription options');
+      expect(component.subscriptionMenuOpen()).toBe(false);
+    });
+
+    it('should toggle dropdown menu on clicking 3-dots button', () => {
+      const compiled = fixture.nativeElement as HTMLElement;
+      const menuBtn = compiled.querySelector('.subscription-more-btn') as HTMLButtonElement;
+
+      expect(compiled.querySelector('.subscription-dropdown-menu')).toBeNull();
+
+      menuBtn.click();
+      fixture.detectChanges();
+
+      expect(component.subscriptionMenuOpen()).toBe(true);
+      expect(compiled.querySelector('.subscription-dropdown-menu')).not.toBeNull();
+
+      // Click overlay to close
+      const overlay = compiled.querySelector('.menu-overlay') as HTMLElement;
+      expect(overlay).not.toBeNull();
+      overlay.click();
+      fixture.detectChanges();
+
+      expect(component.subscriptionMenuOpen()).toBe(false);
+      expect(compiled.querySelector('.subscription-dropdown-menu')).toBeNull();
+    });
+
+    it('should display non-subscriber info and Subscribe link when user has no active subscription', () => {
+      mockFirebaseState.user.set(null);
+      component.subscriptionMenuOpen.set(true);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const menu = compiled.querySelector('.subscription-dropdown-menu');
+      expect(menu?.textContent).toContain('Class Video Library');
+      expect(menu?.textContent).toContain('Subscribe for unlimited streaming access');
+      expect(menu?.textContent).toContain('Subscribe Now');
+
+      const subLink = menu?.querySelector('a.highlight-item') as HTMLAnchorElement;
+      expect(subLink).not.toBeNull();
+      expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.ClassVideoLibraryPurchase);
+    });
+
+    it('should display active subscription info and Manage Subscription link when user is subscribed', () => {
+      mockFirebaseState.user.set({
+        isAdmin: false,
+        member: {
+          classVideoLibrarySubscription: true,
+          classVideoLibraryExpirationDate: '2026-12-31',
+        },
+      });
+      component.subscriptionMenuOpen.set(true);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const menu = compiled.querySelector('.subscription-dropdown-menu');
+      expect(menu?.textContent).toContain('Active Subscription');
+      expect(menu?.textContent).toContain('Valid through 2026-12-31');
+      expect(menu?.textContent).toContain('Manage Subscription');
+
+      const manageLink = menu?.querySelector('a.menu-item') as HTMLAnchorElement;
+      expect(manageLink).not.toBeNull();
+      expect(mockRoutingService.hrefForView).toHaveBeenCalledWith(Views.MyOrders);
+    });
+  });
+
   it('should return appropriate access tier badge', () => {
     const pubVideo = { ...initVideoItem(), accessTier: VodAccessTier.Public, accessTiers: [VodAccessTier.Public] };
     const pubBadge = component.getTopAccessTierBadge(pubVideo);

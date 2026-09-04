@@ -67,7 +67,6 @@ export interface CatalogEntry {
 
 @Component({
   selector: 'app-videos-catalog',
-  standalone: true,
   imports: [
     FormsModule,
     IconComponent,
@@ -182,6 +181,12 @@ export class VideosCatalogComponent {
     const m = this.firebaseState.user()?.member;
     return m?.classVideoLibraryExpirationDate || '';
   });
+
+  subscriptionMenuOpen = signal(false);
+
+  toggleSubscriptionMenu(): void {
+    this.subscriptionMenuOpen.update((open) => !open);
+  }
 
   // Autocomplete display helper for tags
   tagDisplayFns: DisplayFns<TagItem> = {

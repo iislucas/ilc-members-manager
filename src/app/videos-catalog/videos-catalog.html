@@ -28,49 +28,77 @@
   <div class="catalog-header">
     <div class="header-content">
       @if (isClassLibrary()) {
-        <h1>Class Video Library</h1>
-        <p class="subtitle">
-          Watch weekly Saturday classes, training archives, and masterclasses led by
-          Grandmaster Sam Chin and senior instructors worldwide.
-        </p>
-
-        <!-- Subscription Status Callout for Class Video Library -->
-        @if (isClassSubscriber()) {
-          <div class="subscription-status-card active">
-            <div class="status-icon-wrap">
-              <app-icon name="check" width="24px" height="24px"></app-icon>
-            </div>
-            <div class="status-info">
-              <div class="status-title">Active Class Video Library Subscription</div>
-              <div class="status-details">
-                @if (classSubscriptionExpiry(); as expiry) {
-                  <span>Valid through {{ expiry }}</span>
+        <div class="subtitle-row">
+          <p class="subtitle">
+            Watch weekly Saturday classes, training archives, and masterclasses led by
+            Grandmaster Sam Chin and senior instructors worldwide.
+          </p>
+          <div class="menu-container subscription-menu-container">
+            <button
+              type="button"
+              class="icon-only-button subscription-more-btn"
+              (click)="toggleSubscriptionMenu()"
+              [attr.aria-expanded]="subscriptionMenuOpen()"
+              aria-haspopup="true"
+              aria-label="Subscription options"
+              title="Subscription options"
+            >
+              <app-icon name="more_vert" width="20px" height="20px"></app-icon>
+            </button>
+            @if (subscriptionMenuOpen()) {
+              <div class="menu-overlay transparent" (click)="subscriptionMenuOpen.set(false)"></div>
+              <div class="subscription-dropdown-menu" role="menu">
+                @if (isClassSubscriber()) {
+                  <div class="sub-info-block active">
+                    <div class="sub-info-header">
+                      <app-icon name="check" width="16px" height="16px"></app-icon>
+                      <span class="sub-info-title">Active Subscription</span>
+                    </div>
+                    <div class="sub-info-detail">
+                      @if (classSubscriptionExpiry(); as expiry) {
+                        <span>Valid through {{ expiry }}</span>
+                      } @else if (firebaseState.user()?.isAdmin) {
+                        <span>Admin full access</span>
+                      } @else {
+                        <span>Class Video Library</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="menu-seperator"></div>
+                  <a
+                    class="menu-item"
+                    role="menuitem"
+                    [href]="routingService.hrefForView(Views.MyOrders)"
+                    (click)="subscriptionMenuOpen.set(false)"
+                  >
+                    <app-icon name="settings" width="16px" height="16px"></app-icon>
+                    <span>Manage Subscription</span>
+                  </a>
                 } @else {
-                  <span>Active subscription</span>
+                  <div class="sub-info-block callout">
+                    <div class="sub-info-header">
+                      <app-icon name="video_library" width="16px" height="16px"></app-icon>
+                      <span class="sub-info-title">Class Video Library</span>
+                    </div>
+                    <div class="sub-info-detail">
+                      Subscribe for unlimited streaming access to all recorded weekly Saturday classes and library archives.
+                    </div>
+                  </div>
+                  <div class="menu-seperator"></div>
+                  <a
+                    class="menu-item highlight-item"
+                    role="menuitem"
+                    [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)"
+                    (click)="subscriptionMenuOpen.set(false)"
+                  >
+                    <app-icon name="shopping_cart" width="16px" height="16px"></app-icon>
+                    <span>Subscribe Now</span>
+                  </a>
                 }
               </div>
-            </div>
-            <a class="subtle-btn manage-sub-btn" [href]="routingService.hrefForView(Views.MyOrders)">
-              Manage Subscription
-            </a>
+            }
           </div>
-        } @else {
-          <div class="subscription-status-card callout">
-            <div class="status-icon-wrap">
-              <app-icon name="video_library" width="28px" height="28px"></app-icon>
-            </div>
-            <div class="status-info">
-              <div class="status-title">Subscribe to the Class Video Library</div>
-              <div class="status-details">
-                Subscribe for unlimited streaming access to all recorded weekly Saturday classes and library archives.
-              </div>
-            </div>
-            <a class="primary-btn subscribe-cta-btn" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
-              <app-icon name="shopping_cart"></app-icon>
-              <span>Subscribe Now</span>
-            </a>
-          </div>
-        }
+        </div>
       } @else {
         <p class="subtitle">
           Watch full seminar recordings, technique breakdowns, form demonstrations,
