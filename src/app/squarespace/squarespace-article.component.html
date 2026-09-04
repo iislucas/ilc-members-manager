@@ -17,19 +17,22 @@
         <article class="blog-card expanded article-view">
             @if (currentEntry.assetUrl) {
             <div class="blog-image">
-                <img [src]="currentEntry.assetUrl" [alt]="currentEntry.title">
+                <img [src]="currentEntry.assetUrl" [alt]="currentEntry.title" (error)="onImageError($event)">
             </div>
             }
             
             <div class="blog-content">
                 <div class="blog-header-meta">
-                    @if (currentEntry.categories && currentEntry.categories.length) {
                     <div class="blog-categories">
-                        @for (cat of currentEntry.categories; track cat) {
-                        <span class="category-tag">{{ cat }}</span>
+                        @if (currentEntry.categories && currentEntry.categories.length) {
+                            @for (cat of currentEntry.categories; track cat) {
+                            <span class="category-tag">{{ cat }}</span>
+                            }
+                        }
+                        @if (currentEntry.isDraft) {
+                        <span class="category-tag draft-badge" style="background: #e65100; color: #ffffff;">Draft</span>
                         }
                     </div>
-                    }
                     <span class="blog-date">Posted: {{ (currentEntry.publishOn || currentEntry.addedOn) | date:'longDate' }}</span>
                 </div>
 

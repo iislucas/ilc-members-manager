@@ -283,6 +283,11 @@ export class App {
         this.firebaseService.loginStatus() === LoginStatus.SignedIn;
       const view = this.routingService.matchedPatternId();
 
+      if (view === Views.Articles) {
+        this.routingService.navigateToParts(['articles', 'category', 'All']);
+        return;
+      }
+
       const isOnPublicPage = !!view && PUBLIC_VIEWS.has(view);
       if (
         isLoggedOut &&

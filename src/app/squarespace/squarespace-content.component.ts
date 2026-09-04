@@ -63,6 +63,14 @@ export class SquarespaceContentComponent implements OnDestroy {
     private rawPosts = signal<CachedBlogPost[]>([]);
     private subscribed = signal(false);
 
+    onImageError(event: Event) {
+        const img = event.target as HTMLElement;
+        const container = img.closest('.blog-image') as HTMLElement | null;
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
     tabLabel(cat: string): string {
         return categoryToTabLabel(cat);
     }
@@ -71,27 +79,36 @@ export class SquarespaceContentComponent implements OnDestroy {
     readonly blogEntries = computed<ProcessedBlogEntry[]>(() => {
         if (!this.subscribed()) return [];
         const coll = this.path();
-        return this.rawPosts().map((item) => {
-            const categories = item.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
-            return {
-                ...item,
-                categories,
-                safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
-                safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
-            };
-        });
+        const isAdmin = this.firebaseService.isAdmin();
+        return this.rawPosts()
+            .filter((item) => isAdmin || !item.isDraft)
+            .map((item) => {
+                const categories = item.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
+                return {
+                    ...item,
+                    categories,
+                    safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
+                    safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
+                };
+            });
     });
 
     readonly categories = computed<string[]>(() => {
         const entries = this.blogEntries();
         if (entries.length === 0) return [];
         const allCategories = new Set<string>();
+        let hasDrafts = false;
         entries.forEach(item => {
+            if (item.isDraft) hasDrafts = true;
             if (item.categories) {
                 item.categories.forEach((c: string) => allCategories.add(c));
             }
         });
-        return ['All', ...Array.from(allCategories).sort()];
+        const list = ['All', ...Array.from(allCategories).sort()];
+        if (this.firebaseService.isAdmin() && hasDrafts) {
+            list.push('Drafts');
+        }
+        return list;
     });
 
     readonly loading = computed(() => {
@@ -106,6 +123,7 @@ export class SquarespaceContentComponent implements OnDestroy {
         const cat = this.selectedCategory();
         const entries = this.blogEntries();
         if (cat === 'All') return entries;
+        if (cat === 'Drafts') return entries.filter(e => e.isDraft);
         return entries.filter(e => e.categories && e.categories.includes(cat));
     });
 
@@ -125,8 +143,10 @@ export class SquarespaceContentComponent implements OnDestroy {
             const patternId = this.routingService.matchedPatternId();
             if (patternId === Views.MembersArea
                 || patternId === Views.InstructorsArea
+                || patternId === Views.Articles
                 || patternId === Views.MembersAreaCategory
-                || patternId === Views.InstructorsAreaCategory) {
+                || patternId === Views.InstructorsAreaCategory
+                || patternId === Views.ArticlesCategory) {
                 let urlCat = '';
                 if (patternId === Views.MembersArea) {
                     urlCat = this.routingService.signals[Views.MembersArea].urlParams.category() || 'All';
@@ -136,6 +156,10 @@ export class SquarespaceContentComponent implements OnDestroy {
                     urlCat = this.routingService.signals[Views.InstructorsArea].urlParams.category() || 'All';
                 } else if (patternId === Views.InstructorsAreaCategory) {
                     urlCat = this.routingService.signals[Views.InstructorsAreaCategory].pathVars.category();
+                } else if (patternId === Views.Articles) {
+                    urlCat = this.routingService.signals[Views.Articles].urlParams.category() || 'All';
+                } else if (patternId === Views.ArticlesCategory) {
+                    urlCat = this.routingService.signals[Views.ArticlesCategory].pathVars.category();
                 }
 
                 urlCat = decodeURIComponent(urlCat || 'All');
@@ -168,10 +192,14 @@ export class SquarespaceContentComponent implements OnDestroy {
             this.routingService.signals[Views.MembersArea].urlParams.category.set(cat === 'All' ? '' : urlSlug);
         } else if (patternId === Views.InstructorsArea) {
             this.routingService.signals[Views.InstructorsArea].urlParams.category.set(cat === 'All' ? '' : urlSlug);
+        } else if (patternId === Views.Articles) {
+            this.routingService.signals[Views.Articles].urlParams.category.set(cat === 'All' ? '' : urlSlug);
         } else if (patternId === Views.MembersAreaCategory) {
             this.routingService.navigateToParts(cat === 'All' ? ['members-area', 'category', 'All'] : ['members-area', 'category', encodedCat]);
         } else if (patternId === Views.InstructorsAreaCategory) {
             this.routingService.navigateToParts(cat === 'All' ? ['instructors-area', 'category', 'All'] : ['instructors-area', 'category', encodedCat]);
+        } else if (patternId === Views.ArticlesCategory) {
+            this.routingService.navigateToParts(cat === 'All' ? ['articles', 'category', 'All'] : ['articles', 'category', encodedCat]);
         }
     }
 
@@ -181,6 +209,8 @@ export class SquarespaceContentComponent implements OnDestroy {
             this.routingService.navigateTo('members-area/post/' + entry.urlId);
         } else if (collectionName === 'instructors-post') {
             this.routingService.navigateTo('instructors-area/post/' + entry.urlId);
+        } else if (collectionName === 'articles-post') {
+            this.routingService.navigateTo('articles/post/' + entry.urlId);
         }
     }
 
@@ -208,6 +238,12 @@ export class SquarespaceContentComponent implements OnDestroy {
     }
 
     public checkAccessAndSubscribe(collectionName: string) {
+        const isPublicArea = collectionName === 'articles-post';
+        if (isPublicArea) {
+            this.subscribeToCollection(collectionName);
+            return;
+        }
+
         const user = this.firebaseService.user();
 
         if (!user) {

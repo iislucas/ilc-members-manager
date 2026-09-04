@@ -473,10 +473,15 @@ export class FirebaseStateService {
     const result = await fn({ email });
     return result.data;
   }
+
+  public isAdmin(): boolean {
+    return this.user()?.isAdmin ?? false;
+  }
 }
 
 export function createFirebaseStateServiceMock(): FirebaseStateService {
   return {
+    isAdmin: () => false,
     user: signal(null),
     unverifiedUser: signal(null),
     verificationEmailSent: signal(false),

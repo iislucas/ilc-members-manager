@@ -206,6 +206,30 @@
             <div></div>
           }
         }
+        @case (Views.ArticlesCategory) {
+          @defer (prefetch on idle) {
+            <app-squarespace-content
+              path="articles-post"
+              pageTitle="Articles &amp; Guides"
+            ></app-squarespace-content>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading articles...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ArticlesPost) {
+          @defer (prefetch on idle) {
+            <app-squarespace-article
+              collection="articles-post"
+              [blogPostPath]="routingService.signals[Views.ArticlesPost].pathVars.blogPostPath()"
+            ></app-squarespace-article>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading article...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
       }
     } @else if (!user) {
       <!-- Restricted page, not logged in: show initialisation or login -->
@@ -260,6 +284,13 @@
                   <div class="service-link-sub">Search for licensed instructors worldwide.</div>
                 </div>
               </a>
+              <a class="service-link-card" [href]="routingService.hrefForView(Views.Articles)">
+                <app-icon name="menu_book" width="32px" height="32px"></app-icon>
+                <div class="service-link-text">
+                  <div class="service-link-title">Articles &amp; Guides</div>
+                  <div class="service-link-sub">Browse public articles, guides, philosophy, and curriculum wiki.</div>
+                </div>
+              </a>
               <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">
                 <app-icon name="video_library" width="32px" height="32px"></app-icon>
                 <div class="service-link-text">
@@ -307,6 +338,13 @@
                 <div class="service-link-text">
                   <div class="service-link-title">Find an Instructor</div>
                   <div class="service-link-sub">Search for licensed instructors worldwide.</div>
+                </div>
+              </a>
+              <a class="service-link-card" [href]="routingService.hrefForView(Views.Articles)">
+                <app-icon name="menu_book" width="32px" height="32px"></app-icon>
+                <div class="service-link-text">
+                  <div class="service-link-title">Articles &amp; Guides</div>
+                  <div class="service-link-sub">Browse public articles, guides, philosophy, and curriculum wiki.</div>
                 </div>
               </a>
               <a class="service-link-card" [href]="routingService.hrefForView(Views.ClassVideoLibraryPurchase)">

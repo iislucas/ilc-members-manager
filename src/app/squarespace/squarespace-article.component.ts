@@ -41,6 +41,14 @@ export class SquarespaceArticleComponent implements OnDestroy {
     private subscribed = signal(false);
     private postsLoading = signal(true);
 
+    onImageError(event: Event) {
+        const img = event.target as HTMLElement;
+        const container = img.closest('.blog-image') as HTMLElement | null;
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
     // Find the matching post and process it into a template-ready entry.
     readonly entry = computed<ProcessedBlogEntry | null>(() => {
         const posts = this.rawPosts();
@@ -49,6 +57,11 @@ export class SquarespaceArticleComponent implements OnDestroy {
 
         const matchingPost = posts.find(p => p.urlId === slug);
         if (!matchingPost) return null;
+
+        // Draft articles are only visible to admins
+        if (matchingPost.isDraft && !this.firebaseService.isAdmin()) {
+            return null;
+        }
 
         const coll = this.collection();
         const categories = matchingPost.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
@@ -118,6 +131,12 @@ export class SquarespaceArticleComponent implements OnDestroy {
     }
 
     public checkAccessAndSubscribe(collectionName: string) {
+        const isPublicArea = collectionName === 'articles-post';
+        if (isPublicArea) {
+            this.subscribeToCollection(collectionName);
+            return;
+        }
+
         const user = this.firebaseService.user();
 
         if (!user) {

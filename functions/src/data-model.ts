@@ -2441,6 +2441,8 @@ export enum BlogPostSourceKind {
   FirebaseSourced = 'firebase-sourced',
   // Mirrored from the Squarespace blog; regenerable on the next sync.
   Squarespace = 'squarespace',
+  // Imported from WordPress archive (pages/posts/wiki).
+  WordPress = 'wordpress',
 }
 
 // Read a post's source kind from a raw Firestore document.
@@ -2458,18 +2460,28 @@ export function blogPostSourceKind(
   if (data.kind === undefined || data.kind === null || data.kind === '') {
     return BlogPostSourceKind.Squarespace;
   }
-  return data.kind === BlogPostSourceKind.Squarespace
-    ? BlogPostSourceKind.Squarespace
-    : BlogPostSourceKind.FirebaseSourced;
+  if (data.kind === BlogPostSourceKind.Squarespace) {
+    return BlogPostSourceKind.Squarespace;
+  }
+  if (data.kind === BlogPostSourceKind.WordPress) {
+    return BlogPostSourceKind.WordPress;
+  }
+  return BlogPostSourceKind.FirebaseSourced;
+}
+
+export enum BlogPostStatus {
+  Published = 'published',
+  Draft = 'draft',
 }
 
 export type CachedBlogPost = {
-  id: string;            // Squarespace item ID
+  id: string;            // Item ID (Squarespace item ID or WP ID)
   urlId: string;         // URL-friendly slug for routing
   title: string;
-  excerpt: string;       // pre-processed HTML
-  body: string;          // pre-processed HTML
-  assetUrl: string;      // hero/thumbnail image; hosted on Squarespace CDN
+  excerpt: string;       // pre-processed HTML or markdown
+  body: string;          // pre-processed HTML or markdown
+  bodyMarkdown: string;  // original markdown source if available
+  assetUrl: string;      // hero/thumbnail image
   publishOn: number;     // timestamp (ms since epoch)
   addedOn: number;       // timestamp (ms since epoch)
   categories: string[];
@@ -2478,6 +2490,8 @@ export type CachedBlogPost = {
   // Which source wrote this post. Always set; read stored documents through
   // blogPostSourceKind so legacy documents without the field are normalised.
   kind: BlogPostSourceKind;
+  isDraft: boolean;      // When true, hidden from public users and visible only to admins
+  status: BlogPostStatus;
   lastUpdated?: string;  // ISO date-time; managed by sync logic
 };
 
@@ -2488,6 +2502,7 @@ export function initCachedBlogPost(): CachedBlogPost {
     title: '',
     excerpt: '',
     body: '',
+    bodyMarkdown: '',
     assetUrl: '',
     publishOn: 0,
     addedOn: 0,
@@ -2496,6 +2511,8 @@ export function initCachedBlogPost(): CachedBlogPost {
     author: '',
     // These collections had no other writer when the field was introduced.
     kind: BlogPostSourceKind.Squarespace,
+    isDraft: false,
+    status: BlogPostStatus.Published,
   };
 }
 
