@@ -220,6 +220,12 @@ All `<button>` elements are globally styled in `styles.scss`. **Do not re-style 
 
 > [!IMPORTANT]
 > If you find yourself writing `background-color`, `border`, `box-shadow`, or `border-radius` for a button in a component SCSS file, **stop** — you almost certainly should be using one of the above global classes instead.
+>
+> **Avoid the Drop-Shadow Trap on `<button>` elements**:
+> The global `button` selector in `styles.scss` applies `box-shadow: 0 2px 4px $shadow-color;` by default. If you create a `<button>` without an existing variant class (or with a custom component class), it will inherit this raised drop-shadow.
+> - For **inline text triggers, expand/collapse toggles, "Show more" / "Show less" / "Fold" actions**: Always use `.inline-link-button` (plain text link style with no border, no background, and `box-shadow: none`).
+> - For **secondary toolbar or navigation actions**: Use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
+> - **Never introduce new custom button styles** in component SCSS.
 
 > [!WARNING]
 > **NO BLACK BACKGROUNDS FOR POSITIVE ACTION BUTTONS**
@@ -615,6 +621,13 @@ The only keyframe animation is `.loading-slider` (header loading bar).
 
 Angular's ViewEncapsulation.Emulated scopes all component SCSS classes. If a class in the HTML doesn't match any class in the component's SCSS **or** in global `styles.scss`, it will have no effect. Always verify class names match.
 
+### Default `<button>` Drop Shadow Trap
+
+The global `button` selector in `styles.scss` defines `box-shadow: 0 2px 4px $shadow-color;` on all button elements by default. If you write `<button class="my-custom-btn">` or use an unclassed button without extending or applying an existing variant that resets `box-shadow: none;`, it will render with an unwanted Material-style drop shadow.
+- For simple inline text triggers, toggles, or fold/unfold actions ("Show more", "Fold", "Show less"): use the global class `.inline-link-button` (`box-shadow: none; background: transparent; border: none; text-decoration: underline;`).
+- For padded subtle actions: use `.subtle-button` (`box-shadow: none; border: 1px solid transparent;`).
+- Never invent a new button class in component SCSS.
+
 ### Avoid These
 
 - ❌ `height: 100%` / `width: 100%` — prefer flexbox `flex-grow: 1` and `align-items: stretch`
@@ -622,6 +635,7 @@ Angular's ViewEncapsulation.Emulated scopes all component SCSS classes. If a cla
 - ❌ `::ng-deep` — avoid unless absolutely necessary (e.g., styling third-party editor content like ProseMirror)
 - ❌ Inline styles — use SCSS classes
 - ❌ `ngClass` / `ngStyle` — use native class/style bindings
+- ❌ Custom button classes in component SCSS — use global button classes (`.subtle-button`, `.inline-link-button`, etc.)
 
 ---
 
@@ -641,3 +655,4 @@ Before submitting any styling change:
 10. **Class naming**: Are your class names descriptive and scoped to the component? (e.g., `.member-view-actions`, not `.actions`)
 11. **No height/width 100%**: Prefer flex-based sizing.
 12. **Positive action buttons**: Did you ensure positive/CTA buttons use lighter blue accent styling or primary blue, and NEVER solid black backgrounds?
+13. **No accidental button drop-shadows**: Did you ensure inline text buttons, fold/unfold toggles, or secondary actions use `.inline-link-button` or `.subtle-button` instead of a custom or unclassed `<button>` that inherits the global `box-shadow`?

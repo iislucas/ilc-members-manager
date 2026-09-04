@@ -324,4 +324,112 @@ describe('VideosCatalogComponent', () => {
     expect(entries[0].videoCount).toBe(2);
     expect(entries[0].durationSeconds).toBe(7200);
   });
+
+  describe('Popular Tags folding / unfolding', () => {
+    beforeEach(() => {
+      // Setup 12 distinct tags across videos
+      const videoWithManyTags: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-many-tags',
+        title: 'Comprehensive Drill Collection',
+        accessTier: VodAccessTier.Public,
+        isPublished: true,
+        isBuyable: true,
+        tags: [
+          'alignment',
+          'balance',
+          'coordination',
+          'dan-tien',
+          'energy',
+          'flow',
+          'grounding',
+          'harmony',
+          'intention',
+          'jing',
+          'kua',
+          'line',
+        ],
+      };
+      mockDataService.videos.entries.set([videoWithManyTags]);
+      fixture.detectChanges();
+    });
+
+    it('should limit displayedTags to initialTagsLimit (8) when collapsed', () => {
+      expect(component.availableTags().length).toBe(12);
+      expect(component.tagsExpanded()).toBe(false);
+      expect(component.displayedTags().length).toBe(component.initialTagsLimit);
+      expect(component.displayedTags()).toEqual([
+        'alignment',
+        'balance',
+        'coordination',
+        'dan-tien',
+        'energy',
+        'flow',
+        'grounding',
+        'harmony',
+      ]);
+    });
+
+    it('should show the subtle toggle button with remaining count and expand/fold on toggle', () => {
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      let toggleBtn = compiled.querySelector('button.inline-link-button') as HTMLButtonElement | null;
+      expect(toggleBtn).not.toBeNull();
+      expect(toggleBtn?.textContent).toContain('+4 more');
+      expect(toggleBtn?.getAttribute('aria-expanded')).toBe('false');
+
+      // Click to expand
+      toggleBtn?.click();
+      fixture.detectChanges();
+
+      expect(component.tagsExpanded()).toBe(true);
+      expect(component.displayedTags().length).toBe(12);
+      toggleBtn = compiled.querySelector('button.inline-link-button') as HTMLButtonElement | null;
+      expect(toggleBtn?.textContent).toContain('Show less');
+      expect(toggleBtn?.getAttribute('aria-expanded')).toBe('true');
+
+      // Click to fold back up
+      toggleBtn?.click();
+      fixture.detectChanges();
+
+      expect(component.tagsExpanded()).toBe(false);
+      expect(component.displayedTags().length).toBe(8);
+      toggleBtn = compiled.querySelector('button.inline-link-button') as HTMLButtonElement | null;
+      expect(toggleBtn?.textContent).toContain('+4 more');
+    });
+
+    it('should include selectedTag in displayedTags even if outside first 8', () => {
+      // Select the 10th tag 'jing'
+      mockRoutingService.signals.videos.urlParams.tag.set('jing');
+      fixture.detectChanges();
+
+      expect(component.tagsExpanded()).toBe(false);
+      // 8 initial tags + 'jing' = 9
+      expect(component.displayedTags()).toContain('jing');
+      expect(component.displayedTags().length).toBe(9);
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      const toggleBtn = compiled.querySelector('button.inline-link-button');
+      expect(toggleBtn?.textContent).toContain('+3 more');
+    });
+
+    it('should not show toggle button when tags count <= initialTagsLimit', () => {
+      const videoFewTags: VideoItem = {
+        ...initVideoItem(),
+        docId: 'v-few',
+        title: 'Short',
+        accessTier: VodAccessTier.Public,
+        isPublished: true,
+        tags: ['alpha', 'beta', 'gamma'],
+      };
+      mockDataService.videos.entries.set([videoFewTags]);
+      fixture.detectChanges();
+
+      expect(component.availableTags().length).toBe(3);
+      expect(component.displayedTags().length).toBe(3);
+      const compiled = fixture.nativeElement as HTMLElement;
+      const toggleBtn = compiled.querySelector('button.inline-link-button');
+      expect(toggleBtn).toBeNull();
+    });
+  });
 });

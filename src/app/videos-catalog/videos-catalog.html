@@ -228,7 +228,7 @@
       <div class="tag-cloud">
         <span class="tags-label">Popular Tags:</span>
         <div class="tags-list">
-          @for (tag of availableTags(); track tag) {
+          @for (tag of displayedTags(); track tag) {
             <button
               type="button"
               class="tag-chip"
@@ -237,6 +237,21 @@
               [title]="getTagTooltip(tag)"
             >
               #{{ tag }}
+            </button>
+          }
+          @if (tagsExpanded() || availableTags().length > displayedTags().length) {
+            <button
+              type="button"
+              class="inline-link-button"
+              (click)="toggleTagsExpanded()"
+              [attr.aria-expanded]="tagsExpanded()"
+              [title]="tagsExpanded() ? 'Show fewer tags' : 'Show all ' + availableTags().length + ' tags'"
+            >
+              @if (tagsExpanded()) {
+                Show less
+              } @else {
+                +{{ availableTags().length - displayedTags().length }} more
+              }
             </button>
           }
         </div>

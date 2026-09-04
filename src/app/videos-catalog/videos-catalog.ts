@@ -242,6 +242,27 @@ export class VideosCatalogComponent {
     return Array.from(tagSet).sort();
   });
 
+  // Tag cloud expansion state and limit
+  readonly initialTagsLimit = 8;
+  tagsExpanded = signal(false);
+
+  displayedTags = computed<string[]>(() => {
+    const all = this.availableTags();
+    if (this.tagsExpanded() || all.length <= this.initialTagsLimit) {
+      return all;
+    }
+    const initial = all.slice(0, this.initialTagsLimit);
+    const sel = this.selectedTag();
+    if (sel && all.includes(sel) && !initial.includes(sel)) {
+      return [...initial, sel];
+    }
+    return initial;
+  });
+
+  toggleTagsExpanded(): void {
+    this.tagsExpanded.update((expanded) => !expanded);
+  }
+
   // Counts for tabs
   allBuyableCount = computed(() => {
     return this.getVideosList().filter(
