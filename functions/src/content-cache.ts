@@ -44,6 +44,7 @@ import {
   BlogPostSourceKind,
   blogPostSourceKind,
   CachedBlogPost,
+  initCachedBlogPost,
   CacheMetadata,
 } from './data-model';
 
@@ -144,6 +145,7 @@ export function mapToCachedBlogPost(
   baseUrl: string,
 ): CachedBlogPost {
   return {
+    ...initCachedBlogPost(),
     id: (item.id as string) || '',
     urlId: (item.urlId as string) || '',
     title: (item.title as string) || '',

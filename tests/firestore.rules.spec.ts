@@ -693,6 +693,32 @@ describe('Firestore Rules', () => {
         .firestore();
       await assertFails(db.collection('instructors-post').doc('post1').get());
     });
+
+    it('should allow unauthenticated users to read articles posts', async () => {
+      const db = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').get());
+    });
+
+    it('should allow authenticated users to read articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').get());
+    });
+
+    it('should deny non-admin from writing to articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(db.collection('articles-post').doc('article1').set({ title: 'Test' }));
+    });
+
+    it('should allow admin to write to articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').set({ title: 'Test' }));
+    });
   });
 
   describe('Gradings Collection', () => {

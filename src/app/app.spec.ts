@@ -232,7 +232,8 @@ describe('App', () => {
       'Other pages you might be looking for',
     );
     const otherCards = otherPagesSection?.querySelectorAll('.service-link-card');
-    expect(otherCards?.length).toBe(5);
+    expect(otherCards?.length).toBe(6);
+    expect(Array.from(otherCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
 
     // Should NOT show the generic login app-info welcome message
     expect(compiled.querySelector('.app-info')).toBeNull();
@@ -259,7 +260,8 @@ describe('App', () => {
     const loginSiteLinks = compiled.querySelector('.login-site-links');
     expect(loginSiteLinks).toBeTruthy();
     const siteCards = loginSiteLinks?.querySelectorAll('.service-link-card');
-    expect(siteCards?.length).toBe(5);
+    expect(siteCards?.length).toBe(6);
+    expect(Array.from(siteCards || []).some((c) => c.textContent?.includes('Articles & Guides'))).toBe(true);
 
     // Should show login component
     expect(compiled.querySelector('app-login')).toBeTruthy();
@@ -555,6 +557,71 @@ describe('App', () => {
       expect(shareLink.classList.contains('copied')).toBe(true);
 
       vi.unstubAllGlobals();
+    });
+
+    it('should render ArticlesCategory for unauthenticated users', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+      firebaseStateServiceMock.user!.set(null);
+
+      app.routingService.matchedPatternId.set(Views.ArticlesCategory);
+      app.routingService.signals[Views.ArticlesCategory].pathVars.category.set('All');
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const deferBlocks = await fixture.getDeferBlocks();
+      for (const block of deferBlocks) {
+        await block.render(DeferBlockState.Complete);
+      }
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('app-squarespace-content')).toBeTruthy();
+      expect(compiled.querySelector('.login-box-container')).toBeNull();
+    });
+
+    it('should render ArticlesPost for unauthenticated users', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+      firebaseStateServiceMock.user!.set(null);
+
+      app.routingService.matchedPatternId.set(Views.ArticlesPost);
+      app.routingService.signals[Views.ArticlesPost].pathVars.blogPostPath.set('sample-slug');
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const deferBlocks = await fixture.getDeferBlocks();
+      for (const block of deferBlocks) {
+        await block.render(DeferBlockState.Complete);
+      }
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.querySelector('app-squarespace-article')).toBeTruthy();
+      expect(compiled.querySelector('.login-box-container')).toBeNull();
+    });
+
+    it('should redirect from Views.Articles to ArticlesCategory All when signed out', async () => {
+      const fixture = TestBed.createComponent(App);
+      const app = fixture.componentInstance;
+
+      firebaseStateServiceMock.loginStatus!.set(LoginStatus.SignedOut);
+      firebaseStateServiceMock.user!.set(null);
+
+      const navSpy = vi.spyOn(app.routingService, 'navigateToParts');
+
+      app.routingService.matchedPatternId.set(Views.Articles);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(navSpy).toHaveBeenCalledWith(['articles', 'category', 'All']);
     });
   });
 });

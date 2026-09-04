@@ -162,6 +162,13 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  menu_book: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M560-160v-520q53-33 111.5-46.5T780-740q53 0 102 10t78 28v522q-41-24-87-37t-93-13q-52 0-103.5 13.5T560-160ZM480-160q-54-32-113-46t-127-14q-50 0-96 13t-84 37v-522q38-18 84.5-28t95.5-10q60 0 119.5 13.5T480-720v560Zm-80-122v-398q-47-11-97.5-15.5T200-700q-33 0-66.5 4T80-684v392q30-10 60-15t60-5q50 0 98 9.5t82 28.5Zm160 0q34-19 82-28.5t98-9.5q30 0 60 5t60 15v-392q-47-8-80.5-12t-66.5-4q-52 0-102.5 4.5T640-680v398Zm-80-276Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
   edit: {
     viewbox: '0 0 24 24',
     fill: 'currentColor',

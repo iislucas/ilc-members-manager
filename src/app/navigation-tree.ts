@@ -67,6 +67,7 @@ export class NavigationTreeService {
     const view = this.routing.matchedPatternId() as Views | null;
     if (view === Views.MembersArea) return Views.MembersAreaCategory;
     if (view === Views.InstructorsArea) return Views.InstructorsAreaCategory;
+    if (view === Views.Articles) return Views.ArticlesCategory;
     return view;
   });
 
@@ -208,6 +209,9 @@ export class NavigationTreeService {
       view === Views.InstructorsArea ||
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
+      view === Views.Articles ||
+      view === Views.ArticlesCategory ||
+      view === Views.ArticlesPost ||
       view === Views.ClassVideoLibrary ||
       view === Views.Videos ||
       view === Views.VideoView
@@ -420,6 +424,10 @@ export class NavigationTreeService {
         return [
           { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
         ];
+      case Views.ArticlesPost:
+        return [
+          { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
+        ];
       case Views.NotificationSettings:
         return [this.node(Views.Settings, 'Settings')];
       case Views.VideoView:
@@ -630,6 +638,9 @@ export class NavigationTreeService {
       case Views.InstructorsArea:
       case Views.InstructorsAreaCategory:
         return 'Instructors Area';
+      case Views.Articles:
+      case Views.ArticlesCategory:
+        return 'Articles & Guides';
       case Views.ManageGradings:
         return 'Gradings';
       case Views.MemberGradings: {
@@ -675,6 +686,7 @@ export class NavigationTreeService {
         return this.loadedOrderTitle() || 'Order Details';
       case Views.MembersAreaPost:
       case Views.InstructorsAreaPost:
+      case Views.ArticlesPost:
         return 'Article';
       case Views.DownloadResource:
         return 'Download Resource';

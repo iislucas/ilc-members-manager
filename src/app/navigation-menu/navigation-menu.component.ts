@@ -45,6 +45,9 @@ export class NavigationMenuComponent {
       view === Views.InstructorsArea ||
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
+      view === Views.Articles ||
+      view === Views.ArticlesCategory ||
+      view === Views.ArticlesPost ||
       view === Views.ClassVideoLibrary
     ) {
       return 'learn';
@@ -152,6 +155,7 @@ export class NavigationMenuComponent {
       case Views.MySchools: return 'Schools';
       case Views.MembersArea: return 'Members Area';
       case Views.InstructorsArea: return 'Instructors Area';
+      case Views.Articles: return 'Articles & Guides';
       case Views.ManageGradings: return 'Gradings';
       case Views.MemberGradings: return 'Gradings';
       case Views.Settings: return 'Settings';
