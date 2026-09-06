@@ -80,6 +80,11 @@
       }
     </div>
 
+    <a class="create-event-btn" [href]="createEventHref()" title="Create or organise a new event">
+      <app-icon name="add"></app-icon>
+      <span>Create Event</span>
+    </a>
+
     @if (searchMode() === 'term') {
       <div class="search-controls-row">
         <select [ngModel]="searchField()" (ngModelChange)="searchField.set($event)" class="field-select">
@@ -151,7 +156,7 @@
             }
             @if (ev.lastUpdated) {
               <span class="last-updated">
-                {{ ev.lastUpdated }}
+                {{ formatTimestamp(ev.lastUpdated) }}
                 @if (ev.updatedByEmail) {
                   by {{ ev.updatedByEmail }}
                 }

@@ -58,6 +58,38 @@
     cursor: pointer;
   }
 
+  .create-event-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.4rem 0.75rem;
+    background-color: var(--mdc-theme-primary, #1976d2);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    margin-left: auto;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+
+    app-icon {
+      font-size: 1.1rem;
+    }
+
+    &:hover {
+      background-color: #1565c0;
+      color: white;
+      text-decoration: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      background-color: #0d47a1;
+      transform: translateY(1px);
+    }
+  }
+
   .search-controls-row {
     display: flex;
     gap: 0.5rem;

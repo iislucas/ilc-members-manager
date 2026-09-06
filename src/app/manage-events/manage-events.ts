@@ -70,6 +70,7 @@ export class ManageEventsComponent implements OnDestroy {
   private dataService = inject(DataManagerService);
   private firebaseState = inject(FirebaseStateService);
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
+  createEventHref = computed(() => this.routingService.hrefForView(Views.ProposeEvent));
 
   // Constants for template
   EventStatus = EventStatus;
@@ -375,6 +376,35 @@ export class ManageEventsComponent implements OnDestroy {
     return this.routingService.hrefWithParams(
       `/instructors/${encodeURIComponent(id)}`,
     );
+  }
+
+  // Format raw timestamp / ISO date / Date instance into a user-friendly date string.
+  formatTimestamp(val: unknown): string {
+    if (!val) return '';
+    try {
+      let date: Date;
+      if (val instanceof Date) {
+        date = val;
+      } else if (typeof (val as { toDate?: () => Date }).toDate === 'function') {
+        date = (val as { toDate: () => Date }).toDate();
+      } else if (typeof (val as { seconds?: number }).seconds === 'number') {
+        date = new Date((val as { seconds: number }).seconds * 1000);
+      } else if (typeof (val as { _seconds?: number })._seconds === 'number') {
+        date = new Date((val as { _seconds: number })._seconds * 1000);
+      } else {
+        date = new Date(val as string | number);
+      }
+      if (isNaN(date.getTime())) return String(val);
+      return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return String(val);
+    }
   }
 
   // Prevent navigation when the user is selecting text by drag.
