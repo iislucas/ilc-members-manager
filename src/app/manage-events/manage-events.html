@@ -6,10 +6,10 @@
   </div>
 } @else {
   <div class="input-group">
-    <div class="search-mode-toggle">
-      <button [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
-      <button [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
-      <button [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Event Date</button>
+    <div class="pill-tabs search-mode-tabs">
+      <button class="pill-tab" data-label="Recently Updated" [class.active]="searchMode() === 'recent'" (click)="setSearchMode('recent')">Recently Updated</button>
+      <button class="pill-tab" data-label="Term" [class.active]="searchMode() === 'term'" (click)="setSearchMode('term')">Term</button>
+      <button class="pill-tab" data-label="Event Date" [class.active]="searchMode() === 'date'" (click)="setSearchMode('date')">Event Date</button>
     </div>
 
     <div class="sort-controls">
@@ -80,7 +80,7 @@
       }
     </div>
 
-    <a class="create-event-btn" [href]="createEventHref()" title="Create or organise a new event">
+    <a class="button create-event-btn" [href]="createEventHref()" title="Create or organise a new event">
       <app-icon name="add"></app-icon>
       <span>Create Event</span>
     </a>
@@ -101,7 +101,7 @@
           placeholder="Search within selected field..."
           (keyup.enter)="search()"
         />
-        <button (click)="search()" class="primary">
+        <button (click)="search()">
           <app-icon name="search"></app-icon>
           Search
         </button>
@@ -121,7 +121,7 @@
           [ngModel]="endDate()"
           (ngModelChange)="endDate.set($event)"
         />
-        <button (click)="search()" class="primary">
+        <button (click)="search()">
           <app-icon name="search"></app-icon>
           Search
         </button>

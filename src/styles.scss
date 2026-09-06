@@ -66,11 +66,15 @@ a {
 //  Buttons
 // ----------------------------------------------------------------------------
 
-button {
+button,
+a.button,
+.button {
   // Inherit font styles for consistency
   font-family: inherit;
   font-size: 100%;
   font-weight: 500; // Slightly bolder for emphasis
+  text-decoration: none;
+  box-sizing: border-box;
 
   // Sizing and spacing
   border-radius: 0.3em;
@@ -88,7 +92,7 @@ button {
   transition: all 0.2s ease-in-out;
 
   align-items: center;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   gap: 0.4em;
   padding: 0.3em;
@@ -131,20 +135,28 @@ button {
   }
 }
 
-button:hover {
+button:hover,
+a.button:hover,
+.button:hover {
   // On hover, slightly darken the background and increase the shadow for a "lift" effect.
   background-color: $button-hover-bg-color;
   box-shadow: 0 4px 8px $shadow-color-hover;
+  color: $button-text-color;
+  text-decoration: none;
 }
 
-button:active {
+button:active,
+a.button:active,
+.button:active {
   // When pressed, simulate a "push" effect by moving the button down slightly.
   transform: translateY(2px);
   background-color: $button-active-bg-color;
   box-shadow: 0 1px 2px $shadow-color-active;
 }
 
-button:disabled {
+button:disabled,
+a.button:disabled,
+.button:disabled {
   // Style for disabled buttons to provide clear visual feedback.
   cursor: not-allowed;
   opacity: 0.7;
