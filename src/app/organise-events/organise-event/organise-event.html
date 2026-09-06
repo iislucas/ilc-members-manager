@@ -70,19 +70,11 @@
         contacted them and they have agreed. Once this form has been submitted,
         they will need to confirm their desire to lead training at this event.
       </div>
-      <app-public-instructor-selector
-        name="Leading Instructor"
+      <app-instructor-selector
         [placeholder]="'Search for an instructor'"
         [value]="eventModel().leadingInstructorId"
-        emptyLabel="No instructor selected yet"
         (valueChange)="updateLeadingInstructorId($event)"
-      ></app-public-instructor-selector>
-      @if (!membersService.instructors.get(eventModel().leadingInstructorId)) {
-        <div class="error-message">
-          Please select a valid instructor for the person who will be leading
-          training at this event.
-        </div>
-      }
+      ></app-instructor-selector>
     </div>
 
     <div class="input-field">

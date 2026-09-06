@@ -134,7 +134,7 @@ describe('ProposeEventComponent', () => {
     await fixture.whenStable();
 
     expect(component.showCustomContactCard()).toBe(false);
-    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.owner-selector-row app-instructor-selector')).toBeTruthy();
 
     component.setHasCustomContactInfo(true);
     fixture.detectChanges();
@@ -142,14 +142,14 @@ describe('ProposeEventComponent', () => {
 
     expect(component.showCustomContactCard()).toBe(true);
     expect(component.eventModel().ownerContactName).toBe('Instructor Submitter');
-    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.owner-selector-row app-instructor-selector')).toBeFalsy();
 
     component.setHasCustomContactInfo(false);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.showCustomContactCard()).toBe(false);
-    expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.owner-selector-row app-instructor-selector')).toBeTruthy();
   });
 
   it('renders status selector and Save button for admins, hiding proposal intro text', async () => {
