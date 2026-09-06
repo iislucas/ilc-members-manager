@@ -7,6 +7,12 @@
         {{ msg }}
       </div>
     </div>
+  } @else if (isDraftRestricted()) {
+    <div class="draft-restricted-card">
+      <app-icon name="lock"></app-icon>
+      <h2>Event Not Available</h2>
+      <p>This event is currently in draft mode and is only accessible to event organizers and administrators.</p>
+    </div>
   } @else if (event(); as ev) {
     @if (ev.heroImageLargeUrl || ev.heroImageUrl) {
       <div class="event-hero-image-container">
@@ -14,6 +20,22 @@
       </div>
     }
     <div class="event-detail-card">
+      @if (canManage() && ev.status === 'draft') {
+        <div class="event-status-banner banner-draft">
+          <app-icon name="edit"></app-icon>
+          <div>
+            <strong>Draft Event:</strong> This event is in draft mode. It is hidden from public calendars and listings, and is only visible to organizers and administrators for testing and preparation.
+          </div>
+        </div>
+      }
+      @if (canManage() && ev.status === 'unlisted') {
+        <div class="event-status-banner banner-unlisted">
+          <app-icon name="link"></app-icon>
+          <div>
+            <strong>Unlisted Event:</strong> This event is omitted from public calendar and directory listings. Anyone with the direct link can view and register.
+          </div>
+        </div>
+      }
       <div class="event-header">
         <div class="event-meta">
           <div class="meta-row">

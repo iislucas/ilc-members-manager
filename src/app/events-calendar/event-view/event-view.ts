@@ -164,6 +164,11 @@ export class EventViewComponent implements OnInit {
   canManage = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
   canEdit = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
 
+  isDraftRestricted = computed(() => {
+    const ev = this.event();
+    return ev?.status === EventStatus.Draft && !this.canManage();
+  });
+
   statusLabel = computed(() => eventStatusLabel(this.event()?.status));
   statusClass = computed(() => 'event-status-chip status-' + (this.event()?.status || 'proposed'));
 

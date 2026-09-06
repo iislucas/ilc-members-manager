@@ -2229,8 +2229,10 @@ export type CheckEmailStatusResult = {
 
 // Event status values for the unified /events collection.
 export enum EventStatus {
+  Draft = 'draft',
   Proposed = 'proposed',
   Listed = 'listed',
+  Unlisted = 'unlisted',
   Rejected = 'rejected',
   Cancelled = 'cancelled',
 }
@@ -2238,10 +2240,14 @@ export enum EventStatus {
 // Maps an EventStatus value to a user-friendly display label.
 export function eventStatusLabel(status: EventStatus | undefined): string {
   switch (status) {
+    case EventStatus.Draft:
+      return 'Draft';
     case EventStatus.Proposed:
       return 'Waiting for Approval';
     case EventStatus.Listed:
       return 'Listed Publicly';
+    case EventStatus.Unlisted:
+      return 'Unlisted (Direct Link Only)';
     case EventStatus.Rejected:
       return 'Rejected';
     case EventStatus.Cancelled:

@@ -739,6 +739,11 @@ a.selectable-card {
   white-space: nowrap;
 }
 
+.status-draft {
+  background-color: #e9ecef;
+  color: #495057;
+  border: 1px dashed #ced4da;
+}
 .status-proposed {
   background-color: #fff3cd;
   color: #856404;
@@ -746,6 +751,10 @@ a.selectable-card {
 .status-listed {
   background-color: #d4edda;
   color: #155724;
+}
+.status-unlisted {
+  background-color: #e0f2fe;
+  color: #0369a1;
 }
 .status-rejected {
   background-color: #f8d7da;

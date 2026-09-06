@@ -11,6 +11,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, getMemberByEmail, hasActiveMembership } from './common';
+import { environment } from './environment/environment';
 import { getStripeClient, stripeSecretKey } from './stripe-common';
 import {
   CreateProductCheckoutSessionRequest,
@@ -217,9 +218,10 @@ export const createProductCheckoutSession = onCall<
     },
   };
 
-  // If a pre-existing Stripe Product ID was linked, attach it directly
-  if (product.stripeProductId) {
-    lineItemPriceData.product = product.stripeProductId;
+  // If a pre-existing Stripe Product ID was linked, or an environment default is configured, attach it directly
+  const stripeProductId = product.stripeProductId || environment.stripe?.hqRegistrationForEventStripeProductId;
+  if (stripeProductId) {
+    lineItemPriceData.product = stripeProductId;
     delete lineItemPriceData.product_data;
   }
 

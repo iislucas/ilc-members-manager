@@ -47,5 +47,7 @@ export const environment: FunctionsEnvironment = {
   // secret (defineSecret), not stored here. Only non-secret config lives here.
   stripe: {
     apiVersion: '2026-04-22.dahlia' as const,
+    // Optional default Stripe Product ID for HQ Event Registrations (e.g. 'prod_...')
+    hqRegistrationForEventStripeProductId: '',
   },
 };
