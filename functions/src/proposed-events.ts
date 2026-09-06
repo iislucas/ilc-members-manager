@@ -178,10 +178,37 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
   return null;
 }
 
-// Submit a new event proposal — writes directly to /events with status='proposed'.
+/**
+ * Validates the requested initial status for an event proposal.
+ * - Non-admins may only create 'proposed' or 'draft' events.
+ * - Only admins can directly create 'unlisted', 'listed', or other statuses.
+ */
+export function validateProposalStatus(
+  requestedStatus: EventStatus | undefined,
+  isAdmin: boolean,
+): { status: EventStatus; error?: string } {
+  if (!requestedStatus || requestedStatus === EventStatus.Proposed) {
+    return { status: EventStatus.Proposed };
+  }
+  if (requestedStatus === EventStatus.Draft) {
+    return { status: EventStatus.Draft };
+  }
+  if (!isAdmin) {
+    return {
+      status: EventStatus.Proposed,
+      error: 'Only admins can create unlisted or listed events directly.',
+    };
+  }
+  if (Object.values(EventStatus).includes(requestedStatus)) {
+    return { status: requestedStatus };
+  }
+  return { status: EventStatus.Proposed };
+}
+
+// Submit a new event proposal — writes directly to /events.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; contactDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
+  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; status?: EventStatus; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; contactDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -194,19 +221,26 @@ export const submitProposedEvent = onCall(
       throw new HttpsError('permission-denied', error);
     }
 
-    // Check limit of 3 proposed events. Counted via managerEmails (the submitter
-    // is always a manager) so the limit still applies when the submitter hands
-    // ownership of the event to someone else.
-    const proposedEventsQuery = await db.collection('events')
-      .where('managerEmails', 'array-contains', request.auth.token.email)
-      .where('status', '==', EventStatus.Proposed)
-      .get();
-
-    if (proposedEventsQuery.size >= 3) {
-      throw new HttpsError('permission-denied', 'You have already reached the limit of 3 proposed events.');
-    }
-
     const data = request.data;
+    const statusValidation = validateProposalStatus(data.status, !!member.isAdmin);
+    if (statusValidation.error) {
+      throw new HttpsError('permission-denied', statusValidation.error);
+    }
+    const finalStatus = statusValidation.status;
+
+    // Check limit of 3 proposed events only if submitting a proposed event.
+    // Counted via managerEmails (the submitter is always a manager) so the limit
+    // still applies when the submitter hands ownership of the event to someone else.
+    if (finalStatus === EventStatus.Proposed) {
+      const proposedEventsQuery = await db.collection('events')
+        .where('managerEmails', 'array-contains', request.auth.token.email)
+        .where('status', '==', EventStatus.Proposed)
+        .get();
+
+      if (proposedEventsQuery.size >= 3) {
+        throw new HttpsError('permission-denied', 'You have already reached the limit of 3 proposed events.');
+      }
+    }
 
     // Owner defaults to the submitter. The creator automatically has manager
     // access and does not need to be in managerDocIds.
@@ -265,7 +299,7 @@ export const submitProposedEvent = onCall(
       end: data.end,
       description: data.description || '',
       location: data.location || '',
-      status: EventStatus.Proposed,
+      status: finalStatus,
       createdAt: new Date().toISOString(),
       ownerDocId,
       managerDocIds,
@@ -279,22 +313,25 @@ export const submitProposedEvent = onCall(
     };
 
     const docRef = await db.collection('events').add(event);
-    logger.info(`Event proposal submitted by ${member.memberId} with docId ${docRef.id}`);
+    logger.info(`Event ${finalStatus} created by ${member.memberId} with docId ${docRef.id}`);
 
     // Notify the whole organising team (owner + managers + leading instructor)
-    // that a listing request has been submitted.
-    const submitterName = member.name || member.memberId || 'A member';
-    const organiserDocIds = await eventOrganiserDocIds(
-      db, ownerDocId, managerDocIds, event.leadingInstructorId,
-    );
-    for (const docId of organiserDocIds) {
-      await createMemberNotification(db, docId, {
-        markdown: `${submitterName} has submitted an event listing request for [${event.title}](/my-events/${docRef.id}).`,
-        createdAt: new Date().toISOString(),
-        dismissed: false,
-        kind: NotificationKind.EventProposalSubmitted,
-        data: { eventDocId: docRef.id, title: event.title, submitterName },
-      });
+    // ONLY when a proposal is submitted. Drafts, unlisted, and listed events do
+    // NOT create proposal notifications.
+    if (finalStatus === EventStatus.Proposed) {
+      const submitterName = member.name || member.memberId || 'A member';
+      const organiserDocIds = await eventOrganiserDocIds(
+        db, ownerDocId, managerDocIds, event.leadingInstructorId,
+      );
+      for (const docId of organiserDocIds) {
+        await createMemberNotification(db, docId, {
+          markdown: `${submitterName} has submitted an event listing request for [${event.title}](/my-events/${docRef.id}).`,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.EventProposalSubmitted,
+          data: { eventDocId: docRef.id, title: event.title, submitterName },
+        });
+      }
     }
 
     return { success: true, docId: docRef.id };

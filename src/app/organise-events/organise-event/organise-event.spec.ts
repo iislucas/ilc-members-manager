@@ -151,4 +151,51 @@ describe('ProposeEventComponent', () => {
     expect(component.showCustomContactCard()).toBe(false);
     expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
   });
+
+  it('renders status selector and Save button for admins, hiding proposal intro text', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      isAdmin: true,
+      member: { docId: 'admin-1', name: 'Admin User', memberId: 'FR99' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.userIsAdmin()).toBe(true);
+
+    const statusSelect = fixture.nativeElement.querySelector('select#status');
+    expect(statusSelect).toBeTruthy();
+
+    const introText = fixture.nativeElement.querySelector('.organise-event-container > .intro-text');
+    // Top proposal intro text is hidden for admins
+    expect(introText).toBeFalsy();
+
+    const submitBtn = fixture.nativeElement.querySelector('button[type="submit"]');
+    expect(submitBtn.textContent.trim()).toBe('Save');
+
+    // Updating status works
+    component.updateStatus('unlisted');
+    expect(component.eventModel().status).toBe('unlisted');
+  });
+
+  it('renders proposal intro text and Submit Proposal button for non-admins without status select', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      isAdmin: false,
+      member: { docId: 'member-1', name: 'Regular Member', memberId: 'FR1' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.userIsAdmin()).toBe(false);
+
+    const statusSelect = fixture.nativeElement.querySelector('select#status');
+    expect(statusSelect).toBeFalsy();
+
+    const introText = fixture.nativeElement.querySelector('.organise-event-container > .intro-text');
+    expect(introText).toBeTruthy();
+
+    const submitBtn = fixture.nativeElement.querySelector('button[type="submit"]');
+    expect(submitBtn.textContent.trim()).toBe('Submit Proposal');
+  });
 });

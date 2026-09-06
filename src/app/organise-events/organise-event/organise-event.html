@@ -1,19 +1,36 @@
 <div class="organise-event-container">
-  <div class="intro-text">
-    <p>
-      This form is to ask ILC HQ to list an workshop or event. You can use it to 
-      request an event also.
-      Please make sure the instructor you have listed has already agreed to the
-      proposal (they will need to confirm in the members portal).
-    </p>
-    <p>
-      Once submitted, the proposal will be reviewed by ILC HQ and either it will be 
-      approved and listed, or you will be contacted
-      (e.g. if the timing and location is not compatible with another events).
-    </p>
-  </div>
+  @if (!userIsAdmin()) {
+    <div class="intro-text">
+      <p>
+        This form is to ask ILC HQ to list an workshop or event. You can use it to 
+        request an event also.
+        Please make sure the instructor you have listed has already agreed to the
+        proposal (they will need to confirm in the members portal).
+      </p>
+      <p>
+        Once submitted, the proposal will be reviewed by ILC HQ and either it will be 
+        approved and listed, or you will be contacted
+        (e.g. if the timing and location is not compatible with another events).
+      </p>
+    </div>
+  }
 
   <form (submit)="onSubmit()">
+    @if (userIsAdmin()) {
+      <div class="input-field">
+        <label for="status">Event Status</label>
+        <select
+          id="status"
+          [value]="eventModel().status"
+          (change)="updateStatus($any($event.target).value)"
+        >
+          @for (opt of adminStatusOptions; track opt) {
+            <option [value]="opt">{{ eventStatusLabel(opt) }}</option>
+          }
+        </select>
+      </div>
+    }
+
     <div class="input-field">
       <label for="title" [class.invalid]="proposeForm.title().errors()"
         >Title *</label
@@ -402,10 +419,10 @@
 
     <div class="actions">
       @if (isSaving()) {
-        <app-spinner>Submitting...</app-spinner>
+        <app-spinner>{{ userIsAdmin() ? 'Saving...' : 'Submitting...' }}</app-spinner>
       } @else {
         <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid()">
-          Submit Proposal
+          {{ userIsAdmin() ? 'Save' : 'Submit Proposal' }}
         </button>
       }
     </div>

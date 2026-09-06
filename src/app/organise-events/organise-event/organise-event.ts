@@ -8,7 +8,7 @@ import { AppPathPatterns, FIREBASE_APP } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { InstructorPublicData, EventDocument } from '../../../../functions/src/data-model';
+import { InstructorPublicData, EventDocument, EventStatus, eventStatusLabel } from '../../../../functions/src/data-model';
 import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { InstructorSelectorComponent } from '../../instructor-selector/instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
@@ -28,6 +28,16 @@ export class ProposeEventComponent {
   private routingService = inject(RoutingService<AppPathPatterns>);
   protected membersService = inject(DataManagerService);
   private firebaseApp = inject(FIREBASE_APP);
+
+  userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
+  EventStatus = EventStatus;
+  eventStatusLabel = eventStatusLabel;
+  adminStatusOptions = [
+    EventStatus.Draft,
+    EventStatus.Unlisted,
+    EventStatus.Listed,
+    EventStatus.Proposed,
+  ];
 
   isSaving = signal(false);
   isUploadingImage = signal(false);
@@ -98,6 +108,7 @@ export class ProposeEventComponent {
     end: '',
     location: '',
     description: '',
+    status: EventStatus.Proposed as EventStatus,
     leadingInstructorId: '',
     // Member doc ID of the event owner (main contact). Defaults to the submitter.
     ownerDocId: '',
@@ -346,6 +357,11 @@ export class ProposeEventComponent {
   }
 
 
+  updateStatus(value: string) {
+    this.eventModel.update(m => ({ ...m, status: value as EventStatus }));
+    this.proposeForm().dirty();
+  }
+
   onDescriptionChanged(val: string) {
     this.eventModel.update(m => ({ ...m, description: val }));
     this.proposeForm().dirty();
@@ -429,6 +445,7 @@ export class ProposeEventComponent {
       const managerDocIds = (model.managerDocIds || []).filter(id => id && id !== model.ownerDocId);
       const result = await submitFn({
         ...model,
+        status: this.userIsAdmin() ? model.status : EventStatus.Proposed,
         managerDocIds,
         ownerContactName: customContact ? model.ownerContactName.trim() : '',
         ownerContactEmail: customContact ? model.ownerContactEmail.trim() : '',
@@ -513,7 +530,8 @@ export class ProposeEventComponent {
         }
 
         localStorage.removeItem('proposeEventFormData');
-        this.routingService.navigateToParts(['my-events', docId, 'edit']);
+        const targetView = this.userIsAdmin() ? 'manage-events' : 'my-events';
+        this.routingService.navigateToParts([targetView, docId, 'edit']);
       }
     } catch (error: any) {
       console.error('Error submitting event proposal:', error);
