@@ -39,7 +39,9 @@ describe('ProposeEventComponent', () => {
         {
           provide: DataManagerService,
           useValue: {
-            instructors: new SearchableSet(['instructorId'], 'instructorId', []),
+            instructors: new SearchableSet(['instructorId'], 'instructorId', [
+              { instructorId: 'FR102', docId: 'inst-doc-102', name: 'Instructor 102' }
+            ]),
           }
         }
       ]
@@ -58,6 +60,33 @@ describe('ProposeEventComponent', () => {
   it('should have submit button disabled when form is invalid', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('button[type="submit"]');
+    expect(button.disabled).toBe(true);
+  });
+
+  it('shows clear error and disables submit when selected instructor does not have a public profile', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      member: { docId: 'member-1', name: 'Alice Organiser', memberId: 'FR1', instructorId: 'FR1' },
+    });
+    component.eventModel.update(m => ({
+      ...m,
+      title: 'Test Event',
+      start: '2026-04-04',
+      end: '2026-04-05',
+      leadingInstructorId: 'NON_PUBLIC_ID',
+      ownerDocId: 'member-1',
+    }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.leadingInstructorHasNoPublicProfile()).toBe(true);
+    expect(component.missingFields()).toContain('Selected instructor does not have a public profile.');
+
+    const errorEl = fixture.nativeElement.querySelector('.input-field .error-message');
+    expect(errorEl).toBeTruthy();
+    expect(errorEl.textContent).toContain('This instructor does not have a public profile');
+
     const button = fixture.nativeElement.querySelector('button[type="submit"]');
     expect(button.disabled).toBe(true);
   });

@@ -242,7 +242,26 @@ export class ProposeEventComponent {
     if (!this.ownerContactValid()) {
       errors.push('Contact name and email for the main contact.');
     }
+    if (this.leadingInstructorHasNoPublicProfile()) {
+      errors.push('Selected instructor does not have a public profile.');
+    }
     return errors;
+  });
+
+  leadingInstructorIsPublic = computed(() => {
+    const id = this.eventModel().leadingInstructorId;
+    if (!id) return false;
+    return !!this.membersService.instructors.get(id);
+  });
+
+  leadingInstructorHasNoPublicProfile = computed(() => {
+    const id = this.eventModel().leadingInstructorId;
+    if (!id) return false;
+    return !this.membersService.instructors.get(id);
+  });
+
+  isLeadingInstructorInvalid = computed(() => {
+    return !this.eventModel().leadingInstructorId || this.leadingInstructorHasNoPublicProfile();
   });
 
   // A non-instructor owner (or an instructor with custom contact info) needs name and email.

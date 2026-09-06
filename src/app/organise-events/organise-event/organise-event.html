@@ -62,7 +62,7 @@
     <div class="input-field">
       <label
         for="leadingInstructor"
-        [class.invalid]="proposeForm.leadingInstructorId().errors()"
+        [class.invalid]="isLeadingInstructorInvalid()"
         >Instructor *</label
       >
       <div class="intro-text">
@@ -75,6 +75,11 @@
         [value]="eventModel().leadingInstructorId"
         (valueChange)="updateLeadingInstructorId($event)"
       ></app-instructor-selector>
+      @if (leadingInstructorHasNoPublicProfile()) {
+        <div class="error-message">
+          This instructor does not have a public profile. Only instructors with a public profile can be selected to lead an event.
+        </div>
+      }
     </div>
 
     <div class="input-field">
@@ -96,7 +101,7 @@
 
           @if (!eventModel().ownerDocId) {
             <div class="error-message">
-              Please select a valid instructor for the main contact.
+              Please select an instructor with a public profile for the main contact.
             </div>
           }
         }
@@ -545,7 +550,7 @@
       @if (isSaving()) {
         <app-spinner>{{ userIsAdmin() ? 'Saving...' : 'Submitting...' }}</app-spinner>
       } @else {
-        <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid()">
+        <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid() || !leadingInstructorIsPublic()">
           {{ userIsAdmin() ? 'Save' : 'Submit Proposal' }}
         </button>
       }
