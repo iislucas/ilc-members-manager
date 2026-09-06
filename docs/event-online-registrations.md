@@ -168,8 +168,20 @@ Key fields supporting online registration and digital assets:
 | `registrationProductDocId` | `string` | ID of the linked `Product` document. If non-empty, online registration is enabled. |
 | `onlineJoiningLink` | `string` | Private Zoom/Google Meet URL. Visible only to registered attendees and organizers. |
 | `videoRecording` | `string` | ID of the linked Video on Demand asset (`/videos/{id}`) or external recording URL. |
+| `status` | `EventStatus` | Lifecycle status (`draft`, `proposed`, `listed`, `unlisted`, `rejected`, `cancelled`). |
 | `ownerDocId` | `string` | Member doc ID of the event host. |
 | `managerDocIds` | `string[]` | List of member doc IDs authorized to manage the event and view rosters. |
+
+### 3.4 Event Lifecycle & Visibility (`EventStatus`)
+
+| Status | Display Label | Directory & Calendar | Direct URL Access (`/events/:id`) | Use Case |
+|---|---|---|---|---|
+| `draft` | **Draft** | Hidden | Organizers & Admins only | Internal setup, testing pricing, and previewing registrations |
+| `unlisted` | **Unlisted** | Hidden | Public (anyone with link) | Private workshops, invite-only seminars, direct invite links |
+| `listed` | **Listed Publicly** | Visible | Public | Official published workshops, seminars, and camps |
+| `proposed` | **Waiting for Approval** | Hidden | Organizers & Admins only | Event proposed by member/instructor awaiting HQ review |
+| `cancelled` | **Cancelled** | Hidden | Public with Cancelled badge | Cancelled event |
+| `rejected` | **Rejected** | Hidden | Organizers & Admins only | Proposal declined by HQ |
 
 ---
 
@@ -211,6 +223,17 @@ Located in [`functions/src/stripe-product-checkout.ts`](../functions/src/stripe-
    - An active member is always entitled to non-member rates if non-members are allowed.
 5. **Server-Side Price Authority**:
    - The client **never** passes the price. The server looks up `product.tiers[tierKey]` directly from Firestore, applying fallback to lower hierarchy tiers if dedicated discount tiers are not configured.
+
+### 4.3 Stripe Product ID Resolution & Zero-Dashboard Setup
+
+Checkout sessions resolve the Stripe Product ID using a three-tier hierarchy:
+
+1. **Product Document Override (`product.stripeProductId`)**:
+   If set on the specific Firestore `Product` document, the session attaches directly to this Stripe catalog item.
+2. **Environment Default (`environment.stripe.hqRegistrationForEventStripeProductId`)**:
+   Configured in [`functions/src/environment/environment.ts`](../functions/src/environment/environment.ts). If set (e.g. `prod_...`), all event registrations without a dedicated product override will attach to this global Stripe product for centralized reporting.
+3. **Ad-Hoc Default (`price_data.product_data`)**:
+   If neither is set, Stripe dynamically generates line items on the fly using `product.title` and attendance descriptions. **Zero setup in the Stripe Dashboard is required.**
 
 ---
 
@@ -262,3 +285,18 @@ Located in [`functions/src/stripe-product-checkout.ts`](../functions/src/stripe-
 1. Admin clicks **"Remove Online Registration"** on the event edit page.
 2. Confirm dialog verifies removal.
 3. The event's `registrationProductDocId` is cleared, and the orphaned `/products/{productId}` document is automatically deleted.
+
+### 5.5 Testing & Private Registrations (Draft vs Unlisted)
+
+1. **Testing Events Safely (`status: 'draft'`)**:
+   - Set the event status to **Draft** via the status chip dropdown in `/events/:id/edit`.
+   - The event is immediately excluded from the public calendar and search feeds.
+   - Organizers and HQ Admins can visit `/events/:id`, verify the description and pricing matrix, and test Stripe Checkout end-to-end.
+   - Non-organizers attempting to visit the URL see a lock screen informing them that the event is in draft mode.
+2. **Private / Direct-Link Events (`status: 'unlisted'`)**:
+   - Set the event status to **Unlisted (Direct Link Only)**.
+   - The event does not appear in public calendar or directory listings.
+   - Anyone provided with the direct link (`/events/:id`) can view the event and complete registration.
+3. **Publishing Live (`status: 'listed'`)**:
+   - When ready for public announcement, switch status to **Listed Publicly**.
+   - The event immediately appears across all public calendar widgets, event lists, and search results.
