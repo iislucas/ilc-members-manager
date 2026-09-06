@@ -7,18 +7,35 @@ import { DataManagerService } from '../../data-manager.service';
 import { FIREBASE_APP } from '../../app.config';
 import { SearchableSet } from '../../searchable-set';
 
+import { ProductService } from '../../product.service';
+import { Product } from '../../../../functions/src/data-model';
+
 describe('ProposeEventComponent', () => {
   let component: ProposeEventComponent;
   let fixture: ComponentFixture<ProposeEventComponent>;
+  let mockProductService: {
+    getAllProducts: ReturnType<typeof vi.fn>;
+    getProduct: ReturnType<typeof vi.fn>;
+    saveProduct: ReturnType<typeof vi.fn>;
+    deleteProduct: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     localStorage.clear();
+    mockProductService = {
+      getAllProducts: vi.fn().mockResolvedValue([]),
+      getProduct: vi.fn().mockResolvedValue(undefined),
+      saveProduct: vi.fn().mockResolvedValue('test-product-id'),
+      deleteProduct: vi.fn().mockResolvedValue(undefined),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ProposeEventComponent],
       providers: [
         { provide: FirebaseStateService, useValue: createFirebaseStateServiceMock() },
-        { provide: RoutingService, useValue: { navigateToParts: () => {} } },
+        { provide: RoutingService, useValue: { navigateToParts: () => {}, hrefForView: () => '' } },
         { provide: FIREBASE_APP, useValue: {} },
+        { provide: ProductService, useValue: mockProductService },
         {
           provide: DataManagerService,
           useValue: {
@@ -198,4 +215,82 @@ describe('ProposeEventComponent', () => {
     const submitBtn = fixture.nativeElement.querySelector('button[type="submit"]');
     expect(submitBtn.textContent.trim()).toBe('Submit Proposal');
   });
+
+  it('renders online registration section for admins but not for regular members', async () => {
+    const firebaseState = TestBed.inject(FirebaseStateService);
+
+    // Regular member
+    (firebaseState.user as WritableSignal<unknown>).set({
+      isAdmin: false,
+      member: { docId: 'member-1', name: 'Regular Member', memberId: 'FR1' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    let regSection = fixture.nativeElement.querySelector('.product-section-content');
+    expect(regSection).toBeFalsy();
+
+    // Admin member
+    (firebaseState.user as WritableSignal<unknown>).set({
+      isAdmin: true,
+      member: { docId: 'admin-1', name: 'Admin Member', memberId: 'FR99' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    regSection = fixture.nativeElement.querySelector('.product-section-content');
+    expect(regSection).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.no-product-banner')).toBeTruthy();
+  });
+
+  it('supports linking and removing an online registration product for admins', async () => {
+    const sampleProduct: Product = {
+      docId: 'prod-123',
+      title: 'HQ Workshop Registration',
+      currency: 'eur',
+      tiers: {
+        standard: { id: 'standard', name: 'Standard', price: 50, enabled: true },
+      },
+      allowInPerson: true,
+      allowOnline: true,
+      allowVideo: false,
+      onlineJoiningLink: 'https://zoom.us/j/12345',
+    };
+
+    mockProductService.getAllProducts.mockResolvedValue([sampleProduct]);
+    mockProductService.getProduct.mockResolvedValue(sampleProduct);
+
+    const firebaseState = TestBed.inject(FirebaseStateService);
+    (firebaseState.user as WritableSignal<unknown>).set({
+      isAdmin: true,
+      member: { docId: 'admin-1', name: 'Admin Member', memberId: 'FR99' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Call onInlineProductCreated
+    await component.onInlineProductCreated('prod-123');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.eventModel().productId).toBe('prod-123');
+    expect(component.eventModel().onlineJoiningLink).toBe('https://zoom.us/j/12345');
+    expect(component.linkedProduct()?.docId).toBe('prod-123');
+
+    const linkedCard = fixture.nativeElement.querySelector('.linked-product-card');
+    expect(linkedCard).toBeTruthy();
+    expect(linkedCard.textContent).toContain('HQ Workshop Registration');
+    expect(linkedCard.textContent).toContain('50.00 EUR');
+
+    // Remove registration
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.removeRegistration();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(mockProductService.deleteProduct).toHaveBeenCalledWith('prod-123');
+    expect(component.eventModel().productId).toBe('');
+    expect(component.linkedProduct()).toBeNull();
+  });
 });
+

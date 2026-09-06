@@ -208,7 +208,25 @@ export function validateProposalStatus(
 // Submit a new event proposal — writes directly to /events.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; status?: EventStatus; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; contactDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
+  async (request: CallableRequest<{
+    title: string;
+    start: string;
+    end: string;
+    description?: string;
+    location?: string;
+    status?: EventStatus;
+    leadingInstructorId?: string;
+    ownerDocId?: string;
+    managerDocIds?: string[];
+    contactDocIds?: string[];
+    ownerContactName?: string;
+    ownerContactEmail?: string;
+    ownerContactUrl?: string;
+    productId?: string;
+    onlineJoiningLink?: string;
+    recordedVideoId?: string;
+    recordedVideoUrl?: string;
+  }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -310,10 +328,26 @@ export const submitProposedEvent = onCall(
       ownerContactUrl,
       contacts,
       leadingInstructorId: data.leadingInstructorId || '',
+      productId: data.productId || '',
+      onlineJoiningLink: data.onlineJoiningLink || '',
+      recordedVideoId: data.recordedVideoId || '',
+      recordedVideoUrl: data.recordedVideoUrl || '',
     };
 
     const docRef = await db.collection('events').add(event);
     logger.info(`Event ${finalStatus} created by ${member.memberId} with docId ${docRef.id}`);
+
+    // If an online registration product was configured, link it to the newly created event
+    if (data.productId) {
+      try {
+        await db.collection('products').doc(data.productId).update({
+          eventDocId: docRef.id,
+          lastUpdated: new Date().toISOString(),
+        });
+      } catch (prodErr) {
+        logger.warn(`Failed to link product ${data.productId} to event ${docRef.id}:`, prodErr);
+      }
+    }
 
     // Notify the whole organising team (owner + managers + leading instructor)
     // ONLY when a proposal is submitted. Drafts, unlisted, and listed events do

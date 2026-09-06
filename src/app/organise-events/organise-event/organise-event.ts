@@ -4,30 +4,34 @@ import { form, required, FieldTree, FormField } from '@angular/forms/signals';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { httpsCallable } from 'firebase/functions';
 import { RoutingService } from '../../routing.service';
-import { AppPathPatterns, FIREBASE_APP } from '../../app.config';
+import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { InstructorPublicData, EventDocument, EventStatus, eventStatusLabel } from '../../../../functions/src/data-model';
+import { ProductService } from '../../product.service';
+import { InstructorPublicData, EventDocument, EventStatus, eventStatusLabel, Product } from '../../../../functions/src/data-model';
 import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { InstructorSelectorComponent } from '../../instructor-selector/instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
+import { ProductEditComponent } from '../../product-edit/product-edit';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent, ProductEditComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })
 export class ProposeEventComponent {
   private firebaseState = inject(FirebaseStateService);
-  private routingService = inject(RoutingService<AppPathPatterns>);
+  protected routingService = inject(RoutingService<AppPathPatterns>);
   protected membersService = inject(DataManagerService);
+  protected productService = inject(ProductService);
   private firebaseApp = inject(FIREBASE_APP);
+  protected readonly Views = Views;
 
   userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
   EventStatus = EventStatus;
@@ -38,6 +42,16 @@ export class ProposeEventComponent {
     EventStatus.Listed,
     EventStatus.Proposed,
   ];
+
+  products = signal<Product[]>([]);
+  isCreatingProduct = signal(false);
+  isEditingLinkedProduct = signal(false);
+
+  linkedProduct = computed(() => {
+    const pId = this.eventModel().productId;
+    if (!pId) return null;
+    return this.products().find((p) => p.docId === pId) || null;
+  });
 
   isSaving = signal(false);
   isUploadingImage = signal(false);
@@ -81,6 +95,13 @@ export class ProposeEventComponent {
       }
     });
 
+    // Load products for admins
+    effect(() => {
+      if (this.userIsAdmin()) {
+        this.refreshProducts();
+      }
+    });
+
     // Prefill the non-instructor mini-profile from the submitter's own details the
     // first time they load, without clobbering anything restored from local storage
     // or already typed.
@@ -110,6 +131,10 @@ export class ProposeEventComponent {
     description: '',
     status: EventStatus.Proposed as EventStatus,
     leadingInstructorId: '',
+    productId: '',
+    onlineJoiningLink: '',
+    recordedVideoId: '',
+    recordedVideoUrl: '',
     // Member doc ID of the event owner (main contact). Defaults to the submitter.
     ownerDocId: '',
     // Inline custom contact info for the owner.
@@ -426,6 +451,96 @@ export class ProposeEventComponent {
 
   removeDocument(index: number) {
     this.pendingDocumentFiles.update(list => list.filter((_, i) => i !== index));
+  }
+
+  getProductPriceRange(product: Product): string {
+    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
+    if (enabledTiers.length === 0) return 'Free / Custom';
+    const prices = enabledTiers.map((t) => t.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const currency = (product.currency || 'usd').toUpperCase();
+    if (min === max) {
+      return `${min.toFixed(2)} ${currency}`;
+    }
+    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+  }
+
+  async refreshProducts(): Promise<void> {
+    try {
+      const prods = await this.productService.getAllProducts();
+      const sorted = [...prods].sort((a, b) => {
+        const timeA = a.lastUpdated || a.createdAt || '';
+        const timeB = b.lastUpdated || b.createdAt || '';
+        return timeB.localeCompare(timeA);
+      });
+      this.products.set(sorted);
+    } catch (err) {
+      console.error('Error refreshing products:', err);
+    }
+  }
+
+  async removeRegistration(): Promise<void> {
+    const pId = this.eventModel().productId;
+    if (!pId) return;
+
+    if (
+      typeof window !== 'undefined' &&
+      window.confirm &&
+      !window.confirm('Are you sure you want to remove online registration? The corresponding registration product will be deleted.')
+    ) {
+      return;
+    }
+
+    try {
+      await this.productService.deleteProduct(pId);
+      await this.refreshProducts();
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
+
+    this.eventModel.update((m) => ({ ...m, productId: '', onlineJoiningLink: '', recordedVideoId: '', recordedVideoUrl: '' }));
+    this.isEditingLinkedProduct.set(false);
+    this.proposeForm().dirty();
+  }
+
+  toggleEditLinkedProduct() {
+    this.isEditingLinkedProduct.update((v) => !v);
+  }
+
+  async onInlineProductCreated(productId: string) {
+    await this.refreshProducts();
+    if (productId) {
+      const prod = await this.productService.getProduct(productId);
+      this.eventModel.update((m) => ({
+        ...m,
+        productId,
+        onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
+        recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
+        recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
+      }));
+      this.proposeForm().dirty();
+    }
+    this.isCreatingProduct.set(false);
+  }
+
+  async onInlineProductSaved(productId: string) {
+    await this.refreshProducts();
+    if (!productId) {
+      this.eventModel.update((m) => ({ ...m, productId: '' }));
+    } else {
+      const prod = await this.productService.getProduct(productId);
+      if (prod) {
+        this.eventModel.update((m) => ({
+          ...m,
+          onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
+          recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
+          recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
+        }));
+      }
+    }
+    this.proposeForm().dirty();
+    this.isEditingLinkedProduct.set(false);
   }
 
   async onSubmit() {
