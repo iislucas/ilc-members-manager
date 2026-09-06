@@ -23,6 +23,7 @@ import {
   CreateCheckoutSessionResult,
   CreateCustomerPortalSessionRequest,
   CreateCustomerPortalSessionResult,
+  CreateProductCheckoutSessionRequest,
   GetCheckoutSessionRequest,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
@@ -60,6 +61,20 @@ export class StripeService {
       cancelUrl: options?.cancelUrl,
       metadata: options?.metadata,
     });
+    return result.data;
+  }
+
+  /**
+   * Create a dynamic Stripe Checkout Session for a class/workshop product.
+   */
+  async createProductCheckoutSession(
+    request: CreateProductCheckoutSessionRequest,
+  ): Promise<CreateCheckoutSessionResult> {
+    const fn = httpsCallable<
+      CreateProductCheckoutSessionRequest,
+      CreateCheckoutSessionResult
+    >(this.functions, 'createProductCheckoutSession');
+    const result = await fn(request);
     return result.data;
   }
 

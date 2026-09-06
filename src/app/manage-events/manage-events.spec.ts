@@ -5,6 +5,8 @@ import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { ManageEventsComponent } from './manage-events';
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
+import { initEvent, EventStatus, IlcEvent } from '../../../functions/src/data-model';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({
@@ -21,8 +23,15 @@ describe('ManageEventsComponent', () => {
   let fixture: ComponentFixture<ManageEventsComponent>;
   let mockRoutingService: RoutingService<AppPathPatterns>;
   let mockDataManagerService: DataManagerService;
+  let mockFirebaseState: ReturnType<typeof createFirebaseStateServiceMock>;
 
   beforeEach(async () => {
+    mockFirebaseState = createFirebaseStateServiceMock();
+    mockFirebaseState.user.set({
+      email: 'admin@test.com',
+      isAdmin: true,
+    } as any);
+
     mockRoutingService = {
       matchedPatternId: signal(Views.ManageEvents),
       signals: {
@@ -52,6 +61,7 @@ describe('ManageEventsComponent', () => {
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FIREBASE_APP, useValue: {} },
         { provide: DataManagerService, useValue: mockDataManagerService },
+        { provide: FirebaseStateService, useValue: mockFirebaseState },
       ]
     })
     .compileComponents();
@@ -63,5 +73,63 @@ describe('ManageEventsComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should display HQ Registration chip when user is admin and event has productId', async () => {
+    const eventWithProduct: IlcEvent = {
+      ...initEvent(),
+      docId: 'ev-1',
+      title: 'Workshop with Product',
+      status: EventStatus.Listed,
+      productId: 'prod-123',
+    };
+    vi.mocked(mockDataManagerService.searchEvents).mockResolvedValue([eventWithProduct]);
+    vi.mocked(mockDataManagerService.getRecentEvents).mockResolvedValue([eventWithProduct]);
+    await component.search();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const chip = fixture.nativeElement.querySelector('.hq-registration-chip');
+    expect(chip).toBeTruthy();
+    expect(chip.textContent).toContain('HQ Registration');
+  });
+
+  it('should not display HQ Registration chip when event has no productId', async () => {
+    const eventWithoutProduct: IlcEvent = {
+      ...initEvent(),
+      docId: 'ev-2',
+      title: 'Free Workshop',
+      status: EventStatus.Listed,
+    };
+    vi.mocked(mockDataManagerService.searchEvents).mockResolvedValue([eventWithoutProduct]);
+    vi.mocked(mockDataManagerService.getRecentEvents).mockResolvedValue([eventWithoutProduct]);
+    await component.search();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const chip = fixture.nativeElement.querySelector('.hq-registration-chip');
+    expect(chip).toBeNull();
+  });
+
+  it('should not display HQ Registration chip when user is not admin', async () => {
+    mockFirebaseState.user.set({
+      email: 'user@test.com',
+      isAdmin: false,
+    } as any);
+    const eventWithProduct: IlcEvent = {
+      ...initEvent(),
+      docId: 'ev-3',
+      title: 'Workshop with Product',
+      status: EventStatus.Listed,
+      productId: 'prod-123',
+    };
+    vi.mocked(mockDataManagerService.searchEvents).mockResolvedValue([eventWithProduct]);
+    vi.mocked(mockDataManagerService.getRecentEvents).mockResolvedValue([eventWithProduct]);
+    await component.search();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const chip = fixture.nativeElement.querySelector('.hq-registration-chip');
+    expect(chip).toBeNull();
   });
 });

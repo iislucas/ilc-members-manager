@@ -1,0 +1,255 @@
+<div class="registrations-container">
+  @if (isLoading()) {
+    <div class="loading-state">
+      <app-spinner>Loading registrations...</app-spinner>
+    </div>
+  } @else if (!canView()) {
+    <div class="unauthorized-card">
+      <app-icon name="lock"></app-icon>
+      <h2>Access Restricted</h2>
+      <p>You must be an administrator, event organizer, or manager to view attendee registrations.</p>
+      <a class="subtle-button" [href]="backToEventUrl()">
+        <app-icon name="arrow_back"></app-icon>
+        <span>Back to Event</span>
+      </a>
+    </div>
+  } @else {
+    <!-- Breadcrumbs / Back link -->
+    <div class="top-nav">
+      <a class="back-link" [href]="backToEventUrl()">
+        <app-icon name="arrow_back"></app-icon>
+        <span>Back to {{ event()?.title || 'Event' }}</span>
+      </a>
+    </div>
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-titles">
+        <div class="title-with-badge">
+          <h1>Attendee Registrations</h1>
+          <span class="event-chip">{{ event()?.title || 'Event' }}</span>
+        </div>
+        <p class="subtitle">
+          Manage and review registered participants for both in-person and online attendance.
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <button
+          type="button"
+          class="subtle-button"
+          (click)="copyAllEmails()"
+          [disabled]="filteredRegistrations().length === 0"
+          title="Copy email addresses of listed attendees"
+        >
+          <app-icon name="content_copy"></app-icon>
+          <span>Copy Emails</span>
+        </button>
+
+        <button
+          type="button"
+          class="button"
+          (click)="exportCsv()"
+          [disabled]="filteredRegistrations().length === 0"
+          title="Export attendee roster as CSV"
+        >
+          <app-icon name="download"></app-icon>
+          <span>Export CSV</span>
+        </button>
+      </div>
+    </div>
+
+    @if (copiedAlert()) {
+      <div class="toast-alert" role="status">
+        <app-icon name="check_circle"></app-icon>
+        <span>Attendee email addresses copied to clipboard!</span>
+      </div>
+    }
+
+    <!-- Stat Metric Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper total-icon">
+          <app-icon name="group"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Total Attendees</span>
+          <span class="stat-value">{{ totalAttendeesCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper in-person-icon">
+          <app-icon name="location_on"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">In-Person</span>
+          <span class="stat-value">{{ inPersonCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper online-icon">
+          <app-icon name="videocam"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Online</span>
+          <span class="stat-value">{{ onlineCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper video-icon">
+          <app-icon name="play_circle"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Video Access</span>
+          <span class="stat-value">{{ videoCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper revenue-icon">
+          <app-icon name="payments"></app-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">Total Revenue</span>
+          <span class="stat-value">
+            {{ formatAmount(totalRevenue() * 100, revenueCurrency()) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter and Search Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <app-icon name="search"></app-icon>
+        <input
+          type="text"
+          placeholder="Search by name, email, or phone..."
+          [value]="searchTerm()"
+          (input)="searchTerm.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="filter-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'all'"
+          (click)="selectedFilter.set('all')"
+        >
+          All ({{ totalAttendeesCount() }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'in_person'"
+          (click)="selectedFilter.set('in_person')"
+        >
+          In-Person ({{ inPersonCount() }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'online'"
+          (click)="selectedFilter.set('online')"
+        >
+          Online ({{ onlineCount() }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="selectedFilter() === 'video'"
+          (click)="selectedFilter.set('video')"
+        >
+          Video ({{ videoCount() }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Attendees Table -->
+    @if (filteredRegistrations().length === 0) {
+      <div class="empty-state">
+        <app-icon name="person_search"></app-icon>
+        <h3>No registrations found</h3>
+        @if (registrations().length > 0) {
+          <p>No attendees match your current search or filter criteria.</p>
+        } @else {
+          <p>No one has registered for this event yet.</p>
+        }
+      </div>
+    } @else {
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="roster-table">
+            <thead>
+              <tr>
+                <th>Attendee</th>
+                <th>Contact</th>
+                <th>Role</th>
+                <th>Attendance</th>
+                <th>Video</th>
+                <th>Paid</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (reg of filteredRegistrations(); track reg.docId) {
+                <tr>
+                  <td class="cell-attendee">
+                    <div class="attendee-name">{{ reg.name || 'Anonymous' }}</div>
+                    <div class="attendee-email">{{ reg.email }}</div>
+                  </td>
+                  <td class="cell-phone">
+                    {{ reg.phone || '—' }}
+                  </td>
+                  <td>
+                    <span class="role-badge" [class]="'role-' + reg.role">
+                      {{ formatRole(reg.role) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      class="attendance-chip"
+                      [class.chip-in-person]="reg.attendance === 'in_person'"
+                      [class.chip-online]="reg.attendance === 'online'"
+                    >
+                      <app-icon
+                        [name]="reg.attendance === 'in_person' ? 'location_on' : 'videocam'"
+                      ></app-icon>
+                      {{ formatAttendance(reg.attendance) }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (reg.hasVideoAccess) {
+                      <span class="video-pill active" title="Video recording access granted">
+                        <app-icon name="check"></app-icon>
+                        <span>Yes</span>
+                      </span>
+                    } @else {
+                      <span class="video-pill" title="No video recording access">No</span>
+                    }
+                  </td>
+                  <td class="cell-amount">
+                    {{ formatAmount(reg.amountPaidCents, reg.currency) }}
+                  </td>
+                  <td class="cell-date">
+                    {{ formatDate(reg.registeredAt) }}
+                  </td>
+                  <td>
+                    <span class="status-badge status-paid">
+                      {{ reg.status | uppercase }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</div>

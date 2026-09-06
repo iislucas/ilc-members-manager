@@ -802,6 +802,10 @@ export enum NotificationKind {
   OrderIssuesSummary = 'OrderIssuesSummary',
   // Summary notification when multiple completed gradings are unpaid.
   UnpaidGradingsSummary = 'UnpaidGradingsSummary',
+  // Sent to an event attendee upon successful registration and payment, containing Zoom joining links if online.
+  EventRegistrationConfirmed = 'EventRegistrationConfirmed',
+  // Sent to paid event attendees when the recording for the event becomes available.
+  EventVideoAvailable = 'EventVideoAvailable',
 }
 
 // Two presentation styles for notifications: an 'action' has an expectation/TODO
@@ -973,6 +977,19 @@ export interface NotificationUnpaidGradingsSummaryData {
   isStudent?: boolean;
 }
 
+export interface NotificationEventRegistrationConfirmedData {
+  orderDocId: string;
+  eventId: string;
+  attendance?: string;
+  onlineJoiningLink?: string;
+}
+
+export interface NotificationEventVideoAvailableData {
+  eventId: string;
+  videoId?: string;
+  videoUrl?: string;
+}
+
 export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.GradingRequestAccepted;
@@ -1089,6 +1106,14 @@ export type MemberNotification = MemberNotificationCommon & (
   | {
     kind: NotificationKind.UnpaidGradingsSummary;
     data: NotificationUnpaidGradingsSummaryData;
+  }
+  | {
+    kind: NotificationKind.EventRegistrationConfirmed;
+    data: NotificationEventRegistrationConfirmedData;
+  }
+  | {
+    kind: NotificationKind.EventVideoAvailable;
+    data: NotificationEventVideoAvailableData;
   }
 );
 
@@ -2313,8 +2338,12 @@ export type IlcEvent = {
   // Attached documents (max 10). Each entry has a display name and a
   // Firebase Storage download URL.
   documents: EventDocument[];
+  productId?: string;            // Firestore doc ID of the linked Product (or '' if none)
+  onlineJoiningLink?: string;    // Online attendance / Zoom joining URL / instructions (for paid online attendees)
+  recordedVideoId?: string;      // Catalog video doc ID from /videos (or '' if none)
+  recordedVideoUrl?: string;     // Direct external video recording URL (or '' if none)
   lastUpdated?: string;    // ISO date-time; managed by sync logic
-  updatedByEmail: string; // Email of user who last updated the event. Defaults to ''.
+  updatedByEmail?: string; // Email of the user who last updated this event
 };
 
 export function initEvent(): IlcEvent {
@@ -2324,6 +2353,7 @@ export function initEvent(): IlcEvent {
     start: '',
     end: '',
     description: '',
+    descriptionMarkdown: '',
     heroImageUrl: '',
     heroImageLargeUrl: '',
     heroImageThumbUrl: '',
@@ -2344,6 +2374,10 @@ export function initEvent(): IlcEvent {
     managerEmails: [],
     contacts: [],
     documents: [],
+    productId: '',
+    onlineJoiningLink: '',
+    recordedVideoId: '',
+    recordedVideoUrl: '',
     updatedByEmail: '',
   };
 }
@@ -3208,5 +3242,175 @@ export function initSystemVideoTagsDoc(): SystemVideoTagsDoc {
 }
 
 export const initSystemTagsDoc = initSystemVideoTagsDoc;
+
+// ------------------------------------------------------------------
+// Products & Pricing Matrix for Classes, Workshops & Events
+// ------------------------------------------------------------------
+
+export type AttendeeRole = 'non_member' | 'member' | 'instructor';
+export type AttendanceType = 'in_person' | 'online' | 'video_only';
+
+export type ProductPricingTier = {
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  includeVideo: boolean;
+  enabled: boolean;
+  price: number; // in standard currency units (e.g. 50.00)
+};
+
+export function getPricingTierKey(
+  role: AttendeeRole,
+  attendance: AttendanceType,
+  includeVideo: boolean,
+): string {
+  if (attendance === 'video_only') {
+    return `${role}_video_only`;
+  }
+  return `${role}_${attendance}_${includeVideo ? 'video' : 'novideo'}`;
+}
+
+export type Product = {
+  docId: string;
+  title: string;
+  description: string;
+  descriptionMarkdown?: string;
+  eventDocId: string; // Linked IlcEvent docId (or '' if standalone)
+  currency: string;   // e.g. 'usd'
+  stripeProductId?: string; // Optional linked Stripe product
+  allowNonMembers: boolean;
+  allowMembers: boolean;
+  allowInstructors: boolean;
+  allowInPerson: boolean;
+  allowOnline: boolean;
+  allowVideo: boolean;
+  allowVideoOnly: boolean;
+  hasMemberPrice?: boolean;
+  hasInstructorPrice?: boolean;
+  onlineJoiningLink?: string;
+  recordedVideoId?: string;
+  recordedVideoUrl?: string;
+  tiers: Record<string, { enabled: boolean; price: number }>;
+  createdAt?: string;
+  lastUpdated?: string;
+};
+
+export function initProduct(): Product {
+  const tiers: Record<string, { enabled: boolean; price: number }> = {};
+  const roles: AttendeeRole[] = ['non_member', 'member', 'instructor'];
+  const attendances: AttendanceType[] = ['in_person', 'online'];
+  for (const r of roles) {
+    for (const a of attendances) {
+      tiers[getPricingTierKey(r, a, false)] = { enabled: true, price: 0 };
+      tiers[getPricingTierKey(r, a, true)] = { enabled: true, price: 0 };
+    }
+    tiers[getPricingTierKey(r, 'video_only', true)] = { enabled: false, price: 0 };
+  }
+  return {
+    docId: '',
+    title: '',
+    description: '',
+    descriptionMarkdown: '',
+    eventDocId: '',
+    currency: 'usd',
+    stripeProductId: '',
+    allowNonMembers: true,
+    allowMembers: true,
+    allowInstructors: true,
+    allowInPerson: true,
+    allowOnline: false,
+    allowVideo: false,
+    allowVideoOnly: false,
+    hasMemberPrice: false,
+    hasInstructorPrice: false,
+    onlineJoiningLink: '',
+    recordedVideoId: '',
+    recordedVideoUrl: '',
+    tiers,
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export function firestoreDocToProduct(doc: {
+  id: string;
+  data: () => Record<string, unknown> | undefined;
+}): Product {
+  const data = doc.data() || {};
+  const defaults = initProduct();
+  return {
+    ...defaults,
+    ...data,
+    docId: doc.id,
+    tiers: {
+      ...defaults.tiers,
+      ...((data['tiers'] as Record<string, { enabled: boolean; price: number }>) || {}),
+    },
+  };
+}
+
+// ------------------------------------------------------------------
+// Event Registrations
+// ------------------------------------------------------------------
+
+export type EventRegistrationStatus = 'paid' | 'cancelled' | 'refunded';
+
+export type EventRegistration = {
+  docId: string;
+  eventDocId: string;
+  productId: string;
+  orderDocId: string;
+  stripeSessionId: string;
+  registeredAt: string; // ISO timestamp
+  name: string;
+  email: string;
+  phone?: string;
+  notes?: string;
+  memberDocId?: string;
+  memberId?: string;
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  hasVideoAccess: boolean;
+  amountPaidCents: number;
+  currency: string;
+  status: EventRegistrationStatus;
+  lastUpdated?: string;
+};
+
+export function initEventRegistration(): EventRegistration {
+  return {
+    docId: '',
+    eventDocId: '',
+    productId: '',
+    orderDocId: '',
+    stripeSessionId: '',
+    registeredAt: new Date().toISOString(),
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+    memberDocId: '',
+    memberId: '',
+    role: 'non_member',
+    attendance: 'in_person',
+    hasVideoAccess: false,
+    amountPaidCents: 0,
+    currency: 'usd',
+    status: 'paid',
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export function firestoreDocToEventRegistration(doc: {
+  id: string;
+  data: () => Record<string, unknown> | undefined;
+}): EventRegistration {
+  const data = doc.data() || {};
+  return {
+    ...initEventRegistration(),
+    ...data,
+    docId: doc.id,
+  };
+}
+
 
 

@@ -147,6 +147,17 @@ service cloud.firestore {
         }
         allow read, write: if isProgressOwner() || isAdmin();
       }
+
+      // Member event registrations
+      match /registrations/{registrationId} {
+        function isRegistrationOwner() {
+          return request.auth != null &&
+                 ((request.auth.token.email in get(/databases/$(database)/documents/members/$(memberDocId)).data.emails) ||
+                  (memberDocId in getUserMemberDocIds()));
+        }
+        allow read: if isRegistrationOwner() || isAdmin();
+        allow write: if isAdmin();
+      }
     }
 
     // Collection group query support for /uploads
@@ -246,6 +257,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Products for classes, workshops, and events.
+    // Publicly readable so anyone can view class offerings and prices.
+    // Writable only by admins.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Cached calendar events — publicly readable as events are public.
     // Owner/manager access uses the ACL's memberDocIds rather than
     // redundant email arrays on the event document.
@@ -268,6 +287,25 @@ service cloud.firestore {
           request.resource.data.status == 'cancelled'
         )
       );
+
+      match /registrations/{registrationId} {
+        function isParentEventOwnerOrManager() {
+          let eventDoc = get(/databases/$(database)/documents/events/$(eventId));
+          return request.auth != null && (
+            eventDoc.data.ownerDocId in getUserMemberDocIds() ||
+            getUserMemberDocIds().hasAny(eventDoc.data.get('managerDocIds', [])) ||
+            (eventDoc.data.get('ownerEmails', []).hasAny([request.auth.token.email])) ||
+            (eventDoc.data.get('managerEmails', []).hasAny([request.auth.token.email]))
+          );
+        }
+        allow read: if isAdmin() || isParentEventOwnerOrManager() || (
+          request.auth != null && (
+            resource.data.memberDocId in getUserMemberDocIds() ||
+            request.auth.token.email == resource.data.email
+          )
+        );
+        allow write: if isAdmin();
+      }
     }
 
     // Member subcollection for events

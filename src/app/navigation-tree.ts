@@ -283,6 +283,9 @@ export class NavigationTreeService {
       view === Views.ManageEvents ||
       view === Views.ManageEventView ||
       view === Views.ManageEventEdit ||
+      view === Views.ManageProducts ||
+      view === Views.ManageProductNew ||
+      view === Views.ManageProductEdit ||
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVideoTags ||
@@ -357,6 +360,24 @@ export class NavigationTreeService {
           }),
         ];
       }
+
+      case Views.EventRegistrations: {
+        const eventId = this.routing.signals[Views.EventRegistrations].pathVars.eventId();
+        return [
+          this.node(Views.EventsCalendar, 'Events & Workshops'),
+          this.node(Views.EventView, this.loadedEventTitle() || 'Event Details', { eventId }),
+        ];
+      }
+
+      case Views.ProductView:
+        return [this.node(Views.EventsCalendar, 'Events & Workshops')];
+
+      case Views.ManageProducts:
+        return [];
+
+      case Views.ManageProductNew:
+      case Views.ManageProductEdit:
+        return [this.node(Views.ManageProducts, 'Products')];
 
       // --- Members, students and schools ---
       case Views.ManageMemberView:
@@ -702,6 +723,16 @@ export class NavigationTreeService {
         return 'School License';
       case Views.ClassVideoLibraryPurchase:
         return 'Class Video Library Subscription';
+      case Views.ProductView:
+        return 'Product Details';
+      case Views.ManageProducts:
+        return 'Products';
+      case Views.ManageProductNew:
+        return 'New Product';
+      case Views.ManageProductEdit:
+        return 'Edit Product';
+      case Views.EventRegistrations:
+        return 'Event Registrations';
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:

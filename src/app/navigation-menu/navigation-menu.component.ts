@@ -178,6 +178,7 @@ export class NavigationMenuComponent {
         return 'Edit Event';
       case Views.MyMaterials: return 'Uploads';
       case Views.ManageMaterials: return 'Materials';
+      case Views.ManageProducts: return 'Products';
       default: return 'Unknown View';
     }
   }

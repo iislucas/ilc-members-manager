@@ -69,6 +69,7 @@ export class EventListComponent implements OnDestroy {
 
   // --- Component State Signals ---
   isLoggedIn = computed(() => !!this.firebaseService.user());
+  userIsAdmin = computed(() => this.firebaseService.user()?.isAdmin ?? false);
   errorMessage = signal<string | null>(null);
   optionsMenuOpen = signal(false);
   showFromDateFilter = signal(false);

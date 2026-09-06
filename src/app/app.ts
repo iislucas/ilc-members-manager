@@ -61,6 +61,10 @@ import { NextGradingComponent } from './next-grading/next-grading';
 import { InstructorLicensePurchaseComponent } from './instructor-license-purchase/instructor-license-purchase';
 import { SchoolLicensePurchaseComponent } from './school-license-purchase/school-license-purchase';
 import { ClassVideoLibraryPurchaseComponent } from './class-video-library-purchase/class-video-library-purchase';
+import { ProductViewComponent } from './product-view/product-view';
+import { ProductEditComponent } from './product-edit/product-edit';
+import { ManageProductsComponent } from './manage-products/manage-products';
+import { EventRegistrationsComponent } from './event-registrations/event-registrations';
 import { MembershipType } from '../../functions/src/data-model';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
@@ -127,6 +131,10 @@ import { UpdateNotificationComponent } from './update-notification/update-notifi
     InstructorLicensePurchaseComponent,
     SchoolLicensePurchaseComponent,
     ClassVideoLibraryPurchaseComponent,
+    ProductViewComponent,
+    ProductEditComponent,
+    ManageProductsComponent,
+    EventRegistrationsComponent,
     UpdateNotificationComponent,
   ],
   templateUrl: './app.html',

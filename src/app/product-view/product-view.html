@@ -1,0 +1,245 @@
+<div class="product-view-container">
+  @if (isLoading()) {
+    <app-spinner>Loading registration details...</app-spinner>
+  } @else if (errorMessage(); as msg) {
+    <div class="error-banner">
+      <app-icon name="error"></app-icon>
+      <span>{{ msg }}</span>
+    </div>
+  } @else if (product(); as prod) {
+    <div class="product-header">
+      <div class="header-titles">
+        <h1>{{ prod.title }}</h1>
+        <p class="subtitle">Class & Workshop Registration</p>
+      </div>
+      @if (isAdmin()) {
+        <a class="subtle-button"
+           [href]="routingService.hrefForView(Views.ManageProductEdit, { productId: prod.docId })">
+          <app-icon name="edit"></app-icon>
+          <span>Edit Product</span>
+        </a>
+      }
+    </div>
+
+    @if (linkedEvent(); as ev) {
+      <div class="linked-event-card">
+        <div class="event-badge">Linked Event</div>
+        <div class="event-details">
+          <h3>
+            <a [href]="routingService.hrefForView(Views.EventView, { eventId: ev.docId })">
+              {{ ev.title }}
+            </a>
+          </h3>
+          <div class="event-meta-items">
+            <span class="meta-item">
+              <app-icon name="calendar_today"></app-icon>
+              {{ eventDateDisplay() }}
+            </span>
+            @if (ev.location) {
+              <span class="meta-item">
+                <app-icon name="map"></app-icon>
+                {{ ev.location }}
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="product-layout">
+      <!-- Left Column: Description & Details -->
+      <div class="details-column">
+        @if (prod.descriptionMarkdown || prod.description) {
+          <div class="description-card">
+            <h2>About This Class</h2>
+            <app-markdown-viewer [markdown]="prod.descriptionMarkdown || prod.description"></app-markdown-viewer>
+          </div>
+        }
+
+        <div class="terms-card">
+          <h3>Payment & Cancellation</h3>
+          <p>
+            Payments are processed securely via Stripe. Once confirmed, online attendees will receive immediate access to the Zoom joining link on the event page and via email notification. If video access is included, the recording will become available in your account once uploaded.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right Column: Registration & Checkout -->
+      <div class="checkout-column">
+        <div class="checkout-card">
+          <h2>Select Your Registration</h2>
+
+          <!-- 1. Membership Status Selection -->
+          <div class="option-group">
+            <label class="group-label">1. Attendee Status</label>
+            <div class="pill-selector">
+              @if (prod.allowNonMembers) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedRole() === 'non_member'"
+                  (click)="selectedRole.set('non_member')"
+                >
+                  General Public
+                </button>
+              }
+              @if (prod.allowMembers) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedRole() === 'member'"
+                  (click)="selectedRole.set('member')"
+                >
+                  ILC Member
+                </button>
+              }
+              @if (prod.allowInstructors) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedRole() === 'instructor'"
+                  (click)="selectedRole.set('instructor')"
+                >
+                  Instructor
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- 2. Attendance Mode Selection -->
+          <div class="option-group">
+            <label class="group-label">2. Attendance Mode</label>
+            <div class="pill-selector">
+              @if (prod.allowInPerson) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedAttendance() === 'in_person'"
+                  (click)="selectedAttendance.set('in_person')"
+                >
+                  <app-icon name="person"></app-icon>
+                  In-Person
+                </button>
+              }
+              @if (prod.allowOnline) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedAttendance() === 'online'"
+                  (click)="selectedAttendance.set('online')"
+                >
+                  <app-icon name="videocam"></app-icon>
+                  Online (Zoom)
+                </button>
+              }
+              @if (prod.allowVideoOnly) {
+                <button
+                  type="button"
+                  class="pill-btn"
+                  [class.active]="selectedAttendance() === 'video_only'"
+                  (click)="selectedAttendance.set('video_only')"
+                >
+                  <app-icon name="play_circle"></app-icon>
+                  Recording Only
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- 3. Video Recording Add-on (for in-person or online) -->
+          @if (prod.allowVideo && selectedAttendance() !== 'video_only') {
+            <div class="option-group video-toggle-group">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  [checked]="includeVideo()"
+                  (change)="includeVideo.set(!includeVideo())"
+                />
+                <span class="checkbox-text">
+                  <strong>Include Class Video Recording</strong>
+                  <span class="subtext">Watch the recorded session anytime after the event.</span>
+                </span>
+              </label>
+            </div>
+          }
+
+          <!-- Price Summary Box -->
+          <div class="price-summary-box">
+            <div class="price-label">Registration Total:</div>
+            @if (isTierAvailable()) {
+              <div class="price-amount">{{ priceFormatted() }}</div>
+            } @else {
+              <div class="price-unavailable">Option unavailable</div>
+            }
+          </div>
+
+          <!-- Attendee Information Form -->
+          <div class="form-section">
+            <h3>Attendee Information</h3>
+            <div class="form-field">
+              <label for="attendeeName">Full Name *</label>
+              <input
+                id="attendeeName"
+                type="text"
+                placeholder="First and Last Name"
+                [value]="attendeeName()"
+                (input)="attendeeName.set($any($event.target).value)"
+                required
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="attendeeEmail">Email Address *</label>
+              <input
+                id="attendeeEmail"
+                type="email"
+                placeholder="Where to send receipt & Zoom links"
+                [value]="attendeeEmail()"
+                (input)="attendeeEmail.set($any($event.target).value)"
+                required
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="attendeePhone">Phone Number</label>
+              <input
+                id="attendeePhone"
+                type="tel"
+                placeholder="Optional"
+                [value]="attendeePhone()"
+                (input)="attendeePhone.set($any($event.target).value)"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="attendeeNotes">Notes or Questions</label>
+              <textarea
+                id="attendeeNotes"
+                rows="2"
+                placeholder="Any special requests or info for the organizer"
+                [value]="attendeeNotes()"
+                (input)="attendeeNotes.set($any($event.target).value)"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="submit-section">
+            @if (isSubmitting()) {
+              <app-spinner>Connecting to Stripe Checkout...</app-spinner>
+            } @else {
+              <button
+                type="button"
+                class="checkout-btn"
+                [disabled]="!isTierAvailable() || !attendeeName() || !attendeeEmail()"
+                (click)="proceedToCheckout()"
+              >
+                <app-icon name="lock"></app-icon>
+                <span>Pay {{ priceFormatted() }} with Stripe</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

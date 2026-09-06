@@ -26,15 +26,18 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource, Product } from '../../../functions/src/data-model';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
+import { ProductService } from '../product.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { deepObjEq, htmlToMarkdown, looksLikeHtml, makeThumbnail } from '../utils';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { ImageUploadPreviewComponent } from '../image-upload-preview/image-upload-preview';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
+import { ProductEditComponent } from '../product-edit/product-edit';
+import { SearchableSet } from '../searchable-set';
 import { doc, getDoc, getDocs, getFirestore, updateDoc, collection, query, where, deleteDoc } from 'firebase/firestore';
 import {
   getStorage,
@@ -76,6 +79,10 @@ type EventFormModel = {
   schoolId: string;
   schoolDocId: string;
   documents: EventDocument[];
+  productId: string;
+  onlineJoiningLink: string;
+  recordedVideoId: string;
+  recordedVideoUrl: string;
 };
 
 // Whether a member is listed as a public contact in the given form model.
@@ -152,6 +159,10 @@ function toFormModel(event: IlcEvent): EventFormModel {
     schoolId: event.schoolId || '',
     schoolDocId: event.schoolDocId || '',
     documents: event.documents || [],
+    productId: event.productId || '',
+    onlineJoiningLink: event.onlineJoiningLink || '',
+    recordedVideoId: event.recordedVideoId || '',
+    recordedVideoUrl: event.recordedVideoUrl || '',
   };
   if (event.heroImageLargeUrl !== undefined) {
     model.heroImageLargeUrl = event.heroImageLargeUrl;
@@ -168,7 +179,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
 @Component({
   selector: 'app-event-edit',
   standalone: true,
-  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent],
+  imports: [FormField, IconComponent, SpinnerComponent, MarkdownEditor, ImageUploadPreviewComponent, AutocompleteComponent, InstructorSelectorComponent, ProductEditComponent],
   templateUrl: './event-edit.html',
   styleUrl: './event-edit.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -180,6 +191,122 @@ export class EventEditComponent implements OnInit {
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService);
   firebaseState = inject(FirebaseStateService);
   public dataService = inject(DataManagerService);
+  protected productService = inject(ProductService);
+
+  products = signal<Product[]>([]);
+  protected readonly Views = Views;
+  isCreatingProduct = signal(false);
+  isEditingLinkedProduct = signal(false);
+
+  linkedProduct = computed(() => {
+    const pId = this.eventFormModel().productId;
+    if (!pId) return null;
+    return this.products().find((p) => p.docId === pId) || null;
+  });
+
+  getProductPriceRange(product: Product): string {
+    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
+    if (enabledTiers.length === 0) return 'Free / Custom';
+    const prices = enabledTiers.map((t) => t.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const currency = (product.currency || 'usd').toUpperCase();
+    if (min === max) {
+      return `${min.toFixed(2)} ${currency}`;
+    }
+    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+  }
+
+  async refreshProducts(): Promise<void> {
+    try {
+      const prods = await this.productService.getAllProducts();
+      const sorted = [...prods].sort((a, b) => {
+        const timeA = a.lastUpdated || a.createdAt || '';
+        const timeB = b.lastUpdated || b.createdAt || '';
+        return timeB.localeCompare(timeA);
+      });
+      this.products.set(sorted);
+    } catch (err) {
+      console.error('Error refreshing products:', err);
+    }
+  }
+
+  async removeRegistration(): Promise<void> {
+    const pId = this.eventFormModel().productId;
+    if (!pId) return;
+
+    if (
+      typeof window !== 'undefined' &&
+      window.confirm &&
+      !window.confirm('Are you sure you want to remove online registration? The corresponding registration product will be deleted.')
+    ) {
+      return;
+    }
+
+    try {
+      await this.productService.deleteProduct(pId);
+      await this.refreshProducts();
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
+
+    this.eventFormModel.update((m) => ({ ...m, productId: '' }));
+    this.isEditingLinkedProduct.set(false);
+
+    const evDocId = this.event()?.docId;
+    if (evDocId) {
+      try {
+        await updateDoc(doc(this.db, 'events', evDocId), {
+          productId: '',
+          lastUpdated: new Date().toISOString(),
+        });
+        this.event.update((ev) => (ev ? { ...ev, productId: '' } : null));
+      } catch (err) {
+        console.warn('Could not update event doc on product deletion:', err);
+      }
+    }
+  }
+
+  async unlinkProduct(): Promise<void> {
+    await this.removeRegistration();
+  }
+
+  toggleEditLinkedProduct() {
+    this.isEditingLinkedProduct.update((v) => !v);
+  }
+
+  async onInlineProductCreated(productId: string) {
+    await this.refreshProducts();
+    if (productId) {
+      const prod = await this.productService.getProduct(productId);
+      this.eventFormModel.update((m) => ({
+        ...m,
+        productId,
+        onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
+        recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
+        recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
+      }));
+    }
+    this.isCreatingProduct.set(false);
+  }
+
+  async onInlineProductSaved(productId: string) {
+    await this.refreshProducts();
+    if (!productId) {
+      this.eventFormModel.update((m) => ({ ...m, productId: '' }));
+    } else {
+      const prod = await this.productService.getProduct(productId);
+      if (prod) {
+        this.eventFormModel.update((m) => ({
+          ...m,
+          onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
+          recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
+          recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
+        }));
+      }
+    }
+    this.isEditingLinkedProduct.set(false);
+  }
 
   // Constants for template
   EventStatus = EventStatus;
@@ -215,6 +342,10 @@ export class EventEditComponent implements OnInit {
     schoolId: '',
     schoolDocId: '',
     documents: [],
+    productId: '',
+    onlineJoiningLink: '',
+    recordedVideoId: '',
+    recordedVideoUrl: '',
   });
 
   // The organizer's identity for display. Events written before these fields were
@@ -449,6 +580,21 @@ export class EventEditComponent implements OnInit {
       } else {
         this.loadError.set('Event not found.');
         this.titleLoaded.emit('Event Not Found');
+      }
+      await this.refreshProducts();
+      if (data?.productId) {
+        const existing = await this.productService.getProduct(data.productId);
+        if (existing && !this.products().some((p) => p.docId === existing.docId)) {
+          this.products.update((list) => [existing, ...list]);
+        }
+        if (existing) {
+          this.eventFormModel.update((m) => ({
+            ...m,
+            onlineJoiningLink: m.onlineJoiningLink || existing.onlineJoiningLink || '',
+            recordedVideoId: m.recordedVideoId || existing.recordedVideoId || '',
+            recordedVideoUrl: m.recordedVideoUrl || existing.recordedVideoUrl || '',
+          }));
+        }
       }
     } catch (error) {
       console.error('Error loading event:', error);
@@ -1230,13 +1376,25 @@ export class EventEditComponent implements OnInit {
         schoolId: formData.schoolId,
         schoolDocId: formData.schoolDocId,
         documents: formData.documents,
+        productId: formData.productId || '',
+        onlineJoiningLink: formData.onlineJoiningLink || '',
+        recordedVideoId: formData.recordedVideoId || '',
+        recordedVideoUrl: formData.recordedVideoUrl || '',
         lastUpdated: new Date().toISOString(),
         updatedByEmail: this.firebaseState.user()?.firebaseUser.email || '',
       });
       this.successMessage.set('Event saved successfully.');
-      // Mirror the persisted manager/contact lists back into the form model so
+      // Mirror the persisted manager/contact lists and product fields back into the form model so
       // isDirty resets (both are normalised on the way out).
-      this.eventFormModel.update((m) => ({ ...m, managerDocIds, contacts }));
+      this.eventFormModel.update((m) => ({
+        ...m,
+        managerDocIds,
+        contacts,
+        productId: m.productId || '',
+        onlineJoiningLink: m.onlineJoiningLink || '',
+        recordedVideoId: m.recordedVideoId || '',
+        recordedVideoUrl: m.recordedVideoUrl || '',
+      }));
       // Update the local event data so isDirty resets
       this.event.set({
         ...eventData,

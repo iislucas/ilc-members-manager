@@ -756,6 +756,25 @@ a.selectable-card {
   color: #383d41;
 }
 
+.hq-registration-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  font-weight: 500;
+  white-space: nowrap;
+  font-family: inherit;
+
+  app-icon {
+    font-size: 0.95em;
+  }
+}
+
 // ----------------------------------------------------------------------------
 //  Errors
 // ----------------------------------------------------------------------------

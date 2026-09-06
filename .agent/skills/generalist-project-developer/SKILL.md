@@ -83,6 +83,12 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - **Testing:** All new items should have a `.spec.ts` file with meaningful unit tests.
 - **Styling:** Use SCSS for styling. Import using `@use`; avoid height and width of 100% unless really needed. Prefer flexbox and grid layouts.
 
+### Page Layout & Navigation Conventions
+
+- **No Back Buttons in Body**: Do NOT add "Back" buttons or links (e.g. `← All Products`, `← Back to Events`) inside the body of a page. The top navigation bar / breadcrumb hierarchy already provides structured navigation.
+- **No Repeating Header Titles**: Do NOT repeat the view/page title as an `<h1>` or large header inside the body part (the navigation bar already displays the active page title).
+- **Subtitles & Explanations**: It is fine to include an explainer subtitle, but only if it says something meaningful and helpful (do NOT add redundant boilerplate text that merely restates the form name).
+
 ---
 
 ## 6. Angular & TypeScript Best Practices

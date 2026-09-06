@@ -864,6 +864,10 @@ export class DataManagerService {
     }
   }
 
+  async getEvents(limitCount: number = 500): Promise<IlcEvent[]> {
+    return this.getRecentEvents(limitCount);
+  }
+
   async searchEvents(criteria: EventSearchCriteria): Promise<IlcEvent[]> {
     const status = criteria.statusFilter;
 

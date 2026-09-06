@@ -18,6 +18,7 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import { DataManagerService } from '../data-manager.service';
+import { FirebaseStateService } from '../firebase-state.service';
 import {
   getFirestore,
   collection,
@@ -67,6 +68,8 @@ export class ManageEventsComponent implements OnDestroy {
   private db = getFirestore(this.firebaseApp);
   routingService: RoutingService<AppPathPatterns> = inject(RoutingService<AppPathPatterns>);
   private dataService = inject(DataManagerService);
+  private firebaseState = inject(FirebaseStateService);
+  userIsAdmin = computed(() => this.firebaseState.user()?.isAdmin ?? false);
 
   // Constants for template
   EventStatus = EventStatus;

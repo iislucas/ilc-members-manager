@@ -12,7 +12,7 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
+import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind, EventRegistration, VideoGrant, VideoGrantKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
@@ -423,6 +423,120 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         dismissed: false,
         kind: NotificationKind.NewEventPosted,
         data: { eventId: event.params.docId, title },
+      });
+    }
+  }
+
+  // Check if video recording became available
+  const hadVideoBefore = Boolean(before.recordedVideoId || before.recordedVideoUrl);
+  const hasVideoNow = Boolean(after.recordedVideoId || after.recordedVideoUrl);
+
+  if (!hadVideoBefore && hasVideoNow) {
+    logger.info('Event video recording became available; provisioning grants and notifications', {
+      eventId: event.params.docId,
+      recordedVideoId: after.recordedVideoId,
+      recordedVideoUrl: after.recordedVideoUrl,
+    });
+
+    try {
+      const regSnap = await db
+        .collection('events')
+        .doc(event.params.docId)
+        .collection('registrations')
+        .where('hasVideoAccess', '==', true)
+        .get();
+
+      for (const regDoc of regSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+
+        if (after.recordedVideoId) {
+          const grant: VideoGrant = {
+            docId: after.recordedVideoId,
+            videoId: after.recordedVideoId,
+            memberDocId,
+            memberEmail: reg.email,
+            grantKind: VideoGrantKind.StripePurchase,
+            orderDocId: reg.orderDocId,
+            stripeSessionId: reg.stripeSessionId,
+            amountPaidCents: reg.amountPaidCents,
+            grantedAt: new Date().toISOString(),
+          };
+          await db
+            .collection('members')
+            .doc(memberDocId)
+            .collection('videoGrants')
+            .doc(after.recordedVideoId)
+            .set(grant);
+          await db
+            .collection('video_grants')
+            .doc(`${memberDocId}_${after.recordedVideoId}`)
+            .set(grant);
+        }
+
+        const watchLink = after.recordedVideoId
+          ? `/videos/${encodeURIComponent(after.recordedVideoId)}`
+          : (after.recordedVideoUrl || `/events/${encodeURIComponent(event.params.docId)}`);
+        const eventTitle = after.title || 'Event';
+        const message = `The video recording for **[${eventTitle}](/events/${event.params.docId})** is now ready! You can [watch it now](${watchLink}).`;
+
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventVideoAvailable,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            videoId: after.recordedVideoId || '',
+            videoUrl: after.recordedVideoUrl || '',
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify attendees of new event video recording', {
+        err,
+        eventId: event.params.docId,
+      });
+    }
+  }
+
+  // Check if online joining link was newly added
+  if (!before.onlineJoiningLink && after.onlineJoiningLink) {
+    logger.info('Online joining link added for event; notifying online attendees', {
+      eventId: event.params.docId,
+      link: after.onlineJoiningLink,
+    });
+
+    try {
+      const onlineRegSnap = await db
+        .collection('events')
+        .doc(event.params.docId)
+        .collection('registrations')
+        .where('attendance', '==', 'online')
+        .get();
+
+      for (const regDoc of onlineRegSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+        const eventTitle = after.title || 'Event';
+        const message = `The online joining link for **[${eventTitle}](/events/${event.params.docId})** is now available: [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventRegistrationConfirmed,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            onlineJoiningLink: after.onlineJoiningLink,
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify online attendees of joining link', {
+        err,
+        eventId: event.params.docId,
       });
     }
   }

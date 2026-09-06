@@ -44,6 +44,9 @@ import {
   VideoGrantKind,
   NotificationKind,
   OrderStatus,
+  EventRegistration,
+  AttendeeRole,
+  AttendanceType,
 } from './data-model';
 import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
@@ -787,6 +790,175 @@ export async function fulfillSpouseLifeMembership(
 }
 
 /**
+ * Fulfills an event registration purchased through Stripe Checkout.
+ * Records registration in /events/{eventDocId}/registrations.
+ * If a member is associated, also saves to /members/{memberDocId}/registrations,
+ * sends an online Zoom link confirmation notification, and grants video access if included.
+ */
+export async function fulfillEventRegistration(
+  db: admin.firestore.Firestore,
+  order: StripeOrder,
+  orderDocId: string,
+  member?: Member | null,
+): Promise<void> {
+  const eventDocId = order.metadata?.['eventDocId'] || '';
+  const productId = order.metadata?.['productId'] || '';
+  const role = (order.metadata?.['role'] || 'non_member') as AttendeeRole;
+  const attendance = (order.metadata?.['attendance'] || 'in_person') as AttendanceType;
+  const hasVideoAccess = order.metadata?.['includeVideo'] === 'true' || attendance === 'video_only';
+  const name = order.metadata?.['attendeeName'] || order.customerName || '';
+  const email = order.metadata?.['attendeeEmail'] || order.customerEmail || '';
+  const phone = order.metadata?.['attendeePhone'] || '';
+  const notes = order.metadata?.['attendeeNotes'] || '';
+  const amountPaidCents = order.amountTotal || 0;
+  const currency = order.currency || 'usd';
+
+  const memberDocId = member?.docId || order.metadata?.['memberDocId'] || '';
+  const memberId = member?.memberId || order.metadata?.['memberId'] || '';
+
+  const registration: EventRegistration = {
+    docId: orderDocId,
+    eventDocId,
+    productId,
+    orderDocId,
+    stripeSessionId: order.checkoutSessionId || '',
+    registeredAt: order.created || new Date().toISOString(),
+    name,
+    email,
+    phone,
+    notes,
+    memberDocId,
+    memberId,
+    role,
+    attendance,
+    hasVideoAccess,
+    amountPaidCents,
+    currency,
+    status: 'paid',
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const batch = db.batch();
+
+  if (eventDocId) {
+    const eventRegRef = db
+      .collection('events')
+      .doc(eventDocId)
+      .collection('registrations')
+      .doc(orderDocId);
+    batch.set(eventRegRef, registration);
+  }
+
+  if (memberDocId) {
+    const memberRegRef = db
+      .collection('members')
+      .doc(memberDocId)
+      .collection('registrations')
+      .doc(orderDocId);
+    batch.set(memberRegRef, registration);
+  }
+
+  await batch.commit();
+
+  logger.info('Recorded EventRegistration', {
+    orderDocId,
+    eventDocId,
+    email,
+    memberDocId,
+    attendance,
+    hasVideoAccess,
+  });
+
+  // Handle Event Zoom link and Video Grants if event exists
+  let prodData: Record<string, unknown> = {};
+  if (productId) {
+    try {
+      const prodSnap = await db.collection('products').doc(productId).get();
+      if (prodSnap.exists) {
+        prodData = prodSnap.data() || {};
+      }
+    } catch (e) {
+      logger.warn('Failed to load product for fulfillment', { productId, error: e });
+    }
+  }
+
+  if (eventDocId) {
+    try {
+      const eventSnap = await db.collection('events').doc(eventDocId).get();
+      if (eventSnap.exists) {
+        const eventData = eventSnap.data() || {};
+        const eventTitle = eventData['title'] || (prodData['title'] as string) || 'Event';
+        const onlineJoiningLink = (prodData['onlineJoiningLink'] as string) || (eventData['onlineJoiningLink'] as string) || '';
+        const recordedVideoId = (prodData['recordedVideoId'] as string) || (eventData['recordedVideoId'] as string) || '';
+
+        // 1. Send confirmation notification to member (with Zoom link if online)
+        if (memberDocId) {
+          let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**!`;
+          if (attendance === 'online') {
+            if (onlineJoiningLink) {
+              message += `\n\nYour online joining link is: [Join Zoom Meeting](${onlineJoiningLink})\n\nYou can also find this link at any time on the [event page](/events/${eventDocId}).`;
+            } else {
+              message += `\n\nYour online joining link will appear on the [event page](/events/${eventDocId}) prior to the class.`;
+            }
+          } else {
+            message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
+          }
+
+          await createMemberNotification(db, memberDocId, {
+            kind: NotificationKind.EventRegistrationConfirmed,
+            markdown: message,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            data: {
+              orderDocId,
+              eventId: eventDocId,
+              attendance,
+              onlineJoiningLink,
+            },
+          });
+        }
+
+        // 2. Provision video grant if video is available right now
+        if (hasVideoAccess && recordedVideoId && memberDocId) {
+          const grant: VideoGrant = {
+            docId: recordedVideoId,
+            videoId: recordedVideoId,
+            memberDocId,
+            memberEmail: email,
+            grantKind: VideoGrantKind.StripePurchase,
+            orderDocId,
+            stripeSessionId: order.checkoutSessionId,
+            amountPaidCents,
+            grantedAt: new Date().toISOString(),
+          };
+          await db
+            .collection('members')
+            .doc(memberDocId)
+            .collection('videoGrants')
+            .doc(recordedVideoId)
+            .set(grant);
+          await db
+            .collection('video_grants')
+            .doc(`${memberDocId}_${recordedVideoId}`)
+            .set(grant);
+          logger.info('Auto-provisioned VideoGrant for event registration', {
+            memberDocId,
+            recordedVideoId,
+            eventDocId,
+          });
+        }
+      }
+    } catch (err) {
+      logger.error('Failed to process post-registration notifications or video grants', {
+        err,
+        eventDocId,
+        orderDocId,
+      });
+    }
+  }
+}
+
+/**
  * Fulfills digital products and synchronizes subscription dates on the Member document.
  */
 export async function fulfillStripeOrder(
@@ -1133,6 +1305,8 @@ export async function fulfillStripeOrder(
           orderDocId,
         });
       }
+    } else if (category === OrderItemCategory.Event || order.metadata?.['orderType'] === 'event_registration') {
+      await fulfillEventRegistration(db, order, orderDocId, member);
     }
   }
 

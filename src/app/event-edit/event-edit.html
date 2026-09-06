@@ -177,15 +177,148 @@
         </div>
 
         <label for="event-description" class="description-label"
-          >Description</label
+          >Description of event details</label
         >
         <div class="description-container">
+          <p class="note" style="margin-top: 0; margin-bottom: 8px;">
+            Enter information about the event, e.g. the location, schedule, link to more details, optional link to registration, description of the event / topic, instructor bios, etc.
+          </p>
           <app-markdown-editor
             [initialValue]="eventFormModel().description"
             (changed)="onDescriptionChanged($event)"
           ></app-markdown-editor>
         </div>
       </div>
+
+      @if (userIsAdmin()) {
+        <div class="form-section">
+          <h3>Online Registration with HQ (optional, Admin only)</h3>
+
+          <div class="product-section-content" style="grid-column: 1 / -1;">
+            @if (linkedProduct(); as prod) {
+              <!-- Linked Product Card -->
+              <div class="linked-product-card">
+                <div class="linked-product-header">
+                  <div class="product-info-block">
+                    <div class="product-title-row">
+                      <h4 class="product-title">{{ prod.title }}</h4>
+                      <span class="currency-tag">{{ (prod.currency || 'usd').toUpperCase() }}</span>
+                    </div>
+                    <div class="product-pricing-summary">
+                      <span class="price-range"><strong>Price:</strong> {{ getProductPriceRange(prod) }}</span>
+                    </div>
+                    <div class="product-options-badges">
+                      <span class="badge" [class.badge-active]="prod.allowInPerson">
+                        <app-icon name="place" /> In-Person: {{ prod.allowInPerson ? 'Yes' : 'No' }}
+                      </span>
+                      <span class="badge" [class.badge-active]="prod.allowOnline">
+                        <app-icon name="videocam" /> Online: {{ prod.allowOnline ? 'Yes' : 'No' }}
+                      </span>
+                      <span class="badge" [class.badge-active]="prod.allowVideo || prod.allowVideoOnly">
+                        <app-icon name="play_circle" /> Video: {{ (prod.allowVideo || prod.allowVideoOnly) ? 'Yes' : 'No' }}
+                      </span>
+                    </div>
+                    @if (prod.description) {
+                      <p class="product-desc-snippet">{{ prod.description }}</p>
+                    }
+
+                    @if (prod.allowOnline || prod.allowVideo) {
+                      <div class="linked-fulfillment-details">
+                        @if (prod.allowOnline) {
+                          <div class="fulfillment-row">
+                            <span class="fulfillment-label"><app-icon name="videocam" /> <strong>Online Joining Link:</strong></span>
+                            @if (prod.onlineJoiningLink || eventFormModel().onlineJoiningLink; as link) {
+                              <a [href]="link" target="_blank" class="resource-link">{{ link }}</a>
+                            } @else {
+                              <span class="text-muted">Not specified yet (click 'Edit Product' to add)</span>
+                            }
+                          </div>
+                        }
+                        @if (prod.allowVideo) {
+                          <div class="fulfillment-row">
+                            <span class="fulfillment-label"><app-icon name="play_circle" /> <strong>Video Recording:</strong></span>
+                            @if (prod.recordedVideoId || eventFormModel().recordedVideoId; as vid) {
+                              <span class="identifier-chip">VOD: {{ vid }}</span>
+                            }
+                            @if (prod.recordedVideoUrl || eventFormModel().recordedVideoUrl; as vurl) {
+                              <a [href]="vurl" target="_blank" class="resource-link">{{ vurl }}</a>
+                            }
+                            @if (!prod.recordedVideoId && !eventFormModel().recordedVideoId && !prod.recordedVideoUrl && !eventFormModel().recordedVideoUrl) {
+                              <span class="text-muted">Not specified yet (click 'Edit Product' to add once recorded)</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <div class="linked-product-actions">
+                    <button type="button" class="subtle-button" (click)="toggleEditLinkedProduct()">
+                      <app-icon [name]="isEditingLinkedProduct() ? 'close' : 'edit'" />
+                      <span>{{ isEditingLinkedProduct() ? 'Close Editor' : 'Edit Product' }}</span>
+                    </button>
+                    <a class="subtle-button"
+                       [href]="routingService.hrefForView(Views.ProductView, { productId: prod.docId })"
+                       target="_blank">
+                      <app-icon name="visibility" />
+                      <span>View Public Page</span>
+                    </a>
+                    <button type="button" class="subtle-button danger-text" (click)="removeRegistration()">
+                      <app-icon name="delete" />
+                      <span>Remove Registration</span>
+                    </button>
+                  </div>
+                </div>
+
+                @if (isEditingLinkedProduct()) {
+                  <div class="inline-product-editor-container">
+                    <app-product-edit
+                      [productId]="prod.docId"
+                      [embedded]="true"
+                      [embeddedEventDocId]="event()?.docId || ''"
+                      [embeddedEventTitle]="eventFormModel().title"
+                      [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
+                      [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
+                      [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
+                      (productSaved)="onInlineProductSaved($event)"
+                      (editCancelled)="isEditingLinkedProduct.set(false)"
+                    ></app-product-edit>
+                  </div>
+                }
+              </div>
+            } @else {
+              <!-- No Registration Configured -->
+              <div class="unlinked-product-container">
+                @if (isCreatingProduct()) {
+                  <div class="inline-product-editor-container">
+                    <app-product-edit
+                      [embedded]="true"
+                      [embeddedEventDocId]="event()?.docId || ''"
+                      [embeddedEventTitle]="eventFormModel().title"
+                      [embeddedOnlineJoiningLink]="eventFormModel().onlineJoiningLink || ''"
+                      [embeddedRecordedVideoId]="eventFormModel().recordedVideoId || ''"
+                      [embeddedRecordedVideoUrl]="eventFormModel().recordedVideoUrl || ''"
+                      (productSaved)="onInlineProductCreated($event)"
+                      (editCancelled)="isCreatingProduct.set(false)"
+                    ></app-product-edit>
+                  </div>
+                } @else {
+                  <div class="no-product-banner">
+                    <p class="no-product-note">
+                      Online registration is not enabled for this event. Create online registration with HQ to enable ticketing, pricing tiers, registrations, and payments.
+                    </p>
+                    <div class="product-choice-buttons">
+                      <button type="button" class="button" (click)="isCreatingProduct.set(true)">
+                        <app-icon name="add" />
+                        <span>Create Online Registration with HQ</span>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <div class="form-section">
         <h3>Attached Documents</h3>

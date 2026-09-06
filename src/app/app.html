@@ -206,6 +206,17 @@
             <div></div>
           }
         }
+        @case (Views.ProductView) {
+          @defer (prefetch on idle) {
+            <app-product-view
+              [productId]="routingService.signals[Views.ProductView].pathVars.productId()"
+            ></app-product-view>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading product...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
         @case (Views.ArticlesCategory) {
           @defer (prefetch on idle) {
             <app-squarespace-content
@@ -517,6 +528,42 @@
             <app-manage-events></app-manage-events>
           } @loading (minimum 150ms) {
             <app-spinner class="view-loading">Loading events manager...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ManageProducts) {
+          @defer {
+            <app-manage-products></app-manage-products>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading products...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ManageProductNew) {
+          @defer {
+            <app-product-edit></app-product-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading product editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.ManageProductEdit) {
+          @defer {
+            <app-product-edit></app-product-edit>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading product editor...</app-spinner>
+          } @placeholder {
+            <div></div>
+          }
+        }
+        @case (Views.EventRegistrations) {
+          @defer {
+            <app-event-registrations></app-event-registrations>
+          } @loading (minimum 150ms) {
+            <app-spinner class="view-loading">Loading registrations...</app-spinner>
           } @placeholder {
             <div></div>
           }

@@ -39,6 +39,7 @@ import {
 } from './stripe-common';
 import {
   fulfillStripeOrder,
+  fulfillEventRegistration,
   mirrorOrderToMemberSubcollection,
   resolveMemberForStripeOrder,
   syncSubscriptionStatusToMember,
@@ -296,6 +297,9 @@ async function upsertStripeOrder(
   // Mirror to member subcollection and fulfill products
   try {
     const member = await resolveMemberForStripeOrder(db, order);
+    if (order.metadata?.['orderType'] === 'event_registration') {
+      await fulfillEventRegistration(db, order, orderDocId, member);
+    }
     if (member) {
       await fulfillStripeOrder(db, member, order, orderDocId);
       await mirrorOrderToMemberSubcollection(db, member, order, orderDocId);

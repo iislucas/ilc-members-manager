@@ -1,0 +1,96 @@
+<div class="manage-products-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1>Class & Workshop Products</h1>
+      <p class="subtitle">Create and manage pricing pages for workshops, classes, and events.</p>
+    </div>
+    <div class="header-actions">
+      <a class="button" [href]="routingService.hrefForView(Views.ManageProductNew)">
+        <app-icon name="add"></app-icon>
+        <span>New Product</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-box">
+      <app-icon name="search"></app-icon>
+      <input
+        type="text"
+        placeholder="Search products or linked events..."
+        [value]="searchTerm()"
+        (input)="searchTerm.set($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <app-spinner>Loading products...</app-spinner>
+  } @else if (filteredProducts().length === 0) {
+    <div class="empty-state">
+      <app-icon name="inventory_2"></app-icon>
+      <h3>No products found</h3>
+      <p>Create your first class/workshop product to start accepting payments with custom pricing.</p>
+      <a class="primary-btn" [href]="routingService.hrefForView(Views.ManageProductNew)">
+        <app-icon name="add"></app-icon>
+        <span>Create Product</span>
+      </a>
+    </div>
+  } @else {
+    <div class="products-grid">
+      @for (product of filteredProducts(); track product.docId) {
+        <div class="product-card">
+          <div class="product-card-header">
+            <h3>{{ product.title }}</h3>
+            <span class="currency-tag">{{ (product.currency || 'usd').toUpperCase() }}</span>
+          </div>
+
+          <div class="product-card-body">
+            <div class="info-row">
+              <span class="info-label">Linked Event:</span>
+              <span class="info-value">
+                @if (product.eventDocId) {
+                  <a [href]="routingService.hrefForView(Views.EventView, { eventId: product.eventDocId })">
+                    {{ getLinkedEventTitle(product.eventDocId) }}
+                  </a>
+                } @else {
+                  <span class="text-muted">None</span>
+                }
+              </span>
+            </div>
+
+            <div class="badges-row">
+              @if (product.allowInPerson) {
+                <span class="feature-chip">In-Person</span>
+              }
+              @if (product.allowOnline) {
+                <span class="feature-chip">Online</span>
+              }
+              @if (product.allowVideo) {
+                <span class="feature-chip">Video Recording</span>
+              }
+              @if (product.allowNonMembers) {
+                <span class="feature-chip public-chip">Public</span>
+              }
+            </div>
+          </div>
+
+          <div class="product-card-footer">
+            <a class="card-action-btn"
+               [href]="routingService.hrefForView(Views.ProductView, { productId: product.docId })"
+               title="View Public Purchase Page">
+              <app-icon name="visibility"></app-icon>
+              <span>View Page</span>
+            </a>
+            <a class="card-action-btn primary-action"
+               [href]="routingService.hrefForView(Views.ManageProductEdit, { productId: product.docId })"
+               title="Edit Pricing & Configuration">
+              <app-icon name="edit"></app-icon>
+              <span>Edit</span>
+            </a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

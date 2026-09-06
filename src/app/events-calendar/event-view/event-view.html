@@ -113,6 +113,123 @@
           <app-markdown-viewer [markdown]="ev.descriptionMarkdown || ev.description || ''"></app-markdown-viewer>
         </div>
 
+        @if (product(); as prod) {
+          <div class="event-product-info-card">
+            <div class="product-info-header">
+              <div class="product-title-line">
+                <app-icon name="payments"></app-icon>
+                <h4>{{ prod.title }}</h4>
+                <span class="currency-chip">{{ (prod.currency || 'usd').toUpperCase() }}</span>
+              </div>
+              @if (canManage() && productEditUrl(); as editProdUrl) {
+                <a class="edit-product-link" [href]="editProdUrl">
+                  <app-icon name="edit"></app-icon>
+                  <span>Edit Product</span>
+                </a>
+              }
+            </div>
+            <div class="product-price-summary">
+              <span class="price-range"><strong>Price:</strong> {{ getProductPriceRange(prod) }}</span>
+            </div>
+            <div class="product-options-row">
+              <span class="option-chip" [class.enabled]="prod.allowInPerson">
+                <app-icon name="place"></app-icon> In-Person: {{ prod.allowInPerson ? 'Available' : 'Not offered' }}
+              </span>
+              <span class="option-chip" [class.enabled]="prod.allowOnline">
+                <app-icon name="videocam"></app-icon> Online: {{ prod.allowOnline ? 'Available' : 'Not offered' }}
+              </span>
+              <span class="option-chip" [class.enabled]="prod.allowVideo || prod.allowVideoOnly">
+                <app-icon name="play_circle"></app-icon> Video: {{ (prod.allowVideo || prod.allowVideoOnly) ? 'Available' : 'Not offered' }}
+              </span>
+            </div>
+          </div>
+        } @else if (!ev.productId && canEdit()) {
+          <div class="unlinked-product-notice">
+            <div class="notice-text">
+              <app-icon name="info"></app-icon>
+              <span>No product is linked to this event. Link or create a product to enable registrations and payments.</span>
+            </div>
+            <a class="action-button secondary-action" [href]="editUrl()">
+              <app-icon name="link"></app-icon>
+              <span>Link Product</span>
+            </a>
+          </div>
+        }
+
+        @if (registerUrl(); as regUrl) {
+          <div class="registration-status-card">
+            @if (registration(); as reg) {
+              <div class="registered-badge">
+                <app-icon name="check_circle"></app-icon>
+                <div class="registered-details">
+                  <strong>You are registered for this event</strong>
+                  <span class="reg-meta">
+                    Attendance: {{ reg.attendance === 'online' ? 'Online' : 'In-Person' }}
+                    &bull; Video Access: {{ reg.hasVideoAccess ? 'Included' : 'Not Included' }}
+                  </span>
+                </div>
+              </div>
+            } @else {
+              <div class="registration-cta">
+                <div class="cta-info">
+                  <h3>Registration Open</h3>
+                  <p>Register now to secure your place and access event materials.</p>
+                </div>
+                <a class="register-button" [href]="regUrl">
+                  <app-icon name="how_to_reg"></app-icon>
+                  <span>Register &amp; Pay</span>
+                </a>
+              </div>
+            }
+          </div>
+        }
+
+        @if (effectiveOnlineJoiningLink(); as onlineLink) {
+          <div class="protected-resource-card online-card">
+            <div class="resource-header">
+              <app-icon name="videocam"></app-icon>
+              <h4>Online Attendance</h4>
+            </div>
+            @if (canAccessOnline()) {
+              <div class="resource-content">
+                <p>Join the live session online via the link below:</p>
+                <a class="resource-link-btn" [href]="onlineLink" target="_blank" rel="noopener noreferrer">
+                  <app-icon name="launch"></app-icon>
+                  <span>Join Online Meeting</span>
+                </a>
+              </div>
+            } @else {
+              <div class="resource-restricted">
+                <app-icon name="lock"></app-icon>
+                <span>The online meeting link is reserved for registered online attendees.</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (videoWatchUrl(); as watchUrl) {
+          <div class="protected-resource-card video-card">
+            <div class="resource-header">
+              <app-icon name="play_circle"></app-icon>
+              <h4>Class Video Recording</h4>
+            </div>
+            @if (canAccessVideo()) {
+              <div class="resource-content">
+                <p>The class video recording is ready to watch:</p>
+                <a class="resource-link-btn" [href]="watchUrl">
+                  <app-icon name="play_arrow"></app-icon>
+                  <span>Watch Recording</span>
+                </a>
+              </div>
+            } @else {
+              <div class="resource-restricted">
+                <app-icon name="lock"></app-icon>
+                <span>The video recording is available to participants registered with video access.</span>
+              </div>
+            }
+          </div>
+        }
+
         @if (ev.documents && ev.documents.length > 0) {
           <div class="documents-section">
             <h4>Documents</h4>
@@ -129,6 +246,14 @@
           </div>
         }
         <div class="actions-section">
+          @if (registerUrl(); as regUrl) {
+            @if (!registration()) {
+              <a class="action-button register-action" [href]="regUrl">
+                <app-icon name="how_to_reg"></app-icon>
+                <span>Register</span>
+              </a>
+            }
+          }
           @if (ev.googleCalEventLink) {
             <a class="action-button primary-action"
                [href]="ev.googleCalEventLink"
@@ -137,6 +262,18 @@
               <app-icon name="event"></app-icon>
               <span>Add to Calendar</span>
             </a>
+          }
+          @if (canManage() && ev.productId) {
+            <a class="action-button admin-action" [href]="registrationsUrl()">
+              <app-icon name="group"></app-icon>
+              <span>Registrations ({{ registrationCount() }})</span>
+            </a>
+            @if (productEditUrl(); as editProdUrl) {
+              <a class="action-button secondary-action" [href]="editProdUrl">
+                <app-icon name="edit"></app-icon>
+                <span>Edit Product</span>
+              </a>
+            }
           }
           @if (canEdit()) {
             @if (statusLabel()) {
