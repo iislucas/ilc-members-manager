@@ -7,7 +7,8 @@ existing members, and registering brand-new members.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, MembershipType, initMember, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Member, MembershipType, initMember } from '../data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
 import { resolveCountryCode, resolveCountryName } from '../country-codes';
 import { assignNextMemberId } from '../counters';
 import { MembershipPurchaseInfo, parseMembershipPurchaseInfo, computeRenewalAndExpiration, SubscriptionResult } from './common';

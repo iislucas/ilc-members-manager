@@ -6,7 +6,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from '../common';
-import { firestoreDocToVideoItem, VodStatus } from '../data-model';
+import { firestoreDocToVideoItem, VodStatus } from '../data-model/vod';
 
 export interface DeleteVideoRequest {
   videoId: string;

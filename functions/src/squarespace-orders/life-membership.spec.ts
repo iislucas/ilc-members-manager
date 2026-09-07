@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseLifeMembershipInfo } from './life-membership';
-import { SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model/orders';
 
 // Real example order from a Life + Spouse purchase.
 // Extra Squarespace-specific fields that are not part of our SquareSpaceOrder

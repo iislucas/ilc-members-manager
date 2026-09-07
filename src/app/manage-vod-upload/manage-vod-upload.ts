@@ -15,17 +15,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import {
-  VideoItem,
-  VideoSeries,
-  VodAccessTier,
-  VodStatus,
-  UploadItem,
-  UploadItemSource,
-  InstructorPublicData,
-  IlcEvent,
-  TagItem,
-} from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
+import { InstructorPublicData } from '../../../functions/src/data-model/members';
+import { VideoItem, VideoSeries, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';

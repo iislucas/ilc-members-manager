@@ -1,6 +1,7 @@
 import { Component, input, output, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Member, MembershipType, InstructorLicenseType, ExpiryStatus } from '../../../functions/src/data-model';
+import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
+import { Member, MembershipType, ExpiryStatus } from '../../../functions/src/data-model/members';
 import { IconComponent } from '../icons/icon.component';
 
 @Component({

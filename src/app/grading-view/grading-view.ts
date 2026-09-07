@@ -9,7 +9,7 @@
  */
 
 import { Component, computed, inject, input, output, signal, effect, ChangeDetectionStrategy } from '@angular/core';
-import { Grading, GradingStatus, gradingManagerIdsOf } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, gradingManagerIdsOf } from '../../../functions/src/data-model/gradings';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 import { GradingProgressComponent } from '../grading-progress/grading-progress';

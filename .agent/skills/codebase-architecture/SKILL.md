@@ -17,7 +17,7 @@ to the relevant files instead of re-exploring.
 ### Gradings
 | Aspect | Where |
 |---|---|
-| Type, converter, `initGrading()`, `GradingStatus` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| Type, converter, `initGrading()`, `GradingStatus` | [functions/src/data-model/gradings.ts](../../functions/src/data-model/gradings.ts) |
 | Security rules (read/update per role) | `gradings` match block in [firestore.rules](../../firestore.rules) |
 | Server triggers (mirroring, notifications, level-on-pass) | [functions/src/on-grading-update.ts](../../functions/src/on-grading-update.ts) |
 | List / row / edit / detail / progress UI | see "Grading Component Map" below |
@@ -27,7 +27,7 @@ to the relevant files instead of re-exploring.
 ### Events
 | Aspect | Where |
 |---|---|
-| `IlcEvent` type, `initEvent()`, `EventStatus`, `EventSourceKind` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| `IlcEvent` type, `initEvent()`, `EventStatus`, `EventSourceKind` | [functions/src/data-model/events.ts](../../functions/src/data-model/events.ts) |
 | Security rules (public read; owner/manager edit via ACL memberDocIds) | `events` match block in [firestore.rules](../../firestore.rules) |
 | Event detail / edit / calendar UI | `src/app/event-view/`, `src/app/event-edit/`, `src/app/events-calendar/` |
 | Event search + `getEventById` | [src/app/data-manager.service.ts](../../src/app/data-manager.service.ts) |
@@ -35,7 +35,7 @@ to the relevant files instead of re-exploring.
 ### Video on Demand (VOD) & Class Video Library
 | Aspect | Where |
 |---|---|
-| `VideoItem`, `VideoGrant`, `VideoProgress`, `VodAccessTier`, `VodStatus` | [functions/src/data-model.ts](../../functions/src/data-model.ts) |
+| `VideoItem`, `VideoGrant`, `VideoProgress`, `VodAccessTier`, `VodStatus` | [functions/src/data-model/vod.ts](../../functions/src/data-model/vod.ts) |
 | Streaming Session & Access Verification (`getVideoPlaybackSession`) | [functions/src/vod/get-playback-session.ts](../../functions/src/vod/get-playback-session.ts) |
 | Transcoding Pipeline (GCP Transcoder API, Cloud Pub/Sub) | [functions/src/vod/transcode-video.ts](../../functions/src/vod/transcode-video.ts), [functions/src/vod/on-transcode-finished.ts](../../functions/src/vod/on-transcode-finished.ts) |
 | Unified Catalog Component (`mode="vod"` \| `"class_library"`) | [src/app/videos-catalog/](../../src/app/videos-catalog/) |
@@ -60,19 +60,19 @@ to the relevant files instead of re-exploring.
 
 ## Collections & Data Model
 
-Firestore collections and their TypeScript types (all defined in [functions/src/data-model.ts](../../functions/src/data-model.ts)):
+Firestore collections and their TypeScript types (organized modularly in [functions/src/data-model/](../../functions/src/data-model/)):
 
-| Collection | Type | Notes |
-|---|---|---|
-| `/members/{docId}` | `Member` | Primary member record |
-| `/schools/{docId}` | `School` | School record; has sub-collections |
-| `/instructors/{docId}` | `InstructorPublicData` | Public profile, mirrored from Member |
-| `/gradings/{docId}` | `Grading` | One per grading purchase |
-| `/events/{docId}` | `IlcEvent` | Calendar-synced + member-proposed |
-| `/videos/{docId}` | `VideoItem` | Published & curated VOD catalog items |
-| `/orders/{docId}` | `SheetsImportOrder \| SquareSpaceOrder` | Order history & subscriptions |
-| `/acl/{email}` | `ACL` | Permissions per login email |
-| `/system/{doc}` | various | Counters, country codes, cache metadata |
+| Collection | Type | Defined in | Notes |
+|---|---|---|---|
+| `/members/{docId}` | `Member` | [`data-model/members.ts`](../../functions/src/data-model/members.ts) | Primary member record |
+| `/schools/{docId}` | `School` | [`data-model/schools.ts`](../../functions/src/data-model/schools.ts) | School record; has sub-collections |
+| `/instructors/{docId}` | `InstructorPublicData` | [`data-model/members.ts`](../../functions/src/data-model/members.ts) | Public profile, mirrored from Member |
+| `/gradings/{docId}` | `Grading` | [`data-model/gradings.ts`](../../functions/src/data-model/gradings.ts) | One per grading purchase |
+| `/events/{docId}` | `IlcEvent`, `Product` | [`data-model/events.ts`](../../functions/src/data-model/events.ts) | Calendar-synced + member-proposed & products |
+| `/videos/{docId}` | `VideoItem` | [`data-model/vod.ts`](../../functions/src/data-model/vod.ts) | Published & curated VOD catalog items |
+| `/orders/{docId}` | `SheetsImportOrder \| SquareSpaceOrder \| StripeOrder` | [`data-model/orders.ts`](../../functions/src/data-model/orders.ts) | Order history & subscriptions |
+| `/acl/{email}` | `ACL` | [`data-model/system.ts`](../../functions/src/data-model/system.ts) | Permissions per login email |
+| `/system/{doc}` | `Counters`, `CacheMetadata`, etc. | [`data-model/system.ts`](../../functions/src/data-model/system.ts), [`content-cache.ts`](../../functions/src/data-model/content-cache.ts) | Counters, country codes, cache metadata |
 
 ### Subcollections
 - `/instructors/{id}/members/{memberDocId}` — cached student list

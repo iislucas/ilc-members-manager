@@ -8,10 +8,7 @@
  */
 
 import { effect, inject, Injectable } from '@angular/core';
-import {
-  InstructorPublicData,
-  firestoreDocToInstructorPublicData,
-} from '../../functions/src/data-model';
+import { InstructorPublicData, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
 import { SearchableSet } from './searchable-set';
 import { IncrementalSyncService } from './incremental-sync.service';
 

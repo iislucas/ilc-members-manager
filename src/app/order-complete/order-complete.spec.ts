@@ -12,7 +12,7 @@ import {
   StripeCheckoutPaymentStatus,
   StripeCheckoutStatus,
 } from '../../../functions/src/stripe-types';
-import { initMember } from '../../../functions/src/data-model';
+import { initMember } from '../../../functions/src/data-model/members';
 
 describe('OrderCompleteComponent', () => {
   let fixture: ComponentFixture<OrderCompleteComponent>;

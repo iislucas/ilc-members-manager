@@ -5,7 +5,7 @@ import { NotificationSettingsComponent } from './notification-settings.component
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { NotificationKind } from '../../../../functions/src/data-model';
+import { NotificationKind } from '../../../../functions/src/data-model/notifications';
 import { provideNavigationTreeStub } from '../../navigation-tree.testing';
 
 describe('NotificationSettingsComponent', () => {

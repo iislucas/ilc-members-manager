@@ -12,7 +12,7 @@ import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { SearchableSet } from '../searchable-set';
 import { CountryCode } from '../country-codes';
-import { initMember, Member, MembershipType } from '../../../functions/src/data-model';
+import { initMember, Member, MembershipType } from '../../../functions/src/data-model/members';
 
 describe('CompleteProfileComponent', () => {
   let fixture: ComponentFixture<CompleteProfileComponent>;

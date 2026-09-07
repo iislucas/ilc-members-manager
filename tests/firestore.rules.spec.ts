@@ -7,11 +7,8 @@ import {
 import * as fs from 'fs';
 import { serverTimestamp } from 'firebase/firestore';
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
-import type {
-  Member,
-  School,
-  InstructorPublicData,
-} from '../functions/src/data-model';
+import type { Member, InstructorPublicData } from '../functions/src/data-model/members';
+import type { School } from '../functions/src/data-model/schools';
 
 type Firestore = firebase.default.firestore.Firestore;
 

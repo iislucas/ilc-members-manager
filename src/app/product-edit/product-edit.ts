@@ -27,14 +27,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownEditor } from '../markdown-editor/markdown-editor';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { SearchableSet } from '../searchable-set';
-import {
-  AttendeeRole,
-  AttendanceType,
-  getPricingTierKey,
-  IlcEvent,
-  initProduct,
-  Product,
-} from '../../../functions/src/data-model';
+import { AttendeeRole, AttendanceType, getPricingTierKey, IlcEvent, initProduct, Product } from '../../../functions/src/data-model/events';
 
 @Component({
   selector: 'app-product-edit',

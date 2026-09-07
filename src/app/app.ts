@@ -65,7 +65,7 @@ import { ProductViewComponent } from './product-view/product-view';
 import { ProductEditComponent } from './product-edit/product-edit';
 import { ManageProductsComponent } from './manage-products/manage-products';
 import { EventRegistrationsComponent } from './event-registrations/event-registrations';
-import { MembershipType } from '../../functions/src/data-model';
+import { MembershipType } from '../../functions/src/data-model/members';
 import { APP_VERSION } from './version';
 import { NavigationTreeService } from './navigation-tree';
 import { AppUpdateService } from './app-update.service';

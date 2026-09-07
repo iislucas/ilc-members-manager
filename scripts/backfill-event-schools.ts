@@ -19,7 +19,8 @@
  */
 
 import * as admin from 'firebase-admin';
-import { IlcEvent, Member } from '../functions/src/data-model';
+import { IlcEvent } from '../functions/src/data-model/events';
+import { Member } from '../functions/src/data-model/members';
 
 const COMMIT = process.argv.includes('--commit');
 

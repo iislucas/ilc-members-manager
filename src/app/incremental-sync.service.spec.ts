@@ -21,7 +21,7 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-import { GenericFsDoc } from '../../functions/src/data-model';
+import { GenericFsDoc } from '../../functions/src/data-model/base';
 
 type TestItem = {
   docId: string;

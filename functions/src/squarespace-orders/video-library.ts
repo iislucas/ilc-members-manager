@@ -7,7 +7,8 @@ custom forms or user email.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Member } from '../data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';

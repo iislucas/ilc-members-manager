@@ -21,7 +21,7 @@ import {
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
 } from './stripe-types';
-import { Member } from './data-model';
+import { Member } from './data-model/members';
 
 export function getSubscriptionCurrentPeriodEnd(
   subscription: Stripe.Subscription,

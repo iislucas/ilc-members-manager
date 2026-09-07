@@ -22,7 +22,7 @@ import {
 import { AppPathPatterns, FIREBASE_APP, Views } from '../../app.config';
 import { RoutingService } from '../../routing.service';
 import { CalendarEvent } from '../event.model';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../../functions/src/data-model/events';
 import MiniSearch from 'minisearch';
 import { EventItemComponent } from '../event-item/event-item';
 import { IconComponent } from '../../icons/icon.component';

@@ -21,7 +21,9 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { Counters, Member, School } from '../src/data-model';
+import { Member } from '../src/data-model/members';
+import { School } from '../src/data-model/schools';
+import { Counters } from '../src/data-model/system';
 import {
   extractCountersFromMember,
   extractCountersFromSchool,

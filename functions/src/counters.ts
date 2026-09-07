@@ -4,7 +4,9 @@ import {
   CallableRequest,
 } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { Counters, Member, School } from './data-model';
+import { Member } from './data-model/members';
+import { School } from './data-model/schools';
+import { Counters } from './data-model/system';
 import {
   allowedOrigins,
   assertAdmin,

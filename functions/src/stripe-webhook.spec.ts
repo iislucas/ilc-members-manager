@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type Stripe from 'stripe';
-import { OrderKind } from './data-model';
+import { OrderKind } from './data-model/orders';
 import {
   sessionToStripeOrder,
   invoiceToStripeOrder,

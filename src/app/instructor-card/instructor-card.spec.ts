@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { InstructorCardComponent } from './instructor-card';
-import { InstructorPublicData, initInstructor } from '../../../functions/src/data-model';
+import { InstructorPublicData, initInstructor } from '../../../functions/src/data-model/members';
 
 describe('InstructorCardComponent', () => {
   let fixture: ComponentFixture<InstructorCardComponent>;

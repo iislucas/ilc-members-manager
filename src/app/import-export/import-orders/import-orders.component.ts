@@ -3,17 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import {
-  Member,
-  initMember,
-  MembershipType,
-  StudentLevel,
-  InstructorLicenseType,
-  MasterLevel,
-  SheetsImportOrder,
-  initSheetsImportOrder,
-  School
-} from '../../../../functions/src/data-model';
+import { StudentLevel, InstructorLicenseType, MasterLevel } from '../../../../functions/src/data-model/curriculum';
+import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
+import { SheetsImportOrder, initSheetsImportOrder } from '../../../../functions/src/data-model/orders';
+import { School } from '../../../../functions/src/data-model/schools';
 import * as Papa from 'papaparse';
 import {
   ParsedRow,

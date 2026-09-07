@@ -14,18 +14,9 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FieldValue } from 'firebase-admin/firestore';
-import {
-  Grading,
-  GradingStatus,
-  Member,
-  PaymentStatus,
-  initGrading,
-  isGradingPaid,
-  nextGradingLevel,
-  gradingProgression,
-  normalizeGradingLevel,
-  achievedGradingLevels,
-} from './data-model';
+import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels } from './data-model/curriculum';
+import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid } from './data-model/gradings';
+import { Member } from './data-model/members';
 import {
   allowedOrigins,
   getUserMemberDocIds,

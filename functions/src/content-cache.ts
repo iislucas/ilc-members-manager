@@ -40,13 +40,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
 import { assertAdmin, allowedOrigins } from './common';
-import {
-  BlogPostSourceKind,
-  blogPostSourceKind,
-  CachedBlogPost,
-  initCachedBlogPost,
-  CacheMetadata,
-} from './data-model';
+import { BlogPostSourceKind, blogPostSourceKind, CachedBlogPost, initCachedBlogPost, CacheMetadata } from './data-model/content-cache';
 
 // Squarespace configuration
 const SQUARESPACE_BASE_URL = 'https://lute-denim-99n2.squarespace.com';

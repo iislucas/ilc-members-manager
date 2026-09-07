@@ -10,22 +10,11 @@ import {
   linkedSignal,
   effect,
 } from '@angular/core';
-import {
-  Grading,
-  GradingStatus,
-  getPrettyGradingStatus,
-  StudentLevel,
-  ApplicationLevel,
-  Member,
-  initGrading,
-  InstructorPublicData,
-  School,
-  IlcEvent,
-  gradingManagerIdsOf,
-  PaymentStatus,
-  PAYMENT_STATUSES,
-  PAYMENT_STATUS_LABELS,
-} from '../../../functions/src/data-model';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { Grading, GradingStatus, getPrettyGradingStatus, initGrading, gradingManagerIdsOf, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
+import { Member, InstructorPublicData } from '../../../functions/src/data-model/members';
+import { School } from '../../../functions/src/data-model/schools';
 import {
   form,
   FormField,

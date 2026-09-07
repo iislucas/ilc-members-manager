@@ -32,11 +32,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 import { IconComponent } from '../icons/icon.component';
 import { LoginComponent } from '../login/login';
 import { environment } from '../../environments/environment';
-import {
-  ResourceAccessLevel,
-  RESOURCE_ACCESS_LEVELS,
-  ACCESS_LEVEL_LABELS,
-} from '../../../functions/src/data-model';
+import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS, ACCESS_LEVEL_LABELS } from '../../../functions/src/data-model/curriculum';
 
 // Structured error info parsed from the Cloud Function's error details.
 interface AccessError {

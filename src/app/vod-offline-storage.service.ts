@@ -5,7 +5,7 @@
  */
 
 import { Injectable, signal } from '@angular/core';
-import { VideoItem } from '../../functions/src/data-model';
+import { VideoItem } from '../../functions/src/data-model/vod';
 
 export interface OfflineDownloadProgress {
   videoId: string;

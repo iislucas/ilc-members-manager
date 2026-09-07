@@ -13,7 +13,8 @@ import {
   UserDetails,
 } from '../firebase-state.service';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import { initSchool, School, initMember, Member } from '../../../functions/src/data-model';
+import { initMember, Member } from '../../../functions/src/data-model/members';
+import { initSchool, School } from '../../../functions/src/data-model/schools';
 import { SearchableSet } from '../searchable-set';
 import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { User } from 'firebase/auth';

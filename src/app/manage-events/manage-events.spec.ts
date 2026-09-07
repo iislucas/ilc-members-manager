@@ -6,7 +6,7 @@ import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { ManageEventsComponent } from './manage-events';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
-import { initEvent, EventStatus, IlcEvent } from '../../../functions/src/data-model';
+import { initEvent, EventStatus, IlcEvent } from '../../../functions/src/data-model/events';
 
 // Mock firebase/firestore
 vi.mock('firebase/firestore', () => ({

@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { AutocompleteComponent, DisplayFns } from '../autocomplete/autocomplete';
 import { DataManagerService } from '../data-manager.service';
 import { IconComponent } from '../icons/icon.component';
-import { TagItem } from '../../../functions/src/data-model';
+import { TagItem } from '../../../functions/src/data-model/vod';
 
 @Component({
   selector: 'app-tag-input',

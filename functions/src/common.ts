@@ -1,6 +1,7 @@
 import { environment } from './environment/environment';
 import * as admin from 'firebase-admin';
-import { Member, MembershipType, School } from './data-model';
+import { Member, MembershipType } from './data-model/members';
+import { School } from './data-model/schools';
 import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 

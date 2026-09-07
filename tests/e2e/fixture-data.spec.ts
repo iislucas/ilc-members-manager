@@ -19,7 +19,7 @@ process.env['FIREBASE_AUTH_EMULATOR_HOST'] ||= '127.0.0.1:9099';
 
 import * as admin from 'firebase-admin';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { initMember } from '../../functions/src/data-model';
+import { initMember } from '../../functions/src/data-model/members';
 import { loadSeedFixtures, seedFixtureDir } from '../helpers/load-seed-fixtures';
 
 const PROJECT_ID = 'demo-ilc-test';

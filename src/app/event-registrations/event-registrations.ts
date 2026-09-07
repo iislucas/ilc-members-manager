@@ -21,12 +21,7 @@ import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  AttendeeRole,
-  AttendanceType,
-  EventRegistration,
-  IlcEvent,
-} from '../../../functions/src/data-model';
+import { AttendeeRole, AttendanceType, EventRegistration, IlcEvent } from '../../../functions/src/data-model/events';
 
 @Component({
   selector: 'app-event-registrations',

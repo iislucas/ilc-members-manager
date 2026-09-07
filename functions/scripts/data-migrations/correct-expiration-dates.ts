@@ -1,7 +1,9 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { Member, School, firestoreDocToOrder } from '../../src/data-model';
+import { Member } from '../../src/data-model/members';
+import { firestoreDocToOrder } from '../../src/data-model/orders';
+import { School } from '../../src/data-model/schools';
 
 /**
  * Script to review orders and correct the membership, instructor license, and school license

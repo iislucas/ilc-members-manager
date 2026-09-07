@@ -6,7 +6,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { IlcEvent, eventContacts } from '../../../../functions/src/data-model';
+import { IlcEvent, eventContacts } from '../../../../functions/src/data-model/events';
 import { IconComponent } from '../../icons/icon.component';
 import { formatDateRange } from '../format-date-range';
 import { FindInstructorsService } from '../../find-instructors.service';

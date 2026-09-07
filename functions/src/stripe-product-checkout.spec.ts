@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPricingTierKey, initProduct, Product } from './data-model';
+import { getPricingTierKey, initProduct, Product } from './data-model/events';
 
 describe('stripe-product-checkout tier resolution', () => {
   it('correctly maps pricing tier keys', () => {

@@ -29,58 +29,16 @@ import {
   limit,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  Member,
-  initMember,
-  School,
-  initSchool,
-  InstructorPublicData,
-  initInstructor,
-  Counters,
-  MemberFsDoc,
-  SchoolFsDoc,
-  firestoreDocToMember,
-  firestoreDocToSchool,
-  firestoreDocToInstructorPublicData,
-  Order,
-  firestoreDocToOrder,
-  OrderFsDoc,
-  Grading,
-  GradingFsDoc,
-  firestoreDocToGrading,
-  SquareSpaceOrder,
-  SquareSpaceLineItem,
-  IlcEvent,
-  EventStatus,
-  initEvent,
-  ResourceAccessLevel,
-  EmailTemplates,
-  initEmailTemplates,
-  UploadItem,
-  firestoreDocToUploadItem,
-  initUploadItem,
-  MemberOrder,
-  firestoreDocToMemberOrder,
-  OrderKind,
-  VideoItem,
-  VideoSeries,
-  groupVideosIntoSeries,
-  getVideoSeriesGroupingKey,
-  firestoreDocToVideoItem,
-  initVideoItem,
-  VideoGrant,
-  firestoreDocToVideoGrant,
-  VideoProgress,
-  firestoreDocToVideoProgress,
-  VodStatus,
-  VodAccessTier,
-  VideoGrantKind,
-  SystemTagsDoc,
-  SystemVideoTagsDoc,
-  VideoTagMeta,
-  initVideoTagMeta,
-  TagItem,
-} from '../../functions/src/data-model';
+import { EmailTemplates, initEmailTemplates } from '../../functions/src/data-model/content-cache';
+import { ResourceAccessLevel } from '../../functions/src/data-model/curriculum';
+import { IlcEvent, EventStatus, initEvent } from '../../functions/src/data-model/events';
+import { Grading, GradingFsDoc, firestoreDocToGrading } from '../../functions/src/data-model/gradings';
+import { UploadItem, firestoreDocToUploadItem, initUploadItem } from '../../functions/src/data-model/materials';
+import { Member, initMember, InstructorPublicData, initInstructor, MemberFsDoc, firestoreDocToMember, firestoreDocToInstructorPublicData } from '../../functions/src/data-model/members';
+import { Order, firestoreDocToOrder, OrderFsDoc, SquareSpaceOrder, SquareSpaceLineItem, MemberOrder, firestoreDocToMemberOrder, OrderKind } from '../../functions/src/data-model/orders';
+import { School, initSchool, SchoolFsDoc, firestoreDocToSchool } from '../../functions/src/data-model/schools';
+import { Counters } from '../../functions/src/data-model/system';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, getVideoSeriesGroupingKey, firestoreDocToVideoItem, initVideoItem, VideoGrant, firestoreDocToVideoGrant, VideoProgress, firestoreDocToVideoProgress, VodStatus, VodAccessTier, VideoGrantKind, SystemTagsDoc, SystemVideoTagsDoc, VideoTagMeta, initVideoTagMeta, TagItem } from '../../functions/src/data-model/vod';
 import { getStorage, ref as storageRef, deleteObject } from 'firebase/storage';
 import { FirebaseStateService, UserDetails } from './firebase-state.service';
 import { countryCodeList, CountryCode, CountryCodesDoc } from './country-codes';

@@ -23,7 +23,8 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { CheckoutSessionSummary } from '../../../functions/src/stripe-types';
-import { Grading, School } from '../../../functions/src/data-model';
+import { Grading } from '../../../functions/src/data-model/gradings';
+import { School } from '../../../functions/src/data-model/schools';
 
 export type OrderKind =
   | 'membership'

@@ -13,12 +13,8 @@ import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import {
-  initMember,
-  initSchool,
-  MembershipType,
-  School,
-} from '../../../functions/src/data-model';
+import { initMember, MembershipType } from '../../../functions/src/data-model/members';
+import { initSchool, School } from '../../../functions/src/data-model/schools';
 import { CountryCode } from '../country-codes';
 import { SearchableSet } from '../searchable-set';
 import {

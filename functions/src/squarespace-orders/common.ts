@@ -17,7 +17,7 @@ Exports:
       Date arithmetic for annual subscriptions.
 */
 
-import { SquareSpaceOrder, SquareSpaceCustomization } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceCustomization } from '../data-model/orders';
 
 // Shared error shape used by all processing result types.
 export type ProcessingError = { kind: 'error'; message: string };

@@ -2,7 +2,7 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { DataManagerService } from '../data-manager.service';
 import { AutocompleteComponent } from '../autocomplete/autocomplete';
 import { IconComponent } from '../icons/icon.component';
-import { Member } from '../../../functions/src/data-model';
+import { Member } from '../../../functions/src/data-model/members';
 
 @Component({
   selector: 'app-member-selector',

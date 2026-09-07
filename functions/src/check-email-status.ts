@@ -14,7 +14,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import { CheckEmailStatusResult } from './data-model';
+import { CheckEmailStatusResult } from './data-model/system';
 
 const GOOGLE_EMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
 

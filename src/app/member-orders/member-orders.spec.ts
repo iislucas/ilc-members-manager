@@ -11,7 +11,9 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initMember, initMemberOrder, Member, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, MembershipType, Grading, GradingStatus, initGrading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model';
+import { Grading, GradingStatus, initGrading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model/gradings';
+import { initMember, Member, MembershipType } from '../../../functions/src/data-model/members';
+import { initMemberOrder, MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus } from '../../../functions/src/data-model/orders';
 
 describe('MemberOrdersComponent', () => {
   let fixture: ComponentFixture<MemberOrdersComponent>;

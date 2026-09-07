@@ -27,7 +27,7 @@ import {
 } from '@angular/core';
 import { CommonModule, NgStyle } from '@angular/common';
 import Hls from 'hls.js';
-import { VideoItem } from '../../../functions/src/data-model';
+import { VideoItem } from '../../../functions/src/data-model/vod';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 

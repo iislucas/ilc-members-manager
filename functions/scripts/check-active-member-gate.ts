@@ -15,7 +15,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { Member, MembershipType, ExpiryStatus } from '../src/data-model';
+import { Member, MembershipType, ExpiryStatus } from '../src/data-model/members';
 import { getInstructorExpiryStatus } from '../../src/app/member-tags';
 
 const argv = yargs(hideBin(process.argv)).option('project', { type: 'string' }).parseSync();

@@ -21,14 +21,9 @@ process.env['FIREBASE_AUTH_EMULATOR_HOST'] ||= '127.0.0.1:9099';
 
 import * as admin from 'firebase-admin';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  GradingStatus,
-  NotificationKind,
-  initGrading,
-  initMember,
-  type Grading,
-  type MemberNotification,
-} from '../../functions/src/data-model';
+import { GradingStatus, initGrading, type Grading } from '../../functions/src/data-model/gradings';
+import { initMember } from '../../functions/src/data-model/members';
+import { NotificationKind, type MemberNotification } from '../../functions/src/data-model/notifications';
 
 const PROJECT_ID = 'demo-ilc-test';
 

@@ -1,7 +1,9 @@
 import { Component, inject, input, output, signal, computed, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SquareSpaceOrder, SquareSpaceLineItem, Member, School, OrderStatus } from '../../../../functions/src/data-model';
+import { Member } from '../../../../functions/src/data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, OrderStatus } from '../../../../functions/src/data-model/orders';
+import { School } from '../../../../functions/src/data-model/schools';
 import { computeRenewalAndExpiration } from '../../../../functions/src/squarespace-orders/common';
 import { DataManagerService } from '../../data-manager.service';
 import { IconComponent } from '../../icons/icon.component';

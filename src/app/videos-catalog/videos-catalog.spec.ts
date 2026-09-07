@@ -10,7 +10,8 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import { initVideoItem, InstructorPublicData, VideoItem, VodAccessTier } from '../../../functions/src/data-model';
+import { InstructorPublicData } from '../../../functions/src/data-model/members';
+import { initVideoItem, VideoItem, VodAccessTier } from '../../../functions/src/data-model/vod';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideosCatalogComponent', () => {

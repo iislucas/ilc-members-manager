@@ -1,7 +1,8 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { gradingProgression, previousGradingLevel, PaymentStatus } from '../../src/data-model';
+import { gradingProgression, previousGradingLevel } from '../../src/data-model/curriculum';
+import { PaymentStatus } from '../../src/data-model/gradings';
 
 /*
  Data migration: backfill grading manager rename, paid flag, and level snapshot.

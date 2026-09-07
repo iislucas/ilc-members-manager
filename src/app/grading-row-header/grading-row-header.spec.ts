@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComponentRef } from '@angular/core';
 import { vi } from 'vitest';
 import { GradingRowHeaderComponent } from './grading-row-header';
-import { initGrading } from '../../../functions/src/data-model';
+import { initGrading } from '../../../functions/src/data-model/gradings';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 

@@ -2,7 +2,7 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { DataManagerService } from '../data-manager.service';
 import { InstructorSelectorComponent } from '../instructor-selector/instructor-selector';
 import { IconComponent } from '../icons/icon.component';
-import { InstructorPublicData } from '../../../functions/src/data-model';
+import { InstructorPublicData } from '../../../functions/src/data-model/members';
 
 /**
  * A compact picker for a single ILC public instructor.

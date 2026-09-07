@@ -33,7 +33,7 @@ SQUARESPACE_API_KEY is fetched from Secret Manager (same as the deployed Cloud F
 import * as admin from 'firebase-admin';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import axios from 'axios';
-import { SquareSpaceOrder } from '../src/data-model';
+import { SquareSpaceOrder } from '../src/data-model/orders';
 import { clearOrderProcessingState, executeOrderDownstreamLogic } from '../src/squarespace-orders';
 
 /**

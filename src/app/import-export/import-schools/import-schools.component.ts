@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ImportMappingComponent } from '../import-mapping/import-mapping';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { DataManagerService } from '../../data-manager.service';
-import { School, initSchool } from '../../../../functions/src/data-model';
+import { School, initSchool } from '../../../../functions/src/data-model/schools';
 import * as Papa from 'papaparse';
 import {
   ParsedRow,

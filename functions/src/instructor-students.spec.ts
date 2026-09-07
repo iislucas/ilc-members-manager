@@ -9,13 +9,8 @@ import {
   markInactiveRefusal,
   removedStudentMarkdown,
 } from './instructor-students';
-import {
-  canMarkMembershipInactive,
-  Member,
-  MembershipType,
-  NotificationKind,
-  notificationStyle,
-} from './data-model';
+import { canMarkMembershipInactive, Member, MembershipType } from './data-model/members';
+import { NotificationKind, notificationStyle } from './data-model/notifications';
 
 const member = (overrides: Partial<Member>): Member =>
   ({ docId: 'doc', name: '', memberId: '', instructorId: '', primaryInstructorId: '', ...overrides }) as Member;

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseGradingOrderInfo, processGradingOrder } from './grading';
-import { SquareSpaceOrder, SquareSpaceLineItem, GradingStatus, PaymentStatus } from '../data-model';
+import { GradingStatus, PaymentStatus } from '../data-model/gradings';
+import { SquareSpaceOrder, SquareSpaceLineItem } from '../data-model/orders';
 import * as admin from 'firebase-admin';
 
 describe('parseGradingOrderInfo', () => {

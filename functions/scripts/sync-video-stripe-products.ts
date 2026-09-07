@@ -25,7 +25,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
-import { firestoreDocToVideoItem, VideoItem, VodAccessTier } from '../src/data-model';
+import { firestoreDocToVideoItem, VideoItem, VodAccessTier } from '../src/data-model/vod';
 import { environment } from '../src/environment/environment';
 
 interface CliOptions {

@@ -16,13 +16,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins, getMemberByEmail, hasActiveMembership } from '../common';
-import {
-  VideoItem,
-  VodAccessTier,
-  VodStatus,
-  firestoreDocToVideoItem,
-  Member,
-} from '../data-model';
+import { Member } from '../data-model/members';
+import { VideoItem, VodAccessTier, VodStatus, firestoreDocToVideoItem } from '../data-model/vod';
 
 export interface GetPlaybackSessionRequest {
   videoId: string;

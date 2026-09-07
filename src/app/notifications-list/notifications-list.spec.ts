@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { vi } from 'vitest';
 import { NotificationsListComponent } from './notifications-list';
-import { MemberNotification, NotificationKind } from '../../../functions/src/data-model';
+import { MemberNotification, NotificationKind } from '../../../functions/src/data-model/notifications';
 import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';

@@ -1,5 +1,5 @@
 import { Component, effect, inject, input, linkedSignal, computed, output, signal } from '@angular/core';
-import { IlcEvent } from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
 import { DataManagerService, EventSearchCriteriaDateRange } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
 import { RoutingService } from '../routing.service';

@@ -5,7 +5,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { School } from './data-model';
+import { School } from './data-model/schools';
 import { ensureSchoolCountersAreAtLeast } from './counters';
 import { refreshACLAdminStatus } from './on-member-update';
 import { recordTombstone } from './common';

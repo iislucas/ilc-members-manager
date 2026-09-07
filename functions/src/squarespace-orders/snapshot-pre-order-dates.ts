@@ -1,4 +1,4 @@
-import { SquareSpaceLineItem } from '../data-model';
+import { SquareSpaceLineItem } from '../data-model/orders';
 
 // Snapshot the entity's current renewal and expiry dates onto the line item
 // before processing changes them. Write-once: if the fields are already set

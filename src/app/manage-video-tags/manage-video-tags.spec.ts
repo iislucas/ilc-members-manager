@@ -10,7 +10,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { signal, WritableSignal } from '@angular/core';
-import { initVideoItem, VideoItem, VideoTagMeta } from '../../../functions/src/data-model';
+import { initVideoItem, VideoItem, VideoTagMeta } from '../../../functions/src/data-model/vod';
 
 describe('ManageVideoTagsComponent', () => {
   let component: ManageVideoTagsComponent;

@@ -7,7 +7,7 @@ import { MemberDetailsComponent } from '../member-details/member-details';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { NavigationTreeService } from '../navigation-tree';
-import { canMarkMembershipInactive } from '../../../functions/src/data-model';
+import { canMarkMembershipInactive } from '../../../functions/src/data-model/members';
 
 /** The actions a primary instructor can take on one of their own students. */
 export enum StudentAction {

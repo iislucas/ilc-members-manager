@@ -5,7 +5,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { FindInstructorsService } from '../find-instructors.service';
-import { ExpiryStatus } from '../../../functions/src/data-model';
+import { ExpiryStatus } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
 @Component({

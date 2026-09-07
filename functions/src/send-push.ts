@@ -23,13 +23,8 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import webpush from 'web-push';
-import {
-  Member,
-  MemberNotification,
-  MemberNotificationSettings,
-  NotificationKind,
-  PushSubscriptionDoc,
-} from './data-model';
+import { Member, PushSubscriptionDoc } from './data-model/members';
+import { MemberNotification, MemberNotificationSettings, NotificationKind } from './data-model/notifications';
 import { environment } from './environment/environment';
 
 const vapidPrivateKey = defineSecret('VAPID_PRIVATE_KEY');

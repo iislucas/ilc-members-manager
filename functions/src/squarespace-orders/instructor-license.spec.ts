@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInstructorLicenseInfo } from './instructor-license';
-import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model/orders';
 
 // Real example line item from an Instructor license purchase.
 const realLineItem: SquareSpaceLineItem = {

@@ -14,7 +14,8 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { MembershipType, CachedBlogPost, initCachedBlogPost, ExpiryStatus } from '../../../functions/src/data-model';
+import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
+import { MembershipType, ExpiryStatus } from '../../../functions/src/data-model/members';
 import { IconComponent } from '../icons/icon.component';
 import { getInstructorExpiryStatus } from '../member-tags';
 

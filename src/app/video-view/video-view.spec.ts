@@ -10,7 +10,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { StripeService } from '../stripe.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model';
+import { initVideoItem, VideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
 import { signal, WritableSignal } from '@angular/core';
 
 describe('VideoViewComponent', () => {

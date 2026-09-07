@@ -6,13 +6,8 @@ import {
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import {
-  FetchUserDetailsResult,
-  Member,
-  MembershipType,
-  firestoreDocToMember,
-  initMember,
-} from './data-model';
+import { Member, MembershipType, firestoreDocToMember, initMember } from './data-model/members';
+import { FetchUserDetailsResult } from './data-model/system';
 
 export async function getUserDetailsHelper(request: CallableRequest<unknown>) {
   if (!request.auth) {

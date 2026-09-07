@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { StripeOrder } from '../../../../functions/src/data-model';
+import { StripeOrder } from '../../../../functions/src/data-model/orders';
 
 @Component({
   selector: 'app-stripe-order-view',

@@ -2,7 +2,8 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 import { describe, it, expect, vi, beforeEach, beforeAll, Mock } from 'vitest';
-import { Member, MembershipType, NotificationKind, MemberNotification } from './data-model';
+import { Member, MembershipType } from './data-model/members';
+import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { environment } from './environment/environment.js';
 
 // The `mail` collection documents written by sendTemplateEmail (see

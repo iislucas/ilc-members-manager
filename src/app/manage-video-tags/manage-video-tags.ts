@@ -19,10 +19,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  VideoTagMeta,
-  initVideoTagMeta,
-} from '../../../functions/src/data-model';
+import { VideoTagMeta, initVideoTagMeta } from '../../../functions/src/data-model/vod';
 
 export interface TagRowItem {
   tag: string;

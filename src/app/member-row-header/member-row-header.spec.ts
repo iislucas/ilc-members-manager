@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComponentRef } from '@angular/core';
 import { MemberRowHeaderComponent } from './member-row-header';
-import { initMember } from '../../../functions/src/data-model';
+import { initMember } from '../../../functions/src/data-model/members';
 
 describe('MemberRowHeaderComponent', () => {
   let component: MemberRowHeaderComponent;

@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SheetsImportOrder } from '../../../../functions/src/data-model';
+import { SheetsImportOrder } from '../../../../functions/src/data-model/orders';
 import { IconComponent } from '../../icons/icon.component';
 
 @Component({

@@ -9,13 +9,8 @@ import {
 } from '../firebase-state.service';
 import { ROUTING_CONFIG, initPathPatterns, FIREBASE_APP } from '../app.config';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import {
-  initMember,
-  Member,
-  MembershipType,
-  School,
-  InstructorPublicData,
-} from '../../../functions/src/data-model';
+import { initMember, Member, MembershipType, InstructorPublicData } from '../../../functions/src/data-model/members';
+import { School } from '../../../functions/src/data-model/schools';
 import { SearchableSet } from '../searchable-set';
 import { CountryCode } from '../country-codes';
 import { User } from 'firebase/auth';

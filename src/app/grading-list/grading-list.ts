@@ -7,7 +7,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Grading, GradingStatus, IlcEvent, getPrettyGradingStatus, initGrading, gradingManagerIdsOf, isGradingPaid } from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { Grading, GradingStatus, getPrettyGradingStatus, initGrading, gradingManagerIdsOf, isGradingPaid } from '../../../functions/src/data-model/gradings';
 import { SearchableSet } from '../searchable-set';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';

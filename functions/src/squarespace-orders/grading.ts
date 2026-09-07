@@ -7,7 +7,9 @@ through Squarespace.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid } from '../data-model/gradings';
+import { Member } from '../data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
 import { canonicalizeGradingLevel, canonicalizeStudentLevel, canonicalizeApplicationLevel } from '../level-utils';
 import { GradingResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';

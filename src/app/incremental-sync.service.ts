@@ -20,7 +20,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { FIREBASE_APP } from './app.config';
-import { GenericFsDoc } from '../../functions/src/data-model';
+import { GenericFsDoc } from '../../functions/src/data-model/base';
 import { IdbStorageService } from './idb-storage.service';
 import { SearchableSet } from './searchable-set';
 

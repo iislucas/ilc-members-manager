@@ -1,8 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import {
-  InstructorPublicData,
-  Member,
-} from '../../../functions/src/data-model';
+import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
 import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 

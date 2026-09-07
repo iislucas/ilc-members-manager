@@ -77,8 +77,8 @@ modify any of the source files.
 
 ### The core data structures
 
-See [./functions/src/data-model.ts](./functions/src/data-model.ts) for the core
-data structures.
+See [./functions/src/data-model/](./functions/src/data-model/) for the core
+data structures, organized into domain modules (`members.ts`, `gradings.ts`, `events.ts`, `orders.ts`, `curriculum.ts`, `vod.ts`, `schools.ts`, `notifications.ts`, `materials.ts`, `content-cache.ts`, `system.ts`, `base.ts`). Source files directly reference their respective domain modules.
 
 ### Building
 

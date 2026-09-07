@@ -6,7 +6,8 @@
  */
 
 import { Component, computed, inject, input } from '@angular/core';
-import { Grading, GradingStatus, getPrettyGradingStatus, previousGradingLevel, isGradingPaid } from '../../../functions/src/data-model';
+import { previousGradingLevel } from '../../../functions/src/data-model/curriculum';
+import { Grading, GradingStatus, getPrettyGradingStatus, isGradingPaid } from '../../../functions/src/data-model/gradings';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';

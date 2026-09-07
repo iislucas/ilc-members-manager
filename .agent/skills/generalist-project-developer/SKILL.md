@@ -25,7 +25,7 @@ The ILC Members Manager is a **member-facing web portal** for the [I Liq Chuan](
 
 - [README.md](./README.md): basic goals and details of how to build and test the project.
 - [STATUS.md](./STATUS.md): the status of milestones, and goals within the project.
-- [./functions/src/data-model.ts](./functions/src/data-model.ts): includes typescript definitions for core data structures.
+- [./functions/src/data-model/](./functions/src/data-model/): modular typescript definitions for core data structures, organized by domain (e.g. `members.ts`, `gradings.ts`, `events.ts`, `orders.ts`, etc.).
 
 ### Agent Skills Directory
 

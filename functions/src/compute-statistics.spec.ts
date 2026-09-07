@@ -5,22 +5,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import { computeStatisticsFromMembers, computeOrderStatistics } from './compute-statistics';
-import {
-  initMember,
-  initSchool,
-  Member,
-  School,
-  SquareSpaceOrder,
-  SquareSpaceLineItem,
-  SquareSpaceLineItemType,
-  MembershipType,
-  StudentLevel,
-  ApplicationLevel,
-  InstructorLicenseType,
-  MasterLevel,
-  OrderKind,
-  SquarespaceFulfillmentStatus,
-} from './data-model';
+import { StudentLevel, ApplicationLevel, InstructorLicenseType, MasterLevel } from './data-model/curriculum';
+import { initMember, Member, MembershipType } from './data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceLineItemType, OrderKind, SquarespaceFulfillmentStatus } from './data-model/orders';
+import { initSchool, School } from './data-model/schools';
 
 function makeMember(overrides: Partial<Member>): Member {
   return { ...initMember(), ...overrides };

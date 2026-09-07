@@ -6,7 +6,7 @@
  * No emulator or credentials needed; run via `pnpm test:fixtures`.
  */
 import { describe, expect, it } from 'vitest';
-import { EventContact } from '../../functions/src/data-model';
+import { EventContact } from '../../functions/src/data-model/events';
 import {
   REDACTED_EMAIL,
   REDACTED_PHONE,

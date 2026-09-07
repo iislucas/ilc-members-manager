@@ -3,7 +3,7 @@ import { EmailTemplatesComponent } from './email-templates';
 import { DataManagerService } from '../../data-manager.service';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
-import { initEmailTemplates } from '../../../../functions/src/data-model';
+import { initEmailTemplates } from '../../../../functions/src/data-model/content-cache';
 
 describe('EmailTemplatesComponent', () => {
   let component: EmailTemplatesComponent;

@@ -13,14 +13,9 @@ import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
 import { Views } from '../app.config';
-import {
-  initMember,
-  MembershipType,
-  GradingStatus,
-  PaymentStatus,
-  StudentLevel,
-  ApplicationLevel,
-} from '../../../functions/src/data-model';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { GradingStatus, PaymentStatus } from '../../../functions/src/data-model/gradings';
+import { initMember, MembershipType } from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripePriceType,

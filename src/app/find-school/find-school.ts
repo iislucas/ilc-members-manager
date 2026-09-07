@@ -11,7 +11,7 @@ import { CommonModule } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { DataManagerService } from '../data-manager.service';
-import { School } from '../../../functions/src/data-model';
+import { School } from '../../../functions/src/data-model/schools';
 
 @Component({
   selector: 'app-find-school',

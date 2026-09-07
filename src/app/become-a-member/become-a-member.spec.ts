@@ -12,7 +12,7 @@ import { FirebaseStateService, UserDetails } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { StripeProductsService } from '../stripe-products.service';
 import { RoutingService } from '../routing.service';
-import { initMember, MembershipType } from '../../../functions/src/data-model';
+import { initMember, MembershipType } from '../../../functions/src/data-model/members';
 import {
   StripeProduct,
   StripePriceType,

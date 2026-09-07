@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { FindInstructorsService, sortInstructors } from './find-instructors.service';
 import { IncrementalSyncService } from './incremental-sync.service';
-import { ApplicationLevel, initInstructor, InstructorPublicData, StudentLevel } from '../../functions/src/data-model';
+import { ApplicationLevel, StudentLevel } from '../../functions/src/data-model/curriculum';
+import { initInstructor, InstructorPublicData } from '../../functions/src/data-model/members';
 
 describe('FindInstructorsService', () => {
   let service: FindInstructorsService;

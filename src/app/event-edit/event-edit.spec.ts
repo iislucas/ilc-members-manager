@@ -7,7 +7,7 @@ import { EventEditComponent } from './event-edit';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';
-import { IlcEvent, EventStatus, initProduct } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, initProduct } from '../../../functions/src/data-model/events';
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';

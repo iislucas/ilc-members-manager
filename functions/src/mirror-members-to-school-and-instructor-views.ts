@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member } from './data-model';
+import { Member } from './data-model/members';
 
 const db = admin.firestore();
 

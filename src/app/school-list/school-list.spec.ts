@@ -11,7 +11,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns } from '../app.config';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
-import { School, initSchool } from '../../../functions/src/data-model';
+import { School, initSchool } from '../../../functions/src/data-model/schools';
 import { signal } from '@angular/core';
 
 describe('SchoolListComponent', () => {

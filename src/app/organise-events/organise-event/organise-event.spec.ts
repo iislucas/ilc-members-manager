@@ -8,7 +8,7 @@ import { FIREBASE_APP } from '../../app.config';
 import { SearchableSet } from '../../searchable-set';
 
 import { ProductService } from '../../product.service';
-import { Product } from '../../../../functions/src/data-model';
+import { Product } from '../../../../functions/src/data-model/events';
 
 describe('ProposeEventComponent', () => {
   let component: ProposeEventComponent;

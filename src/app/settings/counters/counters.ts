@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
 import { IconComponent } from '../../icons/icon.component';
-import { Counters } from '../../../../functions/src/data-model';
+import { Counters } from '../../../../functions/src/data-model/system';
 
 @Component({
   selector: 'app-counters',

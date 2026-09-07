@@ -13,17 +13,11 @@ import { onCall } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
-import {
-  Member,
-  School,
-  SquareSpaceOrder,
-  MembershipType,
-  InstructorLicenseType,
-  MemberStatisticsFsDoc,
-  Histogram,
-  HistogramMap,
-  OrderKind,
-} from './data-model';
+import { InstructorLicenseType } from './data-model/curriculum';
+import { Member, MembershipType } from './data-model/members';
+import { SquareSpaceOrder, OrderKind } from './data-model/orders';
+import { School } from './data-model/schools';
+import { MemberStatisticsFsDoc, Histogram, HistogramMap } from './data-model/system';
 
 // Returns true if the member has a currently valid (non-expired) membership.
 function isActiveMember(member: Member, todayIso: string): boolean {

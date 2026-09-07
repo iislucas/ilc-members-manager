@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { SquarespaceOrderView } from './squarespace-order-view';
 import { DataManagerService } from '../../data-manager.service';
-import { SquareSpaceOrder, Member, OrderKind, SquarespaceFulfillmentStatus, SquareSpaceLineItem, SquareSpaceLineItemType } from '../../../../functions/src/data-model';
+import { Member } from '../../../../functions/src/data-model/members';
+import { SquareSpaceOrder, OrderKind, SquarespaceFulfillmentStatus, SquareSpaceLineItem, SquareSpaceLineItemType } from '../../../../functions/src/data-model/orders';
 
 function makeOrder(lineItems: (Partial<SquareSpaceLineItem> & { id: string; sku: string })[]): SquareSpaceOrder {
   return {

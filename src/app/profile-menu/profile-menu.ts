@@ -5,7 +5,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { IconComponent } from '../icons/icon.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { ExpiryStatus } from '../../../functions/src/data-model';
+import { ExpiryStatus } from '../../../functions/src/data-model/members';
 import { getInstructorExpiryStatus } from '../member-tags';
 
 @Component({

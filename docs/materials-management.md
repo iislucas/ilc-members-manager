@@ -50,7 +50,7 @@ flowchart TD
 
 ## 3. Data Model & Types
 
-Defined in [`functions/src/data-model.ts`](../functions/src/data-model.ts):
+Defined in [`functions/src/data-model/materials.ts`](../functions/src/data-model/materials.ts):
 
 ```typescript
 export type UploadItemSource = "direct" | "event";
@@ -255,7 +255,7 @@ This security rule supports both standard direct reads `/members/{memberDocId}/u
 
 ```
 1. Data Model & Converters
-   └── Add UploadItem, initUploadItem(), firestoreDocToUploadItem() in functions/src/data-model.ts
+   └── Add UploadItem, initUploadItem(), firestoreDocToUploadItem() in functions/src/data-model/materials.ts
    └── Verify: unit tests for converters
 
 2. Security Rules

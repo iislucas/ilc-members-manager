@@ -527,7 +527,8 @@
       <section id="core-schemas">
         <h2>4. Core Data Types, Schemas &amp; TypeScript Enums</h2>
         <p>
-          All data structures in <code>functions/src/data-model.ts</code> use TypeScript enums and strict schema definitions.
+          All data structures are organized directly in modular domain files in <code>functions/src/data-model/</code>
+          using TypeScript enums and strict schema definitions.
           Every entity implements an <code>initEntity()</code> constructor (providing safe default values) and a
           <code>firestoreDocToEntity(doc)</code> converter to ensure runtime and compile-time integrity.
         </p>
@@ -549,7 +550,7 @@
             <div class="card">
               <div class="card-title">
                 <span>Order Categories &amp; Statuses</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/orders.ts</span>
               </div>
               <pre><code><span class="code-keyword">export enum</span> <span class="code-type">OrderItemCategory</span> {
   Membership = <span class="code-string">'membership'</span>,
@@ -578,7 +579,7 @@
             <div class="card">
               <div class="card-title">
                 <span>VOD &amp; Subscription Enums</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/vod.ts</span>
               </div>
               <pre><code><span class="code-keyword">export enum</span> <span class="code-type">VodAccessTier</span> {
   Public = <span class="code-string">'public'</span>,
@@ -649,7 +650,7 @@
             <div class="card">
               <div class="card-title">
                 <span>MemberOrder (Private Subcollection)</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/orders.ts</span>
               </div>
               <pre><code><span class="code-keyword">export interface</span> <span class="code-type">MemberOrder</span> {
   docId: <span class="code-type">string</span>;                <span class="code-comment">// Mirrored from /orders/{docId}</span>
@@ -674,7 +675,7 @@
             <div class="card">
               <div class="card-title">
                 <span>Order (Global Admin Store)</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/orders.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">StripeOrder</span> = <span class="code-type">BaseOrder</span> &amp; {
   orderSourceKind: <span class="code-type">OrderSourceKind</span>.Stripe;
@@ -720,7 +721,7 @@
             <div class="card">
               <div class="card-title">
                 <span>VideoItem (Catalog Metadata)</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/vod.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoItem</span> = {
   docId: <span class="code-type">string</span>;
@@ -739,7 +740,7 @@
             <div class="card">
               <div class="card-title">
                 <span>VideoGrant &amp; VideoProgress</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/vod.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">VideoGrant</span> = {
   docId: <span class="code-type">string</span>;                <span class="code-comment">// Matches videoId</span>
@@ -766,7 +767,7 @@
             <div class="card">
               <div class="card-title">
                 <span>Grading Entity</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/gradings.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">Grading</span> = {
   docId: <span class="code-type">string</span>;
@@ -786,7 +787,7 @@
             <div class="card">
               <div class="card-title">
                 <span>IlcEvent Entity</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/events.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">IlcEvent</span> = {
   docId: <span class="code-type">string</span>;
@@ -808,7 +809,7 @@
             <div class="card">
               <div class="card-title">
                 <span>School &amp; Instructor Public</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/schools.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">School</span> = {
   docId: <span class="code-type">string</span>;
@@ -830,7 +831,7 @@
             <div class="card">
               <div class="card-title">
                 <span>ACL Document (/acl/{email})</span>
-                <span class="badge badge-purple">data-model.ts</span>
+                <span class="badge badge-purple">data-model/system.ts</span>
               </div>
               <pre><code><span class="code-keyword">export type</span> <span class="code-type">ACL</span> = {
   isAdmin: <span class="code-type">boolean</span>;
@@ -1662,9 +1663,9 @@
             </thead>
             <tbody>
               <tr>
-                <td><code>functions/src/data-model.ts</code></td>
+                <td><code>functions/src/data-model/</code></td>
                 <td>Data Model</td>
-                <td>Complete schemas for <code>Member</code>, <code>Order</code>, <code>MemberOrder</code>, <code>Grading</code>, <code>IlcEvent</code>, <code>School</code>, <code>VideoItem</code>, <code>VideoGrant</code>, <code>UploadItem</code>, and all TypeScript enums.</td>
+                <td>Domain modular schemas for <code>Member</code> (<code>members.ts</code>), <code>Order</code>/<code>MemberOrder</code> (<code>orders.ts</code>), <code>Grading</code> (<code>gradings.ts</code>), <code>IlcEvent</code>/<code>Product</code> (<code>events.ts</code>), <code>School</code> (<code>schools.ts</code>), <code>VideoItem</code>/<code>VideoGrant</code> (<code>vod.ts</code>), <code>UploadItem</code> (<code>materials.ts</code>), <code>ACL</code>/<code>Counters</code> (<code>system.ts</code>), and all TypeScript enums.</td>
               </tr>
               <tr>
                 <td><code>storage.rules</code></td>

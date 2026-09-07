@@ -18,7 +18,8 @@ Exports:
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, SquareSpaceOrder, SquareSpaceLineItem } from '../data-model';
+import { Member } from '../data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem } from '../data-model/orders';
 import { MembershipPurchaseInfo } from './common';
 
 /**
