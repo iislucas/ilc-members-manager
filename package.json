@@ -18,7 +18,6 @@
     "deploy": "pnpm run build:all && firebase deploy",
     "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
     "export:anonymized": "pnpm --prefix functions exec ts-node scripts/export-anonymized-data.ts --project ilc-paris-class-tracker",
-    "import:stripe-products": "pnpm --prefix functions exec ts-node -O '{\"module\": \"commonjs\", \"esModuleInterop\": true}' scripts/import-stripe-products.ts",
     "mcp": "ng mcp",
     "ng": "ng",
     "postinstall": "cd functions && pnpm install",

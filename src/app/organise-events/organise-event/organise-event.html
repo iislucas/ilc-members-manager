@@ -1,19 +1,36 @@
 <div class="organise-event-container">
-  <div class="intro-text">
-    <p>
-      This form is to ask ILC HQ to list an workshop or event. You can use it to 
-      request an event also.
-      Please make sure the instructor you have listed has already agreed to the
-      proposal (they will need to confirm in the members portal).
-    </p>
-    <p>
-      Once submitted, the proposal will be reviewed by ILC HQ and either it will be 
-      approved and listed, or you will be contacted
-      (e.g. if the timing and location is not compatible with another events).
-    </p>
-  </div>
+  @if (!userIsAdmin()) {
+    <div class="intro-text">
+      <p>
+        This form is to ask ILC HQ to list an workshop or event. You can use it to 
+        request an event also.
+        Please make sure the instructor you have listed has already agreed to the
+        proposal (they will need to confirm in the members portal).
+      </p>
+      <p>
+        Once submitted, the proposal will be reviewed by ILC HQ and either it will be 
+        approved and listed, or you will be contacted
+        (e.g. if the timing and location is not compatible with another events).
+      </p>
+    </div>
+  }
 
   <form (submit)="onSubmit()">
+    @if (userIsAdmin()) {
+      <div class="input-field">
+        <label for="status">Event Status</label>
+        <select
+          id="status"
+          [value]="eventModel().status"
+          (change)="updateStatus($any($event.target).value)"
+        >
+          @for (opt of adminStatusOptions; track opt) {
+            <option [value]="opt">{{ eventStatusLabel(opt) }}</option>
+          }
+        </select>
+      </div>
+    }
+
     <div class="input-field">
       <label for="title" [class.invalid]="proposeForm.title().errors()"
         >Title *</label
@@ -45,7 +62,7 @@
     <div class="input-field">
       <label
         for="leadingInstructor"
-        [class.invalid]="proposeForm.leadingInstructorId().errors()"
+        [class.invalid]="isLeadingInstructorInvalid()"
         >Instructor *</label
       >
       <div class="intro-text">
@@ -53,17 +70,14 @@
         contacted them and they have agreed. Once this form has been submitted,
         they will need to confirm their desire to lead training at this event.
       </div>
-      <app-public-instructor-selector
-        name="Leading Instructor"
+      <app-instructor-selector
         [placeholder]="'Search for an instructor'"
         [value]="eventModel().leadingInstructorId"
-        emptyLabel="No instructor selected yet"
         (valueChange)="updateLeadingInstructorId($event)"
-      ></app-public-instructor-selector>
-      @if (!membersService.instructors.get(eventModel().leadingInstructorId)) {
+      ></app-instructor-selector>
+      @if (leadingInstructorHasNoPublicProfile()) {
         <div class="error-message">
-          Please select a valid instructor for the person who will be leading
-          training at this event.
+          This instructor does not have a public profile. Only instructors with a public profile can be selected to lead an event.
         </div>
       }
     </div>
@@ -87,7 +101,7 @@
 
           @if (!eventModel().ownerDocId) {
             <div class="error-message">
-              Please select a valid instructor for the main contact.
+              Please select an instructor with a public profile for the main contact.
             </div>
           }
         }
@@ -308,6 +322,138 @@
       </div>
     </div>
 
+    @if (userIsAdmin()) {
+      <div class="input-field">
+        <label>Online Registration with HQ (optional, Admin only)</label>
+        <div class="intro-text">
+          Configure ticketing, pricing tiers, and online registrations for this event.
+        </div>
+        <div class="product-section-content">
+          @if (linkedProduct(); as prod) {
+            <!-- Linked Product Card -->
+            <div class="linked-product-card">
+              <div class="linked-product-header">
+                <div class="product-info-block">
+                  <div class="product-title-row">
+                    <h4 class="product-title">{{ prod.title }}</h4>
+                    <span class="currency-tag">{{ (prod.currency || 'usd').toUpperCase() }}</span>
+                  </div>
+                  <div class="product-pricing-summary">
+                    <span class="price-range"><strong>Price:</strong> {{ getProductPriceRange(prod) }}</span>
+                  </div>
+                  <div class="product-options-badges">
+                    <span class="badge" [class.badge-active]="prod.allowInPerson">
+                      <app-icon name="place" /> In-Person: {{ prod.allowInPerson ? 'Yes' : 'No' }}
+                    </span>
+                    <span class="badge" [class.badge-active]="prod.allowOnline">
+                      <app-icon name="videocam" /> Online: {{ prod.allowOnline ? 'Yes' : 'No' }}
+                    </span>
+                    <span class="badge" [class.badge-active]="prod.allowVideo || prod.allowVideoOnly">
+                      <app-icon name="play_circle" /> Video: {{ (prod.allowVideo || prod.allowVideoOnly) ? 'Yes' : 'No' }}
+                    </span>
+                  </div>
+                  @if (prod.description) {
+                    <p class="product-desc-snippet">{{ prod.description }}</p>
+                  }
+
+                  @if (prod.allowOnline || prod.allowVideo) {
+                    <div class="linked-fulfillment-details">
+                      @if (prod.allowOnline) {
+                        <div class="fulfillment-row">
+                          <span class="fulfillment-label"><app-icon name="videocam" /> <strong>Online Joining Link:</strong></span>
+                          @if (prod.onlineJoiningLink || eventModel().onlineJoiningLink; as link) {
+                            <a [href]="link" target="_blank" class="resource-link">{{ link }}</a>
+                          } @else {
+                            <span class="text-muted">Not specified yet (click 'Edit Product' to add)</span>
+                          }
+                        </div>
+                      }
+                      @if (prod.allowVideo) {
+                        <div class="fulfillment-row">
+                          <span class="fulfillment-label"><app-icon name="play_circle" /> <strong>Video Recording:</strong></span>
+                          @if (prod.recordedVideoId || eventModel().recordedVideoId; as vid) {
+                            <span class="identifier-chip">VOD: {{ vid }}</span>
+                          }
+                          @if (prod.recordedVideoUrl || eventModel().recordedVideoUrl; as vurl) {
+                            <a [href]="vurl" target="_blank" class="resource-link">{{ vurl }}</a>
+                          }
+                          @if (!prod.recordedVideoId && !eventModel().recordedVideoId && !prod.recordedVideoUrl && !eventModel().recordedVideoUrl) {
+                            <span class="text-muted">Not specified yet (click 'Edit Product' to add once recorded)</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="linked-product-actions">
+                  <button type="button" class="subtle-button" (click)="toggleEditLinkedProduct()">
+                    <app-icon [name]="isEditingLinkedProduct() ? 'close' : 'edit'" />
+                    <span>{{ isEditingLinkedProduct() ? 'Close Editor' : 'Edit Product' }}</span>
+                  </button>
+                  <a class="subtle-button"
+                     [href]="routingService.hrefForView(Views.ProductView, { productId: prod.docId })"
+                     target="_blank">
+                    <app-icon name="visibility" />
+                    <span>View Public Page</span>
+                  </a>
+                  <button type="button" class="subtle-button danger-text" (click)="removeRegistration()">
+                    <app-icon name="delete" />
+                    <span>Remove Registration</span>
+                  </button>
+                </div>
+              </div>
+
+              @if (isEditingLinkedProduct()) {
+                <div class="inline-product-editor-container">
+                  <app-product-edit
+                    [productId]="prod.docId"
+                    [embedded]="true"
+                    [embeddedEventDocId]="''"
+                    [embeddedEventTitle]="eventModel().title"
+                    [embeddedOnlineJoiningLink]="eventModel().onlineJoiningLink || ''"
+                    [embeddedRecordedVideoId]="eventModel().recordedVideoId || ''"
+                    [embeddedRecordedVideoUrl]="eventModel().recordedVideoUrl || ''"
+                    (productSaved)="onInlineProductSaved($event)"
+                    (editCancelled)="isEditingLinkedProduct.set(false)"
+                  ></app-product-edit>
+                </div>
+              }
+            </div>
+          } @else {
+            <!-- No Registration Configured -->
+            <div class="unlinked-product-container">
+              @if (isCreatingProduct()) {
+                <div class="inline-product-editor-container">
+                  <app-product-edit
+                    [embedded]="true"
+                    [embeddedEventDocId]="''"
+                    [embeddedEventTitle]="eventModel().title"
+                    [embeddedOnlineJoiningLink]="eventModel().onlineJoiningLink || ''"
+                    [embeddedRecordedVideoId]="eventModel().recordedVideoId || ''"
+                    [embeddedRecordedVideoUrl]="eventModel().recordedVideoUrl || ''"
+                    (productSaved)="onInlineProductCreated($event)"
+                    (editCancelled)="isCreatingProduct.set(false)"
+                  ></app-product-edit>
+                </div>
+              } @else {
+                <div class="no-product-banner">
+                  <p class="no-product-note">
+                    Online registration is not enabled for this event. Create online registration with HQ to enable ticketing, pricing tiers, registrations, and payments.
+                  </p>
+                  <div class="product-choice-buttons">
+                    <button type="button" class="button outlined-button" (click)="isCreatingProduct.set(true)">
+                      <app-icon name="add" />
+                      <span>Create Online Registration with HQ</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <div class="input-field">
       <label>Attached Documents</label>
       <div class="intro-text">
@@ -402,10 +548,10 @@
 
     <div class="actions">
       @if (isSaving()) {
-        <app-spinner>Submitting...</app-spinner>
+        <app-spinner>{{ userIsAdmin() ? 'Saving...' : 'Submitting...' }}</app-spinner>
       } @else {
-        <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid()">
-          Submit Proposal
+        <button type="submit" [disabled]="!proposeForm().valid() || !ownerValid() || !leadingInstructorIsPublic()">
+          {{ userIsAdmin() ? 'Save' : 'Submit Proposal' }}
         </button>
       }
     </div>

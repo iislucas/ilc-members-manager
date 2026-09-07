@@ -15,28 +15,8 @@
     align-items: center;
     flex-wrap: wrap;
 
-    .search-mode-toggle {
-      display: flex;
-      border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
-      border-radius: 4px;
-      overflow: hidden;
-      flex-shrink: 0;
-
-      button {
-        padding: 0.4rem 0.75rem;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: var(--mdc-theme-text-primary-on-background, #333);
-        white-space: nowrap;
-
-        &.active {
-          background: var(--mdc-theme-primary, #1976d2);
-          color: white;
-        }
-      }
+    .search-mode-tabs {
+      margin-bottom: 0;
     }
 
     // The "..." config menu should stay on the same line as the toggle.
@@ -50,7 +30,7 @@
       flex: 1;
       min-width: 120px;
       padding: 0.4rem 0.75rem;
-      border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
+      border: 1px solid v.$border-color-light;
       border-radius: 4px;
       font-size: 0.85rem;
       background-color: white;
@@ -291,7 +271,7 @@
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .order-list-container {
-    .search-section .input-group .search-mode-toggle button {
+    .search-section .input-group .search-mode-tabs .pill-tab {
       padding: 0.35rem 0.5rem;
       font-size: 0.8rem;
     }

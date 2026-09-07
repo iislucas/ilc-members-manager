@@ -6,7 +6,8 @@ import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { EventEditComponent } from './event-edit';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
-import { IlcEvent, EventStatus } from '../../../functions/src/data-model';
+import { ProductService } from '../product.service';
+import { IlcEvent, EventStatus, initProduct } from '../../../functions/src/data-model';
 import { updateDoc } from 'firebase/firestore';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
@@ -29,9 +30,19 @@ describe('EventEditComponent', () => {
   let mockRoutingService: RoutingService<AppPathPatterns>;
   let mockDataManagerService: DataManagerService;
   let mockFirebaseState: ReturnType<typeof createFirebaseStateServiceMock>;
+  let mockProductService: {
+    getAllProducts: any;
+    getProduct: any;
+    deleteProduct: any;
+  };
 
   beforeEach(async () => {
     mockFirebaseState = createFirebaseStateServiceMock();
+    mockProductService = {
+      getAllProducts: vi.fn().mockResolvedValue([]),
+      getProduct: vi.fn().mockResolvedValue(undefined),
+      deleteProduct: vi.fn().mockResolvedValue(undefined),
+    };
     mockRoutingService = {
       navigateToParts: vi.fn(),
       matchedPatternId: signal(Views.ManageEventEdit),
@@ -56,6 +67,7 @@ describe('EventEditComponent', () => {
         { provide: FIREBASE_APP, useValue: {} }, // Mock app object
         { provide: FirebaseStateService, useValue: mockFirebaseState },
         { provide: DataManagerService, useValue: mockDataManagerService },
+        { provide: ProductService, useValue: mockProductService },
       ]
     })
     .compileComponents();
@@ -108,6 +120,10 @@ describe('EventEditComponent', () => {
       schoolId: '',
       schoolDocId: '',
       documents: [],
+      productId: '',
+      onlineJoiningLink: '',
+      recordedVideoId: '',
+      recordedVideoUrl: '',
     });
 
     // Trigger computed signals
@@ -666,5 +682,79 @@ describe('EventEditComponent', () => {
     expect(fixture.nativeElement.querySelector('.member-selector-label')).toBeFalsy();
     // Should show instructor selector instead
     expect(fixture.nativeElement.querySelector('app-instructor-selector')).toBeTruthy();
+  });
+
+  it('handles creating, inline editing, and removing registrations', async () => {
+    const mockProd = {
+      ...initProduct(),
+      docId: 'prod-456',
+      title: 'Workshop Registration',
+      currency: 'usd',
+      allowInPerson: true,
+      allowOnline: false,
+      allowVideo: true,
+      tiers: {
+        non_member_in_person_no_video: { enabled: true, price: 100 },
+      },
+    };
+    mockProductService.getProduct.mockResolvedValue(mockProd);
+    mockProductService.getAllProducts.mockResolvedValue([mockProd]);
+
+    // Initially no product linked
+    expect(component.linkedProduct()).toBeNull();
+    expect(component.isCreatingProduct()).toBe(false);
+
+    // Trigger creating product
+    component.isCreatingProduct.set(true);
+    expect(component.isCreatingProduct()).toBe(true);
+
+    // Simulate inline product created
+    await component.onInlineProductCreated('prod-456');
+    expect(component.eventFormModel().productId).toBe('prod-456');
+    expect(component.linkedProduct()?.title).toBe('Workshop Registration');
+    expect(component.getProductPriceRange(mockProd)).toBe('100.00 USD');
+    expect(component.isCreatingProduct()).toBe(false);
+
+    // Toggle edit linked product
+    component.toggleEditLinkedProduct();
+    expect(component.isEditingLinkedProduct()).toBe(true);
+    component.toggleEditLinkedProduct();
+    expect(component.isEditingLinkedProduct()).toBe(false);
+
+    // Remove registration (deletes product)
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.removeRegistration();
+    expect(mockProductService.deleteProduct).toHaveBeenCalledWith('prod-456');
+    expect(component.eventFormModel().productId).toBe('');
+    expect(component.linkedProduct()).toBeNull();
+  });
+
+  it('displays Registration Product section only for admins', async () => {
+    // 1. For non-admin
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'user@example.com' } as any,
+      member: { docId: 'user-doc-id', name: 'Regular User', memberId: 'REG-1' } as any,
+      isAdmin: false,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+    await renderEvent({});
+
+    expect(component.userIsAdmin()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('Online Registration with HQ (optional, Admin only)');
+
+    // 2. For admin
+    mockFirebaseState.user.set({
+      firebaseUser: { email: 'admin@example.com' } as any,
+      member: { docId: 'admin-doc-id', name: 'Admin User', memberId: 'ADM-1' } as any,
+      isAdmin: true,
+      memberProfiles: [],
+      schoolsManaged: [],
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.userIsAdmin()).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Online Registration with HQ (optional, Admin only)');
   });
 });

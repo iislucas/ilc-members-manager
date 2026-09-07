@@ -1,7 +1,37 @@
 /* proposed-events.spec.ts — tests for event proposal validation. */
 import { describe, it, expect } from 'vitest';
-import { validateProposal, buildManagerDocIds, resolveEventContacts, sameContacts } from './proposed-events';
-import { EventContact, Member, MembershipType, initEventContact } from './data-model';
+import { validateProposal, validateProposalStatus, buildManagerDocIds, resolveEventContacts, sameContacts } from './proposed-events';
+import { EventContact, EventStatus, Member, MembershipType, initEventContact } from './data-model';
+
+describe('validateProposalStatus', () => {
+  it('defaults to Proposed when requestedStatus is undefined or Proposed', () => {
+    expect(validateProposalStatus(undefined, false)).toEqual({ status: EventStatus.Proposed });
+    expect(validateProposalStatus(undefined, true)).toEqual({ status: EventStatus.Proposed });
+    expect(validateProposalStatus(EventStatus.Proposed, false)).toEqual({ status: EventStatus.Proposed });
+    expect(validateProposalStatus(EventStatus.Proposed, true)).toEqual({ status: EventStatus.Proposed });
+  });
+
+  it('allows Draft status for both regular members and admins', () => {
+    expect(validateProposalStatus(EventStatus.Draft, false)).toEqual({ status: EventStatus.Draft });
+    expect(validateProposalStatus(EventStatus.Draft, true)).toEqual({ status: EventStatus.Draft });
+  });
+
+  it('rejects Unlisted and Listed status for non-admins', () => {
+    const unlistedResult = validateProposalStatus(EventStatus.Unlisted, false);
+    expect(unlistedResult.error).toBe('Only admins can create unlisted or listed events directly.');
+    expect(unlistedResult.status).toBe(EventStatus.Proposed);
+
+    const listedResult = validateProposalStatus(EventStatus.Listed, false);
+    expect(listedResult.error).toBe('Only admins can create unlisted or listed events directly.');
+    expect(listedResult.status).toBe(EventStatus.Proposed);
+  });
+
+  it('allows Unlisted, Listed, and other valid statuses for admins', () => {
+    expect(validateProposalStatus(EventStatus.Unlisted, true)).toEqual({ status: EventStatus.Unlisted });
+    expect(validateProposalStatus(EventStatus.Listed, true)).toEqual({ status: EventStatus.Listed });
+    expect(validateProposalStatus(EventStatus.Cancelled, true)).toEqual({ status: EventStatus.Cancelled });
+  });
+});
 
 describe('validateProposal', () => {
   const validMember: Member = {

@@ -11,11 +11,10 @@ import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { collection, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
-import { FIREBASE_APP } from '../../app.config';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product } from '../../../../functions/src/data-model';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
+import { ProductService } from '../../product.service';
 import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
 
 @Component({
@@ -28,17 +27,76 @@ import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
 export class EventViewComponent implements OnInit {
   routingService = inject(RoutingService<AppPathPatterns>);
   firebaseState = inject(FirebaseStateService);
-  private firebaseApp = inject(FIREBASE_APP);
-  private db = getFirestore(this.firebaseApp);
   private dataService = inject(DataManagerService);
+  protected productService = inject(ProductService);
 
   eventId = input.required<string>();
   titleLoaded = output<string>();
 
   event = signal<IlcEvent | null>(null);
+  product = signal<Product | null>(null);
+  registration = signal<EventRegistration | null>(null);
+  registrationCount = signal<number>(0);
   isLoading = signal(true);
   errorMessage = signal<string | null>(null);
   imageLoaded = signal(false);
+
+  hasPaidRegistration = computed(() => !!this.registration());
+
+  productEditUrl = computed(() => {
+    const pId = this.event()?.productId;
+    if (!pId) return null;
+    return this.routingService.hrefForView(Views.ManageProductEdit, { productId: pId });
+  });
+
+  getProductPriceRange(product: Product): string {
+    const enabledTiers = Object.values(product.tiers || {}).filter((t) => t.enabled && t.price > 0);
+    if (enabledTiers.length === 0) return 'Free / Custom';
+    const prices = enabledTiers.map((t) => t.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const currency = (product.currency || 'usd').toUpperCase();
+    if (min === max) {
+      return `${min.toFixed(2)} ${currency}`;
+    }
+    return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
+  }
+
+  canAccessOnline = computed(() => {
+    if (this.canEdit()) return true;
+    const reg = this.registration();
+    return reg ? reg.attendance === 'online' : false;
+  });
+
+  canAccessVideo = computed(() => {
+    if (this.canEdit()) return true;
+    const reg = this.registration();
+    return reg ? reg.hasVideoAccess : false;
+  });
+
+  registrationsUrl = computed(() => {
+    return this.routingService.hrefForView(Views.EventRegistrations, { eventId: this.eventId() });
+  });
+
+  registerUrl = computed(() => {
+    const pId = this.event()?.productId;
+    if (!pId) return null;
+    return this.routingService.hrefForView(Views.ProductView, { productId: pId });
+  });
+
+  effectiveOnlineJoiningLink = computed(() => {
+    return this.event()?.onlineJoiningLink || this.product()?.onlineJoiningLink || '';
+  });
+
+  videoWatchUrl = computed(() => {
+    const ev = this.event();
+    const prod = this.product();
+    const vid = ev?.recordedVideoId || prod?.recordedVideoId;
+    if (vid) {
+      return this.routingService.hrefForView(Views.VideoView, { videoId: vid });
+    }
+    return ev?.recordedVideoUrl || prod?.recordedVideoUrl || null;
+  });
 
   dateDisplay = computed(() => {
     const ev = this.event();
@@ -63,10 +121,6 @@ export class EventViewComponent implements OnInit {
     return `/instructors/${encodeURIComponent(id)}`;
   });
 
-
-  // The contacts listed publicly for this event. Falls back to the creator when
-  // none is listed, and is empty when the event has no creator either (the
-  // template then shows only the leading instructor).
   contacts = computed(() => {
     const ev = this.event();
     return ev ? eventContacts(ev) : [];
@@ -76,19 +130,47 @@ export class EventViewComponent implements OnInit {
     return instructorId ? `/instructors/${encodeURIComponent(instructorId)}` : '';
   }
 
-  isOwner = computed(() => {
+  userEmails = computed(() => {
     const user = this.firebaseState.user();
+    if (!user) return [];
+    const emails = [user.firebaseUser?.email, ...(user.member?.emails || [])];
+    return emails.filter(Boolean).map((e) => (e as string).toLowerCase().trim());
+  });
+
+  userMemberDocId = computed(() => this.firebaseState.user()?.member?.docId || '');
+
+  isOwner = computed(() => {
     const ev = this.event();
-    return !!(user && ev && user.member.docId === ev.ownerDocId);
+    const docId = this.userMemberDocId();
+    const emails = this.userEmails();
+    if (!ev) return false;
+    if (docId && ev.ownerDocId === docId) return true;
+    if (ev.ownerEmails?.some((e) => emails.includes(e.toLowerCase().trim()))) return true;
+    return false;
+  });
+
+  isManager = computed(() => {
+    const ev = this.event();
+    const docId = this.userMemberDocId();
+    const emails = this.userEmails();
+    if (!ev) return false;
+    if (docId && ev.managerDocIds?.includes(docId)) return true;
+    if (ev.managerEmails?.some((e) => emails.includes(e.toLowerCase().trim()))) return true;
+    return false;
   });
 
   isAdmin = computed(() => this.firebaseState.user()?.isAdmin || false);
 
-  // Status chip — only visible for non-listed (or missing) statuses.
+  canManage = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
+  canEdit = computed(() => this.isAdmin() || this.isOwner() || this.isManager());
+
+  isDraftRestricted = computed(() => {
+    const ev = this.event();
+    return ev?.status === EventStatus.Draft && !this.canManage();
+  });
+
   statusLabel = computed(() => eventStatusLabel(this.event()?.status));
   statusClass = computed(() => 'event-status-chip status-' + (this.event()?.status || 'proposed'));
-
-  canEdit = computed(() => this.isOwner() || this.isAdmin());
 
   editUrl = computed(() => {
     const view = this.routingService.matchedPatternId();
@@ -116,6 +198,31 @@ export class EventViewComponent implements OnInit {
       if (event) {
         this.event.set(event);
         this.titleLoaded.emit(event.title);
+
+        const user = this.firebaseState.user();
+        const memberDocId = user?.member?.docId;
+        const email = user?.firebaseUser?.email || user?.member?.emails?.[0];
+
+        if (event.productId) {
+          try {
+            const prod = await this.productService.getProduct(event.productId);
+            this.product.set(prod || null);
+
+            const reg = await this.productService.getUserRegistrationForEvent(
+              eventId,
+              memberDocId,
+              email,
+            );
+            this.registration.set(reg || null);
+
+            if (this.canManage()) {
+              const allRegs = await this.productService.getEventRegistrations(eventId);
+              this.registrationCount.set(allRegs.length);
+            }
+          } catch (regErr) {
+            console.error('Error checking event registration / product:', regErr);
+          }
+        }
       } else {
         this.errorMessage.set('Event not found.');
       }

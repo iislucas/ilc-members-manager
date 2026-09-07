@@ -1,9 +1,9 @@
 <div class="order-list-container">
     <div class="input-group">
-      <div class="search-mode-toggle">
-        <button [class.active]="searchMode() === SearchMode.Recent" (click)="setSearchMode(SearchMode.Recent)">Recently Updated</button>
-        <button [class.active]="searchMode() === SearchMode.Term" (click)="setSearchMode(SearchMode.Term)">Term</button>
-        <button [class.active]="searchMode() === SearchMode.Date" (click)="setSearchMode(SearchMode.Date)">Order Date</button>
+      <div class="pill-tabs search-mode-tabs">
+        <button class="pill-tab" data-label="Recently Updated" [class.active]="searchMode() === SearchMode.Recent" (click)="setSearchMode(SearchMode.Recent)">Recently Updated</button>
+        <button class="pill-tab" data-label="Term" [class.active]="searchMode() === SearchMode.Term" (click)="setSearchMode(SearchMode.Term)">Term</button>
+        <button class="pill-tab" data-label="Order Date" [class.active]="searchMode() === SearchMode.Date" (click)="setSearchMode(SearchMode.Date)">Order Date</button>
       </div>
 
       <div class="sort-controls">

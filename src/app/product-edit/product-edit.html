@@ -1,0 +1,405 @@
+<div class="product-edit-container" [class.embedded]="embedded()">
+  @if (isLoading()) {
+    <app-spinner>Loading product editor...</app-spinner>
+  } @else {
+    @if (!embedded() && !isNew()) {
+      <div class="page-top-actions">
+        <a class="subtle-button"
+           [href]="routingService.hrefForView(Views.ProductView, { productId: productModel().docId })"
+           target="_blank">
+          <app-icon name="visibility"></app-icon>
+          <span>View Public Page</span>
+        </a>
+      </div>
+    }
+
+    @if (errorMessage(); as msg) {
+      <div class="error-banner">
+        <app-icon name="error"></app-icon>
+        <span>{{ msg }}</span>
+      </div>
+    }
+
+    <div class="product-form">
+      <!-- 1. Basic Info Card -->
+      <div class="form-card">
+        <h2>General Information</h2>
+
+        <div class="form-grid">
+          <div class="form-field full-width">
+            <label for="productTitle">Product Title *</label>
+            <input
+              id="productTitle"
+              type="text"
+              placeholder="e.g. 2-Day Zhong Xin Dao Intensive Workshop"
+              [value]="productModel().title"
+              (input)="productModel().title = $any($event.target).value"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="currency">Currency</label>
+            <select
+              id="currency"
+              [value]="productModel().currency || 'usd'"
+              (change)="productModel().currency = $any($event.target).value"
+            >
+              <option value="usd">USD ($)</option>
+              <option value="eur">EUR (€)</option>
+              <option value="gbp">GBP (£)</option>
+              <option value="aud">AUD ($)</option>
+              <option value="cad">CAD ($)</option>
+            </select>
+          </div>
+
+          @if (!embedded()) {
+            <div class="form-field full-width">
+              <label>Associated Calendar Event</label>
+              @if (linkedEvent(); as ev) {
+                <div class="linked-event-chip">
+                  <app-icon name="calendar_today"></app-icon>
+                  <span class="linked-event-title"><strong>{{ ev.start.substring(0, 10) }}</strong> — {{ ev.title }}</span>
+                  <a [href]="routingService.hrefForView(Views.EventView, { eventId: ev.docId })" target="_blank" class="subtle-button" title="View Event Page">
+                    <app-icon name="launch"></app-icon>
+                  </a>
+                  <button type="button" class="icon-only-button delete-button" (click)="clearLinkedEvent()" title="Unlink Event">
+                    <app-icon name="close"></app-icon>
+                  </button>
+                </div>
+              } @else {
+                <div class="event-autocomplete-row">
+                  <app-autocomplete
+                    [searchableSet]="eventsSearchableSet"
+                    [displayFns]="eventDisplayFns"
+                    [inputBoxIsChip]="false"
+                    placeholder="Search calendar events by title, date, or location..."
+                    (itemSelected)="onEventSelected($event)"
+                  ></app-autocomplete>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="form-field full-width">
+            <label>Description & Overview</label>
+            <div class="description-editor-container">
+              <app-markdown-editor
+                [initialValue]="productModel().descriptionMarkdown || productModel().description || ''"
+                (changed)="onMarkdownChange($event)"
+              ></app-markdown-editor>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Participation & Eligibility -->
+      <div class="form-card">
+        <h2>Forms of Participation & Eligibility</h2>
+
+        <div class="toggle-columns">
+          <div class="toggle-group">
+            <h3>Forms of Participation</h3>
+            <label class="toggle-item">
+              <input
+                type="checkbox"
+                [checked]="productModel().allowInPerson"
+                (change)="toggleAttendanceMode('in_person')"
+              />
+              <span>Allow In-Person Attendance</span>
+            </label>
+            <label class="toggle-item">
+              <input
+                type="checkbox"
+                [checked]="productModel().allowOnline"
+                (change)="toggleAttendanceMode('online')"
+              />
+              <span>Allow Online Attendance (Zoom)</span>
+            </label>
+            <label class="toggle-item">
+              <input
+                type="checkbox"
+                [checked]="productModel().allowVideo"
+                (change)="toggleAttendanceMode('video')"
+              />
+              <span>Offer Class Video Recording (Add-on)</span>
+            </label>
+          </div>
+
+          <div class="toggle-group">
+            <h3>Who can register?</h3>
+            <div class="radio-options-list">
+              <label class="radio-option-item">
+                <input
+                  type="radio"
+                  name="registrationAudience"
+                  value="anyone"
+                  [checked]="registrationAudience() === 'anyone'"
+                  (change)="setRegistrationAudience('anyone')"
+                />
+                <div>
+                  <strong>Anyone</strong>
+                  <span class="option-desc">Open to the general public, members, and instructors</span>
+                </div>
+              </label>
+
+              <label class="radio-option-item">
+                <input
+                  type="radio"
+                  name="registrationAudience"
+                  value="members"
+                  [checked]="registrationAudience() === 'members'"
+                  (change)="setRegistrationAudience('members')"
+                />
+                <div>
+                  <strong>Members</strong>
+                  <span class="option-desc">ILC Members and Certified Instructors</span>
+                </div>
+              </label>
+
+              <label class="radio-option-item">
+                <input
+                  type="radio"
+                  name="registrationAudience"
+                  value="instructors"
+                  [checked]="registrationAudience() === 'instructors'"
+                  (change)="setRegistrationAudience('instructors')"
+                />
+                <div>
+                  <strong>Instructors</strong>
+                  <span class="option-desc">Certified Instructors only</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        @if (productModel().allowOnline || productModel().allowVideo) {
+          <div class="delivery-resources-grid">
+            @if (productModel().allowOnline) {
+              <div class="form-field full-width">
+                <label for="productOnlineLink">Online Joining Link (Zoom / Meet)</label>
+                <input
+                  id="productOnlineLink"
+                  type="url"
+                  placeholder="https://zoom.us/j/..."
+                  [value]="productModel().onlineJoiningLink || ''"
+                  (input)="productModel().onlineJoiningLink = $any($event.target).value"
+                />
+                <span class="field-hint">Meeting URL only revealed to registered online attendees and event managers.</span>
+              </div>
+            }
+
+            @if (productModel().allowVideo) {
+              <div class="form-field full-width">
+                <label>Video Recording for Attendees</label>
+                <div class="video-inputs-row">
+                  <input
+                    type="text"
+                    placeholder="VOD Video ID (optional)"
+                    [value]="productModel().recordedVideoId || ''"
+                    (input)="productModel().recordedVideoId = $any($event.target).value"
+                  />
+                  <input
+                    type="url"
+                    placeholder="or external Video URL (optional)"
+                    [value]="productModel().recordedVideoUrl || ''"
+                    (input)="productModel().recordedVideoUrl = $any($event.target).value"
+                  />
+                </div>
+                <span class="field-hint">Attendees registered with video access will automatically be granted access when provided.</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- 3. Pricing Matrix Table -->
+      <div class="form-card matrix-card">
+        <div class="matrix-card-header">
+          <div>
+            <h2>Pricing Matrix</h2>
+            <p class="section-help">
+              Specify pricing in {{ productModel().currency.toUpperCase() }}. By default a single standard price is set for all attendees.
+            </p>
+          </div>
+          <div class="matrix-special-actions">
+            @if (registrationAudience() === 'anyone' && !hasMemberPrice()) {
+              <button type="button" class="subtle-button" (click)="addMemberPrice()">
+                <app-icon name="add"></app-icon>
+                <span>Add special price for members</span>
+              </button>
+            }
+            @if (registrationAudience() !== 'instructors' && !hasInstructorPrice()) {
+              <button type="button" class="subtle-button" (click)="addInstructorPrice()">
+                <app-icon name="add"></app-icon>
+                <span>Add special price for instructors</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="matrix-table-wrapper">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th class="role-th">Attendance Option</th>
+                <th class="price-col-th">{{ standardRoleLabel() }}</th>
+                @if (hasMemberPrice() && registrationAudience() === 'anyone') {
+                  <th class="price-col-th">
+                    <div class="th-special-header">
+                      <span>Member Price</span>
+                      <button
+                        type="button"
+                        class="icon-only-button delete-button"
+                        (click)="removeMemberPrice()"
+                        title="Remove special price for members"
+                      >
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                  </th>
+                }
+                @if (hasInstructorPrice() && registrationAudience() !== 'instructors') {
+                  <th class="price-col-th">
+                    <div class="th-special-header">
+                      <span>Instructor Price</span>
+                      <button
+                        type="button"
+                        class="icon-only-button delete-button"
+                        (click)="removeInstructorPrice()"
+                        title="Remove special price for instructors"
+                      >
+                        <app-icon name="close"></app-icon>
+                      </button>
+                    </div>
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows(); track row.attendance + '_' + row.includeVideo) {
+                @let stdTier = getTier(standardRole(), row.attendance, row.includeVideo);
+                <tr>
+                  <td class="role-td">
+                    <strong>{{ row.getLabel(productModel()) }}</strong>
+                  </td>
+
+                  <!-- Standard Price -->
+                  <td class="cell-td" [class.disabled-cell]="!stdTier.enabled">
+                    <div class="cell-content">
+                      <label class="cell-enable-label" title="Enable this pricing option">
+                        <input
+                          type="checkbox"
+                          [checked]="stdTier.enabled"
+                          (change)="setTierEnabled(standardRole(), row.attendance, row.includeVideo, $any($event.target).checked)"
+                        />
+                        <span>Offered</span>
+                      </label>
+                      <div class="price-input-box">
+                        <span class="currency-symbol">{{ currencySymbol() }}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          [disabled]="!stdTier.enabled"
+                          [value]="stdTier.price || ''"
+                          (input)="setTierPrice(standardRole(), row.attendance, row.includeVideo, $any($event.target).value)"
+                        />
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Member Special Price -->
+                  @if (hasMemberPrice() && registrationAudience() === 'anyone') {
+                    @let memTier = getTier('member', row.attendance, row.includeVideo);
+                    <td class="cell-td" [class.disabled-cell]="!memTier.enabled">
+                      <div class="cell-content">
+                        <label class="cell-enable-label" title="Enable this pricing option">
+                          <input
+                            type="checkbox"
+                            [checked]="memTier.enabled"
+                            (change)="setTierEnabled('member', row.attendance, row.includeVideo, $any($event.target).checked)"
+                          />
+                          <span>Offered</span>
+                        </label>
+                        <div class="price-input-box">
+                          <span class="currency-symbol">{{ currencySymbol() }}</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            [disabled]="!memTier.enabled"
+                            [value]="memTier.price || ''"
+                            (input)="setTierPrice('member', row.attendance, row.includeVideo, $any($event.target).value)"
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  }
+
+                  <!-- Instructor Special Price -->
+                  @if (hasInstructorPrice() && registrationAudience() !== 'instructors') {
+                    @let instTier = getTier('instructor', row.attendance, row.includeVideo);
+                    <td class="cell-td" [class.disabled-cell]="!instTier.enabled">
+                      <div class="cell-content">
+                        <label class="cell-enable-label" title="Enable this pricing option">
+                          <input
+                            type="checkbox"
+                            [checked]="instTier.enabled"
+                            (change)="setTierEnabled('instructor', row.attendance, row.includeVideo, $any($event.target).checked)"
+                          />
+                          <span>Offered</span>
+                        </label>
+                        <div class="price-input-box">
+                          <span class="currency-symbol">{{ currencySymbol() }}</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            [disabled]="!instTier.enabled"
+                            [value]="instTier.price || ''"
+                            (input)="setTierPrice('instructor', row.attendance, row.includeVideo, $any($event.target).value)"
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="form-actions">
+        @if (!isNew()) {
+          <button type="button" class="delete-button" [disabled]="isSaving()" (click)="deleteProduct()">
+            <app-icon name="delete"></app-icon>
+            <span>Delete Product</span>
+          </button>
+        }
+        <div class="save-group">
+          @if (embedded()) {
+            <button type="button" class="subtle-button" [disabled]="isSaving()" (click)="editCancelled.emit()">
+              <app-icon name="close"></app-icon>
+              <span>Cancel</span>
+            </button>
+          }
+          <button type="button" class="button" [disabled]="isSaving()" (click)="saveProduct()">
+            @if (isSaving()) {
+              <app-spinner></app-spinner>
+            } @else {
+              <app-icon name="save"></app-icon>
+            }
+            <span>{{ isNew() ? (embedded() ? 'Create Online Registration' : 'Create & Publish') : 'Save Changes' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

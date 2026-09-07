@@ -67,6 +67,7 @@ export class NavigationTreeService {
     const view = this.routing.matchedPatternId() as Views | null;
     if (view === Views.MembersArea) return Views.MembersAreaCategory;
     if (view === Views.InstructorsArea) return Views.InstructorsAreaCategory;
+    if (view === Views.Articles) return Views.ArticlesCategory;
     return view;
   });
 
@@ -208,6 +209,9 @@ export class NavigationTreeService {
       view === Views.InstructorsArea ||
       view === Views.InstructorsAreaCategory ||
       view === Views.InstructorsAreaPost ||
+      view === Views.Articles ||
+      view === Views.ArticlesCategory ||
+      view === Views.ArticlesPost ||
       view === Views.ClassVideoLibrary ||
       view === Views.Videos ||
       view === Views.VideoView
@@ -279,6 +283,9 @@ export class NavigationTreeService {
       view === Views.ManageEvents ||
       view === Views.ManageEventView ||
       view === Views.ManageEventEdit ||
+      view === Views.ManageProducts ||
+      view === Views.ManageProductNew ||
+      view === Views.ManageProductEdit ||
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVideoTags ||
@@ -354,6 +361,24 @@ export class NavigationTreeService {
         ];
       }
 
+      case Views.EventRegistrations: {
+        const eventId = this.routing.signals[Views.EventRegistrations].pathVars.eventId();
+        return [
+          this.node(Views.EventsCalendar, 'Events & Workshops'),
+          this.node(Views.EventView, this.loadedEventTitle() || 'Event Details', { eventId }),
+        ];
+      }
+
+      case Views.ProductView:
+        return [this.node(Views.EventsCalendar, 'Events & Workshops')];
+
+      case Views.ManageProducts:
+        return [];
+
+      case Views.ManageProductNew:
+      case Views.ManageProductEdit:
+        return [this.node(Views.ManageProducts, 'Products')];
+
       // --- Members, students and schools ---
       case Views.ManageMemberView:
         return this.memberListChain(
@@ -419,6 +444,10 @@ export class NavigationTreeService {
       case Views.InstructorsAreaPost:
         return [
           { label: 'Instructors Area', url: this.routing.hrefWithParams('/instructors-area') },
+        ];
+      case Views.ArticlesPost:
+        return [
+          { label: 'Articles & Guides', url: this.routing.hrefWithParams('/articles') },
         ];
       case Views.NotificationSettings:
         return [this.node(Views.Settings, 'Settings')];
@@ -630,6 +659,9 @@ export class NavigationTreeService {
       case Views.InstructorsArea:
       case Views.InstructorsAreaCategory:
         return 'Instructors Area';
+      case Views.Articles:
+      case Views.ArticlesCategory:
+        return 'Articles & Guides';
       case Views.ManageGradings:
         return 'Gradings';
       case Views.MemberGradings: {
@@ -675,6 +707,7 @@ export class NavigationTreeService {
         return this.loadedOrderTitle() || 'Order Details';
       case Views.MembersAreaPost:
       case Views.InstructorsAreaPost:
+      case Views.ArticlesPost:
         return 'Article';
       case Views.DownloadResource:
         return 'Download Resource';
@@ -690,6 +723,16 @@ export class NavigationTreeService {
         return 'School License';
       case Views.ClassVideoLibraryPurchase:
         return 'Class Video Library Subscription';
+      case Views.ProductView:
+        return 'Product Details';
+      case Views.ManageProducts:
+        return 'Products';
+      case Views.ManageProductNew:
+        return 'New Product';
+      case Views.ManageProductEdit:
+        return 'Edit Product';
+      case Views.EventRegistrations:
+        return 'Event Registrations';
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:

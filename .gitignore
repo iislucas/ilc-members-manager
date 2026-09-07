@@ -71,3 +71,6 @@ mini-tools/vod-grants-analyzer/__pycache__/
 # with their own node_modules), so committing one would drag a copy of the repo
 # into the repo.
 .claude/worktrees/
+
+# Migration scripts
+scripts/wordpress-migration/

@@ -12,7 +12,7 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind } from './data-model';
+import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind, EventRegistration, VideoGrant, VideoGrantKind } from './data-model';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';
@@ -178,10 +178,55 @@ export function validateProposal(member: Member, data: Record<string, unknown>):
   return null;
 }
 
-// Submit a new event proposal — writes directly to /events with status='proposed'.
+/**
+ * Validates the requested initial status for an event proposal.
+ * - Non-admins may only create 'proposed' or 'draft' events.
+ * - Only admins can directly create 'unlisted', 'listed', or other statuses.
+ */
+export function validateProposalStatus(
+  requestedStatus: EventStatus | undefined,
+  isAdmin: boolean,
+): { status: EventStatus; error?: string } {
+  if (!requestedStatus || requestedStatus === EventStatus.Proposed) {
+    return { status: EventStatus.Proposed };
+  }
+  if (requestedStatus === EventStatus.Draft) {
+    return { status: EventStatus.Draft };
+  }
+  if (!isAdmin) {
+    return {
+      status: EventStatus.Proposed,
+      error: 'Only admins can create unlisted or listed events directly.',
+    };
+  }
+  if (Object.values(EventStatus).includes(requestedStatus)) {
+    return { status: requestedStatus };
+  }
+  return { status: EventStatus.Proposed };
+}
+
+// Submit a new event proposal — writes directly to /events.
 export const submitProposedEvent = onCall(
   { cors: allowedOrigins },
-  async (request: CallableRequest<{ title: string; start: string; end: string; description?: string; location?: string; leadingInstructorId?: string; ownerDocId?: string; managerDocIds?: string[]; contactDocIds?: string[]; ownerContactName?: string; ownerContactEmail?: string; ownerContactUrl?: string }>) => {
+  async (request: CallableRequest<{
+    title: string;
+    start: string;
+    end: string;
+    description?: string;
+    location?: string;
+    status?: EventStatus;
+    leadingInstructorId?: string;
+    ownerDocId?: string;
+    managerDocIds?: string[];
+    contactDocIds?: string[];
+    ownerContactName?: string;
+    ownerContactEmail?: string;
+    ownerContactUrl?: string;
+    productId?: string;
+    onlineJoiningLink?: string;
+    recordedVideoId?: string;
+    recordedVideoUrl?: string;
+  }>) => {
     if (!request.auth || !request.auth.token.email) {
       throw new HttpsError('unauthenticated', 'Must be authenticated to propose events.');
     }
@@ -194,19 +239,26 @@ export const submitProposedEvent = onCall(
       throw new HttpsError('permission-denied', error);
     }
 
-    // Check limit of 3 proposed events. Counted via managerEmails (the submitter
-    // is always a manager) so the limit still applies when the submitter hands
-    // ownership of the event to someone else.
-    const proposedEventsQuery = await db.collection('events')
-      .where('managerEmails', 'array-contains', request.auth.token.email)
-      .where('status', '==', EventStatus.Proposed)
-      .get();
-
-    if (proposedEventsQuery.size >= 3) {
-      throw new HttpsError('permission-denied', 'You have already reached the limit of 3 proposed events.');
-    }
-
     const data = request.data;
+    const statusValidation = validateProposalStatus(data.status, !!member.isAdmin);
+    if (statusValidation.error) {
+      throw new HttpsError('permission-denied', statusValidation.error);
+    }
+    const finalStatus = statusValidation.status;
+
+    // Check limit of 3 proposed events only if submitting a proposed event.
+    // Counted via managerEmails (the submitter is always a manager) so the limit
+    // still applies when the submitter hands ownership of the event to someone else.
+    if (finalStatus === EventStatus.Proposed) {
+      const proposedEventsQuery = await db.collection('events')
+        .where('managerEmails', 'array-contains', request.auth.token.email)
+        .where('status', '==', EventStatus.Proposed)
+        .get();
+
+      if (proposedEventsQuery.size >= 3) {
+        throw new HttpsError('permission-denied', 'You have already reached the limit of 3 proposed events.');
+      }
+    }
 
     // Owner defaults to the submitter. The creator automatically has manager
     // access and does not need to be in managerDocIds.
@@ -265,7 +317,7 @@ export const submitProposedEvent = onCall(
       end: data.end,
       description: data.description || '',
       location: data.location || '',
-      status: EventStatus.Proposed,
+      status: finalStatus,
       createdAt: new Date().toISOString(),
       ownerDocId,
       managerDocIds,
@@ -276,25 +328,44 @@ export const submitProposedEvent = onCall(
       ownerContactUrl,
       contacts,
       leadingInstructorId: data.leadingInstructorId || '',
+      productId: data.productId || '',
+      onlineJoiningLink: data.onlineJoiningLink || '',
+      recordedVideoId: data.recordedVideoId || '',
+      recordedVideoUrl: data.recordedVideoUrl || '',
     };
 
     const docRef = await db.collection('events').add(event);
-    logger.info(`Event proposal submitted by ${member.memberId} with docId ${docRef.id}`);
+    logger.info(`Event ${finalStatus} created by ${member.memberId} with docId ${docRef.id}`);
+
+    // If an online registration product was configured, link it to the newly created event
+    if (data.productId) {
+      try {
+        await db.collection('products').doc(data.productId).update({
+          eventDocId: docRef.id,
+          lastUpdated: new Date().toISOString(),
+        });
+      } catch (prodErr) {
+        logger.warn(`Failed to link product ${data.productId} to event ${docRef.id}:`, prodErr);
+      }
+    }
 
     // Notify the whole organising team (owner + managers + leading instructor)
-    // that a listing request has been submitted.
-    const submitterName = member.name || member.memberId || 'A member';
-    const organiserDocIds = await eventOrganiserDocIds(
-      db, ownerDocId, managerDocIds, event.leadingInstructorId,
-    );
-    for (const docId of organiserDocIds) {
-      await createMemberNotification(db, docId, {
-        markdown: `${submitterName} has submitted an event listing request for [${event.title}](/my-events/${docRef.id}).`,
-        createdAt: new Date().toISOString(),
-        dismissed: false,
-        kind: NotificationKind.EventProposalSubmitted,
-        data: { eventDocId: docRef.id, title: event.title, submitterName },
-      });
+    // ONLY when a proposal is submitted. Drafts, unlisted, and listed events do
+    // NOT create proposal notifications.
+    if (finalStatus === EventStatus.Proposed) {
+      const submitterName = member.name || member.memberId || 'A member';
+      const organiserDocIds = await eventOrganiserDocIds(
+        db, ownerDocId, managerDocIds, event.leadingInstructorId,
+      );
+      for (const docId of organiserDocIds) {
+        await createMemberNotification(db, docId, {
+          markdown: `${submitterName} has submitted an event listing request for [${event.title}](/my-events/${docRef.id}).`,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          kind: NotificationKind.EventProposalSubmitted,
+          data: { eventDocId: docRef.id, title: event.title, submitterName },
+        });
+      }
     }
 
     return { success: true, docId: docRef.id };
@@ -423,6 +494,120 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         dismissed: false,
         kind: NotificationKind.NewEventPosted,
         data: { eventId: event.params.docId, title },
+      });
+    }
+  }
+
+  // Check if video recording became available
+  const hadVideoBefore = Boolean(before.recordedVideoId || before.recordedVideoUrl);
+  const hasVideoNow = Boolean(after.recordedVideoId || after.recordedVideoUrl);
+
+  if (!hadVideoBefore && hasVideoNow) {
+    logger.info('Event video recording became available; provisioning grants and notifications', {
+      eventId: event.params.docId,
+      recordedVideoId: after.recordedVideoId,
+      recordedVideoUrl: after.recordedVideoUrl,
+    });
+
+    try {
+      const regSnap = await db
+        .collection('events')
+        .doc(event.params.docId)
+        .collection('registrations')
+        .where('hasVideoAccess', '==', true)
+        .get();
+
+      for (const regDoc of regSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+
+        if (after.recordedVideoId) {
+          const grant: VideoGrant = {
+            docId: after.recordedVideoId,
+            videoId: after.recordedVideoId,
+            memberDocId,
+            memberEmail: reg.email,
+            grantKind: VideoGrantKind.StripePurchase,
+            orderDocId: reg.orderDocId,
+            stripeSessionId: reg.stripeSessionId,
+            amountPaidCents: reg.amountPaidCents,
+            grantedAt: new Date().toISOString(),
+          };
+          await db
+            .collection('members')
+            .doc(memberDocId)
+            .collection('videoGrants')
+            .doc(after.recordedVideoId)
+            .set(grant);
+          await db
+            .collection('video_grants')
+            .doc(`${memberDocId}_${after.recordedVideoId}`)
+            .set(grant);
+        }
+
+        const watchLink = after.recordedVideoId
+          ? `/videos/${encodeURIComponent(after.recordedVideoId)}`
+          : (after.recordedVideoUrl || `/events/${encodeURIComponent(event.params.docId)}`);
+        const eventTitle = after.title || 'Event';
+        const message = `The video recording for **[${eventTitle}](/events/${event.params.docId})** is now ready! You can [watch it now](${watchLink}).`;
+
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventVideoAvailable,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            videoId: after.recordedVideoId || '',
+            videoUrl: after.recordedVideoUrl || '',
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify attendees of new event video recording', {
+        err,
+        eventId: event.params.docId,
+      });
+    }
+  }
+
+  // Check if online joining link was newly added
+  if (!before.onlineJoiningLink && after.onlineJoiningLink) {
+    logger.info('Online joining link added for event; notifying online attendees', {
+      eventId: event.params.docId,
+      link: after.onlineJoiningLink,
+    });
+
+    try {
+      const onlineRegSnap = await db
+        .collection('events')
+        .doc(event.params.docId)
+        .collection('registrations')
+        .where('attendance', '==', 'online')
+        .get();
+
+      for (const regDoc of onlineRegSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+        const eventTitle = after.title || 'Event';
+        const message = `The online joining link for **[${eventTitle}](/events/${event.params.docId})** is now available: [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventRegistrationConfirmed,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            onlineJoiningLink: after.onlineJoiningLink,
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify online attendees of joining link', {
+        err,
+        eventId: event.params.docId,
       });
     }
   }

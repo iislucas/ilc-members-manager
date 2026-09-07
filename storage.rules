@@ -147,7 +147,7 @@ service firebase.storage {
 
     // Resources are organised into subdirectories by access level.
     // Write access (upload/delete) is always admin-only.
-    match /resources/public/{fileId} {
+    match /resources/public/{fileId=**} {
       allow read: if true;
       allow write: if isAdmin();
     }

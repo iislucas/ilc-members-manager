@@ -36,19 +36,22 @@
             <article class="blog-card">
                 @if (entry.assetUrl) {
                 <div class="blog-image">
-                    <img [src]="entry.assetUrl" [alt]="entry.title">
+                    <img [src]="entry.assetUrl" [alt]="entry.title" (error)="onImageError($event)">
                 </div>
                 }
                 
                 <div class="blog-content">
                     <div class="blog-header-meta">
-                        @if (entry.categories && entry.categories.length) {
                         <div class="blog-categories">
-                            @for (cat of entry.categories; track cat) {
-                            <span class="category-tag">{{ cat }}</span>
+                            @if (entry.categories && entry.categories.length) {
+                                @for (cat of entry.categories; track cat) {
+                                <span class="category-tag">{{ cat }}</span>
+                                }
+                            }
+                            @if (entry.isDraft) {
+                            <span class="category-tag draft-badge" style="background: #e65100; color: #ffffff;">Draft</span>
                             }
                         </div>
-                        }
                         <span class="blog-date">Posted: {{ (entry.publishOn || entry.addedOn) | date:'longDate' }}</span>
                     </div>
 

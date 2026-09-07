@@ -22,6 +22,7 @@ export class InstructorSelectorComponent {
   disabled = input<boolean>(false);
   name = input<string>('');
   showNoneSelected = input<boolean>(true);
+  notFoundMessage = input<string>('This instructor does not have a public profile.');
 
   instructorDisplayFns = {
     toChipId: (i: InstructorPublicData) => i.instructorId,

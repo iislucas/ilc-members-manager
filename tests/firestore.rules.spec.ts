@@ -693,6 +693,32 @@ describe('Firestore Rules', () => {
         .firestore();
       await assertFails(db.collection('instructors-post').doc('post1').get());
     });
+
+    it('should allow unauthenticated users to read articles posts', async () => {
+      const db = testEnv.unauthenticatedContext().firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').get());
+    });
+
+    it('should allow authenticated users to read articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').get());
+    });
+
+    it('should deny non-admin from writing to articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('member1', { email: 'member1@ilc.com' })
+        .firestore();
+      await assertFails(db.collection('articles-post').doc('article1').set({ title: 'Test' }));
+    });
+
+    it('should allow admin to write to articles posts', async () => {
+      const db = testEnv
+        .authenticatedContext('admin', { email: 'admin@ilc.com' })
+        .firestore();
+      await assertSucceeds(db.collection('articles-post').doc('article1').set({ title: 'Test' }));
+    });
   });
 
   describe('Gradings Collection', () => {
@@ -1719,6 +1745,77 @@ describe('Firestore Rules', () => {
 
       await assertFails(otherRef.get());
       await assertFails(otherRef.set({ lastPositionSeconds: 0 }));
+    });
+  });
+
+  describe('Products and Event Registrations Rules', () => {
+    it('should allow anyone to read products, but only admin to write', async () => {
+      const adminDb = testEnv.authenticatedContext('admin', { email: 'admin@ilc.com' }).firestore();
+      const studentDb = testEnv.authenticatedContext('student1', { email: 'student1@ilc.com' }).firestore();
+      const unauthDb = testEnv.unauthenticatedContext().firestore();
+
+      // Admin write succeeds
+      await assertSucceeds(
+        adminDb.collection('products').doc('prod-1').set({ title: 'Workshop 101' }),
+      );
+
+      // Student and unauth read succeed
+      await assertSucceeds(studentDb.collection('products').doc('prod-1').get());
+      await assertSucceeds(unauthDb.collection('products').doc('prod-1').get());
+
+      // Student write fails
+      await assertFails(
+        studentDb.collection('products').doc('prod-1').update({ title: 'Hacked' }),
+      );
+    });
+
+    it('should allow event owner, manager, and attendee to read registrations', async () => {
+      const adminDb = testEnv.authenticatedContext('admin', { email: 'admin@ilc.com' }).firestore();
+      const ownerDb = testEnv.authenticatedContext('owner', { email: 'instructor1@ilc.com' }).firestore();
+      const managerDb = testEnv.authenticatedContext('manager', { email: 'instructor2@ilc.com' }).firestore();
+      const attendeeDb = testEnv.authenticatedContext('attendee', { email: 'student1@ilc.com' }).firestore();
+      const otherDb = testEnv.authenticatedContext('stranger', { email: 'student2@ilc.com' }).firestore();
+
+      // Seed event with ownerDocId: FirestoreDocID-instructor1, managerDocIds: [FirestoreDocID-instructor2]
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection('events').doc('ev-1').set({
+          title: 'Special Workshop',
+          ownerDocId: 'FirestoreDocID-instructor1',
+          managerDocIds: ['FirestoreDocID-instructor2'],
+          status: 'listed',
+        });
+        await context.firestore().collection('events').doc('ev-1').collection('registrations').doc('reg-1').set({
+          memberDocId: 'FirestoreDocID-student1',
+          email: 'student1@ilc.com',
+          name: 'Student One',
+          amountPaidCents: 5000,
+        });
+      });
+
+      // Event owner can read registrations
+      await assertSucceeds(
+        ownerDb.collection('events').doc('ev-1').collection('registrations').doc('reg-1').get(),
+      );
+
+      // Event manager can read registrations
+      await assertSucceeds(
+        managerDb.collection('events').doc('ev-1').collection('registrations').doc('reg-1').get(),
+      );
+
+      // Admin can read registrations
+      await assertSucceeds(
+        adminDb.collection('events').doc('ev-1').collection('registrations').doc('reg-1').get(),
+      );
+
+      // Attendee can read their own registration
+      await assertSucceeds(
+        attendeeDb.collection('events').doc('ev-1').collection('registrations').doc('reg-1').get(),
+      );
+
+      // Stranger cannot read registration
+      await assertFails(
+        otherDb.collection('events').doc('ev-1').collection('registrations').doc('reg-1').get(),
+      );
     });
   });
 });

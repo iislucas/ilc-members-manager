@@ -29,6 +29,9 @@ export enum Views {
   InstructorsArea = 'instructorsArea',
   InstructorsAreaCategory = 'instructorsAreaCategory',
   InstructorsAreaPost = 'instructorsAreaPost',
+  Articles = 'articles',
+  ArticlesCategory = 'articlesCategory',
+  ArticlesPost = 'articlesPost',
   InstructorStudents = 'instructorStudents',
   InstructorStudentView = 'instructorStudentView',
   Login = 'login',
@@ -81,6 +84,11 @@ export enum Views {
   InstructorLicensePurchase = 'instructorLicensePurchase',
   SchoolLicensePurchase = 'schoolLicensePurchase',
   ClassVideoLibraryPurchase = 'classVideoLibraryPurchase',
+  ProductView = 'productView',
+  ManageProducts = 'manageProducts',
+  ManageProductNew = 'manageProductNew',
+  ManageProductEdit = 'manageProductEdit',
+  EventRegistrations = 'eventRegistrations',
 }
 
 // Views that are accessible without login.
@@ -103,6 +111,10 @@ export const PUBLIC_VIEWS: ReadonlySet<Views> = new Set([
   Views.InstructorLicensePurchase,
   Views.SchoolLicensePurchase,
   Views.ClassVideoLibraryPurchase,
+  Views.ProductView,
+  Views.Articles,
+  Views.ArticlesCategory,
+  Views.ArticlesPost,
 ]);
 
 export const memberListPathPatterns = {
@@ -165,6 +177,8 @@ export const initPathPatterns = {
   [Views.MembersAreaCategory]: pathPattern`members-area/category/${pv('category')}`,
   [Views.InstructorsArea]: addUrlParams(pathPattern`instructors-area`, ['category']),
   [Views.InstructorsAreaCategory]: pathPattern`instructors-area/category/${pv('category')}`,
+  [Views.Articles]: addUrlParams(pathPattern`articles`, ['category']),
+  [Views.ArticlesCategory]: pathPattern`articles/category/${pv('category')}`,
   [Views.ManageGradings]: addUrlParams(pathPattern`gradings`, [
     'tab',
     'event',
@@ -216,6 +230,7 @@ export const initPathPatterns = {
   [Views.OrderView]: pathPattern`order-view/${pv('orderId')}`,
   [Views.MembersAreaPost]: pathPattern`members-area/post/${pv('blogPostPath')}`,
   [Views.InstructorsAreaPost]: pathPattern`instructors-area/post/${pv('blogPostPath')}`,
+  [Views.ArticlesPost]: pathPattern`articles/post/${pv('blogPostPath')}`,
   [Views.NewMember]: addUrlParams(pathPattern`new-member`, [{ name: 'basePath', ephemeral: true }]),
   [Views.Statistics]: pathPattern`statistics`,
   [Views.EventsCalendar]: addUrlParams(pathPattern`events`, ['q', 'fromDate', 'schoolId', 'instructorId']),
@@ -274,6 +289,11 @@ export const initPathPatterns = {
   ]),
   [Views.ManageVodUpload]: pathPattern`manage-vod/upload`,
   [Views.ManageVideoTags]: pathPattern`manage-video-tags`,
+  [Views.ProductView]: pathPattern`products/${pv('productId')}`,
+  [Views.ManageProducts]: addUrlParams(pathPattern`manage-products`, ['q']),
+  [Views.ManageProductNew]: pathPattern`manage-products/new`,
+  [Views.ManageProductEdit]: pathPattern`manage-products/${pv('productId')}/edit`,
+  [Views.EventRegistrations]: addUrlParams(pathPattern`events/${pv('eventId')}/registrations`, ['q', 'filter']),
 };
 
 // Santiy check for type correctness...

@@ -166,3 +166,17 @@ export interface CreateCustomerPortalSessionResult {
   url: string;
 }
 
+export interface CreateProductCheckoutSessionRequest {
+  productId: string;
+  role: 'non_member' | 'member' | 'instructor';
+  attendance: 'in_person' | 'online' | 'video_only';
+  includeVideo: boolean;
+  origin: string;
+  attendeeDetails: {
+    name: string;
+    email: string;
+    phone?: string;
+    notes?: string;
+  };
+}
+

@@ -18,28 +18,8 @@
   flex-wrap: wrap;
   margin-bottom: 0.75em;
 
-  .search-mode-toggle {
-    display: flex;
-    border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
-    border-radius: 4px;
-    overflow: hidden;
-    flex-shrink: 0;
-
-    button {
-      padding: 0.4rem 0.75rem;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--mdc-theme-text-primary-on-background, #333);
-      white-space: nowrap;
-
-      &.active {
-        background: var(--mdc-theme-primary, #1976d2);
-        color: white;
-      }
-    }
+  .search-mode-tabs {
+    margin-bottom: 0;
   }
 
   input,
@@ -47,7 +27,7 @@
     flex: 1;
     min-width: 120px;
     padding: 0.4rem 0.75rem;
-    border: 1px solid var(--mdc-outlined-button-outline-color, #ccc);
+    border: 1px solid v.$border-color-light;
     border-radius: 4px;
     font-size: 0.85rem;
     background-color: white;
@@ -56,6 +36,17 @@
   .field-select {
     max-width: 250px;
     cursor: pointer;
+  }
+
+  .create-event-btn {
+    margin-left: auto;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.75rem;
+
+    app-icon {
+      font-size: 1.1rem;
+    }
   }
 
   .search-controls-row {
@@ -75,7 +66,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid v.$border-color-light;
   border-radius: 8px;
   background: white;
 

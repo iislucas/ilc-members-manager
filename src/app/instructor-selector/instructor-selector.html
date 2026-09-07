@@ -20,7 +20,7 @@
       </a>
     </div>
   } @else if (value() && !disabled()) {
-    <div class="selected-note error-message">Not Found</div>
+    <div class="selected-note error-message">{{ notFoundMessage() }}</div>
   } @else if (!value() && !disabled() && showNoneSelected()) {
     <div class="selected-note error-message">None selected</div>
   }

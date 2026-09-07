@@ -84,5 +84,8 @@ export interface FunctionsEnvironment {
     // shapes stay stable across Stripe SDK upgrades. The secret API key is not
     // here — it comes from the STRIPE_SECRET_KEY secret.
     apiVersion: string;
+    // Optional default Stripe Product ID used for HQ Event Registrations in Stripe Checkout
+    // if not explicitly configured on the individual Product document.
+    hqRegistrationForEventStripeProductId?: string;
   };
 }

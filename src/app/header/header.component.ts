@@ -73,6 +73,7 @@ export class HeaderComponent {
     if (view === Views.Home) return true;
     if (view === Views.MembersArea || view === Views.MembersAreaCategory) return true;
     if (view === Views.InstructorsArea || view === Views.InstructorsAreaCategory) return true;
+    if (view === Views.Articles || view === Views.ArticlesCategory) return true;
     if (view === Views.MemberGradings) {
       return !!this.firebaseService.user()?.member?.instructorId;
     }

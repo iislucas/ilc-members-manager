@@ -118,6 +118,8 @@ These are set globally — do not redefine heading colors in component SCSS:
 - `.app-container`: `display: flex; flex-direction: column; min-height: 100vh`
 - `main`: `max-width: $max-main-width` (900px), `margin: 0 auto`, `padding: 0 1em`, `flex-grow: 1`
 - **All page content is automatically width-constrained by `main`.** Do NOT add `max-width: $max-main-width` to individual component `:host` blocks or wrapper divs — it is redundant and inconsistent.
+- **No Back Buttons in Body**: Never include "Back" buttons or links (e.g. `← All Products`, `← Back to Events`) inside the body of a page. The app's top navigation bar and breadcrumbs tree handle view navigation.
+- **No Repeating Header Titles**: Never repeat the view title as an `<h1>` or large banner in the body (the navigation bar already displays the active page title). Only use subtitles or explanatory notes if they convey meaningful, actionable information.
 
 ### Common Page Layouts
 

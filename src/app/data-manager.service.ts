@@ -864,6 +864,10 @@ export class DataManagerService {
     }
   }
 
+  async getEvents(limitCount: number = 500): Promise<IlcEvent[]> {
+    return this.getRecentEvents(limitCount);
+  }
+
   async searchEvents(criteria: EventSearchCriteria): Promise<IlcEvent[]> {
     const status = criteria.statusFilter;
 
@@ -1160,10 +1164,12 @@ export class DataManagerService {
           // If the doc doesn't exist, provide a default list so it doesn't hang.
           const countryCodes: CountryCodesDoc = { codes: countryCodeList };
           this.countries.setEntries(countryCodeList);
-          // Try to init the doc for the whole system, but gracefully ignore if permission denied
-          setDoc(countryCodesRef, countryCodes).catch((e) => {
-            console.warn('Could not initialize country-codes document (possibly not admin).', e);
-          });
+          // Only attempt to initialize the doc in Firestore if the user is an admin
+          if (this.firebaseService.user()?.isAdmin) {
+            setDoc(countryCodesRef, countryCodes).catch((e) => {
+              console.warn('Could not initialize country-codes document (possibly not admin).', e);
+            });
+          }
         }
       }, (error) => {
         console.error('Error fetching country codes:', error);

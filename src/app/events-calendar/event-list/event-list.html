@@ -97,9 +97,17 @@
         <div class="event-list">
           @for (event of searchResults().matched; track event.docId) {
             <a class="event-card-link" [class.selectable-card]="isMyEvents()" [href]="resolvedEventLinkPrefix() + event.docId">
-              @if (isMyEvents()) {
+              @if (isMyEvents() || (userIsAdmin() && event.productId)) {
                 <div class="event-card-header">
-                  <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                  @if (isMyEvents()) {
+                    <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                  }
+                  @if (userIsAdmin() && event.productId) {
+                    <span class="tag-chip hq-registration-chip" title="HQ Online Registration is active for this event">
+                      <app-icon name="payments"></app-icon>
+                      <span>HQ Registration</span>
+                    </span>
+                  }
                 </div>
               }
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />
@@ -115,9 +123,17 @@
         <div class="event-list">
           @for (event of searchResults().unmatched; track event.docId) {
             <a class="event-card-link" [class.selectable-card]="isMyEvents()" [href]="resolvedEventLinkPrefix() + event.docId">
-              @if (isMyEvents()) {
+              @if (isMyEvents() || (userIsAdmin() && event.productId)) {
                 <div class="event-card-header">
-                  <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                  @if (isMyEvents()) {
+                    <span [class]="statusClass(event)">{{ statusLabel(event) }}</span>
+                  }
+                  @if (userIsAdmin() && event.productId) {
+                    <span class="tag-chip hq-registration-chip" title="HQ Online Registration is active for this event">
+                      <app-icon name="payments"></app-icon>
+                      <span>HQ Registration</span>
+                    </span>
+                  }
                 </div>
               }
               <app-event-item [event]="event" [instructorLinkPrefix]="instructorLinkPrefix()" />

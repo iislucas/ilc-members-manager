@@ -221,6 +221,18 @@ describe('HomeComponent', () => {
     expect(element.textContent).toContain('Video on Demand');
   });
 
+  it('shows Articles & Guides card on Learn tab for members', async () => {
+    component.setActiveTab('learn');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Articles & Guides');
+    const links = element.querySelectorAll<HTMLAnchorElement>('a.card');
+    const articleLink = Array.from(links).find((a) => a.getAttribute('href')?.includes('/articles'));
+    expect(articleLink).toBeTruthy();
+  });
+
   it('shows Manage VOD card with In Testing tag on Admin tab for admin users', async () => {
     (firebaseService.user as any).set({
       isAdmin: true,
