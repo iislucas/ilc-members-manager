@@ -88,7 +88,7 @@ flowchart TD
 
 ## 3. Data Models
 
-Defined in [`functions/src/data-model.ts`](../functions/src/data-model.ts):
+Defined in [`functions/src/data-model/events.ts`](../functions/src/data-model/events.ts):
 
 ### 3.1 `Product` (Firestore `/products/{productId}`)
 

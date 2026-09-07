@@ -5,7 +5,7 @@ who can see and act on them, the workflow they move through, how they can be
 linked to events, and the notifications they generate.
 
 The authoritative data type is `Grading` in
-[`functions/src/data-model.ts`](../functions/src/data-model.ts). Access control is
+[`functions/src/data-model/gradings.ts`](../functions/src/data-model/gradings.ts). Access control is
 in [`firestore.rules`](../firestore.rules). Server-side automation (mirroring,
 notifications, level updates) is in
 [`functions/src/on-grading-update.ts`](../functions/src/on-grading-update.ts). The
@@ -36,7 +36,7 @@ When a grading document is created, the `onGradingCreated` cloud function:
 ## The grading progression
 
 Student and Application levels interleave into one ordered progression
-(`gradingProgression` in `data-model.ts`). Application 1 comes **after** Student
+(`gradingProgression` in [`functions/src/data-model/curriculum.ts`](../functions/src/data-model/curriculum.ts)). Application 1 comes **after** Student
 3, not after Student 11:
 
 ```
@@ -101,7 +101,7 @@ document id.
    from gradingEventDate
 ```
 
-`gradingDisplayId(grading)` in `data-model.ts` computes it. Because it comes
+`gradingDisplayId(grading)` in [`functions/src/data-model/gradings.ts`](../functions/src/data-model/gradings.ts) computes it. Because it comes
 from the grading document itself rather than from an order, a grading paid for
 in **cash** — or created by an admin — has a reference just like a purchased
 one. The last four characters are lifted straight from the document id, so an
@@ -113,6 +113,22 @@ The reference needs `gradingEventDate`, so a grading has none until the date is
 set — both pages below say *"Please set the grading event date"* until then. A
 result cannot be recorded without that date either (see [The
 workflow](#the-workflow)), so every finished grading has a reference.
+
+### Notifications at a glance
+
+| Trigger | Who is notified | Notification style | Notes |
+|---|---|---|---|
+| Request submitted | Instructor | `normal` | "New grading request from {student}" |
+| Request submitted | Student | `normal` | "Grading request submitted" |
+| Request accepted | Student | `celebrate` | "Grading request accepted by {instructor}" |
+| Request declined | Student | `warning` | Includes instructor decline notes |
+| Result passed | Student | `celebrate` | Includes level and result notes |
+| Result retake needed | Student | `warning` | "Free retake available" |
+| Review requested | Student | `warning` | "Requires admin review" |
+| Review passed | Student | `celebrate` | Same as normal pass |
+| Candidate alert | Student | `normal` | Sent when student is first ready for the level |
+| Unpaid reminder | Student | `normal` | Weekly reminder while request is unpaid |
+| Needs-manager reminder | Student | `warning` | Weekly reminder until instructor is picked |
 
 Nothing is stored for this: every viewer of a grading can read its `docId` and
 `gradingEventDate`, so instructors and school managers see the same reference as
@@ -172,7 +188,7 @@ payment.
 
 ## The data model
 
-Key fields on a `Grading` (see `data-model.ts` for the full list and comments):
+Key fields on a `Grading` (see [`functions/src/data-model/gradings.ts`](../functions/src/data-model/gradings.ts) for the full list and comments):
 
 | Field | Meaning |
 |---|---|
