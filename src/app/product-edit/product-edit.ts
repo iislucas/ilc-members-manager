@@ -49,6 +49,7 @@ export class ProductEditComponent implements OnInit {
   embeddedEventDocId = input<string>('');
   embeddedEventTitle = input<string>('');
   embeddedOnlineJoiningLink = input<string>('');
+  embeddedPurchaseDetailsMarkdown = input<string>('');
   embeddedRecordedVideoId = input<string>('');
   embeddedRecordedVideoUrl = input<string>('');
 
@@ -56,13 +57,17 @@ export class ProductEditComponent implements OnInit {
   editCancelled = output<void>();
 
   // Route pathVars signal
-  private routeProductId = this.routingService.signals[Views.ManageProductEdit]?.pathVars?.productId;
+  private routeEventId = this.routingService.signals[Views.ManageEventRegistration]?.pathVars?.eventId;
 
-  effectiveProductId = computed(() => {
-    return this.productIdInput() || (this.routeProductId ? this.routeProductId() : '');
+  effectiveEventId = computed(() => {
+    return this.embeddedEventDocId() || (this.routeEventId ? this.routeEventId() : '');
   });
 
-  isNew = computed(() => !this.effectiveProductId());
+  effectiveProductId = computed(() => {
+    return this.productIdInput();
+  });
+
+  isNew = computed(() => !this.productModel().docId);
 
   isLoading = signal(false);
   isSaving = signal(false);
@@ -172,33 +177,51 @@ export class ProductEditComponent implements OnInit {
     this.errorMessage.set(null);
 
     try {
-      // 1. Load available events
+      // 1. Initialize searchable events
       const eventsSnap = await this.dataService.getEvents();
       if (eventsSnap && eventsSnap.length > 0) {
         this.eventsSearchableSet.setEntries(eventsSnap);
       }
 
-      // 2. Load product if editing
+      // 2. Load product if editing or event route
       const id = this.effectiveProductId();
+      const evId = this.effectiveEventId();
+
+      let existing: Product | undefined;
       if (id) {
-        const existing = await this.productService.getProduct(id);
-        if (existing) {
-          this.productModel.set(structuredClone(existing));
-          this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, 'member')));
-          this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, 'instructor')));
+        existing = await this.productService.getProduct(id);
+      } else if (evId) {
+        const ev = await this.dataService.getEventById(evId);
+        if (ev?.productId) {
+          existing = await this.productService.getProduct(ev.productId);
         } else {
-          this.errorMessage.set('Product not found.');
+          existing = await this.productService.getProductByEventId(evId);
         }
+      }
+
+      if (existing) {
+        this.productModel.set(structuredClone(existing));
+        this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, 'member')));
+        this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, 'instructor')));
       } else {
         const newProduct = initProduct();
+        if (evId) {
+          newProduct.eventDocId = evId;
+          const ev = this.eventsSearchableSet.get(evId);
+          if (ev && !this.embeddedEventTitle()) {
+            newProduct.title = ev.title;
+          }
+        }
         if (this.embeddedEventDocId()) {
           newProduct.eventDocId = this.embeddedEventDocId();
         }
         if (this.embeddedEventTitle()) {
           newProduct.title = this.embeddedEventTitle();
         }
-        if (this.embeddedOnlineJoiningLink()) {
-          newProduct.onlineJoiningLink = this.embeddedOnlineJoiningLink();
+        if (this.embeddedPurchaseDetailsMarkdown()) {
+          newProduct.purchaseDetailsMarkdown = this.embeddedPurchaseDetailsMarkdown();
+        } else if (this.embeddedOnlineJoiningLink()) {
+          newProduct.purchaseDetailsMarkdown = this.embeddedOnlineJoiningLink();
         }
         if (this.embeddedRecordedVideoId()) {
           newProduct.recordedVideoId = this.embeddedRecordedVideoId();
@@ -372,6 +395,26 @@ export class ProductEditComponent implements OnInit {
     });
   }
 
+  updateTitle(title: string) {
+    this.productModel.update((m) => ({ ...m, title }));
+  }
+
+  updateCurrency(currency: string) {
+    this.productModel.update((m) => ({ ...m, currency }));
+  }
+
+  updatePurchaseDetailsMarkdown(md: string) {
+    this.productModel.update((m) => ({ ...m, purchaseDetailsMarkdown: md }));
+  }
+
+  updateRecordedVideoId(recordedVideoId: string) {
+    this.productModel.update((m) => ({ ...m, recordedVideoId }));
+  }
+
+  updateRecordedVideoUrl(recordedVideoUrl: string) {
+    this.productModel.update((m) => ({ ...m, recordedVideoUrl }));
+  }
+
   async saveProduct() {
     const model = structuredClone(this.productModel());
     if (!model.title.trim()) {
@@ -433,21 +476,23 @@ export class ProductEditComponent implements OnInit {
       if (this.embedded()) {
         this.productSaved.emit(savedDocId);
       } else {
-        const targetUrl = this.routingService.hrefForView(Views.ProductView, { productId: savedDocId });
+        const targetUrl = model.eventDocId
+          ? this.routingService.hrefForView(Views.EventRegister, { eventId: model.eventDocId })
+          : this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err: unknown) {
-      console.error('Error saving product:', err);
-      this.errorMessage.set(err instanceof Error ? err.message : 'Failed to save product.');
+      console.error('Error saving registration setup:', err);
+      this.errorMessage.set(err instanceof Error ? err.message : 'Failed to save registration setup.');
       this.isSaving.set(false);
     }
   }
 
   async deleteProduct() {
-    const id = this.effectiveProductId();
+    const id = this.productModel().docId || this.effectiveProductId();
     if (!id) return;
 
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this registration setup? This action cannot be undone.')) {
       return;
     }
 
@@ -457,12 +502,12 @@ export class ProductEditComponent implements OnInit {
       if (this.embedded()) {
         this.productSaved.emit('');
       } else {
-        const targetUrl = this.routingService.hrefForView(Views.ManageProducts);
+        const targetUrl = this.routingService.hrefForView(Views.ManageEventRegistrations);
         this.routingService.navigateTo(targetUrl);
       }
     } catch (err) {
-      console.error('Error deleting product:', err);
-      alert('Failed to delete product.');
+      console.error('Error deleting registration setup:', err);
+      alert('Failed to delete registration setup.');
       this.isSaving.set(false);
     }
   }

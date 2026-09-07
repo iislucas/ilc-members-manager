@@ -227,6 +227,7 @@ export const submitProposedEvent = onCall(
     ownerContactUrl?: string;
     productId?: string;
     onlineJoiningLink?: string;
+    purchaseDetailsMarkdown?: string;
     recordedVideoId?: string;
     recordedVideoUrl?: string;
   }>) => {
@@ -333,6 +334,7 @@ export const submitProposedEvent = onCall(
       leadingInstructorId: data.leadingInstructorId || '',
       productId: data.productId || '',
       onlineJoiningLink: data.onlineJoiningLink || '',
+      purchaseDetailsMarkdown: data.purchaseDetailsMarkdown || '',
       recordedVideoId: data.recordedVideoId || '',
       recordedVideoUrl: data.recordedVideoUrl || '',
     };
@@ -575,11 +577,14 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
     }
   }
 
-  // Check if online joining link was newly added
-  if (!before.onlineJoiningLink && after.onlineJoiningLink) {
-    logger.info('Online joining link added for event; notifying online attendees', {
+  // Check if online joining details were newly added
+  const joiningDetailsAdded = (!before.purchaseDetailsMarkdown && after.purchaseDetailsMarkdown) ||
+    (!before.onlineJoiningLink && after.onlineJoiningLink);
+  if (joiningDetailsAdded) {
+    logger.info('Online joining details added for event; notifying online attendees', {
       eventId: event.params.docId,
       link: after.onlineJoiningLink,
+      hasMarkdown: Boolean(after.purchaseDetailsMarkdown),
     });
 
     try {
@@ -595,7 +600,12 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         const memberDocId = reg.memberDocId;
         if (!memberDocId) continue;
         const eventTitle = after.title || 'Event';
-        const message = `The online joining link for **[${eventTitle}](/events/${event.params.docId})** is now available: [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        let message = `Online attendance details for **[${eventTitle}](/events/${event.params.docId})** are now available.`;
+        if (after.purchaseDetailsMarkdown) {
+          message += `\n\n### Joining Details\n${after.purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${event.params.docId}).`;
+        } else if (after.onlineJoiningLink) {
+          message += ` [Join Zoom Meeting](${after.onlineJoiningLink}).`;
+        }
         await createMemberNotification(db, memberDocId, {
           kind: NotificationKind.EventRegistrationConfirmed,
           markdown: message,
@@ -603,12 +613,13 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
           dismissed: false,
           data: {
             eventId: event.params.docId,
-            onlineJoiningLink: after.onlineJoiningLink,
+            onlineJoiningLink: after.onlineJoiningLink || '',
+            purchaseDetailsMarkdown: after.purchaseDetailsMarkdown || '',
           },
         });
       }
     } catch (err) {
-      logger.error('Failed to notify online attendees of joining link', {
+      logger.error('Failed to notify online attendees of joining details', {
         err,
         eventId: event.params.docId,
       });

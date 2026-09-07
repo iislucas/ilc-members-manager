@@ -188,7 +188,9 @@ export const createProductCheckoutSession = onCall<
   const lineItemDescription = `${product.title} - ${attendanceLabel}${videoLabel} (${roleLabel})`;
 
   const successUrl = `${origin}/order-complete?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${origin}/products/${product.docId}`;
+  const cancelUrl = product.eventDocId
+    ? `${origin}/events/${product.eventDocId}/register`
+    : `${origin}/events/${product.docId}/register`;
 
   const metadata: Record<string, string> = {
     orderType: 'event_registration',

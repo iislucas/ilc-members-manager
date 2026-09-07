@@ -859,17 +859,20 @@ export async function fulfillEventRegistration(
       if (eventSnap.exists) {
         const eventData = eventSnap.data() || {};
         const eventTitle = eventData['title'] || (prodData['title'] as string) || 'Event';
+        const purchaseDetailsMarkdown = (prodData['purchaseDetailsMarkdown'] as string) || (eventData['purchaseDetailsMarkdown'] as string) || '';
         const onlineJoiningLink = (prodData['onlineJoiningLink'] as string) || (eventData['onlineJoiningLink'] as string) || '';
         const recordedVideoId = (prodData['recordedVideoId'] as string) || (eventData['recordedVideoId'] as string) || '';
 
-        // 1. Send confirmation notification to member (with Zoom link if online)
+        // 1. Send confirmation notification to member (with Zoom/joining details if online)
         if (memberDocId) {
           let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**!`;
           if (attendance === 'online') {
-            if (onlineJoiningLink) {
+            if (purchaseDetailsMarkdown) {
+              message += `\n\n### Joining Details\n${purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
+            } else if (onlineJoiningLink) {
               message += `\n\nYour online joining link is: [Join Zoom Meeting](${onlineJoiningLink})\n\nYou can also find this link at any time on the [event page](/events/${eventDocId}).`;
             } else {
-              message += `\n\nYour online joining link will appear on the [event page](/events/${eventDocId}) prior to the class.`;
+              message += `\n\nYour online joining details will appear on the [event page](/events/${eventDocId}) prior to the class.`;
             }
           } else {
             message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
@@ -884,6 +887,7 @@ export async function fulfillEventRegistration(
               orderDocId,
               eventId: eventDocId,
               attendance,
+              purchaseDetailsMarkdown,
               onlineJoiningLink,
             },
           });

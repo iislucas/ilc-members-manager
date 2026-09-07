@@ -47,10 +47,17 @@ describe('ProductViewComponent', () => {
 
   const mockProductService = {
     getProduct: vi.fn().mockResolvedValue(mockProduct),
+    getProductByEventId: vi.fn().mockResolvedValue(mockProduct),
   };
 
   const mockDataManagerService = {
-    getEventById: vi.fn().mockResolvedValue(null),
+    getEventById: vi.fn().mockResolvedValue({
+      docId: 'event-1',
+      title: 'Autumn Kung Fu Workshop',
+      productId: 'test-prod-1',
+      start: '2026-10-01T10:00:00Z',
+      end: '2026-10-02T16:00:00Z',
+    }),
   };
 
   const mockStripeService = {
@@ -59,9 +66,9 @@ describe('ProductViewComponent', () => {
 
   const mockRoutingService = {
     signals: {
-      productView: {
+      eventRegister: {
         pathVars: {
-          productId: signal('test-prod-1'),
+          eventId: signal('event-1'),
         },
       },
     },

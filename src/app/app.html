@@ -206,13 +206,13 @@
             <div></div>
           }
         }
-        @case (Views.ProductView) {
+        @case (Views.EventRegister) {
           @defer (prefetch on idle) {
             <app-product-view
-              [productId]="routingService.signals[Views.ProductView].pathVars.productId()"
+              [eventId]="routingService.signals[Views.EventRegister].pathVars.eventId()"
             ></app-product-view>
           } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading product...</app-spinner>
+            <app-spinner class="view-loading">Loading registration...</app-spinner>
           } @placeholder {
             <div></div>
           }
@@ -532,29 +532,20 @@
             <div></div>
           }
         }
-        @case (Views.ManageProducts) {
+        @case (Views.ManageEventRegistrations) {
           @defer {
             <app-manage-products></app-manage-products>
           } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading products...</app-spinner>
+            <app-spinner class="view-loading">Loading registration setups...</app-spinner>
           } @placeholder {
             <div></div>
           }
         }
-        @case (Views.ManageProductNew) {
+        @case (Views.ManageEventRegistration) {
           @defer {
             <app-product-edit></app-product-edit>
           } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading product editor...</app-spinner>
-          } @placeholder {
-            <div></div>
-          }
-        }
-        @case (Views.ManageProductEdit) {
-          @defer {
-            <app-product-edit></app-product-edit>
-          } @loading (minimum 150ms) {
-            <app-spinner class="view-loading">Loading product editor...</app-spinner>
+            <app-spinner class="view-loading">Loading registration editor...</app-spinner>
           } @placeholder {
             <div></div>
           }

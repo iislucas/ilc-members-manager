@@ -283,9 +283,8 @@ export class NavigationTreeService {
       view === Views.ManageEvents ||
       view === Views.ManageEventView ||
       view === Views.ManageEventEdit ||
-      view === Views.ManageProducts ||
-      view === Views.ManageProductNew ||
-      view === Views.ManageProductEdit ||
+      view === Views.ManageEventRegistrations ||
+      view === Views.ManageEventRegistration ||
       view === Views.ManageMaterials ||
       view === Views.ManageVod ||
       view === Views.ManageVideoTags ||
@@ -369,15 +368,14 @@ export class NavigationTreeService {
         ];
       }
 
-      case Views.ProductView:
+      case Views.EventRegister:
         return [this.node(Views.EventsCalendar, 'Events & Workshops')];
 
-      case Views.ManageProducts:
+      case Views.ManageEventRegistrations:
         return [];
 
-      case Views.ManageProductNew:
-      case Views.ManageProductEdit:
-        return [this.node(Views.ManageProducts, 'Products')];
+      case Views.ManageEventRegistration:
+        return [this.node(Views.ManageEventRegistrations, 'Registration Setups')];
 
       // --- Members, students and schools ---
       case Views.ManageMemberView:
@@ -723,16 +721,14 @@ export class NavigationTreeService {
         return 'School License';
       case Views.ClassVideoLibraryPurchase:
         return 'Class Video Library Subscription';
-      case Views.ProductView:
-        return 'Product Details';
-      case Views.ManageProducts:
-        return 'Products';
-      case Views.ManageProductNew:
-        return 'New Product';
-      case Views.ManageProductEdit:
-        return 'Edit Product';
+      case Views.EventRegister:
+        return 'Event Registration';
+      case Views.ManageEventRegistrations:
+        return 'Registration Setups';
+      case Views.ManageEventRegistration:
+        return 'Edit Registration Setup';
       case Views.EventRegistrations:
-        return 'Event Registrations';
+        return 'Registered Attendees';
       case Views.MyMaterials:
         return 'Uploads';
       case Views.ManageMaterials:

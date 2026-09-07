@@ -9,14 +9,13 @@
   } @else if (product(); as prod) {
     <div class="product-header">
       <div class="header-titles">
-        <h1>{{ prod.title }}</h1>
-        <p class="subtitle">Class & Workshop Registration</p>
+        <h1>{{ linkedEvent()?.title || prod.title }}</h1>
+        <p class="subtitle">Event Registration &amp; Payment</p>
       </div>
-      @if (isAdmin()) {
-        <a class="subtle-button"
-           [href]="routingService.hrefForView(Views.ManageProductEdit, { productId: prod.docId })">
+      @if (isAdmin() && editRegistrationUrl(); as editUrl) {
+        <a class="subtle-button" [href]="editUrl">
           <app-icon name="edit"></app-icon>
-          <span>Edit Product</span>
+          <span>Edit Registration Setup</span>
         </a>
       }
     </div>

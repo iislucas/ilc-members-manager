@@ -46,13 +46,26 @@ export class ProductViewComponent implements OnInit {
   protected stripeService = inject(StripeService);
   protected readonly Views = Views;
 
+  eventId = input<string>('');
   productId = input<string>('');
 
   // Route pathVars signal
-  private routeProductId = this.routingService.signals[Views.ProductView]?.pathVars?.productId;
+  private routeEventId = this.routingService.signals[Views.EventRegister]?.pathVars?.eventId;
+
+  effectiveEventId = computed(() => {
+    return this.eventId() || (this.routeEventId ? this.routeEventId() : '');
+  });
 
   effectiveProductId = computed(() => {
-    return this.productId() || (this.routeProductId ? this.routeProductId() : '');
+    return this.productId();
+  });
+
+  editRegistrationUrl = computed(() => {
+    const evId = this.linkedEvent()?.docId || this.effectiveEventId();
+    if (evId) {
+      return this.routingService.hrefForView(Views.ManageEventRegistration, { eventId: evId });
+    }
+    return null;
   });
 
   isLoading = signal(true);
@@ -157,9 +170,11 @@ export class ProductViewComponent implements OnInit {
   }
 
   async loadProduct() {
-    const id = this.effectiveProductId();
-    if (!id) {
-      this.errorMessage.set('Product ID is missing.');
+    const evId = this.effectiveEventId();
+    const prodId = this.effectiveProductId();
+
+    if (!evId && !prodId) {
+      this.errorMessage.set('Event or Registration ID is missing.');
       this.isLoading.set(false);
       return;
     }
@@ -167,19 +182,35 @@ export class ProductViewComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     try {
-      const prod = await this.productService.getProduct(id);
-      if (!prod) {
-        this.errorMessage.set('Product not found.');
-      } else {
-        this.product.set(prod);
-        if (prod.eventDocId) {
-          const ev = await this.dataService.getEventById(prod.eventDocId);
-          if (ev) this.linkedEvent.set(ev);
+      if (evId) {
+        const ev = await this.dataService.getEventById(evId);
+        if (ev) {
+          this.linkedEvent.set(ev);
+          if (ev.productId) {
+            const prod = await this.productService.getProduct(ev.productId);
+            if (prod) this.product.set(prod);
+          } else {
+            const prod = await this.productService.getProductByEventId(evId);
+            if (prod) this.product.set(prod);
+          }
+        }
+      } else if (prodId) {
+        const prod = await this.productService.getProduct(prodId);
+        if (prod) {
+          this.product.set(prod);
+          if (prod.eventDocId) {
+            const ev = await this.dataService.getEventById(prod.eventDocId);
+            if (ev) this.linkedEvent.set(ev);
+          }
         }
       }
+
+      if (!this.product()) {
+        this.errorMessage.set('Registration setup not found for this event.');
+      }
     } catch (err) {
-      console.error('Error loading product:', err);
-      this.errorMessage.set('Failed to load product details.');
+      console.error('Error loading registration:', err);
+      this.errorMessage.set('Failed to load registration details.');
     } finally {
       this.isLoading.set(false);
     }

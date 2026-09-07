@@ -117,6 +117,7 @@ export type IlcEvent = {
   documents: EventDocument[];
   productId?: string; // Firestore doc ID of the linked Product (or '' if none)
   onlineJoiningLink?: string; // Online attendance / Zoom joining URL / instructions (for paid online attendees)
+  purchaseDetailsMarkdown?: string; // Markdown details shared upon purchase (meeting link, password, instructions)
   recordedVideoId?: string; // Catalog video doc ID from /videos (or '' if none)
   recordedVideoUrl?: string; // Direct external video recording URL (or '' if none)
   lastUpdated?: string; // ISO date-time; managed by sync logic
@@ -153,6 +154,7 @@ export function initEvent(): IlcEvent {
     documents: [],
     productId: '',
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     updatedByEmail: '',
@@ -282,6 +284,7 @@ export type Product = {
   hasMemberPrice?: boolean;
   hasInstructorPrice?: boolean;
   onlineJoiningLink?: string;
+  purchaseDetailsMarkdown?: string;
   recordedVideoId?: string;
   recordedVideoUrl?: string;
   tiers: Record<string, { enabled: boolean; price: number }>;
@@ -318,6 +321,7 @@ export function initProduct(): Product {
     hasMemberPrice: false,
     hasInstructorPrice: false,
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     tiers,

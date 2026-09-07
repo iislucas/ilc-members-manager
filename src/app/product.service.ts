@@ -38,6 +38,20 @@ export class ProductService {
     }
   }
 
+  /** Retrieve product linked to a specific event ID. */
+  async getProductByEventId(eventId: string): Promise<Product | undefined> {
+    if (!eventId) return undefined;
+    try {
+      const q = query(collection(this.db, 'products'), where('eventDocId', '==', eventId));
+      const snap = await getDocs(q);
+      if (snap.empty) return undefined;
+      return firestoreDocToProduct(snap.docs[0]);
+    } catch (err) {
+      console.error('Error loading product by event ID:', err);
+      return undefined;
+    }
+  }
+
   /** Retrieve all products. */
   async getAllProducts(): Promise<Product[]> {
     try {

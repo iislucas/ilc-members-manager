@@ -44,9 +44,10 @@ export class EventViewComponent implements OnInit {
   hasPaidRegistration = computed(() => !!this.registration());
 
   productEditUrl = computed(() => {
-    const pId = this.event()?.productId;
-    if (!pId) return null;
-    return this.routingService.hrefForView(Views.ManageProductEdit, { productId: pId });
+    const ev = this.event();
+    const eventId = this.eventId();
+    if (!ev?.productId) return null;
+    return this.routingService.hrefForView(Views.ManageEventRegistration, { eventId });
   });
 
   getProductPriceRange(product: Product): string {
@@ -81,7 +82,11 @@ export class EventViewComponent implements OnInit {
   registerUrl = computed(() => {
     const pId = this.event()?.productId;
     if (!pId) return null;
-    return this.routingService.hrefForView(Views.ProductView, { productId: pId });
+    return this.routingService.hrefForView(Views.EventRegister, { eventId: this.eventId() });
+  });
+
+  effectivePurchaseDetailsMarkdown = computed(() => {
+    return this.event()?.purchaseDetailsMarkdown || this.product()?.purchaseDetailsMarkdown || '';
   });
 
   effectiveOnlineJoiningLink = computed(() => {

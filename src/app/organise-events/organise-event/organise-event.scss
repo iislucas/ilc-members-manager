@@ -496,6 +496,15 @@
         color: $text-secondary;
       }
 
+      .purchase-details-preview {
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        background: #f9f9f9;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+
       .resource-link {
         color: $heading-accent-color;
         word-break: break-all;

@@ -14,6 +14,7 @@ import { InstructorPublicData } from '../../../../functions/src/data-model/membe
 import { PublicInstructorSelectorComponent } from '../../public-instructor-selector/public-instructor-selector';
 import { InstructorSelectorComponent } from '../../instructor-selector/instructor-selector';
 import { MarkdownEditor } from '../../markdown-editor/markdown-editor';
+import { MarkdownViewer } from '../../markdown-editor/markdown-viewer';
 import { ImageUploadPreviewComponent } from '../../image-upload-preview/image-upload-preview';
 import { ProductEditComponent } from '../../product-edit/product-edit';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
@@ -22,7 +23,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 @Component({
   selector: 'app-organise-event',
   standalone: true,
-  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, ImageUploadPreviewComponent, ProductEditComponent],
+  imports: [FormsModule, FormField, IconComponent, SpinnerComponent, PublicInstructorSelectorComponent, InstructorSelectorComponent, MarkdownEditor, MarkdownViewer, ImageUploadPreviewComponent, ProductEditComponent],
   templateUrl: './organise-event.html',
   styleUrl: './organise-event.scss'
 })
@@ -134,6 +135,7 @@ export class ProposeEventComponent {
     leadingInstructorId: '',
     productId: '',
     onlineJoiningLink: '',
+    purchaseDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     // Member doc ID of the event owner (main contact). Defaults to the submitter.
@@ -519,7 +521,7 @@ export class ProposeEventComponent {
       console.error('Error deleting product:', err);
     }
 
-    this.eventModel.update((m) => ({ ...m, productId: '', onlineJoiningLink: '', recordedVideoId: '', recordedVideoUrl: '' }));
+    this.eventModel.update((m) => ({ ...m, productId: '', onlineJoiningLink: '', purchaseDetailsMarkdown: '', recordedVideoId: '', recordedVideoUrl: '' }));
     this.isEditingLinkedProduct.set(false);
     this.proposeForm().dirty();
   }
@@ -536,6 +538,7 @@ export class ProposeEventComponent {
         ...m,
         productId,
         onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
+        purchaseDetailsMarkdown: prod?.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
         recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
         recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
       }));
@@ -554,6 +557,7 @@ export class ProposeEventComponent {
         this.eventModel.update((m) => ({
           ...m,
           onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
+          purchaseDetailsMarkdown: prod.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
           recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
           recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
         }));
