@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { VideoPlayerComponent } from './video-player';
-import { initVideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model';
+import { initVideoItem, VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
 
 describe('VideoPlayerComponent', () => {
   let component: VideoPlayerComponent;

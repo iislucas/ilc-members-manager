@@ -10,7 +10,10 @@ import * as admin from 'firebase-admin';
 // named import works in both the emulator and production. (Same fix as
 // on-grading-update.ts.)
 import { FieldValue } from 'firebase-admin/firestore';
-import { Member, ACL, Grading, gradingManagerIdsOf, MembershipType, NotificationKind } from './data-model';
+import { Grading, gradingManagerIdsOf } from './data-model/gradings';
+import { Member, MembershipType } from './data-model/members';
+import { NotificationKind } from './data-model/notifications';
+import { ACL } from './data-model/system';
 import { mirrorGradingToInstructor, removeGradingFromInstructor } from './on-grading-update';
 import { createMemberNotification } from './notifications';
 import { updateMemberViewForSchoolAndInstrucor } from './mirror-members-to-school-and-instructor-views';

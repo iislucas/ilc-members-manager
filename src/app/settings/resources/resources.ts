@@ -20,12 +20,7 @@ import { SpinnerComponent } from '../../spinner/spinner.component';
 import { IconComponent } from '../../icons/icon.component';
 import { getStorage, ref, uploadBytes } from 'firebase/storage';
 import { DatePipe } from '@angular/common';
-import {
-  ResourceAccessLevel,
-  RESOURCE_ACCESS_LEVELS,
-  ACCESS_LEVEL_LABELS,
-  ACCESS_LEVEL_DESCRIPTIONS,
-} from '../../../../functions/src/data-model';
+import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS, ACCESS_LEVEL_LABELS, ACCESS_LEVEL_DESCRIPTIONS } from '../../../../functions/src/data-model/curriculum';
 
 /** Descriptive section headers for each access level file group. */
 const ACCESS_LEVEL_FILE_HEADERS: Record<ResourceAccessLevel, string> = {

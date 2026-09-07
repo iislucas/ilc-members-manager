@@ -6,12 +6,8 @@
  * chip labels rendered in `member-row-header.html` so the tag filter in the
  * member list can match them.
  */
-import {
-  Member,
-  MembershipType,
-  InstructorLicenseType,
-  ExpiryStatus,
-} from '../../functions/src/data-model';
+import { InstructorLicenseType } from '../../functions/src/data-model/curriculum';
+import { Member, MembershipType, ExpiryStatus } from '../../functions/src/data-model/members';
 
 // ── helpers (duplicated from MemberRowHeaderComponent to keep this pure) ──
 

@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { VodOfflineStorageService } from './vod-offline-storage.service';
-import { initVideoItem } from '../../functions/src/data-model';
+import { initVideoItem } from '../../functions/src/data-model/vod';
 
 describe('VodOfflineStorageService', () => {
   let service: VodOfflineStorageService;

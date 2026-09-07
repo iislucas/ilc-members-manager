@@ -9,11 +9,7 @@
 
 import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import {
-  MemberNotification,
-  NotificationStyle,
-  notificationStyle,
-} from '../../../functions/src/data-model';
+import { MemberNotification, NotificationStyle, notificationStyle } from '../../../functions/src/data-model/notifications';
 import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';

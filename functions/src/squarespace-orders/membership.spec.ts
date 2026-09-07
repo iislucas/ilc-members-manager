@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseMembershipRenewalInfo, processMembershipRenewal } from './membership';
-import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, MembershipType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
+import { MembershipType } from '../data-model/members';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model/orders';
 import { resolveCountryCode } from '../country-codes';
 import * as admin from 'firebase-admin';
 

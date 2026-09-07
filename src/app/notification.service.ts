@@ -21,45 +21,13 @@ import {
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { FirebaseStateService } from './firebase-state.service';
-import {
-  CachedBlogPost,
-  EventStatus,
-  ExpiryStatus,
-  Grading,
-  GradingStatus,
-  IlcEvent,
-  Member,
-  MembershipType,
-  MemberNotification,
-  NotificationBlogPostData,
-  NotificationBlogPostsSummaryData,
-  NotificationEventData,
-  NotificationGradingData,
-  NotificationKind,
-  NotificationOrderIssueData,
-  NotificationOrderIssuesSummaryData,
-  NotificationPendingEventsSummaryData,
-  NotificationStyle,
-  NotificationUnpaidGradingsSummaryData,
-  NotificationUploadData,
-  NotificationUploadsSummaryData,
-  Order,
-  OrderKind,
-  OrderStatus,
-  PushSubscriptionDoc,
-  SquareSpaceOrder,
-  SquarespaceFulfillmentStatus,
-  UploadItem,
-  eventStatusLabel,
-  firestoreDocToGrading,
-  firestoreDocToMemberNotification,
-  firestoreDocToOrder,
-  firestoreDocToUploadItem,
-  initCachedBlogPost,
-  initEvent,
-  isGradingPaid,
-  notificationStyle,
-} from '../../functions/src/data-model';
+import { CachedBlogPost, initCachedBlogPost } from '../../functions/src/data-model/content-cache';
+import { EventStatus, IlcEvent, eventStatusLabel, initEvent } from '../../functions/src/data-model/events';
+import { Grading, GradingStatus, firestoreDocToGrading, isGradingPaid } from '../../functions/src/data-model/gradings';
+import { UploadItem, firestoreDocToUploadItem } from '../../functions/src/data-model/materials';
+import { ExpiryStatus, Member, MembershipType, PushSubscriptionDoc } from '../../functions/src/data-model/members';
+import { MemberNotification, NotificationBlogPostData, NotificationBlogPostsSummaryData, NotificationEventData, NotificationGradingData, NotificationKind, NotificationOrderIssueData, NotificationOrderIssuesSummaryData, NotificationPendingEventsSummaryData, NotificationStyle, NotificationUnpaidGradingsSummaryData, NotificationUploadData, NotificationUploadsSummaryData, firestoreDocToMemberNotification, notificationStyle } from '../../functions/src/data-model/notifications';
+import { Order, OrderKind, OrderStatus, SquareSpaceOrder, SquarespaceFulfillmentStatus, firestoreDocToOrder } from '../../functions/src/data-model/orders';
 import { getInstructorExpiryStatus } from './member-tags';
 import { environment } from '../environments/environment';
 

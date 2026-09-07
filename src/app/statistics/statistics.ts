@@ -15,7 +15,7 @@ import {
   getDocs,
   limit,
 } from 'firebase/firestore';
-import { MemberStatistics, firestoreDocToStatistics, Histogram, HistogramMap } from '../../../functions/src/data-model';
+import { MemberStatistics, firestoreDocToStatistics, Histogram, HistogramMap } from '../../../functions/src/data-model/system';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { DatePipe } from '@angular/common';

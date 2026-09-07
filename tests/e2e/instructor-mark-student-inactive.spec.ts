@@ -27,12 +27,8 @@ import {
   seedMember,
   waitFor,
 } from './emulator-helpers';
-import {
-  MembershipType,
-  NotificationKind,
-  type Member,
-  type MemberNotification,
-} from '../../functions/src/data-model';
+import { MembershipType, type Member } from '../../functions/src/data-model/members';
+import { NotificationKind, type MemberNotification } from '../../functions/src/data-model/notifications';
 
 describe('story: instructor-mark-student-inactive', () => {
   const suffix = Date.now().toString(36);

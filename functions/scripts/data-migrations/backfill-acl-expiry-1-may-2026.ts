@@ -19,7 +19,8 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { ACL, Member } from '../../src/data-model';
+import { Member } from '../../src/data-model/members';
+import { ACL } from '../../src/data-model/system';
 
 const argv = yargs(hideBin(process.argv))
   .option('project', {

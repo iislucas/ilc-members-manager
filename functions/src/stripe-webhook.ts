@@ -23,14 +23,7 @@ import Stripe from 'stripe';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import {
-  OrderKind,
-  StripeCheckoutMode,
-  StripeOrder,
-  StripeOrderLineItem,
-  StripeOrderType,
-  StripePaymentStatus,
-} from './data-model';
+import { OrderKind, StripeCheckoutMode, StripeOrder, StripeOrderLineItem, StripeOrderType, StripePaymentStatus } from './data-model/orders';
 import {
   formatLineItemDescription,
   getStripeClient,

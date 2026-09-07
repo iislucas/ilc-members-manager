@@ -3,7 +3,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from './common';
-import { Member, MembershipType, InstructorLicenseType } from './data-model';
+import { InstructorLicenseType } from './data-model/curriculum';
+import { Member, MembershipType } from './data-model/members';
 
 // Helper to add days to a date
 function addDays(date: Date, days: number): Date {

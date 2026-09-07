@@ -16,12 +16,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import {
-  UploadItem,
-  UploadItemSource,
-  IlcEvent,
-  VodStatus,
-} from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
+import { VodStatus } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views, FIREBASE_APP } from '../app.config';

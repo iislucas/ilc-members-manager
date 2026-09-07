@@ -4,7 +4,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { MemberListPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
-import { Member, initMember } from '../../../functions/src/data-model';
+import { Member, initMember } from '../../../functions/src/data-model/members';
 import { signal, Component, Input } from '@angular/core';
 import { MemberDetailsComponent } from '../member-details/member-details';
 import { MemberRowHeaderComponent } from '../member-row-header/member-row-header';

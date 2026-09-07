@@ -3,7 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
-import { BlogPostSourceKind, blogPostSourceKind } from './data-model';
+import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
 
 // Top-level collections holding authored (non-derived) data.
 //

@@ -13,7 +13,9 @@
  */
 
 import * as admin from 'firebase-admin';
-import { Member, ACL, MemberNotification } from '../functions/src/data-model';
+import { Member } from '../functions/src/data-model/members';
+import { MemberNotification } from '../functions/src/data-model/notifications';
+import { ACL } from '../functions/src/data-model/system';
 
 const inputQuery = (process.argv[2] || '').trim();
 const projectId = 'ilc-paris-class-tracker';

@@ -6,7 +6,7 @@ import { GradingEventInputComponent } from '../grading-event-input/grading-event
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { signal } from '@angular/core';
-import { initGrading } from '../../../functions/src/data-model';
+import { initGrading } from '../../../functions/src/data-model/gradings';
 import { SearchableSet } from '../searchable-set';
 import { RoutingService } from '../routing.service';
 

@@ -7,5 +7,5 @@
     "noEmit": true,
     "types": ["vitest/globals", "node"]
   },
-  "include": ["**/*.ts", "../functions/src/data-model.ts"]
+  "include": ["**/*.ts", "../functions/src/data-model/**/*.ts"]
 }

@@ -6,7 +6,9 @@ import { FIREBASE_APP } from './app.config';
 import { FirebaseStateService } from './firebase-state.service';
 import { initializeApp, deleteApp, FirebaseApp } from 'firebase/app';
 import { getDocs, query, where, collection, onSnapshot } from 'firebase/firestore';
-import { Member, School, initMember, initSchool, VideoItem, initVideoItem } from '../../functions/src/data-model';
+import { Member, initMember } from '../../functions/src/data-model/members';
+import { School, initSchool } from '../../functions/src/data-model/schools';
+import { VideoItem, initVideoItem } from '../../functions/src/data-model/vod';
 import { UserDetails } from './firebase-state.service';
 
 vi.mock('firebase/firestore', () => {

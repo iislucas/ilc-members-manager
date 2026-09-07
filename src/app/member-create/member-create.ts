@@ -5,7 +5,7 @@ import { DataManagerService } from '../data-manager.service';
 import { AppPathPatterns } from '../app.config';
 import { MemberDetailsComponent } from '../member-details/member-details';
 import { NavigationTreeService } from '../navigation-tree';
-import { initMember, Member } from '../../../functions/src/data-model';
+import { initMember, Member } from '../../../functions/src/data-model/members';
 
 @Component({
   selector: 'app-member-create',

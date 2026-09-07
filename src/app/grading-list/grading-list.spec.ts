@@ -3,7 +3,7 @@ import { GradingListComponent } from './grading-list';
 import { FirebaseStateService } from '../firebase-state.service';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
-import { Grading, initGrading } from '../../../functions/src/data-model';
+import { Grading, initGrading } from '../../../functions/src/data-model/gradings';
 import { signal, Component, Input } from '@angular/core';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { ROUTING_CONFIG, initPathPatterns, Views } from '../app.config';

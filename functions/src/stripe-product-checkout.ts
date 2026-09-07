@@ -17,12 +17,8 @@ import {
   CreateProductCheckoutSessionRequest,
   CreateCheckoutSessionResult,
 } from './stripe-types';
-import {
-  Member,
-  Product,
-  firestoreDocToProduct,
-  getPricingTierKey,
-} from './data-model';
+import { Product, firestoreDocToProduct, getPricingTierKey } from './data-model/events';
+import { Member } from './data-model/members';
 
 function requireAllowedOrigin(origin: unknown): string {
   if (typeof origin !== 'string' || !allowedOrigins.includes(origin)) {

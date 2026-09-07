@@ -18,13 +18,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { FIREBASE_APP } from './app.config';
-import {
-  EventRegistration,
-  firestoreDocToEventRegistration,
-  firestoreDocToProduct,
-  initProduct,
-  Product,
-} from '../../functions/src/data-model';
+import { EventRegistration, firestoreDocToEventRegistration, firestoreDocToProduct, initProduct, Product } from '../../functions/src/data-model/events';
 
 @Injectable({ providedIn: 'root' })
 export class ProductService {

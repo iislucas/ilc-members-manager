@@ -12,19 +12,10 @@ import {
   effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  Member,
-  MembershipType,
-  MasterLevel,
-  School,
-  InstructorPublicData,
-  InstructorLicenseType,
-  StudentLevel,
-  ApplicationLevel,
-  AgeCategory,
-  initMember,
-  NotificationKind,
-} from '../../../functions/src/data-model';
+import { MasterLevel, InstructorLicenseType, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { Member, MembershipType, InstructorPublicData, AgeCategory, initMember } from '../../../functions/src/data-model/members';
+import { NotificationKind } from '../../../functions/src/data-model/notifications';
+import { School } from '../../../functions/src/data-model/schools';
 import {
   form,
   FormField,

@@ -8,7 +8,8 @@ Handles parsing and processing school license renewals.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { School, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
+import { School } from '../data-model/schools';
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';
 

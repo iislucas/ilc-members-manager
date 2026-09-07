@@ -9,7 +9,9 @@ import * as admin from 'firebase-admin';
 // which crashes trigger writes that use serverTimestamp()/arrayUnion(). The
 // named import works in both the emulator and production.
 import { FieldValue } from 'firebase-admin/firestore';
-import { Grading, GradingStatus, PaymentStatus, StudentLevel, NotificationKind, MemberNotification, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model';
+import { StudentLevel } from './data-model/curriculum';
+import { Grading, GradingStatus, PaymentStatus, gradingManagerIdsOf, initGrading, isGradingPaid } from './data-model/gradings';
+import { NotificationKind, MemberNotification } from './data-model/notifications';
 import { canonicalizeGradingLevel, extractLevelValue } from './level-utils';
 import { createMemberNotification } from './notifications';
 import { recordTombstone } from './common';

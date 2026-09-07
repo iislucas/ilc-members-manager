@@ -1,7 +1,8 @@
 /* proposed-events.spec.ts — tests for event proposal validation. */
 import { describe, it, expect } from 'vitest';
 import { validateProposal, validateProposalStatus, buildManagerDocIds, resolveEventContacts, sameContacts } from './proposed-events';
-import { EventContact, EventStatus, Member, MembershipType, initEventContact } from './data-model';
+import { EventContact, EventStatus, initEventContact } from './data-model/events';
+import { Member, MembershipType } from './data-model/members';
 
 describe('validateProposalStatus', () => {
   it('defaults to Proposed when requestedStatus is undefined or Proposed', () => {

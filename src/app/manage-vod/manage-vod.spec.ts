@@ -9,7 +9,7 @@ import { ManageVodComponent } from './manage-vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initVideoItem, VideoItem, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model';
+import { initVideoItem, VideoItem, VodAccessTier, VodStatus, TagItem } from '../../../functions/src/data-model/vod';
 import { SearchableSet } from '../searchable-set';
 import { signal, WritableSignal, computed } from '@angular/core';
 

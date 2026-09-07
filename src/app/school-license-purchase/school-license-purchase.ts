@@ -26,10 +26,8 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  MembershipType,
-  School,
-} from '../../../functions/src/data-model';
+import { MembershipType } from '../../../functions/src/data-model/members';
+import { School } from '../../../functions/src/data-model/schools';
 import {
   CheckoutSessionSummary,
   StripeProductPrice,

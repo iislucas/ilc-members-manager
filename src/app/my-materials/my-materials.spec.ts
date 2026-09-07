@@ -4,7 +4,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, ROUTING_CONFIG, initPathPatterns } from '../app.config';
-import { UploadItem, initUploadItem } from '../../../functions/src/data-model';
+import { UploadItem, initUploadItem } from '../../../functions/src/data-model/materials';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 

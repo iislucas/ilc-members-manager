@@ -24,23 +24,10 @@ import {
   signal,
   effect,
 } from '@angular/core';
-import {
-  Grading,
-  GradingStatus,
-  IlcEvent,
-  InstructorPublicData,
-  Member,
-  nextGradingLevel,
-  previousGradingLevel,
-  normalizeGradingLevel,
-  instructorCanAssessLevel,
-  gradingManagerIdsOf,
-  isGradingPaid,
-  gradingDisplayId,
-  PaymentStatus,
-  PAYMENT_STATUSES,
-  PAYMENT_STATUS_LABELS,
-} from '../../../functions/src/data-model';
+import { nextGradingLevel, previousGradingLevel, normalizeGradingLevel, instructorCanAssessLevel } from '../../../functions/src/data-model/curriculum';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { Grading, GradingStatus, gradingManagerIdsOf, isGradingPaid, gradingDisplayId, PaymentStatus, PAYMENT_STATUSES, PAYMENT_STATUS_LABELS } from '../../../functions/src/data-model/gradings';
+import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
 import { NgTemplateOutlet } from '@angular/common';
 import { IconComponent } from '../icons/icon.component';
 import {

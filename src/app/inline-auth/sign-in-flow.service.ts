@@ -16,7 +16,7 @@
  */
 
 import { Injectable, signal } from '@angular/core';
-import { CheckEmailStatusResult } from '../../../functions/src/data-model';
+import { CheckEmailStatusResult } from '../../../functions/src/data-model/system';
 
 @Injectable({ providedIn: 'root' })
 export class SignInFlowService {

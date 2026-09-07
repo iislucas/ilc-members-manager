@@ -1,7 +1,7 @@
 /* common.spec.ts — tests for shared membership helpers. */
 import { describe, it, expect } from 'vitest';
 import { hasActiveMembership } from './common';
-import { Member, MembershipType } from './data-model';
+import { Member, MembershipType } from './data-model/members';
 
 describe('hasActiveMembership', () => {
   const today = new Date().toISOString().split('T')[0];

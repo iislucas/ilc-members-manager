@@ -20,12 +20,9 @@ import {
   output,
   signal,
 } from '@angular/core';
-import {
-  IlcEvent,
-  InstructorPublicData,
-  School,
-  firestoreDocToInstructorPublicData,
-} from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { InstructorPublicData, firestoreDocToInstructorPublicData } from '../../../functions/src/data-model/members';
+import { School } from '../../../functions/src/data-model/schools';
 import { collection, getDocs, getFirestore, query, where, limit } from 'firebase/firestore';
 import { FIREBASE_APP, AppPathPatterns, Views } from '../app.config';
 import { FindInstructorsService } from '../find-instructors.service';

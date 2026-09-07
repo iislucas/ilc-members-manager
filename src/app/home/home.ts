@@ -6,7 +6,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { NotificationsListComponent } from '../notifications-list/notifications-list';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
-import { ExpiryStatus } from '../../../functions/src/data-model';
+import { ExpiryStatus } from '../../../functions/src/data-model/members';
 import { getMemberExpiryStatus, getInstructorExpiryStatus } from '../member-tags';
 
 export type HomeTab = 'learn' | 'practice' | 'me' | 'admin';

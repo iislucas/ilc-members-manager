@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { initGrading } from '../../src/data-model';
+import { initGrading } from '../../src/data-model/gradings';
 
 /*
  Data migration: backfill grading status-actor fields.

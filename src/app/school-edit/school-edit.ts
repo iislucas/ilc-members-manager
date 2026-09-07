@@ -17,13 +17,8 @@ import {
   linkedSignal,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import {
-  School,
-  Member,
-  InstructorPublicData,
-  initSchool,
-  ExpiryStatus,
-} from '../../../functions/src/data-model';
+import { Member, InstructorPublicData, ExpiryStatus } from '../../../functions/src/data-model/members';
+import { School, initSchool } from '../../../functions/src/data-model/schools';
 import {
   form,
   FormField,

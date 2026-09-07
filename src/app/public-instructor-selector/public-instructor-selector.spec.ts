@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PublicInstructorSelectorComponent } from './public-instructor-selector';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
-import { initInstructor, InstructorPublicData } from '../../../functions/src/data-model';
+import { initInstructor, InstructorPublicData } from '../../../functions/src/data-model/members';
 
 function makeInstructor(overrides: Partial<InstructorPublicData>): InstructorPublicData {
   return { ...initInstructor(), ...overrides };

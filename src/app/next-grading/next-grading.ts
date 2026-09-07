@@ -24,20 +24,9 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  Grading,
-  GradingStatus,
-  MembershipType,
-  nextGradingLevel,
-  gradingProgression,
-  normalizeGradingLevel,
-  achievedGradingLevels,
-  isGradingPaid,
-  unpaidGradingsInProgressionOrder,
-  nextGradingPayment,
-  StudentLevel,
-  ApplicationLevel,
-} from '../../../functions/src/data-model';
+import { nextGradingLevel, gradingProgression, normalizeGradingLevel, achievedGradingLevels, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { Grading, GradingStatus, isGradingPaid, unpaidGradingsInProgressionOrder, nextGradingPayment } from '../../../functions/src/data-model/gradings';
+import { MembershipType } from '../../../functions/src/data-model/members';
 import {
   CheckoutSessionSummary,
   StripeProduct,

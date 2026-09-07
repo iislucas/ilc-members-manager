@@ -11,43 +11,14 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
-import {
-  Member,
-  MemberOrder,
-  MemberOrderKind,
-  MemberOrderType,
-  MemberOrderPaymentStatus,
-  MemberOrderFulfillmentStatus,
-  OrderItemCategory,
-  MembershipType,
-  InstructorLicenseType,
-  Grading,
-  GradingStatus,
-  PaymentStatus,
-  firestoreDocToMember,
-  initGrading,
-  isGradingPaid,
-  gradingProgression,
-  achievedGradingLevels,
-  unpaidGradingsInProgressionOrder,
-  normalizeGradingLevel,
-  initMember,
-  initSchool,
-  School,
-  StripeOrder,
-  StripeOrderLineItem,
-  StripeCheckoutMode,
-  SubscriptionItemType,
-  SubscriptionStatus,
-  SubscriptionInterval,
-  VideoGrant,
-  VideoGrantKind,
-  NotificationKind,
-  OrderStatus,
-  EventRegistration,
-  AttendeeRole,
-  AttendanceType,
-} from './data-model';
+import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
+import { EventRegistration, AttendeeRole, AttendanceType } from './data-model/events';
+import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
+import { Member, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
+import { NotificationKind } from './data-model/notifications';
+import { MemberOrder, MemberOrderKind, MemberOrderType, MemberOrderPaymentStatus, MemberOrderFulfillmentStatus, OrderItemCategory, StripeOrder, StripeOrderLineItem, StripeCheckoutMode, OrderStatus } from './data-model/orders';
+import { initSchool, School } from './data-model/schools';
+import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { canonicalizeGradingLevel } from './level-utils';
 import { assignNextMemberId, assignNextInstructorId, assignNextSchoolId } from './counters';
 import { resolveCountryCode, resolveCountryName } from './country-codes';

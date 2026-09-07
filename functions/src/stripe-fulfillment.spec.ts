@@ -1,24 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
-import {
-  initMember,
-  initMemberOrder,
-  MembershipType,
-  OrderKind,
-  MemberOrderKind,
-  MemberOrderPaymentStatus,
-  StripeOrder,
-  StripeOrderType,
-  StripeCheckoutMode,
-  StripePaymentStatus,
-  StudentLevel,
-  ApplicationLevel,
-  GradingStatus,
-  PaymentStatus,
-  OrderStatus,
-  NotificationKind,
-  gradingDisplayId,
-} from './data-model';
+import { StudentLevel, ApplicationLevel } from './data-model/curriculum';
+import { GradingStatus, PaymentStatus, gradingDisplayId } from './data-model/gradings';
+import { initMember, MembershipType } from './data-model/members';
+import { NotificationKind } from './data-model/notifications';
+import { initMemberOrder, OrderKind, MemberOrderKind, MemberOrderPaymentStatus, StripeOrder, StripeOrderType, StripeCheckoutMode, StripePaymentStatus, OrderStatus } from './data-model/orders';
 import {
   fulfillStripeOrder,
   fulfillSpouseLifeMembership,

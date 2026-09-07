@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import * as admin from 'firebase-admin';
 import { extractCountersFromMember, extractCountersFromSchool, ensureCountersAreAtLeast, ensureSchoolCountersAreAtLeast, calculateNextCounterValue } from './counters';
-import { initMember, initSchool } from './data-model';
+import { initMember } from './data-model/members';
+import { initSchool } from './data-model/schools';
 
 describe('Counters', () => {
     describe('calculateNextCounterValue', () => {

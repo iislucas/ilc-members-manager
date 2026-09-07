@@ -7,7 +7,7 @@ import { DataManagerService } from '../../data-manager.service';
 import { RoutingService } from '../../routing.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { FIREBASE_APP, Views } from '../../app.config';
-import { initEvent, initEventRegistration, initProduct } from '../../../../functions/src/data-model';
+import { initEvent, initEventRegistration, initProduct } from '../../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('EventViewComponent', () => {

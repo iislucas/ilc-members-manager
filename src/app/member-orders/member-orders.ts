@@ -8,14 +8,10 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import {
-  Grading,
-  InstructorLicenseType,
-  MemberOrder,
-  MembershipType,
-  gradingDisplayId,
-  orderDisplayNumber,
-} from '../../../functions/src/data-model';
+import { InstructorLicenseType } from '../../../functions/src/data-model/curriculum';
+import { Grading, gradingDisplayId, orderDisplayNumber } from '../../../functions/src/data-model/gradings';
+import { MembershipType } from '../../../functions/src/data-model/members';
+import { MemberOrder } from '../../../functions/src/data-model/orders';
 
 export enum SubscriptionCardCategory {
   Membership = 'membership',

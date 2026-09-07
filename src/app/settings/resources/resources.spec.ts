@@ -7,11 +7,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ResourcesComponent } from './resources';
-import {
-  ResourceAccessLevel,
-  RESOURCE_ACCESS_LEVELS,
-  ACCESS_LEVEL_LABELS,
-} from '../../../../functions/src/data-model';
+import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS, ACCESS_LEVEL_LABELS } from '../../../../functions/src/data-model/curriculum';
 import { DataManagerService } from '../../data-manager.service';
 import { FIREBASE_APP } from '../../app.config';
 import { vi, describe, it, expect, beforeEach } from 'vitest';

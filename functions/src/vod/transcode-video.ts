@@ -11,15 +11,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from '../common';
-import {
-  VideoItem,
-  VodStatus,
-  VodAccessTier,
-  initVideoItem,
-  firestoreDocToVideoItem,
-  UploadItem,
-  firestoreDocToUploadItem,
-} from '../data-model';
+import { UploadItem, firestoreDocToUploadItem } from '../data-model/materials';
+import { VideoItem, VodStatus, VodAccessTier, initVideoItem, firestoreDocToVideoItem } from '../data-model/vod';
 
 export interface TranscodeVideoRequest {
   uploadDocId: string;

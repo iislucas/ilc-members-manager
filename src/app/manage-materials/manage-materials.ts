@@ -15,13 +15,10 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  UploadItem,
-  IlcEvent,
-  InstructorPublicData,
-  VodAccessTier,
-  VodStatus,
-} from '../../../functions/src/data-model';
+import { IlcEvent } from '../../../functions/src/data-model/events';
+import { UploadItem } from '../../../functions/src/data-model/materials';
+import { InstructorPublicData } from '../../../functions/src/data-model/members';
+import { VodAccessTier, VodStatus } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';

@@ -20,15 +20,9 @@ process.env['FIREBASE_AUTH_EMULATOR_HOST'] ||= '127.0.0.1:9099';
 
 import * as admin from 'firebase-admin';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  EventSourceKind,
-  EventStatus,
-  NotificationKind,
-  initEvent,
-  initMember,
-  type IlcEvent,
-  type MemberNotification,
-} from '../../functions/src/data-model';
+import { EventStatus, initEvent, type IlcEvent } from '../../functions/src/data-model/events';
+import { initMember } from '../../functions/src/data-model/members';
+import { NotificationKind, type MemberNotification } from '../../functions/src/data-model/notifications';
 
 const PROJECT_ID = 'demo-ilc-test';
 
@@ -80,7 +74,6 @@ describe('story: event-nonInstructor-owner', () => {
       start: '2026-09-01',
       end: '2026-09-02',
       status: EventStatus.Proposed,
-      kind: EventSourceKind.FirebaseSourced,
       ownerDocId,
       managerDocIds: [ownerDocId],
       ownerName: 'Non Instructor Owner',

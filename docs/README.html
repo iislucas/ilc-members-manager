@@ -368,50 +368,50 @@
 
       <!-- Section: Collections -->
       <section id="collections">
-        <h2>Firestore Collections Architecture</h2>
-        <p>The primary Firestore root collections and domain types defined in <code>functions/src/data-model.ts</code>:</p>
+        <h2>Firestore Collections Architecture &amp; Domain Modules</h2>
+        <p>The Firestore root collections and domain data structures are organized directly into domain modules in <code>functions/src/data-model/</code>:</p>
 
         <div class="grid-2">
           <div class="card">
             <div class="card-header">
               <span class="card-title">📁 /members/{docId}</span>
-              <span class="badge badge-primary">Member</span>
+              <span class="badge badge-primary">data-model/members.ts</span>
             </div>
             <p class="card-description">
-              Primary member records containing full profile, membership type (Annual, Life), expiration dates, license statuses, and linked IDs.
+              Primary member records containing full profile, membership type (Annual, Life), expiration dates, license statuses, and linked IDs. Companion converter: <code>firestoreDocToMember()</code>, defaults: <code>initMember()</code>.
             </p>
-            <code>emails: string[], memberId: string, name: string, studentLevel: number</code>
+            <code>emails: string[], memberId: string, name: string, studentLevel: string</code>
           </div>
 
           <div class="card">
             <div class="card-header">
               <span class="card-title">🥋 /instructors/{docId}</span>
-              <span class="badge badge-accent">InstructorPublicData</span>
+              <span class="badge badge-accent">data-model/members.ts</span>
             </div>
             <p class="card-description">
-              Public instructor registry mirrored automatically from the member document. Displayed in public find-an-instructor tools.
+              Public instructor registry mirrored automatically from the member document. Displayed in public find-an-instructor tools. Companion converter: <code>firestoreDocToInstructorPublicData()</code>, defaults: <code>initInstructor()</code>.
             </p>
-            <code>instructorId: string, name: string, level: string, bio: string, location: string</code>
+            <code>instructorId: string, name: string, studentLevel: string, publicBioMarkdown: string</code>
           </div>
 
           <div class="card">
             <div class="card-header">
               <span class="card-title">🏫 /schools/{docId}</span>
-              <span class="badge badge-purple">School</span>
+              <span class="badge badge-purple">data-model/schools.ts</span>
             </div>
             <p class="card-description">
-              Official school branches worldwide with geographic coordinates, owner and manager instructor IDs, licence expiry, and class schedules. Ownership for <a href="#security-rules">security rules</a> is resolved from the ACL's <code>schoolDocIds</code>; the document's <code>ownerEmails</code> / <code>managerEmails</code> arrays are deprecated and no longer consulted by the rules.
+              Official school branches worldwide with coordinates, owner and manager instructor IDs, licence expiry, and schedules. Ownership for <a href="#security-rules">security rules</a> is resolved from the ACL's <code>schoolDocIds</code>. Companion converter: <code>firestoreDocToSchool()</code>, defaults: <code>initSchool()</code>.
             </p>
-            <code>schoolId: string, schoolName: string, ownerInstructorId: string, lat: number</code>
+            <code>schoolId: string, schoolName: string, ownerInstructorId: string</code>
           </div>
 
           <div class="card">
             <div class="card-header">
               <span class="card-title">⛰️ /gradings/{docId}</span>
-              <span class="badge badge-warning">Grading</span>
+              <span class="badge badge-warning">data-model/gradings.ts</span>
             </div>
             <p class="card-description">
-              Assessment requests tracking the 3-step workflow (Requested → Awaiting Grading → Finalized Passed/Not Passed) and examiner notes.
+              Assessment requests tracking the 3-step workflow (Requested → Awaiting Grading → Finalized Passed/Not Passed) and examiner notes. Progression order defined in <code>data-model/curriculum.ts</code>. Companion converter: <code>firestoreDocToGrading()</code>, defaults: <code>initGrading()</code>.
             </p>
             <code>studentMemberDocId: string, level: string, status: GradingStatus, gradingEventDocId</code>
           </div>
@@ -419,21 +419,21 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">📅 /events/{docId}</span>
-              <span class="badge badge-success">IlcEvent</span>
+              <span class="badge badge-success">data-model/events.ts</span>
             </div>
             <p class="card-description">
-              Workshops, seminars, and training camps. Synced from Google Calendar or proposed directly by members and approved by HQ.
+              Workshops, seminars, and training camps. Member-proposed events start at status <code>proposed</code> for admin approval. Companion converter: <code>initEvent()</code>, contacts: <code>eventContacts()</code>.
             </p>
-            <code>title: string, startDate: string, ownerDocId: string, managerDocIds: string[], status: EventStatus, registrationProductDocId?: string</code>
+            <code>title: string, start: string, ownerDocId: string, managerDocIds: string[], status: EventStatus, productId?: string</code>
           </div>
 
           <div class="card">
             <div class="card-header">
               <span class="card-title">📦 /orders/{docId}</span>
-              <span class="badge badge-primary">Order</span>
+              <span class="badge badge-primary">data-model/orders.ts</span>
             </div>
             <p class="card-description">
-              Multi-channel unified order ledger aggregating Stripe checkout sessions, Squarespace store orders, and legacy Google Sheets imports.
+              Multi-channel unified order ledger aggregating Stripe checkout sessions, Squarespace store orders, and legacy Google Sheets imports. Companion converter: <code>firestoreDocToOrder()</code>.
             </p>
             <code>orderNumber: string, amountTotal: number, paymentStatus: string, lineItems: []</code>
           </div>
@@ -441,10 +441,10 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">🎬 /videos/{docId}</span>
-              <span class="badge badge-purple">VideoItem</span>
+              <span class="badge badge-purple">data-model/vod.ts</span>
             </div>
             <p class="card-description">
-              Video on Demand streaming catalog. Contains HLS master manifest URLs, resolutions, duration, pricing, categories, and tags.
+              Video on Demand streaming catalog. Contains HLS master manifest URLs, resolutions, duration, pricing, series groupings, and tags. Companion converter: <code>firestoreDocToVideoItem()</code>, defaults: <code>initVideoItem()</code>.
             </p>
             <code>accessTier: VodAccessTier, vodStatus: VodStatus, manifestUrl: string, tags: []</code>
           </div>
@@ -452,7 +452,7 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">🔑 /acl/{email}</span>
-              <span class="badge badge-danger">ACL</span>
+              <span class="badge badge-danger">data-model/system.ts</span>
             </div>
             <p class="card-description">
               Fast permission cache indexed by normalized lowercase email. Enables rapid security rule execution without expensive sub-queries.
@@ -463,12 +463,12 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">🎟️ /products/{docId}</span>
-              <span class="badge badge-success">Product</span>
+              <span class="badge badge-success">data-model/events.ts</span>
             </div>
             <p class="card-description">
-              Online registration products for classes, workshops, and seminars. 1:1 linked to an IlcEvent, with tiered pricing across roles (Public, Member, Instructor) and participation forms.
+              Online registration products for classes, workshops, and seminars. 1:1 linked to an IlcEvent, with tiered pricing across roles (Public, Member, Instructor) and participation forms. Companion converter: <code>firestoreDocToProduct()</code>, defaults: <code>initProduct()</code>.
             </p>
-            <code>eventDocId: string, currency: string, allowNonMembers: boolean, tiers: Record&lt;string, PricingTier&gt;</code>
+            <code>eventDocId: string, currency: string, allowNonMembers: boolean, tiers: Record&lt;string, { enabled: boolean; price: number }&gt;</code>
           </div>
         </div>
       </section>
@@ -536,6 +536,99 @@
                 <td><code>EventRegistration</code></td>
                 <td>Verified paid attendee registrations for HQ-ticketed events.</td>
                 <td>Stripe Fulfillment (Cloud Functions Admin SDK).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Domain Modules Reference -->
+      <section id="data-model-modules">
+        <h2>Data Model Modules Reference (<code>functions/src/data-model/</code>)</h2>
+        <p>Core TypeScript definitions, default objects (<code>initXxx()</code>), and Firestore document converters (<code>firestoreDocToXxx()</code>) are strictly co-located by domain:</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Core Types &amp; Entities</th>
+                <th>Companion Initializers &amp; Helpers</th>
+                <th>Collections &amp; Scope</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>data-model/base.ts</code></td>
+                <td><code>FsTimestamp</code>, <code>GenericFsDoc</code></td>
+                <td><code>normalizeLastUpdated()</code></td>
+                <td>Shared primitives across all Firestore documents.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/curriculum.ts</code></td>
+                <td><code>StudentLevel</code>, <code>ApplicationLevel</code>, <code>MasterLevel</code>, <code>InstructorLicenseType</code>, <code>ResourceAccessLevel</code></td>
+                <td><code>gradingProgression</code>, <code>achievedGradingLevels()</code>, <code>nextGradingLevel()</code>, <code>instructorCanAssessLevel()</code></td>
+                <td>Syllabus grades, progression tracks, assessment authorization.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/members.ts</code></td>
+                <td><code>Member</code>, <code>InstructorPublicData</code>, <code>MembershipType</code>, <code>MemberSubscriptionItem</code></td>
+                <td><code>initMember()</code>, <code>firestoreDocToMember()</code>, <code>initInstructor()</code>, <code>hasActiveMembership()</code></td>
+                <td><code>/members/{docId}</code>, <code>/instructors/{docId}</code>, student rosters.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/schools.ts</code></td>
+                <td><code>School</code>, <code>SchoolFsDoc</code></td>
+                <td><code>initSchool()</code>, <code>firestoreDocToSchool()</code></td>
+                <td><code>/schools/{docId}</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/gradings.ts</code></td>
+                <td><code>Grading</code>, <code>GradingStatus</code>, <code>PaymentStatus</code></td>
+                <td><code>initGrading()</code>, <code>firestoreDocToGrading()</code>, <code>isGradingPaid()</code>, <code>gradingDisplayId()</code></td>
+                <td><code>/gradings/{docId}</code>, 3-step evaluation workflow.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/events.ts</code></td>
+                <td><code>IlcEvent</code>, <code>EventStatus</code>, <code>EventContact</code>, <code>Product</code>, <code>EventRegistration</code></td>
+                <td><code>initEvent()</code>, <code>eventContacts()</code>, <code>initProduct()</code>, <code>initEventRegistration()</code></td>
+                <td><code>/events/{docId}</code>, <code>/products/{docId}</code>, <code>/events/{id}/registrations</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/orders.ts</code></td>
+                <td><code>Order</code>, <code>MemberOrder</code>, <code>SquareSpaceOrder</code>, <code>StripeOrder</code>, <code>SheetsImportOrder</code></td>
+                <td><code>initMemberOrder()</code>, <code>firestoreDocToOrder()</code>, <code>firestoreDocToMemberOrder()</code></td>
+                <td><code>/orders/{docId}</code>, <code>/members/{id}/orders/{id}</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/notifications.ts</code></td>
+                <td><code>MemberNotification</code>, <code>NotificationKind</code>, <code>NotificationStyle</code></td>
+                <td><code>initMemberNotification()</code>, <code>firestoreDocToMemberNotification()</code>, <code>notificationStyle()</code></td>
+                <td><code>/members/{id}/notifications/{id}</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/vod.ts</code></td>
+                <td><code>VideoItem</code>, <code>VideoSeries</code>, <code>VideoGrant</code>, <code>VideoProgress</code>, <code>VodAccessTier</code></td>
+                <td><code>initVideoItem()</code>, <code>groupVideosIntoSeries()</code>, <code>initVideoGrant()</code>, <code>initVideoProgress()</code></td>
+                <td><code>/videos/{docId}</code>, <code>/members/{id}/videoGrants</code>, <code>/members/{id}/videoProgress</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/materials.ts</code></td>
+                <td><code>UploadItem</code>, <code>UploadItemSource</code></td>
+                <td><code>initUploadItem()</code>, <code>firestoreDocToUploadItem()</code></td>
+                <td><code>/members/{id}/uploads/{id}</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/content-cache.ts</code></td>
+                <td><code>CachedBlogPost</code>, <code>BlogPostStatus</code>, <code>CacheMetadata</code>, <code>EmailTemplates</code></td>
+                <td><code>initCachedBlogPost()</code>, <code>initCacheMetadata()</code>, <code>initEmailTemplates()</code></td>
+                <td><code>/members-post</code>, <code>/instructors-post</code>, <code>/system/cache-metadata</code>.</td>
+              </tr>
+              <tr>
+                <td><code>data-model/system.ts</code></td>
+                <td><code>Counters</code>, <code>ACL</code>, <code>Tombstone</code>, <code>MemberStatistics</code>, <code>FetchUserDetailsResult</code></td>
+                <td><code>firestoreDocToStatistics()</code>, <code>firestoreDocToTombstone()</code></td>
+                <td><code>/system/counters</code>, <code>/acl/{email}</code>, <code>/tombstones</code>, <code>/statistics</code>.</td>
               </tr>
             </tbody>
           </table>

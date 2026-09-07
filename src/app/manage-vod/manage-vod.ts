@@ -17,13 +17,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  VideoItem,
-  VideoSeries,
-  VodStatus,
-  VodAccessTier,
-  TagItem,
-} from '../../../functions/src/data-model';
+import { VideoItem, VideoSeries, VodStatus, VodAccessTier, TagItem } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';

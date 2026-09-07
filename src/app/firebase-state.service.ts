@@ -28,13 +28,8 @@ import {
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
-import {
-  CheckEmailStatusResult,
-  FetchUserDetailsResult,
-  firestoreDocToMember,
-  initMember,
-  Member,
-} from '../../functions/src/data-model';
+import { firestoreDocToMember, initMember, Member } from '../../functions/src/data-model/members';
+import { CheckEmailStatusResult, FetchUserDetailsResult } from '../../functions/src/data-model/system';
 
 type AuthErrorCodeStr = (typeof AuthErrorCodes)[keyof typeof AuthErrorCodes];
 

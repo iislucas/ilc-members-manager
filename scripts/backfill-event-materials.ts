@@ -35,7 +35,7 @@
 
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
-import { UploadItem } from '../functions/src/data-model';
+import { UploadItem } from '../functions/src/data-model/materials';
 
 const COMMIT = process.argv.includes('--commit');
 const DEFAULT_PROJECT = 'ilc-paris-class-tracker';

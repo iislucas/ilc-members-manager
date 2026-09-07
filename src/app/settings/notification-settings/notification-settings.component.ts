@@ -17,7 +17,8 @@ import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { NotificationService } from '../../notification.service';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
-import { Member, NotificationKind } from '../../../../functions/src/data-model';
+import { Member } from '../../../../functions/src/data-model/members';
+import { NotificationKind } from '../../../../functions/src/data-model/notifications';
 import { IconComponent } from '../../icons/icon.component';
 
 @Component({

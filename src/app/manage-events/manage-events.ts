@@ -29,7 +29,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { FIREBASE_APP, Views } from '../app.config';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent } from '../../../functions/src/data-model/events';
 import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';

@@ -13,7 +13,7 @@ process.env['FIRESTORE_EMULATOR_HOST'] ||= '127.0.0.1:8080';
 process.env['FIREBASE_AUTH_EMULATOR_HOST'] ||= '127.0.0.1:9099';
 
 import * as admin from 'firebase-admin';
-import { initMember } from '../../functions/src/data-model';
+import { initMember } from '../../functions/src/data-model/members';
 
 export const PROJECT_ID = 'demo-ilc-test';
 export const FUNCTIONS_HOST =

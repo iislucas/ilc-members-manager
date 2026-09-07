@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../../data-manager.service';
 import { SpinnerComponent } from '../../spinner/spinner.component';
 import { MarkdownEditor, EditorChip, MarkdownFeature } from '../../markdown-editor/markdown-editor';
-import { EmailTemplates, initEmailTemplates } from '../../../../functions/src/data-model';
+import { EmailTemplates, initEmailTemplates } from '../../../../functions/src/data-model/content-cache';
 import { findUnsupportedEmailMarkdown, SUPPORTED_EMAIL_MARKDOWN } from '../../../../functions/src/email-markdown';
 
 @Component({

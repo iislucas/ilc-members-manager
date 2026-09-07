@@ -1,7 +1,8 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { firestoreDocToSchool, firestoreDocToMember } from '../../src/data-model';
+import { firestoreDocToMember } from '../../src/data-model/members';
+import { firestoreDocToSchool } from '../../src/data-model/schools';
 
 /**
  * Script to migrate old data fields to the new schema permanently.

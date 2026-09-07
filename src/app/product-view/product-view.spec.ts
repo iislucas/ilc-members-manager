@@ -7,7 +7,7 @@ import { StripeService } from '../stripe.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { initProduct, Product } from '../../../functions/src/data-model';
+import { initProduct, Product } from '../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('ProductViewComponent', () => {

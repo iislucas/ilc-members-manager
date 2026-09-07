@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Member } from '../../functions/src/data-model';
+import { Member } from '../../functions/src/data-model/members';
 import { FirebaseStateService } from './firebase-state.service';
 import { RoutingService } from './routing.service';
 import { AppPathPatterns, Views } from './app.config';

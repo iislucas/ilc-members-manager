@@ -26,7 +26,10 @@ import {
   required,
   FieldTree,
 } from '@angular/forms/signals';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, InstructorPublicData, Member, EventContact, EventDocument, School, UploadItem, UploadItemSource, Product } from '../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, initEventContact, EventContact, EventDocument, Product } from '../../../functions/src/data-model/events';
+import { UploadItem, UploadItemSource } from '../../../functions/src/data-model/materials';
+import { InstructorPublicData, Member } from '../../../functions/src/data-model/members';
+import { School } from '../../../functions/src/data-model/schools';
 import { IconComponent } from '../icons/icon.component';
 import { DataManagerService } from '../data-manager.service';
 import { ProductService } from '../product.service';

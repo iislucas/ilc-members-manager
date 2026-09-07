@@ -23,14 +23,7 @@ import {
   ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
-import {
-  VideoItem,
-  VideoSeries,
-  groupVideosIntoSeries,
-  VodAccessTier,
-  VodStatus,
-  VideoProgress,
-} from '../../../functions/src/data-model';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';

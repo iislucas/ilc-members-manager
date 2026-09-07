@@ -11,7 +11,7 @@ import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { ROUTING_CONFIG, initPathPatterns } from '../app.config';
-import { initGrading, Grading } from '../../../functions/src/data-model';
+import { initGrading, Grading } from '../../../functions/src/data-model/gradings';
 import { GradingEditComponent } from '../grading-edit/grading-edit';
 import { GradingRowHeaderComponent } from '../grading-row-header/grading-row-header';
 import { GradingProgressComponent } from '../grading-progress/grading-progress';

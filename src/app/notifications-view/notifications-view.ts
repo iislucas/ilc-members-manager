@@ -19,11 +19,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import {
-  MemberNotification,
-  NotificationStyle,
-  notificationStyle,
-} from '../../../functions/src/data-model';
+import { MemberNotification, NotificationStyle, notificationStyle } from '../../../functions/src/data-model/notifications';
 import { NotificationService } from '../notification.service';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';

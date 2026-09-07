@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { clearOrderProcessingState, executeOrderDownstreamLogic } from './api';
-import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model';
+import { SquareSpaceOrder, SquareSpaceLineItemType } from '../data-model/orders';
 import * as admin from 'firebase-admin';
 
 describe('clearOrderProcessingState', () => {

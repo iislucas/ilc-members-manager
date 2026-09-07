@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, input } from '@angular/core';
 import { MemberListComponent } from '../member-list/member-list';
 import { DataManagerService } from '../data-manager.service';
 import { SearchableSet } from '../searchable-set';
-import { Member } from '../../../functions/src/data-model';
+import { Member } from '../../../functions/src/data-model/members';
 
 @Component({
   selector: 'app-filtered-members',

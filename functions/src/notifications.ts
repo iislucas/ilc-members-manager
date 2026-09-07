@@ -9,7 +9,7 @@ pipeline.
 */
 
 import * as admin from 'firebase-admin';
-import { MemberNotification } from './data-model';
+import { MemberNotification } from './data-model/notifications';
 
 // Fields on a notification's `data` that uniquely identify the entity it
 // relates to. When a new notification carries one of these, any existing

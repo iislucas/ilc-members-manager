@@ -9,7 +9,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FIREBASE_APP } from '../../app.config';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { CacheMetadata, initCacheMetadata } from '../../../../functions/src/data-model';
+import { CacheMetadata, initCacheMetadata } from '../../../../functions/src/data-model/content-cache';
 
 @Component({
     selector: 'app-content-cache',

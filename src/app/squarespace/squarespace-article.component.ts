@@ -12,7 +12,8 @@ import {
 import { FIREBASE_APP } from '../app.config';
 import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { MembershipType, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model';
+import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
+import { MembershipType } from '../../../functions/src/data-model/members';
 import { ProcessedBlogEntry, normalizeCategory } from './squarespace-content.component';
 
 @Component({

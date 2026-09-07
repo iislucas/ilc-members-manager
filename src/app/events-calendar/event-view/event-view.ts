@@ -11,7 +11,7 @@ import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product } from '../../../../functions/src/data-model';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product } from '../../../../functions/src/data-model/events';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { ProductService } from '../../product.service';

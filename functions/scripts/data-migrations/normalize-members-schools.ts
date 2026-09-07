@@ -1,11 +1,8 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import {
-  MembershipType,
-  initMember,
-  initSchool,
-} from '../../src/data-model';
+import { MembershipType, initMember } from '../../src/data-model/members';
+import { initSchool } from '../../src/data-model/schools';
 
 /*
  Data migration script to normalize members and schools.

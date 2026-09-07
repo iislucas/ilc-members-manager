@@ -12,7 +12,10 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { IlcEvent, EventStatus, Member, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, NotificationKind, EventRegistration, VideoGrant, VideoGrantKind } from './data-model';
+import { IlcEvent, EventStatus, EventDocument, EventContact, initEvent, initEventContact, contactFromCreator, EventRegistration } from './data-model/events';
+import { Member } from './data-model/members';
+import { NotificationKind } from './data-model/notifications';
+import { VideoGrant, VideoGrantKind } from './data-model/vod';
 import { getMemberByEmail, allowedOrigins, hasActiveMembership, recordTombstone } from './common';
 import { createMemberNotification } from './notifications';
 import { contentChanged } from './content-cache';

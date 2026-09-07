@@ -27,14 +27,8 @@ import { IconComponent } from '../icons/icon.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { MarkdownViewer } from '../markdown-editor/markdown-viewer';
 import { formatDateRange } from '../events-calendar/format-date-range';
-import {
-  AttendeeRole,
-  AttendanceType,
-  getPricingTierKey,
-  IlcEvent,
-  Product,
-  MembershipType,
-} from '../../../functions/src/data-model';
+import { AttendeeRole, AttendanceType, getPricingTierKey, IlcEvent, Product } from '../../../functions/src/data-model/events';
+import { MembershipType } from '../../../functions/src/data-model/members';
 
 @Component({
   selector: 'app-product-view',

@@ -6,7 +6,7 @@ import { ProductService } from '../product.service';
 import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
-import { initEvent, initEventRegistration } from '../../../functions/src/data-model';
+import { initEvent, initEventRegistration } from '../../../functions/src/data-model/events';
 import { signal } from '@angular/core';
 
 describe('EventRegistrationsComponent', () => {

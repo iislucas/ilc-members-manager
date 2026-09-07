@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseSchoolLicenseInfo, processSchoolLicense, SchoolLicenseInfo } from './school-license';
 import { computeRenewalAndExpiration } from './common';
-import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model';
+import { SquareSpaceLineItem, SquareSpaceOrder, SquareSpaceLineItemType, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../data-model/orders';
 import * as admin from 'firebase-admin';
 
 // Helper to build a mock Firestore that returns a school document.

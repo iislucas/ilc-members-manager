@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { OrderStatus } from '../../src/data-model';
+import { OrderStatus } from '../../src/data-model/orders';
 
 /*
  Data migration: mark legacy (Google Sheets import) orders as processed.

@@ -1,5 +1,5 @@
 import { parse, isValid, format } from 'date-fns';
-import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
 
 export type ParsedRow = Record<string, string>;
 

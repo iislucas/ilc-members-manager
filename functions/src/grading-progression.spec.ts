@@ -1,21 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-  nextGradingLevel,
-  achievedGradingLevels,
-  instructorCanAssessLevel,
-  previousGradingLevel,
-  normalizeGradingLevel,
-  levelAfter,
-  nextGradingPayment,
-  unpaidGradingsInProgressionOrder,
-  orderDisplayNumber,
-  gradingDisplayId,
-  notificationStyle,
-  isGradingPaid,
-  NotificationKind,
-  PaymentStatus,
-  GradingStatus,
-} from './data-model';
+import { nextGradingLevel, achievedGradingLevels, instructorCanAssessLevel, previousGradingLevel, normalizeGradingLevel, levelAfter } from './data-model/curriculum';
+import { nextGradingPayment, unpaidGradingsInProgressionOrder, orderDisplayNumber, gradingDisplayId, isGradingPaid, PaymentStatus, GradingStatus } from './data-model/gradings';
+import { notificationStyle, NotificationKind } from './data-model/notifications';
 
 describe('grading progression helpers', () => {
   describe('nextGradingLevel', () => {

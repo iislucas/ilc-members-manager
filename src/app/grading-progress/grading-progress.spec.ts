@@ -12,7 +12,9 @@ import { GradingEventInputComponent } from '../grading-event-input/grading-event
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
-import { initGrading, GradingStatus, initMember, Grading, PaymentStatus, StudentLevel, ApplicationLevel } from '../../../functions/src/data-model';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { initGrading, GradingStatus, Grading, PaymentStatus } from '../../../functions/src/data-model/gradings';
+import { initMember } from '../../../functions/src/data-model/members';
 import { SearchableSet } from '../searchable-set';
 
 @Component({ selector: 'app-grading-event-input', standalone: true, template: '' })

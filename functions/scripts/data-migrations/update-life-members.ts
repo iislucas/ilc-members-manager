@@ -20,7 +20,8 @@ Examples:
   pnpm run update-life-members --dry-run
 */
 import * as admin from 'firebase-admin';
-import { MembershipType, SheetsImportOrder } from '../src/data-model';
+import { MembershipType } from '../src/data-model/members';
+import { SheetsImportOrder } from '../src/data-model/orders';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 

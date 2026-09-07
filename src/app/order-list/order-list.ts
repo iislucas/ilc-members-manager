@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataManagerService } from '../data-manager.service';
-import { Order, SquareSpaceOrder, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../../../functions/src/data-model';
+import { Order, SquareSpaceOrder, OrderKind, OrderStatus, SquarespaceFulfillmentStatus } from '../../../functions/src/data-model/orders';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { IconComponent } from '../icons/icon.component';

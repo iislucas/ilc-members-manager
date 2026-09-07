@@ -27,7 +27,7 @@ import {
 } from '../firebase-state.service';
 import { RoutingService } from '../routing.service';
 import { SignInFlowService } from './sign-in-flow.service';
-import { CheckEmailStatusResult } from '../../../functions/src/data-model';
+import { CheckEmailStatusResult } from '../../../functions/src/data-model/system';
 
 const LEGACY_LOGIN_KEY = 'ilc-login-info';
 

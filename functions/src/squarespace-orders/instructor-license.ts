@@ -7,7 +7,9 @@ license renewals.
 
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
-import { Member, InstructorLicenseType, SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model';
+import { InstructorLicenseType } from '../data-model/curriculum';
+import { Member } from '../data-model/members';
+import { SquareSpaceOrder, SquareSpaceLineItem, SquareSpaceCustomization } from '../data-model/orders';
 import { computeRenewalAndExpiration, SubscriptionResult } from './common';
 import { inferMemberIdFromOrder } from './infer-member';
 import { snapshotPreOrderDates } from './snapshot-pre-order-dates';

@@ -21,16 +21,8 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  VideoItem,
-  VideoSeries,
-  groupVideosIntoSeries,
-  VodAccessTier,
-  VodStatus,
-  VideoProgress,
-  InstructorPublicData,
-  TagItem,
-} from '../../../functions/src/data-model';
+import { InstructorPublicData } from '../../../functions/src/data-model/members';
+import { VideoItem, VideoSeries, groupVideosIntoSeries, VodAccessTier, VodStatus, VideoProgress, TagItem } from '../../../functions/src/data-model/vod';
 import { DataManagerService } from '../data-manager.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { AppPathPatterns, Views } from '../app.config';

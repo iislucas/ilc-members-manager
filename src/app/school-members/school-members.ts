@@ -4,7 +4,7 @@ import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
 import { FilteredMembersComponent } from '../filtered-members/filtered-members';
 import { SpinnerComponent } from '../spinner/spinner.component';
-import { School } from '../../../functions/src/data-model';
+import { School } from '../../../functions/src/data-model/schools';
 
 export enum SchoolStatusKind {
   SchoolsLoading = 'SchoolsLoading',

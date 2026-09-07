@@ -1,11 +1,8 @@
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import * as logger from 'firebase-functions/logger';
-import {
-  InstructorLicenseType,
-  InstructorPublicDataFsDoc,
-  Member,
-} from './data-model';
+import { InstructorLicenseType } from './data-model/curriculum';
+import { InstructorPublicDataFsDoc, Member } from './data-model/members';
 
 const db = admin.firestore();
 

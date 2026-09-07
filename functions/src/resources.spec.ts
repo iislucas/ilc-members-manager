@@ -2,7 +2,8 @@
 import * as admin from 'firebase-admin';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { assertResourceAccess } from './resources';
-import { ResourceAccessLevel, ACL } from './data-model';
+import { ResourceAccessLevel } from './data-model/curriculum';
+import { ACL } from './data-model/system';
 import { HttpsError } from 'firebase-functions/v2/https';
 
 describe('assertResourceAccess', () => {

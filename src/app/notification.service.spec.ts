@@ -3,7 +3,8 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { writeBatch, getDocs, getDoc, where } from 'firebase/firestore';
 import { NotificationService } from './notification.service';
 import { FirebaseStateService, createFirebaseStateServiceMock } from './firebase-state.service';
-import { MemberNotification, NotificationKind, OrderKind, OrderStatus } from '../../functions/src/data-model';
+import { MemberNotification, NotificationKind } from '../../functions/src/data-model/notifications';
+import { OrderKind, OrderStatus } from '../../functions/src/data-model/orders';
 
 // Partial-mock firebase/firestore so reconciliation's writes/reads can be
 // captured. getFirestore (used in the service constructor) keeps its real

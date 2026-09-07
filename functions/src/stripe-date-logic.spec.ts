@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as admin from 'firebase-admin';
-import {
-  initMember,
-  MembershipType,
-  InstructorLicenseType,
-  OrderKind,
-  StripeOrder,
-  StripeOrderType,
-  StripeCheckoutMode,
-  SubscriptionInterval,
-  SubscriptionStatus,
-} from './data-model';
+import { InstructorLicenseType } from './data-model/curriculum';
+import { initMember, MembershipType, SubscriptionInterval, SubscriptionStatus } from './data-model/members';
+import { OrderKind, StripeOrder, StripeOrderType, StripeCheckoutMode } from './data-model/orders';
 import {
   extendDateByYears,
   extendDateByMonths,

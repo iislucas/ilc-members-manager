@@ -8,11 +8,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from '../common';
-import {
-  VideoItem,
-  VodStatus,
-  firestoreDocToVideoItem,
-} from '../data-model';
+import { VideoItem, VodStatus, firestoreDocToVideoItem } from '../data-model/vod';
 
 export interface CheckVodJobStatusRequest {
   videoId: string;

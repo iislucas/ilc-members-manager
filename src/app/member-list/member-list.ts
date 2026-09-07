@@ -9,7 +9,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Member, StudentLevel, ApplicationLevel, MembershipType } from '../../../functions/src/data-model';
+import { StudentLevel, ApplicationLevel } from '../../../functions/src/data-model/curriculum';
+import { Member, MembershipType } from '../../../functions/src/data-model/members';
 import { SearchableSet } from '../searchable-set';
 import { getAllMemberTags } from '../member-tags';
 

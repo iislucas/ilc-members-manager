@@ -5,7 +5,7 @@ import {
   mapToCachedBlogPost,
   contentChanged,
 } from './content-cache';
-import { BlogPostSourceKind, blogPostSourceKind } from './data-model';
+import { BlogPostSourceKind, blogPostSourceKind } from './data-model/content-cache';
 import {
   squarespaceBaseUrl,
   memberBlogItem,

@@ -19,7 +19,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import { assertAdmin, allowedOrigins } from './common';
-import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS } from './data-model';
+import { ResourceAccessLevel, RESOURCE_ACCESS_LEVELS } from './data-model/curriculum';
 
 export interface ResourceFileInfo {
   name: string;

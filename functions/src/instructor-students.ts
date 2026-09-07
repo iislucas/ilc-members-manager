@@ -17,12 +17,8 @@ import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import { FieldValue } from 'firebase-admin/firestore';
-import {
-  canMarkMembershipInactive,
-  Member,
-  MembershipType,
-  NotificationKind,
-} from './data-model';
+import { canMarkMembershipInactive, Member, MembershipType } from './data-model/members';
+import { NotificationKind } from './data-model/notifications';
 import { allowedOrigins, getUserMemberDocIds } from './common';
 import { createMemberNotification } from './notifications';
 

@@ -3,7 +3,10 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 
 import { ImportOrdersComponent } from './import-orders.component';
 import { DataManagerService } from '../../data-manager.service';
-import { Order, SheetsImportOrder, Member, School, initMember, initSchool, initSheetsImportOrder, InstructorLicenseType, MembershipType } from '../../../../functions/src/data-model';
+import { InstructorLicenseType } from '../../../../functions/src/data-model/curriculum';
+import { Member, initMember, MembershipType } from '../../../../functions/src/data-model/members';
+import { Order, SheetsImportOrder, initSheetsImportOrder } from '../../../../functions/src/data-model/orders';
+import { School, initSchool } from '../../../../functions/src/data-model/schools';
 
 describe('ImportOrdersComponent', () => {
   let component: ImportOrdersComponent;

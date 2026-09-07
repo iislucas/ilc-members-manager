@@ -8,15 +8,9 @@ import { RoutingService } from '../routing.service';
 import { FIREBASE_APP, AppPathPatterns } from '../app.config';
 import { SearchableSet } from '../searchable-set';
 import { provideNavigationTreeStub } from '../navigation-tree.testing';
-import {
-  InstructorPublicData,
-  initInstructor,
-  IlcEvent,
-  initEvent,
-  EventStatus,
-  School,
-  initSchool,
-} from '../../../functions/src/data-model';
+import { IlcEvent, initEvent, EventStatus } from '../../../functions/src/data-model/events';
+import { InstructorPublicData, initInstructor } from '../../../functions/src/data-model/members';
+import { School, initSchool } from '../../../functions/src/data-model/schools';
 
 // Mock firebase/firestore so the direct-fetch fallback and getFirestore are inert.
 vi.mock('firebase/firestore', () => ({

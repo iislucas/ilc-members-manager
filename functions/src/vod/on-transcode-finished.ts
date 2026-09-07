@@ -13,7 +13,7 @@
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { VodStatus, VideoItemFsDoc } from '../data-model';
+import { VodStatus, VideoItemFsDoc } from '../data-model/vod';
 
 export const onTranscodeJobFinished = onMessagePublished(
   {
