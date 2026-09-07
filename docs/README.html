@@ -110,6 +110,7 @@
         <a href="orders-and-subscriptions.html">Orders &amp; Subscriptions</a>
         <a href="authentication.html">Authentication</a>
         <a href="guided-purchase-flows.html">Purchase Flows</a>
+        <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/event-online-registrations.md">Event Registrations</a>
         <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/gradings.md">Gradings</a>
         <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/materials-management.md">Materials</a>
         <a class="doc-external" href="https://github.com/iislucas/ilc-members-manager/blob/main/docs/push-notifications.md">Push</a>
@@ -423,7 +424,7 @@
             <p class="card-description">
               Workshops, seminars, and training camps. Synced from Google Calendar or proposed directly by members and approved by HQ.
             </p>
-            <code>title: string, startDate: string, ownerDocId: string, managerDocIds: string[]</code>
+            <code>title: string, startDate: string, ownerDocId: string, managerDocIds: string[], status: EventStatus, registrationProductDocId?: string</code>
           </div>
 
           <div class="card">
@@ -457,6 +458,17 @@
               Fast permission cache indexed by normalized lowercase email. Enables rapid security rule execution without expensive sub-queries.
             </p>
             <code>isAdmin: boolean, memberDocIds: string[], schoolDocIds: string[]</code>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🎟️ /products/{docId}</span>
+              <span class="badge badge-success">Product</span>
+            </div>
+            <p class="card-description">
+              Online registration products for classes, workshops, and seminars. 1:1 linked to an IlcEvent, with tiered pricing across roles (Public, Member, Instructor) and participation forms.
+            </p>
+            <code>eventDocId: string, currency: string, allowNonMembers: boolean, tiers: Record&lt;string, PricingTier&gt;</code>
           </div>
         </div>
       </section>
@@ -518,6 +530,12 @@
                 <td><code>Member</code></td>
                 <td>Cached school member roster for school manager dashboard.</td>
                 <td><code>onMemberUpdate</code> Trigger.</td>
+              </tr>
+              <tr>
+                <td><code>/events/{id}/registrations/{regId}</code></td>
+                <td><code>EventRegistration</code></td>
+                <td>Verified paid attendee registrations for HQ-ticketed events.</td>
+                <td>Stripe Fulfillment (Cloud Functions Admin SDK).</td>
               </tr>
             </tbody>
           </table>
