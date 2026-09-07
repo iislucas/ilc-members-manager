@@ -136,6 +136,7 @@ export class ProposeEventComponent {
     productId: '',
     onlineJoiningLink: '',
     purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     // Member doc ID of the event owner (main contact). Defaults to the submitter.
@@ -521,7 +522,7 @@ export class ProposeEventComponent {
       console.error('Error deleting product:', err);
     }
 
-    this.eventModel.update((m) => ({ ...m, productId: '', onlineJoiningLink: '', purchaseDetailsMarkdown: '', recordedVideoId: '', recordedVideoUrl: '' }));
+    this.eventModel.update((m) => ({ ...m, productId: '', onlineJoiningLink: '', purchaseDetailsMarkdown: '', inPersonDetailsMarkdown: '', recordedVideoId: '', recordedVideoUrl: '' }));
     this.isEditingLinkedProduct.set(false);
     this.proposeForm().dirty();
   }
@@ -539,6 +540,7 @@ export class ProposeEventComponent {
         productId,
         onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
         purchaseDetailsMarkdown: prod?.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+        inPersonDetailsMarkdown: prod?.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
         recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
         recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
       }));
@@ -558,6 +560,7 @@ export class ProposeEventComponent {
           ...m,
           onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
           purchaseDetailsMarkdown: prod.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+          inPersonDetailsMarkdown: prod.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
           recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
           recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
         }));

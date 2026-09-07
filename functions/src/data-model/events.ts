@@ -118,6 +118,7 @@ export type IlcEvent = {
   productId?: string; // Firestore doc ID of the linked Product (or '' if none)
   onlineJoiningLink?: string; // Online attendance / Zoom joining URL / instructions (for paid online attendees)
   purchaseDetailsMarkdown?: string; // Markdown details shared upon purchase (meeting link, password, instructions)
+  inPersonDetailsMarkdown?: string; // Markdown details for in-person attendees (training space directions, building access codes, arrival info)
   recordedVideoId?: string; // Catalog video doc ID from /videos (or '' if none)
   recordedVideoUrl?: string; // Direct external video recording URL (or '' if none)
   lastUpdated?: string; // ISO date-time; managed by sync logic
@@ -155,6 +156,7 @@ export function initEvent(): IlcEvent {
     productId: '',
     onlineJoiningLink: '',
     purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     updatedByEmail: '',
@@ -244,8 +246,18 @@ export function eventContacts(event: EventContactFields): EventContact[] {
 // Products & Pricing Matrix for Classes, Workshops & Events
 // ------------------------------------------------------------------
 
-export type AttendeeRole = 'non_member' | 'member' | 'instructor';
-export type AttendanceType = 'in_person' | 'online' | 'video_only';
+export enum AttendeeRole {
+  NonMember = 'non_member',
+  Member = 'member',
+  Instructor = 'instructor',
+}
+
+export enum AttendanceType {
+  InPerson = 'in_person',
+  Online = 'online',
+  InPersonAndOnline = 'in_person_and_online',
+  VideoOnly = 'video_only',
+}
 
 export type ProductPricingTier = {
   role: AttendeeRole;
@@ -285,6 +297,7 @@ export type Product = {
   hasInstructorPrice?: boolean;
   onlineJoiningLink?: string;
   purchaseDetailsMarkdown?: string;
+  inPersonDetailsMarkdown?: string;
   recordedVideoId?: string;
   recordedVideoUrl?: string;
   tiers: Record<string, { enabled: boolean; price: number }>;
@@ -294,14 +307,21 @@ export type Product = {
 
 export function initProduct(): Product {
   const tiers: Record<string, { enabled: boolean; price: number }> = {};
-  const roles: AttendeeRole[] = ['non_member', 'member', 'instructor'];
-  const attendances: AttendanceType[] = ['in_person', 'online'];
+  const roles: AttendeeRole[] = [
+    AttendeeRole.NonMember,
+    AttendeeRole.Member,
+    AttendeeRole.Instructor,
+  ];
+  const attendances: AttendanceType[] = [
+    AttendanceType.InPerson,
+    AttendanceType.Online,
+  ];
   for (const r of roles) {
     for (const a of attendances) {
       tiers[getPricingTierKey(r, a, false)] = { enabled: true, price: 0 };
       tiers[getPricingTierKey(r, a, true)] = { enabled: true, price: 0 };
     }
-    tiers[getPricingTierKey(r, 'video_only', true)] = { enabled: false, price: 0 };
+    tiers[getPricingTierKey(r, AttendanceType.VideoOnly, true)] = { enabled: false, price: 0 };
   }
   return {
     docId: '',
@@ -322,6 +342,7 @@ export function initProduct(): Product {
     hasInstructorPrice: false,
     onlineJoiningLink: '',
     purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
     tiers,
@@ -351,7 +372,19 @@ export function firestoreDocToProduct(doc: {
 // Event Registrations
 // ------------------------------------------------------------------
 
-export type EventRegistrationStatus = 'paid' | 'cancelled' | 'refunded';
+export enum EventRegistrationStatus {
+  Paid = 'paid',
+  Cancelled = 'cancelled',
+  Refunded = 'refunded',
+}
+
+export type EventRegistrationUpgrade = {
+  timestamp: string;
+  previousAttendance: AttendanceType;
+  previousHasVideoAccess: boolean;
+  upgradeAmountCents: number;
+  stripeSessionId: string;
+};
 
 export type EventRegistration = {
   docId: string;
@@ -370,10 +403,24 @@ export type EventRegistration = {
   attendance: AttendanceType;
   hasVideoAccess: boolean;
   amountPaidCents: number;
+  originalAmountPaidCents?: number;
+  upgradeHistory?: EventRegistrationUpgrade[];
   currency: string;
   status: EventRegistrationStatus;
   lastUpdated?: string;
 };
+
+export function isEventPast(
+  event: { start?: string; end?: string } | null | undefined,
+): boolean {
+  if (!event) return false;
+  const dateStr = event.end || event.start;
+  if (!dateStr) return false;
+  const isoStr = dateStr.length === 10 ? `${dateStr}T23:59:59` : dateStr;
+  const eventDate = new Date(isoStr);
+  if (isNaN(eventDate.getTime())) return false;
+  return new Date() > eventDate;
+}
 
 export function initEventRegistration(): EventRegistration {
   return {
@@ -389,12 +436,12 @@ export function initEventRegistration(): EventRegistration {
     notes: '',
     memberDocId: '',
     memberId: '',
-    role: 'non_member',
-    attendance: 'in_person',
+    role: AttendeeRole.NonMember,
+    attendance: AttendanceType.InPerson,
     hasVideoAccess: false,
     amountPaidCents: 0,
     currency: 'usd',
-    status: 'paid',
+    status: EventRegistrationStatus.Paid,
     lastUpdated: new Date().toISOString(),
   };
 }

@@ -37,6 +37,14 @@ $footer-border-color: #181818; // Distinct black border stripe above footer
 //  Interactive / Focus Colors
 // ============================================================================
 $focus-ring-color: #950000; // Focus ring on search inputs and active tags
+$input-focus-border: #71717a; // Neutral charcoal border on focus so it doesn't look like an error
+$input-focus-glow: rgba(149, 0, 0, 0.15); // Brand-tinted soft ruby/pink glow
+
+@mixin input-focus-ring($border-color: $input-focus-border, $glow: $input-focus-glow) {
+  outline: none;
+  border-color: $border-color;
+  box-shadow: 0 0 0 3px $glow;
+}
 
 // ============================================================================
 //  Button Colors (Monochrome Yin/Yang with Dark Borders)

@@ -186,11 +186,35 @@
                 <div class="registered-details">
                   <strong>You are registered for this event</strong>
                   <span class="reg-meta">
-                    Attendance: {{ reg.attendance === 'online' ? 'Online' : 'In-Person' }}
+                    Attendance: {{ reg.attendance === 'in_person_and_online' ? 'In-Person & Online' : (reg.attendance === 'online' ? 'Online' : 'In-Person') }}
                     &bull; Video Access: {{ reg.hasVideoAccess ? 'Included' : 'Not Included' }}
                   </span>
                 </div>
+                <a class="subtle-button upgrade-btn" [href]="regUrl">
+                  <span>Upgrade Registration</span>
+                </a>
               </div>
+            } @else if (isPastEvent()) {
+              @if (isVideoPurchaseAvailable()) {
+                <div class="registration-cta event-ended-cta">
+                  <div class="cta-info">
+                    <h3>Event Concluded</h3>
+                    <p>Live attendance has closed, but the class video recording is available for purchase.</p>
+                  </div>
+                  <a class="register-button" [href]="regUrl">
+                    <app-icon name="play_circle"></app-icon>
+                    <span>Purchase Video Recording</span>
+                  </a>
+                </div>
+              } @else {
+                <div class="registration-closed-badge">
+                  <app-icon name="event_busy"></app-icon>
+                  <div class="closed-details">
+                    <strong>Event Concluded</strong>
+                    <span>Registration is closed as this event has already taken place.</span>
+                  </div>
+                </div>
+              }
             } @else {
               <div class="registration-cta">
                 <div class="cta-info">
@@ -206,23 +230,67 @@
           </div>
         }
 
+        @if (effectiveInPersonDetailsMarkdown()) {
+          <div class="protected-resource-card in-person-card">
+            <div class="resource-header">
+              <app-icon name="place"></app-icon>
+              <h4>In-Person Attendance Details</h4>
+            </div>
+            @if (canAccessRegistrationDetails()) {
+              <div class="resource-content">
+                @if (canAccessInPerson()) {
+                  <app-markdown-viewer [markdown]="effectiveInPersonDetailsMarkdown()"></app-markdown-viewer>
+                } @else {
+                  <div class="online-upgrade-notice">
+                    <app-icon name="lock"></app-icon>
+                    <span>In-person instructions (training space directions, building access codes, arrival info) are reserved for attendees registered for in-person attendance.</span>
+                    @if (registerUrl(); as regUrl) {
+                      <a class="subtle-button" [href]="regUrl">
+                        <span>Upgrade to include In-Person Attendance</span>
+                      </a>
+                    }
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="resource-restricted">
+                <app-icon name="lock"></app-icon>
+                <span>These instructions are reserved for registered in-person attendees.</span>
+              </div>
+            }
+          </div>
+        }
+
         @if (effectivePurchaseDetailsMarkdown() || effectiveOnlineJoiningLink()) {
           <div class="protected-resource-card online-card">
             <div class="resource-header">
-              <app-icon name="info"></app-icon>
-              <h4>Details for Registered Attendees</h4>
+              <app-icon name="videocam"></app-icon>
+              <h4>Online Attendance Details</h4>
             </div>
-            @if (canAccessOnline()) {
+            @if (canAccessRegistrationDetails()) {
               <div class="resource-content">
-                @if (effectivePurchaseDetailsMarkdown(); as details) {
-                  <app-markdown-viewer [markdown]="details"></app-markdown-viewer>
-                }
-                @if (effectiveOnlineJoiningLink(); as onlineLink) {
-                  <p>Join the live session online via the link below:</p>
-                  <a class="resource-link-btn" [href]="onlineLink" target="_blank" rel="noopener noreferrer">
-                    <app-icon name="launch"></app-icon>
-                    <span>Join Online Meeting</span>
-                  </a>
+                @if (canAccessOnline()) {
+                  @if (effectivePurchaseDetailsMarkdown(); as details) {
+                    <app-markdown-viewer [markdown]="details"></app-markdown-viewer>
+                  }
+                  @if (effectiveOnlineJoiningLink(); as onlineLink) {
+                    <p>
+                      <strong>Online Joining Link:</strong>
+                      <a [href]="onlineLink" target="_blank" rel="noopener noreferrer">
+                        {{ onlineLink }}
+                      </a>
+                    </p>
+                  }
+                } @else {
+                  <div class="online-upgrade-notice">
+                    <app-icon name="lock"></app-icon>
+                    <span>Online attendance details are reserved for attendees registered for online attendance.</span>
+                    @if (registerUrl(); as regUrl) {
+                      <a class="subtle-button" [href]="regUrl">
+                        <span>Upgrade to include Online Attendance</span>
+                      </a>
+                    }
+                  </div>
                 }
               </div>
             } @else {
@@ -243,7 +311,7 @@
             @if (canAccessVideo()) {
               <div class="resource-content">
                 <p>The class video recording is ready to watch:</p>
-                <a class="resource-link-btn" [href]="watchUrl">
+                <a class="primary-button" [href]="watchUrl">
                   <app-icon name="play_arrow"></app-icon>
                   <span>Watch Recording</span>
                 </a>
@@ -273,14 +341,6 @@
           </div>
         }
         <div class="actions-section">
-          @if (registerUrl(); as regUrl) {
-            @if (!registration()) {
-              <a class="action-button register-action" [href]="regUrl">
-                <app-icon name="how_to_reg"></app-icon>
-                <span>Register</span>
-              </a>
-            }
-          }
           @if (ev.googleCalEventLink) {
             <a class="action-button primary-action"
                [href]="ev.googleCalEventLink"

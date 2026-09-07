@@ -184,10 +184,11 @@
     border: 1px solid $border-color-light;
     border-radius: 4px;
 
-    &:focus {
-      outline: none;
-      border-color: $focus-ring-color;
-      box-shadow: 0 0 0 2px rgba(149, 0, 0, 0.12);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:focus,
+    &:focus-visible {
+      @include input-focus-ring;
     }
   }
 }

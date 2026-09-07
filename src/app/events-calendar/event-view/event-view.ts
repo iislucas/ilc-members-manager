@@ -4,14 +4,14 @@
  * Loads the event by docId from the /events collection.
  */
 
-import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, OnInit, output, signal } from '@angular/core';
 import { formatDateRange } from '../format-date-range';
 import { marked } from 'marked';
 import { RoutingService } from '../../routing.service';
 import { AppPathPatterns, Views } from '../../app.config';
 import { IconComponent } from '../../icons/icon.component';
 import { SpinnerComponent } from '../../spinner/spinner.component';
-import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product } from '../../../../functions/src/data-model/events';
+import { IlcEvent, EventStatus, eventStatusLabel, initEvent, eventContacts, EventRegistration, Product, isEventPast, AttendanceType } from '../../../../functions/src/data-model/events';
 import { FirebaseStateService } from '../../firebase-state.service';
 import { DataManagerService } from '../../data-manager.service';
 import { ProductService } from '../../product.service';
@@ -63,10 +63,25 @@ export class EventViewComponent implements OnInit {
     return `${min.toFixed(2)} – ${max.toFixed(2)} ${currency}`;
   }
 
+  canAccessInPerson = computed(() => {
+    if (this.canEdit()) return true;
+    const reg = this.registration();
+    return reg
+      ? reg.attendance === AttendanceType.InPerson || reg.attendance === AttendanceType.InPersonAndOnline
+      : false;
+  });
+
   canAccessOnline = computed(() => {
     if (this.canEdit()) return true;
     const reg = this.registration();
-    return reg ? reg.attendance === 'online' : false;
+    return reg
+      ? reg.attendance === AttendanceType.Online || reg.attendance === AttendanceType.InPersonAndOnline
+      : false;
+  });
+
+  canAccessRegistrationDetails = computed(() => {
+    if (this.canEdit()) return true;
+    return Boolean(this.registration());
   });
 
   canAccessVideo = computed(() => {
@@ -75,18 +90,33 @@ export class EventViewComponent implements OnInit {
     return reg ? reg.hasVideoAccess : false;
   });
 
+  isPastEvent = computed(() => isEventPast(this.event()));
+
+  isVideoPurchaseAvailable = computed(() => {
+    const prod = this.product();
+    return Boolean(prod && (prod.allowVideoOnly || prod.allowVideo));
+  });
+
+  isLiveRegistrationOpen = computed(() => {
+    return !this.isPastEvent() && Boolean(this.event()?.productId || this.product());
+  });
+
   registrationsUrl = computed(() => {
     return this.routingService.hrefForView(Views.EventRegistrations, { eventId: this.eventId() });
   });
 
   registerUrl = computed(() => {
-    const pId = this.event()?.productId;
+    const pId = this.event()?.productId || this.product()?.docId;
     if (!pId) return null;
     return this.routingService.hrefForView(Views.EventRegister, { eventId: this.eventId() });
   });
 
   effectivePurchaseDetailsMarkdown = computed(() => {
     return this.event()?.purchaseDetailsMarkdown || this.product()?.purchaseDetailsMarkdown || '';
+  });
+
+  effectiveInPersonDetailsMarkdown = computed(() => {
+    return this.event()?.inPersonDetailsMarkdown || this.product()?.inPersonDetailsMarkdown || '';
   });
 
   effectiveOnlineJoiningLink = computed(() => {
@@ -189,9 +219,50 @@ export class EventViewComponent implements OnInit {
     return this.routingService.hrefForView(Views.EventEdit, { eventId });
   });
 
+  constructor() {
+    effect(async () => {
+      // Re-check registration when auth resolves or changes
+      const user = this.firebaseState.user();
+      const ev = this.event();
+      if (ev) {
+        await this.loadUserRegistration(ev);
+      }
+    });
+  }
+
   ngOnInit() {
     window.scrollTo(0, 0);
     this.loadEvent();
+  }
+
+  async loadUserRegistration(event: IlcEvent) {
+    const eventId = this.eventId();
+    const user = this.firebaseState.user();
+    const memberDocId = user?.member?.docId;
+    const emails = this.userEmails();
+
+    try {
+      if (!this.product()) {
+        const prod = event.productId
+          ? await this.productService.getProduct(event.productId)
+          : await this.productService.getProductByEventId(eventId);
+        if (prod) this.product.set(prod);
+      }
+
+      const reg = await this.productService.getUserRegistrationForEvent(
+        eventId,
+        memberDocId,
+        emails,
+      );
+      this.registration.set(reg || null);
+
+      if (this.canManage()) {
+        const allRegs = await this.productService.getEventRegistrations(eventId);
+        this.registrationCount.set(allRegs.length);
+      }
+    } catch (regErr) {
+      console.error('Error checking event registration / product:', regErr);
+    }
   }
 
   async loadEvent() {
@@ -203,31 +274,7 @@ export class EventViewComponent implements OnInit {
       if (event) {
         this.event.set(event);
         this.titleLoaded.emit(event.title);
-
-        const user = this.firebaseState.user();
-        const memberDocId = user?.member?.docId;
-        const email = user?.firebaseUser?.email || user?.member?.emails?.[0];
-
-        if (event.productId) {
-          try {
-            const prod = await this.productService.getProduct(event.productId);
-            this.product.set(prod || null);
-
-            const reg = await this.productService.getUserRegistrationForEvent(
-              eventId,
-              memberDocId,
-              email,
-            );
-            this.registration.set(reg || null);
-
-            if (this.canManage()) {
-              const allRegs = await this.productService.getEventRegistrations(eventId);
-              this.registrationCount.set(allRegs.length);
-            }
-          } catch (regErr) {
-            console.error('Error checking event registration / product:', regErr);
-          }
-        }
+        await this.loadUserRegistration(event);
       } else {
         this.errorMessage.set('Event not found.');
       }

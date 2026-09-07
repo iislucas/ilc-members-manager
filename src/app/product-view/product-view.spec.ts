@@ -48,6 +48,7 @@ describe('ProductViewComponent', () => {
   const mockProductService = {
     getProduct: vi.fn().mockResolvedValue(mockProduct),
     getProductByEventId: vi.fn().mockResolvedValue(mockProduct),
+    getUserRegistrationForEvent: vi.fn().mockResolvedValue(undefined),
   };
 
   const mockDataManagerService = {
@@ -62,6 +63,7 @@ describe('ProductViewComponent', () => {
 
   const mockStripeService = {
     createProductCheckoutSession: vi.fn(),
+    updateProductRegistration: vi.fn().mockResolvedValue({ success: true, registrationDocId: 'reg-123' }),
   };
 
   const mockRoutingService = {
@@ -73,9 +75,12 @@ describe('ProductViewComponent', () => {
       },
     },
     hrefForView: vi.fn().mockReturnValue('/mock-link'),
+    navigateToParts: vi.fn(),
   };
 
   const mockFirebaseState = {
+    loginStatus: signal('SignedIn'),
+    loggedIn: signal(Promise.resolve({})),
     user: signal({
       email: 'member@example.com',
       isAdmin: false,
@@ -131,5 +136,113 @@ describe('ProductViewComponent', () => {
 
     expect(component.currentTierKey()).toBe('member_in_person_video');
     expect(component.currentTier()?.price).toBe(100);
+  });
+
+  it('should correctly handle upgrade state when existing registration is loaded', async () => {
+    await component.loadProduct();
+
+    // Simulate existing registration: Member with In-Person, no video, paid $80 (8000 cents)
+    component.existingRegistration.set({
+      docId: 'reg-123',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: false,
+      amountPaidCents: 8000,
+    });
+
+    expect(component.isUpgrade()).toBe(true);
+    expect(component.amountAlreadyPaid()).toBe(80);
+    expect(component.isCurrentAttendance('in_person' as any)).toBe(true);
+    expect(component.currentAttendanceLabel()).toBe('In-Person Attendance');
+
+    // If staying In-Person without video, diff is $0 and available as a free registration update
+    component.selectedRole.set('member' as any);
+    component.selectedAttendance.set('in_person' as any);
+    component.includeVideo.set(false);
+    expect(component.upgradeDifference()).toBe(0);
+    expect(component.isFreeUpdate()).toBe(true);
+    expect(component.isTierAvailable()).toBe(true);
+    expect(component.priceFormatted()).toContain('0');
+
+    // If upgrading to include video ($100 tier), diff is $20
+    component.includeVideo.set(true);
+    expect(component.upgradeDifference()).toBe(20);
+    expect(component.isFreeUpdate()).toBe(false);
+    expect(component.isTierAvailable()).toBe(true);
+    expect(component.priceFormatted()).toContain('20');
+  });
+
+  it('should detect when user already has full registration package and prevent paid upgrade', async () => {
+    await component.loadProduct();
+
+    component.existingRegistration.set({
+      docId: 'reg-full',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person_and_online' as any,
+      hasVideoAccess: true,
+      amountPaidCents: 12000,
+    });
+
+    expect(component.isUpgrade()).toBe(true);
+    expect(component.hasFullRegistration()).toBe(true);
+    expect(component.isFreeUpdate()).toBe(true); // price difference <= 0 is update, not an error
+  });
+
+  it('should call updateProductRegistration when saving free update', async () => {
+    await component.loadProduct();
+    component.existingRegistration.set({
+      docId: 'reg-123',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: false,
+      amountPaidCents: 8000,
+    });
+    component.selectedAttendance.set('online' as any); // $40 tier, paid $80 -> diff is -40, free update
+    expect(component.isFreeUpdate()).toBe(true);
+    expect(component.isTierAvailable()).toBe(true);
+
+    await component.saveRegistrationUpdate();
+    expect(mockStripeService.updateProductRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'test-prod-1',
+        existingRegistrationDocId: 'reg-123',
+        attendance: 'online',
+      }),
+    );
+  });
+
+  it('should recognize existing registration as upgrade even if amountPaidCents is 0', async () => {
+    await component.loadProduct();
+    component.existingRegistration.set({
+      docId: 'reg-zero',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: true,
+      amountPaidCents: 0,
+    });
+
+    expect(component.isUpgrade()).toBe(true);
+    expect(component.isCurrentAttendance('in_person' as any)).toBe(true);
+    expect(component.includeVideo()).toBe(true);
   });
 });

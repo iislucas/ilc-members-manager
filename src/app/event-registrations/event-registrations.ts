@@ -89,9 +89,9 @@ export class EventRegistrationsComponent implements OnInit {
     let list = this.registrations();
 
     if (filter === 'in_person') {
-      list = list.filter((r) => r.attendance === 'in_person');
+      list = list.filter((r) => r.attendance === AttendanceType.InPerson || r.attendance === AttendanceType.InPersonAndOnline);
     } else if (filter === 'online') {
-      list = list.filter((r) => r.attendance === 'online');
+      list = list.filter((r) => r.attendance === AttendanceType.Online || r.attendance === AttendanceType.InPersonAndOnline);
     } else if (filter === 'video') {
       list = list.filter((r) => r.hasVideoAccess);
     }
@@ -109,11 +109,15 @@ export class EventRegistrationsComponent implements OnInit {
   totalAttendeesCount = computed(() => this.registrations().length);
 
   inPersonCount = computed(() => {
-    return this.registrations().filter((r) => r.attendance === 'in_person').length;
+    return this.registrations().filter(
+      (r) => r.attendance === AttendanceType.InPerson || r.attendance === AttendanceType.InPersonAndOnline,
+    ).length;
   });
 
   onlineCount = computed(() => {
-    return this.registrations().filter((r) => r.attendance === 'online').length;
+    return this.registrations().filter(
+      (r) => r.attendance === AttendanceType.Online || r.attendance === AttendanceType.InPersonAndOnline,
+    ).length;
   });
 
   videoCount = computed(() => {
@@ -159,18 +163,21 @@ export class EventRegistrationsComponent implements OnInit {
 
   formatRole(role: AttendeeRole): string {
     switch (role) {
-      case 'instructor':
+      case AttendeeRole.Instructor:
         return 'Instructor';
-      case 'member':
+      case AttendeeRole.Member:
         return 'Member';
-      case 'non_member':
+      case AttendeeRole.NonMember:
       default:
         return 'Non-Member';
     }
   }
 
   formatAttendance(att: AttendanceType): string {
-    return att === 'online' ? 'Online' : 'In-Person';
+    if (att === AttendanceType.InPersonAndOnline) return 'In-Person & Online';
+    if (att === AttendanceType.Online) return 'Online';
+    if (att === AttendanceType.VideoOnly) return 'Video Only';
+    return 'In-Person';
   }
 
   formatAmount(cents: number, currency: string = 'usd'): string {

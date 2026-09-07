@@ -86,6 +86,7 @@ type EventFormModel = {
   productId: string;
   onlineJoiningLink: string;
   purchaseDetailsMarkdown: string;
+  inPersonDetailsMarkdown: string;
   recordedVideoId: string;
   recordedVideoUrl: string;
 };
@@ -167,6 +168,7 @@ function toFormModel(event: IlcEvent): EventFormModel {
     productId: event.productId || '',
     onlineJoiningLink: event.onlineJoiningLink || '',
     purchaseDetailsMarkdown: event.purchaseDetailsMarkdown || '',
+    inPersonDetailsMarkdown: event.inPersonDetailsMarkdown || '',
     recordedVideoId: event.recordedVideoId || '',
     recordedVideoUrl: event.recordedVideoUrl || '',
   };
@@ -290,6 +292,7 @@ export class EventEditComponent implements OnInit {
         productId,
         onlineJoiningLink: prod?.onlineJoiningLink ?? m.onlineJoiningLink,
         purchaseDetailsMarkdown: prod?.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+        inPersonDetailsMarkdown: prod?.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
         recordedVideoId: prod?.recordedVideoId ?? m.recordedVideoId,
         recordedVideoUrl: prod?.recordedVideoUrl ?? m.recordedVideoUrl,
       }));
@@ -308,6 +311,7 @@ export class EventEditComponent implements OnInit {
           ...m,
           onlineJoiningLink: prod.onlineJoiningLink ?? m.onlineJoiningLink,
           purchaseDetailsMarkdown: prod.purchaseDetailsMarkdown ?? m.purchaseDetailsMarkdown,
+          inPersonDetailsMarkdown: prod.inPersonDetailsMarkdown ?? m.inPersonDetailsMarkdown,
           recordedVideoId: prod.recordedVideoId ?? m.recordedVideoId,
           recordedVideoUrl: prod.recordedVideoUrl ?? m.recordedVideoUrl,
         }));
@@ -353,6 +357,7 @@ export class EventEditComponent implements OnInit {
     productId: '',
     onlineJoiningLink: '',
     purchaseDetailsMarkdown: '',
+    inPersonDetailsMarkdown: '',
     recordedVideoId: '',
     recordedVideoUrl: '',
   });
@@ -1389,6 +1394,7 @@ export class EventEditComponent implements OnInit {
         productId: formData.productId || '',
         onlineJoiningLink: formData.onlineJoiningLink || '',
         purchaseDetailsMarkdown: formData.purchaseDetailsMarkdown || '',
+        inPersonDetailsMarkdown: formData.inPersonDetailsMarkdown || '',
         recordedVideoId: formData.recordedVideoId || '',
         recordedVideoUrl: formData.recordedVideoUrl || '',
         lastUpdated: new Date().toISOString(),
@@ -1404,6 +1410,7 @@ export class EventEditComponent implements OnInit {
         productId: m.productId || '',
         onlineJoiningLink: m.onlineJoiningLink || '',
         purchaseDetailsMarkdown: m.purchaseDetailsMarkdown || '',
+        inPersonDetailsMarkdown: m.inPersonDetailsMarkdown || '',
         recordedVideoId: m.recordedVideoId || '',
         recordedVideoUrl: m.recordedVideoUrl || '',
       }));

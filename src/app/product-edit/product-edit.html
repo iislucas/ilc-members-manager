@@ -7,6 +7,17 @@
         <a
           class="subtle-button"
           [href]="
+            routingService.hrefForView(Views.EventRegistrations, {
+              eventId: productModel().eventDocId,
+            })
+          "
+        >
+          <app-icon name="group"></app-icon>
+          <span>View Registered Attendees</span>
+        </a>
+        <a
+          class="subtle-button"
+          [href]="
             routingService.hrefForView(Views.EventRegister, {
               eventId: productModel().eventDocId,
             })
@@ -93,6 +104,7 @@
             <label>Description & Overview</label>
             <div class="description-editor-container">
               <app-markdown-editor
+                [bordered]="true"
                 [initialValue]="
                   productModel().descriptionMarkdown ||
                   productModel().description ||
@@ -190,8 +202,29 @@
           </div>
         </div>
 
-        @if (productModel().allowOnline || productModel().allowVideo) {
+        @if (productModel().allowInPerson || productModel().allowOnline || productModel().allowVideo) {
           <div class="delivery-resources-grid">
+            @if (productModel().allowInPerson) {
+              <div class="form-field full-width">
+                <label
+                  >In-person attendance instructions (Training space directions,
+                  access codes, arrival info)</label
+                >
+                <div class="purchase-details-editor-container">
+                  <app-markdown-editor
+                    [bordered]="true"
+                    [initialValue]="productModel().inPersonDetailsMarkdown || ''"
+                    (changed)="updateInPersonDetailsMarkdown($event)"
+                  ></app-markdown-editor>
+                </div>
+                <span class="field-hint"
+                  >Private instructions (e.g. how to find the training space,
+                  building access codes, parking info, what to bring) revealed
+                  only to registered in-person attendees and event managers.</span
+                >
+              </div>
+            }
+
             @if (productModel().allowOnline) {
               <div class="form-field full-width">
                 <label
@@ -200,6 +233,7 @@
                 >
                 <div class="purchase-details-editor-container">
                   <app-markdown-editor
+                    [bordered]="true"
                     [initialValue]="
                       productModel().purchaseDetailsMarkdown ||
                       productModel().onlineJoiningLink ||
@@ -404,14 +438,14 @@
                     hasMemberPrice() && registrationAudience() === "anyone"
                   ) {
                     @let memTier =
-                      getTier("member", row.attendance, row.includeVideo);
+                      getTier(AttendeeRole.Member, row.attendance, row.includeVideo);
                     <td
                       class="cell-td"
                       [class.disabled-cell]="!memTier.enabled"
                     >
                       <div class="cell-content">
                         <label
-                          class="cell-enable-label"
+                           class="cell-enable-label"
                           title="Enable this pricing option"
                         >
                           <input
@@ -419,7 +453,7 @@
                             [checked]="memTier.enabled"
                             (change)="
                               setTierEnabled(
-                                'member',
+                                AttendeeRole.Member,
                                 row.attendance,
                                 row.includeVideo,
                                 $any($event.target).checked
@@ -441,7 +475,7 @@
                             [value]="memTier.price || ''"
                             (input)="
                               setTierPrice(
-                                'member',
+                                AttendeeRole.Member,
                                 row.attendance,
                                 row.includeVideo,
                                 $any($event.target).value
@@ -459,7 +493,7 @@
                     registrationAudience() !== "instructors"
                   ) {
                     @let instTier =
-                      getTier("instructor", row.attendance, row.includeVideo);
+                      getTier(AttendeeRole.Instructor, row.attendance, row.includeVideo);
                     <td
                       class="cell-td"
                       [class.disabled-cell]="!instTier.enabled"
@@ -474,7 +508,7 @@
                             [checked]="instTier.enabled"
                             (change)="
                               setTierEnabled(
-                                'instructor',
+                                AttendeeRole.Instructor,
                                 row.attendance,
                                 row.includeVideo,
                                 $any($event.target).checked
@@ -496,7 +530,7 @@
                             [value]="instTier.price || ''"
                             (input)="
                               setTierPrice(
-                                'instructor',
+                                AttendeeRole.Instructor,
                                 row.attendance,
                                 row.includeVideo,
                                 $any($event.target).value
@@ -528,36 +562,40 @@
           </button>
         }
         <div class="save-group">
-          @if (embedded()) {
-            <button
-              type="button"
-              class="subtle-button"
-              [disabled]="isSaving()"
-              (click)="editCancelled.emit()"
-            >
-              <app-icon name="close"></app-icon>
-              <span>Cancel</span>
-            </button>
-          }
-          <button
-            type="button"
-            class="button"
-            [disabled]="isSaving()"
-            (click)="saveProduct()"
-          >
-            @if (isSaving()) {
-              <app-spinner></app-spinner>
-            } @else {
-              <app-icon name="save"></app-icon>
-            }
-            <span>{{
+          @if (isSaving()) {
+            <app-spinner>{{
               isNew()
                 ? embedded()
-                  ? "Set Up Online Registration"
-                  : "Save Registration Setup"
-                : "Save Changes"
-            }}</span>
-          </button>
+                  ? "Setting up online registration..."
+                  : "Saving registration setup..."
+                : "Saving changes..."
+            }}</app-spinner>
+          } @else {
+            @if (embedded()) {
+              <button
+                type="button"
+                class="subtle-button"
+                (click)="editCancelled.emit()"
+              >
+                <app-icon name="close"></app-icon>
+                <span>Cancel</span>
+              </button>
+            }
+            <button
+              type="button"
+              class="primary-button"
+              (click)="saveProduct()"
+            >
+              <app-icon name="save"></app-icon>
+              <span>{{
+                isNew()
+                  ? embedded()
+                    ? "Set Up Online Registration"
+                    : "Save Registration Setup"
+                  : "Save Changes"
+              }}</span>
+            </button>
+          }
         </div>
       </div>
     </div>

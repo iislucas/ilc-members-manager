@@ -290,10 +290,11 @@ label {
   border-radius: 4px;
   font-size: 0.9rem;
 
-  &:focus {
-    border-color: #3a57e8;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(58, 87, 232, 0.15);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus,
+  &:focus-visible {
+    @include input-focus-ring;
   }
 }
 

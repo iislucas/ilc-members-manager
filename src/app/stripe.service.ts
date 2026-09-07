@@ -27,6 +27,8 @@ import {
   GetCheckoutSessionRequest,
   ResumeSubscriptionRenewalRequest,
   ResumeSubscriptionRenewalResult,
+  UpdateProductRegistrationRequest,
+  UpdateProductRegistrationResult,
 } from '../../functions/src/stripe-types';
 
 @Injectable({ providedIn: 'root' })
@@ -74,6 +76,20 @@ export class StripeService {
       CreateProductCheckoutSessionRequest,
       CreateCheckoutSessionResult
     >(this.functions, 'createProductCheckoutSession');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Update an existing registration when no additional payment is required ($0.00 upgrade / update).
+   */
+  async updateProductRegistration(
+    request: UpdateProductRegistrationRequest,
+  ): Promise<UpdateProductRegistrationResult> {
+    const fn = httpsCallable<
+      UpdateProductRegistrationRequest,
+      UpdateProductRegistrationResult
+    >(this.functions, 'updateProductRegistration');
     const result = await fn(request);
     return result.data;
   }

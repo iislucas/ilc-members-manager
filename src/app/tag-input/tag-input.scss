@@ -98,10 +98,11 @@
         background: #ffffff;
         box-sizing: border-box;
 
-        &:focus {
-          outline: none;
-          border-color: v.$focus-ring-color;
-          box-shadow: 0 0 0 2px rgba(149, 0, 0, 0.15);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+        &:focus,
+        &:focus-visible {
+          @include v.input-focus-ring;
         }
       }
     }

@@ -58,6 +58,10 @@ function notificationTitle(kind: NotificationKind): string {
       return 'Purchase processed ✅';
     case NotificationKind.ManualOrderFulfilled:
       return 'Manual order fulfilled ✅';
+    case NotificationKind.EventRegistrationConfirmed:
+      return 'Event registration confirmed ✅';
+    case NotificationKind.EventVideoAvailable:
+      return 'Event video recording ready 🎬';
     default:
       return 'I Liq Chuan';
   }

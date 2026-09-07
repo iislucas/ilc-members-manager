@@ -56,9 +56,9 @@
         }
 
         <div class="terms-card">
-          <h3>Payment & Cancellation</h3>
+          <h3>Payment &amp; Access</h3>
           <p>
-            Payments are processed securely via Stripe. Once confirmed, online attendees will receive immediate access to the Zoom joining link on the event page and via email notification. If video access is included, the recording will become available in your account once uploaded.
+            Payments are processed securely via Stripe. Once confirmed, you will receive an in-app notification with a link to your participation details on the event page@if (emailNotificationsEnabled()) { (as well as via email)}. If video access is included, you will also receive an in-app notification as soon as the recording is uploaded and ready to watch.
           </p>
         </div>
       </div>
@@ -66,40 +66,94 @@
       <!-- Right Column: Registration & Checkout -->
       <div class="checkout-column">
         <div class="checkout-card">
-          <h2>Select Your Registration</h2>
+          <h2>{{ isUpgrade() ? 'Upgrade Your Registration' : 'Select Your Registration' }}</h2>
+
+          @if (isUpgrade()) {
+            <div class="current-registration-card">
+              <div class="current-reg-header">
+                <app-icon name="check_circle"></app-icon>
+                <div class="current-reg-title-wrap">
+                  <span class="current-reg-title">Your Current Registration</span>
+                  <span class="current-reg-status-badge">Active</span>
+                </div>
+              </div>
+
+              <div class="current-reg-body">
+                <div class="reg-detail-row">
+                  <span class="detail-label">Attendee</span>
+                  <span class="detail-value">{{ existingRegistration()?.name }} ({{ existingRegistration()?.email }})</span>
+                </div>
+                <div class="reg-detail-row">
+                  <span class="detail-label">Current Attendance</span>
+                  <span class="detail-value">
+                    <strong>{{ currentAttendanceLabel() }}</strong>
+                  </span>
+                </div>
+                <div class="reg-detail-row">
+                  <span class="detail-label">Class Video</span>
+                  <span class="detail-value">
+                    @if (existingRegistration()?.hasVideoAccess) {
+                      <span class="status-included"><app-icon name="check_circle"></app-icon> Included</span>
+                    } @else {
+                      <span class="status-not-included">Not Included</span>
+                    }
+                  </span>
+                </div>
+                <div class="reg-detail-row">
+                  <span class="detail-label">Amount Paid</span>
+                  <span class="detail-value paid-amount">{{ amountAlreadyPaidFormatted() }}</span>
+                </div>
+              </div>
+
+              <div class="current-reg-footer">
+                <app-icon name="info"></app-icon>
+                <span>Select an upgrade option below. Your <strong>{{ amountAlreadyPaidFormatted() }}</strong> credit is automatically deducted from the total.</span>
+              </div>
+            </div>
+          }
+
+          @if (isPastEvent()) {
+            <div class="past-event-notice">
+              <app-icon name="info"></app-icon>
+              <span>This event has already taken place. Live attendance is closed, but you can purchase access to the recorded class video.</span>
+            </div>
+          }
 
           <!-- 1. Membership Status Selection -->
           <div class="option-group">
             <label class="group-label">1. Attendee Status</label>
-            <div class="pill-selector">
+            <div class="pill-tabs">
               @if (prod.allowNonMembers) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedRole() === 'non_member'"
-                  (click)="selectedRole.set('non_member')"
+                  class="pill-tab"
+                  data-label="General Public"
+                  [class.active]="selectedRole() === AttendeeRole.NonMember"
+                  (click)="selectedRole.set(AttendeeRole.NonMember)"
                 >
-                  General Public
+                  <span class="tab-content">General Public</span>
                 </button>
               }
               @if (prod.allowMembers) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedRole() === 'member'"
-                  (click)="selectedRole.set('member')"
+                  class="pill-tab"
+                  data-label="ILC Member"
+                  [class.active]="selectedRole() === AttendeeRole.Member"
+                  (click)="selectedRole.set(AttendeeRole.Member)"
                 >
-                  ILC Member
+                  <span class="tab-content">ILC Member</span>
                 </button>
               }
               @if (prod.allowInstructors) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedRole() === 'instructor'"
-                  (click)="selectedRole.set('instructor')"
+                  class="pill-tab"
+                  data-label="Instructor"
+                  [class.active]="selectedRole() === AttendeeRole.Instructor"
+                  (click)="selectedRole.set(AttendeeRole.Instructor)"
                 >
-                  Instructor
+                  <span class="tab-content">Instructor</span>
                 </button>
               }
             </div>
@@ -108,67 +162,128 @@
           <!-- 2. Attendance Mode Selection -->
           <div class="option-group">
             <label class="group-label">2. Attendance Mode</label>
-            <div class="pill-selector">
+            <div class="pill-tabs">
               @if (prod.allowInPerson) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedAttendance() === 'in_person'"
-                  (click)="selectedAttendance.set('in_person')"
+                  class="pill-tab"
+                  data-label="In-Person"
+                  [class.active]="selectedAttendance() === AttendanceType.InPerson"
+                  [disabled]="isPastEvent()"
+                  (click)="selectedAttendance.set(AttendanceType.InPerson)"
                 >
-                  <app-icon name="person"></app-icon>
-                  In-Person
+                  <span class="tab-content">
+                    <app-icon name="person"></app-icon>
+                    <span>In-Person</span>
+                    @if (isUpgrade()) {
+                      @if (isCurrentAttendance(AttendanceType.InPerson)) {
+                        <span class="chip-current-badge">Current</span>
+                      } @else if (getAttendanceUpgradeBadge(AttendanceType.InPerson); as badge) {
+                        <span class="chip-upgrade-badge">{{ badge }}</span>
+                      }
+                    }
+                  </span>
                 </button>
               }
               @if (prod.allowOnline) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedAttendance() === 'online'"
-                  (click)="selectedAttendance.set('online')"
+                  class="pill-tab"
+                  data-label="Online (Zoom)"
+                  [class.active]="selectedAttendance() === AttendanceType.Online"
+                  [disabled]="isPastEvent()"
+                  (click)="selectedAttendance.set(AttendanceType.Online)"
                 >
-                  <app-icon name="videocam"></app-icon>
-                  Online (Zoom)
+                  <span class="tab-content">
+                    <app-icon name="videocam"></app-icon>
+                    <span>Online (Zoom)</span>
+                    @if (isUpgrade()) {
+                      @if (isCurrentAttendance(AttendanceType.Online)) {
+                        <span class="chip-current-badge">Current</span>
+                      } @else if (getAttendanceUpgradeBadge(AttendanceType.Online); as badge) {
+                        <span class="chip-upgrade-badge">{{ badge }}</span>
+                      }
+                    }
+                  </span>
                 </button>
               }
               @if (prod.allowVideoOnly) {
                 <button
                   type="button"
-                  class="pill-btn"
-                  [class.active]="selectedAttendance() === 'video_only'"
-                  (click)="selectedAttendance.set('video_only')"
+                  class="pill-tab"
+                  data-label="Recording Only"
+                  [class.active]="selectedAttendance() === AttendanceType.VideoOnly"
+                  (click)="selectedAttendance.set(AttendanceType.VideoOnly)"
                 >
-                  <app-icon name="play_circle"></app-icon>
-                  Recording Only
+                  <span class="tab-content">
+                    <app-icon name="play_circle"></app-icon>
+                    <span>Recording Only</span>
+                    @if (isUpgrade() && isCurrentAttendance(AttendanceType.VideoOnly)) {
+                      <span class="chip-current-badge">Current</span>
+                    }
+                  </span>
                 </button>
               }
             </div>
           </div>
 
           <!-- 3. Video Recording Add-on (for in-person or online) -->
-          @if (prod.allowVideo && selectedAttendance() !== 'video_only') {
+          @if (prod.allowVideo && selectedAttendance() !== AttendanceType.VideoOnly && !isPastEvent()) {
             <div class="option-group video-toggle-group">
-              <label class="checkbox-label">
-                <input
-                  type="checkbox"
-                  [checked]="includeVideo()"
-                  (change)="includeVideo.set(!includeVideo())"
-                />
-                <span class="checkbox-text">
-                  <strong>Include Class Video Recording</strong>
-                  <span class="subtext">Watch the recorded session anytime after the event.</span>
-                </span>
-              </label>
+              @if (existingRegistration()?.hasVideoAccess) {
+                <div class="video-already-included">
+                  <app-icon name="check_circle"></app-icon>
+                  <div class="video-included-text">
+                    <strong>Class Video Recording Included</strong>
+                    <span class="subtext">You already have access to the recorded session in your current registration.</span>
+                  </div>
+                </div>
+              } @else {
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    [checked]="includeVideo()"
+                    (change)="includeVideo.set(!includeVideo())"
+                  />
+                  <span class="checkbox-text">
+                    <span class="video-checkbox-title-row">
+                      <strong>Include Class Video Recording</strong>
+                      @if (isUpgrade() && videoUpgradeDeltaFormatted(); as delta) {
+                        <span class="chip-upgrade-badge">{{ delta }}</span>
+                      }
+                    </span>
+                    <span class="subtext">Watch the recorded session anytime after the event.</span>
+                  </span>
+                </label>
+              }
             </div>
           }
 
           <!-- Price Summary Box -->
           <div class="price-summary-box">
-            <div class="price-label">Registration Total:</div>
-            @if (isTierAvailable()) {
+            <div class="price-label-col">
+              <div class="price-label">{{ isUpgrade() ? 'Upgrade Balance Due:' : 'Registration Total:' }}</div>
+              @if (isUpgrade() && isTierAvailable()) {
+                <div class="price-sublabel">
+                  @if (upgradeDifference() > 0) {
+                    Tier total: {{ originalPriceFormatted() }} &minus; Credit paid: {{ amountAlreadyPaidFormatted() }}
+                  } @else {
+                    Covered by previous payment ({{ amountAlreadyPaidFormatted() }} paid)
+                  }
+                </div>
+              }
+            </div>
+            @if (hasFullRegistration() && upgradeDifference() > 0) {
+              <div class="price-notice-complete">
+                <app-icon name="check_circle"></app-icon>
+                <span>Full Registration Active</span>
+              </div>
+            } @else if (isTierAvailable()) {
               <div class="price-amount">{{ priceFormatted() }}</div>
             } @else {
-              <div class="price-unavailable">Option unavailable</div>
+              <div class="price-unavailable">
+                Option unavailable
+              </div>
             }
           </div>
 
@@ -224,16 +339,37 @@
 
           <div class="submit-section">
             @if (isSubmitting()) {
-              <app-spinner>Connecting to Stripe Checkout...</app-spinner>
+              <app-spinner>{{ isFreeUpdate() ? 'Updating your registration...' : 'Connecting to Stripe Checkout...' }}</app-spinner>
+            } @else if (hasFullRegistration() && upgradeDifference() > 0) {
+              <div class="full-package-info">
+                <p>You have already purchased the full registration package (attendance and class recording access) for this event.</p>
+                <a
+                  class="subtle-button"
+                  [href]="routingService.hrefForView(Views.EventView, { eventId: linkedEvent()?.docId || effectiveEventId() })"
+                >
+                  <app-icon name="arrow_back"></app-icon>
+                  <span>Back to Event</span>
+                </a>
+              </div>
+            } @else if (isFreeUpdate()) {
+              <button
+                type="button"
+                class="checkout-btn primary-button"
+                [disabled]="!isTierAvailable() || !attendeeName() || !attendeeEmail()"
+                (click)="saveRegistrationUpdate()"
+              >
+                <app-icon name="check"></app-icon>
+                <span>Update Registration</span>
+              </button>
             } @else {
               <button
                 type="button"
-                class="checkout-btn"
+                class="checkout-btn primary-button"
                 [disabled]="!isTierAvailable() || !attendeeName() || !attendeeEmail()"
                 (click)="proceedToCheckout()"
               >
                 <app-icon name="lock"></app-icon>
-                <span>Pay {{ priceFormatted() }} with Stripe</span>
+                <span>{{ isUpgrade() ? 'Pay ' + priceFormatted() + ' Upgrade with Stripe' : 'Pay ' + priceFormatted() + ' with Stripe' }}</span>
               </button>
             }
           </div>

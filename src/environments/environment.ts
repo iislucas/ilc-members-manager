@@ -36,6 +36,7 @@ export const environment: AppEnvironment = {
   // the PRIVATE key as the VAPID_PRIVATE_KEY Cloud Function secret. Leave empty
   // to disable web push.
   vapidPublicKey: 'YOUR_VAPID_PUBLIC_KEY',
+  emailNotificationsEnabled: false,
   links: {
     membership: 'YOUR_MEMBERSHIP_PRODUCT_URL',
     license: 'YOUR_LICENSE_PRODUCT_URL',

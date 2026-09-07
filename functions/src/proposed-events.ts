@@ -228,6 +228,7 @@ export const submitProposedEvent = onCall(
     productId?: string;
     onlineJoiningLink?: string;
     purchaseDetailsMarkdown?: string;
+    inPersonDetailsMarkdown?: string;
     recordedVideoId?: string;
     recordedVideoUrl?: string;
   }>) => {
@@ -335,6 +336,7 @@ export const submitProposedEvent = onCall(
       productId: data.productId || '',
       onlineJoiningLink: data.onlineJoiningLink || '',
       purchaseDetailsMarkdown: data.purchaseDetailsMarkdown || '',
+      inPersonDetailsMarkdown: data.inPersonDetailsMarkdown || '',
       recordedVideoId: data.recordedVideoId || '',
       recordedVideoUrl: data.recordedVideoUrl || '',
     };
@@ -592,7 +594,7 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
         .collection('events')
         .doc(event.params.docId)
         .collection('registrations')
-        .where('attendance', '==', 'online')
+        .where('attendance', 'in', ['online', 'in_person_and_online'])
         .get();
 
       for (const regDoc of onlineRegSnap.docs) {
@@ -620,6 +622,49 @@ export const onEventUpdated = onDocumentUpdated('/events/{docId}', async (event)
       }
     } catch (err) {
       logger.error('Failed to notify online attendees of joining details', {
+        err,
+        eventId: event.params.docId,
+      });
+    }
+  }
+
+  // Check if in-person attendance instructions were newly added
+  const inPersonDetailsAdded = !before.inPersonDetailsMarkdown && Boolean(after.inPersonDetailsMarkdown);
+  if (inPersonDetailsAdded) {
+    logger.info('In-person details added for event; notifying in-person attendees', {
+      eventId: event.params.docId,
+    });
+
+    try {
+      const inPersonRegSnap = await db
+        .collection('events')
+        .doc(event.params.docId)
+        .collection('registrations')
+        .where('attendance', 'in', ['in_person', 'in_person_and_online'])
+        .get();
+
+      for (const regDoc of inPersonRegSnap.docs) {
+        const reg = regDoc.data() as EventRegistration;
+        const memberDocId = reg.memberDocId;
+        if (!memberDocId) continue;
+        const eventTitle = after.title || 'Event';
+        let message = `In-person attendance instructions for **[${eventTitle}](/events/${event.params.docId})** are now available.`;
+        if (after.inPersonDetailsMarkdown) {
+          message += `\n\n### In-Person Instructions\n${after.inPersonDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${event.params.docId}).`;
+        }
+        await createMemberNotification(db, memberDocId, {
+          kind: NotificationKind.EventRegistrationConfirmed,
+          markdown: message,
+          createdAt: new Date().toISOString(),
+          dismissed: false,
+          data: {
+            eventId: event.params.docId,
+            inPersonDetailsMarkdown: after.inPersonDetailsMarkdown || '',
+          },
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to notify in-person attendees of attendance details', {
         err,
         eventId: event.params.docId,
       });

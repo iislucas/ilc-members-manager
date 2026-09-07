@@ -43,6 +43,8 @@ export class ProductEditComponent implements OnInit {
   protected dataService = inject(DataManagerService);
   protected productService = inject(ProductService);
   protected readonly Views = Views;
+  protected readonly AttendeeRole = AttendeeRole;
+  protected readonly AttendanceType = AttendanceType;
 
   productIdInput = input<string>('', { alias: 'productId' });
   embedded = input<boolean>(false);
@@ -50,6 +52,7 @@ export class ProductEditComponent implements OnInit {
   embeddedEventTitle = input<string>('');
   embeddedOnlineJoiningLink = input<string>('');
   embeddedPurchaseDetailsMarkdown = input<string>('');
+  embeddedInPersonDetailsMarkdown = input<string>('');
   embeddedRecordedVideoId = input<string>('');
   embeddedRecordedVideoUrl = input<string>('');
 
@@ -103,9 +106,9 @@ export class ProductEditComponent implements OnInit {
 
   standardRole = computed<AttendeeRole>(() => {
     const a = this.registrationAudience();
-    if (a === 'instructors') return 'instructor';
-    if (a === 'members') return 'member';
-    return 'non_member';
+    if (a === 'instructors') return AttendeeRole.Instructor;
+    if (a === 'members') return AttendeeRole.Member;
+    return AttendeeRole.NonMember;
   });
 
   standardRoleLabel = computed<string>(() => {
@@ -123,25 +126,25 @@ export class ProductEditComponent implements OnInit {
     isAllowed: (p: Product) => boolean;
   }[] = [
     {
-      attendance: 'in_person',
+      attendance: AttendanceType.InPerson,
       includeVideo: false,
       getLabel: (p) => (p.allowVideo ? 'In-Person (No Video)' : 'In-Person Attendance'),
       isAllowed: (p) => p.allowInPerson,
     },
     {
-      attendance: 'in_person',
+      attendance: AttendanceType.InPerson,
       includeVideo: true,
       getLabel: () => 'In-Person (+ Video)',
       isAllowed: (p) => p.allowInPerson && p.allowVideo,
     },
     {
-      attendance: 'online',
+      attendance: AttendanceType.Online,
       includeVideo: false,
       getLabel: (p) => (p.allowVideo ? 'Online (No Video)' : 'Online Attendance'),
       isAllowed: (p) => p.allowOnline,
     },
     {
-      attendance: 'online',
+      attendance: AttendanceType.Online,
       includeVideo: true,
       getLabel: () => 'Online (+ Video)',
       isAllowed: (p) => p.allowOnline && p.allowVideo,
@@ -201,8 +204,8 @@ export class ProductEditComponent implements OnInit {
 
       if (existing) {
         this.productModel.set(structuredClone(existing));
-        this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, 'member')));
-        this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, 'instructor')));
+        this.hasMemberPrice.set(Boolean(existing.hasMemberPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Member)));
+        this.hasInstructorPrice.set(Boolean(existing.hasInstructorPrice ?? this.detectHasSpecialPrice(existing, AttendeeRole.Instructor)));
       } else {
         const newProduct = initProduct();
         if (evId) {
@@ -222,6 +225,9 @@ export class ProductEditComponent implements OnInit {
           newProduct.purchaseDetailsMarkdown = this.embeddedPurchaseDetailsMarkdown();
         } else if (this.embeddedOnlineJoiningLink()) {
           newProduct.purchaseDetailsMarkdown = this.embeddedOnlineJoiningLink();
+        }
+        if (this.embeddedInPersonDetailsMarkdown()) {
+          newProduct.inPersonDetailsMarkdown = this.embeddedInPersonDetailsMarkdown();
         }
         if (this.embeddedRecordedVideoId()) {
           newProduct.recordedVideoId = this.embeddedRecordedVideoId();
@@ -281,7 +287,7 @@ export class ProductEditComponent implements OnInit {
       // Ensure tiers for all active rows exist and have enabled: true
       for (const r of this.attendanceRows) {
         if (r.isAllowed(clone)) {
-          for (const role of ['non_member', 'member', 'instructor'] as AttendeeRole[]) {
+          for (const role of [AttendeeRole.NonMember, AttendeeRole.Member, AttendeeRole.Instructor]) {
             const key = getPricingTierKey(role, r.attendance, r.includeVideo);
             if (!clone.tiers[key]) {
               clone.tiers[key] = { enabled: true, price: 0 };
@@ -296,14 +302,14 @@ export class ProductEditComponent implements OnInit {
   }
 
   private detectHasSpecialPrice(product: Product, role: AttendeeRole): boolean {
-    if (product.hasMemberPrice !== undefined && role === 'member') {
+    if (product.hasMemberPrice !== undefined && role === AttendeeRole.Member) {
       return product.hasMemberPrice;
     }
-    if (product.hasInstructorPrice !== undefined && role === 'instructor') {
+    if (product.hasInstructorPrice !== undefined && role === AttendeeRole.Instructor) {
       return product.hasInstructorPrice;
     }
     for (const r of this.attendanceRows) {
-      const stdKey = getPricingTierKey('non_member', r.attendance, r.includeVideo);
+      const stdKey = getPricingTierKey(AttendeeRole.NonMember, r.attendance, r.includeVideo);
       const roleKey = getPricingTierKey(role, r.attendance, r.includeVideo);
       const stdTier = product.tiers[stdKey];
       const roleTier = product.tiers[roleKey];
@@ -319,7 +325,7 @@ export class ProductEditComponent implements OnInit {
     const baseRole = this.standardRole();
     for (const r of this.attendanceRows) {
       const stdKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-      const memberKey = getPricingTierKey('member', r.attendance, r.includeVideo);
+      const memberKey = getPricingTierKey(AttendeeRole.Member, r.attendance, r.includeVideo);
       const stdTier = model.tiers[stdKey];
       if (stdTier) {
         model.tiers[memberKey] = { enabled: stdTier.enabled, price: stdTier.price };
@@ -335,10 +341,10 @@ export class ProductEditComponent implements OnInit {
 
   addInstructorPrice() {
     const model = structuredClone(this.productModel());
-    const baseRole: AttendeeRole = (this.hasMemberPrice() && this.registrationAudience() === 'anyone') ? 'member' : this.standardRole();
+    const baseRole: AttendeeRole = (this.hasMemberPrice() && this.registrationAudience() === 'anyone') ? AttendeeRole.Member : this.standardRole();
     for (const r of this.attendanceRows) {
       const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-      const instructorKey = getPricingTierKey('instructor', r.attendance, r.includeVideo);
+      const instructorKey = getPricingTierKey(AttendeeRole.Instructor, r.attendance, r.includeVideo);
       const baseTier = model.tiers[baseKey];
       if (baseTier) {
         model.tiers[instructorKey] = { enabled: baseTier.enabled, price: baseTier.price };
@@ -407,6 +413,10 @@ export class ProductEditComponent implements OnInit {
     this.productModel.update((m) => ({ ...m, purchaseDetailsMarkdown: md }));
   }
 
+  updateInPersonDetailsMarkdown(md: string) {
+    this.productModel.update((m) => ({ ...m, inPersonDetailsMarkdown: md }));
+  }
+
   updateRecordedVideoId(recordedVideoId: string) {
     this.productModel.update((m) => ({ ...m, recordedVideoId }));
   }
@@ -447,7 +457,7 @@ export class ProductEditComponent implements OnInit {
       const baseRole = this.standardRole();
       for (const r of this.attendanceRows) {
         const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-        const memberKey = getPricingTierKey('member', r.attendance, r.includeVideo);
+        const memberKey = getPricingTierKey(AttendeeRole.Member, r.attendance, r.includeVideo);
         const baseTier = model.tiers[baseKey];
         if (baseTier) {
           model.tiers[memberKey] = { enabled: baseTier.enabled, price: baseTier.price };
@@ -457,10 +467,10 @@ export class ProductEditComponent implements OnInit {
 
     // Sync instructor tiers if special instructor price is not active
     if (!this.hasInstructorPrice()) {
-      const baseRole: AttendeeRole = (this.hasMemberPrice() && audience === 'anyone') ? 'member' : this.standardRole();
+      const baseRole: AttendeeRole = (this.hasMemberPrice() && audience === 'anyone') ? AttendeeRole.Member : this.standardRole();
       for (const r of this.attendanceRows) {
         const baseKey = getPricingTierKey(baseRole, r.attendance, r.includeVideo);
-        const instructorKey = getPricingTierKey('instructor', r.attendance, r.includeVideo);
+        const instructorKey = getPricingTierKey(AttendeeRole.Instructor, r.attendance, r.includeVideo);
         const baseTier = model.tiers[baseKey];
         if (baseTier) {
           model.tiers[instructorKey] = { enabled: baseTier.enabled, price: baseTier.price };

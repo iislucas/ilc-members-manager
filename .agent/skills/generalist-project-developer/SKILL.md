@@ -100,6 +100,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 - DO NOT USE `any` types; use appropriate types from. Use `unknown` where appropriate.
 - Prefer taking arguments that are existing object types rather than making special inline types for parts of an object. Types should capture the key conceptual components, and we should take these as arguments.
 - Don't use explicit boolean === value checks. Just use the boolean value directly. e.g. don't use `if (isNew === true)` use `if (isNew)`.
+- **Prefer TypeScript Enums Over String Literal Unions**: Whenever modeling fixed domain sets (e.g. roles, statuses, attendance types, categories), use TypeScript `enum` with string values (e.g. `export enum AttendanceType { InPerson = 'in_person', ... }`). Avoid raw string literal unions (`'in_person' | 'online'`) and avoid comparing against raw string literals in code (`attendance === AttendanceType.Online`, not `attendance === 'online'`). Enums ensure type safety, refactoring support, and catch typos at compile time.
 
 ### Data Modeling
 
@@ -147,6 +148,7 @@ The current Firebase project ID can be found in the file: `src/environments/envi
 
 - Keep them simple.
 - Use native control flow (`@if`, `@for`, `@switch`).
+- **No Spinners Inside Buttons (Anti-Pattern)**: Do NOT place `<app-spinner>` inside a `<button>` element. Placing a spinner inside a button creates layout shifting and looks unpolished. When a save or submission is in progress (`isSaving()`), replace the action button(s) with `<app-spinner>Saving...</app-spinner>` in the template (`@if (isSaving()) { <app-spinner>Saving...</app-spinner> } @else { <button ...>Save</button> }`).
 - Use the async pipe for observables.
 
 ### Services

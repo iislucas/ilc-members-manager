@@ -261,6 +261,45 @@ a.button:disabled,
 }
 
 // ----------------------------------------------------------------------------
+//  Primary Action Button
+//  Official primary call-to-action button (e.g. Register, Checkout, Renew Now).
+//  Uses the brand red accent color (#950000) with white bold text.
+//  Never use solid black for positive primary action buttons.
+// ----------------------------------------------------------------------------
+.primary-button,
+a.primary-button,
+button.primary-button {
+  background-color: $heading-accent-color;
+  border: 1px solid $heading-accent-color;
+  color: #ffffff;
+  font-weight: bold;
+  box-shadow: 0 2px 4px $shadow-color;
+
+  &:hover {
+    background-color: color.adjust($heading-accent-color, $lightness: -8%);
+    border-color: color.adjust($heading-accent-color, $lightness: -8%);
+    box-shadow: 0 4px 8px $shadow-color-hover;
+    color: #ffffff;
+  }
+
+  &:active {
+    background-color: color.adjust($heading-accent-color, $lightness: -12%);
+    box-shadow: 0 1px 2px $shadow-color-active;
+    color: #ffffff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  app-icon {
+    color: #ffffff;
+  }
+}
+
+// ----------------------------------------------------------------------------
 //  Card style
 // ----------------------------------------------------------------------------
 
@@ -333,27 +372,40 @@ a.button:disabled,
 input[type="text"],
 input[type="password"],
 input[type="email"],
+input[type="url"],
+input[type="number"],
 select {
   background-color: unset;
   width: auto;
   // field-sizing: content;
   max-width: 30em;
   flex-grow: 1;
-  padding: 8px;
-  border: none;
-  border-bottom: 1px solid $border-color-light;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border: 1px solid $border-color-light;
+  border-radius: 6px;
   box-sizing: border-box; /* Ensures padding doesn't affect width */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus,
+  &:focus-visible {
+    @include input-focus-ring;
+  }
 }
 
 textarea {
   background-color: unset;
   flex-grow: 1;
   // field-sizing: content;
-  padding: 8px;
+  padding: 8px 12px;
   border: 1px solid $border-color-light;
-  border-radius: 4px;
+  border-radius: 6px;
   box-sizing: border-box; /* Ensures padding doesn't affect width */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus,
+  &:focus-visible {
+    @include input-focus-ring;
+  }
 }
 
 textarea {
@@ -372,10 +424,16 @@ input[type="date"] {
   width: auto;
   min-width: 120px;
   max-width: 10em;
-  padding: 8px;
+  padding: 8px 12px;
   border: 1px solid $border-color-light;
-  border-radius: 4px;
+  border-radius: 6px;
   box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus,
+  &:focus-visible {
+    @include input-focus-ring;
+  }
 
   &::placeholder {
     color: #999;
@@ -386,7 +444,8 @@ input:disabled,
 select:disabled,
 textarea:disabled {
   background-color: $separator-color;
-  border: none;
+  border: 1px solid $border-color-light;
+  opacity: 0.6;
 }
 
 input[type="checkbox"] {
@@ -430,14 +489,13 @@ input[type="checkbox"] {
       padding: 8px 8px 8px 35px; /* Left padding to make space for the icon */
       border: 1px solid $border-color-light;
       border-radius: 20px;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
       width: 100%;
       max-width: unset;
 
-      &:focus {
-        border-color: $focus-ring-color;
-        box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
-        outline: none;
+      &:focus,
+      &:focus-visible {
+        @include input-focus-ring;
       }
     }
   }

@@ -7,6 +7,7 @@
   flex-grow: 1;
   padding: 1.5em 1em 4em;
   width: 100%;
+  box-sizing: border-box;
 
   &:has(.product-edit-container.embedded) {
     padding: 0;
@@ -20,6 +21,7 @@
   gap: 1.5em;
   max-width: 1100px;
   width: 100%;
+  box-sizing: border-box;
 
   &.embedded {
     max-width: 100%;
@@ -62,10 +64,9 @@
 }
 
 .description-editor-container {
-  border: 1px solid v.$border-color-light;
-  border-radius: 6px;
-  background: #fff;
   min-height: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-field:has(.event-autocomplete-row) {
@@ -94,11 +95,11 @@
       font-size: 0.95em;
       background: v.$theme-bg-color;
       color: v.$text-primary;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
-      &:focus {
-        border-color: v.$heading-accent-color;
-        box-shadow: 0 0 0 2px rgba(v.$heading-accent-color, 0.15);
-        outline: none;
+      &:focus,
+      &:focus-visible {
+        @include v.input-focus-ring;
       }
     }
   }
@@ -140,11 +141,11 @@
     font-size: 0.95em;
     max-width: 100%;
     box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
-    &:focus {
-      outline: none;
-      border-color: v.$heading-accent-color;
-      box-shadow: 0 0 0 2px rgba(v.$heading-accent-color, 0.15);
+    &:focus,
+    &:focus-visible {
+      @include v.input-focus-ring;
     }
   }
 }
@@ -243,10 +244,9 @@
   border-top: 1px dashed v.$border-color-light;
 
   .purchase-details-editor-container {
-    border: 1px solid v.$border-color-light;
-    border-radius: 6px;
-    background: #fff;
     min-height: 140px;
+    display: flex;
+    flex-direction: column;
   }
 
   .field-hint {
@@ -310,10 +310,11 @@
       font-size: 0.95em;
       font-weight: 500;
 
-      &:focus {
-        outline: none;
-        border-color: v.$heading-accent-color;
-        box-shadow: 0 0 0 2px rgba(v.$heading-accent-color, 0.15);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &:focus,
+      &:focus-visible {
+        @include v.input-focus-ring;
       }
     }
   }
@@ -418,9 +419,11 @@
         font-size: 0.95em;
         text-align: right;
 
-        &:focus {
-          outline: none;
-          border-color: v.$heading-accent-color;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+        &:focus,
+        &:focus-visible {
+          @include v.input-focus-ring;
         }
 
         &:disabled {

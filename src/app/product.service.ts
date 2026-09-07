@@ -92,6 +92,12 @@ export class ProductService {
         if (product.onlineJoiningLink !== undefined) {
           updates['onlineJoiningLink'] = product.onlineJoiningLink;
         }
+        if (product.purchaseDetailsMarkdown !== undefined) {
+          updates['purchaseDetailsMarkdown'] = product.purchaseDetailsMarkdown;
+        }
+        if (product.inPersonDetailsMarkdown !== undefined) {
+          updates['inPersonDetailsMarkdown'] = product.inPersonDetailsMarkdown;
+        }
         if (product.recordedVideoId !== undefined) {
           updates['recordedVideoId'] = product.recordedVideoId;
         }
@@ -130,29 +136,74 @@ export class ProductService {
   async getUserRegistrationForEvent(
     eventId: string,
     memberDocId?: string,
-    email?: string,
+    emailOrEmails?: string | string[],
   ): Promise<EventRegistration | undefined> {
-    if (!eventId || (!memberDocId && !email)) return undefined;
-    try {
-      const regsCol = collection(this.db, 'events', eventId, 'registrations');
-      if (memberDocId) {
-        const q = query(regsCol, where('memberDocId', '==', memberDocId));
+    if (!eventId) return undefined;
+
+    const emails: string[] = Array.from(
+      new Set(
+        (
+          Array.isArray(emailOrEmails)
+            ? emailOrEmails
+            : emailOrEmails
+              ? [emailOrEmails]
+              : []
+        )
+          .filter(Boolean)
+          .flatMap((e) => [e.trim(), e.trim().toLowerCase()]),
+      ),
+    );
+
+    if (!memberDocId && emails.length === 0) return undefined;
+
+    // 1. If memberDocId is available, first check the member's own registrations subcollection
+    // (This query is directly authorized by Firestore rules for the logged-in member)
+    if (memberDocId) {
+      try {
+        const memberRegsCol = collection(
+          this.db,
+          'members',
+          memberDocId,
+          'registrations',
+        );
+        const q = query(memberRegsCol, where('eventDocId', '==', eventId));
         const snap = await getDocs(q);
         if (!snap.empty) {
           return firestoreDocToEventRegistration(snap.docs[0]);
         }
+      } catch (err) {
+        console.warn('Could not query member registrations subcollection:', err);
       }
-      if (email) {
-        const q = query(regsCol, where('email', '==', email.toLowerCase().trim()));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          return firestoreDocToEventRegistration(snap.docs[0]);
-        }
-      }
-      return undefined;
-    } catch (err) {
-      console.error('Error checking user registration:', err);
-      return undefined;
     }
+
+    const eventRegsCol = collection(this.db, 'events', eventId, 'registrations');
+
+    // 2. Try querying event's registrations subcollection by memberDocId
+    if (memberDocId) {
+      try {
+        const q = query(eventRegsCol, where('memberDocId', '==', memberDocId));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          return firestoreDocToEventRegistration(snap.docs[0]);
+        }
+      } catch (err) {
+        console.warn('Could not query event registrations by memberDocId:', err);
+      }
+    }
+
+    // 3. Try querying event's registrations subcollection by each provided email
+    for (const email of emails) {
+      try {
+        const q = query(eventRegsCol, where('email', '==', email));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          return firestoreDocToEventRegistration(snap.docs[0]);
+        }
+      } catch (err) {
+        console.warn(`Could not query event registrations for email ${email}:`, err);
+      }
+    }
+
+    return undefined;
   }
 }

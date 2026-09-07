@@ -34,6 +34,7 @@ export const environment: AppEnvironment = {
   passwordResetEmailSender: 'noreply@example.com',
   // Web push is generally not used against the emulator; leave empty to disable.
   vapidPublicKey: '',
+  emailNotificationsEnabled: false,
   links: {
     membership: 'http://localhost:5000/membership',
     license: 'http://localhost:5000/license',

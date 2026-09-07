@@ -12,7 +12,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
 import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
-import { EventRegistration, AttendeeRole, AttendanceType } from './data-model/events';
+import { EventRegistration, EventRegistrationUpgrade, AttendeeRole, AttendanceType, EventRegistrationStatus } from './data-model/events';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
 import { Member, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
@@ -787,11 +787,64 @@ export async function fulfillEventRegistration(
   const memberDocId = member?.docId || order.metadata?.['memberDocId'] || '';
   const memberId = member?.memberId || order.metadata?.['memberId'] || '';
 
+  const isUpgrade = order.metadata?.['isUpgrade'] === 'true';
+  const existingRegistrationDocId = order.metadata?.['existingRegistrationDocId'] || '';
+
+  let finalAttendance = attendance;
+  let finalHasVideoAccess = hasVideoAccess;
+  let finalAmountPaidCents = amountPaidCents;
+  let targetDocId = orderDocId;
+  let upgradeHistory: EventRegistrationUpgrade[] = [];
+
+  if (isUpgrade && existingRegistrationDocId && eventDocId) {
+    targetDocId = existingRegistrationDocId;
+    try {
+      const existingSnap = await db
+        .collection('events')
+        .doc(eventDocId)
+        .collection('registrations')
+        .doc(existingRegistrationDocId)
+        .get();
+
+      if (existingSnap.exists) {
+        const existing = existingSnap.data() as EventRegistration;
+        finalAmountPaidCents = (existing.amountPaidCents || 0) + amountPaidCents;
+        finalHasVideoAccess = existing.hasVideoAccess || hasVideoAccess;
+
+        if (
+          (existing.attendance === AttendanceType.InPerson && attendance === AttendanceType.Online) ||
+          (existing.attendance === AttendanceType.Online && attendance === AttendanceType.InPerson) ||
+          existing.attendance === AttendanceType.InPersonAndOnline ||
+          attendance === AttendanceType.InPersonAndOnline
+        ) {
+          finalAttendance = AttendanceType.InPersonAndOnline;
+        } else if (attendance === AttendanceType.VideoOnly) {
+          finalAttendance = existing.attendance;
+        } else {
+          finalAttendance = attendance;
+        }
+
+        upgradeHistory = [
+          ...(existing.upgradeHistory || []),
+          {
+            timestamp: new Date().toISOString(),
+            previousAttendance: existing.attendance,
+            previousHasVideoAccess: existing.hasVideoAccess,
+            upgradeAmountCents: amountPaidCents,
+            stripeSessionId: order.checkoutSessionId || '',
+          },
+        ];
+      }
+    } catch (err) {
+      logger.warn('Error reading existing registration for upgrade in fulfillment:', err);
+    }
+  }
+
   const registration: EventRegistration = {
-    docId: orderDocId,
+    docId: targetDocId,
     eventDocId,
     productId,
-    orderDocId,
+    orderDocId: targetDocId,
     stripeSessionId: order.checkoutSessionId || '',
     registeredAt: order.created || new Date().toISOString(),
     name,
@@ -801,12 +854,13 @@ export async function fulfillEventRegistration(
     memberDocId,
     memberId,
     role,
-    attendance,
-    hasVideoAccess,
-    amountPaidCents,
+    attendance: finalAttendance,
+    hasVideoAccess: finalHasVideoAccess,
+    amountPaidCents: finalAmountPaidCents,
     currency,
-    status: 'paid',
+    status: EventRegistrationStatus.Paid,
     lastUpdated: new Date().toISOString(),
+    ...(upgradeHistory.length > 0 ? { upgradeHistory } : {}),
   };
 
   const batch = db.batch();
@@ -816,8 +870,8 @@ export async function fulfillEventRegistration(
       .collection('events')
       .doc(eventDocId)
       .collection('registrations')
-      .doc(orderDocId);
-    batch.set(eventRegRef, registration);
+      .doc(targetDocId);
+    batch.set(eventRegRef, registration, { merge: true });
   }
 
   if (memberDocId) {
@@ -825,19 +879,21 @@ export async function fulfillEventRegistration(
       .collection('members')
       .doc(memberDocId)
       .collection('registrations')
-      .doc(orderDocId);
-    batch.set(memberRegRef, registration);
+      .doc(targetDocId);
+    batch.set(memberRegRef, registration, { merge: true });
   }
 
   await batch.commit();
 
   logger.info('Recorded EventRegistration', {
-    orderDocId,
+    orderDocId: targetDocId,
+    isUpgrade,
     eventDocId,
     email,
     memberDocId,
-    attendance,
-    hasVideoAccess,
+    attendance: finalAttendance,
+    hasVideoAccess: finalHasVideoAccess,
+    totalAmountPaidCents: finalAmountPaidCents,
   });
 
   // Handle Event Zoom link and Video Grants if event exists
@@ -860,22 +916,34 @@ export async function fulfillEventRegistration(
         const eventData = eventSnap.data() || {};
         const eventTitle = eventData['title'] || (prodData['title'] as string) || 'Event';
         const purchaseDetailsMarkdown = (prodData['purchaseDetailsMarkdown'] as string) || (eventData['purchaseDetailsMarkdown'] as string) || '';
+        const inPersonDetailsMarkdown = (prodData['inPersonDetailsMarkdown'] as string) || (eventData['inPersonDetailsMarkdown'] as string) || '';
         const onlineJoiningLink = (prodData['onlineJoiningLink'] as string) || (eventData['onlineJoiningLink'] as string) || '';
         const recordedVideoId = (prodData['recordedVideoId'] as string) || (eventData['recordedVideoId'] as string) || '';
 
-        // 1. Send confirmation notification to member (with Zoom/joining details if online)
+        // 1. Send confirmation notification to member (with Zoom/joining details if online and in-person details)
         if (memberDocId) {
           let message = `You are registered for **[${eventTitle}](/events/${eventDocId})**!`;
-          if (attendance === 'online') {
+          if (
+            attendance === AttendanceType.Online ||
+            attendance === AttendanceType.InPersonAndOnline
+          ) {
             if (purchaseDetailsMarkdown) {
-              message += `\n\n### Joining Details\n${purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
+              message += `\n\n### Online Joining Details\n${purchaseDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
             } else if (onlineJoiningLink) {
               message += `\n\nYour online joining link is: [Join Zoom Meeting](${onlineJoiningLink})\n\nYou can also find this link at any time on the [event page](/events/${eventDocId}).`;
             } else {
               message += `\n\nYour online joining details will appear on the [event page](/events/${eventDocId}) prior to the class.`;
             }
-          } else {
-            message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
+          }
+          if (
+            attendance === AttendanceType.InPerson ||
+            attendance === AttendanceType.InPersonAndOnline
+          ) {
+            if (inPersonDetailsMarkdown) {
+              message += `\n\n### In-Person Instructions\n${inPersonDetailsMarkdown}\n\nYou can also find these details at any time on the [event page](/events/${eventDocId}).`;
+            } else {
+              message += `\n\nWe look forward to seeing you in person! Details are available on the [event page](/events/${eventDocId}).`;
+            }
           }
 
           await createMemberNotification(db, memberDocId, {
@@ -888,6 +956,7 @@ export async function fulfillEventRegistration(
               eventId: eventDocId,
               attendance,
               purchaseDetailsMarkdown,
+              inPersonDetailsMarkdown,
               onlineJoiningLink,
             },
           });
@@ -920,6 +989,17 @@ export async function fulfillEventRegistration(
             memberDocId,
             recordedVideoId,
             eventDocId,
+          });
+
+          await createMemberNotification(db, memberDocId, {
+            kind: NotificationKind.EventVideoAvailable,
+            markdown: `The class video recording for **[${eventTitle}](/events/${eventDocId})** is ready! You can [watch it now](/videos/${encodeURIComponent(recordedVideoId)}).`,
+            createdAt: new Date().toISOString(),
+            dismissed: false,
+            data: {
+              eventId: eventDocId,
+              videoId: recordedVideoId,
+            },
           });
         }
       }
