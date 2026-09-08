@@ -14,7 +14,7 @@ import { FirebaseStateService } from '../firebase-state.service';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { RoutingService } from '../routing.service';
 import { AppPathPatterns, Views } from '../app.config';
-import { CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
+import { BlogPostStatus, CachedBlogPost, initCachedBlogPost } from '../../../functions/src/data-model/content-cache';
 import { MembershipType, ExpiryStatus } from '../../../functions/src/data-model/members';
 import { IconComponent } from '../icons/icon.component';
 import { getInstructorExpiryStatus } from '../member-tags';
@@ -35,6 +35,10 @@ export function categoryToTabLabel(cat: string): string {
     if (cat === 'Article') return 'Articles';
     if (cat === 'Announcement') return 'Announcements';
     return cat;
+}
+
+export function isDraftPost(item: Partial<CachedBlogPost>): boolean {
+    return Boolean(item.isDraft || item.status === BlogPostStatus.Draft || (item.status as string) === 'draft');
 }
 
 @Component({
@@ -82,11 +86,12 @@ export class SquarespaceContentComponent implements OnDestroy {
         const coll = this.path();
         const isAdmin = this.firebaseService.isAdmin();
         return this.rawPosts()
-            .filter((item) => isAdmin || !item.isDraft)
+            .filter((item) => isAdmin || !isDraftPost(item))
             .map((item) => {
                 const categories = item.categories?.map((c) => normalizeCategory(c, coll)) ?? [];
                 return {
                     ...item,
+                    isDraft: isDraftPost(item),
                     categories,
                     safeBody: this.sanitizer.bypassSecurityTrustHtml(item.body),
                     safeExcerpt: this.sanitizer.bypassSecurityTrustHtml(item.excerpt),
@@ -97,12 +102,21 @@ export class SquarespaceContentComponent implements OnDestroy {
     readonly categories = computed<string[]>(() => {
         const entries = this.blogEntries();
         if (entries.length === 0) return [];
+        const isArticles = this.path() === 'articles-post';
         const allCategories = new Set<string>();
         let hasDrafts = false;
         entries.forEach(item => {
-            if (item.isDraft) hasDrafts = true;
+            if (isDraftPost(item)) {
+                hasDrafts = true;
+                return;
+            }
             if (item.categories) {
-                item.categories.forEach((c: string) => allCategories.add(c));
+                item.categories.forEach((c: string) => {
+                    if (isArticles && (c.toLowerCase() === 'instructors' || c.toLowerCase() === 'instructor')) {
+                        return;
+                    }
+                    allCategories.add(c);
+                });
             }
         });
         const list = ['All', ...Array.from(allCategories).sort()];
@@ -123,9 +137,11 @@ export class SquarespaceContentComponent implements OnDestroy {
     filteredEntries = computed(() => {
         const cat = this.selectedCategory();
         const entries = this.blogEntries();
-        if (cat === 'All') return entries;
-        if (cat === 'Drafts') return entries.filter(e => e.isDraft);
-        return entries.filter(e => e.categories && e.categories.includes(cat));
+        const isAdmin = this.firebaseService.isAdmin();
+        if (cat === 'Drafts') {
+            return isAdmin ? entries.filter(e => isDraftPost(e)) : [];
+        }
+        return entries.filter(e => !isDraftPost(e) && (cat === 'All' || (e.categories && e.categories.includes(cat))));
     });
 
     constructor() {
@@ -165,6 +181,17 @@ export class SquarespaceContentComponent implements OnDestroy {
 
                 urlCat = decodeURIComponent(urlCat || 'All');
                 urlCat = normalizeCategory(urlCat, this.path());
+
+                // Redirect non-admins away from Drafts
+                if (!this.firebaseService.isAdmin() && urlCat.toLowerCase() === 'drafts') {
+                    this.selectCategory('All');
+                    return;
+                }
+
+                if (this.path() === 'articles-post' && (urlCat.toLowerCase() === 'instructors' || urlCat.toLowerCase() === 'instructor')) {
+                    this.selectCategory('All');
+                    return;
+                }
 
                 if (urlCat) {
                     if (urlCat !== this.selectedCategory()) {

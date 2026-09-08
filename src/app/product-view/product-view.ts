@@ -32,10 +32,13 @@ import {
   AttendeeRole,
   AttendanceType,
   EventRegistration,
+  EventRegistrationStatus,
   getPricingTierKey,
   IlcEvent,
   isEventPast,
+  PricingTierType,
   Product,
+  RegistrationPaymentMethod,
 } from '../../../functions/src/data-model/events';
 import { MembershipType } from '../../../functions/src/data-model/members';
 import { environment } from '../../environments/environment';
@@ -111,19 +114,109 @@ export class ProductViewComponent implements OnInit {
     return AttendeeRole.NonMember;
   });
 
-  // Selected options
-  selectedRole = linkedSignal<AttendeeRole>(() => {
+  // Preselected and locked attendee status based on verified identity
+  selectedRole = computed<AttendeeRole>(() => {
     const reg = this.existingRegistration();
     if (reg?.role) return reg.role;
+    return this.userRole();
+  });
+
+  attendeeStatusLabel = computed(() => {
+    switch (this.selectedRole()) {
+      case AttendeeRole.Instructor:
+        return 'Certified Instructor';
+      case AttendeeRole.Member:
+        return 'ILC Member';
+      case AttendeeRole.NonMember:
+      default:
+        return 'General Public';
+    }
+  });
+
+  attendeeStatusSubtitle = computed(() => {
+    const u = this.user();
+    if (!u) {
+      return 'Registering as non-member. Have an account? Log in to access member discounts.';
+    }
+    switch (this.selectedRole()) {
+      case AttendeeRole.Instructor:
+        return 'Verified Instructor status applied.';
+      case AttendeeRole.Member:
+        return 'Active ILC Membership status applied.';
+      case AttendeeRole.NonMember:
+      default:
+        return 'Public rate applied. Want member rates? Join or upgrade your membership.';
+    }
+  });
+
+  isRoleEligible = computed(() => {
     const p = this.product();
-    const uRole = this.userRole();
-    if (!p) return uRole;
-    if (uRole === AttendeeRole.Instructor && p.allowInstructors) return AttendeeRole.Instructor;
-    if (uRole === AttendeeRole.Member && p.allowMembers) return AttendeeRole.Member;
-    if (p.allowNonMembers) return AttendeeRole.NonMember;
-    if (p.allowMembers) return AttendeeRole.Member;
-    if (p.allowInstructors) return AttendeeRole.Instructor;
-    return AttendeeRole.NonMember;
+    if (!p) return false;
+    const role = this.selectedRole();
+    if (role === AttendeeRole.Instructor) return Boolean(p.allowInstructors);
+    if (role === AttendeeRole.Member) return Boolean(p.allowMembers || p.allowInstructors);
+    return Boolean(p.allowNonMembers);
+  });
+
+  // Early-bird calculations
+  isEarlyBirdActive = computed(() => {
+    const p = this.product();
+    if (!p?.hasEarlyBird || !p.earlyBirdDeadline) return false;
+    const today = new Date().toISOString().substring(0, 10);
+    return today <= p.earlyBirdDeadline;
+  });
+
+  earlyBirdDeadlineFormatted = computed(() => {
+    const p = this.product();
+    if (!p?.earlyBirdDeadline) return '';
+    const parts = p.earlyBirdDeadline.split('-');
+    if (parts.length !== 3) return p.earlyBirdDeadline;
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  });
+
+  // In-person capacity tracking
+  hasInPersonLimit = computed(() => {
+    const p = this.product();
+    return Boolean(p?.allowInPerson && typeof p.maxInPersonAttendees === 'number' && p.maxInPersonAttendees > 0);
+  });
+
+  inPersonSpacesLeft = computed(() => {
+    const p = this.product();
+    if (!this.hasInPersonLimit() || !p?.maxInPersonAttendees) return null;
+    const count = p.inPersonRegistrationsCount || 0;
+    return Math.max(0, p.maxInPersonAttendees - count);
+  });
+
+  isInPersonSoldOut = computed(() => {
+    const left = this.inPersonSpacesLeft();
+    return left !== null && left <= 0;
+  });
+
+  isPendingInPerson = computed(() => {
+    const reg = this.existingRegistration();
+    return Boolean(
+      reg &&
+      (reg.status === EventRegistrationStatus.PendingInPerson ||
+       reg.paymentMethod === RegistrationPaymentMethod.InPerson)
+    );
+  });
+
+  canPayInPerson = computed(() => {
+    const p = this.product();
+    if (!p?.allowInPerson || !p.allowPayInPerson) return false;
+    if (this.isPastEvent()) return false;
+    const att = this.selectedAttendance();
+    if (att !== AttendanceType.InPerson && att !== AttendanceType.InPersonAndOnline) return false;
+
+    // If already registered and paid online, cannot downgrade to in-person
+    const reg = this.existingRegistration();
+    if (reg && reg.status === EventRegistrationStatus.Paid) return false;
+
+    // If sold out, only allowed if attendee is already registered in-person
+    if (this.isInPersonSoldOut() && !this.isPendingInPerson()) return false;
+
+    return true;
   });
 
   selectedAttendance = linkedSignal<AttendanceType>(() => {
@@ -237,12 +330,18 @@ export class ProductViewComponent implements OnInit {
 
     const role = this.selectedRole();
     const includeVid = reg.hasVideoAccess || this.includeVideo();
-    let key = getPricingTierKey(role, attendance, includeVid);
     const p = this.product();
     if (!p) return null;
+
+    const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    let key = getPricingTierKey(role, attendance, includeVid, tierType);
     let tier = p.tiers[key];
+    if ((!tier || !tier.enabled) && this.isEarlyBirdActive()) {
+      key = getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard);
+      tier = p.tiers[key];
+    }
     if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
-      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid);
+      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
         tier = p.tiers[fallbackKey];
       }
@@ -262,19 +361,37 @@ export class ProductViewComponent implements OnInit {
     return `+${formatted} upgrade`;
   }
 
+  videoAddonPriceFormatted = computed(() => {
+    const p = this.product();
+    if (!p) return '';
+    const delta = p.videoDeltaPrice ?? 0;
+    if (delta <= 0) return 'Free';
+    return `${new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: (p.currency || 'usd').toUpperCase(),
+    }).format(delta)}`;
+  });
+
   videoUpgradeDeltaFormatted = computed(() => {
     if (!this.isUpgrade()) return '';
     const reg = this.existingRegistration();
     if (!reg || reg.hasVideoAccess) return '';
+    if (this.isPendingInPerson()) {
+      return `+${this.videoAddonPriceFormatted()}`;
+    }
 
     const role = this.selectedRole();
     const attendance = this.selectedAttendance();
     const p = this.product();
     if (!p) return '';
 
-    let tierWithVideo = p.tiers[getPricingTierKey(role, attendance, true)];
+    const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    let tierWithVideo = p.tiers[getPricingTierKey(role, attendance, true, tierType)];
+    if ((!tierWithVideo || !tierWithVideo.enabled) && this.isEarlyBirdActive()) {
+      tierWithVideo = p.tiers[getPricingTierKey(role, attendance, true, PricingTierType.Standard)];
+    }
     if ((!tierWithVideo || !tierWithVideo.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
-      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, true);
+      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, true, tierType);
       if (p.tiers[fallbackKey]?.enabled) {
         tierWithVideo = p.tiers[fallbackKey];
       }
@@ -289,23 +406,53 @@ export class ProductViewComponent implements OnInit {
     return `+${new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: (p.currency || 'usd').toUpperCase(),
-    }).format(diff)}`;
+    }).format(diff)} upgrade`;
   });
 
   // Pricing calculations
-  currentTierKey = computed(() => {
+  getPricingKey(tierType: PricingTierType = PricingTierType.Standard): string {
     const role = this.selectedRole();
     const attendance = this.selectedAttendance();
     const includeVideo = this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo();
     const p = this.product();
-    const key = getPricingTierKey(role, attendance, includeVideo);
-    if (p && (!p.tiers[key] || !p.tiers[key].enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
-      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVideo);
-      if (p.tiers[fallbackKey]?.enabled) {
+
+    const primaryKey = getPricingTierKey(role, attendance, includeVideo, tierType);
+    if (p && p.tiers[primaryKey]?.enabled) {
+      return primaryKey;
+    }
+    if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
+      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVideo, tierType);
+      if (p?.tiers[fallbackKey]?.enabled) {
         return fallbackKey;
       }
     }
-    return key;
+    return primaryKey;
+  }
+
+  currentTierKey = computed(() => {
+    const p = this.product();
+    if (!p) return '';
+    if (this.isEarlyBirdActive()) {
+      const earlyBirdKey = this.getPricingKey(PricingTierType.EarlyBird);
+      if (p.tiers[earlyBirdKey]?.enabled) {
+        return earlyBirdKey;
+      }
+    }
+    return this.getPricingKey(PricingTierType.Standard);
+  });
+
+  standardTierKey = computed(() => {
+    return this.getPricingKey(PricingTierType.Standard);
+  });
+
+  inPersonTierKey = computed(() => {
+    const p = this.product();
+    if (!p) return '';
+    const ipKey = this.getPricingKey(PricingTierType.InPerson);
+    if (p.tiers[ipKey]?.enabled) {
+      return ipKey;
+    }
+    return this.standardTierKey();
   });
 
   currentTier = computed(() => {
@@ -314,8 +461,57 @@ export class ProductViewComponent implements OnInit {
     return p.tiers[this.currentTierKey()] || null;
   });
 
+  standardTier = computed(() => {
+    const p = this.product();
+    if (!p) return null;
+    return p.tiers[this.standardTierKey()] || null;
+  });
+
+  inPersonTier = computed(() => {
+    const p = this.product();
+    if (!p) return null;
+    return p.tiers[this.inPersonTierKey()] || null;
+  });
+
   rawPrice = computed(() => {
     return this.currentTier()?.price || 0;
+  });
+
+  standardPrice = computed(() => {
+    return this.standardTier()?.price || 0;
+  });
+
+  hasEarlyBirdSavings = computed(() => {
+    return Boolean(this.isEarlyBirdActive() && this.standardPrice() > this.rawPrice());
+  });
+
+  earlyBirdSavingsFormatted = computed(() => {
+    const p = this.product();
+    if (!p || !this.hasEarlyBirdSavings()) return '';
+    const savings = this.standardPrice() - this.rawPrice();
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: (p.currency || 'usd').toUpperCase(),
+    }).format(savings);
+  });
+
+  standardPriceFormatted = computed(() => {
+    const p = this.product();
+    if (!p) return '';
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: (p.currency || 'usd').toUpperCase(),
+    }).format(this.standardPrice());
+  });
+
+  inPersonPriceFormatted = computed(() => {
+    const p = this.product();
+    const tier = this.inPersonTier();
+    if (!p || !tier) return '';
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: (p.currency || 'usd').toUpperCase(),
+    }).format(tier.price || 0);
   });
 
   upgradeDifference = computed(() => {
@@ -324,10 +520,12 @@ export class ProductViewComponent implements OnInit {
   });
 
   isFreeUpdate = computed(() => {
-    return Boolean(this.isUpgrade() && this.upgradeDifference() <= 0);
+    return Boolean(this.isUpgrade() && !this.isPendingInPerson() && this.upgradeDifference() <= 0);
   });
 
   isTierAvailable = computed(() => {
+    if (!this.isRoleEligible()) return false;
+
     const tier = this.currentTier();
     if (!tier || !tier.enabled) return false;
 
@@ -336,10 +534,24 @@ export class ProductViewComponent implements OnInit {
       return false;
     }
 
+    // Check capacity for in-person attendance
+    if (
+      (this.selectedAttendance() === AttendanceType.InPerson ||
+       this.selectedAttendance() === AttendanceType.InPersonAndOnline) &&
+      this.isInPersonSoldOut() &&
+      !this.isPendingInPerson()
+    ) {
+      return false;
+    }
+
     // If upgrading and there is a balance due (paid upgrade), verify it adds an entitlement
     if (this.isUpgrade() && this.upgradeDifference() > 0) {
       if (this.hasFullRegistration()) {
         return false;
+      }
+      // If paying an unpaid in-person registration, allow paying online even without extra entitlements!
+      if (this.isPendingInPerson()) {
+        return true;
       }
       const reg = this.existingRegistration();
       if (reg) {
@@ -540,7 +752,7 @@ export class ProductViewComponent implements OnInit {
         existingRegistrationDocId: reg.docId,
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        includeVideo: this.includeVideo(),
+        includeVideo: this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo(),
         attendeeDetails: {
           name: this.attendeeName().trim(),
           email: this.attendeeEmail().trim().toLowerCase(),
@@ -599,7 +811,7 @@ export class ProductViewComponent implements OnInit {
         productId: prod.docId,
         role: this.selectedRole(),
         attendance: this.selectedAttendance(),
-        includeVideo: this.includeVideo(),
+        includeVideo: this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo(),
         origin: window.location.origin,
         isUpgrade: isUpgrade,
         existingRegistrationDocId: isUpgrade && existingReg ? existingReg.docId : undefined,
@@ -620,6 +832,54 @@ export class ProductViewComponent implements OnInit {
       console.error('Checkout error:', err);
       const msg = err instanceof Error ? err.message : 'Unable to initialize checkout. Please try again.';
       this.errorMessage.set(msg);
+      this.isSubmitting.set(false);
+    }
+  }
+
+  async registerInPerson() {
+    const prod = this.product();
+    if (!prod) return;
+
+    if (!this.attendeeName().trim()) {
+      alert('Please enter the attendee name.');
+      return;
+    }
+    if (!this.attendeeEmail().trim()) {
+      alert('Please enter your email address for order confirmation.');
+      return;
+    }
+
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+
+    try {
+      const result = await this.stripeService.registerEventInPerson({
+        productId: prod.docId,
+        role: this.selectedRole(),
+        attendance: this.selectedAttendance(),
+        includeVideo: this.includeVideo(),
+        attendeeDetails: {
+          name: this.attendeeName().trim(),
+          email: this.attendeeEmail().trim().toLowerCase(),
+          phone: this.attendeePhone().trim(),
+          notes: this.attendeeNotes().trim(),
+        },
+      });
+
+      if (result && result.success && result.registrationDocId) {
+        alert('You have successfully registered to pay in person at the event! Your registration is recorded and due upon arrival.');
+        const evId = this.linkedEvent()?.docId || this.effectiveEventId();
+        if (evId) {
+          this.routingService.navigateToParts(['events', evId]);
+        }
+      } else {
+        throw new Error('Failed to complete in-person registration.');
+      }
+    } catch (err: unknown) {
+      console.error('In-person registration error:', err);
+      const msg = err instanceof Error ? err.message : 'Unable to complete in-person registration. Please try again.';
+      this.errorMessage.set(msg);
+    } finally {
       this.isSubmitting.set(false);
     }
   }

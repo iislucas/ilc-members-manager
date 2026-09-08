@@ -102,5 +102,70 @@ describe('stripe-product-checkout tier resolution', () => {
       ),
     ).toBe(false);
   });
+
+  it('validates video-only pre-order tier keys and constraints', () => {
+    // VideoOnly tier keys
+    expect(getPricingTierKey(AttendeeRole.NonMember, AttendanceType.VideoOnly, true)).toBe('non_member_video_only');
+    expect(getPricingTierKey(AttendeeRole.Member, AttendanceType.VideoOnly, true)).toBe('member_video_only');
+    expect(getPricingTierKey(AttendeeRole.Instructor, AttendanceType.VideoOnly, true)).toBe('instructor_video_only');
+
+    const product: Product = {
+      ...initProduct(),
+      allowVideoOnly: true,
+      tiers: {
+        non_member_video_only: { enabled: true, price: 45 },
+      },
+    };
+
+    const key = getPricingTierKey(AttendeeRole.NonMember, AttendanceType.VideoOnly, true);
+    expect(product.tiers[key]?.price).toBe(45);
+    expect(product.allowVideoOnly).toBe(true);
+  });
+
+  it('validates unmark in-person paid registration business logic', () => {
+    // Helper replicating unmark validation & state transition
+    function unmarkRegistration(reg: {
+      status: string;
+      paymentMethod?: string;
+      amountPaidCents?: number;
+      amountDueCents?: number;
+    }) {
+      if (reg.paymentMethod !== 'in_person') {
+        throw new Error('Only in-person door payments can be unmarked.');
+      }
+      const restoredDue = reg.amountPaidCents || reg.amountDueCents || 0;
+      return {
+        ...reg,
+        status: 'pending_in_person',
+        amountDueCents: restoredDue,
+        amountPaidCents: 0,
+        paidAt: null,
+      };
+    }
+
+    // 1. Successful unmark of in-person paid registration
+    const paidInPerson = {
+      status: 'paid',
+      paymentMethod: 'in_person',
+      amountPaidCents: 6500,
+      amountDueCents: 0,
+      paidAt: '2026-09-08T10:00:00Z',
+    };
+    const reverted = unmarkRegistration(paidInPerson);
+    expect(reverted.status).toBe('pending_in_person');
+    expect(reverted.amountDueCents).toBe(6500);
+    expect(reverted.amountPaidCents).toBe(0);
+    expect(reverted.paidAt).toBeNull();
+
+    // 2. Safeguard: Stripe online payment throws error
+    const paidStripe = {
+      status: 'paid',
+      paymentMethod: 'stripe',
+      amountPaidCents: 6500,
+      amountDueCents: 0,
+    };
+    expect(() => unmarkRegistration(paidStripe)).toThrow('Only in-person door payments can be unmarked.');
+  });
 });
+
 

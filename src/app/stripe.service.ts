@@ -29,6 +29,12 @@ import {
   ResumeSubscriptionRenewalResult,
   UpdateProductRegistrationRequest,
   UpdateProductRegistrationResult,
+  RegisterEventInPersonRequest,
+  RegisterEventInPersonResult,
+  MarkEventRegistrationPaidRequest,
+  MarkEventRegistrationPaidResult,
+  UnmarkEventRegistrationPaidRequest,
+  UnmarkEventRegistrationPaidResult,
 } from '../../functions/src/stripe-types';
 
 @Injectable({ providedIn: 'root' })
@@ -90,6 +96,48 @@ export class StripeService {
       UpdateProductRegistrationRequest,
       UpdateProductRegistrationResult
     >(this.functions, 'updateProductRegistration');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Register for an event paying in-person upon arrival (not online with Stripe).
+   */
+  async registerEventInPerson(
+    request: RegisterEventInPersonRequest,
+  ): Promise<RegisterEventInPersonResult> {
+    const fn = httpsCallable<
+      RegisterEventInPersonRequest,
+      RegisterEventInPersonResult
+    >(this.functions, 'registerEventInPerson');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Mark an in-person event registration as paid at the door (organizer/admin only).
+   */
+  async markEventRegistrationPaid(
+    request: MarkEventRegistrationPaidRequest,
+  ): Promise<MarkEventRegistrationPaidResult> {
+    const fn = httpsCallable<
+      MarkEventRegistrationPaidRequest,
+      MarkEventRegistrationPaidResult
+    >(this.functions, 'markEventRegistrationPaid');
+    const result = await fn(request);
+    return result.data;
+  }
+
+  /**
+   * Unmark an in-person event registration (revert to unpaid / door payment).
+   */
+  async unmarkEventRegistrationPaid(
+    request: UnmarkEventRegistrationPaidRequest,
+  ): Promise<UnmarkEventRegistrationPaidResult> {
+    const fn = httpsCallable<
+      UnmarkEventRegistrationPaidRequest,
+      UnmarkEventRegistrationPaidResult
+    >(this.functions, 'unmarkEventRegistrationPaid');
     const result = await fn(request);
     return result.data;
   }

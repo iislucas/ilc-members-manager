@@ -183,6 +183,10 @@
       font-size: 1.05em;
       border-bottom: 1px solid v.$border-color-light;
       padding-bottom: 0.3em;
+
+      &.subsection-header {
+        margin-top: 1em;
+      }
     }
 
     .toggle-item {
@@ -196,6 +200,45 @@
         width: 1.1em;
         height: 1.1em;
         accent-color: v.$heading-accent-color;
+      }
+    }
+
+    .nested-field {
+      margin-left: 1.85em;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      padding: 0.5em 0.75em;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 6px;
+      border-left: 3px solid v.$brand-red;
+
+      label {
+        font-size: 0.85em;
+        font-weight: 500;
+        color: v.$text-secondary;
+      }
+
+      input[type="date"],
+      input[type="number"] {
+        padding: 0.45em 0.6em;
+        border: 1px solid v.$border-color-light;
+        border-radius: 4px;
+        font-size: 0.9em;
+        max-width: 220px;
+        background: v.$theme-bg-color;
+      }
+
+      .field-hint {
+        font-size: 0.8em;
+        color: v.$text-muted;
+      }
+
+      .nested-subfield {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35em;
+        margin-top: 0.35em;
       }
     }
 
@@ -432,6 +475,69 @@
           color: v.$text-muted;
         }
       }
+    }
+  }
+}
+
+.tiers-preview-container {
+  margin-top: 1.5em;
+  padding-top: 1.25em;
+  border-top: 1px solid v.$border-color-light;
+
+  .tiers-preview-header {
+    margin-bottom: 0.75em;
+
+    h4 {
+      margin: 0 0 0.25em 0;
+      font-size: 1em;
+      font-weight: 600;
+      color: v.$text-primary;
+    }
+
+    .preview-hint {
+      font-size: 0.85em;
+      color: v.$text-muted;
+    }
+  }
+
+  .tiers-preview-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid v.$border-color-light;
+    border-radius: 6px;
+  }
+
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88em;
+
+    th {
+      background: v.$separator-color;
+      padding: 0.5em 0.85em;
+      text-align: left;
+      font-weight: 600;
+      color: v.$text-muted;
+      border-bottom: 1px solid v.$border-color-light;
+    }
+
+    td {
+      padding: 0.5em 0.85em;
+      border-bottom: 1px solid v.$border-color-light;
+      color: v.$text-primary;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tier-pill {
+      display: inline-block;
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+      font-size: 0.82em;
+      background: rgba(v.$primary-color, 0.1);
+      color: v.$primary-color;
+      font-weight: 500;
     }
   }
 }

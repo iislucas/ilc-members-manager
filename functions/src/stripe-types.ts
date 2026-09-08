@@ -203,4 +203,38 @@ export interface UpdateProductRegistrationResult {
   registrationDocId: string;
 }
 
+export interface RegisterEventInPersonRequest {
+  productId: string;
+  role: AttendeeRole;
+  attendance: AttendanceType;
+  includeVideo: boolean;
+  attendeeDetails: {
+    name: string;
+    email: string;
+    phone?: string;
+    notes?: string;
+  };
+}
 
+export interface RegisterEventInPersonResult {
+  success: boolean;
+  registrationDocId: string;
+}
+
+export interface MarkEventRegistrationPaidRequest {
+  eventId: string;
+  registrationId: string;
+}
+
+export interface MarkEventRegistrationPaidResult {
+  success: boolean;
+}
+
+export interface UnmarkEventRegistrationPaidRequest {
+  eventId: string;
+  registrationId: string;
+}
+
+export interface UnmarkEventRegistrationPaidResult {
+  success: boolean;
+}

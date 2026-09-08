@@ -600,4 +600,11 @@ export const ICONS = {
     width: defaultSize,
     height: defaultSize,
   },
+  undo: {
+    viewbox: '0 -960 960 960',
+    fill: 'currentColor',
+    html: `<path d="M280-200v-80h284q63 0 109.5-43.5T720-430q0-63-46.5-106.5T564-580H340l114 114-56 56-210-210 210-210 56 56-114 114h224q97 0 166.5 66.5T800-430q0 97-69.5 163.5T564-200H280Z"/>`,
+    width: defaultSize,
+    height: defaultSize,
+  },
 };

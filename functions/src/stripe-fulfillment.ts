@@ -12,7 +12,7 @@ import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import Stripe from 'stripe';
 import { InstructorLicenseType, gradingProgression, achievedGradingLevels, normalizeGradingLevel } from './data-model/curriculum';
-import { EventRegistration, EventRegistrationUpgrade, AttendeeRole, AttendanceType, EventRegistrationStatus } from './data-model/events';
+import { EventRegistration, EventRegistrationUpgrade, AttendeeRole, AttendanceType, EventRegistrationStatus, PricingTierType, RegistrationPaymentMethod } from './data-model/events';
 import { Grading, GradingStatus, PaymentStatus, initGrading, isGradingPaid, unpaidGradingsInProgressionOrder } from './data-model/gradings';
 import { Member, MembershipType, firestoreDocToMember, initMember, SubscriptionItemType, SubscriptionStatus, SubscriptionInterval } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
@@ -840,6 +840,11 @@ export async function fulfillEventRegistration(
     }
   }
 
+  const pricingTierType =
+    (order.metadata?.['pricingTierType'] as PricingTierType) ||
+    PricingTierType.Standard;
+  const paymentMethod = RegistrationPaymentMethod.Stripe;
+
   const registration: EventRegistration = {
     docId: targetDocId,
     eventDocId,
@@ -853,12 +858,18 @@ export async function fulfillEventRegistration(
     notes,
     memberDocId,
     memberId,
+    studentLevel: member?.studentLevel || '',
+    applicationLevel: member?.applicationLevel || '',
     role,
     attendance: finalAttendance,
     hasVideoAccess: finalHasVideoAccess,
     amountPaidCents: finalAmountPaidCents,
+    amountDueCents: 0,
     currency,
     status: EventRegistrationStatus.Paid,
+    paymentMethod,
+    pricingTierType,
+    paidAt: order.created || new Date().toISOString(),
     lastUpdated: new Date().toISOString(),
     ...(upgradeHistory.length > 0 ? { upgradeHistory } : {}),
   };

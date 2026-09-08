@@ -170,6 +170,7 @@ describe('ProductEditComponent', () => {
     expect(component.productModel().allowInPerson).toBe(true);
     expect(component.productModel().allowOnline).toBe(false);
     expect(component.productModel().allowVideo).toBe(false);
+    expect(component.productModel().allowVideoOnly).toBe(false);
     expect(component.visibleRows().length).toBe(1);
 
     // Toggle allowOnline -> 2 rows (In-Person, Online)
@@ -177,12 +178,12 @@ describe('ProductEditComponent', () => {
     expect(component.productModel().allowOnline).toBe(true);
     expect(component.visibleRows().length).toBe(2);
 
-    // Toggle allowVideo -> 4 rows (In-Person, In-Person + Video, Online, Online + Video)
-    component.toggleAttendanceMode('video');
-    expect(component.productModel().allowVideo).toBe(true);
-    expect(component.visibleRows().length).toBe(4);
+    // Toggle allowVideoOnly -> 3 rows (In-Person, Online, Video Only)
+    component.toggleAttendanceMode('video_only');
+    expect(component.productModel().allowVideoOnly).toBe(true);
+    expect(component.visibleRows().length).toBe(3);
 
-    // Toggle off allowInPerson -> 2 rows (Online, Online + Video)
+    // Toggle off allowInPerson -> 2 rows (Online, Video Only)
     component.toggleAttendanceMode('in_person');
     expect(component.productModel().allowInPerson).toBe(false);
     expect(component.visibleRows().length).toBe(2);
@@ -206,5 +207,50 @@ describe('ProductEditComponent', () => {
     component.clearLinkedEvent();
     expect(component.productModel().eventDocId).toBe('');
     expect(component.linkedEvent()).toBeNull();
+  });
+
+  it('should support early-bird and pay-in-person toggles and delta calculations', () => {
+    // Initially false
+    expect(component.productModel().hasEarlyBird).toBe(false);
+    expect(component.productModel().allowPayInPerson).toBe(false);
+    expect(component.visibleRows().length).toBe(1);
+
+    // Set standard base price
+    component.setBasePrice('non_member' as any, 'in_person' as any, '100.00');
+    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'standard' as any).price).toBe(100);
+
+    // Toggle early bird
+    component.toggleEarlyBird();
+    expect(component.productModel().hasEarlyBird).toBe(true);
+    component.updateEarlyBirdDeadline('2026-10-01T23:59:59');
+    expect(component.productModel().earlyBirdDeadline).toBe('2026-10-01T23:59:59');
+    component.updateLateDeltaPrice('25.00');
+    expect(component.lateDeltaPrice()).toBe(25);
+
+    // Base price in table now acts as early bird base price
+    component.setBasePrice('non_member' as any, 'in_person' as any, '80.00');
+    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'early_bird' as any).price).toBe(80);
+    // Standard price is early bird + lateDeltaPrice (80 + 25 = 105)
+    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'standard' as any).price).toBe(105);
+
+    // Toggle pay in person
+    component.togglePayInPerson();
+    expect(component.productModel().allowPayInPerson).toBe(true);
+    component.updateMaxInPersonAttendees('35');
+    expect(component.productModel().maxInPersonAttendees).toBe(35);
+    // Door price matches standard price by default when hasDoorDelta is false
+    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'in_person' as any).price).toBe(105);
+
+    // Enable door delta
+    component.toggleDoorDelta();
+    expect(component.hasDoorDelta()).toBe(true);
+    component.updateDoorDeltaPrice('10.00');
+    expect(component.doorDeltaPrice()).toBe(10);
+    // Door price is standard price + doorDeltaPrice (105 + 10 = 115)
+    expect(component.getTier('non_member' as any, 'in_person' as any, false, 'in_person' as any).price).toBe(115);
+
+    // Video delta
+    component.updateVideoDeltaPrice('15.00');
+    expect(component.getTier('non_member' as any, 'in_person' as any, true, 'standard' as any).price).toBe(120);
   });
 });

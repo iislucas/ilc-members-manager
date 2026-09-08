@@ -7,6 +7,7 @@ import { DataManagerService } from '../data-manager.service';
 import { RoutingService } from '../routing.service';
 import { FirebaseStateService } from '../firebase-state.service';
 import { initEvent, initEventRegistration } from '../../../functions/src/data-model/events';
+import { StripeService } from '../stripe.service';
 import { signal } from '@angular/core';
 
 describe('EventRegistrationsComponent', () => {
@@ -33,6 +34,11 @@ describe('EventRegistrationsComponent', () => {
       amountPaidCents: 5000,
       currency: 'usd',
       status: 'paid' as const,
+      paymentMethod: 'stripe' as const,
+      pricingTierType: 'standard' as const,
+      registeredAt: '2026-09-01T10:00:00.000Z',
+      studentLevel: '1',
+      applicationLevel: '',
     },
     {
       ...initEventRegistration(),
@@ -46,6 +52,30 @@ describe('EventRegistrationsComponent', () => {
       amountPaidCents: 6000,
       currency: 'usd',
       status: 'paid' as const,
+      paymentMethod: 'stripe' as const,
+      pricingTierType: 'early_bird' as const,
+      registeredAt: '2026-09-02T10:00:00.000Z',
+      studentLevel: '4',
+      applicationLevel: '2',
+    },
+    {
+      ...initEventRegistration(),
+      docId: 'reg-3',
+      eventDocId: 'event-1',
+      name: 'Bob Door',
+      email: 'bob@example.com',
+      role: 'instructor' as const,
+      attendance: 'in_person' as const,
+      hasVideoAccess: false,
+      amountPaidCents: 0,
+      amountDueCents: 5500,
+      currency: 'usd',
+      status: 'pending_in_person' as const,
+      paymentMethod: 'in_person' as const,
+      pricingTierType: 'in_person' as const,
+      registeredAt: '2026-09-03T10:00:00.000Z',
+      studentLevel: 'Entry',
+      applicationLevel: '',
     },
   ];
 
@@ -55,6 +85,18 @@ describe('EventRegistrationsComponent', () => {
 
   const mockDataManagerService = {
     getEventById: vi.fn().mockResolvedValue(mockEvent),
+    getMemberByDocId: vi.fn().mockImplementation((docId: string) => {
+      if (docId === 'fallback-member-doc') {
+        return {
+          docId: 'fallback-member-doc',
+          name: 'Fallback Member',
+          studentLevel: '3',
+          applicationLevel: '1',
+        };
+      }
+      return undefined;
+    }),
+    getMemberByMemberId: vi.fn(),
   };
 
   const mockRoutingService = {
@@ -78,6 +120,11 @@ describe('EventRegistrationsComponent', () => {
     }),
   };
 
+  const mockStripeService = {
+    markEventRegistrationPaid: vi.fn().mockResolvedValue({ success: true }),
+    unmarkEventRegistrationPaid: vi.fn().mockResolvedValue({ success: true }),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EventRegistrationsComponent],
@@ -86,6 +133,7 @@ describe('EventRegistrationsComponent', () => {
         { provide: DataManagerService, useValue: mockDataManagerService },
         { provide: RoutingService, useValue: mockRoutingService },
         { provide: FirebaseStateService, useValue: mockFirebaseState },
+        { provide: StripeService, useValue: mockStripeService },
       ],
     }).compileComponents();
 
@@ -94,32 +142,101 @@ describe('EventRegistrationsComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create and load data', async () => {
+  it('should create and load data with payment statistics', async () => {
     expect(component).toBeTruthy();
     await component.loadData();
-    expect(component.registrations().length).toBe(2);
-    expect(component.totalAttendeesCount()).toBe(2);
-    expect(component.inPersonCount()).toBe(1);
+    expect(component.registrations().length).toBe(3);
+    expect(component.totalAttendeesCount()).toBe(3);
+    expect(component.inPersonCount()).toBe(2);
     expect(component.onlineCount()).toBe(1);
     expect(component.videoCount()).toBe(1);
     expect(component.totalRevenue()).toBe(110);
+    expect(component.paidOnlineCount()).toBe(2);
+    expect(component.pendingInPersonCount()).toBe(1);
+    expect(component.totalPendingRevenue()).toBe(55);
   });
 
-  it('should filter by attendance mode and search term', async () => {
+  it('should filter by attendance mode, payment status, and search term', async () => {
     await component.loadData();
 
     component.selectedFilter.set('in_person');
-    expect(component.filteredRegistrations().length).toBe(1);
-    expect(component.filteredRegistrations()[0].name).toBe('John Doe');
+    expect(component.filteredRegistrations().length).toBe(2);
 
     component.selectedFilter.set('online');
     expect(component.filteredRegistrations().length).toBe(1);
     expect(component.filteredRegistrations()[0].name).toBe('Jane Smith');
 
+    component.selectedFilter.set('paid_online');
+    expect(component.filteredRegistrations().length).toBe(2);
+    expect(component.filteredRegistrations().map(r => r.name)).toEqual(['Jane Smith', 'John Doe']);
+
+    component.selectedFilter.set('pay_in_person');
+    expect(component.filteredRegistrations().length).toBe(1);
+    expect(component.filteredRegistrations()[0].name).toBe('Bob Door');
+
     component.selectedFilter.set('all');
     component.searchTerm.set('Jane');
     expect(component.filteredRegistrations().length).toBe(1);
     expect(component.filteredRegistrations()[0].email).toBe('jane@example.com');
+  });
+
+  it('should format pricing tiers and attendance correctly', async () => {
+    await component.loadData();
+    expect(component.formatPricingTier(mockRegistrations[0].pricingTierType as any)).toBe('Standard Advance');
+    expect(component.formatPricingTier(mockRegistrations[1].pricingTierType as any)).toBe('Early-Bird');
+    expect(component.formatPricingTier(mockRegistrations[2].pricingTierType as any)).toBe('At Door');
+
+    expect(component.formatAttendance('in_person' as any)).toBe('In-Person');
+    expect(component.formatAttendance('online' as any)).toBe('Online');
+    expect(component.formatAttendance('video_only' as any)).toBe('Video Pre-Order');
+  });
+
+  it('should identify pending in-person registrations and allow marking them as paid', async () => {
+    await component.loadData();
+    const pendingReg = component.registrations().find(r => r.docId === 'reg-3')!;
+    expect(component.isPendingInPerson(pendingReg)).toBe(true);
+    expect(component.isPendingInPerson(component.registrations()[0])).toBe(false);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await component.markPaid(pendingReg);
+
+    expect(mockStripeService.markEventRegistrationPaid).toHaveBeenCalledWith({
+      eventId: 'event-1',
+      registrationId: 'reg-3',
+    });
+    const updatedReg = component.registrations().find(r => r.docId === 'reg-3')!;
+    expect(updatedReg.status).toBe('paid');
+    expect(updatedReg.amountPaidCents).toBe(5500);
+    expect(updatedReg.amountDueCents).toBe(0);
+    expect(updatedReg.paidAt).toBeDefined();
+    expect(component.pendingInPersonCount()).toBe(0);
+    expect(component.totalRevenue()).toBe(165);
+  });
+
+  it('should allow unmarking paid in-person registrations to revert them to pending at the door', async () => {
+    await component.loadData();
+    const paidReg = component.registrations().find(r => r.docId === 'reg-3')!;
+    // First simulate it being marked paid
+    paidReg.status = 'paid' as const;
+    paidReg.amountPaidCents = 5500;
+    paidReg.amountDueCents = 0;
+    paidReg.paidAt = '2026-09-08T12:00:00.000Z';
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await component.unmarkPaid(paidReg);
+
+    expect(mockStripeService.unmarkEventRegistrationPaid).toHaveBeenCalledWith({
+      eventId: 'event-1',
+      registrationId: 'reg-3',
+    });
+    const updatedReg = component.registrations().find(r => r.docId === 'reg-3')!;
+    expect(updatedReg.status).toBe('pending_in_person');
+    expect(updatedReg.amountPaidCents).toBe(0);
+    expect(updatedReg.amountDueCents).toBe(5500);
+    expect(updatedReg.paidAt).toBeUndefined();
+    expect(component.pendingInPersonCount()).toBe(1);
   });
 
   it('should allow admin, owner, or manager to view, but deny others', async () => {
@@ -168,5 +285,136 @@ describe('EventRegistrationsComponent', () => {
       member: { docId: 'stranger-doc-id' },
     });
     expect(component.canView()).toBe(false);
+  });
+
+  it('should resolve member levels from registration doc and fallback to DataManagerService', async () => {
+    await component.loadData();
+    const reg1 = component.registrations().find((r) => r.docId === 'reg-1')!;
+    const reg2 = component.registrations().find((r) => r.docId === 'reg-2')!;
+
+    expect(component.getMemberLevels(reg1)).toEqual({
+      studentLevel: '1',
+      applicationLevel: '',
+    });
+    expect(component.getMemberLevels(reg2)).toEqual({
+      studentLevel: '4',
+      applicationLevel: '2',
+    });
+
+    // Fallback lookup via DataManagerService
+    const fallbackReg = {
+      ...initEventRegistration(),
+      docId: 'reg-fallback',
+      studentLevel: undefined,
+      applicationLevel: undefined,
+      memberDocId: 'fallback-member-doc',
+    };
+    expect(component.getMemberLevels(fallbackReg)).toEqual({
+      studentLevel: '3',
+      applicationLevel: '1',
+    });
+
+    // Formatting helpers
+    expect(component.formatStudentLevel('1')).toBe('Student 1');
+    expect(component.formatStudentLevel('Student 2')).toBe('Student 2');
+    expect(component.formatStudentLevel('')).toBe('');
+    expect(component.formatApplicationLevel('2')).toBe('App 2');
+    expect(component.formatApplicationLevel('App 3')).toBe('App 3');
+    expect(component.formatApplicationLevel('')).toBe('');
+  });
+
+  it('should sort attendees by various fields (Attendee, Role, Levels, Payment, RegisteredAt)', async () => {
+    await component.loadData();
+
+    // Default sort: RegisteredAt Desc
+    // reg-3: Sep 3, reg-2: Sep 2, reg-1: Sep 1
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-3', 'reg-2', 'reg-1']);
+
+    // Sort by Attendee Asc (Bob Door, Jane Smith, John Doe)
+    component.sortField.set(component.RegistrationSortField.Attendee);
+    component.sortDirection.set(component.SortDirection.Asc);
+    expect(component.filteredRegistrations().map((r) => r.name)).toEqual(['Bob Door', 'Jane Smith', 'John Doe']);
+
+    // Sort by Attendee Desc
+    component.sortDirection.set(component.SortDirection.Desc);
+    expect(component.filteredRegistrations().map((r) => r.name)).toEqual(['John Doe', 'Jane Smith', 'Bob Door']);
+
+    // Sort by Role Asc (NonMember=1, Member=2, Instructor=3)
+    component.sortField.set(component.RegistrationSortField.Role);
+    component.sortDirection.set(component.SortDirection.Asc);
+    expect(component.filteredRegistrations().map((r) => r.role)).toEqual(['non_member', 'member', 'instructor']);
+
+    // Sort by Role Desc (Instructor=3, Member=2, NonMember=1)
+    component.sortDirection.set(component.SortDirection.Desc);
+    expect(component.filteredRegistrations().map((r) => r.role)).toEqual(['instructor', 'member', 'non_member']);
+
+    // Sort by Levels Asc (Entry < 1 < 4)
+    // reg-3 (Entry) -> rank 1, reg-1 (1) -> rank 2, reg-2 (4) -> rank 5
+    component.sortField.set(component.RegistrationSortField.Levels);
+    component.sortDirection.set(component.SortDirection.Asc);
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-3', 'reg-1', 'reg-2']);
+
+    // Sort by Levels Desc (4 > 1 > Entry)
+    component.sortDirection.set(component.SortDirection.Desc);
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-2', 'reg-1', 'reg-3']);
+
+    // Sort by Payment Asc (reg-1: 5000, reg-3: 5500 due, reg-2: 6000)
+    component.sortField.set(component.RegistrationSortField.Payment);
+    component.sortDirection.set(component.SortDirection.Asc);
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-1', 'reg-3', 'reg-2']);
+
+    // Sort by Payment Desc (reg-2: 6000, reg-3: 5500 due, reg-1: 5000)
+    component.sortDirection.set(component.SortDirection.Desc);
+    expect(component.filteredRegistrations().map((r) => r.docId)).toEqual(['reg-2', 'reg-3', 'reg-1']);
+  });
+
+  it('should toggle sort direction when clicking headers and set appropriate defaults', async () => {
+    await component.loadData();
+
+    // Currently RegisteredAt Desc. Clicking Attendee should set Attendee Asc.
+    component.toggleSort(component.RegistrationSortField.Attendee);
+    expect(component.sortField()).toBe(component.RegistrationSortField.Attendee);
+    expect(component.sortDirection()).toBe(component.SortDirection.Asc);
+
+    // Clicking Attendee again should toggle to Desc.
+    component.toggleSort(component.RegistrationSortField.Attendee);
+    expect(component.sortDirection()).toBe(component.SortDirection.Desc);
+
+    // Clicking RegisteredAt should default to Desc.
+    component.toggleSort(component.RegistrationSortField.RegisteredAt);
+    expect(component.sortField()).toBe(component.RegistrationSortField.RegisteredAt);
+    expect(component.sortDirection()).toBe(component.SortDirection.Desc);
+  });
+
+  it('should export CSV containing Student Level and Application Level', async () => {
+    await component.loadData();
+
+    let createdContent = '';
+    const originalBlob = globalThis.Blob;
+    globalThis.Blob = class MockBlob extends originalBlob {
+      constructor(parts: any[], options?: any) {
+        super(parts, options);
+        createdContent = parts.join('');
+      }
+    };
+
+    const linkClickSpy = vi.fn();
+    vi.spyOn(document, 'createElement').mockReturnValue({
+      setAttribute: vi.fn(),
+      click: linkClickSpy,
+    } as any);
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    component.exportCsv();
+
+    expect(createdContent).toContain('Student Level,Application Level');
+    expect(createdContent).toContain('"Student Level","Application Level"'.replace(/"/g, ''));
+    expect(createdContent).toContain('"4","2"');
+    expect(createdContent).toContain('"Entry",""');
+
+    globalThis.Blob = originalBlob;
   });
 });

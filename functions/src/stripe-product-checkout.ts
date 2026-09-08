@@ -18,6 +18,12 @@ import {
   CreateCheckoutSessionResult,
   UpdateProductRegistrationRequest,
   UpdateProductRegistrationResult,
+  RegisterEventInPersonRequest,
+  RegisterEventInPersonResult,
+  MarkEventRegistrationPaidRequest,
+  MarkEventRegistrationPaidResult,
+  UnmarkEventRegistrationPaidRequest,
+  UnmarkEventRegistrationPaidResult,
 } from './stripe-types';
 import {
   Product,
@@ -27,6 +33,9 @@ import {
   EventRegistration,
   AttendeeRole,
   AttendanceType,
+  PricingTierType,
+  RegistrationPaymentMethod,
+  EventRegistrationStatus,
 } from './data-model/events';
 import { Member } from './data-model/members';
 import { NotificationKind } from './data-model/notifications';
@@ -153,6 +162,7 @@ export const createProductCheckoutSession = onCall<
 
   // 5. Upgrade verification and duplicate registration prevention
   let isUpgradeActive = false;
+  let isPayingUnpaidInPerson = false;
   let existingReg: EventRegistration | null = null;
   let creditAppliedCents = 0;
 
@@ -222,7 +232,14 @@ export const createProductCheckoutSession = onCall<
         existingReg.attendance === AttendanceType.VideoOnly &&
         attendance !== AttendanceType.VideoOnly;
 
-      if (!addsVideo && !addsInPerson && !addsOnline && !upgradesFromVideoOnly) {
+      // Allow paying online in advance for a previously unpaid in-person registration
+      isPayingUnpaidInPerson = Boolean(
+        existingReg.paymentMethod === RegistrationPaymentMethod.InPerson ||
+        existingReg.status === EventRegistrationStatus.PendingInPerson ||
+        (existingReg.amountPaidCents === 0 && (existingReg.amountDueCents || 0) > 0)
+      );
+
+      if (!addsVideo && !addsInPerson && !addsOnline && !upgradesFromVideoOnly && !isPayingUnpaidInPerson) {
         throw new HttpsError(
           'failed-precondition',
           'The selected registration option does not add any new attendance or video entitlements over your existing registration.',
@@ -253,16 +270,56 @@ export const createProductCheckoutSession = onCall<
     }
   }
 
-  // 6. Resolve the pricing tier
+  // In-person capacity check
+  const isRequestingInPerson =
+    attendance === AttendanceType.InPerson || attendance === AttendanceType.InPersonAndOnline;
+  const isExistingInPerson =
+    existingReg &&
+    (existingReg.attendance === AttendanceType.InPerson ||
+     existingReg.attendance === AttendanceType.InPersonAndOnline);
+
+  if (isRequestingInPerson && !isExistingInPerson) {
+    if (product.maxInPersonAttendees && product.maxInPersonAttendees > 0) {
+      const currentCount = product.inPersonRegistrationsCount || 0;
+      if (currentCount >= product.maxInPersonAttendees) {
+        throw new HttpsError(
+          'failed-precondition',
+          'In-person attendance is currently sold out for this event.',
+        );
+      }
+    }
+  }
+
+  // 6. Resolve the pricing tier (respecting early-bird deadline if configured)
   const tierLookupAttendance: AttendanceType =
     attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : attendance;
-  let tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo);
+
+  let pricingTierType = PricingTierType.Standard;
+  if (product.hasEarlyBird && product.earlyBirdDeadline) {
+    const today = new Date().toISOString().split('T')[0];
+    if (today <= product.earlyBirdDeadline) {
+      pricingTierType = PricingTierType.EarlyBird;
+    }
+  }
+
+  let tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, pricingTierType);
   let tier = product.tiers[tierKey];
 
   if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
     // If no special tier for member/instructor, fall back to standard non_member tier
-    tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo);
+    tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, pricingTierType);
     tier = product.tiers[tierKey];
+  }
+
+  // If early-bird tier wasn't found or enabled, fall back to standard tier
+  if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+    pricingTierType = PricingTierType.Standard;
+    tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+    tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
   }
 
   if (!tier || !tier.enabled) {
@@ -356,6 +413,8 @@ export const createProductCheckoutSession = onCall<
     role,
     attendance,
     includeVideo: includeVideo ? 'true' : 'false',
+    paymentMethod: RegistrationPaymentMethod.Stripe,
+    pricingTierType: pricingTierType,
     attendeeName: data.attendeeDetails?.name || '',
     attendeeEmail: data.attendeeDetails?.email || '',
     attendeePhone: data.attendeeDetails?.phone || '',
@@ -370,6 +429,9 @@ export const createProductCheckoutSession = onCall<
     metadata['upgradeAmountCents'] = priceToChargeInCents.toString();
     metadata['previouslyPaidCents'] = creditAppliedCents.toString();
     metadata['totalAmountPaidCents'] = fullPriceInCents.toString();
+    if (isPayingUnpaidInPerson) {
+      metadata['isPayingUnpaidInPerson'] = 'true';
+    }
   }
 
   const lineItemPriceData: Stripe.Checkout.SessionCreateParams.LineItem.PriceData = {
@@ -534,8 +596,17 @@ export const updateProductRegistration = onCall<
     throw new HttpsError('failed-precondition', 'Video-only access is not available.');
   }
 
-  // If user previously had video access, they keep video access
-  const hasVideoAccess = Boolean(existingReg.hasVideoAccess || data.includeVideo);
+  const isUnpaidInPerson = Boolean(
+    (existingReg.paymentMethod === RegistrationPaymentMethod.InPerson ||
+      existingReg.status === EventRegistrationStatus.PendingInPerson) &&
+    existingReg.status !== EventRegistrationStatus.Paid
+  );
+
+  // If user previously had video access and already paid, they keep video access.
+  // For unpaid in-person registrations, video access can be toggled on/off freely.
+  const hasVideoAccess = isUnpaidInPerson
+    ? Boolean(data.includeVideo)
+    : Boolean(existingReg.hasVideoAccess || data.includeVideo);
 
   // 7. Verify Pricing Tier - Hard server-side check that this does not require an unpaid upgrade
   const tierLookupAttendance: AttendanceType =
@@ -556,11 +627,20 @@ export const updateProductRegistration = onCall<
   const creditAppliedCents = existingReg.amountPaidCents || 0;
   const upgradeDiffCents = fullPriceInCents - creditAppliedCents;
 
-  if (upgradeDiffCents > 0) {
+  if (upgradeDiffCents > 0 && !isUnpaidInPerson) {
     throw new HttpsError(
       'failed-precondition',
       'The selected option requires an additional payment. Please proceed via the payment checkout.',
     );
+  }
+
+  // Calculate updated amount due for in-person door registrations
+  let calculatedAmountDueCents = fullPriceInCents;
+  if (isUnpaidInPerson && attendance === AttendanceType.InPerson) {
+    const doorKey = getPricingTierKey(role, AttendanceType.InPerson, hasVideoAccess, PricingTierType.InPerson);
+    if (product.tiers[doorKey]?.enabled) {
+      calculatedAmountDueCents = Math.round((product.tiers[doorKey].price ?? 0) * 100);
+    }
   }
 
   // 8. Update registration record in Firestore
@@ -572,6 +652,7 @@ export const updateProductRegistration = onCall<
     role,
     attendance,
     hasVideoAccess,
+    ...(isUnpaidInPerson ? { amountDueCents: calculatedAmountDueCents } : {}),
     lastUpdated: new Date().toISOString(),
     upgradeHistory: [
       ...(existingReg.upgradeHistory || []),
@@ -659,3 +740,382 @@ export const updateProductRegistration = onCall<
   return { success: true, registrationDocId: data.existingRegistrationDocId };
 });
 
+export const registerEventInPerson = onCall<
+  RegisterEventInPersonRequest,
+  Promise<RegisterEventInPersonResult>
+>({ cors: allowedOrigins }, async (request) => {
+  const data = request.data;
+  if (!data || !data.productId) {
+    throw new HttpsError('invalid-argument', 'productId is required.');
+  }
+
+  const db = admin.firestore();
+
+  // 1. Fetch Product from Firestore
+  const productSnap = await db.collection('products').doc(data.productId).get();
+  if (!productSnap.exists) {
+    throw new HttpsError('not-found', 'Product not found.');
+  }
+  const product: Product = firestoreDocToProduct(productSnap);
+  if (!product.eventDocId) {
+    throw new HttpsError('failed-precondition', 'Product is not linked to an event.');
+  }
+
+  if (!product.allowPayInPerson) {
+    throw new HttpsError('failed-precondition', 'Paying in person is not enabled for this event.');
+  }
+  if (!product.allowInPerson) {
+    throw new HttpsError('failed-precondition', 'In-person attendance is not available.');
+  }
+
+  const role = data.role || AttendeeRole.NonMember;
+  const attendance = data.attendance || AttendanceType.InPerson;
+  const includeVideo = Boolean(data.includeVideo);
+
+  if (attendance !== AttendanceType.InPerson && attendance !== AttendanceType.InPersonAndOnline) {
+    throw new HttpsError('invalid-argument', 'In-person payment is only available for in-person attendance.');
+  }
+
+  // 2. Validate attendee details
+  const name = data.attendeeDetails?.name?.trim();
+  const email = data.attendeeDetails?.email?.trim().toLowerCase();
+  if (!name || !email) {
+    throw new HttpsError('invalid-argument', 'Attendee name and email are required.');
+  }
+
+  // 3. Resolve member / customer
+  let memberDocId: string | undefined;
+  let memberId: string | undefined;
+  let member: Member | undefined;
+
+  const emailToLookup = request.auth?.token?.email || email;
+  if (emailToLookup) {
+    try {
+      member = await getMemberByEmail(emailToLookup, db);
+      memberDocId = member.docId;
+      memberId = member.memberId;
+    } catch {
+      // Guest attendee
+    }
+  }
+
+  // 4. Verify role authorization
+  if (role === AttendeeRole.Member) {
+    if (!member || !hasActiveMembership(member)) {
+      throw new HttpsError(
+        'permission-denied',
+        'Active membership is required to register at the member rate.',
+      );
+    }
+  } else if (role === AttendeeRole.Instructor) {
+    const today = new Date().toISOString().split('T')[0];
+    const hasActiveLicense = Boolean(
+      member?.instructorId &&
+      member.instructorLicenseExpires &&
+      (member.instructorLicenseExpires === 'life' ||
+       member.instructorLicenseExpires === '9999-12-31' ||
+       member.instructorLicenseExpires >= today)
+    );
+    if (!hasActiveLicense) {
+      throw new HttpsError(
+        'permission-denied',
+        'Active instructor license is required to register at the instructor rate.',
+      );
+    }
+  }
+
+  // 5. Check if event is past
+  const eventSnap = await db.collection('events').doc(product.eventDocId).get();
+  if (eventSnap.exists) {
+    const eventData = eventSnap.data();
+    if (isEventPast(eventData as { start?: string; end?: string })) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Live registration is closed as this event has already taken place.',
+      );
+    }
+  }
+
+  // 6. Capacity check
+  if (product.maxInPersonAttendees && product.maxInPersonAttendees > 0) {
+    const currentCount = product.inPersonRegistrationsCount || 0;
+    if (currentCount >= product.maxInPersonAttendees) {
+      throw new HttpsError(
+        'failed-precondition',
+        'In-person attendance is currently sold out for this event.',
+      );
+    }
+  }
+
+  // 7. Check for duplicate registration
+  const regsRef = db.collection('events').doc(product.eventDocId).collection('registrations');
+  let existingSnap: FirebaseFirestore.QuerySnapshot | null = null;
+  if (memberDocId) {
+    existingSnap = await regsRef.where('memberDocId', '==', memberDocId).limit(1).get();
+  }
+  if ((!existingSnap || existingSnap.empty) && email) {
+    existingSnap = await regsRef.where('email', '==', email).limit(1).get();
+  }
+  if (existingSnap && !existingSnap.empty) {
+    throw new HttpsError(
+      'already-exists',
+      'You already have an active registration for this event.',
+    );
+  }
+
+  // 8. Resolve In-Person price tier
+  const tierLookupAttendance =
+    attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : attendance;
+  let tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, PricingTierType.InPerson);
+  let tier = product.tiers[tierKey];
+
+  if (!tier || !tier.enabled) {
+    // Fall back to non_member in_person tier
+    if (role === AttendeeRole.Member || role === AttendeeRole.Instructor) {
+      tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.InPerson);
+      tier = product.tiers[tierKey];
+    }
+  }
+
+  // If no dedicated in-person tier, fall back to standard tier
+  if (!tier || !tier.enabled) {
+    tierKey = getPricingTierKey(role, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+    tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, includeVideo, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
+  }
+
+  if (!tier || !tier.enabled) {
+    throw new HttpsError(
+      'failed-precondition',
+      'The selected in-person registration option is currently unavailable.',
+    );
+  }
+
+  const inPersonPriceCents = Math.round((tier.price ?? 0) * 100);
+
+  // 9. Write registration doc
+  const targetRegDoc = regsRef.doc();
+  const registrationId = targetRegDoc.id;
+
+  const registration: EventRegistration = {
+    docId: registrationId,
+    eventDocId: product.eventDocId,
+    productId: product.docId,
+    orderDocId: registrationId,
+    stripeSessionId: '',
+    registeredAt: new Date().toISOString(),
+    name,
+    email,
+    phone: data.attendeeDetails?.phone?.trim() || '',
+    notes: data.attendeeDetails?.notes?.trim() || '',
+    memberDocId,
+    memberId,
+    studentLevel: member?.studentLevel || '',
+    applicationLevel: member?.applicationLevel || '',
+    role,
+    attendance,
+    hasVideoAccess: Boolean(includeVideo && product.allowVideo),
+    amountPaidCents: 0,
+    amountDueCents: inPersonPriceCents,
+    currency: product.currency || 'usd',
+    status: EventRegistrationStatus.PendingInPerson,
+    paymentMethod: RegistrationPaymentMethod.InPerson,
+    pricingTierType: PricingTierType.InPerson,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const batch = db.batch();
+  batch.set(targetRegDoc, registration);
+
+  if (memberDocId) {
+    const memberRegRef = db.collection('members').doc(memberDocId).collection('registrations').doc(registrationId);
+    batch.set(memberRegRef, registration);
+  }
+
+  await batch.commit();
+
+  // Send member notification
+  if (memberDocId) {
+    try {
+      const eventTitle = (eventSnap.data()?.['title'] as string) || product.title;
+      const formattedAmount = (inPersonPriceCents / 100).toFixed(2);
+      const curr = (product.currency || 'usd').toUpperCase();
+      const inPersonDetails = (product.inPersonDetailsMarkdown as string) || (eventSnap.data()?.['inPersonDetailsMarkdown'] as string) || '';
+      let message = `You are registered to pay in person for **[${eventTitle}](/events/${product.eventDocId})**! Total due upon arrival: **${curr} ${formattedAmount}**.`;
+      if (inPersonDetails) {
+        message += `\n\n### In-Person Arrival Details\n${inPersonDetails}`;
+      }
+      await createMemberNotification(db, memberDocId, {
+        kind: NotificationKind.EventRegistrationConfirmed,
+        markdown: message,
+        createdAt: new Date().toISOString(),
+        dismissed: false,
+        data: {
+          eventId: product.eventDocId,
+          attendance,
+          inPersonDetailsMarkdown: inPersonDetails,
+        },
+      });
+    } catch (err) {
+      logger.warn('Could not send in-person registration notification:', err);
+    }
+  }
+
+  return {
+    success: true,
+    registrationDocId: registrationId,
+  };
+});
+
+export const markEventRegistrationPaid = onCall<
+  MarkEventRegistrationPaidRequest,
+  Promise<MarkEventRegistrationPaidResult>
+>({ cors: allowedOrigins }, async (request) => {
+  const { eventId, registrationId } = request.data || {};
+  if (!eventId || !registrationId) {
+    throw new HttpsError('invalid-argument', 'eventId and registrationId are required.');
+  }
+
+  const db = admin.firestore();
+
+  // Verify permission: admin or event owner/manager
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) {
+    throw new HttpsError('not-found', 'Event not found.');
+  }
+  const eventData = eventSnap.data() || {};
+  const callerEmail = (request.auth?.token?.email || '').toLowerCase().trim();
+  const isAdmin = request.auth?.token?.admin === true;
+
+  let isManager = false;
+  if (callerEmail) {
+    let callerMemberDocId: string | undefined;
+    try {
+      const m = await getMemberByEmail(callerEmail, db);
+      callerMemberDocId = m.docId;
+    } catch {
+      // Not a member
+    }
+    const ownerDocId = eventData['ownerDocId'];
+    const managerDocIds: string[] = eventData['managerDocIds'] || [];
+    const ownerEmails: string[] = (eventData['ownerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+    const managerEmails: string[] = (eventData['managerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+
+    if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
+      isManager = true;
+    } else if (ownerEmails.includes(callerEmail) || managerEmails.includes(callerEmail)) {
+      isManager = true;
+    }
+  }
+
+  if (!isAdmin && !isManager) {
+    throw new HttpsError('permission-denied', 'You are not authorized to mark registrations as paid for this event.');
+  }
+
+  const regRef = db.collection('events').doc(eventId).collection('registrations').doc(registrationId);
+  const regSnap = await regRef.get();
+  if (!regSnap.exists) {
+    throw new HttpsError('not-found', 'Registration not found.');
+  }
+
+  const reg = regSnap.data() as EventRegistration;
+  const amountToRecord = reg.amountDueCents || reg.amountPaidCents || 0;
+
+  const updates: Partial<EventRegistration> = {
+    status: EventRegistrationStatus.Paid,
+    amountPaidCents: amountToRecord,
+    amountDueCents: 0,
+    paidAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const batch = db.batch();
+  batch.update(regRef, updates);
+
+  if (reg.memberDocId) {
+    const memberRegRef = db.collection('members').doc(reg.memberDocId).collection('registrations').doc(registrationId);
+    batch.update(memberRegRef, updates);
+  }
+
+  await batch.commit();
+  return { success: true };
+});
+
+export const unmarkEventRegistrationPaid = onCall<
+  UnmarkEventRegistrationPaidRequest,
+  Promise<UnmarkEventRegistrationPaidResult>
+>(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
+  }
+
+  const { eventId, registrationId } = request.data;
+  if (!eventId || !registrationId) {
+    throw new HttpsError('invalid-argument', 'eventId and registrationId are required.');
+  }
+
+  const db = admin.firestore();
+  const callerEmail = (request.auth.token.email || '').toLowerCase().trim();
+
+  // Verify caller permissions (admin, owner, or manager)
+  const aclSnap = await db.collection('acl').doc(callerEmail).get();
+  const isAdmin = aclSnap.exists && aclSnap.data()?.['isAdmin'] === true;
+  const callerMemberDocId = aclSnap.exists ? (aclSnap.data()?.['memberDocIds']?.[0] as string | undefined) : undefined;
+
+  let isManager = false;
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (eventSnap.exists) {
+    const eventData = eventSnap.data() || {};
+    const ownerDocId = eventData['ownerDocId'] || '';
+    const managerDocIds: string[] = eventData['managerDocIds'] || [];
+    const ownerEmails: string[] = (eventData['ownerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+    const managerEmails: string[] = (eventData['managerEmails'] || []).map((e: string) => e.toLowerCase().trim());
+
+    if (callerMemberDocId && (callerMemberDocId === ownerDocId || managerDocIds.includes(callerMemberDocId))) {
+      isManager = true;
+    } else if (ownerEmails.includes(callerEmail) || managerEmails.includes(callerEmail)) {
+      isManager = true;
+    }
+  }
+
+  if (!isAdmin && !isManager) {
+    throw new HttpsError('permission-denied', 'You are not authorized to manage registrations for this event.');
+  }
+
+  const regRef = db.collection('events').doc(eventId).collection('registrations').doc(registrationId);
+  const regSnap = await regRef.get();
+  if (!regSnap.exists) {
+    throw new HttpsError('not-found', 'Registration not found.');
+  }
+
+  const reg = regSnap.data() as EventRegistration;
+
+  // Safeguard: ONLY in-person door payments can be unmarked (never online Stripe payments)
+  if (reg.paymentMethod !== RegistrationPaymentMethod.InPerson) {
+    throw new HttpsError('failed-precondition', 'Only in-person door payments can be unmarked.');
+  }
+
+  const amountDueToRestore = reg.amountPaidCents || reg.amountDueCents || 0;
+
+  const updates: Record<string, unknown> = {
+    status: EventRegistrationStatus.PendingInPerson,
+    amountDueCents: amountDueToRestore,
+    amountPaidCents: 0,
+    paidAt: admin.firestore.FieldValue.delete(),
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const batch = db.batch();
+  batch.update(regRef, updates);
+
+  if (reg.memberDocId) {
+    const memberRegRef = db.collection('members').doc(reg.memberDocId).collection('registrations').doc(registrationId);
+    batch.update(memberRegRef, updates);
+  }
+
+  await batch.commit();
+  return { success: true };
+});

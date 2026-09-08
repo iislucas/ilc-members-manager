@@ -64,6 +64,7 @@ describe('ProductViewComponent', () => {
   const mockStripeService = {
     createProductCheckoutSession: vi.fn(),
     updateProductRegistration: vi.fn().mockResolvedValue({ success: true, registrationDocId: 'reg-123' }),
+    registerEventInPerson: vi.fn().mockResolvedValue({ success: true, registrationDocId: 'reg-in-person-123' }),
   };
 
   const mockRoutingService = {
@@ -120,7 +121,6 @@ describe('ProductViewComponent', () => {
 
   it('should calculate member in-person price correctly', async () => {
     await component.loadProduct();
-    component.selectedRole.set('member');
     component.selectedAttendance.set('in_person');
     component.includeVideo.set(false);
 
@@ -130,7 +130,6 @@ describe('ProductViewComponent', () => {
 
   it('should add video add-on correctly', async () => {
     await component.loadProduct();
-    component.selectedRole.set('member');
     component.selectedAttendance.set('in_person');
     component.includeVideo.set(true);
 
@@ -161,7 +160,6 @@ describe('ProductViewComponent', () => {
     expect(component.currentAttendanceLabel()).toBe('In-Person Attendance');
 
     // If staying In-Person without video, diff is $0 and available as a free registration update
-    component.selectedRole.set('member' as any);
     component.selectedAttendance.set('in_person' as any);
     component.includeVideo.set(false);
     expect(component.upgradeDifference()).toBe(0);
@@ -244,5 +242,94 @@ describe('ProductViewComponent', () => {
     expect(component.isUpgrade()).toBe(true);
     expect(component.isCurrentAttendance('in_person' as any)).toBe(true);
     expect(component.includeVideo()).toBe(true);
+  });
+
+  it('should handle early-bird pricing when deadline is in the future', async () => {
+    await component.loadProduct();
+    component.product.set({
+      ...mockProduct,
+      hasEarlyBird: true,
+      earlyBirdDeadline: '2099-12-31',
+      tiers: {
+        ...mockProduct.tiers,
+        'member_in_person_novideo_early_bird': { enabled: true, price: 65 },
+      },
+    });
+
+    component.selectedAttendance.set('in_person');
+    component.includeVideo.set(false);
+
+    expect(component.isEarlyBirdActive()).toBe(true);
+    expect(component.currentTierKey()).toBe('member_in_person_novideo_early_bird');
+    expect(component.rawPrice()).toBe(65);
+    expect(component.hasEarlyBirdSavings()).toBe(true);
+    expect(component.earlyBirdSavingsFormatted()).toContain('15');
+  });
+
+  it('should handle in-person capacity limit and sold-out state', async () => {
+    await component.loadProduct();
+    component.product.set({
+      ...mockProduct,
+      maxInPersonAttendees: 20,
+      inPersonRegistrationsCount: 20,
+    });
+
+    component.selectedAttendance.set('in_person');
+    expect(component.hasInPersonLimit()).toBe(true);
+    expect(component.inPersonSpacesLeft()).toBe(0);
+    expect(component.isInPersonSoldOut()).toBe(true);
+    expect(component.isTierAvailable()).toBe(false);
+  });
+
+  it('should allow registering in-person when permitted', async () => {
+    await component.loadProduct();
+    component.product.set({
+      ...mockProduct,
+      allowPayInPerson: true,
+      tiers: {
+        ...mockProduct.tiers,
+        'member_in_person_novideo_in_person': { enabled: true, price: 85 },
+      },
+    });
+
+    component.selectedAttendance.set('in_person');
+    expect(component.canPayInPerson()).toBe(true);
+    expect(component.inPersonPriceFormatted()).toContain('85');
+
+    component.attendeeName.set('Test Attendee');
+    component.attendeeEmail.set('test@example.com');
+
+    await component.registerInPerson();
+    expect(mockStripeService.registerEventInPerson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'test-prod-1',
+        attendance: 'in_person',
+        role: 'member',
+      }),
+    );
+  });
+
+  it('should allow pending in-person attendee to pay online with Stripe', async () => {
+    await component.loadProduct();
+    component.existingRegistration.set({
+      docId: 'reg-door',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: false,
+      amountPaidCents: 0,
+      amountDueCents: 8000,
+      paymentMethod: 'in_person' as any,
+      status: 'pending_in_person' as any,
+    });
+
+    expect(component.isPendingInPerson()).toBe(true);
+    // Paying an unpaid in-person registration online is allowed even without adding video
+    expect(component.isTierAvailable()).toBe(true);
+    expect(component.isFreeUpdate()).toBe(false);
   });
 });

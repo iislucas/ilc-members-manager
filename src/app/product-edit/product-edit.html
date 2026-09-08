@@ -132,6 +132,55 @@
               />
               <span>Allow In-Person Attendance</span>
             </label>
+            @if (productModel().allowInPerson) {
+              <div class="nested-field">
+                <label class="toggle-item">
+                  <input
+                    type="checkbox"
+                    [checked]="productModel().allowPayInPerson"
+                    (change)="togglePayInPerson()"
+                  />
+                  <span>Allow Paying In-Person (Cash/Card at door)</span>
+                </label>
+                @if (productModel().allowPayInPerson) {
+                  <div class="nested-subfield">
+                    <label for="maxInPerson">Max In-Person Attendees (Optional limit):</label>
+                    <input
+                      id="maxInPerson"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 30 (0 or blank for unlimited)"
+                      [value]="productModel().maxInPersonAttendees || ''"
+                      (input)="updateMaxInPersonAttendees($any($event.target).value)"
+                    />
+                    <span class="field-hint">Displays remaining spaces and prevents in-person registrations when full.</span>
+                  </div>
+                  <label class="toggle-item" style="margin-top: 0.5em;">
+                    <input
+                      type="checkbox"
+                      [checked]="hasDoorDelta()"
+                      (change)="toggleDoorDelta()"
+                    />
+                    <span>Charge an extra fee for paying at the door</span>
+                  </label>
+                  @if (hasDoorDelta()) {
+                    <div class="nested-subfield">
+                      <label for="doorDelta">Door Payment Extra (+ {{ currencySymbol() }}):</label>
+                      <input
+                        id="doorDelta"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="10.00"
+                        [value]="doorDeltaPrice() || ''"
+                        (input)="updateDoorDeltaPrice($any($event.target).value)"
+                      />
+                      <span class="field-hint">Added to the standard price for attendees paying at the event.</span>
+                    </div>
+                  }
+                }
+              </div>
+            }
             <label class="toggle-item">
               <input
                 type="checkbox"
@@ -148,6 +197,63 @@
               />
               <span>Offer Class Video Recording (Add-on)</span>
             </label>
+            @if (productModel().allowVideo) {
+              <div class="nested-field">
+                <label for="videoDelta">Video Add-on Price (+ {{ currencySymbol() }}):</label>
+                <input
+                  id="videoDelta"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="25.00"
+                  [value]="videoDeltaPrice() || ''"
+                  (input)="updateVideoDeltaPrice($any($event.target).value)"
+                />
+                <span class="field-hint">Added to registration price when attendee includes class video recording.</span>
+              </div>
+            }
+            <label class="toggle-item">
+              <input
+                type="checkbox"
+                [checked]="productModel().allowVideoOnly"
+                (change)="toggleAttendanceMode('video_only')"
+              />
+              <span>Allow pre-ordering video recording only (not attending)</span>
+            </label>
+
+            <h3 class="subsection-header">Early-Bird Discount</h3>
+            <label class="toggle-item">
+              <input
+                type="checkbox"
+                [checked]="productModel().hasEarlyBird"
+                (change)="toggleEarlyBird()"
+              />
+              <span>Enable Early-Bird Pricing</span>
+            </label>
+            @if (productModel().hasEarlyBird) {
+              <div class="nested-field">
+                <label for="earlyBirdDeadline">Early-Bird Cutoff Date:</label>
+                <input
+                  id="earlyBirdDeadline"
+                  type="date"
+                  [value]="productModel().earlyBirdDeadline || ''"
+                  (input)="updateEarlyBirdDeadline($any($event.target).value)"
+                />
+                <div class="nested-subfield" style="margin-top: 0.6em;">
+                  <label for="lateDelta">Price increase after early-bird date (+ {{ currencySymbol() }}):</label>
+                  <input
+                    id="lateDelta"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="20.00"
+                    [value]="lateDeltaPrice() || ''"
+                    (input)="updateLateDeltaPrice($any($event.target).value)"
+                  />
+                  <span class="field-hint">Standard advance price after cutoff date will be Early-Bird price + this extra.</span>
+                </div>
+              </div>
+            }
           </div>
 
           <div class="toggle-group">
@@ -379,36 +485,16 @@
             <tbody>
               @for (
                 row of visibleRows();
-                track row.attendance + "_" + row.includeVideo
+                track row.attendance
               ) {
-                @let stdTier =
-                  getTier(standardRole(), row.attendance, row.includeVideo);
                 <tr>
                   <td class="role-td">
                     <strong>{{ row.getLabel(productModel()) }}</strong>
                   </td>
 
                   <!-- Standard Price -->
-                  <td class="cell-td" [class.disabled-cell]="!stdTier.enabled">
+                  <td class="cell-td">
                     <div class="cell-content">
-                      <label
-                        class="cell-enable-label"
-                        title="Enable this pricing option"
-                      >
-                        <input
-                          type="checkbox"
-                          [checked]="stdTier.enabled"
-                          (change)="
-                            setTierEnabled(
-                              standardRole(),
-                              row.attendance,
-                              row.includeVideo,
-                              $any($event.target).checked
-                            )
-                          "
-                        />
-                        <span>Offered</span>
-                      </label>
                       <div class="price-input-box">
                         <span class="currency-symbol">{{
                           currencySymbol()
@@ -418,13 +504,11 @@
                           step="0.01"
                           min="0"
                           placeholder="0.00"
-                          [disabled]="!stdTier.enabled"
-                          [value]="stdTier.price || ''"
+                          [value]="getBasePrice(standardRole(), row.attendance) || ''"
                           (input)="
-                            setTierPrice(
+                            setBasePrice(
                               standardRole(),
                               row.attendance,
-                              row.includeVideo,
                               $any($event.target).value
                             )
                           "
@@ -437,31 +521,8 @@
                   @if (
                     hasMemberPrice() && registrationAudience() === "anyone"
                   ) {
-                    @let memTier =
-                      getTier(AttendeeRole.Member, row.attendance, row.includeVideo);
-                    <td
-                      class="cell-td"
-                      [class.disabled-cell]="!memTier.enabled"
-                    >
+                    <td class="cell-td">
                       <div class="cell-content">
-                        <label
-                           class="cell-enable-label"
-                          title="Enable this pricing option"
-                        >
-                          <input
-                            type="checkbox"
-                            [checked]="memTier.enabled"
-                            (change)="
-                              setTierEnabled(
-                                AttendeeRole.Member,
-                                row.attendance,
-                                row.includeVideo,
-                                $any($event.target).checked
-                              )
-                            "
-                          />
-                          <span>Offered</span>
-                        </label>
                         <div class="price-input-box">
                           <span class="currency-symbol">{{
                             currencySymbol()
@@ -471,13 +532,11 @@
                             step="0.01"
                             min="0"
                             placeholder="0.00"
-                            [disabled]="!memTier.enabled"
-                            [value]="memTier.price || ''"
+                            [value]="getBasePrice(AttendeeRole.Member, row.attendance) || ''"
                             (input)="
-                              setTierPrice(
+                              setBasePrice(
                                 AttendeeRole.Member,
                                 row.attendance,
-                                row.includeVideo,
                                 $any($event.target).value
                               )
                             "
@@ -492,31 +551,8 @@
                     hasInstructorPrice() &&
                     registrationAudience() !== "instructors"
                   ) {
-                    @let instTier =
-                      getTier(AttendeeRole.Instructor, row.attendance, row.includeVideo);
-                    <td
-                      class="cell-td"
-                      [class.disabled-cell]="!instTier.enabled"
-                    >
+                    <td class="cell-td">
                       <div class="cell-content">
-                        <label
-                          class="cell-enable-label"
-                          title="Enable this pricing option"
-                        >
-                          <input
-                            type="checkbox"
-                            [checked]="instTier.enabled"
-                            (change)="
-                              setTierEnabled(
-                                AttendeeRole.Instructor,
-                                row.attendance,
-                                row.includeVideo,
-                                $any($event.target).checked
-                              )
-                            "
-                          />
-                          <span>Offered</span>
-                        </label>
                         <div class="price-input-box">
                           <span class="currency-symbol">{{
                             currencySymbol()
@@ -526,13 +562,11 @@
                             step="0.01"
                             min="0"
                             placeholder="0.00"
-                            [disabled]="!instTier.enabled"
-                            [value]="instTier.price || ''"
+                            [value]="getBasePrice(AttendeeRole.Instructor, row.attendance) || ''"
                             (input)="
-                              setTierPrice(
+                              setBasePrice(
                                 AttendeeRole.Instructor,
                                 row.attendance,
-                                row.includeVideo,
                                 $any($event.target).value
                               )
                             "
@@ -546,6 +580,47 @@
             </tbody>
           </table>
         </div>
+
+        @if (calculatedTiersPreview().length > 0) {
+          <div class="tiers-preview-container">
+            <div class="tiers-preview-header">
+              <h4>Calculated Price Tier Summary</h4>
+              <span class="preview-hint">Live preview of all rates (base price + applicable deltas):</span>
+            </div>
+            <div class="tiers-preview-table-wrapper">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>Option</th>
+                    <th>Tier</th>
+                    <th>{{ standardRoleLabel() }}</th>
+                    @if (hasMemberPrice() && registrationAudience() === "anyone") {
+                      <th>Member</th>
+                    }
+                    @if (hasInstructorPrice() && registrationAudience() !== "instructors") {
+                      <th>Instructor</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of calculatedTiersPreview(); track item.category + '_' + item.tierLabel) {
+                    <tr>
+                      <td>{{ item.attendance }}</td>
+                      <td><span class="tier-pill">{{ item.tierLabel }}</span></td>
+                      <td><strong>{{ currencySymbol() }}{{ item.stdPrice.toFixed(2) }}</strong></td>
+                      @if (hasMemberPrice() && registrationAudience() === "anyone") {
+                        <td>{{ currencySymbol() }}{{ (item.memPrice ?? item.stdPrice).toFixed(2) }}</td>
+                      }
+                      @if (hasInstructorPrice() && registrationAudience() !== "instructors") {
+                        <td>{{ currencySymbol() }}{{ (item.instPrice ?? item.stdPrice).toFixed(2) }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Action Bar -->
