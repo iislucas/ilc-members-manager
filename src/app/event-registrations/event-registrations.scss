@@ -314,6 +314,11 @@
       font-size: 0.85em;
       color: v.$text-muted;
     }
+    .attendee-phone {
+      font-size: 0.8em;
+      color: v.$text-muted;
+      margin-top: 0.1em;
+    }
   }
 
   .cell-phone {
@@ -422,7 +427,7 @@
       gap: 0.25em;
 
       .paid-amount-val {
-        font-weight: 700;
+        font-weight: 500;
         color: v.$text-primary;
       }
 

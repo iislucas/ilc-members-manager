@@ -305,7 +305,7 @@ export class EventRegistrationsComponent implements OnInit {
         return 'At Door';
       case PricingTierType.Standard:
       default:
-        return 'Standard Advance';
+        return '';
     }
   }
 
@@ -618,7 +618,7 @@ export class EventRegistrationsComponent implements OnInit {
         `"${this.formatAttendance(r.attendance)}"`,
         `"${r.hasVideoAccess ? 'Yes' : 'No'}"`,
         `"${r.paymentMethod || (r.amountPaidCents > 0 ? 'stripe' : 'in_person')}"`,
-        `"${this.formatPricingTier(r.pricingTierType)}"`,
+        `"${this.formatPricingTier(r.pricingTierType) || 'Standard'}"`,
         ((r.amountPaidCents || 0) / 100).toFixed(2),
         ((r.amountDueCents || 0) / 100).toFixed(2),
         (r.currency || 'usd').toUpperCase(),

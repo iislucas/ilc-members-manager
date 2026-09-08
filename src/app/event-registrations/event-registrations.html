@@ -223,15 +223,6 @@
                     }
                   </div>
                 </th>
-                <th>Contact</th>
-                <th class="sortable" (click)="toggleSort(RegistrationSortField.Role)" title="Sort by Role">
-                  <div class="th-content">
-                    <span>Role</span>
-                    @if (sortField() === RegistrationSortField.Role) {
-                      <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
-                    }
-                  </div>
-                </th>
                 <th class="sortable" (click)="toggleSort(RegistrationSortField.Levels)" title="Sort by Member Levels">
                   <div class="th-content">
                     <span>Levels</span>
@@ -256,17 +247,17 @@
                     }
                   </div>
                 </th>
-                <th class="sortable" (click)="toggleSort(RegistrationSortField.Payment)" title="Sort by Payment &amp; Tier">
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.Payment)" title="Sort by Fee">
                   <div class="th-content">
-                    <span>Payment &amp; Tier</span>
+                    <span>Fee</span>
                     @if (sortField() === RegistrationSortField.Payment) {
                       <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
                     }
                   </div>
                 </th>
-                <th class="sortable" (click)="toggleSort(RegistrationSortField.RegisteredAt)" title="Sort by Registration Date">
+                <th class="sortable" (click)="toggleSort(RegistrationSortField.RegisteredAt)" title="Sort by Date">
                   <div class="th-content">
-                    <span>Registration Date</span>
+                    <span>Date</span>
                     @if (sortField() === RegistrationSortField.RegisteredAt) {
                       <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
                     }
@@ -274,7 +265,7 @@
                 </th>
                 <th class="sortable" (click)="toggleSort(RegistrationSortField.Status)" title="Sort by Status">
                   <div class="th-content">
-                    <span>Status / Actions</span>
+                    <span>Status</span>
                     @if (sortField() === RegistrationSortField.Status) {
                       <app-icon [name]="sortDirection() === SortDirection.Asc ? 'arrow_upward' : 'arrow_downward'"></app-icon>
                     }
@@ -288,14 +279,9 @@
                   <td class="cell-attendee">
                     <div class="attendee-name">{{ reg.name || 'Anonymous' }}</div>
                     <div class="attendee-email">{{ reg.email }}</div>
-                  </td>
-                  <td class="cell-phone">
-                    {{ reg.phone || '—' }}
-                  </td>
-                  <td>
-                    <span class="role-badge" [class]="'role-' + reg.role">
-                      {{ formatRole(reg.role) }}
-                    </span>
+                    @if (reg.phone) {
+                      <div class="attendee-phone">{{ reg.phone }}</div>
+                    }
                   </td>
                   <td class="cell-levels">
                     @let levels = getMemberLevels(reg);
@@ -355,12 +341,14 @@
                         <span class="paid-amount-val">
                           {{ formatAmount(reg.amountPaidCents, reg.currency) }}
                         </span>
-                        <span
-                          class="tier-badge"
-                          [class.tier-early-bird]="reg.pricingTierType === 'early_bird'"
-                        >
-                          {{ formatPricingTier(reg.pricingTierType) }}
-                        </span>
+                        @if (formatPricingTier(reg.pricingTierType); as tierLabel) {
+                          <span
+                            class="tier-badge"
+                            [class.tier-early-bird]="reg.pricingTierType === 'early_bird'"
+                          >
+                            {{ tierLabel }}
+                          </span>
+                        }
                       </div>
                     }
                   </td>

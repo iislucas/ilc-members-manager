@@ -126,6 +126,14 @@ describe('EventRegistrationsComponent', () => {
   };
 
   beforeEach(async () => {
+    mockFirebaseState.user.set({
+      email: 'admin@ilc.com',
+      isAdmin: true,
+      isFullMember: true,
+      isInstructor: true,
+      member: { docId: 'admin-doc-id' },
+    });
+
     await TestBed.configureTestingModule({
       imports: [EventRegistrationsComponent],
       providers: [
@@ -182,7 +190,7 @@ describe('EventRegistrationsComponent', () => {
 
   it('should format pricing tiers and attendance correctly', async () => {
     await component.loadData();
-    expect(component.formatPricingTier(mockRegistrations[0].pricingTierType as any)).toBe('Standard Advance');
+    expect(component.formatPricingTier(mockRegistrations[0].pricingTierType as any)).toBe('');
     expect(component.formatPricingTier(mockRegistrations[1].pricingTierType as any)).toBe('Early-Bird');
     expect(component.formatPricingTier(mockRegistrations[2].pricingTierType as any)).toBe('At Door');
 
@@ -399,14 +407,14 @@ describe('EventRegistrationsComponent', () => {
     };
 
     const linkClickSpy = vi.fn();
-    vi.spyOn(document, 'createElement').mockReturnValue({
+    const createElSpy = vi.spyOn(document, 'createElement').mockReturnValue({
       setAttribute: vi.fn(),
       click: linkClickSpy,
     } as any);
-    vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
-    vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const appendSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
+    const removeSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+    const createUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
+    const revokeUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     component.exportCsv();
 
@@ -415,6 +423,30 @@ describe('EventRegistrationsComponent', () => {
     expect(createdContent).toContain('"4","2"');
     expect(createdContent).toContain('"Entry",""');
 
+    createElSpy.mockRestore();
+    appendSpy.mockRestore();
+    removeSpy.mockRestore();
+    createUrlSpy.mockRestore();
+    revokeUrlSpy.mockRestore();
     globalThis.Blob = originalBlob;
+  });
+
+  it('should render simplified table headers and attendee phone layout without Role or Contact columns', async () => {
+    await component.loadData();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const ths = Array.from(compiled.querySelectorAll('thead th')).map((th) => th.textContent?.trim());
+    expect(ths).toEqual(['Attendee', 'Levels', 'Attendance', 'Video', 'Fee', 'Date', 'Status']);
+
+    expect(ths).not.toContain('Contact');
+    expect(ths).not.toContain('Role');
+    expect(ths).not.toContain('Status / Actions');
+    expect(ths).not.toContain('Payment & Tier');
+    expect(ths).not.toContain('Registration Date');
+
+    // Make sure Standard Advance text is not in table rows
+    const tableText = compiled.querySelector('.roster-table')?.textContent || '';
+    expect(tableText).not.toContain('Standard Advance');
   });
 });
