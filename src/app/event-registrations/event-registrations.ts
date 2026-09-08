@@ -193,6 +193,7 @@ export class EventRegistrationsComponent implements OnInit {
         const nameMatch = (r.name || '').toLowerCase().includes(term);
         const emailMatch = (r.email || '').toLowerCase().includes(term);
         const phoneMatch = (r.phone || '').toLowerCase().includes(term);
+        const memberIdMatch = this.getMemberId(r).toLowerCase().includes(term);
         const levels = this.getMemberLevels(r);
         const studentLevelStr = this.formatStudentLevel(levels.studentLevel).toLowerCase();
         const appLevelStr = this.formatApplicationLevel(levels.applicationLevel).toLowerCase();
@@ -201,7 +202,7 @@ export class EventRegistrationsComponent implements OnInit {
           appLevelStr.includes(term) ||
           (levels.studentLevel || '').toLowerCase().includes(term) ||
           (levels.applicationLevel || '').toLowerCase().includes(term);
-        return nameMatch || emailMatch || phoneMatch || levelMatch;
+        return nameMatch || emailMatch || phoneMatch || memberIdMatch || levelMatch;
       });
     }
 
@@ -447,6 +448,23 @@ export class EventRegistrationsComponent implements OnInit {
     }
   }
 
+  getMemberId(reg: EventRegistration): string {
+    if (reg.memberId) return reg.memberId;
+    if (reg.memberDocId) {
+      const member = this.dataService.getMemberByDocId(reg.memberDocId);
+      if (member?.memberId) return member.memberId;
+    }
+    if (reg.email && typeof this.dataService.members?.entries === 'function') {
+      const regEmail = reg.email.toLowerCase().trim();
+      for (const m of this.dataService.members.entries()) {
+        if (m.emails?.some((e: string) => e.toLowerCase().trim() === regEmail)) {
+          if (m.memberId) return m.memberId;
+        }
+      }
+    }
+    return '';
+  }
+
   getMemberLevels(reg: EventRegistration): { studentLevel?: string; applicationLevel?: string } {
     if (reg.studentLevel !== undefined || reg.applicationLevel !== undefined) {
       return {
@@ -462,6 +480,17 @@ export class EventRegistrationsComponent implements OnInit {
         studentLevel: member.studentLevel || '',
         applicationLevel: member.applicationLevel || '',
       };
+    }
+    if (reg.email && typeof this.dataService.members?.entries === 'function') {
+      const regEmail = reg.email.toLowerCase().trim();
+      for (const m of this.dataService.members.entries()) {
+        if (m.emails?.some((e: string) => e.toLowerCase().trim() === regEmail)) {
+          return {
+            studentLevel: m.studentLevel || '',
+            applicationLevel: m.applicationLevel || '',
+          };
+        }
+      }
     }
     return {
       studentLevel: '',
@@ -545,7 +574,14 @@ export class EventRegistrationsComponent implements OnInit {
         if (sDiff !== 0) {
           res = mul * sDiff;
         } else {
-          res = mul * (getAppLevelRank(aLevels.applicationLevel) - getAppLevelRank(bLevels.applicationLevel));
+          const appDiff = getAppLevelRank(aLevels.applicationLevel) - getAppLevelRank(bLevels.applicationLevel);
+          if (appDiff !== 0) {
+            res = mul * appDiff;
+          } else {
+            const mIdA = this.getMemberId(a);
+            const mIdB = this.getMemberId(b);
+            res = mul * mIdA.localeCompare(mIdB, undefined, { numeric: true });
+          }
         }
         break;
       }
@@ -563,6 +599,9 @@ export class EventRegistrationsComponent implements OnInit {
         const amtA = this.isPendingInPerson(a) ? (a.amountDueCents || 0) : (a.amountPaidCents || 0);
         const amtB = this.isPendingInPerson(b) ? (b.amountDueCents || 0) : (b.amountPaidCents || 0);
         res = mul * (amtA - amtB);
+        if (res === 0) {
+          res = mul * (a.status || '').localeCompare(b.status || '');
+        }
         break;
       }
       case RegistrationSortField.RegisteredAt: {
@@ -591,6 +630,7 @@ export class EventRegistrationsComponent implements OnInit {
       'Email',
       'Phone',
       'Role',
+      'Member ID',
       'Student Level',
       'Application Level',
       'Attendance Mode',
@@ -613,6 +653,7 @@ export class EventRegistrationsComponent implements OnInit {
         `"${(r.email || '').replace(/"/g, '""')}"`,
         `"${(r.phone || '').replace(/"/g, '""')}"`,
         `"${this.formatRole(r.role)}"`,
+        `"${this.getMemberId(r)}"`,
         `"${levels.studentLevel || ''}"`,
         `"${levels.applicationLevel || ''}"`,
         `"${this.formatAttendance(r.attendance)}"`,

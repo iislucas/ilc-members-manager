@@ -55,6 +55,7 @@ describe('EventRegistrationsComponent', () => {
       paymentMethod: 'stripe' as const,
       pricingTierType: 'early_bird' as const,
       registeredAt: '2026-09-02T10:00:00.000Z',
+      memberId: 'US402',
       studentLevel: '4',
       applicationLevel: '2',
     },
@@ -84,6 +85,10 @@ describe('EventRegistrationsComponent', () => {
   };
 
   const mockDataManagerService = {
+    members: {
+      entries: () => [],
+      get: vi.fn(),
+    },
     getEventById: vi.fn().mockResolvedValue(mockEvent),
     getMemberByDocId: vi.fn().mockImplementation((docId: string) => {
       if (docId === 'fallback-member-doc') {
@@ -300,6 +305,7 @@ describe('EventRegistrationsComponent', () => {
     const reg1 = component.registrations().find((r) => r.docId === 'reg-1')!;
     const reg2 = component.registrations().find((r) => r.docId === 'reg-2')!;
 
+    expect(component.getMemberId(reg2)).toBe('US402');
     expect(component.getMemberLevels(reg1)).toEqual({
       studentLevel: '1',
       applicationLevel: '',
@@ -329,6 +335,13 @@ describe('EventRegistrationsComponent', () => {
     expect(component.formatApplicationLevel('2')).toBe('App 2');
     expect(component.formatApplicationLevel('App 3')).toBe('App 3');
     expect(component.formatApplicationLevel('')).toBe('');
+  });
+
+  it('should search by Member ID', async () => {
+    await component.loadData();
+    component.searchTerm.set('US402');
+    expect(component.filteredRegistrations().length).toBe(1);
+    expect(component.filteredRegistrations()[0].name).toBe('Jane Smith');
   });
 
   it('should sort attendees by various fields (Attendee, Role, Levels, Payment, RegisteredAt)', async () => {
@@ -394,7 +407,7 @@ describe('EventRegistrationsComponent', () => {
     expect(component.sortDirection()).toBe(component.SortDirection.Desc);
   });
 
-  it('should export CSV containing Student Level and Application Level', async () => {
+  it('should export CSV containing Member ID, Student Level, and Application Level', async () => {
     await component.loadData();
 
     let createdContent = '';
@@ -416,34 +429,45 @@ describe('EventRegistrationsComponent', () => {
     const createUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('mock-blob-url');
     const revokeUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
-    component.exportCsv();
+    try {
+      component.exportCsv();
 
-    expect(createdContent).toContain('Student Level,Application Level');
-    expect(createdContent).toContain('"Student Level","Application Level"'.replace(/"/g, ''));
-    expect(createdContent).toContain('"4","2"');
-    expect(createdContent).toContain('"Entry",""');
-
-    createElSpy.mockRestore();
-    appendSpy.mockRestore();
-    removeSpy.mockRestore();
-    createUrlSpy.mockRestore();
-    revokeUrlSpy.mockRestore();
-    globalThis.Blob = originalBlob;
+      expect(createdContent).toContain('Member ID,Student Level,Application Level');
+      expect(createdContent).toContain('"US402","4","2"');
+      expect(createdContent).toContain('"","Entry",""');
+    } finally {
+      createElSpy.mockRestore();
+      appendSpy.mockRestore();
+      removeSpy.mockRestore();
+      createUrlSpy.mockRestore();
+      revokeUrlSpy.mockRestore();
+      globalThis.Blob = originalBlob;
+    }
   });
 
-  it('should render simplified table headers and attendee phone layout without Role or Contact columns', async () => {
+  it('should render table headers with Member & Level, Fee & Status, and Date as the last column', async () => {
     await component.loadData();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const ths = Array.from(compiled.querySelectorAll('thead th')).map((th) => th.textContent?.trim());
-    expect(ths).toEqual(['Attendee', 'Levels', 'Attendance', 'Video', 'Fee', 'Date', 'Status']);
+    expect(ths).toEqual(['Attendee', 'Member & Level', 'Attendance', 'Video', 'Fee & Status', 'Date']);
 
     expect(ths).not.toContain('Contact');
     expect(ths).not.toContain('Role');
     expect(ths).not.toContain('Status / Actions');
     expect(ths).not.toContain('Payment & Tier');
     expect(ths).not.toContain('Registration Date');
+
+    // Verify Member ID badge is rendered
+    const memberIdBadge = compiled.querySelector('.member-id-badge');
+    expect(memberIdBadge?.textContent?.trim()).toBe('US402');
+
+    // Verify Fee & Status cells contain fee and status badge
+    const feeStatusCells = compiled.querySelectorAll('.cell-fee-status');
+    expect(feeStatusCells.length).toBe(3);
+    expect(feeStatusCells[0]?.textContent).toContain('PAID');
+    expect(feeStatusCells[1]?.textContent).toContain('$60.00');
 
     // Make sure Standard Advance text is not in table rows
     const tableText = compiled.querySelector('.roster-table')?.textContent || '';
