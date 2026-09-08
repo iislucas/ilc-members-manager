@@ -229,18 +229,13 @@ export class ProductViewComponent implements OnInit {
       if (reg.attendance === AttendanceType.InPersonAndOnline) {
         return AttendanceType.InPerson;
       }
-      if (reg.attendance === AttendanceType.VideoOnly) {
-        if (p?.allowInPerson) return AttendanceType.InPerson;
-        if (p?.allowOnline) return AttendanceType.Online;
-        return AttendanceType.VideoOnly;
-      }
       return reg.attendance;
     }
 
     if (!p) return AttendanceType.InPerson;
     if (p.allowInPerson) return AttendanceType.InPerson;
     if (p.allowOnline) return AttendanceType.Online;
-    if (p.allowVideoOnly) return AttendanceType.VideoOnly;
+    if (p.allowVideoOnly || p.allowVideo) return AttendanceType.VideoOnly;
     return AttendanceType.InPerson;
   });
 
@@ -329,7 +324,7 @@ export class ProductViewComponent implements OnInit {
     }
 
     const role = this.selectedRole();
-    const includeVid = reg.hasVideoAccess || this.includeVideo();
+    const includeVid = attendance === AttendanceType.VideoOnly ? true : (reg.hasVideoAccess || this.includeVideo());
     const p = this.product();
     if (!p) return null;
 
@@ -555,7 +550,8 @@ export class ProductViewComponent implements OnInit {
       }
       const reg = this.existingRegistration();
       if (reg) {
-        const addsVideo = Boolean(this.includeVideo() && !reg.hasVideoAccess);
+        const effectiveVideo = this.selectedAttendance() === AttendanceType.VideoOnly ? true : this.includeVideo();
+        const addsVideo = Boolean(effectiveVideo && !reg.hasVideoAccess);
         const hadInPerson =
           reg.attendance === AttendanceType.InPerson ||
           reg.attendance === AttendanceType.InPersonAndOnline;

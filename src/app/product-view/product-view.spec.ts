@@ -332,4 +332,48 @@ describe('ProductViewComponent', () => {
     expect(component.isTierAvailable()).toBe(true);
     expect(component.isFreeUpdate()).toBe(false);
   });
+
+  it('should render three pill tabs (in-person, online, video only) and show video add-on checkbox only for in-person and online', async () => {
+    await component.loadProduct();
+    fixture.detectChanges();
+
+    const pillTabs = fixture.nativeElement.querySelectorAll('.pill-tab');
+    expect(pillTabs.length).toBe(3);
+    const labels = Array.from(pillTabs).map((el: any) => el.getAttribute('data-label'));
+    expect(labels).toEqual(['In-Person', 'Online', 'Video Only']);
+
+    // When In-Person is selected: Section 3 video add-on checkbox is shown
+    component.selectedAttendance.set('in_person' as any);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeTruthy();
+
+    // When Online is selected: Section 3 video add-on checkbox is shown
+    component.selectedAttendance.set('online' as any);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeTruthy();
+
+    // When Video Only is selected: Section 3 video add-on checkbox is NOT shown
+    component.selectedAttendance.set('video_only' as any);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.video-toggle-group')).toBeFalsy();
+
+    // When attendee already has an existing registration, all 3 tabs remain available
+    component.existingRegistration.set({
+      docId: 'reg-existing',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Member',
+      email: 'member@example.com',
+      role: 'member' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: false,
+      amountPaidCents: 8000,
+      paymentMethod: 'stripe' as any,
+      status: 'paid' as any,
+    });
+    fixture.detectChanges();
+    const upgradePillTabs = fixture.nativeElement.querySelectorAll('.pill-tab');
+    expect(upgradePillTabs.length).toBe(3);
+  });
 });

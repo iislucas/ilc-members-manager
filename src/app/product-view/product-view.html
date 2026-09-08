@@ -211,14 +211,14 @@
                 <button
                   type="button"
                   class="pill-tab"
-                  data-label="Online (Zoom)"
+                  data-label="Online"
                   [class.active]="selectedAttendance() === AttendanceType.Online"
                   [disabled]="isPastEvent()"
                   (click)="selectedAttendance.set(AttendanceType.Online)"
                 >
                   <span class="tab-content">
                     <app-icon name="videocam"></app-icon>
-                    <span>Online (Zoom)</span>
+                    <span>Online</span>
                     @if (isUpgrade()) {
                       @if (isCurrentAttendance(AttendanceType.Online)) {
                         <span class="chip-current-badge">Current</span>
@@ -229,19 +229,23 @@
                   </span>
                 </button>
               }
-              @if (prod.allowVideoOnly && (!isUpgrade() || existingRegistration()?.attendance === AttendanceType.VideoOnly)) {
+              @if (prod.allowVideoOnly || prod.allowVideo) {
                 <button
                   type="button"
                   class="pill-tab"
-                  data-label="Pre-order Video Recording"
+                  data-label="Video Only"
                   [class.active]="selectedAttendance() === AttendanceType.VideoOnly"
                   (click)="selectedAttendance.set(AttendanceType.VideoOnly)"
                 >
                   <span class="tab-content">
                     <app-icon name="live_tv"></app-icon>
-                    <span>Pre-order Video Recording</span>
-                    @if (isUpgrade() && isCurrentAttendance(AttendanceType.VideoOnly)) {
-                      <span class="chip-current-badge">Current</span>
+                    <span>Video Only</span>
+                    @if (isUpgrade()) {
+                      @if (isCurrentAttendance(AttendanceType.VideoOnly)) {
+                        <span class="chip-current-badge">Current</span>
+                      } @else if (getAttendanceUpgradeBadge(AttendanceType.VideoOnly); as badge) {
+                        <span class="chip-upgrade-badge">{{ badge }}</span>
+                      }
                     }
                   </span>
                 </button>
@@ -250,7 +254,7 @@
             @if (selectedAttendance() === AttendanceType.VideoOnly) {
               <div class="capacity-hint" style="margin-top: 0.75em;">
                 <app-icon name="info"></app-icon>
-                <span>You are pre-ordering the video recording of this class/workshop (no live attendance). Video access will automatically appear in your account once the recording is processed.</span>
+                <span>You are ordering the video recording of this class/workshop (no live attendance). Video access will automatically appear in your account once the recording is processed.</span>
               </div>
             }
             @if (hasInPersonLimit() && !isPastEvent() && selectedAttendance() === AttendanceType.InPerson) {
@@ -269,35 +273,38 @@
 
           <!-- 3. Video Recording Add-on (for in-person or online) -->
           @if (prod.allowVideo && selectedAttendance() !== AttendanceType.VideoOnly && !isPastEvent()) {
-            <div class="option-group video-toggle-group">
-              @if (existingRegistration()?.hasVideoAccess && !isPendingInPerson()) {
-                <div class="video-already-included">
-                  <app-icon name="check_circle"></app-icon>
-                  <div class="video-included-text">
-                    <strong>Class Video Recording Included</strong>
-                    <span class="subtext">You already have access to the recorded session in your current registration.</span>
+            <div class="option-group">
+              <label class="group-label">3. Video Recording Add-on</label>
+              <div class="video-toggle-group">
+                @if (existingRegistration()?.hasVideoAccess && !isPendingInPerson()) {
+                  <div class="video-already-included">
+                    <app-icon name="check_circle"></app-icon>
+                    <div class="video-included-text">
+                      <strong>Class Video Recording Included</strong>
+                      <span class="subtext">You already have access to the recorded session in your current registration.</span>
+                    </div>
                   </div>
-                </div>
-              } @else {
-                <label class="checkbox-label">
-                  <input
-                    type="checkbox"
-                    [checked]="includeVideo()"
-                    (change)="includeVideo.set(!includeVideo())"
-                  />
-                  <span class="checkbox-text">
-                    <span class="video-checkbox-title-row">
-                      <strong>Include Class Video Recording</strong>
-                      @if (isUpgrade() && !isPendingInPerson() && videoUpgradeDeltaFormatted(); as delta) {
-                        <span class="chip-upgrade-badge">{{ delta }}</span>
-                      } @else if (videoAddonPriceFormatted(); as price) {
-                        <span class="chip-addon-badge">(+{{ price }})</span>
-                      }
+                } @else {
+                  <label class="checkbox-label">
+                    <input
+                      type="checkbox"
+                      [checked]="includeVideo()"
+                      (change)="includeVideo.set(!includeVideo())"
+                    />
+                    <span class="checkbox-text">
+                      <span class="video-checkbox-title-row">
+                        <strong>Include Class Video Recording</strong>
+                        @if (isUpgrade() && !isPendingInPerson() && videoUpgradeDeltaFormatted(); as delta) {
+                          <span class="chip-upgrade-badge">{{ delta }}</span>
+                        } @else if (videoAddonPriceFormatted(); as price) {
+                          <span class="chip-addon-badge">(+{{ price }})</span>
+                        }
+                      </span>
+                      <span class="subtext">Watch the recorded session anytime after the event.</span>
                     </span>
-                    <span class="subtext">Watch the recorded session anytime after the event.</span>
-                  </span>
-                </label>
-              }
+                  </label>
+                }
+              </div>
             </div>
           }
 
