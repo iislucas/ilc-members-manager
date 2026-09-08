@@ -196,6 +196,71 @@ describe('ProductViewComponent', () => {
     expect(component.isFreeUpdate()).toBe(true); // price difference <= 0 is update, not an error
   });
 
+  it('should consider existing tier entitlements when changing attendance mode with video access (no extra charge when switching equal tiers)', async () => {
+    await component.loadProduct();
+
+    component.existingRegistration.set({
+      docId: 'reg-inst-1',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-01T10:00:00Z',
+      name: 'Test Instructor',
+      email: 'member@example.com',
+      role: 'instructor' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: true,
+      amountPaidCents: 8000,
+    });
+
+    // In mockProduct: instructor_in_person_video is 80, instructor_online_video is 50
+    component.selectedAttendance.set('online' as any);
+    expect(component.existingTierPrice()).toBe(80);
+    expect(component.upgradeDifference()).toBe(-30);
+    expect(component.isFreeUpdate()).toBe(true);
+    expect(component.isTierAvailable()).toBe(true);
+    expect(component.priceFormatted()).toContain('0');
+    expect(component.getAttendanceUpgradeBadge('online' as any)).toBe('Included');
+  });
+
+  it('should treat switching attendance between equally priced tiers as free even if event prices were updated', async () => {
+    await component.loadProduct();
+
+    const customProduct: Product = {
+      ...mockProduct,
+      tiers: {
+        ...mockProduct.tiers,
+        'instructor_in_person_novideo': { enabled: true, price: 90 },
+        'instructor_in_person_video': { enabled: true, price: 110 },
+        'instructor_online_novideo': { enabled: true, price: 90 },
+        'instructor_online_video': { enabled: true, price: 110 },
+      },
+    };
+    component.product.set(customProduct);
+
+    // Attendee paid $90 originally when in-person with video was $90
+    component.existingRegistration.set({
+      docId: 'reg-lucas',
+      eventDocId: 'event-1',
+      productId: 'test-prod-1',
+      registeredAt: '2026-09-06T22:08:36.000Z',
+      name: 'Lucas Dixon',
+      email: 'member@example.com',
+      role: 'instructor' as any,
+      attendance: 'in_person' as any,
+      hasVideoAccess: true,
+      amountPaidCents: 9000,
+    });
+
+    expect(component.existingTierPrice()).toBe(110); // Current value of in-person + video is $110
+
+    // Switching to Online
+    component.selectedAttendance.set('online' as any);
+    expect(component.getAttendanceUpgradeBadge('online' as any)).toBe('Included');
+    expect(component.upgradeDifference()).toBe(0);
+    expect(component.isFreeUpdate()).toBe(true);
+    expect(component.priceFormatted()).toContain('0');
+  });
+
   it('should call updateProductRegistration when saving free update', async () => {
     await component.loadProduct();
     component.existingRegistration.set({

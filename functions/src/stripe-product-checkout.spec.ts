@@ -166,6 +166,56 @@ describe('stripe-product-checkout tier resolution', () => {
     };
     expect(() => unmarkRegistration(paidStripe)).toThrow('Only in-person door payments can be unmarked.');
   });
+
+  it('calculates credit based on existing tier entitlements when changing attendance', () => {
+    const product: Product = {
+      ...initProduct(),
+      tiers: {
+        instructor_in_person_novideo: { enabled: true, price: 90 },
+        instructor_in_person_video: { enabled: true, price: 110 },
+        instructor_online_novideo: { enabled: true, price: 90 },
+        instructor_online_video: { enabled: true, price: 110 },
+      },
+    };
+
+    function calculateCreditAndDiff(
+      existingReg: { role: AttendeeRole; attendance: AttendanceType; hasVideoAccess: boolean; amountPaidCents: number },
+      requestedAttendance: AttendanceType,
+      requestedIncludeVideo: boolean,
+    ) {
+      let existingTierPriceInCents = existingReg.amountPaidCents || 0;
+      const existingLookupAtt =
+        existingReg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : existingReg.attendance;
+      const existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess));
+      const existingTier = product.tiers[existingKey];
+      if (existingTier && existingTier.enabled && typeof existingTier.price === 'number') {
+        existingTierPriceInCents = Math.round(existingTier.price * 100);
+      }
+      const creditAppliedCents = Math.max(existingReg.amountPaidCents || 0, existingTierPriceInCents);
+
+      const targetLookupAtt =
+        requestedAttendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : requestedAttendance;
+      const targetKey = getPricingTierKey(existingReg.role, targetLookupAtt, requestedIncludeVideo);
+      const targetTier = product.tiers[targetKey];
+      const fullPriceInCents = Math.round((targetTier?.price ?? 0) * 100);
+      const upgradeDiffCents = fullPriceInCents - creditAppliedCents;
+
+      return { creditAppliedCents, upgradeDiffCents };
+    }
+
+    // Existing attendee paid $90 for in-person with video (before delta price was added)
+    const existing = {
+      role: AttendeeRole.Instructor,
+      attendance: AttendanceType.InPerson,
+      hasVideoAccess: true,
+      amountPaidCents: 9000,
+    };
+
+    // Switching to Online (keeping video)
+    const res = calculateCreditAndDiff(existing, AttendanceType.Online, true);
+    expect(res.creditAppliedCents).toBe(11000); // Valued at current in-person with video tier ($110)
+    expect(res.upgradeDiffCents).toBe(0); // Online with video is $110 -> 0 upgrade difference!
+  });
 });
 
 

@@ -314,6 +314,35 @@ export class ProductViewComponent implements OnInit {
     return reg.attendance === attendance;
   }
 
+  // Value of current registration entitlements under current pricing
+  existingTierPrice = computed(() => {
+    const reg = this.existingRegistration();
+    const p = this.product();
+    if (!reg || !p) return 0;
+    if (this.isPendingInPerson()) return 0;
+
+    const role = reg.role || this.selectedRole();
+    const attendance =
+      reg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : reg.attendance;
+    const includeVid = Boolean(reg.hasVideoAccess);
+
+    const tierType = this.isEarlyBirdActive() ? PricingTierType.EarlyBird : PricingTierType.Standard;
+    let key = getPricingTierKey(role, attendance, includeVid, tierType);
+    let tier = p.tiers[key];
+    if ((!tier || !tier.enabled) && this.isEarlyBirdActive()) {
+      key = getPricingTierKey(role, attendance, includeVid, PricingTierType.Standard);
+      tier = p.tiers[key];
+    }
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      const fallbackKey = getPricingTierKey(AttendeeRole.NonMember, attendance, includeVid, tierType);
+      if (p.tiers[fallbackKey]?.enabled) {
+        tier = p.tiers[fallbackKey];
+      }
+    }
+    const currentTierPrice = tier && tier.enabled && typeof tier.price === 'number' ? tier.price : 0;
+    return Math.max(this.amountAlreadyPaid(), currentTierPrice);
+  });
+
   getAttendanceUpgradeBadge(attendance: AttendanceType): string | null {
     if (!this.isUpgrade()) return null;
     const reg = this.existingRegistration();
@@ -343,7 +372,7 @@ export class ProductViewComponent implements OnInit {
     }
     if (!tier || !tier.enabled) return null;
 
-    const diff = (tier.price || 0) - this.amountAlreadyPaid();
+    const diff = (tier.price || 0) - this.existingTierPrice();
     if (diff <= 0) {
       return 'Included';
     }
@@ -393,7 +422,7 @@ export class ProductViewComponent implements OnInit {
     }
     if (!tierWithVideo || !tierWithVideo.enabled) return '';
 
-    const diff = (tierWithVideo.price || 0) - this.amountAlreadyPaid();
+    const diff = (tierWithVideo.price || 0) - this.existingTierPrice();
     if (diff <= 0) {
       return 'Included';
     }
@@ -510,7 +539,10 @@ export class ProductViewComponent implements OnInit {
   });
 
   upgradeDifference = computed(() => {
-    const diff = this.rawPrice() - this.amountAlreadyPaid();
+    if (this.isPendingInPerson()) {
+      return this.rawPrice();
+    }
+    const diff = this.rawPrice() - this.existingTierPrice();
     return Math.round(diff * 100) / 100;
   });
 

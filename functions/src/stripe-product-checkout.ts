@@ -332,7 +332,31 @@ export const createProductCheckoutSession = onCall<
   const fullPriceInCents = Math.round((tier.price ?? 0) * 100);
   let priceToChargeInCents = fullPriceInCents;
 
-  if (isUpgradeActive) {
+  if (isUpgradeActive && existingReg) {
+    let existingTierPriceInCents = existingReg.amountPaidCents || 0;
+    if (existingReg.role && existingReg.attendance && !isPayingUnpaidInPerson) {
+      const existingLookupAtt: AttendanceType =
+        existingReg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : existingReg.attendance;
+      let existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess), pricingTierType);
+      let existingTier = product.tiers[existingKey];
+      if ((!existingTier || !existingTier.enabled) && (existingReg.role === AttendeeRole.Member || existingReg.role === AttendeeRole.Instructor)) {
+        existingKey = getPricingTierKey(AttendeeRole.NonMember, existingLookupAtt, Boolean(existingReg.hasVideoAccess), pricingTierType);
+        existingTier = product.tiers[existingKey];
+      }
+      if ((!existingTier || !existingTier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+        existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess), PricingTierType.Standard);
+        existingTier = product.tiers[existingKey];
+        if ((!existingTier || !existingTier.enabled) && (existingReg.role === AttendeeRole.Member || existingReg.role === AttendeeRole.Instructor)) {
+          existingKey = getPricingTierKey(AttendeeRole.NonMember, existingLookupAtt, Boolean(existingReg.hasVideoAccess), PricingTierType.Standard);
+          existingTier = product.tiers[existingKey];
+        }
+      }
+      if (existingTier && existingTier.enabled && typeof existingTier.price === 'number') {
+        existingTierPriceInCents = Math.round(existingTier.price * 100);
+      }
+    }
+    creditAppliedCents = isPayingUnpaidInPerson ? 0 : Math.max(existingReg.amountPaidCents || 0, existingTierPriceInCents);
+
     const upgradeDiffCents = fullPriceInCents - creditAppliedCents;
     if (upgradeDiffCents <= 0) {
       throw new HttpsError(
@@ -611,20 +635,61 @@ export const updateProductRegistration = onCall<
   // 7. Verify Pricing Tier - Hard server-side check that this does not require an unpaid upgrade
   const tierLookupAttendance: AttendanceType =
     attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : attendance;
-  let tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess);
+
+  let pricingTierType = PricingTierType.Standard;
+  if (product.hasEarlyBird && product.earlyBirdDeadline) {
+    const today = new Date().toISOString().split('T')[0];
+    if (today <= product.earlyBirdDeadline) {
+      pricingTierType = PricingTierType.EarlyBird;
+    }
+  }
+
+  let tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess, pricingTierType);
   let tier = product.tiers[tierKey];
 
   if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
-    tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess);
+    tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess, pricingTierType);
     tier = product.tiers[tierKey];
+  }
+  if ((!tier || !tier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+    pricingTierType = PricingTierType.Standard;
+    tierKey = getPricingTierKey(role, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
+    tier = product.tiers[tierKey];
+    if ((!tier || !tier.enabled) && (role === AttendeeRole.Member || role === AttendeeRole.Instructor)) {
+      tierKey = getPricingTierKey(AttendeeRole.NonMember, tierLookupAttendance, hasVideoAccess, PricingTierType.Standard);
+      tier = product.tiers[tierKey];
+    }
   }
 
   if (!tier || !tier.enabled) {
     throw new HttpsError('failed-precondition', 'The selected registration option is currently unavailable.');
   }
 
+  let existingTierPriceInCents = existingReg.amountPaidCents || 0;
+  if (existingReg.role && existingReg.attendance && !isUnpaidInPerson) {
+    const existingLookupAtt: AttendanceType =
+      existingReg.attendance === AttendanceType.InPersonAndOnline ? AttendanceType.InPerson : existingReg.attendance;
+    let existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess), pricingTierType);
+    let existingTier = product.tiers[existingKey];
+    if ((!existingTier || !existingTier.enabled) && (existingReg.role === AttendeeRole.Member || existingReg.role === AttendeeRole.Instructor)) {
+      existingKey = getPricingTierKey(AttendeeRole.NonMember, existingLookupAtt, Boolean(existingReg.hasVideoAccess), pricingTierType);
+      existingTier = product.tiers[existingKey];
+    }
+    if ((!existingTier || !existingTier.enabled) && pricingTierType === PricingTierType.EarlyBird) {
+      existingKey = getPricingTierKey(existingReg.role, existingLookupAtt, Boolean(existingReg.hasVideoAccess), PricingTierType.Standard);
+      existingTier = product.tiers[existingKey];
+      if ((!existingTier || !existingTier.enabled) && (existingReg.role === AttendeeRole.Member || existingReg.role === AttendeeRole.Instructor)) {
+        existingKey = getPricingTierKey(AttendeeRole.NonMember, existingLookupAtt, Boolean(existingReg.hasVideoAccess), PricingTierType.Standard);
+        existingTier = product.tiers[existingKey];
+      }
+    }
+    if (existingTier && existingTier.enabled && typeof existingTier.price === 'number') {
+      existingTierPriceInCents = Math.round(existingTier.price * 100);
+    }
+  }
+
   const fullPriceInCents = Math.round((tier.price ?? 0) * 100);
-  const creditAppliedCents = existingReg.amountPaidCents || 0;
+  const creditAppliedCents = isUnpaidInPerson ? 0 : Math.max(existingReg.amountPaidCents || 0, existingTierPriceInCents);
   const upgradeDiffCents = fullPriceInCents - creditAppliedCents;
 
   if (upgradeDiffCents > 0 && !isUnpaidInPerson) {
