@@ -466,7 +466,7 @@ export class EventRegistrationsComponent implements OnInit {
   }
 
   getMemberLevels(reg: EventRegistration): { studentLevel?: string; applicationLevel?: string } {
-    if (reg.studentLevel !== undefined || reg.applicationLevel !== undefined) {
+    if (reg.studentLevel || reg.applicationLevel) {
       return {
         studentLevel: reg.studentLevel || '',
         applicationLevel: reg.applicationLevel || '',
